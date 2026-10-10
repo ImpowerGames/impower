@@ -1,3 +1,5 @@
+import { getContextEntry } from "./getContextEntry";
+
 /**
  * Look a `{ $type, $name }` reference up in the compiled context.
  *
@@ -15,11 +17,11 @@ export const resolveImageReference = (
   }
   const name = ref["$name"];
   if (ref["$type"]) {
-    return context?.[ref["$type"]]?.[name];
+    return getContextEntry(context, ref["$type"], name);
   }
   return (
-    context?.["filtered_image"]?.[name] ??
-    context?.["image"]?.[name] ??
-    context?.["layered_image"]?.[name]
+    getContextEntry(context, "filtered_image", name) ??
+    getContextEntry(context, "image", name) ??
+    getContextEntry(context, "layered_image", name)
   );
 };

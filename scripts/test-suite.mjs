@@ -99,50 +99,109 @@ function loadEvidence(run) {
 
 // Both output streams go directly to one UTF-8 file: surviving children retain
 // their handles after coordinator interruption, with no shell encoding conversion.
-async function childRun(run, mode, file, reservation, save, { enginePath = engine, identify = processIdentity } = {}) {
+function settleNoChild(reservation, evidence) {
+  if (reservation.record.phase !== "launching") return;
+  // Spawn has definitely not returned a child. This is a token-checked cleanup
+  // transition, never an admission retry or a claim about any running child.
+  try { reservation.update({ phase: "exited", child: null }); }
+  catch (error) { evidence.reservationCleanupError = error.message; }
+}
+
+async function childRun(run, mode, file, reservation, save, { enginePath = engine, identify = processIdentity, onReservationError = () => {},
+  onJournalError = () => {}, environment = childEnvironment, spawnChild = spawnDetached } = {}) {
   const id = randomUUID();
   const directory = path.join(run.directory, id);
-  fs.mkdirSync(directory);
   const attempt = { id, file, mode, directory, status: "unknown", startedAt: now(), owner: reservation.record.owner };
   run.attempts.push(attempt);
-  reservation.update({ phase: "launching", attempt: id });
-  save();
+  const update = value => {
+    if (attempt.reservationError) return false;
+    try { reservation.update(value); return true; }
+    catch (error) {
+      attempt.reservationError = error.message;
+      onReservationError(attempt.reservationError);
+      console.error(`Reservation update failed; retaining only unpersisted attempt evidence: ${error.message}`);
+      return false;
+    }
+  };
   const logFile = path.join(directory, "output.log"), jsonFile = path.join(directory, "vitest.json");
-  const fd = fs.openSync(logFile, "wx");
-  const env = childEnvironment();
-  let child;
-  try { child = spawnDetached(process.execPath, ["--max-old-space-size=1024", enginePath, mode, run.packageRoot, jsonFile, ...(file ? [file] : [])],
-    { cwd: run.packageRoot, env, stdio: ["ignore", fd, fd] }); }
-  finally { fs.closeSync(fd); }
-  // Install exit listeners before synchronous identity probes: fast children
-  // can disappear before inspection but their actual exit event is still required.
-  const completion = new Promise(resolve => {
-    child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
-    child.once("close", (exit, signal) => resolve({ exit, signal }));
-  });
+  let fd, child, completion;
+  if (!update({ phase: "reserved", attempt: id, child: null })) {
+    Object.assign(attempt, { status: "not-run", endedAt: now() });
+    return { attempt, report: null };
+  }
+  try {
+    // No child can exist during preparation. A failure leaves the reservation
+    // reserved (or exited after a previous child), so its owner can release it.
+    fs.mkdirSync(directory);
+    save();
+    fd = fs.openSync(logFile, "wx");
+    const env = environment();
+    if (update({ phase: "launching", attempt: id })) {
+      try { child = spawnChild(process.execPath, ["--max-old-space-size=1024", enginePath, mode, run.packageRoot, jsonFile, ...(file ? [file] : [])],
+        { cwd: run.packageRoot, env, stdio: ["ignore", fd, fd] }); }
+      catch (error) { update({ phase: "exited" }); throw error; }
+      // Attach before closing the parent's log handle or inspecting identity.
+      // Cleanup failure must not abandon a child that actually started.
+      completion = new Promise(resolve => {
+        child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
+        child.once("close", (exit, signal) => resolve({ exit, signal }));
+      });
+    }
+  } catch (error) {
+    attempt.setupError = error.message;
+    // Preparation may have failed after ownership changed. Detect that before
+    // the coordinator's final save; only a proven no-child phase can release.
+    update({ phase: reservation.record.phase, child: null });
+  }
+  finally {
+    if (fd !== undefined) try { fs.closeSync(fd); }
+    catch (error) { attempt.logCleanupError = error.message; }
+  }
+  if (!child) {
+    settleNoChild(reservation, attempt);
+    Object.assign(attempt, { status: "not-run", endedAt: now() });
+    return { attempt, report: null };
+  }
+  const publish = action => {
+    if (attempt.reservationError || attempt.journalError) return;
+    try { action(); }
+    catch (error) { attempt.journalError = error.message; onJournalError(error.message); }
+  };
   attempt.pid = child.pid;
   try {
     attempt.child = child.pid ? identify(child.pid) : null;
     attempt.status = attempt.child ? "running" : "unknown";
-    reservation.update({ phase: attempt.child ? "running" : "launching", child: attempt.child });
   } catch (error) { attempt.identityError = error.message; }
-  save();
-  atomic(path.join(directory, "attempt.json"), attempt);
+  update({ phase: attempt.child ? "running" : "launching", child: attempt.child });
+  publish(() => {
+    save();
+    atomic(path.join(directory, "attempt.json"), attempt);
+  });
   const progress = setInterval(() => console.log(JSON.stringify({ run: run.directory, file, status: attempt.status, pid: child.pid, waitingForExit: true })), 30000);
   let result;
   try { result = await completion; } finally { clearInterval(progress); }
   Object.assign(attempt, result, { endedAt: now() });
   // Record actual exit before trying to parse any result. Parsing failures cannot
   // erase evidence that permits safe reconciliation.
-  reservation.update({ phase: "exited", exit: result.exit, signal: result.signal });
-  atomic(path.join(directory, "attempt.json"), attempt);
+  update({ phase: "exited", exit: result.exit, signal: result.signal });
+  publish(() => atomic(path.join(directory, "attempt.json"), attempt));
   let report = null;
   try { report = read(jsonFile); } catch (error) { attempt.reportError = error.message; }
-  if (mode === "discover") {
-    attempt.status = result.exit === 0 && Array.isArray(report) && report.every(f => typeof f === "string") ? "passed" : "failed";
-  } else Object.assign(attempt, verifyResult(file, result.exit, result.signal, report, fs.readFileSync(logFile, "utf8")));
-  atomic(path.join(directory, "attempt.json"), attempt);
-  save();
+  try {
+    if (mode === "discover") {
+      attempt.status = result.exit === 0 && Array.isArray(report) && report.every(f => typeof f === "string") ? "passed" : "failed";
+    } else Object.assign(attempt, verifyResult(file, result.exit, result.signal, report, fs.readFileSync(logFile, "utf8")));
+  } catch (error) {
+    // An observed close and successful verification are separate evidence.
+    // Failed report/output inspection cannot erase that close or escape the
+    // coordinator's uncertainty latch into a later shared-journal write.
+    Object.assign(attempt, { status: "failed", tests: 0, failures: [], skips: [],
+      verificationError: error.message, problems: [`Result verification failed: ${error.message}`] });
+  }
+  publish(() => {
+    atomic(path.join(directory, "attempt.json"), attempt);
+    save();
+  });
   return { attempt, report };
 }
 
@@ -179,22 +238,72 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   const fingerprint = dependencies.fingerprint || fingerprinter(value => {
     if (Date.now() - lastProgress > 10000) { console.log(JSON.stringify({ run: directory, ...value })); lastProgress = Date.now(); }
   });
-  const save = () => atomic(path.join(directory, "run.json"), run);
   let summary;
+  let reservationError;
+  let journalError, attemptError, failureInFlight;
+  const publish = action => {
+    try { return action(); }
+    catch (error) { journalError ||= error.message; throw error; }
+  };
+  const save = () => { if (!reservationError && !journalError) publish(() => atomic(path.join(directory, "run.json"), run)); };
+  const childDependencies = { ...dependencies, onReservationError: error => { reservationError = error; }, onJournalError: error => { journalError = error; } };
+  let childAttempted = false;
+  const unpersistedAttempts = [];
+  const observedAttempts = [];
+  const retain = attempt => {
+    childAttempted ||= attempt.status !== "not-run";
+    if (attempt.status !== "not-run") observedAttempts.push({ ...attempt });
+    const error = attempt.setupError || attempt.logCleanupError || attempt.journalError || attempt.reservationError;
+    if (!error) return false;
+    attemptError = error;
+    reservationError ||= attempt.reservationError;
+    // These observed results are for this invocation only, never reusable
+    // durable evidence. After uncertainty, a token read followed by rename
+    // would not establish ownership of any shared journal.
+    if (attempt.reservationError || attempt.journalError) unpersistedAttempts.push({ ...attempt });
+    console.error(JSON.stringify({ attemptError: attempt }));
+    if (!childAttempted) throw Object.assign(new Error(error), { notRun: true, attempt, unpersistedAttempts });
+    return true;
+  };
+  let semanticRefusal;
+  const refuseStale = message => {
+    // The inputs are already known to be unusable, even if publishing that
+    // fact fails. A journal error cannot turn this refusal into an admission retry.
+    semanticRefusal = new Error(message);
+    run.stale = true;
+    try { save(); }
+    catch (error) {
+      semanticRefusal.journalError = error.message;
+      semanticRefusal.message += `; Journal publication failed: ${error.message}`;
+    }
+    throw semanticRefusal;
+  };
+  const finish = () => {
+    summary = aggregate(run);
+    if (!reservationError && !journalError && !attemptError) {
+      try { publish(() => atomic(path.join(directory, "summary.json"), summary)); }
+      catch { /* The original outcome remains returned beside journalError. */ }
+    }
+    if (reservationError || journalError || attemptError) {
+      if (!run.identity) summary.status = "incomplete";
+      Object.assign(summary, { reservationError, journalError, attemptError, unpersistedAttempts,
+        observedAttempt: run.attempts.at(-1), observedAttempts });
+    }
+    return summary;
+  };
   try {
     if (fs.existsSync(path.join(directory, "run.json"))) {
       run = read(path.join(directory, "run.json"));
       validateRun(run, directory);
       loadEvidence(run);
+      if (run.stale || run.manifestHash !== manifestHash(run.files) || run.identity !== fingerprint(run.root, [])) {
+        refuseStale("Source/configuration/dependency identity changed; start a new run (old attempts preserved)");
+      }
       // Acquisition reconciled both the previous coordinator and its child.
       for (const attempt of run.attempts) if (!["passed", "failed", "interrupted"].includes(attempt.status)) {
         attempt.status = "interrupted";
         attempt.reconciledAt = now();
-        atomic(path.join(attempt.directory, "attempt.json"), attempt);
-      }
-      if (run.stale || run.manifestHash !== manifestHash(run.files) || run.identity !== fingerprint(run.root, [])) {
-        run.stale = true; save();
-        throw new Error("Source/configuration/dependency identity changed; start a new run (old attempts preserved)");
+        publish(() => atomic(path.join(attempt.directory, "attempt.json"), attempt));
       }
       run.owner = reservation.record.owner;
       run.token = reservation.record.token;
@@ -210,7 +319,8 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       run = { version: 1, directory, root, packageRoot, owner: reservation.record.owner, token: reservation.record.token, active: true, createdAt: now(), files: [], attempts: [] };
       save();
       const beforeDiscovery = fingerprint(root, []);
-      const { attempt, report } = await childRun(run, "discover", null, reservation, save, dependencies);
+      const { attempt, report } = await childRun(run, "discover", null, reservation, save, childDependencies);
+      if (retain(attempt)) return finish();
       if (attempt.status !== "passed") throw new Error(`Discovery failed; inspect ${attempt.directory}`);
       const trackedFiles = new Set(tracked(root).map(f => canonicalPath(path.resolve(root, f))));
       run.files = [...new Set(report.map(canonicalPath).filter(f => trackedFiles.has(f)))].sort();
@@ -219,7 +329,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       save();
       run.manifestHash = manifestHash(run.files);
       run.identity = fingerprint(root, []);
-      if (run.identity !== beforeDiscovery) { run.stale = true; save(); throw new Error("Inputs changed during discovery; start a new run"); }
+      if (run.identity !== beforeDiscovery) refuseStale("Inputs changed during discovery; start a new run");
       save();
     }
     for (const file of retry) {
@@ -228,24 +338,43 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     for (const file of run.files) {
       const previous = run.attempts.filter(a => a.file === file).at(-1);
       if (previous && (previous.status === "passed" || previous.status === "failed" && !retry.includes(file))) continue;
-      if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); throw new Error("Inputs changed during suite; start a new run"); }
+      if (fingerprint(run.root, []) !== run.identity) refuseStale("Inputs changed during suite; start a new run");
       await waitForCensus({ deadline: Date.now() + waitMs, pollMs: dependencies.pollMs, census, onWait: reportWait });
-      await childRun(run, "run", file, reservation, save, dependencies);
+      const { attempt } = await childRun(run, "run", file, reservation, save, childDependencies);
+      if (retain(attempt)) return finish();
     }
-    if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); }
-    summary = aggregate(run);
-    atomic(path.join(directory, "summary.json"), summary);
-    return summary;
+    if (fingerprint(run.root, []) !== run.identity) {
+      run.stale = true;
+      try { save(); }
+      catch { /* finish retains the known stale summary beside journalError. */ }
+    }
+    return finish();
+  } catch (error) {
+    // Coordinator publication can fail between children or after aggregation.
+    // Stop admission and retain every result this invocation already observed.
+    if (journalError && childAttempted && !semanticRefusal) return finish();
+    failureInFlight = error;
+    Object.assign(error, { observedAttempts, unpersistedAttempts });
+    if (!semanticRefusal && !childAttempted && (journalError || error.code)) error.notRun = true;
+    throw error;
   } finally {
     // Persist while still owning the reservation: a successor may acquire it
     // immediately after release and must never be overwritten by this owner.
-    if (run?.token === reservation.record.token) { run.active = false; save(); }
+    try {
+      if (!reservationError && !journalError && run?.token === reservation.record.token) { run.active = false; save(); }
+    } catch (error) {
+      if (summary) Object.assign(summary, { journalError: error.message, observedAttempts,
+        observedAttempt: run.attempts.at(-1), unpersistedAttempts });
+      if (failureInFlight) failureInFlight.journalError = error.message;
+      console.error(`Final journal save failed before release: ${error.message}`);
+    }
     // A failed release never replaces the summary or the error already in
     // flight. summary.json is already written, and after the release attempt
     // this owner writes nothing more, so the failure goes on the returned summary only.
     try { reservation.release(); }
     catch (error) {
       if (summary) summary.releaseError = error.message;
+      if (failureInFlight) failureInFlight.releaseError = error.message;
       console.error(`Reservation not released; the next acquirer recovers it: ${error.message}`);
     }
   }
@@ -266,13 +395,30 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   const identify = dependencies.identify || processIdentity;
   const reservation = await queue(`vitest run in ${packageRoot}`, { ...dependencies, census, waitMs });
   let child;
-  reservation.update({ phase: "launching" });
+  try { reservation.update({ phase: "launching" }); }
+  catch (error) {
+    // No spawn was attempted. Preserve uncertain ownership, and distinguish
+    // this admission refusal from a failing test; never re-acquire or relaunch.
+    settleNoChild(reservation, error);
+    releaseKeeping(reservation, error);
+    throw Object.assign(error, { notRun: true });
+  }
+  const reservationErrors = [];
+  const noteReservationError = error => {
+    reservationErrors.push(error.message);
+    console.error(`Reservation update failed; awaiting only the original child: ${error.message}`);
+  };
   // Release only while no child can be running; an unconfirmed exit keeps the
   // reservation, as the suite coordinator does.
   try {
     child = spawn(process.execPath, ["--max-old-space-size=1024", vitestPath, ...vitestArguments(files)],
       { cwd: packageRoot, env: childEnvironment(), stdio, windowsHide: true });
-  } catch (error) { reservation.update({ phase: "exited" }); releaseKeeping(reservation, error); throw error; }
+  } catch (error) {
+    try { reservation.update({ phase: "exited" }); }
+    catch (failure) { error.reservationError = failure.message; noteReservationError(failure); }
+    releaseKeeping(reservation, error);
+    throw error;
+  }
   const completion = new Promise(resolve => {
     child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
     child.once("close", (exit, signal) => resolve({ exit, signal }));
@@ -280,9 +426,12 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   let identity = null;
   try { identity = child.pid ? identify(child.pid) : null; }
   catch (error) { console.error(`Child identity unavailable: ${error.message}`); }
-  reservation.update({ phase: identity ? "running" : "launching", child: identity });
+  try { reservation.update({ phase: identity ? "running" : "launching", child: identity }); }
+  catch (error) { noteReservationError(error); }
   const result = await completion;
-  reservation.update({ phase: "exited", exit: result.exit, signal: result.signal });
+  try { reservation.update({ phase: "exited", exit: result.exit, signal: result.signal }); }
+  catch (error) { noteReservationError(error); }
+  if (reservationErrors.length) result.reservationError = reservationErrors.join("; ");
   // The result is known; a failed release is reported beside it, never instead of it.
   try { reservation.release(); }
   catch (error) {
@@ -335,6 +484,39 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
 // match so direct Vitest calls are refused at the same width.
 export const MAX_RUN_FILES = 8;
 
+// Validate the whole request before dependency lookup or queue admission.
+function validateTestFiles(packageRoot, files) {
+  for (const requested of files) {
+    const escaped = JSON.stringify(requested)?.replace(/[\u007f-\u009f\u2028\u2029]/g, value => `\\u${value.charCodeAt(0).toString(16).padStart(4, "0")}`);
+    const refusal = () => new Error(`Invalid test file ${escaped}: name an existing literal test/spec TS or TSX file within ${JSON.stringify(packageRoot)}`);
+    if (process.platform === "win32" && typeof requested === "string"
+      && requested.startsWith(path.toNamespacedPath("C:/").slice(0, 4))) {
+      throw new Error(`Invalid test file ${escaped}: unsupported Windows namespace syntax for Vitest file filters; use an ordinary relative or absolute path`);
+    }
+    if (typeof requested !== "string" || /[\x00-\x1f\u007f-\u009f\u2028\u2029*?]/.test(requested)
+      || requested.startsWith("-") || !/\.(test|spec)\.(ts|tsx)$/.test(requested)) throw refusal();
+    const resolved = path.resolve(packageRoot, requested);
+    try {
+      if (!fs.statSync(resolved).isFile() || !isWithinDirectory(packageRoot, canonicalPath(resolved))) throw refusal();
+    } catch { throw refusal(); }
+  }
+}
+
+// Refuse mistaken workspace names before dependency lookup or queue admission.
+function packageDirectory(target) {
+  const directory = path.resolve(target);
+  try {
+    if (fs.statSync(directory).isDirectory() && fs.statSync(path.join(directory, "package.json")).isFile()) {
+      return canonicalPath(directory);
+    }
+  } catch (error) {
+    if (!["ENOENT", "ENOTDIR"].includes(error.code)) {
+      throw new Error(`Cannot inspect package directory ${directory}: ${error.message}`);
+    }
+  }
+  throw new Error(`Expected a package directory containing a package.json file: ${directory}. Use the package's directory, such as packages/sparkdown, rather than its workspace name.`);
+}
+
 // The command line. `dependencies` is the test seam for the reservation store,
 // census and child programs; the entry point below passes none.
 export async function main(argv, dependencies = {}) {
@@ -347,12 +529,14 @@ export async function main(argv, dependencies = {}) {
     // hook refuses it.
     if (!args.length) throw new Error("Name the test files under work; the package result comes from the Test Suite workflow on the pushed head");
     if (args.length > MAX_RUN_FILES) throw new Error(`run takes at most ${MAX_RUN_FILES} test files (${args.length} named): a longer list is a package run, which the Test Suite workflow runs for the pushed head; run only the test files under work locally`);
-    const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot: target, files: args, waitMs });
+    const packageRoot = packageDirectory(target);
+    validateTestFiles(packageRoot, args);
+    const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot, files: args, waitMs });
     if (launchError) throw new Error(launchError);
     if (signal) console.error(`Vitest ended by signal ${signal}`);
     return exit ?? 1;
   } else if (command === "start" && target && !args.length) {
-    const packageRoot = canonicalPath(target);
+    const packageRoot = packageDirectory(target);
     const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
     const directory = path.join(gitDir, "test-suites", randomUUID());
     console.log(JSON.stringify({ run: directory, status: "starting", coordinator: processIdentity(process.pid) }));
@@ -362,7 +546,7 @@ export async function main(argv, dependencies = {}) {
     const run = read(path.join(target, "run.json"));
     result = await execute({ ...dependencies, directory: target, waitMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
   } else if (command === "status" && target && !args.length) result = status(target);
-  else throw new Error("Usage: node scripts/test-suite.mjs run <package> <test-file> [<test-file> ...] [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]");
+  else throw new Error("Usage: node scripts/test-suite.mjs run <package-dir> <test-file> [<test-file> ...] [--wait <seconds>] | start <package-dir> [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]; <package-dir> is a directory such as packages/sparkdown");
   console.log(JSON.stringify(result, null, 2));
   return result.status === "passed" ? 0 : 1;
 }

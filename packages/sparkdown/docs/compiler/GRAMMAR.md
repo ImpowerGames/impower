@@ -2,7 +2,7 @@
 
 This guide is for anyone adding, modifying, or debugging a rule in `definitions/yaml/sparkdown.language-grammar.yaml` — the file that tells sparkdown's parser how to turn `.sd` source into a syntax tree. It assumes no prior experience with TextMate grammars, Lezer, or this codebase's pipeline.
 
-> **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](./RUNTIME.md) covers the bytecode interpreter.
+> **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](../runtime/RUNTIME.md) covers the binary-program interpreter.
 
 ## How to read this guide
 
@@ -43,10 +43,10 @@ Syntax tree (Lezer-shaped)              ← what printTree shows
     │  (lowerers — src/compiler/lower/, see LOWERING.md)
     ▼
 inkjs ParsedHierarchy
-    │  (inkjs's bytecode generator)
+    │  (EmitProgram methods + program/BinaryProgramWriter.ts)
     ▼
-Bytecode (JSON)
-    │  (engine/Story.ts interpreter, see RUNTIME.md)
+Binary program (ProgramRoot with typed-array chunks)
+    │  (program/ProgramStory.ts interpreter, see RUNTIME.md)
     ▼
 Output stream + state
 ```

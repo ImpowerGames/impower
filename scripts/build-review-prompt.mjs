@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
+import { reviewJobRoot, assertInsideJobRoot, assertReviewerDirectory } from "./review-job-root.mjs";
 
 const skill = fileURLToPath(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url));
 export function reviewTemplate(markdown) {
@@ -25,6 +25,17 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   // The diff and the reviewer's directory reach a reviewer only through this
   // prompt, so this is where they are held to the review job root.
   assertInsideJobRoot([["diff", context.diff], ["reviewDir", context.reviewDir]], reviewJobRoot(context.worktree), `in pr-${context.pr}${path.sep}round-${context.round}`);
+  assertReviewerDirectory(context.reviewDir);
+  let diffBytes;
+  try { diffBytes = fs.readFileSync(context.diff); }
+  catch (error) { throw new Error(`Review diff ${context.diff} must be readable before building the prompt (${error.message})`); }
+  try {
+    if ((diffBytes[0] === 255 && diffBytes[1] === 254) || (diffBytes[0] === 254 && diffBytes[1] === 255)) throw new Error("UTF-16 BOM");
+    const diffText = new TextDecoder("utf-8", { fatal: true }).decode(diffBytes);
+    if (diffText.includes(String.fromCharCode(0))) throw new Error("raw NUL bytes (including BOM-less UTF-16) are not a textual patch");
+  } catch (error) {
+    throw new Error(`Review diff ${context.diff} must be UTF-8 (${error.message}); capture it with git diff <range> --output=<absolute-path> so the shell does not re-encode it`);
+  }
   if (!context.lens || !context.previous) throw new Error("Supply lens and previous-round context");
   if (typeof context.task !== "string" || !context.task.trim()) throw new Error("Supply the change's user-facing goal as task");
   let prompt = reviewTemplate(markdown);

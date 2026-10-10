@@ -52,9 +52,29 @@ async function getGlobalDeclarations(context: vscode.ExtensionContext) {
     "data",
     "spark.d.ts",
   );
-  const declarationsFile = await vscode.workspace.fs.readFile(declarationsUri);
+  // The runtime build works without the optional editor type bundle.
+  const declarationsFile = await vscode.workspace.fs.readFile(declarationsUri).then(
+    file => file,
+    (error: unknown) => {
+      if (
+        error && typeof error === "object" && "code" in error &&
+        error.code === "FileNotFound"
+      ) {
+        return undefined;
+      }
+      // The served workbench's HTTP filesystem wraps a 404 as Unknown.
+      if (
+        error && typeof error === "object" && "code" in error &&
+        error.code === "Unknown" && "message" in error &&
+        (error.message === "Not Found" ||
+          error.message === "Unknown (FileSystemError): Not Found")
+      ) {
+        return undefined;
+      }
+      throw error;
+    },
+  );
   if (!declarationsFile) {
-    console.error("Could not find: ", declarationsUri.fsPath);
     return;
   }
   const declarationsFileContent = new TextDecoder().decode(declarationsFile);

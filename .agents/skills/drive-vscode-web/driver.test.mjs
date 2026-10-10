@@ -31,14 +31,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from 'node:url';
+import vm from "node:vm";
+import { pathToFileURL } from "node:url";
+import { diagnosticFailures, lspHealth, validateScenario, previewRead, classifyRuntimeErrors, hostCrashes, pollUntil, scriptProvenance, stopDesktop, ensurePreviewVisible } from "./desktop.mjs";
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
 // The partition itself belongs to the web editor's driver, which this one
 // calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
-import { desktop, webDebug, launchOwnedCdp, ownedDescendants, advancePlayer, nativeHostCrash, artifactEvidence, desktopArtifacts, desktopOptions, desktopFailures, diagnosticFailures, storyFrame, f5Ready, playerPointer, validateExpectedDiagnostics } from './desktop.mjs';
-import { spawnSync } from 'node:child_process';
-import { EventEmitter } from 'node:events';
 import {
   DEFAULT_SETTLE_S,
   LOOPBACKS,
@@ -282,6 +281,34 @@ await check("the build rule names what an open editor loads, each with the sourc
   const bare = buildRule(path.join(scratch, "nowhere"), packages);
   assert.deepEqual(bare.map((g) => path.basename(g.artifact)), ["extension.js", "sparkdown-language-server.js"], "the extension bundle and the language server are required even before a first build");
   assert.throws(() => buildRule(ext, path.join(scratch, "nowhere")), /holds no package with a src directory/, "a packages directory with no package source is refused rather than guarded by nothing");
+});
+
+await check("desktop freshness includes the Game Preview runtime, workers and webviews", () => {
+  const groups = buildRule(ext, packages, fs, "desktop");
+  assert.ok(groups.some(g => relOf(g) === "out/webviews/game-webview.js"));
+  assert.ok(groups.some(g => relOf(g) === "out/workers/sparkdown-screenplay-pdf.js"));
+  const game = groups.find(g => relOf(g) === "out/webviews/game-webview.js");
+  assert.ok(game.sources.includes(path.join(packages, "sparkdown", "src")));
+  assert.equal(rebuildCommand([game]), "cd vscode-sparkdown && npm run build");
+  touch(path.join(ext, "webviews/game-webview/game-webview.ts"), T0 + 100);
+  assert.ok(staleNames(groups).includes("out/webviews/game-webview.js"));
+  touch(path.join(ext, "webviews/game-webview/game-webview.ts"), T0 - 5000);
+  const missing = buildFreshness(groups, filesOf).missing;
+  assert.ok(missing.includes(path.join(ext, "out/webviews/screen-webview.js")));
+});
+
+await check("desktop rejects unexpected diagnostics but accepts the exact expected message and source", () => {
+  const diagnostic = { file: path.join(repo, "project/main.sd"), message: "Unknown asset", severity: "warning", source: "sparkdown", line: 4 };
+  const expectation = { ...diagnostic, file: "project/main.sd" };
+  assert.deepEqual(diagnosticFailures([diagnostic], [expectation], repo), { unexpected: [], missing: [] });
+  assert.equal(diagnosticFailures([diagnostic], [], repo).unexpected.length, 1);
+  assert.equal(diagnosticFailures([{ ...diagnostic, source: "other" }], [expectation], repo).unexpected.length, 1);
+  assert.equal(diagnosticFailures([], [expectation], repo).missing.length, 1);
+  const health = lspHealth("[Trace] Received response 'textDocument/semanticTokens/full - (1)' in 20ms.\n[Trace] Received response 'textDocument/semanticTokens/range - (2)' in 20ms. Request failed: Cannot assign to read only property 'name' (-32603).\n[Error] Request textDocument/semanticTokens/range failed.");
+  assert.equal(health.semanticResponses.length, 2);
+  assert.equal(health.semanticResponses[1].failed, true);
+  assert.equal(health.failed.length, 2);
+  assert.throws(() => validateScenario({ file: "main.sd", expectedDiagnostics: [] }), /interaction/);
 });
 
 await check("the rebuild command runs the steps of the artifacts named, each once, the language server's build before the extension's script", () => {
@@ -1482,6 +1509,15 @@ const keys = (deps) => deps.acts.filter((a) => a[0] === "key").map((a) => a[1]);
 const evaluated = (deps) => deps.acts.filter((a) => a[0] === "evaluate").map((a) => a[1]);
 const hoverDoc = (extra = {}) => fakeDocument({ lines: rendered, problems: script([null, "", "0 0", "0 0", "0 2"]), squiggles: { warning: 2 }, cursor: "Ln 5, Col 19", caretX: 100 + 18 * CHAR_W, hover: { text: "Cannot find image named 'missing_backdrop'" }, ...extra });
 
+await check("verify fails on an unclassified console error even when diagnostics settle", async () => {
+  const deps = verifyDeps(hoverDoc());
+  const withWorkbench = deps.withWorkbench;
+  deps.withWorkbench = (url, options, fn) => withWorkbench(url, options, context => fn({ ...context, consoleLines: ["[error] semantic token worker crashed"] }));
+  const result = await verify([], deps);
+  assert.equal(result.exitCode, 1);
+  assert.match(result.report.failed.join("\n"), /semantic token worker crashed/);
+});
+
 await check("verify opens the file, waits for the counter to change and hold, clicks the word, opens the hover by keyboard, screenshots, prints the report and exits 0", async () => {
   const deps = verifyDeps(hoverDoc());
   const { report, exitCode } = await verify(["--hover", "missing_backdrop", "--shot", "after.png", "--hover-shot", "hover.png", "--probe", "p.js"], deps);
@@ -1518,6 +1554,14 @@ await check("verify opens the file, waits for the counter to change and hold, cl
   assert.deepEqual(keys(deps), ["Control+k", "Control+i"]);
   assert.deepEqual(deps.acts.filter((a) => a[0] === "shot"), [["shot", "[data-drive-hover]", "hover.png"], ["shot", "page", "after.png"]]);
   assert.equal(JSON.parse(deps.logs.at(-1)).settledAfterS, 11, "the report is printed");
+});
+
+await check("served debugging refuses stale complete-runtime artifacts before opening the browser", async () => {
+  const checked = [];
+  const deps = verifyDeps(hoverDoc(), { checkBuild: surface => { checked.push(surface); throw new Refusal("stale game webview"); } });
+  await assert.rejects(verify(["--debug"], deps), /stale game webview/);
+  assert.deepEqual(checked, ["desktop"]);
+  assert.equal(deps.acts.some(a => a[0] === "workbench"), false);
 });
 
 await check("verify refuses a bad option, a hover flag without --hover, a --settle below the floor, and a server it cannot vouch for, before opening a browser", async () => {
@@ -1804,413 +1848,174 @@ await check("the page is 1400 x 900, a record names its own worktree's state fil
   assert.equal(liveDeps.extensionId(), EXT_ID);
 });
 
-await check("unclassified console errors fail verification even when diagnostic counters settle", async () => {
-  const deps = verifyDeps(hoverDoc());
-  const old = deps.withWorkbench;
-  deps.withWorkbench = (url, options, callback) => old(url, options, ({ page }) => callback({ page, consoleLines: ["[error] semanticTokens/full failed -32603", "[pageerror] Not Found"] }));
-  const result = await verify([], deps);
-  assert.equal(result.exitCode, 1, "a stable counter concealed a failed semantic-token request");
-  assert.match(result.report.failed.join(" "), /semanticTokens\/full failed/);
+await check("desktop preview reads per-character story spans without inventing spaces and excludes hidden content", () => {
+  const saved = globalThis.document;
+  const element = (text, opacity = "1") => ({ textContent: text, opacity, getBoundingClientRect: () => ({ width: 10, height: 10 }), querySelector: () => null });
+  const player = element("");
+  const spans = [..."Story text"].map(c => element(c));
+  spans.push(element("hidden", "0"));
+  const d = { defaultView: { getComputedStyle: el => ({ opacity: el.opacity }) }, querySelector: () => player, querySelectorAll: () => spans, images: [], body: { innerText: "Story text", className: "ready" } };
+  globalThis.document = { getElementById: () => ({ contentDocument: d }) };
+  try { assert.equal(previewRead().text, "Story text"); }
+  finally { if (saved === undefined) delete globalThis.document; else globalThis.document = saved; }
 });
 
-await check("desktop admission preserves the full root, refuses escaped paths and isolates F5 from full-build", () => {
-  const parsed = desktopOptions(['--code', '/private/Code.exe', '--scenario', 'f5'], '/repo');
-  assert.equal(parsed.scenario, 'f5');
-  assert.equal(parsed.automation, 'electron');
-  assert.equal(desktopOptions(['--code', 'Code', '--automation', 'cdp'], '/repo').automation, 'cdp');
-  assert.throws(() => desktopOptions(['--code', 'Code', '--automation', 'attach-existing'], '/repo'));
-  assert.equal(path.relative(parsed.project, parsed.script), path.join('project', 'main.sd'));
-  for (const args of [[], ['--code', 'Code', '--scenario', 'web'], ['--code', 'Code', '--file', '../outside.sd'], ['--code', 'Code', '--project', '/external'], ['--code', 'Code', '--timeout', '0']]) assert.throws(() => desktopOptions(args));
+await check("desktop polling fails on host exit or a request that never completes, and captures crashes", async () => {
+  assert.equal(await pollUntil(() => "ready", "timeout", { timeout: 100 }), "ready");
+  await assert.rejects(pollUntil(() => new Promise(() => {}), "request timeout", { timeout: 10 }), /request timeout/);
+  await assert.rejects(pollUntil(() => true, "timeout", { timeout: 100, exited: () => true }), /Owned desktop process exited/);
+  assert.deepEqual(hostCrashes("Extension host with pid 7 exited with code: 0, signal: unknown"), []);
+  assert.equal(hostCrashes("Extension host with pid 7 exited with code: 134, signal: unknown").length, 1);
 });
 
-await check("desktop health requires successful full/range requests, exact diagnostics, real preview interaction and artifact provenance", () => {
-  const options = { project: path.resolve('/project'), script: path.resolve('/project/project/main.sd'), scenario: 'full-build' };
-  const healthy = { failed: [], expectedDiagnostics: [], host: { workspaceRoot: options.project, document: { uri: pathToFileURL(options.script).href }, settled: true, diagnostics: [], requests: ['textDocument/semanticTokens/full', 'textDocument/semanticTokens/range', 'textDocument/documentSymbol'].map(method => ({ method, success: true, length: 5 })) }, preview: { initial: 'first', frame: 'vscode-webview://player', inputAttempt: { event: { trusted: true, tag: 'CANVAS' } }, interaction: { result: 'second' }, screenshot: 'before.png', afterScreenshot: 'after.png' }, build: { artifacts: [{}], failed: [] }, consoleErrors: [] };
-  assert.deepEqual(desktopFailures(healthy, options), []);
-  const partial = structuredClone(healthy);
-  Object.assign(partial.host, { phase: 'document-opened', complete: false, requests: [], settled: false });
-  assert.ok(desktopFailures(partial, options).some(error => /language request/.test(error)), 'partial host identity cannot establish language health');
-  assert.ok(!desktopFailures(partial, options).some(error => /specified whole project root|requested nested script/.test(error)), 'partial identity must preserve the root/document evidence');
-  for (const mutate of [
-    report => { report.host.requests[0].success = false; },
-    report => { report.host.requests[1].length = 0; },
-    report => { report.host.diagnostics.push({ file: options.script, severity: 'error', source: 'sparkdown', message: 'Compile failed', start: { line: 2, column: 1 }, end: { line: 2, column: 3 } }); },
-    report => { delete report.preview.interaction; },
-    report => { report.preview.inputAttempt.event.trusted = false; },
-    report => { report.preview.frame = 'vscode-file://source-editor'; },
-    report => { report.crash = 'renderer exited'; },
-    report => { report.timeout = 'language request'; },
-    report => { report.consoleErrors.push('[error] asset did not load'); },
-    report => { report.build.failed.push('Stale game webview'); },
-    report => { report.host.workspaceRoot = path.join(options.project, 'project'); },
-  ]) { const report = structuredClone(healthy); mutate(report); assert.ok(desktopFailures(report, options).length, 'unexpected outcome passed'); }
-  const intentional = { file: 'project/main.sd', severity: 'warning', source: 'sparkdown', message: 'Intentional fixture marker', start: { line: 3, column: 2 }, end: { line: 3, column: 4 } };
-  assert.deepEqual(diagnosticFailures([{ ...intentional, file: options.script }], [intentional], options.project), []);
-  assert.doesNotThrow(() => validateExpectedDiagnostics([intentional], options.project));
-  for (const invalid of [null, [{}], [{ ...intentional, file: '../other.sd' }], [{ ...intentional, start: { line: 0, column: 2 } }]]) assert.throws(() => validateExpectedDiagnostics(invalid, options.project));
-  assert.ok(diagnosticFailures([{ ...intentional, file: options.script, start: { line: 4, column: 2 } }], [intentional], options.project).length);
-  assert.ok(desktopFailures({ ...healthy, f5: { baseline: { artifacts: [{}] }, taskEvents: [] } }, { ...options, scenario: 'f5' }).some(error => /F5/.test(error)));
-  assert.ok(desktopFailures({ ...healthy, f5: { namedLaunchFallback: 'public API', baseline: { artifacts: [] }, taskEvents: [{ event: 'task-start', name: 'F5: watch:extension' }] } }, { ...options, scenario: 'f5' }).some(error => /keyboard F5/.test(error)));
-  assert.deepEqual(diagnosticFailures([{ ...intentional, file: options.script }], [{ end: intentional.end, start: intentional.start, message: intentional.message, source: intentional.source, severity: intentional.severity, file: intentional.file }], options.project), []);
+await check("loaded scripts must match this checkout, including only the exact VS Code CommonJS wrapper", () => {
+  const checkout = path.resolve("fixture");
+  const url = `${pathToFileURL(path.join(checkout, "vscode-sparkdown/out/extension.js")).href}#vscode-extension`;
+  const disk = "module.exports = 42;";
+  const io = { readFileSync: () => disk };
+  const wrapped = `(function anonymous(module,exports,require\n) {\n${disk}\n//# sourceURL=${url}\n})`;
+  assert.equal(scriptProvenance(url, disk, checkout, io).matches, true);
+  assert.equal(scriptProvenance(url, wrapped, checkout, io).matches, true);
+  assert.equal(scriptProvenance(url, wrapped + "changed", checkout, io).matches, false);
+  assert.equal(scriptProvenance(url, disk, path.resolve("other"), io).matches, false);
+  assert.equal(scriptProvenance(url.replace("/vscode-sparkdown/", "-stale/vscode-sparkdown/"), disk, checkout, io).matches, false);
 });
 
-await check("desktop story requires a visible player frame; source text and hidden webviews cannot pass", async () => {
-  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null, getByText: () => { throw new Error('Source editor must never be queried'); } };
-  await assert.rejects(storyFrame({ mainFrame: () => main, frames: () => [main] }, 'known', 1), /did not render/);
-  const hit = { first() { return this; }, isVisible: async () => true, evaluate: async () => true };
-  const hidden = { url: () => 'vscode-webview://player', parentFrame: () => main, getByText: () => hit, frameElement: async () => ({ evaluate: async () => false }) };
-  await assert.rejects(storyFrame({ mainFrame: () => main, frames: () => [main, hidden] }, 'known', 1), /did not render/);
-  const visible = { ...hidden, frameElement: async () => ({ evaluate: async () => true }) };
-  assert.equal((await storyFrame({ mainFrame: () => main, frames: () => [main, visible] }, 'known', 20)).frame, visible);
-  assert.equal(f5Ready([{ event: 'task-exit', root: '/repo' }], '/repo'), false);
-  assert.equal(f5Ready([{ event: 'parent-ready', root: '/other' }], '/repo'), false);
-  assert.equal(f5Ready([{ event: 'parent-ready', root: '/repo' }], '/repo'), true);
+await check("desktop runtime noise classification is exact and version-specific", () => {
+  const known = { error: "%c  ERR color: #f33 Proceeding with EXTRA proposals (authIssuers) because extension is in development mode. Still, this EXTENSION WILL BE BROKEN unless product.json is updated." };
+  assert.equal(classifyRuntimeErrors([known], "1.140.0").noise.length, 1);
+  assert.equal(classifyRuntimeErrors([known], "1.141.0").unexpected.length, 1);
+  assert.equal(classifyRuntimeErrors([{ error: known.error + " changed" }], "1.140.0").unexpected.length, 1);
+  assert.equal(classifyRuntimeErrors([{ error: "Game Preview crashed" }], "1.140.0").unexpected.length, 1);
 });
 
-await check("desktop story waits for every non-whitespace glyph to finish revealing", async () => {
-  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null };
-  let opacity = '0', rect = { width: 8, height: 16 }, polls = 0, revealOnSecondPoll = false;
-  const element = { style: { opacity: '1', visibility: 'visible', display: 'block' }, parentElement: null, getRootNode: () => ({ host: null }) };
-  const glyph = { style: { opacity, visibility: 'visible', display: 'inline' }, parentElement: element, matches: selector => selector === '.text_letter' };
-  const text = { textContent: 'known', parentElement: glyph };
-  element.ownerDocument = {
-    createTreeWalker() { let read = false; return { nextNode() { if (read) return null; read = true; return text; } }; },
-    createRange() { return { selectNodeContents() {}, getBoundingClientRect: () => rect }; },
+await check("desktop shutdown requires owned identity, a successful tree stop and observed exit", async () => {
+  const owner = { pid: 42, startedMs: 100 };
+  let alive = true, stops = 0;
+  const deps = { alive: () => alive, started: async () => 100, platform: "win32", stopWindows: () => { stops++; alive = false; }, timeout: 10 };
+  await stopDesktop(owner, deps);
+  assert.equal(stops, 1);
+  await assert.rejects(stopDesktop(owner, deps), /descendant shutdown is unverified/);
+  alive = true;
+  await assert.rejects(stopDesktop(owner, { ...deps, started: async () => 200 }), /PID identity changed/);
+  assert.equal(stops, 1, "a reused PID is never signalled");
+  await assert.rejects(stopDesktop(owner, { ...deps, stopWindows: () => {} }), /did not exit/);
+  await assert.rejects(stopDesktop(owner, { ...deps, stopWindows: () => { throw new Error("denied"); } }), /denied/);
+  await stopDesktop(owner, { ...deps, platform: "linux", stopLinux: async () => { alive = false; } });
+});
+
+await check("desktop preview reveals a covered panel and refuses to read one that remains hidden", async () => {
+  let visible = true, active = false, reveals = 0;
+  const page = {
+    locator: () => ({ isVisible: async () => visible }),
+    getByRole: () => ({ first: () => ({ getAttribute: async () => String(active) }) }),
   };
-  const hit = { first() { return this; }, isVisible: async () => true, async evaluate(fn) {
-    polls++; glyph.style.opacity = revealOnSecondPoll && polls >= 2 ? '1' : opacity;
-    return Function('element', 'getComputedStyle', 'NodeFilter', 'return (' + fn.toString() + ')(element)')(element, node => node.style, { SHOW_TEXT: 4 });
-  } };
-  const frame = { url: () => 'vscode-webview://player', parentFrame: () => main, getByText: () => hit, frameElement: async () => ({ evaluate: async () => true }) };
-  const page = { mainFrame: () => main, frames: () => [main, frame] };
-  for (const value of ['0', '0.5']) {
-    opacity = value;
-    await assert.rejects(storyFrame(page, 'known', 1), /did not render/);
-  }
-  opacity = '1'; rect = { width: 0, height: 16 };
-  await assert.rejects(storyFrame(page, 'known', 1), /did not render/);
-  rect = { width: 8, height: 16 };
-  assert.equal((await storyFrame(page, 'known', 20)).frame, frame);
-  opacity = '0'; polls = 0; revealOnSecondPoll = true;
-  assert.equal((await storyFrame(page, 'known', 1000)).frame, frame);
-  assert.equal(polls, 2, 'Do not accept full DOM text before the pending glyph becomes visible');
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; active = true; }), true, "retained off-screen webviews still need their tab revealed");
+  assert.equal(reveals, 1);
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; }), true);
+  assert.equal(reveals, 1, "an already visible preview is left active");
+  visible = false;
+  assert.equal(await ensurePreviewVisible(page, async () => { reveals++; }), false);
 });
 
-await check("player input uses current canvas geometry after RUN changes the layout", async () => {
-  const before = { x: 746, y: 69, width: 393, height: 798 };
-  const after = { x: 746, y: 69, width: 393, height: 474 };
-  let tick = 0, reads = 0;
-  const pointer = await playerPointer({ boundingBox: async () => ++reads === 1 ? before : after }, 3000, async ms => { tick += ms; }, () => tick);
-  assert.deepEqual(pointer, { bounds: after, x: 942.5, y: 306 });
-  assert.ok(reads >= 5, 'the layout change must settle before input');
-  await assert.rejects(playerPointer({ boundingBox: async () => null }, 500, async ms => { tick += ms; }, () => tick), /did not settle/);
-});
-
-await check("desktop artifact freshness covers game webview's embedded player/worker and copied fonts", () => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-artifacts-'));
-  const source = path.join(scratch, 'packages/player/src/player.ts');
-  fs.mkdirSync(path.dirname(source), { recursive: true });
-  fs.writeFileSync(source, 'export const version = 1;');
-  const earlier = new Date(Date.now() - 10000); fs.utimesSync(source, earlier, earlier);
-  assert.ok(artifactEvidence(scratch).failed.some(error => /game-webview/.test(error)));
-  for (const file of desktopArtifacts(scratch)) {
-    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'fresh bundle');
-    if (file.includes(path.join('out', 'data'))) { const original = path.join(scratch, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'fresh bundle'); }
-  }
-  assert.deepEqual(artifactEvidence(scratch).failed, []);
-  fs.utimesSync(source, new Date(Date.now() + 10000), new Date(Date.now() + 10000));
-  assert.deepEqual(artifactEvidence(scratch).failed, [], 'a touched identical source is vouched for by the content stamp');
-  fs.writeFileSync(source, 'export const version = 2;');
-  fs.utimesSync(source, new Date(Date.now() + 10000), new Date(Date.now() + 10000));
-  assert.ok(artifactEvidence(scratch).failed.some(error => /Stale.*game-webview/.test(error)));
-  fs.unlinkSync(source);
-  assert.ok(artifactEvidence(scratch).failed.some(error => /source set changed/.test(error)));
-  const font = path.join(scratch, 'vscode-sparkdown/data/courier-prime.ttf');
-  fs.mkdirSync(path.dirname(font), { recursive: true }); fs.writeFileSync(font, 'changed font');
-  assert.ok(artifactEvidence(scratch).failed.some(error => /Stale copied data/.test(error)));
-});
-
-await check("desktop stamp cannot admit an obsolete replacement game bundle", () => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-replaced-'));
-  const source = path.join(scratch, 'packages/player/src/player.ts');
-  fs.mkdirSync(path.dirname(source), { recursive: true }); fs.writeFileSync(source, 'current player');
-  const sourceTime = new Date(Date.now() - 10000); fs.utimesSync(source, sourceTime, sourceTime);
-  for (const file of desktopArtifacts(scratch)) {
-    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'current bundle');
-    if (file.includes(path.join('out', 'data'))) { const original = path.join(scratch, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'current bundle'); }
-  }
-  assert.deepEqual(artifactEvidence(scratch).failed, []);
-  const stamp = path.join(scratch, 'vscode-sparkdown/out/.drive-vscode-desktop-build.json');
-  const accepted = fs.readFileSync(stamp, 'utf8');
-  const game = path.join(scratch, 'vscode-sparkdown/out/webviews/game-webview.js');
-  fs.writeFileSync(game, 'obsolete player');
-  const old = new Date(Date.now() - 20000); fs.utimesSync(game, old, old);
-  assert.ok(artifactEvidence(scratch).failed.some(error => /Stale.*game-webview/.test(error)), 'old player bytes were admitted under an unchanged source stamp');
-  assert.equal(fs.readFileSync(stamp, 'utf8'), accepted, 'failure erased the accepted artifact identities');
-});
-
-await check("desktop stamp preserves deleted sources until all affected bundles rebuild", () => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-deleted-'));
-  console.log('Scratch deletion repository: ' + scratch);
-  assert.equal(spawnSync('git', ['init', '--quiet', scratch], { windowsHide: true }).status, 0);
-  const source = path.join(scratch, 'vscode-sparkdown/webviews/game-webview/src/player.ts');
-  fs.mkdirSync(path.dirname(source), { recursive: true }); fs.writeFileSync(source, 'deleted player feature');
-  const old = new Date(Date.now() - 10000); fs.utimesSync(source, old, old);
-  for (const file of desktopArtifacts(scratch)) {
-    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'current bundle');
-    if (file.includes(path.join('out', 'data'))) { const original = path.join(scratch, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'current bundle'); }
-  }
-  assert.deepEqual(artifactEvidence(scratch).failed, []);
-  const stamp = path.join(scratch, 'vscode-sparkdown/out/.drive-vscode-desktop-build.json');
-  const accepted = fs.readFileSync(stamp, 'utf8');
-  fs.unlinkSync(source);
-  const deletion = new Date(Date.now() + 1000); fs.utimesSync(path.dirname(source), deletion, deletion);
-  const extension = path.join(scratch, 'vscode-sparkdown/out/extension.js');
-  fs.writeFileSync(extension, 'unrelated extension rebuild');
-  const later = new Date(Date.now() + 2000); fs.utimesSync(extension, later, later);
-  assert.ok(artifactEvidence(scratch).failed.some(error => /source set changed.*game-webview/.test(error)), 'an unrelated rebuild concealed the deleted player source');
-  assert.equal(fs.readFileSync(stamp, 'utf8'), accepted, 'failure erased the deleted source');
-  for (const file of desktopArtifacts(scratch).filter(file => !file.includes(path.join('out', 'data')))) fs.utimesSync(file, later, later);
-  assert.deepEqual(artifactEvidence(scratch).failed, [], 'a complete rebuild after deletion remains usable');
-  assert.ok(!fs.readFileSync(stamp, 'utf8').includes('player.ts'), 'rebuilt stamp retains the obsolete source');
-});
-
-await check("visible F5 parent cannot verify a missing or crashed development host", async () => {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-lifecycle-'));
-  assert.equal(spawnSync('git', ['init', '--quiet', repo], { windowsHide: true }).status, 0);
-  assert.equal(spawnSync('git', ['-C', repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=NUL', 'commit', '--allow-empty', '--quiet', '-m', 'fixture'], { windowsHide: true }).status, 0);
-  const project = path.join(repo, '.agents/skills/drive-vscode-web/fixtures/desktop-project/project');
-  fs.mkdirSync(project, { recursive: true }); fs.writeFileSync(path.join(project, 'main.sd'), 'Verification first beat.');
-  const code = path.join(repo, 'code-fixture'); fs.writeFileSync(code, 'owned executable fixture');
-  let plan, exit, nativeError, parentVisible = false, f5 = 0, closed = false;
-  const locator = { first() { return this; }, filter() { return this; }, async fill() {}, async waitFor() { parentVisible = true; }, async click() { fs.writeFileSync(plan.events + '.stopped', '[]'); } };
-  const parent = { on() {}, locator: () => locator, async screenshot() {}, keyboard: { async press(key) { if (key === 'F5') { f5++; nativeError(Buffer.from('[main] Extension host with pid 31904 exited with code: 134, signal: unknown.')); throw new Error('Development host crashed before opening the project'); } } } };
-  const child = { pid: 42, stdout: { on() {} }, stderr: { on(_event, callback) { nativeError = callback; } }, once(_event, callback) { exit = callback; } };
-  const electron = { async launch(options) {
-    plan = JSON.parse(fs.readFileSync(options.env.IMPOWER_VSCODE_PROBE_PLAN, 'utf8'));
-    fs.writeFileSync(plan.events, JSON.stringify({ event: 'parent-ready', root: repo }) + '\n');
-    return { process: () => child, on() {}, firstWindow: async () => parent, windows: () => [parent], async close() { closed = true; exit(0, null); } };
-  } };
-  const out = path.join(repo, 'probe');
-  const result = await desktop(['--code', code, '--scenario', 'f5', '--out', out], { electron, repoRoot: repo });
-  assert.equal(parentVisible, true); assert.equal(f5, 1); assert.equal(closed, true);
-  assert.equal(result.exitCode, 1);
-  assert.equal(result.report.parent.workbench, 'verified');
-  assert.notEqual(result.report.surfaces.desktop, 'verified', 'parent readiness falsely verified the missing development host');
-  const persisted = JSON.parse(fs.readFileSync(path.join(out, 'report.json'), 'utf8'));
-  assert.notEqual(persisted.surfaces.desktop, 'verified');
-  assert.equal(persisted.process.exit.code, 0);
-  assert.match(persisted.crash, /31904.*134/);
-  assert.equal(nativeHostCrash('[main] Extension host with pid 31904 exited with code: 134, signal: unknown.'), '[main] Extension host with pid 31904 exited with code: 134, signal: unknown.');
-  assert.equal(nativeHostCrash('[main] Extension host with pid 42 exited with code: 0, signal: unknown.'), undefined);
-  assert.equal(nativeHostCrash('Unrelated error code: 134'), undefined);
-});
-
-function cdpFixture({ foreignListener = false, replacement = false, remainingChild = false, noExit = false, killLeavesRunning = false } = {}) {
-  let clock = 0, app, connectCount = 0, killed = false, identityReads = 0;
-  const child = new EventEmitter(); child.pid = 42;
-  const parent = { pid: 42, start: 'parent-start' }, renderer = { pid: 43, parent: 42, start: 'renderer-start' }, worker = { pid: 44, parent: 43, start: 'worker-start' };
-  let rows = [parent, renderer, worker];
-  child.kill = () => { killed = true; if (!killLeavesRunning) { child.emit('exit', 0, null); rows = []; } };
-  const record = {}, persisted = [];
-  const page = {};
-  const browser = { contexts: () => [{ pages: () => [page], on() {} }], async newBrowserCDPSession() { return { send() { if (!noExit) { child.emit('exit', 0, null); rows = remainingChild ? [renderer, worker] : []; } return new Promise(() => {}); } }; }, close: () => new Promise(() => {}) };
-  const deps = { platform: 'win32', port: async () => 45678, spawn: (_exe, args, opts) => {
-    assert.ok(args.includes('--remote-debugging-address=127.0.0.1')); assert.equal(opts.windowsHide, true);
-    assert.equal(opts.env.ELECTRON_RUN_AS_NODE, undefined); assert.equal(opts.env.NODE_OPTIONS, undefined);
-    return child;
-  }, identify: () => ++identityReads > 1 && replacement ? { ...parent, start: 'replacement-start' } : rows.find(row => row.pid === 42) ?? null,
-  processes: () => rows, listeners: () => [{ pid: foreignListener ? 99 : 42, address: '127.0.0.1' }], fetch: async () => ({ ok: true }),
-  chromium: { async connectOverCDP(endpoint) {
-    connectCount++; assert.equal(endpoint, 'http://127.0.0.1:45678');
-    assert.ok(persisted.some(row => row.identity?.start === parent.start), 'identity must be durable before attaching');
-    return browser;
-  } }, record, persist: () => persisted.push(structuredClone(record)), onOwned: owned => { app = owned; }, now: () => clock, sleep: async ms => { clock += ms; } };
-  return { deps, record, get app() { return app; }, get connects() { return connectCount; }, get killed() { return killed; } };
-}
-
-await check("ancillary F5 screenshot failure continues and retains late valid partial host identity", async () => {
-  for (const valid of [true, false]) {
-    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-desktop-late-progress-'));
-    assert.equal(spawnSync('git', ['init', '--quiet', repo], { windowsHide: true }).status, 0);
-    assert.equal(spawnSync('git', ['-C', repo, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=NUL', 'commit', '--allow-empty', '--quiet', '-m', 'fixture'], { windowsHide: true }).status, 0);
-    const project = path.join(repo, '.agents/skills/drive-vscode-web/fixtures/desktop-project'), script = path.join(project, 'project/main.sd');
-    fs.mkdirSync(path.dirname(script), { recursive: true }); fs.writeFileSync(script, 'fixture');
-    const code = path.join(repo, 'code-fixture'); fs.writeFileSync(code, 'owned fixture');
-    let clock = 0, plan, shots = 0, finalShotAfterProgress = false;
-    const child = new EventEmitter(); child.pid = 42; child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
-    const locator = { first() { return this; }, filter() { return this; }, async fill() {}, async waitFor() {}, async click() {
-      fs.writeFileSync(plan.events + '.stopped', '[]');
-      fs.writeFileSync(plan.result + '.progress', JSON.stringify({ runId: valid ? plan.runId : 'wrong-run', complete: false, phase: 'document-opened', workspaceRoot: project, document: { uri: pathToFileURL(script).href }, requests: [] }));
-    } };
-    const page = { on() {}, locator: () => locator, keyboard: { async press(key) { if (key === 'F5') fs.appendFileSync(plan.events, JSON.stringify({ event: 'task-start', name: 'F5: watch:extension' }) + '\n'); } }, async screenshot() { if (++shots === 1) throw new Error('Trigger screenshot timed out'); finalShotAfterProgress = fs.existsSync(plan.result + '.progress'); } };
-    const electron = { async launch(options) { plan = JSON.parse(fs.readFileSync(options.env.IMPOWER_VSCODE_PROBE_PLAN, 'utf8')); fs.writeFileSync(plan.events, JSON.stringify({ event: 'parent-ready', root: repo }) + '\n'); return { process: () => child, windows: () => [page], on() {}, firstWindow: async () => page, async close() { child.emit('exit', 0, null); } }; } };
-    const result = await desktop(['--code', code, '--scenario', 'f5', '--timeout', '10', '--out', path.join(repo, 'probe')], { repoRoot: repo, electron, now: () => clock, sleep: async ms => { clock += ms; } });
-    assert.equal(finalShotAfterProgress, true, 'final screenshots must follow task cleanup and late progress collection');
-    assert.equal(result.exitCode, 1); assert.ok(result.report.failed.some(error => /Trigger screenshot timed out/.test(error)));
-    if (valid) {
-      assert.equal(result.report.hostProgressCollectedDuringCleanup, true);
-      assert.equal(result.report.host.workspaceRoot, project); assert.equal(result.report.surfaces.desktop, 'verified');
-      assert.equal(result.report.surfaces.lsp, 'failed', 'partial progress cannot verify language health');
-    } else {
-      assert.equal(result.report.host, undefined); assert.notEqual(result.report.surfaces.desktop, 'verified');
-      assert.ok(result.report.failed.some(error => /Late partial host progress was not admitted/.test(error)));
-    }
-  }
-});
-
-function debugFixture({ breakpointLine = 15, source = '/main.sd', continued = 'paused', transient = false } = {}) {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vscode-debug-contract-'));
-  for (const file of desktopArtifacts(repo)) {
-    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'current bundle');
-    if (file.includes(path.join('out', 'data'))) { const original = path.join(repo, 'vscode-sparkdown/data', path.basename(file)); fs.mkdirSync(path.dirname(original), { recursive: true }); fs.writeFileSync(original, 'current bundle'); }
-  }
-  const doc = hoverDoc(); doc.state.explorer = [{ name: 'main.sd', level: 1 }];
-  const base = fakePage(doc, []);
-  let stage = 'paused', hover = '', clock = 0, f5 = 0, observations = 0, hoverMissed = false;
-  const line = () => stage === 'paused' ? 11 : stage === 'step' || (stage === 'continue' && continued === 'unchanged') ? 12 : stage === 'breakpoint' ? breakpointLine : 14;
-  const empty = () => stage === 'continue' && (!['paused', 'unchanged'].includes(continued) || (transient && observations++ < 2));
-  const generic = { first() { return this; }, last() { return this; }, filter() { return this; }, nth() { return this; }, locator() { return this; }, async waitFor() {}, async click() {}, async fill() {}, async getAttribute() { return 'true'; }, async boundingBox() { return { x: 40, y: 40, width: 20, height: 20 }; }, async evaluateAll() { return 0; } };
-  const row = { ...generic, locator(selector) { return { ...generic, async textContent() { return selector === '.line-number' ? String(line()) + ':1' : 'main.sd'; }, async hover() { hover = stage === 'breakpoint' ? source : '/main.sd'; } }; } };
-  const stack = { ...generic, async count() { return empty() ? 0 : 1; }, nth() { return row; }, async allTextContents() { return empty() ? [] : ['startmain.sd' + line() + ':1']; } };
-  const page = { ...base,
-    locator(selector, options) {
-      if (selector.startsWith('.explorer-folders-view') || selector.startsWith('.tabs-container') || selector === '.label-name') return base.locator(selector, options);
-      if (selector === '.debug-call-stack .monaco-list-row') return stack;
-      if (selector === '.call-stack-state-message') return { ...generic, async allTextContents() { return [stage === 'breakpoint' ? 'Paused on breakpoint' : stage === 'continue' && !['paused', 'unchanged'].includes(continued) ? continued === 'running' ? 'Running' : continued === 'terminated' ? 'Terminated' : '' : 'Paused on awaiting interaction']; } };
-      if (selector.includes('.workbench-hover')) return { ...generic, async waitFor(options) { if (transient && stage === 'step' && options.state === 'visible' && !hoverMissed) { hoverMissed = true; throw new Error('Frame changed while hover was pending'); } }, async textContent() { return hover; } };
-      if (selector === '.debug-variables .monaco-list-row') return { ...generic, async allTextContents() { return ['mood = 0']; } };
-      if (selector === '.debug-breakpoints .monaco-list-row') return { ...generic, async allTextContents() { return ['main.sd15:1']; } };
-      return { ...generic, getByText: () => generic };
+async function desktopDebugReport(advances) {
+  const commands = new Map();
+  let frameLine = 10, clock = 0, report, ended = false;
+  const session = {
+    id: "scenario-game",
+    type: "game",
+    async customRequest(method) {
+      if (method === "threads") return { threads: [{ id: 1 }] };
+      if (method === "stackTrace") {
+        if (ended) throw new Error("No debugger available");
+        return { stackFrames: [{ id: 1, source: { path: "main.sd" }, line: frameLine, column: 1 }] };
+      }
+      if (method === "scopes") return { scopes: [{ name: "Vars", variablesReference: 1 }] };
+      if (method === "variables") return { variables: [{ name: "driver_score", value: "42" }] };
+      if (method === "evaluate") return { result: "42" };
+      if (method === "next") frameLine = 20;
+      if (method === "continue") {
+        if (advances === "ended") ended = true;
+        else if (advances) frameLine = 30;
+      }
+      return {};
     },
-    mouse: { async click() {}, async move() { hover = ''; } },
-    keyboard: { async type() {}, async press(key) { if (key === 'F10') stage = 'step'; if (key === 'F5') stage = ++f5 === 1 ? 'continue' : 'breakpoint'; } },
-    getByText: () => generic, async screenshot() {},
   };
-  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null };
-  const hit = { first() { return this; }, isVisible: async () => true, evaluate: async () => true };
-  const frame = { url: () => 'vscode-webview://player', parentFrame: () => main, frameElement: async () => ({ evaluate: async () => true }), getByText: () => hit, locator: () => generic };
-  page.mainFrame = () => main; page.frames = () => [main, frame];
-  return { repoRoot: repo, now: () => clock, sleep: async ms => { clock += ms; }, readState: () => RECORD, recordStands: async () => true, isUp: async () => true, checkBuild() {}, log() {}, withWorkbench: async (_url, _options, callback) => callback({ page, consoleLines: [] }) };
-}
-
-for (const options of [{ breakpointLine: 150 }, { source: '/other/main.sd' }]) {
-  await check("debug refuses breakpoint at " + (options.source ?? 'line ' + options.breakpointLine) + " for /main.sd line 15", async () => {
-    const result = await webDebug(['--breakpoint', '15', '--shot', 'fixture.png'], debugFixture(options));
-    assert.equal(result.report.breakpoint.status, 'unverified');
-    assert.equal(result.report.debugger, 'failed');
-    assert.equal(result.report.verdict, 'failed');
-    assert.equal(result.exitCode, 1);
+  const vscode = {
+    debug: {
+      activeDebugSession: session, registerDebugConfigurationProvider: () => ({}), stopDebugging: async () => true,
+    },
+    commands: { registerCommand: (id, command) => { commands.set(id, command); return {}; } },
+  };
+  const api = {};
+  vm.runInNewContext(fs.readFileSync(new URL("./desktop-harness/extension.cjs", import.meta.url), "utf8"), {
+    exports: api, process: { env: { IMPOWER_DESKTOP_SCENARIO: "scenario.json" } },
+    Date: { now: () => clock += 1000 }, setTimeout: callback => queueMicrotask(callback),
+    require: name => {
+      if (name === "vscode") return vscode;
+      if (name === "node:path") return path;
+      if (name === "node:fs") return {
+        readFileSync: () => JSON.stringify({ evidence: FIXTURE_ROOT, debug: { expression: "driver_score", result: "42" } }),
+        writeFileSync: (_file, contents) => { report = JSON.parse(contents); },
+      };
+      throw new Error(`Unexpected harness import: ${name}`);
+    },
   });
+  api.activate({ subscriptions: [] });
+  await commands.get("impower.driver.debug")();
+  return report;
 }
 
-await check("debug Continue requires an observed changed paused source frame", async () => {
-  for (const continued of ['empty', 'running', 'terminated', 'unchanged']) {
-    const result = await webDebug(['--shot', 'fixture.png'], debugFixture({ continued }));
-    assert.equal(result.report.debugger, 'failed');
-    assert.equal(result.report.verdict, 'failed');
-    assert.equal(result.exitCode, 1);
-  }
-  const result = await webDebug(['--breakpoint', '15', '--shot', 'fixture.png'], debugFixture({ transient: true }));
-  assert.equal(result.report.debugger, 'verified', JSON.stringify(result.report.failed));
-  assert.equal(result.report.verdict, 'verified');
-  assert.equal(result.report.continueState.state, 'paused-on-awaiting-interaction');
-  assert.equal(result.report.continueState.frames[0].source, '/main.sd');
-  assert.ok(result.report.continueObservations.some(state => !state.frames.length), 'the empty transient must be observed without satisfying Continue');
-  assert.equal(result.report.breakpoint.frames[0].line, 15);
+await check("desktop Continue rejects an acknowledged request that leaves execution at the same frame", async () => {
+  const report = await desktopDebugReport(false);
+  assert.ok(report.failed.some(message => /Continue did not advance/.test(message)), "an acknowledgment without execution progress must fail");
+  assert.notEqual(report.continued, true);
 });
 
-await check("player input keeps observing a revealing goal through its overall deadline", async () => {
-  const main = { url: () => 'vscode-file://workbench', parentFrame: () => null };
-  let clickedAt = 0, clicks = 0;
-  const hit = { first() { return this; }, isVisible: async () => clickedAt > 0, evaluate: async () => Date.now() - clickedAt >= 4000 };
-  const frame = { url: () => 'vscode-webview://player', parentFrame: () => main,
-    getByText: text => text === 'Second beat' ? hit : { first() { return this; }, isVisible: async () => false },
-    frameElement: async () => ({ evaluate: async () => true }),
-    locator: () => ({ last() { return this; }, waitFor: async () => {} }),
-    evaluate: async () => ({ trusted: true, tag: 'CANVAS' }) };
-  const page = { frames: () => [main, frame], mainFrame: () => main, mouse: { async click() { clicks++; clickedAt = Date.now(); } } };
-  const result = await advancePlayer(page, frame, 'Second beat', 10000, { firstText: 'First beat', pointer: async () => ({ x: 50, y: 50 }) });
-  assert.equal(result.result, 'Second beat');
-  assert.equal(clicks, 1, 'A revealing goal must not be advanced again');
+await check("desktop Continue accepts execution advancing to another frame", async () => {
+  const report = await desktopDebugReport(true);
+  assert.deepEqual(report.failed, []);
+  assert.equal(report.continued, true);
 });
 
-await check("player input has one deadline and cannot retry an absent prior beat", async () => {
-  let clock = 0, clicks = 0;
-  const frame = { locator: () => ({ last() { return this; }, async waitFor() {} }), url: () => 'vscode-webview://player', async evaluate() { return { trusted: true, tag: 'CANVAS' }; } };
-  await assert.rejects(advancePlayer({ mouse: { async click() { clicks++; } } }, frame, 'Second beat', 10000, {
-    firstText: 'First beat', now: () => clock, pointer: async () => ({ x: 1, y: 1 }),
-    find: async (_page, _text, budget) => { clock += budget; throw new Error('No fully visible beat'); },
-  }), /overall input deadline/);
-  assert.equal(clock, 10000); assert.equal(clicks, 1);
+await check("desktop Continue does not equate a vanished adapter with verified progress", async () => {
+  const failed = await desktopDebugReport("ended");
+  assert.ok(failed.failed.some(message => /No debugger available/.test(message)));
+  assert.notEqual(failed.continued, true);
 });
 
-await check("player input stops at the first visible goal and waits before retrying typing completion", async () => {
-  for (const required of [1, 2]) {
-    let clicks = 0, reads = 0, positions = 0;
-    const canvas = { last() { return this; }, async waitFor() {} };
-    const frame = { locator: () => canvas, url: () => 'vscode-webview://player', async evaluate() { return { trusted: true, tag: 'SPAN', gameUI: true }; } };
-    const page = { mouse: { async click() { if (clicks) assert.equal(reads, clicks, 'must wait for the story goal before another click'); clicks++; } } };
-    const result = await advancePlayer(page, frame, 'Second beat', 10000, { firstText: 'First beat', pointer: async () => { positions++; return { bounds: { width: 100, height: 100 }, x: 50, y: 50 }; }, find: async (_page, text) => { if (text === 'Second beat') { reads++; if (clicks < required) throw new Error('First click completed typing'); } else assert.equal(text, 'First beat'); } });
-    assert.equal(clicks, required); assert.equal(positions, required, 'every input needs current visible bounds');
-    assert.equal(result.attempts.length, required); assert.equal(result.result, 'Second beat');
-    if (required === 2) assert.equal(result.attempts[0].intermediate.visible, 'First beat');
-  }
-  let clicks = 0;
-  const frame = { locator: () => ({ last() { return this; }, async waitFor() {} }), url: () => 'vscode-webview://player', async evaluate() { return { trusted: false, tag: 'DIV', gameUI: false }; } };
-  await assert.rejects(advancePlayer({ mouse: { async click() { clicks++; } } }, frame, 'Second beat', 10000, { pointer: async () => ({ x: 1, y: 1 }) }), /did not reach/);
-  assert.equal(clicks, 1, 'untrusted/outside input is a failure, not retry permission');
-});
-const cdpLaunch = { executablePath: '/owned/Code.exe', args: ['--new-window'], cwd: '/owned', timeout: 10000, env: { ELECTRON_RUN_AS_NODE: '1', NODE_OPTIONS: '--inspect', IMPOWER_VSCODE_PROBE_PLAN: '/owned/plan.json' } };
-
-await check("CDP connects only after matching loopback listener and durable process identity", async () => {
-  const good = cdpFixture();
-  const app = await launchOwnedCdp(cdpLaunch, good.deps);
-  assert.deepEqual(good.record.children.map(row => row.pid), [43, 44], 'grandchildren must be recorded');
-  assert.equal(await app.firstWindow({ timeout: 100 }), app.windows()[0]);
-  await app.close();
-  assert.equal(good.record.close.transportAck, false, 'an unsettled transport acknowledgement cannot become an acknowledgement');
-  assert.equal(good.record.close.processExitVerified, true, 'confirmed process exit must survive an unsettled close response');
-  assert.deepEqual(good.record.close.remainingProcesses, []);
-  for (const fixture of [cdpFixture({ foreignListener: true }), cdpFixture({ replacement: true })]) {
-    await assert.rejects(launchOwnedCdp(cdpLaunch, fixture.deps), /loopback listener/);
-    assert.equal(fixture.connects, 0, 'must not attach before ownership is proved');
-    await assert.rejects(fixture.app.close(), /exit was not established|termination/);
-    if (fixture.record.identity.start !== 'replacement-start') assert.equal(fixture.record.close.processExitVerified, false);
-  }
-});
-
-await check("CDP transport closing cannot verify live descendants or an unconfirmed parent exit", async () => {
-  const orphan = cdpFixture({ remainingChild: true });
-  const app = await launchOwnedCdp(cdpLaunch, orphan.deps);
-  await assert.rejects(app.close(), /exit was not established/);
-  assert.equal(orphan.record.close.processExitVerified, false);
-  assert.deepEqual(orphan.record.close.remainingProcesses.map(row => row.pid), [43, 44]);
-  const stalled = cdpFixture({ noExit: true });
-  const other = await launchOwnedCdp(cdpLaunch, stalled.deps);
-  await assert.rejects(other.close(), /required termination/);
-  assert.equal(stalled.killed, true);
-  assert.equal(stalled.record.close.processExitVerified, false, 'forced termination is a reported failure even with confirmed exit');
-  const unconfirmed = cdpFixture({ noExit: true, killLeavesRunning: true });
-  const pending = await launchOwnedCdp(cdpLaunch, unconfirmed.deps);
-  await assert.rejects(pending.close(), /exit was not established/);
-  assert.equal(unconfirmed.record.exit, undefined);
-  assert.equal(unconfirmed.record.close.processExitVerified, false);
-  assert.ok(unconfirmed.record.close.remainingProcesses.some(row => row.pid === 42));
-  let spawned = false;
-  await assert.rejects(launchOwnedCdp(cdpLaunch, { platform: 'linux', spawn: () => { spawned = true; } }), /only on Windows/);
-  assert.equal(spawned, false, 'unsupported platform must be refused before launch');
-});
-
-await check("owned descendant PID reuse retains both start identities and refuses unrelated reparenting", () => {
-  const root = { pid: 42, start: 'root' }, old = { pid: 43, parent: 42, start: 'old' }, replacement = { ...old, start: 'new' };
-  const tracked = ownedDescendants([root, replacement], root, [old]);
-  assert.ok(tracked.some(row => row.start === 'old'));
-  assert.ok(tracked.some(row => row.start === 'new'), 'reused owned descendant was hidden behind its previous PID');
-  const orphan = ownedDescendants([replacement], root, tracked);
-  assert.ok(orphan.some(row => row.pid === 43 && row.start === 'new'), 'a reparented descendant cannot disappear from exit inspection');
-  const foreign = { pid: 44, parent: 43, start: 'foreign' };
-  assert.ok(!ownedDescendants([replacement, foreign], root, [old]).some(row => row.pid === 44), 'reused unrelated PID cannot authorize ownership of its children');
+await check("F5 waits for all runtime producers before starting the worker copier", async () => {
+  const { watchRuntime, runtimeBuilders } = await import("../../../vscode-sparkdown/scripts/f5.mjs");
+  const { EventEmitter } = await import("node:events");
+  const { PassThrough } = await import("node:stream");
+  const children = [], logs = [];
+  const start = (_executable, args, options) => {
+    const child = new EventEmitter();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => { child.killed = true; child.stdout.end(); child.stderr.end(); child.emit("exit", 0); };
+    children.push({ child, args, options });
+    return child;
+  };
+  const promise = watchRuntime(FIXTURE_ROOT, { start, log: line => logs.push(line), io: { readFileSync: () => Buffer.from("current worker"), statSync: () => ({ size: 42 }) } });
+  assert.equal(children.length, 6);
+  assert.equal(runtimeBuilders.length, 6);
+  children[0].child.stdout.write("worker: build failed\n");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(children.length, 6, "failure must not release the copier");
+  for (const { child } of children.slice(0, 5)) child.stdout.write("producer: build finished\n");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(children.length, 6, "last webview is still building");
+  children[5].child.stdout.write("producer: build finished\n");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(children.length, 7);
+  assert.deepEqual(children[6].args, ["scripts/esbuild.ts", "--watch"]);
+  assert.ok(!logs.includes("[watch] F5: build finished"));
+  children[6].child.stdout.write("extension: build finished\n");
+  const watcher = await promise;
+  assert.equal(logs.at(-1), "[watch] F5: build finished");
+  watcher.stop();
+  assert.ok(children.every(({ child }) => child.killed));
 });
 
 if (failures) {

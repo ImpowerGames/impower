@@ -13,6 +13,8 @@ Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must
 
 Then inspect [clean-worktrees](../clean-worktrees/SKILL.md) candidates from the main checkout: dry run only; routine preflight never authorizes broad apply. Blocked disk headroom requires separate, explicitly authorized bounded recovery; preserve active agents. Refusals and failures remain recovery blockers. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
 
+Before artifacts, run `writer-artifacts.mjs` via [private allocation](references/publishing.md#private-writer-allocation).
+
 ## 1. Read the ticket
 
 Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself.
@@ -27,7 +29,7 @@ Establish the reported failure before editing and retain before-evidence.
 
 - Compiler/parser/engine: invoke `/write-regression-test` (skill name `write-regression-test`) in reproduction-only mode to write the failing case.
 - Editor/preview/visual: invoke `/drive-web-editor` (skill name `drive-web-editor`) and inspect a screenshot of the broken state.
-- Extension: invoke `/drive-vscode-web` (skill name `drive-vscode-web`) and inspect the served workbench.
+- Extension: invoke `/drive-vscode-web` (skill name `drive-vscode-web`), select served or desktop verification for the reported surface, and inspect its screenshots.
 - Tooling/docs with nothing to boot: exercise the pre-change behavior with the relevant standalone check. A newly written check must fail against the base, not merely pass after editing. For prose with no executable check, compare the relevant rules before and after and disclose that manual verification.
 
 ## 4. Fix it
@@ -42,7 +44,7 @@ Invoke `/write-regression-test` now (skill name `write-regression-test`). Use fu
 
 Invoke `/drive-web-editor` now (skill name `drive-web-editor`) for changes under `impower-dev/` or `packages/`. Use the actual project for assets and installed-worker verification for service-worker changes. Inspect before/after pixels; use measured evidence for changes with no visual signature and still inspect for visual regressions.
 
-For `vscode-sparkdown/` and shared language-server changes, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared-server changes use both drivers. Run the ticket's web/debug or desktop/F5/preview scenario and inspect its pixels. Failed or unavailable required coverage remains incomplete; web counters cannot prove desktop preview or semantic-token success. Tooling/docs-only work runs its checks.
+For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-vscode-web` (skill name `drive-vscode-web`); shared language-server changes use both drivers. Select desktop mode for F5, commands, Game Preview or debugging; disclose an unavailable host as an unverified surface in the PR. Tooling/docs-only work has nothing to boot: run its checks and say so.
 
 ## 7. Commit, push, and open a draft PR
 

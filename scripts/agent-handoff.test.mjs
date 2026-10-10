@@ -6,7 +6,7 @@ import { execFileSync, spawn } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound } from "./agent-handoff.mjs";
+import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound, validateReviewRecovery } from "./agent-handoff.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
 import { installReviewerHooks } from "./reviewer-security.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
@@ -29,6 +29,13 @@ const config = { worktree, pr: 531, completedReviewRound: 0, writer: "writer-tes
 }};
 const file = path.join(scratch, "plan.json");
 const write = () => fs.writeFileSync(file, JSON.stringify(config));
+// A matching head never substitutes for correction state at the final cap,
+// including the second serial reviewer under an extended authorization.
+for (const limit of [3, 6]) {
+  const recovery = { ...config, completedReviewRound: limit, reviewedHead: git("rev-parse", "HEAD").trim(), completedRoundReviews: 1, reviewRoundLimit: limit, ...(limit > 3 ? { extendedReviewAuthorization: "User authorized six rounds" } : {}) };
+  assert.throws(() => validateReviewRecovery(recovery), /finalCorrections.*pending serial reviewer/);
+  for (const finalCorrections of [false, true]) assert.doesNotThrow(() => validateReviewRecovery({ ...recovery, finalCorrections }), "the explicit persisted boolean is accepted without inventing its value");
+}
 let commentReads = 0, waits = 0;
 await verifyReviewComment(1, 554, "a".repeat(40), worktree, {
   readComment: () => ++commentReads === 1 ? { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "pending" } : { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "a".repeat(40) },
@@ -127,6 +134,46 @@ fs.writeFileSync(path.join(codexHome, "auth.json"), "{}");
 const fullAccessArgs = ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', "-c", 'approval_policy="never"', "--sandbox", "danger-full-access", "-c", 'model_provider="openai"', "--cd", codexDir, "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "--strict-config", "--json", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--dangerously-bypass-hook-trust", "--output-last-message", codexReport, "-"];
 const fullAccessPermissions = { sandbox: "danger-full-access", approvalPolicy: "never", networkAccess: true, artifactWrites: "handoff-directory", cwd: codexDir, codexHome };
 assert.doesNotThrow(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: fullAccessPermissions }, codexPlan), "the documented full-access grammar is accepted");
+// Exercise the documented round layout through the real launcher preflight.
+// Prompt/plan/journal state stays beside, rather than inside, the empty reviewer.
+{
+  const round = path.join(scratch, "pr-531", "round-1");
+  const state = path.join(round, "launch-a");
+  const reviewer = path.join(round, "reviewer-a-1");
+  fs.mkdirSync(state, { recursive: true });
+  fs.mkdirSync(reviewer);
+  const argsFor = (dir) => fullAccessArgs.map((arg) => arg === codexDir ? dir : arg === codexReport ? path.join(dir, "report.md") : arg);
+  const stepFor = (dir) => ({ role: "review", model: "gpt-test", executable: process.execPath, args: argsFor(dir), prompt, next: [null], round: 1, reviewers: 2, nativeResult: "codex-jsonl", effort: "high", permissions: { ...fullAccessPermissions, cwd: dir } });
+  assert.doesNotThrow(() => validateCodexReviewer(stepFor(reviewer), { reviewer: "gpt-test", worktree, jobDir: state }), "supported sibling state/reviewer layout passes");
+  const physicalState = path.join(round, "physical-state");
+  const linkedState = path.join(round, "linked-reviewer");
+  fs.mkdirSync(physicalState);
+  fs.symlinkSync(physicalState, linkedState, "junction");
+  assert.throws(() => validateCodexReviewer(stepFor(linkedState), { reviewer: "gpt-test", worktree, jobDir: physicalState }), /supervisor state.*physical-state.*sibling/i, "physical aliases cannot evade state/reviewer isolation");
+  assert.throws(() => validateCodexReviewer(stepFor(physicalState), { reviewer: "gpt-test", worktree, jobDir: linkedState }), /supervisor state.*physical-state.*sibling/i, "an aliased supervisor directory is resolved too");
+  const occupied = path.join(round, "occupied");
+  fs.mkdirSync(occupied);
+  fs.writeFileSync(path.join(occupied, "prior-report.md"), "preserve");
+  assert.doesNotThrow(() => validateCodexReviewer(stepFor(occupied), { reviewer: "gpt-test", worktree, jobDir: state }), "existing supervisor-authored artifacts remain supported");
+  fs.writeFileSync(path.join(occupied, "report.md"), "existing final report");
+  const refused = [
+    ["nested-state", reviewer, path.join(round, "journal.jsonl"), /supervisor state.*reviewer-a-1.*round-1.*sibling/i],
+    ["missing-dir", path.join(round, "missing"), path.join(state, "missing.jsonl"), /Reviewer directory.*missing.*create.*empty/i],
+    ["existing-report", occupied, path.join(state, "occupied.jsonl"), /fresh final report/i],
+  ];
+  const failures = [];
+  for (const [name, dir, journal, expected] of refused) {
+    const plan = { ...config, reviewer: "gpt-test", journal, maxSteps: 1, steps: { first: stepFor(dir) } };
+    const planFile = path.join(state, `${name}.json`);
+    fs.writeFileSync(planFile, JSON.stringify(plan));
+    try { await assert.rejects(runHandoff(planFile), expected, name); }
+    catch (error) { failures.push(`${name}: ${error.message}`); }
+    assert.equal(fs.existsSync(journal), false, `${name}: no journal before input admission`);
+    assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${name}: no lock before input admission`);
+  }
+  assert.equal(fs.readFileSync(path.join(occupied, "prior-report.md"), "utf8"), "preserve");
+  assert.deepEqual(failures, [], "review layout must fail actionably before any native process probe or launch");
+}
 assert.throws(() => validateCodexReviewer({ args: [...fullAccessArgs.filter((arg) => arg !== "--dangerously-bypass-hook-trust").slice(0, -1), "-c", 'windows.sandbox="elevated"', "-"], effort: "high", permissions: { ...fullAccessPermissions, codexHome: undefined, sandboxStateHome: codexHome } }, codexPlan), (error) => {
   for (const problem of ["--dangerously-bypass-hook-trust", "no -c windows.sandbox", "no step permissions.sandboxStateHome", "step permissions.codexHome"]) assert.ok(error.message.includes(problem), `partial full-access refusal must name ${problem}: ${error.message}`);
   return true;

@@ -10,6 +10,90 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 assert.ok(fs.existsSync(path.join(root, "test-suite.mjs")),
   "package verification must provide durable status/resume instead of manual log concatenation");
 const { verifyResult, aggregate } = await import("./test-suite.mjs");
+const { main: packageMain } = await import("./test-suite.mjs");
+const packageScratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-package-preflight-"));
+console.log(`Package preflight scratch: ${packageScratch}`);
+const plainFile = path.join(packageScratch, "plain-file");
+fs.writeFileSync(plainFile, "fixture");
+const noManifest = path.join(packageScratch, "no-manifest");
+fs.mkdirSync(noManifest);
+const directoryManifest = path.join(packageScratch, "directory-manifest");
+fs.mkdirSync(path.join(directoryManifest, "package.json"), { recursive: true });
+for (const target of [path.join(packageScratch, "missing"), plainFile, noManifest, directoryManifest]) {
+  for (const command of ["run", "start"]) {
+    let censusCalls = 0;
+    await assert.rejects(packageMain([command, target, ...(command === "run" ? ["fixture.test.ts"] : [])], {
+      vitestPath: plainFile,
+      root: path.join(packageScratch, "reservation"),
+      census: () => { censusCalls++; throw new Error("must not queue"); },
+    }), error => error.message.includes(path.resolve(target)) && error.message.includes("package directory")
+      && error.message.includes("packages/sparkdown"), `${command} explains invalid package path ${target}`);
+    assert.equal(censusCalls, 0, "invalid package paths are refused before queue admission");
+    assert.equal(fs.existsSync(path.join(packageScratch, "reservation")), false);
+  }
+}
+console.log("PASS: run and start explain invalid package directories before queue admission");
+const literalPackage = path.join(packageScratch, "literal-tests");
+fs.mkdirSync(literalPackage);
+fs.writeFileSync(path.join(literalPackage, "package.json"), '{"type":"module"}');
+fs.writeFileSync(path.join(literalPackage, "valid.test.ts"), "fixture");
+const literalStore = path.join(packageScratch, "literal-reservation");
+const literalMarker = path.join(packageScratch, "literal-child-started");
+const literalChild = path.join(packageScratch, "literal-child.mjs");
+fs.writeFileSync(literalChild, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(literalMarker)}, "started");`);
+fs.mkdirSync(path.join(literalPackage, "directory.test.ts"));
+fs.writeFileSync(path.join(packageScratch, "outside.test.ts"), "fixture");
+const outsideTests = path.join(packageScratch, "outside-tests");
+fs.mkdirSync(outsideTests);
+fs.writeFileSync(path.join(outsideTests, "outside.test.ts"), "fixture");
+fs.symlinkSync(outsideTests, path.join(literalPackage, "escape"), process.platform === "win32" ? "junction" : "dir");
+const namespaceInputs = process.platform === "win32" ? [path.toNamespacedPath(path.join(literalPackage, "valid.test.ts"))] : [];
+for (const requested of namespaceInputs) {
+  assert.equal(fs.statSync(requested).isFile(), true, "namespace refusal covers an existing regular file");
+  assert.equal(fs.realpathSync.native(requested), fs.realpathSync.native(path.join(literalPackage, "valid.test.ts")));
+  await assert.rejects(packageMain(["run", literalPackage, requested], { vitestPath: literalChild, root: literalStore,
+    census: () => { throw new Error("unsupported namespace reached admission"); } }), /unsupported Windows namespace syntax.*ordinary relative or absolute path/);
+}
+for (const invalid of ["missing.test.ts", "valid.test.ts\r", "valid.test.ts\n", "valid.test.ts ", "*.test.ts", "valid?.test.ts", ...namespaceInputs,
+  "--passWithNoTests", "directory.test.ts", "../outside.test.ts", "escape/outside.test.ts", "valid.ts", "valid.test.js"]) {
+  let literalCensusCalls = 0;
+  await assert.rejects(packageMain(["run", literalPackage, "valid.test.ts", invalid], {
+    vitestPath: literalChild, root: literalStore,
+    census: () => { literalCensusCalls++; return []; },
+  }), error => error.message.includes(JSON.stringify(invalid)) && error.message.includes("test file")
+    && !/[\r\n]/.test(error.message), "a mixed request refuses its escaped invalid input before queue admission");
+  assert.equal(literalCensusCalls, 0);
+  assert.equal(fs.existsSync(literalStore), false, "invalid files create no reservation store or child");
+  assert.equal(fs.existsSync(literalMarker), false, "a mixed invalid list starts no child");
+}
+for (const control of ["\u007f", "\u0085", "\u2028", "\u2029"]) {
+  const requested = `valid${control}.test.ts`;
+  await assert.rejects(packageMain(["run", literalPackage, requested], { vitestPath: literalChild, root: literalStore }),
+    error => !error.message.includes(control) && error.message.includes(`\\u${control.charCodeAt(0).toString(16).padStart(4, "0")}`),
+    "non-JSON control and line separator diagnostics remain escaped");
+  assert.equal(fs.existsSync(literalStore), false);
+  assert.equal(fs.existsSync(literalMarker), false);
+}
+console.log("PASS: literal test inputs refuse missing, control, filter, option, directory and escaping paths before admission");
+const literalAlias = path.join(packageScratch, "literal-alias");
+fs.symlinkSync(literalPackage, literalAlias, process.platform === "win32" ? "junction" : "dir");
+const additionalAlias = path.join(packageScratch, "additional-alias");
+fs.symlinkSync(literalPackage, additionalAlias, process.platform === "win32" ? "junction" : "dir");
+const validSpellings = ["valid.test.ts", path.join(literalPackage, "valid.test.ts"),
+  path.join(literalAlias, "valid.test.ts"), path.join(additionalAlias, "valid.test.ts")];
+if (process.platform === "win32") {
+  const shortPackage = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
+    { encoding: "utf8", windowsHide: true, env: { ...process.env, IMPOWER_LITERAL_PACKAGE: literalPackage } }).trim();
+  validSpellings.push(path.join(shortPackage, "valid.test.ts"));
+  if (shortPackage === literalPackage) console.log("SKIP: distinct Windows 8.3 spelling unavailable; additional junction alias is covered");
+}
+for (const requested of validSpellings) {
+  await assert.rejects(packageMain(["run", literalAlias, requested], {
+    vitestPath: literalChild, root: literalStore,
+    census: () => { throw new Error("valid alias reached queue admission"); },
+  }), /valid alias reached queue admission/, "valid relative, physical and additional OS aliases reach admission");
+}
 const file = path.resolve("fixture.test.ts");
 const report = () => ({ success: true, numTotalTestSuites: 1, numPassedTestSuites: 1,
   numFailedTestSuites: 0, numPendingTestSuites: 0, numTotalTests: 1,
@@ -67,7 +151,7 @@ assert.equal(reservationState({ owner, phase: "launching" }, () => null), "unkno
 assert.equal(reservationState({ owner, phase: "running", child }, () => ({ pid: 43, start: "reused" })), "interrupted");
 assert.throws(() => reservationState({ owner, phase: "running", child }, () => { throw new Error("denied"); }), /denied/);
 
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-"));
+const scratch = canonicalPath(fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-")));
 console.log(`Scratch repository: ${scratch}`);
 const git = (...args) => {
   const result = spawnSync("git", args, { cwd: scratch, windowsHide: true, encoding: "utf8" });
@@ -241,9 +325,10 @@ await assert.rejects(acquireWaiting("timeout", { root: lockRoot, waitMs: 60, pol
 acquire("released after timeout", { root: lockRoot, census: () => [] }).release();
 const ambiguous = acquire("ambiguous", { root: lockRoot, census: () => [], identify: () => owner });
 ambiguous.update({ phase: "launching" });
-const started = Date.now();
-await assert.rejects(acquireWaiting("unknown", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => [], identify: () => null }), /unknown/);
-assert.ok(Date.now() - started < 2000, "an ambiguous reservation refuses without waiting");
+let ambiguousWaits = 0;
+await assert.rejects(acquireWaiting("unknown", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => [], identify: () => null,
+  onWait: () => { ambiguousWaits++; } }), /unknown/);
+assert.equal(ambiguousWaits, 0, "an ambiguous reservation refuses without queue polling, independent of process-lookup latency");
 ambiguous.update({ phase: "exited" }); ambiguous.release();
 console.log("PASS: --wait queues on the reservation, holds it while other Vitest processes exit, and times out by releasing it");
 
@@ -330,6 +415,199 @@ const deny = (name, code) => {
 deny("openSync", "EPERM");
 deny("openSync", "EACCES");
 deny("mkdirSync", "EACCES");
+// File-specific Windows access failures are contention when a private probe
+// demonstrates that the store remains writable. Never use the live store.
+if (process.platform === "win32") {
+  const store = fs.mkdtempSync(path.join(os.tmpdir(), "impower-store-contention-"));
+  console.log(`Reservation contention scratch: ${store}`);
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    for (const operation of ["guard", "create", "rename"]) {
+      const method = operation === "rename" ? "renameSync" : "openSync";
+      const original = fs[method];
+      let failures = 0;
+      fs[method] = (target, ...args) => {
+        const affected = operation === "guard" ? target === path.join(store, "guard.json")
+          : operation === "create" ? String(target).startsWith(path.join(store, "reservation.json."))
+          : args[0] === path.join(store, "reservation.json");
+        if (affected && failures++ < 2) throw Object.assign(new Error("scanner holds reservation file"), { code });
+        return original(target, ...args);
+      };
+      const waits = [];
+      let acquired;
+      try { acquired = await acquireWaiting("transient file denial", { root: store, waitMs: 30000, pollMs: 5,
+        census: () => [], onWait: value => waits.push(value.waiting) }); }
+      finally { fs[method] = original; }
+      assert.ok(waits.includes("reservation files"), `${operation} ${code} reports contention`);
+      acquired.release();
+      assert.deepEqual(fs.readdirSync(store), [], "successful retries leave no probe or abandoned temporary file");
+    }
+  }
+  const original = fs.renameSync;
+  let renameBegan;
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) {
+      renameBegan ??= Date.now();
+      throw Object.assign(new Error("persistent scanner contention"), { code: "EPERM" });
+    }
+    return original(source, target);
+  };
+  try { await assert.rejects(acquireWaiting("bounded file denial", { root: store, waitMs: 100, pollMs: 5, census: () => [] }),
+    /Reservation files busy.*EPERM/); }
+  finally { fs.renameSync = original; }
+  assert.ok(Date.now() - renameBegan < 500, "atomic rename does not add its independent one-second retry after admission expires");
+  assert.deepEqual(fs.readdirSync(store), [], "expired admission leaves no ownership or ambiguous temp evidence");
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    fs.writeFileSync(path.join(store, "guard.json"), JSON.stringify({ owner: { pid: 42, start: "dead" } }));
+    const open = fs.openSync;
+    let probes = 0, claims = 0, waits = 0;
+    fs.openSync = (target, ...args) => {
+      if (String(target).startsWith(store + path.sep) && target !== path.join(store, "guard.json")) {
+        if (path.basename(target).startsWith("write-probe-")) probes++;
+        if (path.basename(target) === "guard-recovery.json") claims++;
+        throw Object.assign(new Error("store-wide denial with existing guard"), { code });
+      }
+      return open(target, ...args);
+    };
+    try { await assert.rejects(acquireWaiting("existing guard denied store", { root: store, waitMs: 5000,
+      guardWaitMs: 100, census: () => [], onWait: () => waits++ }),
+      error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
+    finally { fs.openSync = open; }
+    assert.equal(probes, 1);
+    assert.equal(claims, 1, "existing guard store denial refuses on its first recovery claim");
+    assert.equal(waits, 0);
+    assert.deepEqual(fs.readdirSync(store), ["guard.json"]);
+    fs.unlinkSync(path.join(store, "guard.json"));
+  }
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    const open = fs.openSync;
+    let probes = 0, waits = 0;
+    fs.openSync = (target, ...args) => {
+      if (String(target).startsWith(store + path.sep)) {
+        if (path.basename(target).startsWith("write-probe-")) probes++;
+        throw Object.assign(new Error("store-wide denial"), { code });
+      }
+      return open(target, ...args);
+    };
+    try { await assert.rejects(acquireWaiting("denied store", { root: store, waitMs: 5000, census: () => [],
+      onWait: () => waits++ }), error => error.message.includes(`Reservation store not writable at ${store} (${code})`)); }
+    finally { fs.openSync = open; }
+    assert.equal(probes, 1, "genuine denial probes once and refuses before retrying");
+    assert.equal(waits, 0);
+    assert.deepEqual(fs.readdirSync(store), []);
+  }
+  for (const operation of ["open", "write", "read", "rename"]) {
+    const guard = path.join(store, "guard.json");
+    fs.writeFileSync(guard, JSON.stringify({ owner: { pid: 42, start: "dead" } }));
+    const method = { open: "openSync", write: "writeFileSync", read: "readFileSync", rename: "renameSync" }[operation];
+    const originalMethod = fs[method], open = fs.openSync;
+    let claimFd, guardReadFd, denied = 0;
+    fs.openSync = (target, ...args) => {
+      const fd = open(target, ...args);
+      if (target === path.join(store, "guard-recovery.json")) claimFd = fd;
+      if (target === guard && args[0] === "r") guardReadFd = fd;
+      return fd;
+    };
+    const dispatch = fs[method];
+    fs[method] = (target, ...args) => {
+      const affected = operation === "open" ? target === path.join(store, "guard-recovery.json")
+        : operation === "write" ? target === claimFd : operation === "read" ? target === guard || target === guardReadFd : target === guard;
+      if (affected && denied++ < 1) throw Object.assign(new Error("recovery file contention"), { code: "EBUSY" });
+      return dispatch(target, ...args);
+    };
+    const waits = [];
+    let reservation;
+    try { reservation = await acquireWaiting(`recovery ${operation}`, { root: store, waitMs: 30000, pollMs: 5,
+      census: () => [], identify: pid => pid === 42 ? null : processIdentity(pid), onWait: value => waits.push(value.waiting) }); }
+    finally { fs[method] = originalMethod; fs.openSync = open; }
+    assert.ok(waits.includes("reservation files"), `recovery ${operation} waits using writable proof`);
+    reservation.release();
+    const archive = fs.readdirSync(store);
+    assert.equal(archive.length, 1);
+    assert.ok(archive[0].startsWith("recovered-guard-"));
+    assert.equal(read(path.join(store, archive[0])).owner.start, "dead");
+    fs.unlinkSync(path.join(store, archive[0]));
+  }
+  // A held peer survives file-specific denial, including the probe.
+  const peer = JSON.stringify({ token: "peer", owner: { pid: 42, start: "peer" }, phase: "reserved" });
+  fs.writeFileSync(path.join(store, "reservation.json"), peer);
+  const open = fs.openSync;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EBUSY" });
+    return open(target, ...args);
+  };
+  try { await assert.rejects(acquireWaiting("peer preserved", { root: store, waitMs: 50, pollMs: 5, census: () => [] }), /Reservation files busy/); }
+  finally { fs.openSync = open; }
+  assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  // Failure cleaning the private probe cannot claim writable proof or retry.
+  const unlink = fs.unlinkSync;
+  let cleanupProbe;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
+    return open(target, ...args);
+  };
+  fs.unlinkSync = target => {
+    if (path.basename(target).startsWith("write-probe-")) {
+      cleanupProbe = target;
+      throw Object.assign(new Error("private probe cleanup denied"), { code: "EPERM" });
+    }
+    return unlink(target);
+  };
+  try { await assert.rejects(acquireWaiting("uncertain cleanup", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("uncertain probe cleanup retried") }), /private probe cleanup denied/); }
+  finally { fs.openSync = open; fs.unlinkSync = unlink; }
+  assert.equal(fs.existsSync(path.join(store, "reservation.json")), false);
+  fs.unlinkSync(cleanupProbe);
+  const fstat = fs.fstatSync;
+  let unknownProbe, probeFd;
+  fs.openSync = (target, ...args) => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("held guard"), { code: "EPERM" });
+    const fd = open(target, ...args);
+    if (path.basename(target).startsWith("write-probe-")) { unknownProbe = target; probeFd = fd; }
+    return fd;
+  };
+  fs.fstatSync = (fd, ...args) => {
+    if (fd === probeFd) throw new Error("probe identity unavailable");
+    return fstat(fd, ...args);
+  };
+  try { await assert.rejects(acquireWaiting("unknown probe identity", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("unknown probe identity retried") }), /Private reservation probe identity unavailable/); }
+  finally { fs.openSync = open; fs.fstatSync = fstat; }
+  assert.equal(fs.existsSync(unknownProbe), true, "a probe with uncertain identity remains for inspection");
+  fs.unlinkSync(unknownProbe);
+  // A failed atomic replacement preserves old published ownership bytes.
+  fs.writeFileSync(path.join(store, "reservation.json"), peer);
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) throw Object.assign(new Error("replacement denied"), { code: "EACCES" });
+    return original(source, target);
+  };
+  try { await assert.rejects(acquireWaiting("preserve old record", { root: store, waitMs: 1, census: () => [],
+    identify: pid => pid === 42 ? null : processIdentity(pid) }), /Reservation files busy/); }
+  finally { fs.renameSync = original; }
+  assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
+  assert.equal(fs.readdirSync(store).some(name => name.endsWith(".tmp")), false);
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  fs.unlinkSync(path.join(store, "recovered-peer.json"));
+  // Once atomic publication succeeded, a guard cleanup failure must not replay
+  // acquisition, even when its code would otherwise be eligible for contention.
+  let publications = 0;
+  fs.renameSync = (source, target) => {
+    if (target === path.join(store, "reservation.json")) publications++;
+    return original(source, target);
+  };
+  fs.unlinkSync = target => {
+    if (target === path.join(store, "guard.json")) throw Object.assign(new Error("published guard cleanup denied"), { code: "EPERM" });
+    return unlink(target);
+  };
+  try { await assert.rejects(acquireWaiting("already published", { root: store, waitMs: 5000, census: () => [],
+    onWait: () => assert.fail("published acquisition replayed") }), /published guard cleanup denied/); }
+  finally { fs.renameSync = original; fs.unlinkSync = unlink; }
+  assert.equal(publications, 1);
+  assert.equal(read(path.join(store, "reservation.json")).run, "already published");
+  fs.unlinkSync(path.join(store, "guard.json"));
+  fs.unlinkSync(path.join(store, "reservation.json"));
+  console.log("PASS: Windows reservation file contention retries within its deadline using clean private probes");
+} else console.log("SKIP: Windows reservation file contention controls require Windows");
 console.log("PASS: a held reservation guard delays release and never replaces the Vitest result");
 const busy = acquire("busy", { root: lockRoot, census: () => [] });
 await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }), /Existing suite running/);
@@ -351,6 +629,8 @@ console.log("PASS: run composes the one-worker flags, caps the heap and holds th
 // the deadline rather than after a full interval.
 const { main } = await import("./test-suite.mjs");
 const seam = { root: lockRoot, census: () => [], vitestPath: fakeVitest, stdio: "ignore" };
+assert.equal(await main(["run", path.relative(process.cwd(), scratch), "a.test.ts"], seam), 3,
+  "valid relative package directories still launch Vitest");
 assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 3, "run returns the Vitest exit status");
 assert.deepEqual(read(fakeRecord).argv, vitestArguments(["a.test.ts"]), "--wait and its value are not passed to Vitest");
 const cliHolder = acquire("cli holder", { root: lockRoot, census: () => [] });
@@ -368,9 +648,29 @@ await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait tak
 await assert.rejects(main(["run", scratch, "--wait", "5"], seam), /Name the test files under work/, "run refuses a whole-package call");
 const { MAX_RUN_FILES } = await import("./test-suite.mjs");
 const manyFiles = Array.from({ length: MAX_RUN_FILES + 1 }, (_, i) => `f${i}.test.ts`);
+for (const name of manyFiles) fs.writeFileSync(path.join(scratch, name), "fixture");
 await assert.rejects(main(["run", scratch, ...manyFiles, "--wait", "5"], seam), new RegExp(`at most ${MAX_RUN_FILES} test files \\(${MAX_RUN_FILES + 1} named\\)`), "run refuses a list wider than the bound");
 assert.equal(await main(["run", scratch, ...manyFiles.slice(1), "--wait", "5"], seam), 3, "run accepts a list at the bound");
 assert.deepEqual(read(fakeRecord).argv, vitestArguments(manyFiles.slice(1)), "every named file at the bound reaches Vitest");
+const literalNames = ["a.test.ts", "b.spec.tsx", "bracket[1]{brace}(group)+@!.test.ts", "space name.test.ts"];
+for (const name of literalNames.slice(2)) fs.writeFileSync(path.join(scratch, name), "fixture");
+assert.equal(await main(["run", scratch, ...literalNames], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments(literalNames), "valid multiple literal files retain exact spelling and order");
+const runAlias = path.join(path.dirname(scratch), path.basename(scratch) + "-literal-run-alias");
+fs.symlinkSync(scratch, runAlias, process.platform === "win32" ? "junction" : "dir");
+const aliasFile = path.join(runAlias, "a.test.ts");
+assert.equal(await main(["run", runAlias, aliasFile], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "valid absolute package alias is forwarded unchanged");
+assert.equal(await main(["run", scratch, aliasFile], seam), 3);
+assert.deepEqual(read(fakeRecord).argv, vitestArguments([aliasFile]), "an additional physical alias retains its exact argument");
+if (process.platform === "win32") {
+  const shortRoot = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    "$f=New-Object -ComObject Scripting.FileSystemObject; $f.GetFolder($env:IMPOWER_LITERAL_PACKAGE).ShortPath"],
+    { encoding: "utf8", windowsHide: true, env: { ...process.env, IMPOWER_LITERAL_PACKAGE: scratch } }).trim();
+  const shortFile = path.join(shortRoot, "a.test.ts");
+  assert.equal(await main(["run", scratch, shortFile], seam), 3);
+  assert.deepEqual(read(fakeRecord).argv, vitestArguments([shortFile]), "Windows short directory spelling is forwarded unchanged");
+}
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 
@@ -458,7 +758,586 @@ assert.equal(fs.readFileSync(guardFile, "utf8"), abandoned, "an unrecovered clai
 assert.equal(fs.existsSync(claimFile), true, "the claim is never removed on another process's behalf");
 fs.unlinkSync(claimFile);
 fs.unlinkSync(guardFile);
+fs.writeFileSync(claimFile, "{}");
+const normalWithClaim = acquire("normal transaction with abandoned recovery claim", { root: lockRoot, census: () => [] });
+normalWithClaim.release();
+assert.equal(fs.readFileSync(claimFile, "utf8"), "{}", "an abandoned recovery claim does not block or change normal transactions");
+fs.unlinkSync(claimFile);
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
+
+// A normal transaction can remove its guard and exit while recovery's process
+// lookup is still in flight. Its successor's live guard is a different file,
+// even if a delayed lookup then confirms the original coordinator is absent.
+{
+  const peerGuard = JSON.stringify({ owner: processIdentity(process.pid), token: "live-successor" });
+  const oldGeneration = path.join(lockRoot, "released-generation.json");
+  fs.writeFileSync(guardFile, abandoned);
+  let crossed = false;
+  const count = recoveredGuards().length;
+  assert.throws(() => acquire("generation race", { root: lockRoot, census: () => [], guardWaitMs: 50,
+    identify: pid => {
+      if (pid !== deadOwner.pid) return processIdentity(pid);
+      if (!crossed) {
+        crossed = true;
+        fs.renameSync(guardFile, oldGeneration);
+        fs.writeFileSync(guardFile, peerGuard);
+      }
+      return null;
+    } }), error => error.guardHeld === true);
+  assert.equal(crossed, true, "the original guard was replaced during its owner's lookup");
+  assert.equal(fs.readFileSync(guardFile, "utf8"), peerGuard, "the live successor guard survives recovery");
+  assert.equal(recoveredGuards().length, count, "a recovery archive never holds the replacement guard");
+  assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "no reservation is admitted through the live successor guard");
+  fs.unlinkSync(guardFile);
+  fs.unlinkSync(oldGeneration);
+  for (const failAction of [false, true]) {
+    assert.throws(() => acquire("cleanup replacement", { root: lockRoot, guardWaitMs: 50,
+      census: () => {
+        fs.renameSync(guardFile, oldGeneration);
+        fs.writeFileSync(guardFile, peerGuard);
+        if (failAction) throw new Error("original admission refusal");
+        return [];
+      } }), failAction ? /original admission refusal/ : /file ownership changed/);
+    assert.equal(fs.readFileSync(guardFile, "utf8"), peerGuard, "cleanup never unlinks another generation");
+    fs.unlinkSync(guardFile);
+    fs.unlinkSync(oldGeneration);
+    if (fs.existsSync(path.join(lockRoot, "reservation.json"))) fs.unlinkSync(path.join(lockRoot, "reservation.json"));
+  }
+  const missing = acquire("already removed guard", { root: lockRoot, census: () => {
+    fs.unlinkSync(guardFile);
+    return [];
+  } });
+  assert.equal(read(path.join(lockRoot, "reservation.json")).token, missing.record.token);
+  missing.release();
+}
+console.log("PASS: recovery and cleanup preserve the observed guard generation, including replacement and absence");
+
+{
+  const marker = path.join(scratch, ".git", "ownership-child-started");
+  const childFile = path.join(scratch, ".git", "ownership-child.mjs");
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=Number(process.argv[2]);`);
+  let refusal;
+  await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: childFile, root: lockRoot, stdio: "ignore",
+    census: () => { atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
+  }), error => (refusal = error, error.notRun === true && /ownership changed/.test(error.message)));
+  assert.equal(notRunExit(refusal, () => {}), 75);
+  assert.equal(fs.existsSync(marker), false, "pre-child ownership loss launches nothing");
+  assert.equal(read(reservationFile).token, "peer-before-child");
+  fs.unlinkSync(reservationFile);
+  for (const timing of ["post-spawn", "terminal"]) for (const exit of [0, 7]) {
+    // The fixture process has its own real observed close; a deterministic
+    // identity seam avoids a fast child disappearing during Windows lookup.
+    fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=${exit};`);
+    const rename = fs.renameSync;
+    let replaced = false;
+    fs.renameSync = (temp, target) => {
+      if (timing === "terminal" && target === reservationFile && read(temp).phase === "running" && !replaced) {
+        replaced = true;
+        fs.writeFileSync(temp, JSON.stringify({ ...read(temp), token: "peer-after-child" }));
+      }
+      return rename(temp, target);
+    };
+    let result;
+    try { result = await runVitest({ packageRoot: scratch, vitestPath: childFile, root: lockRoot, census: () => [], stdio: "ignore",
+      identify: pid => {
+        if (pid === process.pid) return processIdentity(pid);
+        if (timing === "post-spawn" && !replaced) {
+          replaced = true;
+          atomic(reservationFile, { ...read(reservationFile), token: "peer-after-child" });
+        }
+        return { pid, start: "fixture-child" };
+      } }); }
+    finally { fs.renameSync = rename; }
+    assert.equal(replaced, true, `${timing}: ownership was replaced at the intended boundary`);
+    assert.equal(result.exit, exit, `${timing}: retain the original child's actual exit`);
+    assert.equal(result.signal, null);
+    assert.match(result.reservationError, /Reservation ownership changed/);
+    assert.match(result.releaseError, /Reservation ownership changed/);
+    assert.equal(fs.readFileSync(marker, "utf8"), "started\n", "ownership loss never launches a second child");
+    assert.equal(read(reservationFile).token, "peer-after-child", "never release another owner's token");
+    fs.unlinkSync(marker);
+    fs.unlinkSync(reservationFile);
+  }
+}
+console.log("PASS: pre-child ownership loss is not run and post-spawn ownership loss preserves only the original child result");
+
+const setupOwner = processIdentity(process.pid);
+const setupIdentify = pid => pid === process.pid ? setupOwner : { pid, start: "fixture-child" };
+for (const mode of ["mkdir", "save", "open", "environment", "spawn", "launch-update"]) {
+  const resultDirectory = path.join(scratch, ".git", `setup-${mode}`);
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  const mkdir = fs.mkdirSync, rename = fs.renameSync, open = fs.openSync;
+  let injected = false, launched = 0, failure;
+  const fail = () => { injected = true; throw new Error(`controlled setup ${mode}`); };
+  fs.mkdirSync = (target, ...args) => path.dirname(target) === resultDirectory && mode === "mkdir" ? fail() : mkdir(target, ...args);
+  fs.renameSync = (temp, target) => {
+    if (target === path.join(resultDirectory, "run.json") && mode === "save" && read(temp).attempts.length) return fail();
+    const launching = mode === "launch-update" && target === reservationFile && read(temp).phase === "launching";
+    const result = rename(temp, target);
+    if (launching && !injected) return fail();
+    return result;
+  };
+  fs.openSync = (target, ...args) => typeof target === "string" && path.basename(target) === "output.log" && mode === "open" ? fail() : open(target, ...args);
+  try { await execute({ ...options, directory: resultDirectory, identify: setupIdentify,
+    environment: mode === "environment" ? fail : undefined,
+    spawnChild: () => { launched++; return fail(); } }); }
+  catch (error) { failure = error; }
+  finally { fs.mkdirSync = mkdir; fs.renameSync = rename; fs.openSync = open; }
+  assert.equal(injected, true, `${mode}: intended setup step reached`);
+  assert.equal(notRunExit(failure, () => {}), 75);
+  assert.equal(launched, mode === "spawn" ? 1 : 0, "no engine launches during preparation failure");
+  assert.equal(fs.existsSync(reservationFile), false, "no-child setup failure releases its own reservation");
+  const next = acquire("after setup failure", { root: lockRoot, census: () => [], identify: setupIdentify });
+  next.release();
+}
+
+for (const afterDiscovery of [false, true]) for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `setup-prior-${afterDiscovery}-${peer}`);
+  const marker = path.join(scratch, ".git", `setup-prior-${afterDiscovery}-${peer}.marker`);
+  const fixture = path.join(scratch, ".git", `setup-prior-${afterDiscovery}-${peer}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10)); await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const mkdir = fs.mkdirSync, reservationFile = path.join(lockRoot, "reservation.json"), runFile = path.join(resultDirectory, "run.json");
+  const peerBytes = JSON.stringify({ token: "setup-peer-journal", preserved: true });
+  let attempts = 0, injected = false, result, failure;
+  fs.mkdirSync = (target, ...args) => {
+    if (path.dirname(target) === resultDirectory && ++attempts === (afterDiscovery ? 2 : 1)) {
+      injected = true;
+      if (peer) { fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "setup-peer" })); fs.writeFileSync(runFile, peerBytes); }
+      throw new Error("controlled setup after ownership check");
+    }
+    return mkdir(target, ...args);
+  };
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: setupIdentify }); }
+  catch (error) { failure = error; }
+  finally { fs.mkdirSync = mkdir; }
+  assert.equal(injected, true);
+  if (afterDiscovery) {
+    assert.equal(failure, undefined, "completed discovery is never relabeled as wholly not-run");
+    assert.equal(result.status, "incomplete");
+    assert.equal(fs.readFileSync(marker, "utf8"), "discover\n");
+    assert.equal(result.observedAttempts[0].exit, 0, "earlier discovery close remains returned even if a peer owns the journal");
+    if (!peer) assert.equal(read(runFile).attempts[0].exit, 0, "prior observed child outcome remains durable");
+  } else { assert.equal(notRunExit(failure, () => {}), 75); assert.equal(fs.existsSync(marker), false); }
+  if (peer) {
+    assert.equal(read(reservationFile).token, "setup-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes, "failed setup never overwrites peer journals");
+    fs.unlinkSync(reservationFile);
+  } else assert.equal(fs.existsSync(reservationFile), false);
+}
+
+for (const afterDiscovery of [false, true]) for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `launch-write-${afterDiscovery}-${peer}`);
+  const marker = path.join(scratch, ".git", `launch-write-${afterDiscovery}-${peer}.marker`);
+  const fixture = path.join(scratch, ".git", `launch-write-${afterDiscovery}-${peer}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10)); await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const rename = fs.renameSync, reservationFile = path.join(lockRoot, "reservation.json"), runFile = path.join(resultDirectory, "run.json");
+  const peerBytes = JSON.stringify({ token: "launch-peer-journal", preserved: true });
+  let launches = 0, injected = false, result, failure;
+  fs.renameSync = (temp, target) => {
+    const selected = target === reservationFile && read(temp).phase === "launching" && ++launches === (afterDiscovery ? 2 : 1);
+    const value = rename(temp, target);
+    if (selected && !injected) {
+      injected = true;
+      if (peer) { fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "launch-peer" })); fs.writeFileSync(runFile, peerBytes); }
+      throw new Error("controlled post-write launch update");
+    }
+    return value;
+  };
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture, identify: setupIdentify }); }
+  catch (error) { failure = error; }
+  finally { fs.renameSync = rename; }
+  assert.equal(injected, true);
+  const attempt = afterDiscovery ? result.observedAttempt : failure.attempt;
+  assert.match(attempt.reservationError, /controlled post-write/);
+  if (afterDiscovery) { assert.equal(failure, undefined); assert.equal(result.status, "incomplete"); assert.equal(fs.readFileSync(marker, "utf8"), "discover\n"); assert.equal(result.observedAttempts[0].exit, 0); }
+  else { assert.equal(notRunExit(failure, () => {}), 75); assert.equal(fs.existsSync(marker), false); }
+  if (peer) {
+    assert.match(attempt.reservationCleanupError, /ownership changed/);
+    assert.equal(read(reservationFile).token, "launch-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
+    fs.unlinkSync(reservationFile);
+  } else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next launch", { root: lockRoot, census: () => [], identify: setupIdentify }); next.release(); }
+}
+
+for (const boundary of ["close", "running-save"]) for (const exit of [0, 7]) {
+  const resultDirectory = path.join(scratch, ".git", `post-launch-${boundary}-${exit}`);
+  const marker = path.join(scratch, ".git", `post-launch-${boundary}-${exit}.marker`);
+  const fixture = path.join(scratch, ".git", `post-launch-${boundary}-${exit}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10));
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});
+if(process.argv[2]==="run") { await new Promise(r=>setTimeout(r,80)); process.exitCode=${exit}; }`);
+  const open = fs.openSync, close = fs.closeSync, rename = fs.renameSync;
+  let logs = 0, selectedFd, injected = false;
+  fs.openSync = (target, ...args) => {
+    const fd = open(target, ...args);
+    if (typeof target === "string" && path.basename(target) === "output.log" && ++logs === 2) selectedFd = fd;
+    return fd;
+  };
+  fs.closeSync = fd => { const result = close(fd); if (boundary === "close" && fd === selectedFd && !injected) { injected = true; throw new Error("controlled parent log close"); } return result; };
+  fs.renameSync = (temp, target) => {
+    if (boundary === "running-save" && target === path.join(resultDirectory, "run.json") && read(temp).attempts.at(-1)?.mode === "run" && read(temp).attempts.at(-1)?.pid && !injected) {
+      injected = true; throw new Error("controlled running journal save");
+    }
+    return rename(temp, target);
+  };
+  let result;
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: setupIdentify }); }
+  finally { fs.openSync = open; fs.closeSync = close; fs.renameSync = rename; }
+  assert.equal(injected, true);
+  assert.equal(result.observedAttempt.exit, exit, "cleanup/publication failure still awaits original child close");
+  assert.match(result.attemptError, /controlled/);
+  assert.equal(fs.readFileSync(marker, "utf8"), "discover\nrun\n", "no later file is admitted");
+  assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false);
+}
+console.log("PASS: setup failures release without launching and post-launch cleanup/publication failures await original results");
+
+for (const boundary of ["initial-directory", "initial-journal", "manifest", "summary", "final-save"])
+for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `publication-${boundary}-${peer}`);
+  const marker = path.join(scratch, ".git", `publication-${boundary}-${peer}.marker`);
+  const fixture = path.join(scratch, ".git", `publication-${boundary}-${peer}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10));
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const runFile = path.join(resultDirectory, "run.json"), reservationFile = path.join(lockRoot, "reservation.json");
+  const peerBytes = JSON.stringify({ token: "publication-peer-journal", preserved: true });
+  const mkdir = fs.mkdirSync, rename = fs.renameSync;
+  let injected = false, result, failure, attemptBytes = [];
+  const fail = () => {
+    injected = true;
+    if (peer) {
+      fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "publication-peer" }));
+      mkdir(resultDirectory, { recursive: true });
+      for (const item of fs.readdirSync(resultDirectory, { withFileTypes: true }).filter(item => item.isDirectory())) {
+        const file = path.join(resultDirectory, item.name, "attempt.json");
+        if (fs.existsSync(file)) attemptBytes.push([file, fs.readFileSync(file, "utf8")]);
+      }
+      fs.writeFileSync(runFile, peerBytes);
+    }
+    throw Object.assign(new Error(`controlled coordinator ${boundary}`), { code: "EIO" });
+  };
+  fs.mkdirSync = (target, ...args) => boundary === "initial-directory" && target === resultDirectory && !injected ? fail() : mkdir(target, ...args);
+  fs.renameSync = (temp, target) => {
+    if (!injected && target === path.join(resultDirectory, "summary.json") && boundary === "summary") return fail();
+    if (!injected && target === runFile) {
+      const value = read(temp);
+      if (boundary === "initial-journal" && !value.attempts.length
+        || boundary === "manifest" && value.files.length && !value.identity
+        || boundary === "final-save" && value.active === false) return fail();
+    }
+    return rename(temp, target);
+  };
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture, identify: setupIdentify }); }
+  catch (error) { failure = error; }
+  finally { fs.mkdirSync = mkdir; fs.renameSync = rename; }
+  assert.equal(injected, true, `${boundary}: intended coordinator boundary reached`);
+  if (boundary.startsWith("initial-")) {
+    assert.equal(fs.existsSync(marker), false, "initial publication failure launches no child");
+    assert.equal(notRunExit(failure, () => {}), 75);
+    assert.match(failure.message, /controlled coordinator/);
+  } else {
+    assert.equal(failure, undefined);
+    assert.equal(result.status, boundary === "manifest" ? "incomplete" : "passed");
+    assert.match(result.journalError, /controlled coordinator/);
+    assert.equal(result.observedAttempts[0].exit, 0, "discovery result survives coordinator publication failure");
+    assert.equal(fs.readFileSync(marker, "utf8"), boundary === "manifest" ? "discover\n" : "discover\nrun\nrun\n");
+    if (boundary !== "manifest") assert.equal(result.observedAttempts.at(-1).exit, 0);
+  }
+  if (peer) {
+    assert.equal(read(reservationFile).token, "publication-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
+    for (const [file, bytes] of attemptBytes) assert.equal(fs.readFileSync(file, "utf8"), bytes);
+    fs.unlinkSync(reservationFile);
+  } else {
+    assert.equal(fs.existsSync(reservationFile), false);
+    const next = acquire("after coordinator publication", { root: lockRoot, census: () => [], identify: setupIdentify });
+    next.release();
+  }
+}
+console.log("PASS: coordinator preparation/publication retains admission and observed results without peer writes");
+
+for (const boundary of ["resume", "discovery", "between-files", "final-resume"])
+for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `stale-publication-${boundary}-${peer}`);
+  const marker = path.join(scratch, ".git", `stale-publication-${boundary}-${peer}.marker`);
+  const fixture = path.join(scratch, ".git", `stale-publication-${boundary}-${peer}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)},process.argv[2]+String.fromCharCode(10));
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const staleOptions = { ...options, directory: resultDirectory, enginePath: fixture, identify: setupIdentify };
+  if (boundary === "resume" || boundary === "final-resume") assert.equal((await execute(staleOptions)).status, "passed");
+  const runFile = path.join(resultDirectory, "run.json"), reservationFile = path.join(lockRoot, "reservation.json");
+  const peerBytes = JSON.stringify({ successor: "stale publication peer" });
+  const rename = fs.renameSync;
+  let injected = false, failure, result, calls = 0, attemptBytes = [];
+  fs.renameSync = (temp, target) => {
+    if (target === runFile && read(temp).stale) {
+      injected = true;
+      for (const item of fs.readdirSync(resultDirectory, { withFileTypes: true }).filter(item => item.isDirectory())) {
+        const file = path.join(resultDirectory, item.name, "attempt.json");
+        if (fs.existsSync(file)) attemptBytes.push([file, fs.readFileSync(file, "utf8")]);
+      }
+      if (peer) {
+        fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "stale-peer" }));
+        fs.writeFileSync(runFile, peerBytes);
+      }
+      throw Object.assign(new Error("controlled stale publication EIO"), { code: "EIO" });
+    }
+    return rename(temp, target);
+  };
+  const fingerprint = () => ++calls < (boundary === "resume" ? 1 : boundary === "discovery" || boundary === "final-resume" ? 2 : 4) ? "unchanged" : "changed";
+  try {
+    if (boundary === "resume") await main(["resume", resultDirectory], { ...staleOptions, fingerprint });
+    else result = await execute({ ...staleOptions, fingerprint });
+  }
+  catch (error) { failure = error; }
+  finally { fs.renameSync = rename; }
+  assert.equal(injected, true, `${boundary}: stale publication fault was reached`);
+  if (boundary === "final-resume") {
+    assert.equal(failure, undefined);
+    assert.equal(result.status, "stale", "completed resume keeps its known stale summary on publication failure");
+  } else {
+    assert.equal(notRunExit(failure, () => {}), 1, "known stale inputs remain a failure, never retryable admission");
+    assert.match(failure.message, boundary === "resume" ? /identity changed/ : boundary === "discovery" ? /changed during discovery/ : /changed during suite/);
+  }
+  const evidence = failure || result;
+  assert.match(evidence.journalError, /controlled stale publication EIO/);
+  assert.equal(fs.readFileSync(marker, "utf8"), boundary === "resume" || boundary === "final-resume" ? "discover\nrun\nrun\n" : boundary === "discovery" ? "discover\n" : "discover\nrun\n");
+  assert.equal(evidence.observedAttempts.length, boundary === "resume" || boundary === "final-resume" ? 0 : boundary === "discovery" ? 1 : 2);
+  for (const attempt of evidence.observedAttempts) assert.equal(attempt.exit, 0);
+  for (const [file, bytes] of attemptBytes) assert.equal(fs.readFileSync(file, "utf8"), bytes);
+  if (peer) {
+    assert.equal(read(reservationFile).token, "stale-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
+    fs.unlinkSync(reservationFile);
+  } else {
+    assert.equal(fs.existsSync(reservationFile), false);
+    const next = acquire("after stale publication failure", { root: lockRoot, census: () => [], identify: setupIdentify });
+    next.release();
+  }
+}
+console.log("PASS: known stale refusals survive publication failure, retain observed children and preserve peers");
+
+for (const peer of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `saved-stale-${peer}`);
+  const id = "00000000-0000-0000-0000-000000000001";
+  const attemptDirectory = path.join(resultDirectory, id), attemptFile = path.join(attemptDirectory, "attempt.json");
+  fs.mkdirSync(attemptDirectory, { recursive: true });
+  const attempt = { id, directory: attemptDirectory, mode: "discover", file: null, status: "reserved" };
+  const attemptBytes = JSON.stringify(attempt), peerBytes = JSON.stringify({ successor: "saved stale peer" });
+  fs.writeFileSync(attemptFile, attemptBytes);
+  const runFile = path.join(resultDirectory, "run.json"), reservationFile = path.join(lockRoot, "reservation.json");
+  fs.writeFileSync(runFile, JSON.stringify({ version: 1, directory: resultDirectory, root: scratch,
+    packageRoot: scratch, stale: true, files: [], attempts: [attempt] }));
+  const rename = fs.renameSync;
+  let reconciliation = false, injected = false, failure, launches = 0;
+  fs.renameSync = (temp, target) => {
+    if (target === attemptFile) { reconciliation = true; throw Object.assign(new Error("unexpected stale reconciliation EIO"), { code: "EIO" }); }
+    if (target === runFile && read(temp).stale) {
+      injected = true;
+      if (peer) {
+        fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "saved-stale-peer" }));
+        fs.writeFileSync(runFile, peerBytes);
+      }
+      throw Object.assign(new Error("controlled saved stale publication EIO"), { code: "EIO" });
+    }
+    return rename(temp, target);
+  };
+  const refuseLaunch = () => { launches++; throw Error("unexpected saved-stale child"); };
+  try { await execute({ ...options, directory: resultDirectory, identify: setupIdentify,
+    spawnChild: refuseLaunch }); }
+  catch (error) { failure = error; }
+  finally { fs.renameSync = rename; }
+  assert.equal(notRunExit(failure, () => {}), 1);
+  assert.match(failure.message, /identity changed/);
+  assert.match(failure.journalError, /saved stale publication EIO/);
+  assert.equal(reconciliation, false, "saved stale refusal precedes reconciliation writes");
+  assert.equal(injected, true);
+  assert.equal(launches, 0);
+  assert.equal(fs.readFileSync(attemptFile, "utf8"), attemptBytes, "known stale refusal retains the old attempt");
+  if (peer) {
+    assert.equal(read(reservationFile).token, "saved-stale-peer");
+    assert.equal(fs.readFileSync(runFile, "utf8"), peerBytes);
+    fs.unlinkSync(reservationFile);
+  } else {
+    assert.equal(fs.existsSync(reservationFile), false);
+    const next = acquire("after saved stale refusal", { root: lockRoot, census: () => [], identify: setupIdentify });
+    next.release();
+  }
+  await assert.rejects(execute({ ...options, identify: setupIdentify, spawnChild: refuseLaunch,
+    directory: path.join(scratch, ".git", `saved-stale-spawn-control-${peer}`) }), /unexpected saved-stale child/);
+  assert.equal(launches, 1, "the same no-launch sentinel observes an ordinary discovery admission");
+  assert.equal(fs.existsSync(reservationFile), false);
+}
+console.log("PASS: saved stale refusals preserve old attempts before reconciliation publication");
+
+for (const peer of [false, true]) {
+  const reservationFile = path.join(lockRoot, "reservation.json"), rename = fs.renameSync;
+  const marker = path.join(scratch, ".git", `direct-launch-${peer}.marker`);
+  const fixture = path.join(scratch, ".git", `direct-launch-${peer}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(marker)},"started");`);
+  let injected = false, failure;
+  fs.renameSync = (temp, target) => {
+    const selected = target === reservationFile && read(temp).phase === "launching";
+    const result = rename(temp, target);
+    if (selected && !injected) {
+      injected = true;
+      if (peer) fs.writeFileSync(reservationFile, JSON.stringify({ ...read(reservationFile), token: "direct-launch-peer" }));
+      throw new Error("controlled direct post-write failure");
+    }
+    return result;
+  };
+  try { await runVitest({ ...options, vitestPath: fixture, stdio: "ignore", identify: setupIdentify }); }
+  catch (error) { failure = error; }
+  finally { fs.renameSync = rename; }
+  assert.equal(injected, true); assert.equal(notRunExit(failure, () => {}), 75); assert.equal(fs.existsSync(marker), false);
+  assert.match(failure.message, /controlled direct/);
+  if (peer) { assert.match(failure.reservationCleanupError, /ownership changed/); assert.equal(read(reservationFile).token, "direct-launch-peer"); fs.unlinkSync(reservationFile); }
+  else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next direct", { root: lockRoot, census: () => [], identify: setupIdentify }); next.release(); }
+}
+
+for (const afterDiscovery of [false, true]) {
+  const resultDirectory = path.join(scratch, ".git", `before-child-${afterDiscovery}`);
+  const marker = path.join(scratch, ".git", `before-child-${afterDiscovery}.marker`);
+  const fixture = path.join(scratch, ".git", `before-child-${afterDiscovery}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)}, process.argv[2]+"\\n");
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});`);
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  let censusCalls = 0, failure, result, priorJournal;
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" },
+    census: () => {
+      if (++censusCalls === (afterDiscovery ? 2 : 1)) {
+        atomic(reservationFile, { ...read(reservationFile), token: "peer-before-durable-child" });
+        if (afterDiscovery) priorJournal = fs.readFileSync(path.join(resultDirectory, "run.json"), "utf8");
+      }
+      return [];
+    } }); }
+  catch (error) { failure = error; }
+  if (!afterDiscovery) {
+    assert.equal(notRunExit(failure, () => {}), 75);
+    assert.equal(fs.existsSync(marker), false);
+    assert.equal(failure.unpersistedAttempts[0].status, "not-run");
+  } else {
+    assert.equal(failure, undefined, "a launched discovery is never relabeled wholly not-run");
+    assert.equal(result.status, "incomplete");
+    assert.match(result.reservationError, /ownership changed/);
+    assert.equal(fs.readFileSync(marker, "utf8"), "discover\n");
+    assert.equal(fs.readFileSync(path.join(resultDirectory, "run.json"), "utf8"), priorJournal, "completed discovery evidence survives pre-file refusal");
+  }
+  assert.equal(read(reservationFile).token, "peer-before-durable-child");
+  fs.unlinkSync(reservationFile);
+}
+
+// Lose ownership at the terminal update, after the child's result is observed
+// but before durable publication. A successor journal must remain byte-for-byte
+// intact; returned evidence is explicitly unpersisted and no next file starts.
+for (const boundary of ["discover", "first", "last"]) for (const exit of [0, 7]) {
+  const resultDirectory = path.join(scratch, ".git", `lost-${boundary}-${exit}`);
+  const marker = path.join(scratch, ".git", `lost-${boundary}-${exit}.marker`);
+  const fixture = path.join(scratch, ".git", `lost-${boundary}-${exit}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)}, process.argv[2]+"\\n");
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});
+if(process.argv[2]==="run" || ${JSON.stringify(boundary)}==="discover")process.exitCode=${exit};`);
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  const runFile = path.join(resultDirectory, "run.json");
+  const originalRead = fs.readFileSync;
+  let replaced = false, peerJournal, priorAttempt, attemptFile;
+  fs.readFileSync = function(target, ...args) {
+    if (target === reservationFile && !replaced && fs.existsSync(runFile)) {
+      const journal = JSON.parse(originalRead(runFile, "utf8"));
+      const active = journal.attempts.at(-1);
+      const selected = boundary === "discover" ? active?.mode === "discover"
+        : active?.mode === "run" && active.file.endsWith(boundary === "first" ? "a.test.ts" : "b.spec.tsx");
+      const candidate = active && path.join(active.directory, "attempt.json");
+      if (selected && fs.existsSync(candidate)) {
+        replaced = true;
+        attemptFile = candidate;
+        priorAttempt = originalRead(candidate, "utf8");
+        peerJournal = JSON.stringify({ ...journal, token: "successor-journal", active: true });
+        fs.writeFileSync(runFile, peerJournal);
+        fs.writeFileSync(reservationFile, JSON.stringify({ ...JSON.parse(originalRead(reservationFile, "utf8")), token: "successor-reservation" }));
+      }
+    }
+    return originalRead.call(this, target, ...args);
+  };
+  let result;
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" } }); }
+  finally { fs.readFileSync = originalRead; }
+  assert.equal(replaced, true, `${boundary}: terminal update reached`);
+  assert.match(result.reservationError, /ownership changed/);
+  assert.equal(result.unpersistedAttempts.length, 1);
+  assert.equal(result.unpersistedAttempts[0].exit, exit);
+  assert.equal(result.unpersistedAttempts[0].status, exit === 0 ? "passed" : "failed");
+  assert.equal(result.status, boundary === "last" ? exit === 0 ? "passed" : "failed" : "incomplete");
+  assert.equal(originalRead(runFile, "utf8"), peerJournal, "never overwrite a successor's run journal");
+  assert.equal(originalRead(attemptFile, "utf8"), priorAttempt, "uncertain ownership prevents attempt publication");
+  assert.equal(fs.existsSync(path.join(resultDirectory, "summary.json")), false, "no shared summary after uncertainty");
+  assert.equal(originalRead(marker, "utf8"), boundary === "discover" ? "discover\n" : boundary === "first" ? "discover\nrun\n" : "discover\nrun\nrun\n", "uncertainty stops all later admissions");
+  assert.equal(read(reservationFile).token, "successor-reservation");
+  fs.unlinkSync(reservationFile);
+}
+console.log("PASS: durable ownership loss returns observed results without overwriting peer journals or admitting later files");
+
+for (const mode of ["malformed", "EACCES", "ENOENT", "readable"]) {
+  const resultDirectory = path.join(scratch, ".git", `verification-${mode}`);
+  const marker = path.join(scratch, ".git", `verification-${mode}.marker`);
+  const fixture = path.join(scratch, ".git", `verification-${mode}.mjs`);
+  fs.writeFileSync(fixture, `import fs from "node:fs";
+fs.appendFileSync(${JSON.stringify(marker)}, process.argv[2]+"\\n");
+await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/")}`).href)});
+if(process.argv[2]==="run" && ${JSON.stringify(mode)}==="malformed") {
+  const report=JSON.parse(fs.readFileSync(process.argv[4],"utf8"));
+  report.testResults[0].assertionResults=[null];
+  fs.writeFileSync(process.argv[4],JSON.stringify(report));
+}`);
+  const reservationFile = path.join(lockRoot, "reservation.json");
+  const runFile = path.join(resultDirectory, "run.json");
+  const peerJournal = JSON.stringify({ token: "peer-verification-journal", untouched: true });
+  const originalRead = fs.readFileSync, rename = fs.renameSync;
+  let running = 0, injected = false, attemptFile, priorAttempt;
+  fs.renameSync = (temp, target) => {
+    if (target === reservationFile && read(temp).phase === "running" && ++running === 2) {
+      fs.writeFileSync(temp, JSON.stringify({ ...read(temp), token: "peer-verification-reservation" }));
+    }
+    return rename(temp, target);
+  };
+  fs.readFileSync = (target, ...args) => {
+    if (!injected && running === 2 && typeof target === "string" && path.basename(target) === "output.log") {
+      injected = true;
+      const journal = JSON.parse(originalRead(runFile, "utf8"));
+      attemptFile = path.join(journal.attempts.at(-1).directory, "attempt.json");
+      priorAttempt = originalRead(attemptFile, "utf8");
+      fs.writeFileSync(runFile, peerJournal);
+      if (["EACCES", "ENOENT"].includes(mode)) throw Object.assign(new Error(`Controlled output read ${mode}`), { code: mode });
+    }
+    return originalRead(target, ...args);
+  };
+  let result;
+  try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
+    identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" } }); }
+  finally { fs.readFileSync = originalRead; fs.renameSync = rename; }
+  assert.equal(injected, true, `${mode}: post-exit verification reached`);
+  assert.equal(result.unpersistedAttempts[0].exit, 0, "observed child close survives verification failure");
+  assert.equal(result.unpersistedAttempts[0].status, mode === "readable" ? "passed" : "failed");
+  if (mode !== "readable") assert.match(result.unpersistedAttempts[0].verificationError, /null|Controlled output read/);
+  assert.equal(result.status, "incomplete", "later manifest files remain not run");
+  assert.match(result.reservationError, /ownership changed/);
+  assert.equal(originalRead(runFile, "utf8"), peerJournal, "no finally write after verification throws");
+  assert.equal(originalRead(attemptFile, "utf8"), priorAttempt, "no attempt write after uncertainty");
+  assert.equal(fs.existsSync(path.join(resultDirectory, "summary.json")), false);
+  assert.equal(originalRead(marker, "utf8"), "discover\nrun\n", "no later child after verification error");
+  assert.equal(read(reservationFile).token, "peer-verification-reservation");
+  fs.unlinkSync(reservationFile);
+}
+console.log("PASS: malformed reports and denied/missing output retain observed exits without writing peer journals");
 
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};

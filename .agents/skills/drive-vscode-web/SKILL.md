@@ -1,20 +1,18 @@
 ---
 name: drive-vscode-web
-description: "Verify the built extension in a served workbench or isolated desktop development host, including Run and Debug, language requests and Game Preview. Use for extension and shared language-server changes."
+description: "Verify the extension in a served workbench or desktop development host, including F5, language health, Game Preview and debugging. Use for extension and shared language-server changes."
 ---
 
-# Drive the VS Code extension
+# Drive the extension
 
 Commands run inside the worktree:
 `node .agents/skills/drive-vscode-web/driver.mjs <command>`.
 
-Choose the surfaces the ticket requires before running. The web `verify` command checks editor/hover rendering and settled counters; counters alone do not verify exact diagnostics, semantic-token health or Game Preview. Web `debug` exercises the inline adapter's pause, Variables, call stack, evaluation, step and continue. It reports breakpoint binding separately; awaiting-interaction pauses are not breakpoint evidence. Commands and webviews are reachable in the served workbench, so test the requested capability before claiming it requires desktop.
-
-For desktop F5, an external whole project/nested script, exact diagnostics, semantic-token health or Game Preview, read [desktop scenarios](references/desktop.md) and run `desktop` with the evidenced automation route. It launches an isolated owned host, captures logs/artifact fingerprints, and requires visible known story content plus an interaction. A required surface that fails or is unavailable is a failed check; an open window or blank panel never establishes preview success.
+Select the surface before launching: served `up`/`verify` covers open-script text, diagnostics and hover, with `verify --debug` for the web debugger; `desktop --mode full` covers the fully built extension's language server, Game Preview and debugger; `desktop --mode f5` exercises the checkout's actual F5 task first. Read [desktop scenarios](references/desktop.md) for either desktop mode. A served pass never substitutes for a desktop result. Report unavailable surfaces explicitly.
 
 ## 1. Build
 
-Before building or addressing a stale-build refusal, read [build instructions](references/build.md). Fresh desktop F5 precedes any build; the separate full-build scenario uses `cd vscode-sparkdown && npm run build`.
+Before building or addressing a stale-build refusal, read [build instructions](references/build.md). Start with `cd vscode-sparkdown && npm run build`; the reference describes narrower rebuilds and what they omit.
 
 Keep the driver inside the repo for dependency resolution. If installing dependencies, use `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`; Playwright uses the local browser cache. For browser launch or shared process-helper failures, read the web driver's [server setup](../drive-web-editor/references/server.md).
 

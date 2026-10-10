@@ -14,6 +14,7 @@ import type { StatementShape } from "../../compiler/lower/utils/statementShape";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import { loweredOutsideRebuilt } from "./memoLowering";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
 
@@ -399,34 +400,9 @@ const loweredBeyondRebuilt = (s: ReturnType<typeof session>) => {
   return [...lines].sort((a, b) => a - b).map((line) => s.text.split("\n")[line]!.trim());
 };
 
-/** Where the statement starting at `at` ends: before the first line after
- *  it, other than a blank one, indented no deeper than its first line, or
- *  past that line when it closes the statement (`end`, `else`). */
-const statementEnd = (text: string, at: number): number => {
-  const lineStart = text.lastIndexOf("\n", at - 1) + 1;
-  const indent = (line: string) => line.length - line.trimStart().length;
-  const depth = indent(text.slice(lineStart, text.indexOf("\n", at)));
-  let next = text.indexOf("\n", at) + 1;
-  while (next > 0 && next < text.length) {
-    const end = text.indexOf("\n", next);
-    const line = text.slice(next, end < 0 ? text.length : end);
-    if (line.trim() && indent(line) <= depth) {
-      return /^(end|else|elseif|until)\b/.test(line.trim()) ? (end < 0 ? text.length : end) : next;
-    }
-    next = end + 1;
-  }
-  return text.length;
-};
-
 /** The first lines of the statements the last update lowered that the
  *  incremental parse rebuilt none of. */
-const loweredOutside = (s: ReturnType<typeof session>) => {
-  const rebuilt = s.stats.rebuilt;
-  const lineAt = (at: number) => s.text.slice(at, s.text.indexOf("\n", at)).trim();
-  return s.stats.loweredAt
-    .filter((at) => !rebuilt || at > rebuilt.to || statementEnd(s.text, at) <= rebuilt.from)
-    .map(lineAt);
-};
+const loweredOutside = (s: ReturnType<typeof session>) => loweredOutsideRebuilt(s.stats, s.text);
 
 /** That `s`'s program is what a cold compile of its text makes. */
 const sameAsCold = (s: ReturnType<typeof session>, texts: Record<string, string> = {}) => {

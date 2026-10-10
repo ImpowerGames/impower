@@ -1,712 +1,390 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-import crypto from 'node:crypto';
-import net from 'node:net';
-import { execFileSync, spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { sourceFiles, nearestDirMtime, checkBuild, parseFlags, WORKBENCH_CONSOLE_NOISE, liveDeps, openFile } from './driver.mjs';
-import { consoleLine, partitionConsole } from '../drive-web-editor/driver.mjs';
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import net from "node:net";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { checkBuild, liveDeps, parseFlags, buildRule } from "./driver.mjs";
+import { connectCDP } from "./cdp.mjs";
+import { processStartedMs, pidAlive, stopLinuxTree } from "../drive-web-editor/driver.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../../..');
-const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+const root = path.resolve(here, "../../..");
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-export const DESKTOP_FLAGS = { '--code': 'value', '--automation': 'value', '--project': 'value', '--file': 'value', '--scenario': 'value', '--expect': 'value', '--out': 'value', '--first': 'value', '--next': 'value', '--timeout': 'number' };
+const sha = data => createHash("sha256").update(data).digest("hex");
+const readJson = file => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; } };
+const files = dir => fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(path.join(dir, e.name)) : [path.join(dir, e.name)]) : [];
 
-export function desktopOptions(args, repo = root) {
-  const { opts, error } = parseFlags(args, DESKTOP_FLAGS);
-  if (error) throw new Error('desktop: ' + error);
-  const scenario = opts['--scenario'] ?? 'full-build';
-  if (!['full-build', 'f5'].includes(scenario)) throw new Error('--scenario must be full-build or f5');
-  const automation = opts['--automation'] ?? 'electron';
-  if (!['electron', 'cdp'].includes(automation)) throw new Error('--automation must be electron or cdp');
-  if (!opts['--code']) throw new Error('--code must name an explicit VS Code executable; the driver never attaches to an existing instance');
-  const project = path.resolve(opts['--project'] ?? path.join(repo, '.agents/skills/drive-vscode-web/fixtures/desktop-project'));
-  const relative = opts['--file'] ?? 'project/main.sd';
-  const script = path.resolve(project, relative);
-  if (path.isAbsolute(relative) || path.relative(project, script).startsWith('..') || !relative.endsWith('.sd')) throw new Error('--file must name a .sd file within the whole --project root');
-  const timeoutMs = (opts['--timeout'] ?? 90) * 1000;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 10000 || timeoutMs > 300000) throw new Error('--timeout must be 10 to 300 seconds');
-  if (opts['--project'] && (!opts['--first'] || !opts['--next'])) throw new Error('External projects require --first and --next expected story text');
-  return { scenario, automation, project, script, code: path.resolve(opts['--code']), timeoutMs, firstText: opts['--first'] ?? 'Verification first beat.', nextText: opts['--next'] ?? 'Verification second beat.', expect: opts['--expect'], out: opts['--out'] ? path.resolve(opts['--out']) : null };
-}
-
-const sameIdentity = (a, b) => a && b && a.pid === b.pid && a.start === b.start;
-const powershellJson = script => JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$ErrorActionPreference='Stop'; " + script], { windowsHide: true, encoding: 'utf8', timeout: 15000 }) || '[]');
-function windowsProcesses(root, known = []) {
-  const ids = [root, ...known].map(row => row.pid);
-  if (ids.some(pid => !Number.isSafeInteger(pid) || pid < 1)) throw new Error('Invalid owned process identity');
-  // Read the OS parent map, but inspect start identities only for our tree.
-  // Unrelated elevated/system processes must not authorize or block signalling.
-  const rows = powershellJson('$ids=@(' + ids.join(',') + '); $all=@(Get-CimInstance Win32_Process); do { $before=$ids.Count; $ids+=@($all | Where-Object {$_.ParentProcessId -in $ids} | Select-Object -ExpandProperty ProcessId); $ids=@($ids | Select-Object -Unique) } while($ids.Count -ne $before); $all | Where-Object {$_.ProcessId -in $ids} | ForEach-Object { $row=$_; try { $p=Get-Process -Id $row.ProcessId -ErrorAction Stop; [pscustomobject]@{pid=$row.ProcessId; parent=$row.ParentProcessId; start=$p.StartTime.ToUniversalTime().Ticks.ToString()} } catch { if($_.FullyQualifiedErrorId -notlike \'NoProcessFoundForGivenId*\'){throw} } } | ConvertTo-Json -Compress');
-  return Array.isArray(rows) ? rows : [rows];
-}
-function windowsListener(port) {
-  const rows = powershellJson('Get-NetTCPConnection -State Listen -LocalPort ' + port + ' -ErrorAction SilentlyContinue | ForEach-Object { [pscustomobject]@{pid=$_.OwningProcess; address=$_.LocalAddress} } | ConvertTo-Json -Compress');
-  return Array.isArray(rows) ? rows : [rows];
-}
-async function privatePort() {
-  const server = net.createServer();
-  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
-  const port = server.address().port;
-  await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-  return port;
-}
-
-export function verifyCdpOwnership(owner, current, listeners) {
-  if (!sameIdentity(owner, current) || !listeners.length || listeners.some(row => row.pid !== owner.pid || row.address !== '127.0.0.1')) throw new Error('CDP loopback listener does not belong to the spawned PID and start identity');
-}
-
-export function ownedDescendants(rows, root, known = []) {
-  const key = row => row.pid + ':' + row.start;
-  const owned = new Map([root, ...known].map(row => [key(row), row]));
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const row of rows) {
-      const parent = [...owned.values()].find(parent => parent.pid === row.parent && rows.some(current => sameIdentity(parent, current)));
-      if (!owned.has(key(row)) && parent) { owned.set(key(row), row); changed = true; }
-    }
-  }
-  return [...owned.values()];
-}
-
-// CDP drives only the Chromium renderer. It adds no main-process Node inspector.
-// Ownership is established before connecting; the transport cannot prove exit.
-export async function launchOwnedCdp(options, deps = {}) {
-  if ((deps.platform ?? process.platform) !== 'win32') throw new Error('CDP desktop ownership inspection is currently supported only on Windows');
-  const identify = deps.identify ?? (await import('../../../scripts/reviewer-slots.mjs')).processIdentity;
-  const processes = deps.processes ?? windowsProcesses;
-  const listeners = deps.listeners ?? windowsListener, pause = deps.sleep ?? sleep, now = deps.now ?? Date.now;
-  const persist = deps.persist ?? (() => {}), record = deps.record ?? {};
-  const port = await (deps.port ?? privatePort)();
-  const endpoint = 'http://127.0.0.1:' + port;
-  const args = [...options.args, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=' + port];
-  const env = { ...options.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS;
-  Object.assign(record, { endpoint, args, mainNodeInspector: false, environment: { removed: ['ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS'], otherwise: 'inherited environment plus private helper plan' }, children: [] });
-  const child = (deps.spawn ?? spawn)(options.executablePath, args, { cwd: options.cwd, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
-  let browser, context, timer, owner, samplingError;
-  const app = {
-    process: () => child,
-    windows: () => context?.pages() ?? [],
-    on(event, callback) { if (event === 'window') context.on('page', callback); },
-    async firstWindow({ timeout }) {
-      const by = now() + timeout;
-      while (!context.pages().length && now() < by) await pause(100);
-      if (!context.pages().length) throw new Error('No owned CDP workbench window');
-      return context.pages()[0];
-    },
-    async close() {
-      clearInterval(timer);
-      const failed = [], close = record.close = { requestedAt: new Date().toISOString(), transportAck: false, processExitVerified: false };
-      try { sample(); } catch (error) { failed.push('Owned tree snapshot failed: ' + error.message); }
-      persist();
-      if (browser) {
-        await Promise.race([(async () => { const session = await browser.newBrowserCDPSession(); await session.send('Browser.close'); close.transportAck = true; })().catch(error => { close.transportError = error.message; }), pause(3000)]);
-      }
-      const by = now() + 10000;
-      while (!record.exit && now() < by) await pause(100);
-      if (!record.exit) {
-        try {
-          if (sameIdentity(owner, identify(child.pid))) {
-            child.kill(); close.ownedTerminationRequested = true;
-            const until = now() + 5000; while (!record.exit && now() < until) await pause(100);
-            failed.push('Owned process required termination after CDP close');
-          }
-        } catch (error) { failed.push('Owned termination identity was uncertain: ' + error.message); }
-      }
-      try {
-        const rows = processes(owner, record.children);
-        const remaining = ownedDescendants(rows, owner, record.children).filter(owned => rows.some(current => sameIdentity(owned, current)));
-        close.remainingProcesses = remaining;
-        close.processExitVerified = Boolean(record.exit) && remaining.length === 0 && !samplingError && failed.length === 0;
-        if (!close.processExitVerified) failed.push('Owned desktop parent/descendant exit was not established');
-      } catch (error) { failed.push('Owned process exit inspection failed: ' + error.message); }
-      await Promise.race([browser?.close().catch(() => {}), pause(3000)]);
-      close.failed = failed; persist();
-      if (failed.length) throw new Error(failed.join('\n'));
-    },
+// These exact messages come from VS Code's bundled Copilot proposal metadata,
+// even with Copilot disabled. A changed message/version remains a failure.
+export function classifyRuntimeErrors(errors, version) {
+  const known = new Set([
+    "31c71b74177b9336e5e354733a837c043e8a6ff2607ceb05e8baeb4a57952493",
+    "18c29dc5005de398295c54f2de68f73e81f0b3f46d3112a2e77d2f4f5c025bde",
+  ]);
+  const jsDebug = new Set([
+    "9bcae2997bddf4f5218482494baa9370f6bd0728e2019395e447e67722202e4b",
+    "8f30347620adf6b6b4f0ba8a87480fc544089385d39012ea715ba40e55b3b77c",
+  ]);
+  const classify = error => version !== "1.140.0" ? null
+    : known.has(sha(error)) ? "vscode1140BundledCopilotProposals"
+    : jsDebug.has(sha(error.replace(/node:[0-9]+/g, "node:PID"))) ? "vscode1140JsDebugUrlParseDeprecation" : null;
+  return {
+    noise: errors.filter(e => classify(e.error)).map(e => ({ ...e, classification: classify(e.error) })),
+    unexpected: errors.filter(e => !classify(e.error)),
   };
-  deps.onOwned?.(app);
-  child.once('exit', (code, signal) => { record.exit = { code, signal }; persist(); });
-  child.once('error', error => { record.spawnError = error.message; persist(); });
-  record.pid = child.pid; persist();
-  owner = identify(child.pid);
-  if (!owner) throw new Error('Spawned desktop process identity was unavailable');
-  record.identity = owner; persist();
-  function sample() {
-    if (!owner) throw new Error('Owned process identity was not established');
-    record.children = ownedDescendants(processes(owner, record.children), owner, record.children).filter(row => row.pid !== owner.pid);
-    persist();
-  }
-  sample();
-  const deadline = now() + options.timeout;
-  while (now() < deadline && !record.exit) {
-    let available = false;
-    try { available = (await (deps.fetch ?? fetch)(endpoint + '/json/version', { signal: AbortSignal.timeout(1000) })).ok; } catch { /* still starting */ }
-    if (available) break;
-    await pause(200);
-  }
-  const bound = listeners(port);
-  verifyCdpOwnership(owner, identify(child.pid), bound);
-  record.listener = bound; persist();
-  const chromium = deps.chromium ?? (await import('playwright')).chromium;
-  browser = await chromium.connectOverCDP(endpoint, { timeout: options.timeout });
-  context = browser.contexts()[0];
-  if (!context) throw new Error('Owned CDP connection has no renderer context');
-  timer = setInterval(() => { try { sample(); } catch (error) { samplingError = record.samplingError = error.message; persist(); } }, 2000);
-  timer.unref();
-  return app;
-}
-
-// The player and its workspace worker are bundled into game-webview.js.
-// A separate player dist does not prove that the webview loaded those bytes.
-export function desktopArtifacts(repo) {
-  const ext = path.join(repo, 'vscode-sparkdown');
-  return ['out/extension.js', 'out/workers/sparkdown-language-server.js', 'out/webviews/game-webview.js',
-    'out/data/courier-prime.ttf', 'out/data/courier-prime-bold.ttf', 'out/data/courier-prime-italic.ttf',
-    'out/data/courier-prime-bold-italic.ttf', 'out/data/noto-color-emoji.ttf'].map(file => path.join(ext, file));
-}
-
-export function artifactEvidence(repo, io = fs) {
-  const artifacts = desktopArtifacts(repo);
-  const packages = path.join(repo, 'packages');
-  const packageSources = io.existsSync(packages) ? io.readdirSync(packages, { withFileTypes: true }).filter(entry => entry.isDirectory()).flatMap(entry => ['src', 'language'].map(dir => path.join(packages, entry.name, dir))) : [];
-  const sources = sourceFiles([...packageSources, path.join(repo, 'vscode-sparkdown/src'), path.join(repo, 'vscode-sparkdown/language'), path.join(repo, 'vscode-sparkdown/webviews')], io);
-  const failed = [], evidence = [];
-  const stampFile = path.join(repo, 'vscode-sparkdown/out/.drive-vscode-desktop-build.json');
-  let stamp;
-  try { stamp = JSON.parse(io.readFileSync(stampFile, 'utf8')); } catch { /* a first accepted build establishes the stamp */ }
-  const sourceHashes = Object.fromEntries(sources.map(file => [path.relative(repo, file.path), crypto.createHash('sha256').update(io.readFileSync(file.path)).digest('hex')]));
-  const newest = sources.reduce((best, file) => !best || file.mtimeMs > best.mtimeMs ? file : best, null);
-  const unchangedSources = stamp?.sources && JSON.stringify(sourceHashes) === JSON.stringify(stamp.sources);
-  const changedSet = stamp?.sources ? [...new Set([...Object.keys(sourceHashes), ...Object.keys(stamp.sources)])].filter(file => (file in sourceHashes) !== (file in stamp.sources)) : [];
-  for (const file of artifacts) {
-    if (!io.existsSync(file) || !io.statSync(file).isFile() || !io.statSync(file).size) { failed.push('Missing scenario artifact: ' + file); continue; }
-    const identity = { file, sha256: crypto.createHash('sha256').update(io.readFileSync(file)).digest('hex'), bytes: io.statSync(file).size, modified: new Date(io.statSync(file).mtimeMs).toISOString() };
-    evidence.push(identity);
-    if (file.includes(path.join('out', 'data'))) continue;
-    const previous = stamp?.artifacts?.[path.relative(repo, file)];
-    const unchangedArtifact = previous?.sha256 === identity.sha256 && previous?.modified === identity.modified;
-    if (newest && !(unchangedSources && unchangedArtifact) && io.statSync(file).mtimeMs + 1 < newest.mtimeMs) failed.push('Stale scenario artifact: ' + file + ' is older than ' + newest.path);
-    if (stamp?.sources && !unchangedSources && unchangedArtifact) failed.push('Scenario source content or source set changed without rebuilding artifact: ' + file);
-    // Conservatively watch the whole scenario source set for each binary.
-    // Directory times date deletions even when their files are no longer listed.
-    for (const source of changedSet) {
-      const changedAt = nearestDirMtime(path.join(repo, source), repo, io);
-      if (changedAt == null || io.statSync(file).mtimeMs <= changedAt + 1) failed.push('Scenario source set changed without rebuilding artifact: ' + file + ' (' + source + ')');
-    }
-  }
-  const current = Object.fromEntries(evidence.map(a => [path.relative(repo, a.file), { sha256: a.sha256, modified: a.modified }]));
-  // Copied fonts are content-checked, so copied mtimes cannot mask an edit.
-  for (const artifact of artifacts.filter(file => file.includes(path.join('out', 'data')))) {
-    const source = path.join(repo, 'vscode-sparkdown/data', path.basename(artifact));
-    if (!io.existsSync(source)) { failed.push('Missing copied data source: ' + source); continue; }
-    if (io.existsSync(artifact) && io.existsSync(source) && !io.readFileSync(source).equals(io.readFileSync(artifact))) failed.push('Stale copied data: ' + artifact);
-  }
-  if (!failed.length) io.writeFileSync(stampFile, JSON.stringify({ sources: sourceHashes, artifacts: current }));
-  return { artifacts: evidence, failed, bundledPlayerAndWorker: path.join(repo, 'vscode-sparkdown/out/webviews/game-webview.js'), sourceContentStamp: stampFile };
 }
 
 export function diagnosticFailures(actual, expected, project) {
-  if (!Array.isArray(actual) || !Array.isArray(expected)) return ['Diagnostics and expected diagnostics must be arrays'];
-  const identity = (d, file) => ({ file, severity: d.severity, source: d.source, message: d.message, start: { line: d.start?.line, column: d.start?.column }, end: { line: d.end?.line, column: d.end?.column } });
-  const normalized = list => list.map(d => identity(d, path.relative(project, d.file).split(path.sep).join('/'))).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  const wanted = expected.map(d => identity(d, d.file.split(path.sep).join('/'))).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  return JSON.stringify(normalized(actual)) === JSON.stringify(wanted) ? [] : ['Unexpected diagnostic set; see complete messages, severity, source and locations in diagnostics/expectedDiagnostics'];
-}
-
-export function validateExpectedDiagnostics(expected, project) {
-  if (!Array.isArray(expected)) throw new Error('--expect must contain an array of full diagnostic identities');
-  for (const diagnostic of expected) {
-    if (!diagnostic || typeof diagnostic.file !== 'string' || path.isAbsolute(diagnostic.file) || path.relative(project, path.resolve(project, diagnostic.file)).startsWith('..')) throw new Error('Expected diagnostic file must be relative to the whole project root');
-    if (!['error', 'warning', 'info', 'hint'].includes(diagnostic.severity) || typeof diagnostic.source !== 'string' || typeof diagnostic.message !== 'string') throw new Error('Expected diagnostics require severity, source and exact message');
-    for (const point of [diagnostic.start, diagnostic.end]) if (!point || !Number.isSafeInteger(point.line) || !Number.isSafeInteger(point.column) || point.line < 1 || point.column < 1) throw new Error('Expected diagnostic locations require positive one-based line/column');
+  const normalize = d => {
+    const relative = path.relative(project, path.resolve(project, d.file)).replaceAll("\\", "/");
+    return { file: process.platform === "win32" ? relative.toLowerCase() : relative, message: d.message, severity: d.severity, source: d.source, ...(d.line == null ? {} : { line: d.line }) };
+  };
+  const remaining = actual.map(normalize);
+  const missing = [];
+  for (const expectation of expected) {
+    const e = normalize(expectation);
+    const index = remaining.findIndex(d => Object.entries(e).every(([k, v]) => d[k] === v));
+    if (index < 0) missing.push(e); else remaining.splice(index, 1);
   }
+  return { unexpected: remaining, missing };
 }
 
-export function desktopFailures(report, options) {
-  const failures = [...(report.failed ?? [])];
-  failures.push(...desktopIdentityFailures(report.host, options));
-  for (const method of ['textDocument/semanticTokens/full', 'textDocument/semanticTokens/range', 'textDocument/documentSymbol']) {
-    if (!report.host?.requests?.some(request => request.method === method && request.success && request.length > 0)) failures.push('Missing successful language request: ' + method);
-  }
-  if (!report.host?.settled) failures.push('Complete diagnostic snapshots did not settle');
-  failures.push(...diagnosticFailures(report.host?.diagnostics, report.expectedDiagnostics, options.project));
-  if (!report.preview?.initial || !report.preview?.interaction || !report.preview?.screenshot || !report.preview?.afterScreenshot) failures.push('Game Preview requires known visible content, an interaction and both screenshots');
-  if (!report.preview?.inputAttempt?.event?.trusted || !(report.preview.inputAttempt.event.tag === 'CANVAS' || report.preview.inputAttempt.event.gameUI)) failures.push('No trusted pointer input in the actual player canvas/game UI');
-  if (!/vscode-webview|vscode-resource/.test(report.preview?.frame ?? '')) failures.push('Story evidence did not identify a player webview frame');
-  if (report.consoleErrors?.length) failures.push(...report.consoleErrors.map(line => 'Unclassified console error: ' + line));
-  if (report.crash) failures.push('Desktop host crashed: ' + report.crash);
-  if (report.timeout) failures.push('Desktop verification timed out: ' + report.timeout);
-  if (!report.build?.artifacts?.length || report.build.failed?.length) failures.push(...(report.build?.failed ?? ['Missing artifact provenance']));
-  if (options.scenario === 'f5' && !report.f5?.taskEvents?.some(e => e.event === 'task-start' && e.name === 'F5: watch:extension')) failures.push('No observed F5 extension preLaunchTask');
-  if (options.scenario === 'f5' && report.f5?.baseline?.artifacts?.length) failures.push('F5 requires a fresh checkout with absent generated outputs; a full build may conceal missing dependencies');
-  if (options.scenario === 'f5' && report.f5?.namedLaunchFallback) failures.push('Named configuration API fallback does not verify the actual keyboard F5 trigger');
-  return [...new Set(failures)];
+export function lspHealth(log) {
+  const failed = log.split(/\r?\n/).filter(line => /Request .* failed|Request failed:|server.*(?:crashed|stopped|exited)|Starting server failed|Error:.*importScripts/i.test(line));
+  const semanticResponses = [...log.matchAll(/Received response 'textDocument\/semanticTokens\/(full|range)[^\n]*/g)].map(m => ({ method: m[1], failed: /Request failed:/.test(m[0]) }));
+  return { failed, semanticResponses };
 }
 
-function desktopIdentityFailures(host, options) {
-  const failures = [];
-  if (host?.workspaceRoot?.toLowerCase() !== options.project.toLowerCase()) failures.push('Host did not open the specified whole project root');
-  let opened;
-  try { opened = fileURLToPath(host?.document?.uri); } catch { /* missing/invalid URI is a failed open */ }
-  if (opened?.toLowerCase() !== options.script.toLowerCase()) failures.push('Host did not open the requested nested script');
-  return failures;
+export function hostCrashes(log) {
+  return log.split(/\r?\n/).filter(line => /Extension host.*(?:crashed|exited with code: (?!0(?:,|$)))|UtilityProcess.*reason 'crashed'/i.test(line));
 }
 
-export function nativeHostCrash(lines) {
-  return lines.split(/\r?\n/).find(line => {
-    const match = /Extension host with pid \d+ exited with code: (-?\d+)/.exec(line);
-    return match && Number(match[1]) !== 0;
-  });
+export function scriptProvenance(url, source, checkout, io = fs) {
+  const relative = ["extension.js", "workers/sparkdown-language-server.js", "webviews/game-webview.js"].find(p => url.split("#")[0].endsWith("/" + p));
+  if (!relative) return null;
+  const artifact = path.join(checkout, "vscode-sparkdown/out", relative);
+  const loaded = sha(source);
+  const normalizePath = value => process.platform === "win32" ? value.toLowerCase() : value;
+  const expectedPath = artifact.replaceAll("\\", "/");
+  const loadedPath = decodeURIComponent(new URL(url).pathname);
+  const fromCheckout = normalizePath(loadedPath) === normalizePath(expectedPath.startsWith("/") ? expectedPath : "/" + expectedPath);
+  const disk = io.readFileSync(artifact, "utf8");
+  // VS Code's web worker host loads CommonJS through new Function. CDP
+  // includes this exact host wrapper and sourceURL around the original bytes.
+  const wrapped = `(function anonymous(module,exports,require\n) {\n${disk}\n//# sourceURL=${url}\n})`;
+  return { url, artifact, sha256: loaded, artifactSha256: sha(disk), bytes: Buffer.byteLength(source), matches: fromCheckout && (loaded === sha(disk) || relative === "extension.js" && loaded === sha(wrapped)) };
 }
 
-export async function palette(page, title) {
-  await page.keyboard.press('F1');
-  await page.locator('.quick-input-widget input').fill('>' + title);
-  const command = page.locator('.quick-input-list .monaco-list-row').filter({ hasText: title }).first();
-  await command.waitFor({ timeout: 15000 });
-  await command.click();
-}
-
-export function f5Ready(events, repo) {
-  return events.some(event => event.event === 'parent-ready' && event.root?.toLowerCase() === repo.toLowerCase());
-}
-
-export async function playerPointer(canvas, timeoutMs, pause = sleep, now = Date.now) {
-  const deadline = now() + timeoutMs;
-  let previous, stable = 0;
-  while (now() < deadline) {
-    const box = await canvas.boundingBox();
-    const identity = JSON.stringify(box);
-    stable = box?.width > 0 && box?.height > 0 && identity === previous ? stable + 1 : 0;
-    if (stable >= 3) return { bounds: box, x: box.x + box.width / 2, y: box.y + box.height / 2 };
-    previous = identity;
-    await pause(250);
-  }
-  throw new Error('Visible player canvas geometry did not settle');
-}
-
-export async function advancePlayer(page, frame, nextText, timeoutMs, deps = {}) {
-  const find = deps.find ?? storyFrame, pointerFor = deps.pointer ?? playerPointer;
-  const now = deps.now ?? Date.now, deadline = now() + timeoutMs;
-  const remaining = () => Math.max(0, deadline - now());
-  const attempts = []; let click = true;
-  while (remaining() > 0) {
-    if (click) {
-      const canvas = frame.locator('canvas').last();
-      await canvas.waitFor({ state: 'visible', timeout: remaining() });
-      const pointer = await pointerFor(canvas, remaining());
-      if (!remaining()) break;
-      await frame.evaluate(() => {
-        window.__impowerInputEvidence = null;
-        window.addEventListener('pointerdown', event => { window.__impowerInputEvidence = { trusted: event.isTrusted, tag: event.target.tagName, id: event.target.id, className: event.target.className, gameUI: Boolean(event.target.closest('#game-ui')) }; }, { capture: true, once: true });
-      });
-      await page.mouse.click(pointer.x, pointer.y);
-      const event = await frame.evaluate(() => window.__impowerInputEvidence ?? null);
-      const attempt = { ...pointer, frame: frame.url(), event }; attempts.push(attempt); deps.onAttempt?.(attempt, attempts);
-      if (!event?.trusted || !(event.tag === 'CANVAS' || event.gameUI)) throw new Error('Physical pointer input did not reach the player canvas or game UI');
-      click = false;
-    }
+export async function pollUntil(read, why, { timeout, exited = () => false, interval = 500 }) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    if (exited()) throw new Error("Owned desktop process exited");
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error(why);
+    let timer;
+    let value;
     try {
-      await find(page, nextText, Math.min(remaining(), 3000));
-      return { attempts, result: nextText };
-    } catch {
-      if (!deps.firstText || attempts.length >= 3 || !remaining()) continue;
-      try {
-        await find(page, deps.firstText, Math.min(remaining(), 500));
-        attempts.at(-1).intermediate = { visible: deps.firstText, observation: 'The fully revealed initial beat remained visible after the goal wait; another click can advance it' };
-        deps.onAttempt?.(attempts.at(-1), attempts);
-        click = true;
-      } catch { /* A changed or still-revealing beat must keep observing the goal. */ }
-    }
+      value = await Promise.race([
+        Promise.resolve().then(read),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(why)), remaining); }),
+      ]);
+    } finally { clearTimeout(timer); }
+    if (value) return value;
+    await sleep(Math.min(interval, Math.max(0, deadline - Date.now())));
   }
-  throw new Error('Game Preview did not reach the requested changed story state within the overall input deadline: ' + nextText);
 }
 
-export async function storyFrame(page, text, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    for (const frame of page.frames()) {
-      if (frame === page.mainFrame()) continue;
-      // Story content must belong to the Game Preview's webview/player, never
-      // the Monaco source editor that contains the same expected words.
-      const ancestry = [];
-      for (let ancestor = frame; ancestor; ancestor = ancestor.parentFrame()) ancestry.push(ancestor.url());
-      if (!ancestry.some(url => /vscode-webview|vscode-resource/.test(url))) continue;
-      const hit = frame.getByText(text, { exact: true }).first();
-      if (await hit.isVisible().catch(() => false)) {
-        const visible = await hit.evaluate(element => {
-          const shown = element => {
-            for (let node = element; node; node = node.parentElement ?? node.getRootNode()?.host) {
-              const style = getComputedStyle(node);
-              if (Number(style.opacity) === 0 || style.visibility === 'hidden' || style.visibility === 'collapse' || style.display === 'none') return false;
-              // The player builds the entire line before revealing its glyphs.
-              if (node.matches?.('.text_letter') && Number(style.opacity) !== 1) return false;
-            }
-            return true;
-          };
-          if (!shown(element)) return false;
-          const document = element.ownerDocument;
-          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-          let text, glyphs = 0;
-          while ((text = walker.nextNode())) {
-            if (!text.textContent.trim()) continue;
-            if (!shown(text.parentElement)) return false;
-            const range = document.createRange(); range.selectNodeContents(text);
-            const box = range.getBoundingClientRect();
-            if (!(box.width > 0 && box.height > 0)) return false;
-            glyphs++;
-          }
-          if (!glyphs) return false;
-          return true;
-        }).catch(() => false);
-        let visibleFrames = visible;
-        for (let ancestor = frame; visibleFrames && ancestor.parentFrame(); ancestor = ancestor.parentFrame()) {
-          const element = await ancestor.frameElement();
-          visibleFrames = await element.evaluate(element => {
-            for (let node = element; node; node = node.parentElement ?? node.getRootNode()?.host) {
-              const style = getComputedStyle(node);
-              if (Number(style.opacity) === 0 || style.visibility === 'hidden' || style.display === 'none') return false;
-            }
-            return true;
-          }).catch(() => false);
-        }
-        if (visibleFrames) return { frame, hit };
-      }
-    }
-    await sleep(200);
-  }
-  throw new Error('Game Preview did not render expected visible story content: ' + text);
+export async function stopDesktop(owner, {
+  alive = pidAlive, started = processStartedMs, platform = process.platform,
+  stopWindows = pid => execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true, stdio: "pipe" }),
+  stopLinux = stopLinuxTree, timeout = 10000,
+} = {}) {
+  if (!owner?.pid || !owner.startedMs) throw new Error("Desktop ownership was not established");
+  if (!alive(owner.pid)) throw new Error("Desktop exited before owned-tree shutdown; descendant shutdown is unverified");
+  if (await started(owner.pid) !== owner.startedMs) throw new Error("Desktop PID identity changed; refusing to stop it");
+  if (platform === "win32") stopWindows(owner.pid);
+  else if (platform === "linux") await stopLinux(owner.pid);
+  else throw new Error(`Desktop shutdown is unsupported on ${platform}`);
+  await pollUntil(() => !alive(owner.pid), "Owned desktop process did not exit after shutdown", { timeout, interval: 50 });
 }
 
-export const DESKTOP_CONSOLE_NOISE = [
-  { name: 'VS Code built-in agent channel startup', match: /^\[error\] Unknown channel: agentHostClient(?:ByokLm|Proxy)$/ },
-];
+export function validateScenario(spec) {
+  if (!spec || typeof spec.file !== "string" || !Array.isArray(spec.expectedDiagnostics)) throw new Error("Scenario needs file and expectedDiagnostics (an explicit array)");
+  if (!spec.preview?.text || !Array.isArray(spec.preview.steps) || !spec.preview.steps.length) throw new Error("Scenario needs preview.text and at least one preview interaction step");
+  for (const d of spec.expectedDiagnostics) if (!["file", "message", "severity", "source"].every(k => typeof d[k] === "string")) throw new Error("Expected diagnostics need file, message, severity and source");
+  for (const s of spec.preview.steps) if (!(s.selector || s.textButton) || !s.text) throw new Error("Each preview step needs a selector or textButton and resulting text");
+}
 
-export async function desktop(args, deps = {}) {
-  const root = deps.repoRoot ?? path.resolve(here, '../../..');
-  const pause = deps.sleep ?? sleep, now = deps.now ?? Date.now;
-  const options = desktopOptions(args, root);
-  for (const [file, kind] of [[options.code, 'executable'], [options.project, 'project'], [options.script, 'script']]) {
-    if (!fs.existsSync(file)) throw new Error('Missing ' + kind + ': ' + file);
-    if (kind === 'project' ? !fs.statSync(file).isDirectory() : !fs.statSync(file).isFile()) throw new Error('Invalid ' + kind + ' path type: ' + file);
+async function freePort() {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
+  const port = server.address().port;
+  await new Promise(resolve => server.close(resolve));
+  return port;
+}
+
+export async function command(page, title, id) {
+  const deadline = Date.now() + 60000;
+  for (;;) {
+    await page.keyboard.press("Escape");
+    // Reopen the palette while extensions register their commands: an already
+    // open command list is a snapshot and does not gain late contributions.
+    await page.locator(".part.statusbar").click({ position: { x: 200, y: 10 }, timeout: 10000 });
+    await page.keyboard.press("F1");
+    await page.locator(".quick-input-widget input").fill(">" + title);
+    const row = id ? page.locator(`[data-quick-input-id="${id}"]`) : page.locator(".quick-input-widget .monaco-list-row").filter({ hasText: title }).first();
+    if (await row.isVisible()) { await row.click(); break; }
+    if (Date.now() >= deadline) throw new Error(`Workbench command unavailable: ${id ?? title}`);
+    await sleep(500);
   }
-  const expectedDiagnostics = options.expect ? JSON.parse(fs.readFileSync(options.expect, 'utf8')) : [];
-  validateExpectedDiagnostics(expectedDiagnostics, options.project);
-  const runDir = options.out ?? fs.mkdtempSync(path.join(os.tmpdir(), 'impower-vscode-desktop-'));
-  // A run directory is exclusive, even when the caller chooses its location.
-  fs.mkdirSync(runDir, { recursive: true });
-  const claim = fs.openSync(path.join(runDir, 'owner.json'), 'wx');
-  fs.writeFileSync(claim, JSON.stringify({ pid: process.pid, root, created: new Date().toISOString() }));
-  fs.closeSync(claim);
-  const report = { scenario: options.scenario, platform: process.platform, automation: options.automation, complete: false, project: options.project, script: options.script, code: options.code, runDir, expectedDiagnostics, failed: [], surfaces: { desktop: 'unavailable', lsp: 'unavailable', preview: 'unavailable' } };
-  const persist = () => {
-    const file = path.join(runDir, 'report.json');
-    fs.writeFileSync(file + '.tmp', JSON.stringify(report, null, 2)); fs.renameSync(file + '.tmp', file);
+  await page.locator(".quick-input-widget").waitFor({ state: "hidden", timeout: 10000 });
+}
+
+export async function ensurePreviewVisible(page, reveal = () => command(page, "Sparkdown: Preview Game", "sparkdown.previewGame")) {
+  const frame = page.locator("iframe.webview");
+  const tab = page.getByRole("tab", { name: /^Game Preview/ }).first();
+  // Debugger navigation into an included script can cover the preview tab.
+  // Revealing the existing panel preserves its running game and context.
+  if (await tab.getAttribute("aria-selected") !== "true" || !await frame.isVisible()) await reveal();
+  return await tab.getAttribute("aria-selected") === "true" && await frame.isVisible();
+}
+
+// Runs in the webview's outer document. Its active frame owns the actual
+// extension content; never count hidden text or a mounted empty panel as ready.
+export function previewRead(step) {
+  const frame = document.getElementById("active-frame");
+  const d = frame?.contentDocument;
+  if (!d?.querySelector("spark-web-player")) return null;
+  const w = d.defaultView;
+  const visible = el => {
+    if (!el || !el.getBoundingClientRect().width || !el.getBoundingClientRect().height) return false;
+    for (let p = el; p; p = p.parentElement) {
+      const style = w.getComputedStyle(p);
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+    }
+    return true;
   };
-  persist();
-  const before = artifactEvidence(root);
-  if (options.scenario === 'f5') {
-    report.f5 = { baseline: before, taskEvents: [] };
-  }
-  const profile = path.join(runDir, 'profile');
-  const extensions = path.join(runDir, 'extensions');
-  const helper = path.join(extensions, 'impower-verification');
-  fs.mkdirSync(path.join(profile, 'User'), { recursive: true });
-  fs.mkdirSync(helper, { recursive: true });
-  fs.writeFileSync(path.join(profile, 'User/settings.json'), JSON.stringify({ 'security.workspace.trust.enabled': false, 'workbench.startupEditor': 'none', 'update.mode': 'none', 'extensions.autoUpdate': false, 'telemetry.telemetryLevel': 'off', 'window.restoreWindows': 'none', 'sparkdown-language-server.trace.server': 'verbose' }));
-  fs.writeFileSync(path.join(helper, 'package.json'), JSON.stringify({ name: 'impower-verification', publisher: 'impower', version: '0.0.0', engines: { vscode: '^1.100.0' }, main: './extension.cjs', activationEvents: ['onStartupFinished'], contributes: { commands: [{ command: 'impower.verification.stopTasks', title: 'Impower Verification: Stop Owned Tasks' }, { command: 'impower.verification.startF5', title: 'Impower Verification: Start Committed F5 Configuration' }] } }));
-  fs.copyFileSync(path.join(here, 'desktop-helper.cjs'), path.join(helper, 'extension.cjs'));
-  const identity = { head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim(), driverSha256: hash(path.join(here, 'desktop.mjs')), helperSha256: hash(path.join(here, 'desktop-helper.cjs')) };
-  report.identity = identity;
-  const plan = { ...options, identity, repoRoot: root, runId: crypto.randomUUID(), extensionPath: path.join(root, 'vscode-sparkdown'), result: path.join(runDir, 'host.json'), events: path.join(runDir, 'events.jsonl') };
-  const planFile = path.join(runDir, 'plan.json');
-  fs.writeFileSync(planFile, JSON.stringify(plan));
-  const consoleLines = [], hostLines = [];
-  let app, closing = false;
-  const owned = launched => {
-    app = launched;
-    const child = app.process();
-    report.process = { pid: child.pid, executableSha256: hash(options.code) };
-    const capture = chunk => {
-      hostLines.push(chunk.toString());
-      if (!closing) report.crash ??= nativeHostCrash(hostLines.join(''));
-    };
-    child.stdout.on('data', capture); child.stderr.on('data', capture);
-    child.once('exit', (code, signal) => { report.process.exit = { code, signal }; if (!closing) report.crash = 'process exited before completion: ' + code + '/' + signal; persist(); });
-    persist();
+  const leafText = [...d.querySelectorAll("#game span, #game .text")].filter(el => visible(el) && !el.querySelector("span, .text")).map(el => el.textContent).join("");
+  let element;
+  if (step?.selector) element = d.querySelector(step.selector);
+  if (step?.textButton) element = [...d.querySelectorAll(".choice, button, [role=button]")].find(el => visible(el) && el.textContent.trim() === step.textButton);
+  const box = element?.getBoundingClientRect();
+  return {
+    visible: visible(d.querySelector("spark-web-player")), text: leafText,
+    playing: d.querySelector("#play-button")?.style?.display === "none",
+    bodyText: d.body.innerText, bodyClass: d.body.className,
+    target: box && visible(element) ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null,
+    images: [...d.images].filter(visible).map(img => ({ src: img.src, width: img.getBoundingClientRect().width, height: img.getBoundingClientRect().height, loaded: img.complete && img.naturalWidth > 0 })),
   };
+}
+
+export async function desktop(args) {
+  if (!["win32", "linux"].includes(process.platform)) throw new Error("Desktop scenarios require Windows or Linux process ownership support");
+  const { opts, error } = parseFlags(args, { "--code": "value", "--project": "value", "--scenario": "value", "--mode": "value", "--out": "value", "--timeout": "value" });
+  const mode = opts["--mode"];
+  if (error || !opts["--code"] || !["full", "f5"].includes(mode)) throw new Error(error ?? "desktop requires --code <executable> --mode full|f5; full uses an existing full build, f5 presses F5 in the checkout");
+  const project = path.resolve(opts["--project"] ?? path.join(here, "fixtures/desktop"));
+  const spec = readJson(path.resolve(opts["--scenario"] ?? path.join(here, "fixtures/desktop/scenario.json")));
+  validateScenario(spec);
+  if (!fs.statSync(project).isDirectory() || !fs.statSync(path.resolve(project, spec.file)).isFile()) throw new Error("Project or scenario script is missing");
+  const evidence = opts["--out"] ? path.resolve(opts["--out"]) : fs.mkdtempSync(path.join(os.tmpdir(), "impower-desktop-"));
+  if (fs.existsSync(path.join(evidence, "scenario.json"))) throw new Error(`Evidence directory already used: ${evidence}`);
+  fs.mkdirSync(evidence, { recursive: true });
+  const report = { mode, project, file: spec.file, executable: path.resolve(opts["--code"]), evidence, failed: [], unavailable: [] };
+  const buildDeps = { ...liveDeps, surface: "desktop", die: message => { throw new Error(message); } };
+  let browser, wire, child, exited = false;
+  const targets = new Map(), runtimeErrors = [], scripts = [];
+  const timeout = Number(opts["--timeout"] ?? 180) * 1000;
+  if (!Number.isFinite(timeout) || timeout < 1000 || timeout > 600000) throw new Error("--timeout must be 1–600 seconds");
+  const wait = (read, why, budget = timeout) => pollUntil(read, why, { timeout: budget, exited: () => exited });
   try {
-    if (options.scenario === 'full-build') {
-      checkBuild({ ...liveDeps, repoRoot: root, extDir: path.join(root, 'vscode-sparkdown'), packagesDir: path.join(root, 'packages'), die: message => { throw new Error(message); } });
-      if (before.failed.length) throw new Error(before.failed.join('\n'));
-    } else if (before.artifacts.length) throw new Error('F5 scenario requires absent generated outputs in a fresh dedicated checkout; do not delete active builds or prebuild');
-    const launch = { executablePath: options.code, cwd: root, timeout: options.timeoutMs, args: ['--new-window', '--user-data-dir=' + profile, '--extensions-dir=' + extensions, '--skip-welcome', '--skip-release-notes', ...(options.scenario === 'full-build' ? ['--extensionDevelopmentPath=' + plan.extensionPath, options.project] : [root])], env: { ...process.env, IMPOWER_VSCODE_PROBE_PLAN: planFile } };
-    if (options.automation === 'cdp') {
-      report.cdp = {};
-      app = await launchOwnedCdp(launch, { ...deps.cdp, record: report.cdp, persist, onOwned: owned });
-    } else {
-      const electron = deps.electron ?? (await import('playwright'))._electron;
-      owned(await electron.launch(launch));
-    }
-    const attach = page => {
-      page.on('console', msg => consoleLines.push(consoleLine(msg)));
-      page.on('pageerror', error => consoleLines.push('[pageerror] ' + error.message));
-      page.on('crash', () => { report.crash = 'renderer crashed'; });
-      page.on('requestfailed', request => { if (/vscode-webview|vscode-resource/.test(request.url())) consoleLines.push('[error] webview resource ' + request.url() + ': ' + request.failure()?.errorText); });
+    if (mode === "full") report.build = checkBuild(buildDeps);
+    const profile = path.join(evidence, "profile");
+    const extensions = path.join(evidence, "extensions");
+    fs.mkdirSync(path.join(profile, "User"), { recursive: true });
+    fs.mkdirSync(extensions, { recursive: true });
+    fs.cpSync(path.join(here, "desktop-harness"), path.join(extensions, "impower-testing.impower-desktop-driver-1.0.0"), { recursive: true });
+    fs.writeFileSync(path.join(profile, "User", "settings.json"), JSON.stringify({
+      "security.workspace.trust.enabled": false, "workbench.startupEditor": "none",
+      "workbench.enableExperiments": false, "telemetry.telemetryLevel": "off", "update.mode": "none",
+      "extensions.autoUpdate": "off", "window.restoreWindows": "none", "files.simpleDialog.enable": true,
+      "extensions.ignoreRecommendations": true,
+      "debug.saveBeforeStart": "none",
+      "chat.disableAIFeatures": true, "workbench.secondarySideBar.defaultVisibility": "hidden",
+      "sparkdown-language-server.trace.server": "verbose", "git.enabled": false,
+      ...spec.settings,
+    }, null, 2));
+    const scenarioPath = path.join(evidence, "scenario.json");
+    fs.writeFileSync(scenarioPath, JSON.stringify({ ...spec, project, evidence, mode }, null, 2));
+    const port = await freePort();
+    const endpoint = `http://127.0.0.1:${port}`;
+    const hostLog = fs.openSync(path.join(evidence, "desktop.log"), "a");
+    child = spawnDetached(report.executable, [mode === "f5" ? root : project,
+      ...(mode === "full" ? [`--extensionDevelopmentPath=${path.join(root, "vscode-sparkdown")}`] : []),
+      "--new-window", "--user-data-dir", profile, "--extensions-dir", extensions,
+      `--remote-debugging-port=${port}`, "--disable-updates", "--disable-workspace-trust",
+      "--disable-extension", "github.copilot", "--disable-extension", "github.copilot-chat",
+    ], { cwd: root, env: { ...process.env, IMPOWER_DESKTOP_SCENARIO: scenarioPath }, stdio: ["ignore", hostLog, hostLog] });
+    fs.closeSync(hostLog);
+    child.once("exit", () => { exited = true; });
+    child.once("error", e => { report.failed.push(e.message); exited = true; });
+    report.owner = { pid: child.pid, startedMs: await processStartedMs(child.pid), profile, extensions, port };
+    if (!report.owner.startedMs) throw new Error("Cannot establish desktop process identity");
+    fs.writeFileSync(path.join(evidence, "owner.json"), JSON.stringify(report.owner));
+    await wait(async () => { try { return (await fetch(`${endpoint}/json/version`, { signal: AbortSignal.timeout(1500) })).ok; } catch { return false; } }, "Desktop debugger endpoint never opened");
+    wire = await connectCDP(endpoint);
+    wire.on(e => {
+      if (e.method === "Runtime.exceptionThrown") runtimeErrors.push({ target: e.sessionId, error: e.params.exceptionDetails.exception?.description ?? e.params.exceptionDetails.text });
+      if (e.method === "Runtime.consoleAPICalled" && e.params.type === "error") runtimeErrors.push({ target: e.sessionId, error: e.params.args.map(a => a.value ?? a.description ?? a.type).join(" ") });
+      if (e.method === "Debugger.scriptParsed" && /(?:extension\.js|game-webview\.js|sparkdown-language-server\.js)/.test(e.params.url)) scripts.push({ target: e.sessionId, ...e.params });
+    });
+    const observe = async () => {
+      const { targetInfos } = await wire.send("Target.getTargets");
+      for (const id of targets.keys()) if (!targetInfos.some(t => t.targetId === id)) targets.delete(id);
+      for (const target of targetInfos.filter(t => ["page", "iframe", "worker"].includes(t.type))) {
+        if (targets.has(target.targetId)) continue;
+        try {
+          const { sessionId } = await wire.send("Target.attachToTarget", { targetId: target.targetId, flatten: true });
+          targets.set(target.targetId, { ...target, sessionId });
+          await wire.send("Runtime.enable", {}, sessionId);
+          await wire.send("Debugger.enable", {}, sessionId);
+          await wire.send("Runtime.runIfWaitingForDebugger", {}, sessionId);
+        } catch (error) {
+          const current = await wire.send("Target.getTargets");
+          if (current.targetInfos.some(t => t.targetId === target.targetId)) throw error;
+          targets.delete(target.targetId); // A short-lived worker ended during attachment.
+        }
+      }
     };
-    app.on('window', attach);
-    const parent = await app.firstWindow({ timeout: options.timeoutMs });
-    attach(parent);
-    await parent.locator('.monaco-workbench').waitFor({ timeout: options.timeoutMs });
-    report.parent = { workbench: 'verified' };
-    if (options.scenario === 'f5') {
-      const readyBy = now() + options.timeoutMs;
-      const ready = () => fs.existsSync(plan.events) && f5Ready(fs.readFileSync(plan.events, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)), root);
-      while (!ready() && now() < readyBy && !report.crash) await pause(200);
-      if (!ready()) throw new Error('F5 parent helper did not activate its task subscriptions for this repository');
-      await parent.keyboard.press('F5');
-      await parent.screenshot({ path: path.join(runDir, 'f5-trigger.png'), timeout: 5000 }).catch(error => report.failed.push('F5 trigger screenshot could not be collected: ' + error.message));
-      await pause(2000);
-      if (!fs.readFileSync(plan.events, 'utf8').includes('task-start')) {
-        await palette(parent, 'Impower Verification: Start Committed F5 Configuration');
-        report.f5.namedLaunchFallback = 'vscode.debug.startDebugging(workspace, Launch vscode-sparkdown), retaining committed preLaunchTask';
-      }
-      report.f5.trigger = 'F5 in impower with committed .vscode/launch.json and preLaunchTask';
+    const { chromium } = await import("playwright");
+    browser = await chromium.connectOverCDP(endpoint);
+    for (const context of browser.contexts()) context.setDefaultTimeout(30000);
+    let page = await wait(() => browser.contexts().flatMap(c => c.pages()).find(p => p.url().includes("workbench")), "No desktop workbench");
+    await page.waitForSelector(".monaco-workbench", { timeout });
+    console.log(`desktop: ${mode} workbench opened; evidence ${evidence}`);
+    await observe();
+    for (const label of ["Continue without Signing In", "Get Started"]) {
+      const button = page.getByText(label, { exact: true });
+      if (await button.isVisible().catch(() => false)) await button.click();
     }
-    const deadline = now() + options.timeoutMs;
-    while (!fs.existsSync(plan.result) && now() < deadline && !report.crash) await pause(250);
-    if (!fs.existsSync(plan.result)) {
-      if (fs.existsSync(plan.result + '.progress')) report.host = JSON.parse(fs.readFileSync(plan.result + '.progress', 'utf8'));
-      if (report.host && report.host.runId !== plan.runId) { delete report.host; throw new Error('Host progress belongs to a different run'); }
-      if (report.host?.document) report.surfaces.lsp = 'failed';
-      throw new Error('Timed out awaiting final development host evidence; partial host identity is retained when available');
+    if (mode === "f5") {
+      await command(page, "View: Run and Debug", "workbench.view.debug");
+      await page.getByText("Launch vscode-sparkdown", { exact: true }).waitFor({ timeout: 30000 });
+      // Invoke F5's command after command registration; an early synthetic
+      // key can be consumed while the Run and Debug view is still loading.
+      await command(page, "Debug: Start Debugging", "workbench.action.debug.start");
+      console.log("desktop: waiting for the F5 task and development host");
+      page = await wait(async () => {
+        for (const p of browser.contexts().flatMap(c => c.pages())) if ((await p.title()).includes("Extension Development Host")) return p;
+      }, "F5 never opened an Extension Development Host");
+      await page.waitForSelector(".monaco-workbench", { timeout });
+      report.build = checkBuild(buildDeps);
+      report.launch = readJson(path.join(evidence, "launch-report.json"));
+      if (report.launch?.preLaunchTask !== "F5: watch" || !report.launch.args.includes(project)) throw new Error("F5 did not resolve the checked-in task and requested project");
+      console.log("desktop: F5 built the runtime and opened the scenario project");
     }
-    report.host = JSON.parse(fs.readFileSync(plan.result, 'utf8'));
-    if (report.host.runId !== plan.runId) throw new Error('Host report belongs to a different run');
-    report.surfaces.desktop = desktopIdentityFailures(report.host, options).length ? 'failed' : 'verified';
-    report.failed.push(...(report.host.failed ?? []));
-    report.build = artifactEvidence(root);
-    if (report.host.loadedBuild?.extension !== report.build.artifacts.find(a => a.file.endsWith('extension.js'))?.sha256) report.failed.push('Loaded extension fingerprint differs from final artifact provenance');
-    report.surfaces.lsp = report.host.failed?.length || diagnosticFailures(report.host.diagnostics, expectedDiagnostics, options.project).length ? 'failed' : 'verified';
-    const pages = app.windows();
-    report.frames = pages.flatMap(page => page.frames().filter(frame => frame !== page.mainFrame()).map(frame => ({ url: frame.url(), parent: frame.parentFrame()?.url() })));
-    let visible;
-    for (const page of pages) {
-      try { visible = { page, ...await storyFrame(page, options.firstText, options.timeoutMs) }; break; } catch { /* try the development-host window */ }
+    await command(page, "Impower Driver: Run Scenario", "impower.driver.run");
+    report.host = await wait(async () => { await observe(); return readJson(path.join(evidence, "host-report.json")); }, "Language/preview command harness timed out");
+    console.log("desktop: language checks complete; waiting for Game Preview");
+    report.failed.push(...report.host.failed);
+    if (report.host.extension?.path && path.resolve(report.host.extension.path).toLowerCase() !== path.join(root, "vscode-sparkdown").toLowerCase()) report.failed.push("The host loaded a different extension checkout");
+    if (!report.host.workspace?.some(p => path.resolve(p).toLowerCase() === project.toLowerCase())) report.failed.push("The host opened a different workspace root");
+    report.diagnostics = diagnosticFailures(report.host.diagnostics ?? [], spec.expectedDiagnostics, project);
+    if (report.diagnostics.unexpected.length || report.diagnostics.missing.length) report.failed.push("Diagnostics differ from scenario expectations");
+    const target = await wait(async () => { await observe(); return [...targets.values()].find(t => t.type === "iframe" && t.url.includes("extensionId=impowergames.sparkdown")); }, "Game Preview webview never opened");
+    const readPreview = async step => {
+      if (!await ensurePreviewVisible(page)) return null;
+      const result = await wire.send("Runtime.evaluate", { expression: `(${previewRead.toString()})(${JSON.stringify(step ?? null)})`, returnByValue: true }, target.sessionId, timeout);
+      if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+      return result.result.value;
+    };
+    report.preview = { steps: [] };
+    const textVisible = async text => {
+      const state = await readPreview();
+      report.preview.last = state;
+      return state?.visible && state.text?.includes(text) ? state : null;
+    };
+    await wait(() => textVisible(spec.preview.text), `Game Preview never displayed expected text: ${spec.preview.text}`);
+    await page.screenshot({ path: path.join(evidence, "preview.png") });
+    for (const step of spec.preview.steps) {
+      const bounds = await page.locator("iframe.webview").boundingBox();
+      if (bounds) await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      const state = await wait(async () => { const s = await readPreview(step); return s?.target ? s : null; }, `Preview control unavailable: ${step.selector ?? step.textButton}`);
+      const outer = await page.locator("iframe.webview").boundingBox();
+      if (!outer) throw new Error("Preview iframe has no visible bounds");
+      if (step.selector === "#play-button") await page.screenshot({ path: path.join(evidence, "run-control.png") });
+      await page.mouse.click(outer.x + state.target.x, outer.y + state.target.y);
+      if (step.selector === "#play-button") await wait(async () => (await readPreview())?.playing, "RUN never entered playback");
+      if (step.textButton) await wait(async () => !(await readPreview(step))?.target, "Choice did not advance");
+      const after = await wait(() => textVisible(step.text), `Preview interaction never displayed: ${step.text}`);
+      report.preview.steps.push({ action: step.selector ?? step.textButton, after });
+      await page.screenshot({ path: path.join(evidence, `preview-step-${report.preview.steps.length}.png`) });
     }
-    if (!visible) throw new Error('Game Preview did not render the known initial scene');
-    const initialShot = path.join(runDir, 'preview-before.png'), afterShot = path.join(runDir, 'preview-after.png');
-    await visible.page.screenshot({ path: initialShot });
-    report.preview = { initial: options.firstText, frame: visible.frame.url(), screenshot: initialShot, pixelsInspected: false };
-    // RUN is the real player control. Then advance the rendered first beat.
-    let started = false;
-    for (const frame of visible.page.frames().filter(frame => frame !== visible.page.mainFrame())) {
-      const run = frame.locator('#play-button').first();
-      if (await run.isVisible().catch(() => false)) { await run.click(); await run.waitFor({ state: 'hidden', timeout: options.timeoutMs }); started = true; break; }
+    if (spec.debug) {
+      await command(page, "Impower Driver: Verify Debugger", "impower.driver.debug");
+      report.debug = await wait(() => readJson(path.join(evidence, "debug-report.json")), "Debugger verification timed out");
+      report.failed.push(...report.debug.failed);
+      await page.screenshot({ path: path.join(evidence, "debug.png") });
     }
-    if (!started) throw new Error('Game Preview RUN control did not appear');
-    const playing = await storyFrame(visible.page, options.firstText, options.timeoutMs);
-    const input = await advancePlayer(visible.page, playing.frame, options.nextText, options.timeoutMs, { firstText: options.firstText, onAttempt: (attempt, attempts) => { report.preview.inputAttempt = attempt; report.preview.inputAttempts = [...attempts]; persist(); } });
-    await visible.page.screenshot({ path: path.join(runDir, 'interaction-attempt.png') });
-    await visible.page.screenshot({ path: afterShot });
-    Object.assign(report.preview, { interaction: { action: 'RUN readiness, then bounded physical pointer input with a goal wait after every click', clicks: input.attempts.length, result: input.result }, afterScreenshot: afterShot });
-    report.surfaces.preview = 'verified';
+    await command(page, "Impower Driver: Read Final Diagnostics", "impower.driver.diagnostics");
+    report.finalDiagnostics = await wait(() => readJson(path.join(evidence, "diagnostics-report.json")), "Final diagnostics timed out");
+    report.failed.push(...report.finalDiagnostics.failed);
+    const finalDifference = diagnosticFailures(report.finalDiagnostics.diagnostics ?? [], spec.expectedDiagnostics, project);
+    report.diagnosticsAfterInteraction = finalDifference;
+    if (finalDifference.unexpected.length || finalDifference.missing.length) report.failed.push("Final diagnostics differ from scenario expectations");
+    await observe();
   } catch (error) {
-    report.failed.push(error.stack ?? error.message);
-    if (/timed out|Timeout/i.test(error.message)) report.timeout = error.message;
-    if (report.parent?.workbench === 'verified') {
-      report.surfaces.desktop = desktopIdentityFailures(report.host, options).length ? 'failed' : 'verified';
-      report.surfaces.preview = 'failed';
-    }
+    report.failed.push(String(error.stack ?? error));
+    if (!browser) report.unavailable.push("Desktop runtime was not reached");
   } finally {
-    report.build = artifactEvidence(root);
-    if (app) {
-      if (options.scenario === 'f5') {
+    try {
+      report.loadedScripts = [];
+      for (const script of scripts) {
         try {
-          await palette(app.windows()[0], 'Impower Verification: Stop Owned Tasks');
-          const deadline = now() + 15000;
-          while (!fs.existsSync(plan.events + '.stopped') && now() < deadline) await pause(200);
-          if (!fs.existsSync(plan.events + '.stopped')) throw new Error('Task exit evidence did not arrive');
-        } catch (error) { report.failed.push('Owned F5 task cleanup could not be confirmed: ' + error.message); }
+          const { scriptSource } = await wire.send("Debugger.getScriptSource", { scriptId: script.scriptId }, script.target, 5000);
+          const provenance = scriptProvenance(script.url, scriptSource, root);
+          if (provenance) report.loadedScripts.push(provenance);
+        } catch (error) { report.failed.push(`Loaded script evidence unavailable: ${script.url}: ${error.message}`); }
       }
-      if (!report.host && fs.existsSync(plan.result + '.progress')) {
-        try {
-          const progress = JSON.parse(fs.readFileSync(plan.result + '.progress', 'utf8'));
-          if (progress.runId !== plan.runId || progress.complete !== false) throw new Error('Partial host progress identity or completeness differs from this run');
-          report.host = progress; report.hostProgressCollectedDuringCleanup = true;
-          report.surfaces.desktop = desktopIdentityFailures(progress, options).length ? 'failed' : 'verified';
-          report.surfaces.lsp = 'failed';
-        } catch (error) { report.failed.push('Late partial host progress was not admitted: ' + error.message); }
+      for (const name of ["extension.js", "game-webview.js", "sparkdown-language-server.js"]) {
+        if (!report.loadedScripts.some(s => s.url.includes(name) && s.matches)) report.failed.push(`Loaded ${name} was not verified against this checkout's artifact`);
       }
-      for (const [index, page] of app.windows().entries()) await page.screenshot({ path: path.join(runDir, 'host-' + index + '.png'), timeout: 5000 }).catch(error => report.failed.push('Final host screenshot could not be collected: ' + error.message));
-      report.preShutdownNativeCrash = nativeHostCrash(hostLines.join(''));
-      closing = true;
-      report.shutdownStartedAt = new Date().toISOString(); persist();
-      const shutdownOffset = hostLines.join('').length;
-      await app.close().catch(error => report.failed.push('Owned host cleanup failed: ' + error.message));
-      if (!report.process?.exit) report.failed.push('Owned desktop process exit was not confirmed');
-      report.shutdownNativeExits = hostLines.join('').slice(shutdownOffset).split(/\r?\n/).filter(line => /Extension host with pid \d+ exited with code:/.test(line));
+      if (report.loadedScripts.some(s => !s.matches)) report.failed.push("Loaded script bytes or location differ from this checkout");
+      const logFiles = files(path.join(evidence, "profile", "logs"));
+      const lspFiles = logFiles.filter(f => /Sparkdown Language Server\.log$/.test(f));
+      report.hostCrashes = hostCrashes([...logFiles.filter(f => /(?:main|exthost|renderer)\.log$/.test(f)), path.join(evidence, "desktop.log")].filter(f => fs.existsSync(f)).map(f => fs.readFileSync(f, "utf8")).join("\n"));
+      report.failed.push(...report.hostCrashes);
+      report.lsp = lspHealth(lspFiles.map(f => fs.readFileSync(f, "utf8")).join("\n"));
+      report.logs = { host: logFiles.filter(f => /exthost.*\.log$/.test(f)), lsp: lspFiles, runtime: path.join(evidence, "runtime-errors.json") };
+      if (!lspFiles.length) report.failed.push("No language-server log captured");
+      report.failed.push(...report.lsp.failed);
+      for (const method of ["range", "full"]) if (!report.lsp.semanticResponses.some(r => r.method === method && !r.failed)) report.failed.push(`No successful ${method} semantic-token response in language-server trace`);
+      const classified = classifyRuntimeErrors(runtimeErrors, report.host?.version);
+      report.consoleNoise = classified.noise.reduce((counts, error) => { counts[error.classification] = (counts[error.classification] ?? 0) + 1; return counts; }, {});
+      report.runtimeErrors = classified.unexpected;
+      if (classified.unexpected.length) report.failed.push(`${classified.unexpected.length} unclassified runtime errors`);
+      fs.writeFileSync(path.join(evidence, "runtime-errors.json"), JSON.stringify(runtimeErrors, null, 2));
+      if (browser) {
+        for (const [index, page] of browser.contexts().flatMap(c => c.pages()).entries()) await page.screenshot({ path: path.join(evidence, `final-${index}.png`), timeout: 5000 }).catch(() => {});
+      }
+    } catch (error) { report.failed.push(`Desktop evidence collection failed: ${error.message}`); }
+    // Evidence I/O failure must not bypass shutdown of the owned host.
+    if (browser) await browser.close().catch(error => report.failed.push(`Desktop browser disconnect failed: ${error.message}`));
+    try { wire?.close(); } catch (error) { report.failed.push(`Desktop observer disconnect failed: ${error.message}`); }
+    if (child) {
+      try {
+        await stopDesktop(report.owner);
+        report.stopped = true;
+      } catch (e) { report.failed.push(`Owned desktop shutdown failed: ${e.message}`); }
     }
-    if (report.preShutdownNativeCrash) report.crash ??= report.preShutdownNativeCrash;
-    if (report.crash) report.surfaces.desktop = 'failed';
-    fs.writeFileSync(path.join(runDir, 'host-process.log'), hostLines.join(''));
-    fs.writeFileSync(path.join(runDir, 'renderer.log'), consoleLines.join('\n'));
-    const captured = partitionConsole(consoleLines, [...WORKBENCH_CONSOLE_NOISE, ...DESKTOP_CONSOLE_NOISE], 100);
-    report.consoleErrors = captured.errors;
-    report.consoleNoise = captured.noise;
-    if (options.scenario === 'f5') report.f5.taskEvents = fs.existsSync(plan.events) ? fs.readFileSync(plan.events, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
-    report.logs = { host: path.join(runDir, 'host-process.log'), renderer: path.join(runDir, 'renderer.log'), extensionHostAndLsp: path.join(profile, 'logs') };
-    report.failed = desktopFailures(report, options);
-    report.verdict = report.failed.length ? 'failed' : 'verified';
-    report.complete = true;
-    persist();
-  }
-  console.log(JSON.stringify(report, null, 2));
-  return { report, exitCode: report.failed.length ? 1 : 0 };
-}
-
-async function debuggerState(page, timeoutMs) {
-  const messages = await page.locator('.call-stack-state-message').allTextContents();
-  const message = messages.join(' ').trim();
-  const state = /paused on awaiting interaction/i.test(message) ? 'paused-on-awaiting-interaction'
-    : /paused on breakpoint/i.test(message) ? 'paused-on-breakpoint'
-      : /paused/i.test(message) ? 'paused-other' : /running/i.test(message) ? 'running'
-        : /terminated/i.test(message) ? 'terminated' : 'unknown';
-  const rows = page.locator('.debug-call-stack .monaco-list-row');
-  const frames = [];
-  for (let index = 0; index < await rows.count(); index++) {
-    const row = rows.nth(index);
-    const file = row.locator('.stack-frame .file');
-    const lineText = (await row.locator('.line-number').textContent())?.trim() ?? '';
-    const match = /^(\d+)(?::(\d+))?$/.exec(lineText);
-    // The visible row gives only a basename. A fresh hover supplies the
-    // mounted source path; keep it distinct from local artifact provenance.
-    const frame = { source: null, line: match ? Number(match[1]) : null, column: match?.[2] ? Number(match[2]) : null };
     try {
-      await page.mouse.move(0, 0);
-      await page.locator('.workbench-hover:not(.hidden)').waitFor({ state: 'hidden', timeout: timeoutMs });
-      await file.hover({ timeout: timeoutMs });
-      const tooltip = page.locator('.workbench-hover:not(.hidden) .hover-contents').first();
-      await tooltip.waitFor({ state: 'visible', timeout: timeoutMs });
-      frame.source = (await tooltip.textContent())?.trim().replaceAll('\\', '/') ?? '';
-    } catch (error) { frame.sourceError = error.message; }
-    frames.push(frame);
+      report.artifacts = buildRule(path.join(root, "vscode-sparkdown"), path.join(root, "packages"), fs, "desktop").filter(g => fs.existsSync(g.artifact)).map(g => ({ path: g.artifact, sha256: sha(fs.readFileSync(g.artifact)) }));
+    } catch (error) { report.failed.push(`Disk artifact evidence unavailable: ${error.message}`); }
+    fs.writeFileSync(path.join(evidence, "report.json"), JSON.stringify(report, null, 2));
   }
-  return { state: !frames.length && state === 'unknown' ? 'empty' : state, message, frames };
-}
-
-export async function webDebug(args, deps = liveDeps) {
-  const { opts, error } = parseFlags(args, { '--file': 'value', '--shot': 'value', '--first': 'value', '--evaluate': 'value', '--value': 'value', '--breakpoint': 'number' });
-  if (error) throw new Error('debug: ' + error);
-  if (!opts['--shot']) throw new Error('debug requires --shot for pixel inspection');
-  if (opts['--breakpoint'] !== undefined && (!Number.isSafeInteger(opts['--breakpoint']) || opts['--breakpoint'] < 1)) throw new Error('--breakpoint requires a positive one-based source line');
-  const state = deps.readState();
-  if (!state?.url || !(await deps.recordStands(state)) || !(await deps.isUp(state.url))) throw new Error('No owned web workbench; run up first');
-  deps.checkBuild();
-  const build = artifactEvidence(deps.repoRoot ?? root);
-  if (build.failed.length) throw new Error(build.failed.join('\n'));
-  const report = { surface: 'web-workbench', file: opts['--file'] ?? 'main.sd', build, failed: [], breakpoint: { status: 'unverified', reason: 'This probe uses stopOnEntry and awaiting-interaction pauses; it does not establish breakpoint binding. Earlier builds mapped vscode-test-web sources to file URIs. A breakpoint scenario needs its own verified stop.' } };
-  const firstText = opts['--first'] ?? 'The first line.';
-  const expectedSource = '/' + report.file.replaceAll('\\', '/');
-  report.expectedMountedSource = expectedSource;
-  const now = deps.now ?? Date.now, pause = deps.sleep ?? sleep;
-  const exactSource = frame => frame.source === expectedSource && Number.isSafeInteger(frame.line) && frame.line > 0;
-  const movedSource = (snapshot, before) => snapshot.frames.some(frame => exactSource(frame) && !before.frames.some(prior => prior.source === frame.source && prior.line === frame.line && prior.column === frame.column));
-  const observe = async (page, accepts, timeoutMs, record) => {
-    const deadline = now() + timeoutMs;
-    do {
-      const snapshot = await debuggerState(page, Math.min(2000, Math.max(1, deadline - now())));
-      record(snapshot);
-      if (accepts(snapshot)) return snapshot;
-      if (now() >= deadline) break;
-      await pause(Math.min(200, deadline - now()));
-    } while (now() < deadline);
-    throw new Error('Debugger did not reach the required paused mounted-source state');
-  };
-  await deps.withWorkbench(state.url, { headless: true }, async ({ page, consoleLines }) => {
-    try {
-      await page.locator('.monaco-workbench').waitFor({ timeout: 120000 });
-      await openFile(page, report.file, report, error => report.failed.push(error));
-      if (!report.opened) throw new Error('Requested debugger script did not open');
-      if (opts['--breakpoint']) {
-        const number = page.locator('.margin-view-overlays .line-numbers').filter({ hasText: new RegExp('^' + opts['--breakpoint'] + '$') }).first();
-        await number.waitFor({ timeout: 15000 });
-        const box = await number.boundingBox();
-        if (!box) throw new Error('Requested breakpoint line is not rendered');
-        await page.mouse.click(box.x - 12, box.y + box.height / 2);
-        report.breakpoint = { status: 'unverified', line: opts['--breakpoint'], trigger: 'physical click in the source gutter' };
-      }
-      await palette(page, 'Preview Game');
-      await storyFrame(page, firstText, 60000);
-      const rendered = page.locator('.view-line');
-      const line = await rendered.evaluateAll((elements, text) => elements.findIndex(element => element.textContent.replaceAll('\u00a0', ' ').includes(text)), firstText);
-      if (line < 0) throw new Error('Known story text is not visible in the source editor');
-      await rendered.nth(line).click();
-      await pause(250);
-      await palette(page, 'Sparkdown Debugger: Run & Debug Game');
-      await page.locator('.debug-toolbar').waitFor({ timeout: 60000 });
-      await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+D' : 'Control+Shift+D');
-      await page.getByText('Variables', { exact: true }).first().waitFor({ timeout: 60000 });
-      const player = await storyFrame(page, firstText, 15000);
-      const pointer = await playerPointer(player.frame.locator('canvas').last(), 15000);
-      await page.mouse.click(pointer.x, pointer.y);
-      await pause(400);
-      await page.mouse.click(pointer.x, pointer.y);
-      report.pauseTrigger = 'Run & Debug Game, then real player input to awaiting-interaction pause';
-      const stack = page.locator('.debug-call-stack .monaco-list-row');
-      await observe(page, snapshot => snapshot.state === 'paused-on-awaiting-interaction' && snapshot.frames.some(exactSource), 60000, snapshot => { report.pauseState = snapshot; });
-      report.callStack = await stack.allTextContents();
-      report.paused = true;
-      const variables = page.locator('.debug-variables [aria-label="Scope Vars"]');
-      await variables.waitFor({ timeout: 15000 });
-      if (await variables.getAttribute('aria-expanded') === 'false') await variables.locator('.monaco-tl-twistie').click();
-      await page.locator('.debug-variables .value').first().waitFor({ timeout: 15000 });
-      report.variables = await page.locator('.debug-variables .monaco-list-row').allTextContents();
-      if (!report.variables.length) throw new Error('Variables pane contains no values');
-      await page.screenshot({ path: opts['--shot'] });
-      report.screenshot = path.resolve(opts['--shot']);
-      await page.keyboard.press('F10');
-      await observe(page, snapshot => snapshot.state.startsWith('paused-') && movedSource(snapshot, report.pauseState), 15000, snapshot => { report.stepState = snapshot; });
-      report.step = await stack.allTextContents();
-      await palette(page, 'Focus on Debug Console');
-      // Current Monaco uses EditContext and a readonly IME textarea. Send
-      // real keyboard input to the console focus established by its command.
-      await page.keyboard.type(opts['--evaluate'] ?? 'mood');
-      await page.keyboard.press('Enter');
-      const value = opts['--value'] ?? '0';
-      await page.locator('.repl').getByText(value, { exact: true }).last().waitFor({ timeout: 15000 });
-      report.evaluation = { expression: opts['--evaluate'] ?? 'mood', value };
-      await page.keyboard.press('F5');
-      report.continueObservations = [];
-      await observe(page, snapshot => snapshot.state === 'paused-on-awaiting-interaction' && movedSource(snapshot, report.stepState), 15000, snapshot => {
-        report.continueState = snapshot;
-        if (JSON.stringify(snapshot) !== JSON.stringify(report.continueObservations.at(-1))) report.continueObservations.push(snapshot);
-      });
-      report.continue = await stack.allTextContents();
-      report.continueVerified = true;
-      await page.screenshot({ path: opts['--shot'] + '.continued.png' });
-      if (opts['--breakpoint']) {
-        report.breakpoint.rows = await page.locator('.debug-breakpoints .monaco-list-row').allTextContents();
-        await page.keyboard.press('F5');
-        await observe(page, snapshot => snapshot.state === 'paused-on-breakpoint' && snapshot.frames.some(frame => exactSource(frame) && frame.line === opts['--breakpoint']), 15000, snapshot => { report.breakpoint.observed = snapshot; });
-        const frames = await stack.allTextContents();
-        Object.assign(report.breakpoint, { status: 'verified', reason: 'Paused on breakpoint at the exact requested mounted source path and line', callStack: frames, frames: report.breakpoint.observed.frames });
-        await page.screenshot({ path: opts['--shot'] + '.breakpoint.png' });
-      }
-    } catch (error) { report.failed.push(error.stack ?? error.message); }
-    const captured = partitionConsole(consoleLines, WORKBENCH_CONSOLE_NOISE, 100);
-    report.consoleErrors = captured.errors;
-    report.consoleNoise = captured.noise;
-    report.failed.push(...captured.errors.map(error => 'Unclassified console error: ' + error));
-    await page.screenshot({ path: opts['--shot'] + '.final.png' }).catch(() => {});
-  });
-  report.debugger = report.paused && report.variables?.length && report.stepState?.frames.some(exactSource) && report.evaluation && report.continueVerified && (!opts['--breakpoint'] || report.breakpoint.status === 'verified') ? 'verified' : 'failed';
-  if (report.debugger !== 'verified') report.failed.push('Debugger transcript was not verified');
-  report.verdict = report.failed.length ? 'failed' : 'verified';
-  deps.log(JSON.stringify(report, null, 2));
-  return { report, exitCode: report.failed.length ? 1 : 0 };
+  console.log(JSON.stringify({ report: path.join(evidence, "report.json"), failed: report.failed, unavailable: report.unavailable, stopped: report.stopped }, null, 2));
+  return report.failed.length ? 1 : 0;
 }

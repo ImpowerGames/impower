@@ -7,14 +7,15 @@ export type StructDefinitionTable = Record<string, Record<string, any>>;
 export const structDefinitionTable = (
   structs: readonly StructDefinition[],
 ): StructDefinitionTable => {
-  const table: StructDefinitionTable = {};
+  const table: StructDefinitionTable = Object.create(null);
   for (const struct of structs) {
     const type = struct.type;
     const name = struct.name;
     if (type) {
-      table[type] ??= {};
+      const definitions: Record<string, any> =
+        (table[type] ??= Object.create(null));
       if (name) {
-        table[type][name] = struct.value;
+        definitions[name] = struct.value;
       }
     }
   }
