@@ -32,6 +32,9 @@ function absence(file) {
   for(const row of records(file))assert.equal(processIdentity(row.pid),null,`Fixture PID ${row.pid} remained live`);
 }
 function expectedProof(directory=scratch()) {
+  const requestedDirectory=directory;
+  directory=fs.realpathSync.native(directory);
+  if(directory!==requestedDirectory)console.log('Synthetic proof path alias: '+JSON.stringify({requestedDirectory,directory}));
   const expected={directory,proofFile:path.join(directory,'tree-proof.json'),platform:process.platform,
     attemptId:randomUUID(),reservationToken:randomUUID(),launchNonce:randomUUID(),
     helper:{pid:800001,start:'helper'},root:{pid:800002,start:'root'},
