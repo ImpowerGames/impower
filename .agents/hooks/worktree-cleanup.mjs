@@ -90,7 +90,8 @@ const wrappers = new Set(["sudo", "doas", "env", "xargs", "time", "timeout", "ni
 // Preserve fish's existing raw-name uncertainty refusal without claiming that
 // the established shell-string reader analyzes fish child scripts.
 const supportedPrograms = new Set([...shellPrograms, ...wrappers, ...canonicalCmdlets, "fish", "rm", "rmdir", "rd", "del", "erase", "cd", "pushd", "popd", "git", "npm", "ln", "mklink"]);
-const npmValueOptions = new Set(["--prefix", "--workspace", "-w", "--registry", "--cache", "--userconfig", "--globalconfig", "--loglevel"]);
+const npmValueOptions = new Set(["--prefix", "-C", "--workspace", "-w", "--registry", "--cache", "--userconfig", "--globalconfig", "--loglevel"]);
+const npmDestinationOptions = new Set(["--prefix", "-C", "--workspace", "-w"]);
 const npmBooleanOptions = new Set(["--global", "-g", "--silent", "-s", "--yes", "-y", "--no-audit", "--no-fund", "--ignore-scripts"]);
 // Explicit install/ci aliases reported by the installed npm CLI. This is not
 // npm's general abbreviation resolver or recognition of arbitrary scripts.
@@ -131,6 +132,36 @@ function literalArguments(tokens, shell, command) {
     values.push(text);
   }
   return values;
+}
+function npmSetupTargets(args, shell, command) {
+  const targets = [];
+  for (let at = 0; at < args.length; at++) {
+    const token = args[at], equal = token.text.indexOf("="), flag = equal < 0 ? token.text : token.text.slice(0, equal);
+    let values;
+    if (npmDestinationOptions.has(flag)) {
+      if (equal < 0) {
+        const next = args[++at];
+        if (!next || next.text.startsWith("-")) { targets.error = "npm setup destination is missing or cannot be verified"; continue; }
+        values = literalArguments([next], shell, command);
+      } else {
+        const raw = command.slice(token.start, token.end), prefix = `${flag}=`;
+        if (raw.startsWith(prefix)) {
+          // Verify the value's original spelling, not a candidate assembled
+          // from discarded option text. Ordinary inline quoting is supported.
+          const valueRaw = raw.slice(prefix.length);
+          values = literalArguments([{ ...token, text: token.text.slice(equal + 1), start: token.start + prefix.length, quoted: /^["']/.test(valueRaw) }], shell, command);
+        } else {
+          const whole = literalArguments([token], shell, command);
+          values = [whole[0]?.slice(equal + 1)];
+          if (whole.error) values.error = whole.error;
+        }
+      }
+      if (!values[0] || values[0].startsWith("-")) values.error = "npm setup destination is missing or cannot be verified";
+    } else values = literalArguments([token], shell, command);
+    if (values.error) targets.error = values.error;
+    targets.push(...values.filter(value => typeof value === "string"));
+  }
+  return targets;
 }
 // Reuse the established tokenizer; quoted prose/comments are not commands.
 // Indirect runtimes and computed paths outside known repositories remain outside
@@ -269,7 +300,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         if (shell === "bash" && (encodedLiteral(args[at], command) || (uncertain && args.slice(at).some(arg => encodedLiteral(arg, command))))) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded npm operation selector literal cannot be verified" }) });
         else if (npmSetupSelectors.has(candidates[at]?.toLowerCase()) || (uncertain && candidates.slice(at).some(text => npmSetupSelectors.has(text.toLowerCase())))) {
           if (uncertain || args[at]?.text !== candidates[at]) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "npm setup operation selector cannot be verified" }) });
-          else emit({ kind: "setup", targets });
+          else emit({ kind: "setup", targets: npmSetupTargets(args, argumentShell, command) });
         }
       }
       if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text))) || (name === "new-item" && targets.some(text => /^(junction|symboliclink)$/i.test(text)))) emit({ kind: "setup", targets });

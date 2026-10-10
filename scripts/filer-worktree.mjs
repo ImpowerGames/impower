@@ -104,7 +104,24 @@ async function installOwned(recordPath, owner) {
   const realNpm = fs.realpathSync(npm);
   const cli = realNpm.endsWith(".js") ? realNpm : path.join(path.dirname(npm), "node_modules", "npm", "bin", "npm-cli.js");
   if (!fs.existsSync(cli)) throw new Error(`npm CLI unavailable at ${cli}; preserve ${recordPath} and repair the independent install route`);
-  run(process.execPath, [cli, "install"], r.tree, { ...process.env, PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" });
+  const manifest = path.join(r.tree, "package.json"); noLinks(manifest);
+  if (!fs.statSync(manifest).isFile()) throw new Error("Owned checkout must contain a root package.json before an independent install");
+  // Preserve prefix and config-file inputs: changing them can relocate system
+  // registry/auth configuration. CLI mode flags keep the operation local/real.
+  const env = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^npm_config_(?:global|location|dry[-_]run|package[-_]lock[-_]only)$/i.test(key))), PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" };
+  const flags = ["--global=false", "--location=project", "--dry-run=false", "--package-lock-only=false"];
+  const localPrefix = run(process.execPath, [cli, "prefix", ...flags], r.tree, env);
+  if (!path.isAbsolute(localPrefix) || !same(fs.realpathSync.native(localPrefix), r.tree)) throw new Error("npm local prefix is not the exact owned checkout; repair npm configuration before retrying the supported helper");
+  let globalPrefix;
+  try { globalPrefix = run(process.execPath, [cli, "config", "get", "prefix", ...flags], r.tree, env); }
+  catch (cause) { throw new Error(`npm global prefix cannot be verified; repair npm configuration while preserving registry/auth settings, then retry the supported helper: ${cause.message}`, { cause }); }
+  if (!path.isAbsolute(globalPrefix)) throw new Error("npm global prefix cannot be verified; repair npm configuration before retrying the supported helper");
+  const globalTop = process.platform === "win32" ? globalPrefix : path.join(globalPrefix, "lib");
+  const physicalGlobalTop = fs.existsSync(globalTop) ? fs.realpathSync.native(globalTop) : globalTop;
+  // npm install treats local/globalTop equality as a self-install even with
+  // global=false. Refuse it rather than changing config or the root manifest.
+  if (same(physicalGlobalTop, r.tree)) throw new Error("npm global prefix collides with the owned local checkout; configure a separate global prefix while preserving registry/auth settings, then retry the supported helper");
+  run(process.execPath, [cli, "install", ...flags], r.tree, env);
   await checkLinks(r.tree);
   const saved = read(recordPath); saved.installed = true;
   fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");

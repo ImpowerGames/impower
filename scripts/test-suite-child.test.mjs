@@ -214,18 +214,29 @@ test('native supervisor owns normal exits, timeouts, and fast detached descendan
   }
 });
 
-test('authorization refusal and startup timeout never start an engine',{skip:!supported,timeout:30000},async()=>{
-  for(const startupTimeout of [false,true]) {
-    const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
-    const result=await controlOwned({directory,command:process.execPath,args:[fixture,'loop',inventory],
-      cwd:directory,timeoutMs:1000,startupMs:startupTimeout?100:60000,
-      reservationToken:randomUUID(),onAuthorize(){throw new Error('Durable authorization refused');}});
-    const compileTimedOut=startupTimeout&&process.platform==='win32';
-    assert.equal(result.status,compileTimedOut?'unknown':'not-run',JSON.stringify(result));
-    assert.equal(result.exitConfirmed,!compileTimedOut);
-    assert.equal(result.launchAuthorized,false);
-    assert.equal(records(inventory).length,0);
+test('reached authorization refusal never starts an engine',{skip:!supported,timeout:30000},async()=>{
+  // Late startup callbacks and definite prelaunch expiry have separate reached controls.
+  const runtime=await prepareOwnedRuntime({directory:scratch(),startupMs:10000,cleanupMs:1000});
+  assert.equal(runtime.status,'prepared',JSON.stringify(runtime));
+  const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
+  let readyCalls=0,authorizationCalls=0,originals;
+  const result=await controlOwned({directory,command:process.execPath,args:[fixture,'loop',inventory],
+    cwd:directory,timeoutMs:1000,startupMs:60000,
+    runtime,reservationToken:randomUUID(),
+    onReady(value){readyCalls++;originals={launcher:value.launcher,helper:value.helper};},
+    onAuthorize(){authorizationCalls++;throw new Error('Durable authorization refused');}});
+  assert.equal(readyCalls,1,'Exercise validated helper readiness before the explicit refusal');
+  assert.equal(authorizationCalls,1,'Exercise the explicit authorization refusal');
+  assert.equal(result.status,'not-run',JSON.stringify(result));
+  assert.equal(result.exitConfirmed,true);
+  assert.equal(result.launchAuthorized,false);
+  assert.ok(result.launcherClose,'Original launcher actually closed');
+  for(const name of ['launcher','helper']) {
+    assert.ok(originals[name]?.start,'Capture original '+name+' identity');
+    assert.deepEqual(result[name],originals[name]);
+    assert.notDeepEqual(processIdentity(originals[name].pid),originals[name],'Original identity absent; PID reuse is allowed');
   }
+  assert.equal(records(inventory).length,0);
 });
 
 test('compile failure/timeout retains partial output and never authorizes a helper',{skip:process.platform!=='win32',timeout:30000},async()=>{
@@ -304,7 +315,7 @@ test('blocked capability publication preserves live pipe-holder uncertainty',{sk
 
 test('preparation deadline includes forced synchronous identity capture',{skip:process.platform!=='win32',timeout:15000},async()=>{
   const directory=scratch(),script=path.join(directory,'compile.ps1'),ack=path.join(directory,'compiler-observed.json');
-  let identityCaptures=0;
+  let identityCaptures=0,capturedOriginal;
   fs.writeFileSync(script,[
     'param([string]$Configuration)',
     '$acknowledgement = Join-Path (Split-Path -Parent $Configuration) "compiler-observed.json"',
@@ -312,13 +323,15 @@ test('preparation deadline includes forced synchronous identity capture',{skip:p
     'while (-not (Test-Path -LiteralPath $acknowledgement)) { if ((Get-Date) -gt $deadline) { exit 8 }; Start-Sleep -Milliseconds 20 }',
     'exit 0',
   ].join('\n'));
-  const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:100,
+  const startupMs=5000;
+  const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs,cleanupMs:1000,
     identify(pid) {
       identityCaptures++;
-      const original=processIdentity(pid);
+      const original=capturedOriginal=processIdentity(pid);
+      assert.ok(original?.start,'Capture the actual original compiler identity before delaying');
       // Deliberately exhaust the authored bound; the child waits on our ack.
       // This does not depend on compilation speed or ambient machine load.
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,250);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,startupMs+100);
       return original;
     },onPreparation(value) {fs.writeFileSync(ack,JSON.stringify(value.preparationProcess));}});
   console.log('Forced identity deadline evidence: '+JSON.stringify({identityCaptures,result}));
@@ -327,6 +340,8 @@ test('preparation deadline includes forced synchronous identity capture',{skip:p
   assert.equal(result.preparationTimedOut,true,'Elapsed startup must not restart after synchronous capture');
   assert.equal(result.compilerTreeConfirmed,false);
   assert.ok(result.preparationClose,'Await the original preparation child close');
+  assert.deepEqual(result.preparationProcess,capturedOriginal);
+  assert.notDeepEqual(processIdentity(capturedOriginal.pid),capturedOriginal,'Original compiler identity is absent after actual close');
   assert.equal(result.launchAuthorized,false);
   assert.equal(fs.existsSync(path.join(directory,'capability-request.json')),false);
   assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
@@ -350,6 +365,7 @@ for(const phase of ['ready','authorize'])test('attempt startup refuses late '+ph
       }});
     console.log('Attempt callback deadline evidence: '+JSON.stringify({phase,readyCalls,authorizeCalls,result}));
     assert.equal(readyCalls,1,'Exercise the callback boundary, not earlier startup refusal');
+    assert.equal(result.status,'not-run',JSON.stringify(result));
     assert.equal(result.exitConfirmed,true,JSON.stringify(result));
     assert.ok(result.launcherClose,'Original launcher actually closed');
     for(const original of [result.launcher,result.helper]) {
@@ -406,25 +422,51 @@ test('native final admission refuses an already queued nonce after a bounded set
   assert.equal(readTreeProof(result,{close:result.launcherClose}).tree.observation,'no-launch');
 });
 
-test('real C# compilation refusal and preparation deadline never enter reservation-stage launch',{skip:process.platform!=='win32',timeout:30000},async()=>{
-  for(const deadline of [false,true]) {
-    const directory=scratch(),script=path.join(directory,'test-suite-child-windows.ps1');
-    fs.copyFileSync(path.join(here,'test-suite-child-windows.ps1'),script);
-    const source=fs.readFileSync(path.join(here,'test-suite-child-windows.cs'),'utf8');
-    const changed=deadline?source:source.replace('public static int Main(string[] args)','public static invalid syntax Main(string[] args)');
-    if(!deadline)assert.notEqual(changed,source,'Real compiler refusal must mutate the C# syntax');
-    fs.writeFileSync(path.join(directory,'test-suite-child-windows.cs'),changed);
-    // Two authored prep bounds (5s and100ms), each with1s close cleanup, fit
-    // the30s fixture. Sync identity/filesystem calls remain uninterruptible.
-    const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:deadline?100:5000,cleanupMs:1000});
-    console.log('Real compiler admission evidence: '+JSON.stringify({deadline,result}));
-    assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.launchAuthorized,false);
-    assert.equal(result.compilerTreeConfirmed,false);assert.equal(result.preparationTimedOut,deadline);
-    if(!deadline)assert.match(result.diagnostics,/Add-Type|Compiler|CS\d+/);
-    assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
-    assert.equal(fs.existsSync(path.join(directory,'runtime.json')),false);
-    assert.equal(fs.existsSync(path.join(directory,'tree-proof.json')),false);
-  }
+test('real C# compilation refusal never enters reservation-stage launch',{skip:process.platform!=='win32',timeout:30000},async()=>{
+  const directory=scratch(),script=path.join(directory,'test-suite-child-windows.ps1');
+  fs.copyFileSync(path.join(here,'test-suite-child-windows.ps1'),script);
+  const source=fs.readFileSync(path.join(here,'test-suite-child-windows.cs'),'utf8');
+  const changed=source.replace('public static int Main(string[] args)','public static invalid syntax Main(string[] args)');
+  assert.notEqual(changed,source,'Real compiler refusal must mutate the C# syntax');
+  fs.writeFileSync(path.join(directory,'test-suite-child-windows.cs'),changed);
+  const result=await prepareOwnedRuntime({directory,helperScript:script,startupMs:5000,cleanupMs:1000});
+  console.log('Real compiler admission evidence: '+JSON.stringify({result}));
+  assert.equal(result.status,'unknown',JSON.stringify(result));assert.equal(result.launchAuthorized,false);
+  assert.equal(result.compilerTreeConfirmed,false);assert.equal(result.preparationTimedOut,false);
+  assert.ok(result.preparationProcess?.start,'Retain the real original compiler identity');
+  assert.deepEqual(result.preparationClose,{exit:1,signal:null});
+  assert.notDeepEqual(processIdentity(result.preparationProcess.pid),result.preparationProcess);
+  assert.match(result.diagnostics,/Add-Type|Compiler|CS\d+/);
+  assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
+  assert.equal(fs.existsSync(path.join(directory,'runtime.json')),false);
+  assert.equal(fs.existsSync(path.join(directory,'tree-proof.json')),false);
+});
+
+test('reached preparation deadline before launch is a confirmed no-process refusal',{skip:!supported,timeout:15000},async()=>{
+  const directory=scratch(),request=path.join(fs.realpathSync.native(directory),'preparation-request.json');
+  const originalWrite=fs.writeFileSync;
+  let writeReached=false,lifecycleCalls=0,preparationCalls=0,result;
+  try {
+    fs.writeFileSync=function(file,...args) {
+      const returned=originalWrite.call(this,file,...args);
+      if(file===request) {
+        writeReached=true;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,250);
+      }
+      return returned;
+    };
+    result=await prepareOwnedRuntime({directory,startupMs:100,cleanupMs:1000,
+      onLifecycle(){lifecycleCalls++;},onPreparation(){preparationCalls++;}});
+  } finally {fs.writeFileSync=originalWrite;}
+  console.log('Reached prelaunch deadline evidence: '+JSON.stringify({writeReached,lifecycleCalls,preparationCalls,result}));
+  assert.equal(writeReached,true);assert.equal(lifecycleCalls,0);assert.equal(preparationCalls,0);
+  assert.equal(result.status,'not-run');assert.equal(result.exitConfirmed,true);
+  assert.equal(result.launchAuthorized,false);assert.equal(result.preparationTimedOut,true);
+  assert.equal(result.launchError,'Preparation deadline expired before process launch');
+  assert.equal(Object.hasOwn(result,'preparationProcess'),false);
+  assert.equal(Object.hasOwn(result,'preparationClose'),false);
+  for(const file of ['preparation-result.json','capability-request.json','runtime.json','child-request.json','tree-proof.json'])
+    assert.equal(fs.existsSync(path.join(directory,file)),false,file+' cannot exist before process launch');
 });
 
 test('compile success without a fresh executable is refused before helper launch',{skip:process.platform!=='win32',timeout:30000},async()=>{

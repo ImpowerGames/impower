@@ -39,7 +39,10 @@ function verifyAdapters(command, shell, cwd, denied, nativeDenied = denied) {
     const payload = JSON.stringify({ session_id: "test-session-1766", tool_name: shell, cwd, tool_input: { command } });
     const r = spawnSync(process.execPath, [path.join(root, file), ...args], { input: payload, encoding: "utf8", windowsHide: true });
     assert.equal(r.status, 0, r.stderr);
-    if (file.startsWith(".agents/") ? nativeDenied : denied) assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny");
+    if (file.startsWith(".agents/") ? nativeDenied : denied) {
+      assert.ok(r.stdout.trim(), `${command}: expected an explicit adapter refusal`);
+      assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "deny");
+    }
     else assert.equal(r.stdout, "");
     preserved();
   }
@@ -517,6 +520,32 @@ git(["add", "."]); git(["commit", "-m", "local workspace fixture"]);
 git(["update-ref", "refs/remotes/origin/main", "HEAD"]);
 const owner = "test-session-1766";
 const owned = await create({ root: main, owner, toolingOnly: true });
+const npmBorrowed = path.join(owned.tree, "prefix-borrowed");
+fs.symlinkSync(external, npmBorrowed, process.platform === "win32" ? "junction" : "dir");
+for (const [target, denied] of [[owned.tree, true], [npmBorrowed, true], [sibling, false]]) {
+  const value = target.replaceAll(path.sep, "/");
+  for (const flag of ["--prefix", "-C", "--workspace", "-w"]) for (const inline of [false, true]) for (const before of [false, true]) {
+    const option = inline ? `${flag}='${value}'` : `${flag} '${value}'`;
+    const command = before ? `npm ${option} install` : `npm install ${option}`;
+    for (const shell of ["Bash", "PowerShell"]) verifyAdapters(command, shell, main, denied);
+    preserved();
+  }
+}
+for (const flag of ["--prefix", "-C"]) for (const inline of [false, true]) for (const before of [false, true]) {
+  const target = sibling.replaceAll(path.sep, "/"), option = inline ? `${flag}='${target}'` : `${flag} '${target}'`;
+  const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const actual = spawnSync(executable, ["-c", before ? `npm ${option} prefix` : `npm prefix ${option}`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(actual.status, 0, actual.stderr);
+  assert.equal(fs.realpathSync(actual.stdout.trim()), fs.realpathSync(sibling), "installed npm confirms both prefix spellings and positions"); preserved();
+}
+for (const command of [`npm --prefix '${owned.tree}' --version`, `npm --prefix='${owned.tree}' --version`, `npm config get prefix --prefix='${owned.tree}'`, `echo 'npm --prefix=${owned.tree} install'`]) {
+  for (const shell of ["Bash", "PowerShell"]) verifyAdapters(command, shell, main, false); preserved();
+}
+for (const [command, shell] of [["npm install --prefix=", "Bash"], ["npm install --prefix", "Bash"], ["npm install --prefix=$target", "Bash"], ["npm install --workspace=@targets", "PowerShell"], ["npm install --prefix='one''two'", "Bash"]]) {
+  verifyAdapters(command, shell, main, true); preserved();
+}
+fs.unlinkSync(npmBorrowed);
+console.log("PASS: npm inline/separate destination equivalence, raw uncertainty and harmless controls through both adapters");
 const npmAliases = ["install", "add", "i", "in", "ins", "inst", "insta", "instal", "isnt", "isnta", "isntal", "isntall", "ci", "clean-install", "ic", "install-clean", "isntall-clean"];
 for (const alias of npmAliases) {
   assert.ok(cleanup(`npm ${alias}`, "bash", owned.tree), `explicit setup alias ${alias} protects ownership`);
@@ -576,7 +605,84 @@ for (const [command, refused] of [[`Remove-Item -Recurse '${owned.tree}'`, true]
 }
 assert.equal(cleanup("git status --short", "powershell", owned.tree), null);
 assert.equal(cleanup("node scripts/filer-worktree.mjs remove --record x --owner y", "powershell", main), null);
-await install(owned.record, owner);
+const npmFixtureEnvironment = /^npm_config_(?:global|location|prefix|userconfig|globalconfig|cache|dry[-_]run|package[-_]lock[-_]only)$/i;
+const savedNpmDestinationEnvironment = Object.entries(process.env).filter(([key]) => npmFixtureEnvironment.test(key));
+const originalPackageBytes = fs.readFileSync(path.join(owned.tree, "package.json"));
+const npmExternal = path.join(scratch, "ambient-npm-external"); fs.mkdirSync(npmExternal);
+const npmBytes = ["tracked.txt", "untracked.txt", "ignored.txt"].map(name => [name, fs.readFileSync(path.join(external, name))]);
+for (const [name, bytes] of npmBytes) fs.writeFileSync(path.join(npmExternal, name), bytes);
+try {
+  for (const mode of ["global", "location", "userconfig"]) {
+    for (const key of Object.keys(process.env)) if (npmFixtureEnvironment.test(key)) delete process.env[key];
+    const config = path.join(owned.artifacts, `${mode}.npmrc`), globalConfig = path.join(owned.artifacts, `${mode}-global.npmrc`);
+    fs.writeFileSync(config, mode === "userconfig" ? "global=true\n" : ""); fs.writeFileSync(globalConfig, "");
+    Object.assign(process.env, { npm_config_PREFIX: npmExternal, npm_config_userconfig: config, npm_config_globalconfig: globalConfig, npm_config_cache: path.join(owned.artifacts, "npm-cache") });
+    if (mode === "global") process.env.npm_config_GLOBAL = "true";
+    if (mode === "location") process.env.npm_config_LOCATION = "global";
+    await install(owned.record, owner);
+    assert.deepEqual(fs.readFileSync(path.join(owned.tree, "package.json")), originalPackageBytes, "local install must not add a self-dependency");
+    assert.ok(fs.existsSync(path.join(owned.tree, "package-lock.json")), "ambient npm configuration must install locally");
+    assert.deepEqual(fs.readdirSync(npmExternal).sort(), npmBytes.map(([name]) => name).sort(), "ambient destination must receive no installation");
+    for (const [name, bytes] of npmBytes) assert.deepEqual(fs.readFileSync(path.join(npmExternal, name)), bytes);
+    preserved();
+  }
+  for (const mode of ["dry-run", "package-lock-only", "userconfig-modes"]) {
+    for (const key of Object.keys(process.env)) if (npmFixtureEnvironment.test(key)) delete process.env[key];
+    const freshOwner = `completion-${mode}`, fresh = await create({ root: main, owner: freshOwner, toolingOnly: true });
+    const packageBytes = fs.readFileSync(path.join(fresh.tree, "package.json"));
+    const config = path.join(fresh.artifacts, "user.npmrc"), globalConfig = path.join(fresh.artifacts, "global.npmrc");
+    fs.writeFileSync(config, mode === "userconfig-modes" ? "dry-run=true\npackage-lock-only=true\n" : ""); fs.writeFileSync(globalConfig, "");
+    Object.assign(process.env, { npm_config_prefix: npmExternal, npm_config_userconfig: config, npm_config_globalconfig: globalConfig, npm_config_cache: path.join(fresh.artifacts, "npm-cache") });
+    if (mode === "dry-run") process.env.npm_config_DRY_RUN = "true";
+    if (mode === "package-lock-only") process.env.npm_config_PACKAGE_LOCK_ONLY = "true";
+    await install(fresh.record, freshOwner);
+    assert.equal(JSON.parse(fs.readFileSync(fresh.record)).installed, true);
+    assert.equal(fs.realpathSync(path.join(fresh.tree, "node_modules", "scratch-workspace")), fs.realpathSync(path.join(fresh.tree, "packages", "a")), "installed requires a fresh real local dependency");
+    assert.deepEqual(fs.readFileSync(path.join(fresh.tree, "package.json")), packageBytes);
+    for (const [name, bytes] of npmBytes) assert.deepEqual(fs.readFileSync(path.join(npmExternal, name)), bytes);
+    preserved();
+  }
+  if (process.platform === "win32") {
+    for (const source of ["user", "project"]) {
+      for (const key of Object.keys(process.env)) if (npmFixtureEnvironment.test(key)) delete process.env[key];
+      const freshOwner = `prefix-collision-${source}`, fresh = await create({ root: main, owner: freshOwner, toolingOnly: true });
+      const packageBytes = fs.readFileSync(path.join(fresh.tree, "package.json"));
+      const ownershipMarker = path.join(git(["rev-parse", "--absolute-git-dir"], fresh.tree), markerName), markerBytes = fs.readFileSync(ownershipMarker);
+      const config = path.join(fresh.artifacts, "user.npmrc"), globalConfig = path.join(fresh.artifacts, "global.npmrc");
+      fs.writeFileSync(config, source === "user" ? `prefix=${fresh.tree}\n` : ""); fs.writeFileSync(globalConfig, "");
+      if (source === "project") fs.writeFileSync(path.join(fresh.tree, ".npmrc"), `prefix=${fresh.tree}\n`);
+      Object.assign(process.env, { npm_config_userconfig: config, npm_config_globalconfig: globalConfig, npm_config_cache: path.join(fresh.artifacts, "npm-cache") });
+      // npm versions can redact UUID-valued prefixes before exposing them.
+      // Either refusal must happen before any installation or marker change.
+      await assert.rejects(install(fresh.record, freshOwner), /global prefix (?:collides|cannot be verified)/);
+      assert.equal(JSON.parse(fs.readFileSync(fresh.record)).installed, false);
+      assert.ok(!fs.existsSync(path.join(fresh.tree, "node_modules")));
+      assert.deepEqual(fs.readFileSync(path.join(fresh.tree, "package.json")), packageBytes);
+      assert.deepEqual(fs.readFileSync(ownershipMarker), markerBytes);
+      preserved();
+    }
+    for (const key of Object.keys(process.env)) if (npmFixtureEnvironment.test(key)) delete process.env[key];
+    const aliasOwner = "prefix-physical-collision", fresh = await create({ root: main, owner: aliasOwner, toolingOnly: true });
+    const globalAlias = path.join(scratch, "npm-global-prefix-alias");
+    fs.symlinkSync(fresh.tree, globalAlias, "junction");
+    try {
+      const packageBytes = fs.readFileSync(path.join(fresh.tree, "package.json"));
+      const ownershipMarker = path.join(git(["rev-parse", "--absolute-git-dir"], fresh.tree), markerName), markerBytes = fs.readFileSync(ownershipMarker);
+      const config = path.join(fresh.artifacts, "user.npmrc"), globalConfig = path.join(fresh.artifacts, "global.npmrc");
+      fs.writeFileSync(config, `prefix=${globalAlias}\n`); fs.writeFileSync(globalConfig, "");
+      Object.assign(process.env, { npm_config_userconfig: config, npm_config_globalconfig: globalConfig, npm_config_cache: path.join(fresh.artifacts, "npm-cache") });
+      await assert.rejects(install(fresh.record, aliasOwner), /global prefix collides/, "ordinary alias must reach physical collision comparison");
+      assert.equal(JSON.parse(fs.readFileSync(fresh.record)).installed, false);
+      assert.ok(!fs.existsSync(path.join(fresh.tree, "node_modules")));
+      assert.deepEqual(fs.readFileSync(path.join(fresh.tree, "package.json")), packageBytes);
+      assert.deepEqual(fs.readFileSync(ownershipMarker), markerBytes);
+      preserved();
+    } finally { fs.unlinkSync(globalAlias); }
+  } else console.log("SKIP: Windows npm local/globalTop equality controls");
+} finally {
+  for (const key of Object.keys(process.env)) if (npmFixtureEnvironment.test(key)) delete process.env[key];
+  for (const [key, value] of savedNpmDestinationEnvironment) process.env[key] = value;
+}
 assert.equal(JSON.parse(fs.readFileSync(owned.record)).installed, true);
 assert.ok(!fs.lstatSync(path.join(owned.tree, "node_modules")).isSymbolicLink());
 assert.equal(fs.realpathSync(path.join(owned.tree, "node_modules", "scratch-workspace")), fs.realpathSync(path.join(owned.tree, "packages", "a")));
