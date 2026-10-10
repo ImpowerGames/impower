@@ -19,6 +19,8 @@ Bash ANSI-C and locale literal syntax at command or operation-selector positions
 
 The supported npm setup selectors include the CLI's explicit install aliases `add`, `i`, `in`, `ins`, `inst`, `insta`, `instal`, `isnt`, `isnta`, `isntal`, `isntall`, and ci aliases `clean-install`, `ic`, `install-clean`, `isntall-clean`. These receive the same ownership and literal checks as `install` and `ci`; arbitrary abbreviations, scripts and other npm verbs are not inferred as those operations.
 
+Literal target identity follows each encountered link's raw destination as well as its final physical path. An outside alias pointing directly to a checkout's borrowed dependency junction cannot erase the intermediate checkout identity, even when the final external repository is not registered. More than 64 distinct links or an unreadable/cyclic physical chain refuses with the guarded helper route; this bounded check runs only for relevant direct operations. A link chain unrelated to this repository's registered checkouts remains outside the protection scope.
+
 Both routes use `scripts/filer-worktree.mjs` from the main checkout. Include this lifecycle in each item's prompt, including the stable filing session identity as `--owner`:
 
 ```sh

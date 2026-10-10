@@ -22,16 +22,30 @@ function owned(tree) { return exists(path.join(git(tree, ["rev-parse", "--absolu
 function identity(target) {
   let nearest = null;
   const traversals = [];
+  const visitedLinks = new Set();
+  const inspectAncestors = (candidate, initial = false) => {
+    for (let at = candidate; ; at = path.dirname(at)) {
+      try {
+        const stat = fs.lstatSync(at);
+        if (stat.isSymbolicLink()) {
+          const key = process.platform === "win32" ? at.toLowerCase() : at;
+          if (!visitedLinks.has(key)) {
+            if (visitedLinks.size >= 64) throw new Error("Cleanup link-chain identity exceeds its supported bound");
+            visitedLinks.add(key);
+            traversals.push({ link: at, target: real(at), source: path.join(real(path.dirname(at)), path.basename(at)) });
+            // realpath collapses A -> T/node_modules -> E into E. Inspect the
+            // raw destination too, so the intermediate registered T survives.
+            inspectAncestors(path.resolve(path.dirname(at), fs.readlinkSync(at)));
+          }
+        }
+        if (initial && !nearest) nearest = at;
+      } catch (error) { if (error.code !== "ENOENT") throw error; }
+      if (at === path.dirname(at)) break;
+    }
+  };
   // Inspect every lexical ancestor before resolving the final target: a path
   // may enter owned T through A, then leave T through T/node_modules into E.
-  for (let at = target; ; at = path.dirname(at)) {
-    try {
-      const stat = fs.lstatSync(at);
-      if (stat.isSymbolicLink()) traversals.push({ link: at, target: real(at), source: path.join(real(path.dirname(at)), path.basename(at)) });
-      if (!nearest) nearest = at;
-    } catch (error) { if (error.code !== "ENOENT") throw error; }
-    if (at === path.dirname(at)) break;
-  }
+  inspectAncestors(target, true);
   if (!nearest) throw new Error("No readable existing path ancestor");
   return { physical: path.resolve(real(nearest), path.relative(nearest, target)), traversals };
 }

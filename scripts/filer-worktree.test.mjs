@@ -199,6 +199,41 @@ for (const target of [alias, `${alias}/node_modules/tracked.txt`]) {
   assert.ok(cleanup(`Remove-Item -LiteralPath '${target}' -Recurse -Force`, "powershell", main), "filesystem alias traversal must refuse"); preserved();
 }
 fs.unlinkSync(alias);
+// A direct alias to the borrowed junction must retain its intermediate
+// checkout even when the final external repository is not registered here.
+const chainExternal = path.join(scratch, "independent-chain-external");
+fs.mkdirSync(chainExternal);
+git(["init", "-b", "main"], chainExternal);
+git(["config", "user.name", "Fixture"], chainExternal);
+git(["config", "user.email", "fixture@example.invalid"], chainExternal);
+fs.writeFileSync(path.join(chainExternal, ".gitignore"), "ignored.txt\n");
+fs.writeFileSync(path.join(chainExternal, "tracked.txt"), "independent tracked bytes\n");
+git(["add", "."], chainExternal); git(["commit", "-m", "fixture"], chainExternal);
+fs.writeFileSync(path.join(chainExternal, "untracked.txt"), "independent untracked bytes\n");
+fs.writeFileSync(path.join(chainExternal, "ignored.txt"), "independent ignored bytes\n");
+const chainSentinels = ["tracked.txt", "untracked.txt", "ignored.txt"].map(name => [name, fs.readFileSync(path.join(chainExternal, name))]);
+const chainPreserved = () => { preserved(); for (const [name, bytes] of chainSentinels) assert.deepEqual(fs.readFileSync(path.join(chainExternal, name)), bytes); };
+const borrowedLink = path.join(reproduction, "node_modules"), directAlias = path.join(scratch, "borrowed-link-alias"), secondAlias = path.join(scratch, "second-borrowed-alias");
+fs.unlinkSync(borrowedLink);
+fs.symlinkSync(chainExternal, borrowedLink, process.platform === "win32" ? "junction" : "dir");
+fs.symlinkSync(borrowedLink, directAlias, process.platform === "win32" ? "junction" : "dir");
+fs.symlinkSync(directAlias, secondAlias, process.platform === "win32" ? "junction" : "dir");
+for (const target of [directAlias, secondAlias]) {
+  const command = `Remove-Item -LiteralPath '${target}/tracked.txt' -Force`;
+  assert.match(cleanup(command, "powershell", main), /Linked cleanup/, "raw intermediate borrowed junction identity must survive final realpath");
+  verifyAdapters(command, "PowerShell", main, true); chainPreserved();
+  if (process.platform === "win32") {
+    const actual = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `${command} -WhatIf`], { cwd: main, encoding: "utf8", windowsHide: true });
+    assert.equal(actual.status, 0, actual.stderr); assert.match(actual.stdout, /tracked\.txt/); chainPreserved();
+  }
+}
+const unrelatedAlias = path.join(scratch, "unrelated-chain-alias");
+fs.symlinkSync(chainExternal, unrelatedAlias, process.platform === "win32" ? "junction" : "dir");
+const unrelatedCommand = `Remove-Item -LiteralPath '${unrelatedAlias}/tracked.txt' -Force`;
+assert.equal(cleanup(unrelatedCommand, "powershell", main), null);
+verifyAdapters(unrelatedCommand, "PowerShell", main, false); chainPreserved();
+fs.unlinkSync(unrelatedAlias); fs.unlinkSync(secondAlias); fs.unlinkSync(directAlias); fs.unlinkSync(borrowedLink);
+fs.symlinkSync(external, borrowedLink, process.platform === "win32" ? "junction" : "dir");
 for (const [command, shell] of [["Write-Output 'git worktree remove is unsafe'", "powershell"], ["echo 'rm -rf and .Delete() are unsafe'", "bash"], ["# git worktree remove x\ngit status", "bash"], ["Write-Output '[IO.Directory]::Delete(x)'", "powershell"]]) assert.equal(cleanup(command, shell, main), null, command);
 const sibling = `${external}-sibling`;
 fs.mkdirSync(sibling);
