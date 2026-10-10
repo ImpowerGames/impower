@@ -1,7 +1,8 @@
 // agent-tooling-timeout-ms: 780000
 // Prior complete21-case Windows CI measured417.6s; four added local controls
 // measured about102.7s. Allow9s for the longer genuine-event stimulus, leaving
-// about250s margin. This estimate is not a measured new25-case full run.
+// about250s margin. One additional pure fixture-error control brings the CI
+// inventory to 26 cases; this is not a measured 26-case full run.
 // Other checks and per-operation budgets stay unchanged.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -17,11 +18,54 @@ import {createReceiptDescriptor,awaitReceiptDisposition,readDurableDisposition,r
 import {startExecutionService} from './reviewer-execution.mjs';
 import {requestExecution} from './reviewer-execution-client.mjs';
 import {validateAggregateInputs} from './test-suite-aggregate.mjs';
+import {machineRoot,read as readReservation,acquire,acquireWaiting,reservationState,same} from './test-suite-process.mjs';
 
 const scratch=()=>fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(),'vitest-integration-control-')));
 const terminalSummary=result=>result.stdout.split(/\r?\n/).flatMap(line=>{
   try{const value=JSON.parse(line);return value.evidence&&typeof value.exit==='number'?[value]:[]}catch{return []}
 }).at(-1);
+// A confirmed process tree is not a released reservation. Only this fixture's
+// independently authenticated operation may use ordinary guarded recovery.
+async function settleFixtureReservation(records,directory,root=machineRoot) {
+  const file=path.join(root,'reservation.json');
+  let previous;
+  try {previous=readReservation(file);}catch(error){if(error.code==='ENOENT')return;throw error;}
+  assert.match(previous?.token??'',/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/,'Preserve reservation whose ownership token is unavailable');
+  const tokens=records.flatMap(record=>record.attempts.map(attempt=>attempt.supervision.reservationToken));
+  if(!tokens.includes(previous?.token)) {
+    assert.ok(['running','interrupted'].includes(reservationState(previous)),'Preserve unknown foreign reservation');
+    return; // Another admitted caller already consumed this fixture's record.
+  }
+  const matched=records.some(record=>same(record.coordinator,previous.owner)&&record.attempts.some(attempt=>{
+    const expected=attempt.supervision,actual=previous.supervision;
+    return actual&&attempt.id===previous.attempt&&attempt.directory===path.join(previous.run,previous.attempt)
+      &&attempt.directory===actual.directory&&expected.reservationToken===previous.token
+      &&expected.launchNonce===actual.launchNonce&&expected.proofFile===actual.proofFile
+      &&same(expected.launcher,actual.launcher)&&same(expected.helper,actual.helper)
+      &&(expected.root===null&&actual.root===null||same(expected.root,actual.root));
+  }));
+  assert.ok(matched,'Preserve reservation not bound to this authenticated fixture');
+  assert.equal(reservationState(previous),'interrupted','Preserve unknown/live reservation and its original proof');
+  const lease=await acquireWaiting(directory,{root,waitMs:30000,supervised:true});
+  try {
+    const recovered=readReservation(path.join(root,'recovered-'+previous.token+'.json'));
+    delete recovered.recoveredAt;
+    assert.deepEqual(recovered,previous,'Ordinary recovery retains exact prior ownership evidence');
+  } finally {lease.release();}
+  // release() confirmed removal of this lease under the guard. A legitimate
+  // foreign admission may already have appeared; never require global absence.
+}
+async function finishFixtureCleanup(primary,reconcile,persist) {
+  let failure;
+  try {await reconcile();}catch(error){failure=error;}
+  try {persist(failure);}catch(error){failure??=error;}
+  if(failure) {
+    if(!primary)throw failure;
+    primary.cleanupError=failure.message;
+    console.error('Fixture cleanup remains incomplete: '+failure.message);
+  }
+  return !failure;
+}
 // Copy only inspected fixture evidence after independent disposition. Never
 // retain authorization requests, executables or dependency/source trees.
 function retainNativeEvidence(directory,key,disposition) {
@@ -53,6 +97,18 @@ function retainNativeEvidence(directory,key,disposition) {
 const waitForAck='const fs=require("node:fs");const until=Date.now()+10000;const t=setInterval(()=>{if(fs.existsSync(process.argv[1])){clearInterval(t);process.exit(0)}else if(Date.now()>until)process.exit(2)},10)';
 
 const admissionControls=[];
+admissionControls.push(test('fixture cleanup preserves primary failures across reconciliation and evidence errors',async()=>{
+  for(const boundary of ['reconcile','persist']) {
+    const primary=new Error('Original fixture assertion'),secondary=new Error('Reached cleanup '+boundary);
+    let persisted=false;
+    const reconcile=async()=>{if(boundary==='reconcile')throw secondary;};
+    const persist=failure=>{persisted=true;if(boundary==='persist')throw secondary;assert.equal(failure,secondary);};
+    assert.equal(await finishFixtureCleanup(primary,reconcile,persist),false);
+    assert.equal(persisted,true);assert.equal(primary.message,'Original fixture assertion');
+    assert.equal(primary.cleanupError,secondary.message);
+    await assert.rejects(finishFixtureCleanup(null,reconcile,persist),error=>error===secondary);
+  }
+}));
 admissionControls.push(test('private dependency log admission failure launches no installer',async()=>{
   const directory=scratch();
   fs.mkdirSync(path.join(directory,'install.stderr.log'));
@@ -444,19 +500,76 @@ if(!dependencies) {
         console.log(JSON.stringify({realCancellation:positive,realSuccessor:successor,receiptReadFault:negative,readFaultReached}));
       } catch(error) {originalFailure=error;throw error;} finally {
         fs.readFileSync=read;
-        if(service)try{await service.close();}catch(error){if(!negative&&!originalFailure)throw error;}
-        // Service close drains its retained original child before returning or
-        // rejecting. Independently reconcile every actual launched operation.
-        const admitted=fs.readdirSync(evidence).filter(name=>/-supervision-/.test(name)).map(name=>name.split('-supervision-')[0]);
-        const outcomes=[positive,successor,negative].filter(Boolean);
-        for(const id of admitted)if(!outcomes.some(result=>result.id===id)) {
-          try {const result=JSON.parse(read(path.join(evidence,id+'.json'),'utf8'));if(result.id===id)outcomes.push(result);}catch{}
-        }
-        cleanupConfirmed=admitted.length>0&&outcomes.length===admitted.length
-          &&admitted.every(id=>outcomes.filter(result=>result.id===id).length===1)
-          &&outcomes.every(result=>nativeDisposition(result).confirmed);
-        if(cleanupConfirmed)incompleteOwnership=null;
-        fs.writeFileSync(path.join(evidence,'fixture-disposition.json'),JSON.stringify({cleanupConfirmed,admitted,originalFailure:originalFailure?.message,outcomes}));
+        let admitted=[],outcomes=[];
+        const completed=await finishFixtureCleanup(originalFailure,async()=>{
+          if(service)try{await service.close();}catch(error){if(!negative&&!originalFailure)throw error;}
+          // Service close drains its retained original child before returning or
+          // rejecting. Independently reconcile every actual launched operation.
+          admitted=fs.readdirSync(evidence).filter(name=>/-supervision-/.test(name)).map(name=>name.split('-supervision-')[0]);
+          outcomes=[positive,successor,negative].filter(Boolean);
+          for(const id of admitted)if(!outcomes.some(result=>result.id===id)) {
+            try {const result=JSON.parse(read(path.join(evidence,id+'.json'),'utf8'));if(result.id===id)outcomes.push(result);}catch{}
+          }
+          const dispositions=outcomes.map(result=>nativeDisposition(result));
+          cleanupConfirmed=admitted.length>0&&outcomes.length===admitted.length
+            &&admitted.every(id=>outcomes.filter(result=>result.id===id).length===1)
+            &&dispositions.every(result=>result.confirmed);
+          assert.equal(cleanupConfirmed,true,'Every admitted fixture operation must have independently confirmed disposition before cleanup');
+          if(cleanupConfirmed) {
+            await settleFixtureReservation(dispositions.map(value=>value.record),directory);
+            // Validator negatives use private stores and preserve their exact
+            // input bytes; none can recover or alter the machine reservation.
+            const original=dispositions.at(-1).record,attempt=original.attempts.at(-1);
+            for(const kind of ['missing-supervision','foreign-attempt','unknown-proof']) {
+              const root=path.join(evidence,'reservation-negative-'+kind);fs.mkdirSync(root);
+              const value={version:2,owner:original.coordinator,token:attempt.supervision.reservationToken,
+                run:path.dirname(attempt.directory),attempt:attempt.id,phase:'running',supervision:structuredClone(attempt.supervision)};
+              if(kind==='missing-supervision')delete value.supervision;
+              else if(kind==='foreign-attempt')value.attempt=randomUUID();
+              else value.supervision.proofFile=path.join(root,'missing-proof.json');
+              const file=path.join(root,'reservation.json'),bytes=JSON.stringify(value);fs.writeFileSync(file,bytes);
+              const records=[structuredClone(original)];
+              if(kind==='unknown-proof')records[0].attempts.at(-1).supervision.proofFile=value.supervision.proofFile;
+              await assert.rejects(settleFixtureReservation(records,directory,root),/Preserve (reservation|unknown\/live reservation)/);
+              assert.equal(fs.readFileSync(file,'utf8'),bytes,'Refused fixture cleanup preserves '+kind);
+            }
+            const root=path.join(evidence,'reservation-concurrent');fs.mkdirSync(root);
+            const file=path.join(root,'reservation.json');
+            let foreign=acquire('already admitted foreign caller',{root,census:()=>[],supervised:true});
+            try {
+              const bytes=fs.readFileSync(file);
+              await settleFixtureReservation([original],directory,root);
+              assert.deepEqual(fs.readFileSync(file),bytes,'Already admitted foreign owner is preserved');
+            }finally{foreign.release();}
+            const previous={version:2,owner:original.coordinator,token:attempt.supervision.reservationToken,
+              run:path.dirname(attempt.directory),attempt:attempt.id,phase:'running',supervision:attempt.supervision};
+            fs.writeFileSync(file,JSON.stringify(previous));
+            const unlink=fs.unlinkSync;let admittedAfterRelease=false;foreign=null;
+            fs.unlinkSync=function(target,...args) {
+              const result=unlink(target,...args);
+              if(target===path.join(root,'guard.json')&&!admittedAfterRelease&&!fs.existsSync(file)) {
+                admittedAfterRelease=true;
+                foreign=acquire('foreign caller after release',{root,census:()=>[],supervised:true});
+              }
+              return result;
+            };
+            try {
+              await settleFixtureReservation([original],directory,root);
+              assert.equal(admittedAfterRelease,true,'Foreign admission reached the original release boundary');
+              assert.equal(readReservation(file).token,foreign.record.token,'Later foreign owner is preserved');
+            }finally{fs.unlinkSync=unlink;if(foreign)foreign.release();}
+          }
+          const reservationFile=path.join(machineRoot,'reservation.json');
+          let reservation=null;
+          try{reservation=readReservation(reservationFile);}catch(error){if(error.code!=='ENOENT')throw error;}
+          const tokens=dispositions.flatMap(result=>result.record?.attempts.map(attempt=>attempt.supervision.reservationToken)??[]);
+          assert.equal(reservation!==null&&tokens.includes(reservation.token),false,
+            'Completed focused cancellation must settle its machine reservation before disposable evidence cleanup');
+        },cleanupError=>{
+          if(cleanupError)cleanupConfirmed=false;
+          fs.writeFileSync(path.join(evidence,'fixture-disposition.json'),JSON.stringify({cleanupConfirmed,cleanupError:cleanupError?.message,admitted,originalFailure:originalFailure?.message,outcomes}));
+        });
+        if(completed&&cleanupConfirmed)incompleteOwnership=null;
       }
     });
   }

@@ -157,7 +157,7 @@ export function reservationState(record, identify = processIdentity) {
 // whose recorded owner is no longer running was abandoned inside its transaction
 // and is renamed aside; any other guard, including one whose owner identity
 // cannot be read, is never guessed away.
-function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false) {
+function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false, recover = true) {
   const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
     ? storeDenied(root, error)
     : null;
@@ -170,7 +170,7 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
     try { fd = fs.openSync(guard, "wx"); break; }
     catch (error) {
       if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      if (error.code === "EEXIST" && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
+      if (error.code === "EEXIST" && recover && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
       if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
       const refusal = denied(error);
       if (refusal) throw refusal;
@@ -258,6 +258,47 @@ function recoverAbandonedGuard(root, guard, identify, admitting = false) {
 
 const guardWaitMs = 5000;
 const sleeper = new Int32Array(new SharedArrayBuffer(4));
+// Cleanup owns this same guard for its entire synchronous deletion callback,
+// preventing admission between checking absence and deleting canonical proof.
+// It never recovers a guard or reservation, or interprets malformed ownership.
+export function withProbeCleanupGuard(action, { root = machineRoot } = {}) {
+  const began = Date.now();
+  const inspect = allowMissing => {
+    const directories = new Map();
+    for (let current = path.resolve(root); ; current = path.dirname(current)) {
+      let stat;
+      try { stat = fs.lstatSync(current, { bigint: true }); }
+      catch (error) { if (!allowMissing || error.code !== "ENOENT") throw error; }
+      if (stat) {
+        if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Ambiguous cleanup reservation store at ${current}; preserve reviewer scratch`);
+        directories.set(current, stat);
+      }
+      if (path.dirname(current) === current) break;
+    }
+    return directories;
+  };
+  // A genuinely absent store can be initialized by guarded mkdir. Existing
+  // physical ancestors must remain the same through acquisition; redirects,
+  // unreadable paths and changed directory generations refuse the walk.
+  const before = inspect(true);
+  const result = guarded(root, file => {
+    const after = inspect(false);
+    for (const [directory, original] of before) {
+      const current = after.get(directory);
+      if (!current || current.ino !== original.ino || current.dev !== original.dev || current.birthtimeNs !== original.birthtimeNs)
+        throw new Error(`Cleanup reservation store changed at ${directory}; preserve reviewer scratch`);
+    }
+    try { fs.lstatSync(file); return { files: 0, links: 0, skipped: true, reason: `Reservation entry present at ${file}; preserve reviewer scratch` }; }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+    const value = action();
+    if (value && typeof value.then === "function") {
+      Promise.resolve(value).catch(() => {});
+      throw new Error("Probe cleanup callback must complete synchronously under its guard");
+    }
+    return value;
+  }, guardWaitMs, processIdentity, false, false);
+  return { ...result, elapsedMs: Date.now() - began };
+}
 const elapsedSince = (value, now) => {
   const time = typeof value === "string" ? Date.parse(value) : NaN;
   return Number.isFinite(time) ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, now - time)) : null;
