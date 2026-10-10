@@ -125,7 +125,8 @@ console.log("PASS: repeated/aliased authored files retain canonical receipt bind
       {preparation:[{...record.preparation[0],phase:"unknown"}]},{preparation:[{...record.preparation[0],process:undefined}]},
       {preparation:[{...record.preparation[0],close:{exit:null,signal:"SIGTERM"}}]},
       ...[{status:"unknown"},{platform:"win32"},{exitConfirmed:false},{launchAuthorized:true},{preparationTimedOut:true},
-        {preparationProcess:{...process,start:"wrong"}},{preparationPublicationError:"failed"}].map(value=>({runtime:{...record.runtime,...value}}))]) {
+        {preparationProcess:{...process,start:"wrong"}},{preparationPublicationError:"failed"},
+        {root:{pid:800002,start:"possible-engine"}},{engineAuthorized:true},{authorizationPhase:"may-launch"}].map(value=>({runtime:{...record.runtime,...value}}))]) {
       fs.writeFileSync(target,JSON.stringify({...record,...patch}));assert.equal(validate().confirmed,false);
     }
   } finally {fs.writeFileSync(target,bytes);}

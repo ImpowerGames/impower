@@ -143,7 +143,9 @@ export function readReceiptDisposition(authored, { identify = processIdentity, c
       const request = readArtifact("preparation-request.json"), result = readArtifact("preparation-result.json");
       const requestKeys = ["version","status","directory","invocationId","platform","startupMs","cleanupMs","environmentDigest","executable","helper","bindings"];
       const resultKeys = ["preparationProcess","preparationClose","preparationTimedOut","launchError","diagnostics","output"];
-      if (Object.keys(request).length !== requestKeys.length || requestKeys.some(key => !Object.hasOwn(request,key))
+      const runtimeKeys = new Set([...requestKeys,...resultKeys,"exit","signal","exitConfirmed","launchAuthorized"]);
+      if (Object.keys(runtime).some(key => !runtimeKeys.has(key))
+        || Object.keys(request).length !== requestKeys.length || requestKeys.some(key => !Object.hasOwn(request,key))
         || Object.keys(result).length !== resultKeys.length || resultKeys.some(key => !Object.hasOwn(result,key))
         || request.status !== "prepared" || request.executable !== "python3" || request.platform !== "linux"
         || Object.keys(request).some(key => JSON.stringify(key === "status" ? "prepared" : runtime[key]) !== JSON.stringify(request[key]))

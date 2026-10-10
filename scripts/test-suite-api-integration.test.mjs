@@ -332,7 +332,8 @@ if(!dependencies) {
             {preparation:[]},{preparation:[{...record.preparation[0],phase:'launch-may-start'}]},
             {preparation:[{...record.preparation[0],process:{...reached.process,start:'wrong'}}]},
             ...[{status:'unknown'},{platform:'win32'},{launchAuthorized:true},{exitConfirmed:false},{preparationTimedOut:true},
-              {preparationClose:{exit:null,signal:'SIGTERM'}},{preparationPublicationError:'failure'}].map(patch=>({runtime:{...record.runtime,...patch}}))]) {
+              {preparationClose:{exit:null,signal:'SIGTERM'}},{preparationPublicationError:'failure'},
+              {root:{pid:800002,start:'possible-engine'}},{engineAuthorized:true},{authorizationPhase:'may-launch'}].map(patch=>({runtime:{...record.runtime,...patch}}))]) {
             fs.writeFileSync(target,JSON.stringify({...record,...patch}));
             assert.equal(readReceiptDisposition(authored,{coordinator:refused.coordinator}).confirmed,false,'Partial/later-launch refusal must remain unknown');
           }
