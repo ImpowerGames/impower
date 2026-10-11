@@ -475,7 +475,7 @@ if (process.platform !== "win32") {
     }
     const native = spawnSync("bash", ["-c", `${slashCommand} && cat '${gateway}/${path.basename(reproduction)}/node_modules/tracked.txt'`], { cwd: main, encoding: "utf8", windowsHide: true });
     assert.equal(native.status, 0, native.stderr);
-    assert.equal(native.stdout, fs.readFileSync(path.join(external, "tracked.txt"), "utf8"));
+    assert.equal(native.stdout, chainSentinels.find(([name]) => name === "tracked.txt")[1].toString());
     assert.equal(fs.realpathSync(path.join(nested, path.basename(reproduction))), fs.realpathSync(reproduction)); chainPreserved(); preserved();
   }
   console.log("PASS: native GNU -n trailing/repeated directory-link roles, no-slash/-T failures and unrelated/-t controls");
