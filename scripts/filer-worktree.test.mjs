@@ -452,6 +452,21 @@ if (process.platform !== "win32") {
 } else console.log("SKIP: native GNU symbolic-link semantics require POSIX; Windows decision controls remain asserted");
 assert.equal(fs.existsSync(operandDestination), false);
 console.log("PASS: verified symbolic-link destination roles and dash path operands through both adapters; ordinary positives preserved");
+for (const dash of ["\u2013", "\u2014", "\u2015"]) {
+  for (const [command, denied] of [
+    [`Remove-Item ${dash}LiteralPath:'-operand-link/tracked.txt'`, true],
+    [`New-Item ${dash}ItemType:'Junction' ${dash}Path:'${operandDestination}' ${dash}Target:'${cwdTree}'`, true],
+    [`Set-Location ${dash}LiteralPath:'-operand-link'; Remove-Item tracked.txt`, true],
+    [`Remove-Item ${dash}LiteralPath:'${setupExternal}/tracked.txt'`, false],
+    [`New-Item ${dash}ItemType:'Junction' ${dash}Path:'${operandDestination}' ${dash}Target:'${setupExternal}'`, false],
+    [`Set-Location ${dash}LiteralPath:'${setupExternal}'; Remove-Item tracked.txt`, false],
+    [`Remove-Item '${dash}LiteralPath'`, false],
+  ]) {
+    assert.equal(Boolean(cleanup(command, "powershell", main)), denied, command);
+    verifyAdapters(command, "PowerShell", main, denied); chainPreserved();
+  }
+}
+console.log("PASS: PowerShell native dash parameter prefixes and quoted literal controls through both adapters");
 // A verified location must retain its lexical link origin for dependent
 // relative mutations, including nested shells and another relative cd.
 fs.mkdirSync(path.join(main, "sub"));
@@ -716,7 +731,9 @@ fs.unlinkSync(path.join(scanParent, "internal")); fs.unlinkSync(path.join(inside
 fs.mkdirSync(path.join(main, "packages", "a"), { recursive: true });
 fs.writeFileSync(path.join(main, "package.json"), JSON.stringify({ name: "scratch-root", private: true, workspaces: ["packages/a"] }));
 fs.writeFileSync(path.join(main, "packages", "a", "package.json"), JSON.stringify({ name: "scratch-workspace", version: "1.0.0" }));
-git(["add", "."]); git(["commit", "-m", "local workspace fixture"]);
+// Commit only the install inputs. Scratch preservation aliases must not be
+// inherited by the fresh owned reproduction (POSIX Git tracks symlinks).
+git(["add", "package.json", "packages/a/package.json"]); git(["commit", "-m", "local workspace fixture"]);
 git(["update-ref", "refs/remotes/origin/main", "HEAD"]);
 const owner = "test-session-1766";
 const owned = await create({ root: main, owner, toolingOnly: true });

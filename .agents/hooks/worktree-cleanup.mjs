@@ -113,8 +113,8 @@ function literalArguments(tokens, shell, command) {
     let text = token.text;
     if (shell === "powershell") {
       const raw = command.slice(token.start, token.end).trim().replace(/,$/, "");
-      const rawValue = raw.replace(/^-[A-Za-z][\w-]*:/, "");
-      if (raw.startsWith("-")) text = text.replace(/^-[A-Za-z][\w-]*:/, "");
+      const rawValue = raw.replace(/^[-\u2013\u2014\u2015][A-Za-z][\w-]*:/, "");
+      if (powerShellParameter(token, command)) text = text.replace(/^[-\u2013\u2014\u2015][A-Za-z][\w-]*:/, "");
       if (!token.quoted && (text.startsWith("@") || /[‘’“”]/.test(text))) values.error = "Splat or shell quote syntax cannot be verified";
       if (token.quoted && /^["']/.test(rawValue) && !singlePowerShellLiteral.test(rawValue)) values.error = "Combined cleanup/setup literals cannot be verified";
       if (!token.quoted && text.includes(",")) values.error = "Multiple cleanup/setup targets cannot be verified";
@@ -142,7 +142,10 @@ function literalArguments(tokens, shell, command) {
   }
   return values;
 }
-const powerShellParameter = (token, command) => command.slice(token.start, token.end).startsWith("-");
+// PowerShell's IsDash recognizes these three additional parameter prefixes.
+// Normalize only a raw parameter start; quoted filenames retain their bytes.
+const powerShellParameter = (token, command) => /^[-\u2013\u2014\u2015]/.test(command.slice(token.start, token.end));
+const powerShellFlag = token => token.text.replace(/^[-\u2013\u2014\u2015]/, "-");
 function pathArguments(args, shell, command) {
   const values = literalArguments(args, shell, command), paths = [];
   paths.pathOperands = true; paths.options = [];
@@ -150,24 +153,25 @@ function pathArguments(args, shell, command) {
   let ended = false;
   for (let at = 0; at < args.length; at++) {
     const token = args[at], value = values[at], parameter = shell === "powershell" && powerShellParameter(token, command);
+    const flag = parameter ? powerShellFlag(token) : token.text;
     if (ended) { paths.push(value); continue; }
     if (token.text === "--" && (shell === "bash" || !token.quoted)) { ended = true; paths.options.push("--"); continue; }
-    if (parameter && /^-(?:literalpath|path)(?::|$)/i.test(token.text)) {
-      paths.options.push(token.text);
+    if (parameter && /^-(?:literalpath|path)(?::|$)/i.test(flag)) {
+      paths.options.push(flag);
       if (token.text.includes(":")) paths.push(value);
       else {
         const next = args[++at];
-        if (!next || (!next.quoted && next.text.startsWith("-"))) paths.error = "Path parameter operand cannot be verified";
+        if (!next || powerShellParameter(next, command)) paths.error = "Path parameter operand cannot be verified";
         else paths.push(values[at]);
       }
       continue;
     }
-    if (parameter && /^-(?:p|pa|pat|l|li|lit|lite|liter|litera|literal|literalp|literalpa|literalpat)(?::|$)/i.test(token.text)) { paths.error = "Abbreviated path parameter cannot be verified"; continue; }
-    if (value.startsWith("-") && (shell !== "powershell" || parameter)) {
-      paths.options.push(token.text);
+    if (parameter && /^-(?:p|pa|pat|l|li|lit|lite|liter|litera|literal|literalp|literalpa|literalpat)(?::|$)/i.test(flag)) { paths.error = "Abbreviated path parameter cannot be verified"; continue; }
+    if (shell === "powershell" ? parameter : value.startsWith("-")) {
+      paths.options.push(flag);
       continue;
     }
-    if (parameter && /^-[\w-]+:/.test(token.text)) { paths.error = "Path parameter role cannot be verified"; continue; }
+    if (parameter && /^-[\w-]+:/.test(flag)) { paths.error = "Path parameter role cannot be verified"; continue; }
     paths.push(value);
   }
   return paths;
@@ -203,12 +207,12 @@ function npmSetupTargets(args, shell, command) {
   return targets;
 }
 function itemLinkTargets(args, targets, command) {
-  const selectors = args.flatMap((arg, at) => powerShellParameter(arg, command) && /^-(?:itemtype|type)(?::|$)/i.test(arg.text) ? [at] : []);
+  const selectors = args.flatMap((arg, at) => powerShellParameter(arg, command) && /^-(?:itemtype|type)(?::|$)/i.test(powerShellFlag(arg)) ? [at] : []);
   if (!selectors.length) {
     // Native parameter abbreviations can dispatch link creation. They are
     // refusal candidates only; do not invent a verified selector position.
     const prefixes = new Set(["-i", "-it", "-ite", "-item", "-itemt", "-itemty", "-itemtyp", "-t", "-ty", "-typ"]);
-    if (args.some((arg, at) => powerShellParameter(arg, command) && prefixes.has(arg.text.split(":")[0].toLowerCase()) && /^(junction|symboliclink)$/i.test(targets[arg.text.includes(":") ? at : at + 1] ?? ""))) {
+    if (args.some((arg, at) => powerShellParameter(arg, command) && prefixes.has(powerShellFlag(arg).split(":")[0].toLowerCase()) && /^(junction|symboliclink)$/i.test(targets[arg.text.includes(":") ? at : at + 1] ?? ""))) {
       const paths = [...targets]; paths.error = targets.error ?? "Link setup ItemType selector cannot be verified"; return paths;
     }
     return null;
@@ -281,7 +285,7 @@ function itemLink(args, values, command) {
     const token = args[at], value = values[at];
     if (!token.quoted && token.text === "--") { ended = true; continue; }
     if (!ended && powerShellParameter(token, command)) {
-      const flag = token.text.split(":")[0].toLowerCase();
+      const flag = powerShellFlag(token).split(":")[0].toLowerCase();
       if (["-force", "-whatif", "-confirm"].includes(flag)) continue;
       const role = ({ "-itemtype": "type", "-type": "type", "-path": "destination", "-name": "name", "-target": "target", "-value": "target" })[flag];
       if (!role || roles[role] !== undefined) { error = "Link setup parameter roles cannot be verified"; continue; }
