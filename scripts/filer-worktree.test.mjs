@@ -344,7 +344,7 @@ for (const name of ["Junction", "SymbolicLink"]) {
     ["PowerShell", `New-Item -ItemType Junction -Path '${literal}/fresh' -Target '${setupExternal}'`, false],
     ["PowerShell", `New-Item -Type SymbolicLink -Path '${freshLink}' -Target '${literal}'`, false],
     ["PowerShell", `New-Item -ItemType Junction -Path '${setupTree}/${name}' -Target '${setupExternal}'`, true],
-    ["PowerShell", `cmd /c 'mklink /D "${literal}/fresh" "${setupExternal}"'`, false],
+    ["PowerShell", `cmd /c 'mklink /D "${literal}/fresh" "${setupExternal}"'`, true],
   ]) {
     assert.equal(Boolean(cleanup(command, shell.toLowerCase(), main)), denied, command);
     verifyAdapters(command, shell, main, denied); chainPreserved();
@@ -422,9 +422,9 @@ for (const [shell, command, denied] of [
   ["PowerShell", `New-Item -ItemType Junction -Path '${operandDirectory}' -Name '${freshLink}' -Value '${setupExternal}'`, true],
   ["PowerShell", `New-Item -ItemType SymbolicLink -Path '${operandDestination}' -Target '${relativeExternal}'`, true],
   ["PowerShell", `cmd /c 'mklink /J "${operandDestination}" "${cwdTree}"'`, true],
-  ["PowerShell", `cmd /c 'mklink /J "${operandDestination}" "${setupExternal}"'`, false],
+  ["PowerShell", `cmd /c 'mklink /J "${operandDestination}" "${setupExternal}"'`, true],
   ["PowerShell", `cmd /c 'mklink /H "${operandDestination}" "../unrelated-file"'`, true],
-  ["PowerShell", `cmd /c 'mklink /H "${operandDestination}" "${operandDirectory}/ordinary-file"'`, false],
+  ["PowerShell", `cmd /c 'mklink /H "${operandDestination}" "${operandDirectory}/ordinary-file"'`, true],
   ["Bash", "rm -f -- ordinary-operand -operand-link/tracked.txt", true],
   ["Bash", "rm -f '--' ordinary-operand -operand-link/tracked.txt", true],
   ["Bash", "rm -f -- ordinary-operand '-operand-link/tracked.txt'", true],
@@ -520,25 +520,25 @@ if (process.platform === "win32") {
 } else console.log("SKIP: native builtin PowerShell alias catalog/WhatIf/read controls require Windows; decision controls remain asserted");
 console.log("PASS: builtin PowerShell alias cleanup/link/location roles; unknown/nested readers, unrelated literals, Bash semantics and prose controls");
 const cmdCases = [
-  ...["chdir /d", "cd /d", "chdir", "pushd"].map(program => [`cmd /d /c '${program} "${aliasTree}/node_modules" && del tracked.txt'`, true]),
-  [`cmd /d /c 'pushd "${aliasTree}/node_modules" && popd && del tracked.txt'`, true],
-  [`cmd /d /c 'cd.. && chdir /d "${aliasTree}/node_modules" && del tracked.txt'`, true],
-  [`cmd /d /c 'powershell -Command "Remove-Item -LiteralPath tracked.txt"'`, true],
-  ...["%FILER_CMD_REL%", "!FILER_CMD_REL!"].map(variable => [`cmd /d /v:on /c 'powershell -Command "Remove-Item -LiteralPath ${main.replaceAll(path.sep, "/")}/${variable}/tracked.txt"'`, true]),
-  [`cmd /d /c 'del "${aliasTree}/%FILER_CMD_REL%/tracked.txt"'`, true],
-  [`cmd /d /c 'del "${aliasTree}/node_modu^les/tracked.txt"'`, true],
-  [`cmd /d /c 'del "${aliasSafe}/ordinary.txt"'`, false],
-  [`cmd /d /c 'chdir /d "${aliasTree}/node_modules" && del "${aliasSafe}/ordinary.txt"'`, false],
-  [`cmd /d /c 'mklink /J "${aliasSafe}/future-cmd" "${aliasSafe}"'`, false],
-  [`cmd /d /c 'del "${aliasTree}/node_modules/tracked.txt"'`, true],
-  [`cmd /d /c 'powershell -Command "Remove-Item -LiteralPath ${aliasSafe}/ordinary.txt"'`, false],
-  [`cmd /d /c 'echo harmless %FILER_CMD_REL%'`, false],
+  [`cmd /d /c 'echo #cleanup & del "${aliasTree}/node_modules/tracked.txt"'`, true],
+  [`cmd /d /c 'del /q "${aliasSafe}/ordinary.txt"'`, true],
+  [`cmd /d /c 'rd /s /q "${aliasSafe}"'`, true],
+  [`cmd /d /c 'echo harmless %FILER_CMD_REL%'`, true],
+  [`cmd /d /c echo harmless`, true],
+  [`& "cmd.exe" /d /c "echo harmless"`, true],
+  [`powershell -Command 'cmd /d /c "echo harmless"'`, true],
+  [`cmd /d /c 'mklink /J "${aliasSafe}/future-cmd" "${aliasSafe}"'`, true],
+  [`Write-Output 'cmd /d /c echo harmless'`, false],
+  [`Remove-Item -LiteralPath '${aliasSafe}/ordinary.txt'`, false],
 ];
-if (process.platform === "win32") cmdCases.push([`cmd /d /c 'powershell -Command "Remove-Item -LiteralPath ${path.join(aliasOutside, "ordinary.txt").slice(2)}"'`, true]);
 for (const [command, denied] of cmdCases) {
   assert.equal(Boolean(cleanup(command, "powershell", main)), denied, command);
   assert.equal(Boolean(cleanup(command, undefined, main)), denied, command);
   verifyAdapters(command, "PowerShell", main, denied); chainPreserved();
+}
+for (const [command, denied] of [[`"cmd.exe" /c "echo harmless"`, true], [`bash -c 'cmd /c "echo harmless"'`, true], [`echo 'cmd /c echo harmless'`, false], [`rm -f '${aliasSafe}/ordinary.txt'`, false]]) {
+  assert.equal(Boolean(cleanup(command, "bash", main)), denied, command);
+  verifyAdapters(command, "Bash", main, denied); chainPreserved();
 }
 if (process.platform === "win32") {
   for (const program of ["chdir /d", "cd /d", "pushd"]) {
@@ -548,7 +548,51 @@ if (process.platform === "win32") {
     assert.equal(read.stdout.trim(), chainSentinels.find(([name]) => name === "tracked.txt")[1].toString().trim()); chainPreserved();
   }
 } else console.log("SKIP: native CMD location/read controls require Windows; decision controls remain asserted");
-console.log("PASS: CMD child relative-location and inherited operand uncertainty; independent absolute targets, link roles and benign children preserved");
+console.log("PASS: explicit CMD execution refuses in known repositories; quoted/unquoted/nested calls, prose and direct PowerShell/Bash alternatives");
+if (process.platform === "win32") {
+  const rooted = `${aliasTree}/node_modules/tracked.txt`.slice(2);
+  for (const [command, shell] of [
+    [`Remove-Item -LiteralPath '${rooted}'`, "powershell"],
+    [`rm -f '${rooted}'`, "bash"],
+    [`powershell -Command "Remove-Item -LiteralPath '${rooted}'"`, "bash"],
+    [`New-Item -ItemType Junction -Path '${aliasSafe}/future' -Target '${rooted}'`, "powershell"],
+    [`New-Item -ItemType Junction -Path '${rooted}' -Target '${aliasSafe}'`, "powershell"],
+    [`ln -s '${rooted}' '${aliasSafe}/future'`, "bash"],
+    [`npm --prefix '${rooted}' install`, "powershell"],
+    [`npm -C=${rooted} install`, "bash"],
+    [`Set-Location -LiteralPath '${path.parse(main).root}'; Set-Location -LiteralPath '${rooted}'; Remove-Item tracked.txt`, "powershell"],
+  ]) {
+    assert.ok(cleanup(command, shell, main), command);
+    assert.ok(cleanup(command, undefined, main), command);
+    verifyAdapters(command, shell, main, true); chainPreserved();
+  }
+  const independent = `Set-Location -LiteralPath '${rooted}'; Remove-Item -LiteralPath '${aliasSafe}/ordinary.txt'`;
+  assert.equal(cleanup(independent, "powershell", main), null);
+  assert.equal(cleanup(independent, undefined, main), null);
+  verifyAdapters(independent, "PowerShell", main, false); chainPreserved();
+  let other;
+  for (const drive of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+    const driveRoot = `${drive}:/`;
+    if (driveRoot[0].toLowerCase() === path.parse(main).root[0].toLowerCase() || !fs.existsSync(driveRoot)) continue;
+    try { other = fs.mkdtempSync(`${driveRoot}filer-drive-1766-`); break; }
+    catch (error) { if (!["EACCES", "EPERM", "EROFS"].includes(error.code)) throw error; }
+  }
+  if (other) {
+    const tree = path.join(other, "reproduction");
+    console.log(`Cross-drive scratch worktree: ${tree}; repository: ${main}`);
+    git(["worktree", "add", "-b", "cross-drive-fixture", tree]);
+    fs.symlinkSync(chainExternal, path.join(tree, "node_modules"), "junction");
+    const target = path.join(tree, "node_modules", "tracked.txt").slice(2);
+    const native = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `Set-Location -LiteralPath '${path.parse(tree).root}'; Get-Content -Raw -LiteralPath '${target}'`], { cwd: main, encoding: "utf8", windowsHide: true });
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(native.stdout.trim(), chainSentinels.find(([name]) => name === "tracked.txt")[1].toString().trim());
+    const command = `Set-Location -LiteralPath '${path.parse(tree).root}'; Remove-Item -LiteralPath '${target}'`;
+    assert.ok(cleanup(command, "powershell", main)); assert.ok(cleanup(command, undefined, main));
+    verifyAdapters(command, "PowerShell", main, true); chainPreserved();
+    console.log("PASS: native cross-drive PowerShell read reaches preserved external sentinel; volume-less mutation refuses");
+  } else console.log("SKIP: native cross-drive PowerShell read requires a second writable drive; volume-less policy decisions remain asserted");
+  console.log("PASS: volume-less Windows mutation and link roles refuse across readers; fully qualified ordinary alternatives remain supported");
+} else console.log("SKIP: Windows volume-less drive semantics and native cross-drive control require Windows");
 for (const dash of ["\u2013", "\u2014", "\u2015"]) {
   for (const [command, denied] of [
     [`Remove-Item ${dash}LiteralPath:'-operand-link/tracked.txt'`, true],

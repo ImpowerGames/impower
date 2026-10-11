@@ -36,6 +36,7 @@ const under = (p, root) => { const r = path.relative(root, p); return r === "" |
 const real = p => fs.realpathSync.native(p);
 // path.resolve would erase link/.. before filesystem identity can inspect it.
 const absoluteLiteral = (cwd, target) => path.isAbsolute(target) ? target : `${cwd}${path.sep}${target}`;
+const volumeLessRooted = target => process.platform === "win32" && typeof target === "string" && path.isAbsolute(target) && path.parse(target).root.length === 1;
 const hasParentComponent = target => target.split(process.platform === "win32" ? /[\/\\]/ : /\//).includes("..");
 const sourceCheckout = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 function exists(p) { try { fs.lstatSync(p); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } }
@@ -344,8 +345,6 @@ function linkPaths(spec, cwd) {
 function operations(command, shell, cwd, depth = 0, locationState = null) {
   if (depth > 3) return [{ kind: "analysis-limit", cwd, cwds: locationState?.cwds ?? [cwd], targets: Object.assign([], { error: "Supported cleanup/setup analysis nesting exceeded" }) }];
   const { segments, subs } = readCommand(command, shell), found = [];
-  const cmdContext = Boolean(locationState?.cmdContext), cmdLocationUncertain = Boolean(locationState?.cmdLocationUncertain);
-  const cmdOperandError = locationState?.cmdOperandError ?? null;
   const possibleCwds = new Set(locationState?.cwds ?? [cwd]), substitutionOps = [];
   let locationError = locationState?.error ?? null, childLocationError = null, hasLocation = false;
   const addCwd = next => {
@@ -353,21 +352,10 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
     else possibleCwds.add(next);
   };
   const emit = op => {
-    if (cmdOperandError) {
-      if (op.linkSpec) op.linkSpec.error ??= cmdOperandError;
-      else op.targets.error ??= cmdOperandError;
-    }
-    if (cmdContext) {
-      const operands = op.linkSpec ? [op.linkSpec.destination, op.linkSpec.target, op.linkSpec.name] : op.targets;
-      if (operands.some(text => typeof text === "string" && /[%!^]/.test(text))) {
-        if (op.linkSpec) op.linkSpec.error ??= "CMD cleanup/setup operand expansion or escape cannot be verified";
-        else op.targets.error ??= "CMD cleanup/setup operand expansion or escape cannot be verified";
-      }
-    }
-    found.push({ ...op, cwd, cwds: [...possibleCwds], locationError: locationError ?? childLocationError, cmdLocationUncertain });
+    found.push({ ...op, cwd, cwds: [...possibleCwds], locationError: locationError ?? childLocationError });
   };
   for (const sub of subs) {
-    const nested = operations(sub, shell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError, cmdContext, cmdLocationUncertain, cmdOperandError });
+    const nested = operations(sub, shell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError });
     found.push(...nested);
     substitutionOps.push(...nested);
     if (nested.hasLocation) { hasLocation = true; locationError = "Nested location flow cannot be verified"; }
@@ -385,8 +373,11 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         if (literal.error) { emit({ kind: "analysis-limit", targets: literal }); continue; }
         const before = programBefore(recognitionTokens, i - 1);
         const childProgram = before >= 0 ? baseName(tokens[before]) : "";
+        // CMD text has different comments, switches and command boundaries.
+        // Refuse its execution rather than passing that text to a Bash reader.
+        if (childProgram === "cmd") { emit({ kind: "cmd-boundary", targets: [] }); continue; }
         const innerShell = /^(pwsh|powershell)$/.test(childProgram) ? "powershell" : "bash";
-        found.push(...operations(token.text, innerShell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError ?? childLocationError, cmdContext: childProgram === "cmd", cmdLocationUncertain: cmdLocationUncertain || childProgram === "cmd", cmdOperandError: cmdOperandError ?? (cmdContext && /[%!^]/.test(command.slice(token.start, token.end)) ? "CMD child command expansion or escape cannot be verified" : null) }));
+        found.push(...operations(token.text, innerShell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError ?? childLocationError }));
       }
       const method = !token.quoted && /(?:\.|::)Delete$/i.test(token.text) && command.slice(token.end).trimStart().startsWith("(");
       if (method) {
@@ -397,6 +388,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         emit({ kind: "delete", targets });
       }
       if (!positions.has(i)) continue;
+      if (name === "cmd") { emit({ kind: "cmd-boundary", targets: [] }); continue; }
       if (shell === "bash") {
         if (encodedLiteral(token, command)) {
           emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded command literal cannot be verified" }) });
@@ -430,10 +422,6 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         const text = shell === "bash" ? rawCandidate(arg, command) : arg.text;
         return /^--chdir(?:=|$)/.test(text) || (name === "env" ? /^-C/.test(text) : /^-D/.test(text));
       })) childLocationError = "Wrapper child location cannot be verified";
-      // CMD has compact cd/drive syntax and its own stack semantics. Do not
-      // simulate a successful location with either supported tokenizer mode;
-      // every relative mutation in this child retains explicit uncertainty.
-      if (cmdContext && ["cd", "chdir", "pushd", "popd"].includes(name)) { hasLocation = true; continue; }
       if (["popd", "pop-location"].includes(name)) {
         hasLocation = true;
         if (locationStack.length) for (const previous of locationStack.pop()) addCwd(previous);
@@ -450,6 +438,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         const allowedFlag = argumentShell === "powershell" ? /^-(?:path|literalpath)(?::|$)|^-passthru$/i : name === "cd" ? /^(?:--|-L|-P)$/ : /$^/;
         if (operands.options.some(text => !allowedFlag.test(text))) locationError = "Location options cannot be verified";
         if (!target || /[`$*?\[]/.test(target)) locationError = "Effective location cannot be verified";
+        if (volumeLessRooted(target)) locationError = "Windows rooted location has no volume and cannot be verified";
         if (target && !locationError) {
           const prior = [...possibleCwds];
           if (["pushd", "push-location"].includes(name)) locationStack.push(prior);
@@ -534,6 +523,11 @@ function inspectAt(op) {
     // arbitrary repositories or treat unreadable identity as unrelated.
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
+  if (op.kind === "cmd-boundary") return (fromRepository || op.contextKnown) ? `Explicit CMD execution is refused in a known repository; use direct PowerShell/Bash or the guarded lifecycle. ${route}` : null;
+  // Preserve original operands before link-role resolution can anchor them to
+  // Node's drive. A volume-less Windows root depends on the executing shell.
+  const originalPaths = op.linkSpec ? [...(op.linkSpec.operands ?? []), op.linkSpec.directory, op.linkSpec.destination, op.linkSpec.target, op.linkSpec.name] : op.targets;
+  if ((fromRepository || op.contextKnown) && originalPaths.some(volumeLessRooted)) return `Windows rooted cleanup/setup path has no volume and cannot be verified; use a fully qualified path. ${route}`;
   if (op.linkSpec) {
     try { op = { ...op, targets: linkPaths(op.linkSpec, op.cwd) }; }
     catch (error) { op = { ...op, targets: Object.assign([], { error: `Link setup identity cannot be checked: ${error.message}` }) }; }
@@ -564,12 +558,10 @@ function inspectAt(op) {
 }
 function inspect(op) {
   const candidates = op.targets.pathOperands ? op.targets : op.targets.filter(text => !text.startsWith("-"));
-  // A Windows rooted path without a volume still depends on CMD's drive.
-  const independentAbsolute = text => path.isAbsolute(text) && (!op.cmdLocationUncertain || process.platform !== "win32" || path.parse(text).root.length > 1);
-  const absoluteCmdItem = op.cmdLocationUncertain && op.linkSpec?.form === "item" && independentAbsolute(op.linkSpec.destination || ".") && independentAbsolute(op.linkSpec.target || ".");
-  const relative = !absoluteCmdItem && (["setup", "link-setup"].includes(op.kind) || candidates.some(text => !independentAbsolute(text)));
+  const independentAbsolute = text => path.isAbsolute(text) && !volumeLessRooted(text);
+  const relative = ["setup", "link-setup"].includes(op.kind) || candidates.some(text => !independentAbsolute(text));
   for (const cwd of relative ? op.cwds : [op.cwd]) {
-    const reason = inspectAt({ ...op, cwd, locationError: relative ? op.locationError ?? (op.cmdLocationUncertain ? "CMD child cleanup/setup execution location cannot be verified" : null) : null });
+    const reason = inspectAt({ ...op, cwd, locationError: relative ? op.locationError : null });
     if (reason) return reason;
   }
   return null;
