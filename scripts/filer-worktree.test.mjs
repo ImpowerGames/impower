@@ -423,7 +423,8 @@ for (const [shell, command, denied] of [
   ["PowerShell", `New-Item -ItemType SymbolicLink -Path '${operandDestination}' -Target '${relativeExternal}'`, true],
   ["PowerShell", `cmd /c 'mklink /J "${operandDestination}" "${cwdTree}"'`, true],
   ["PowerShell", `cmd /c 'mklink /J "${operandDestination}" "${setupExternal}"'`, false],
-  ["PowerShell", `cmd /c 'mklink /H "${operandDestination}" "../unrelated-file"'`, false],
+  ["PowerShell", `cmd /c 'mklink /H "${operandDestination}" "../unrelated-file"'`, true],
+  ["PowerShell", `cmd /c 'mklink /H "${operandDestination}" "${operandDirectory}/ordinary-file"'`, false],
   ["Bash", "rm -f -- ordinary-operand -operand-link/tracked.txt", true],
   ["Bash", "rm -f '--' ordinary-operand -operand-link/tracked.txt", true],
   ["Bash", "rm -f -- ordinary-operand '-operand-link/tracked.txt'", true],
@@ -518,6 +519,36 @@ if (process.platform === "win32") {
   assert.equal(fs.existsSync(path.join(aliasOutside, "native-alias")), false); chainPreserved();
 } else console.log("SKIP: native builtin PowerShell alias catalog/WhatIf/read controls require Windows; decision controls remain asserted");
 console.log("PASS: builtin PowerShell alias cleanup/link/location roles; unknown/nested readers, unrelated literals, Bash semantics and prose controls");
+const cmdCases = [
+  ...["chdir /d", "cd /d", "chdir", "pushd"].map(program => [`cmd /d /c '${program} "${aliasTree}/node_modules" && del tracked.txt'`, true]),
+  [`cmd /d /c 'pushd "${aliasTree}/node_modules" && popd && del tracked.txt'`, true],
+  [`cmd /d /c 'cd.. && chdir /d "${aliasTree}/node_modules" && del tracked.txt'`, true],
+  [`cmd /d /c 'powershell -Command "Remove-Item -LiteralPath tracked.txt"'`, true],
+  ...["%FILER_CMD_REL%", "!FILER_CMD_REL!"].map(variable => [`cmd /d /v:on /c 'powershell -Command "Remove-Item -LiteralPath ${main.replaceAll(path.sep, "/")}/${variable}/tracked.txt"'`, true]),
+  [`cmd /d /c 'del "${aliasTree}/%FILER_CMD_REL%/tracked.txt"'`, true],
+  [`cmd /d /c 'del "${aliasTree}/node_modu^les/tracked.txt"'`, true],
+  [`cmd /d /c 'del "${aliasSafe}/ordinary.txt"'`, false],
+  [`cmd /d /c 'chdir /d "${aliasTree}/node_modules" && del "${aliasSafe}/ordinary.txt"'`, false],
+  [`cmd /d /c 'mklink /J "${aliasSafe}/future-cmd" "${aliasSafe}"'`, false],
+  [`cmd /d /c 'del "${aliasTree}/node_modules/tracked.txt"'`, true],
+  [`cmd /d /c 'powershell -Command "Remove-Item -LiteralPath ${aliasSafe}/ordinary.txt"'`, false],
+  [`cmd /d /c 'echo harmless %FILER_CMD_REL%'`, false],
+];
+if (process.platform === "win32") cmdCases.push([`cmd /d /c 'powershell -Command "Remove-Item -LiteralPath ${path.join(aliasOutside, "ordinary.txt").slice(2)}"'`, true]);
+for (const [command, denied] of cmdCases) {
+  assert.equal(Boolean(cleanup(command, "powershell", main)), denied, command);
+  assert.equal(Boolean(cleanup(command, undefined, main)), denied, command);
+  verifyAdapters(command, "PowerShell", main, denied); chainPreserved();
+}
+if (process.platform === "win32") {
+  for (const program of ["chdir /d", "cd /d", "pushd"]) {
+    const command = `${program} "${path.join(reproduction, "node_modules")}" && type tracked.txt`;
+    const read = spawnSync("cmd.exe", ["/d", "/c", command], { cwd: main, encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true });
+    assert.equal(read.status, 0, read.stderr);
+    assert.equal(read.stdout.trim(), chainSentinels.find(([name]) => name === "tracked.txt")[1].toString().trim()); chainPreserved();
+  }
+} else console.log("SKIP: native CMD location/read controls require Windows; decision controls remain asserted");
+console.log("PASS: CMD child relative-location and inherited operand uncertainty; independent absolute targets, link roles and benign children preserved");
 for (const dash of ["\u2013", "\u2014", "\u2015"]) {
   for (const [command, denied] of [
     [`Remove-Item ${dash}LiteralPath:'-operand-link/tracked.txt'`, true],
