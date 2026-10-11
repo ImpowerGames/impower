@@ -375,6 +375,83 @@ for (const [shell, command] of [
 }
 assert.equal(fs.existsSync(freshLink), false, "compound setup/cleanup controls must remain non-destructive decision queries");
 console.log("PASS: direct link setup refuses future/existing checkout aliases through both adapters; literal selector/operand, valid cmd quoting, uncertainty and ordinary setup controls");
+// GNU symbolic-link contents are relative to the destination parent, whereas
+// Windows Junction targets are anchored to the command cwd. Query cleanup;
+// execute only native link creation/read controls, never these compounds.
+const operandDirectory = path.join(scratch, "operand-links"); fs.mkdirSync(operandDirectory);
+const operandDestination = path.join(operandDirectory, "fresh").replaceAll(path.sep, "/");
+const relativeTree = path.relative(operandDirectory, reproduction).replaceAll(path.sep, "/");
+const relativeExternal = path.relative(operandDirectory, chainExternal).replaceAll(path.sep, "/");
+const cwdTree = path.relative(main, reproduction).replaceAll(path.sep, "/");
+fs.symlinkSync(chainExternal, path.join(main, "-operand-link"), process.platform === "win32" ? "junction" : "dir");
+fs.writeFileSync(path.join(main, "-ordinary-operand"), "ordinary dash operand");
+fs.writeFileSync(path.join(main, "ordinary-operand"), "ordinary operand");
+fs.writeFileSync(path.join(main, "-Path"), "ordinary quoted parameter-name file");
+fs.writeFileSync(path.join(main, "-LiteralPath"), "ordinary quoted parameter-name file");
+for (const [shell, command, denied] of [
+  ["Bash", `ln -s '${setupExternal}'`, true],
+  ["Bash", `ln --symbolic '${setupExternal}'`, true],
+  ["Bash", `ln --sym '${setupTree}' '${operandDestination}'`, true],
+  ["Bash", `ln --sy '${setupTree}' '${operandDestination}'`, true],
+  ["Bash", `ln -s '${relativeTree}' '${operandDestination}'`, true],
+  ["Bash", `ln -sT '${relativeTree}' '${operandDestination}'`, true],
+  ["Bash", `ln -sn '${relativeTree}' '${operandDirectory}'`, true],
+  ["Bash", `ln -s -t '${operandDirectory}' '${relativeTree}'`, true],
+  ["Bash", `ln -s --target-directory='${operandDirectory}' '${relativeTree}'`, true],
+  ["Bash", `ln -s --no-target-directory '${relativeTree}' '${operandDestination}'`, true],
+  ["Bash", `ln -sr '${cwdTree}' '${operandDestination}'`, true],
+  ["Bash", `ln -s '${relativeExternal}' '${relativeTree}' '${operandDirectory}'`, true],
+  ["Bash", `ln -s -- '${relativeExternal}' '${operandDestination}'`, false],
+  ["Bash", `ln -s -t '${operandDirectory}' '${relativeExternal}'`, false],
+  ["Bash", `ln -s --target-directory='${operandDirectory}' '${relativeExternal}'`, false],
+  ["Bash", `ln -s '--target-directory=${operandDirectory}' '${relativeExternal}'`, false],
+  ["Bash", `ln -s -t '${operandDirectory}'"/extra" '${relativeExternal}'`, true],
+  ["Bash", `ln -s --target-directory '${operandDirectory}'"/extra" '${relativeExternal}'`, true],
+  ["Bash", `ln -s -- '--target-directory='"${operandDirectory}" '${operandDestination}'`, true],
+  ["Bash", `ln -sT '${setupExternal}' '${operandDestination}'`, false],
+  ["Bash", `ln '${setupTree}/tracked.txt' '${operandDestination}'`, false],
+  ["PowerShell", `New-Item -ItemType Junction -Path '${operandDestination}' -Target '${cwdTree}'`, true],
+  ["PowerShell", `New-Item -ItemType Junction -Path '${operandDirectory}' -Name fresh -Value '${cwdTree}'`, true],
+  ["PowerShell", `New-Item -ItemType Junction -Name fresh -Target '${setupExternal}'`, true],
+  ["PowerShell", `New-Item -ItemType Junction -Path '${operandDirectory}' -Name fresh -Value '${setupExternal}'`, false],
+  ["PowerShell", `New-Item -ItemType:'Junction' -Path:'${operandDirectory}' -Name:'fresh' -Value:'${setupExternal}'`, false],
+  ["PowerShell", `New-Item -ItemType:'Junction' -Path:'${operandDestination}' -Target:'${setupExternal}'`, false],
+  ["PowerShell", `New-Item -ItemType:'Junction' -Path:'${operandDestination}' -Target:'${setupTree}'`, true],
+  ["PowerShell", `New-Item -ItemType Junction '-Path:${operandDestination}' -Target '${setupExternal}'`, true],
+  ["PowerShell", `New-Item -ItemType Junction -Path '${operandDirectory}' -Name '../escape' -Value '${setupExternal}'`, true],
+  ["PowerShell", `New-Item -ItemType Junction -Path '${operandDirectory}' -Name '${freshLink}' -Value '${setupExternal}'`, true],
+  ["PowerShell", `New-Item -ItemType SymbolicLink -Path '${operandDestination}' -Target '${relativeExternal}'`, true],
+  ["PowerShell", `cmd /c 'mklink /J "${operandDestination}" "${cwdTree}"'`, true],
+  ["PowerShell", `cmd /c 'mklink /J "${operandDestination}" "${setupExternal}"'`, false],
+  ["PowerShell", `cmd /c 'mklink /H "${operandDestination}" "../unrelated-file"'`, false],
+  ["Bash", "rm -f -- ordinary-operand -operand-link/tracked.txt", true],
+  ["Bash", "rm -f '--' ordinary-operand -operand-link/tracked.txt", true],
+  ["Bash", "rm -f -- ordinary-operand '-operand-link/tracked.txt'", true],
+  ["Bash", "rm -f -- ordinary-operand -ordinary-operand", false],
+  ["Bash", "rm -f '--' ordinary-operand -ordinary-operand", false],
+  ["PowerShell", "Remove-Item -LiteralPath:'-operand-link/tracked.txt'", true],
+  ["PowerShell", "Remove-Item -LiteralPath:'-ordinary-operand'", false],
+  ["PowerShell", "Remove-Item -LiteralPath '-ordinary-operand'", false],
+  ["PowerShell", "Remove-Item '-Path'", false],
+  ["PowerShell", "Remove-Item '-LiteralPath'", false],
+  ["PowerShell", "[IO.File]::Delete('-operand-link/tracked.txt'); Write-Output 'ordinary-operand'", true],
+  ["Bash", "cd -- -operand-link; rm -f tracked.txt", true],
+  ["PowerShell", "Set-Location -LiteralPath:'-operand-link'; Remove-Item tracked.txt", true],
+]) {
+  assert.equal(Boolean(cleanup(command, shell.toLowerCase(), main)), denied, command);
+  verifyAdapters(command, shell, main, denied); chainPreserved();
+}
+const defaultNameCommand = `New-Item -ItemType:'Junction' -Name:'fresh' -Value:'${setupExternal}'`;
+assert.equal(cleanup(defaultNameCommand, "powershell", operandDirectory), null);
+verifyAdapters(defaultNameCommand, "PowerShell", operandDirectory, false); chainPreserved();
+if (process.platform !== "win32") {
+  const nativeLink = `${operandDirectory}/native-relative`;
+  const native = spawnSync("bash", ["-c", `ln -s '${relativeTree}' '${nativeLink}' && cat '${nativeLink}/node_modules/tracked.txt'`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(native.status, 0, native.stderr); assert.equal(native.stdout, fs.readFileSync(path.join(chainExternal, "tracked.txt"), "utf8")); chainPreserved();
+  console.log("PASS: native GNU relative link destination reaches external sentinel without cleanup");
+} else console.log("SKIP: native GNU symbolic-link semantics require POSIX; Windows decision controls remain asserted");
+assert.equal(fs.existsSync(operandDestination), false);
+console.log("PASS: verified symbolic-link destination roles and dash path operands through both adapters; ordinary positives preserved");
 // A verified location must retain its lexical link origin for dependent
 // relative mutations, including nested shells and another relative cd.
 fs.mkdirSync(path.join(main, "sub"));

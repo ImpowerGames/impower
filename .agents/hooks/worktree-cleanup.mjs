@@ -142,6 +142,36 @@ function literalArguments(tokens, shell, command) {
   }
   return values;
 }
+const powerShellParameter = (token, command) => command.slice(token.start, token.end).startsWith("-");
+function pathArguments(args, shell, command) {
+  const values = literalArguments(args, shell, command), paths = [];
+  paths.pathOperands = true; paths.options = [];
+  if (values.error) paths.error = values.error;
+  let ended = false;
+  for (let at = 0; at < args.length; at++) {
+    const token = args[at], value = values[at], parameter = shell === "powershell" && powerShellParameter(token, command);
+    if (ended) { paths.push(value); continue; }
+    if (token.text === "--" && (shell === "bash" || !token.quoted)) { ended = true; paths.options.push("--"); continue; }
+    if (parameter && /^-(?:literalpath|path)(?::|$)/i.test(token.text)) {
+      paths.options.push(token.text);
+      if (token.text.includes(":")) paths.push(value);
+      else {
+        const next = args[++at];
+        if (!next || (!next.quoted && next.text.startsWith("-"))) paths.error = "Path parameter operand cannot be verified";
+        else paths.push(values[at]);
+      }
+      continue;
+    }
+    if (parameter && /^-(?:p|pa|pat|l|li|lit|lite|liter|litera|literal|literalp|literalpa|literalpat)(?::|$)/i.test(token.text)) { paths.error = "Abbreviated path parameter cannot be verified"; continue; }
+    if (value.startsWith("-") && (shell !== "powershell" || parameter)) {
+      paths.options.push(token.text);
+      continue;
+    }
+    if (parameter && /^-[\w-]+:/.test(token.text)) { paths.error = "Path parameter role cannot be verified"; continue; }
+    paths.push(value);
+  }
+  return paths;
+}
 function npmSetupTargets(args, shell, command) {
   const targets = [];
   for (let at = 0; at < args.length; at++) {
@@ -172,13 +202,13 @@ function npmSetupTargets(args, shell, command) {
   }
   return targets;
 }
-function itemLinkTargets(args, targets) {
-  const selectors = args.flatMap((arg, at) => /^-(?:itemtype|type)(?::|$)/i.test(arg.text) ? [at] : []);
+function itemLinkTargets(args, targets, command) {
+  const selectors = args.flatMap((arg, at) => powerShellParameter(arg, command) && /^-(?:itemtype|type)(?::|$)/i.test(arg.text) ? [at] : []);
   if (!selectors.length) {
     // Native parameter abbreviations can dispatch link creation. They are
     // refusal candidates only; do not invent a verified selector position.
     const prefixes = new Set(["-i", "-it", "-ite", "-item", "-itemt", "-itemty", "-itemtyp", "-t", "-ty", "-typ"]);
-    if (args.some((arg, at) => prefixes.has(arg.text.split(":")[0].toLowerCase()) && /^(junction|symboliclink)$/i.test(targets[arg.text.includes(":") ? at : at + 1] ?? ""))) {
+    if (args.some((arg, at) => powerShellParameter(arg, command) && prefixes.has(arg.text.split(":")[0].toLowerCase()) && /^(junction|symboliclink)$/i.test(targets[arg.text.includes(":") ? at : at + 1] ?? ""))) {
       const paths = [...targets]; paths.error = targets.error ?? "Link setup ItemType selector cannot be verified"; return paths;
     }
     return null;
@@ -195,6 +225,103 @@ function itemLinkTargets(args, targets) {
   const paths = targets.filter((_, at) => !excluded.has(at));
   if (targets.error) paths.error = targets.error;
   if (selectors.length !== 1 || uncertainType) paths.error = "Link setup ItemType cannot be verified";
+  return paths;
+}
+function lnLink(args, shell, command) {
+  const values = literalArguments(args, shell, command), operands = [];
+  let symbolic = false, directory = null, noDirectory = false, noDereference = false, relative = false, ended = false, error;
+  for (let at = 0; at < args.length; at++) {
+    const value = values[at];
+    if (ended || !value.startsWith("--target-directory=")) error ??= literalArguments([args[at]], shell, command).error;
+    if (ended || !value.startsWith("-")) { operands.push(value); continue; }
+    if (value === "--") { ended = true; continue; }
+    if (value.startsWith("--")) {
+      const [flag] = value.split("=");
+      if (/^--s(?:y(?:m(?:b(?:o(?:l(?:i(?:c)?)?)?)?)?)?)?$/.test(flag)) {
+        symbolic = true;
+        if (flag !== "--symbolic") error = "Abbreviated symbolic-link selector cannot be verified";
+      }
+      else if (flag === "--relative") relative = true;
+      else if (flag === "--no-target-directory") noDirectory = true;
+      else if (flag === "--no-dereference") noDereference = true;
+      else if (flag === "--target-directory") {
+        if (directory !== null) error = "Repeated link destination cannot be verified";
+        if (value.includes("=")) {
+          const raw = command.slice(args[at].start, args[at].end), prefix = `${flag}=`;
+          const literal = raw.startsWith(prefix) ? literalArguments([{ ...args[at], text: value.slice(prefix.length), start: args[at].start + prefix.length, quoted: /^["']/.test(raw.slice(prefix.length)) }], shell, command) : literalArguments([args[at]], shell, command);
+          if (!raw.startsWith(prefix)) literal[0] = literal[0]?.slice(prefix.length);
+          directory = literal[0]; error ??= literal.error;
+        } else { directory = values[++at]; if (args[at]) error ??= literalArguments([args[at]], shell, command).error; }
+      } else if (!["--force", "--interactive", "--verbose", "--logical", "--physical"].includes(flag)) error = "Link setup options cannot be verified";
+      continue;
+    }
+    for (let index = 1; index < value.length; index++) {
+      const flag = value[index];
+      if (flag === "s") symbolic = true;
+      else if (flag === "r") relative = true;
+      else if (flag === "T") noDirectory = true;
+      else if (flag === "n") noDereference = true;
+      else if (flag === "t") {
+        if (directory !== null) error = "Repeated link destination cannot be verified";
+        directory = value.slice(index + 1);
+        if (!directory) { directory = values[++at]; if (args[at]) error ??= literalArguments([args[at]], shell, command).error; }
+        break;
+      } else if (!"fivLP".includes(flag)) error = "Link setup options cannot be verified";
+    }
+  }
+  if (!symbolic) return null;
+  if (!operands.length || (directory !== null && !directory) || (directory !== null && noDirectory) || (noDirectory && operands.length !== 2)) error = "Link setup destination cannot be verified";
+  return { form: "ln", operands, directory, noDirectory, noDereference, relative, error };
+}
+function itemLink(args, values, command) {
+  const recognized = itemLinkTargets(args, values, command);
+  if (!recognized) return null;
+  const roles = {}, positional = []; let error = recognized.error, ended = false;
+  for (let at = 0; at < args.length; at++) {
+    const token = args[at], value = values[at];
+    if (!token.quoted && token.text === "--") { ended = true; continue; }
+    if (!ended && powerShellParameter(token, command)) {
+      const flag = token.text.split(":")[0].toLowerCase();
+      if (["-force", "-whatif", "-confirm"].includes(flag)) continue;
+      const role = ({ "-itemtype": "type", "-type": "type", "-path": "destination", "-name": "name", "-target": "target", "-value": "target" })[flag];
+      if (!role || roles[role] !== undefined) { error = "Link setup parameter roles cannot be verified"; continue; }
+      roles[role] = token.text.includes(":") ? value : values[++at];
+      if (!roles[role]) error = "Link setup parameter operand cannot be verified";
+    } else positional.push(value);
+  }
+  if (positional.length) {
+    if (roles.destination !== undefined || positional.length !== 1) error = "Link setup positional roles cannot be verified";
+    else roles.destination = positional[0];
+  }
+  if (!roles.target || (!roles.destination && !roles.name)) error ??= "Link setup destination cannot be verified";
+  return { form: "item", ...roles, error };
+}
+function linkPaths(spec, cwd) {
+  const paths = []; paths.pathOperands = true;
+  if (spec.error) { paths.error = spec.error; return paths; }
+  const add = (destination, target, anchor) => {
+    paths.push(destination);
+    const parent = identity(path.dirname(entrySpelling(destination))).physical;
+    paths.push(absoluteLiteral(anchor === "parent" ? parent : cwd, target));
+  };
+  if (spec.form === "ln") {
+    const sources = [...spec.operands]; let destination;
+    if (spec.directory !== null) destination = absoluteLiteral(cwd, spec.directory);
+    else if (sources.length === 1) destination = cwd;
+    else destination = absoluteLiteral(cwd, sources.pop());
+    let directory = spec.directory !== null || spec.operands.length === 1;
+    if (!directory && !spec.noDirectory) {
+      try { directory = (!spec.noDereference || !fs.lstatSync(entrySpelling(destination)).isSymbolicLink()) && fs.statSync(destination).isDirectory(); }
+      catch (error) { if (error.code !== "ENOENT") throw error; }
+    }
+    if ((sources.length > 1 && !directory) || (spec.directory !== null && !fs.statSync(destination).isDirectory())) throw new Error("Link destination directory cannot be verified");
+    for (const source of sources) add(directory ? `${entrySpelling(destination)}${path.sep}${path.basename(entrySpelling(source))}` : destination, source, spec.relative ? "cwd" : "parent");
+  } else {
+    if (spec.name && (path.isAbsolute(spec.name) || spec.name === "." || spec.name === ".." || /[\/\\]/.test(spec.name))) { paths.error = "Non-leaf link Name destination cannot be verified"; return paths; }
+    const destination = spec.name ? `${entrySpelling(absoluteLiteral(cwd, spec.destination || "."))}${path.sep}${spec.name}` : absoluteLiteral(cwd, spec.destination);
+    if (!path.isAbsolute(spec.target) && !["junction", "hardlink"].includes(spec.type?.toLowerCase())) paths.error = "Relative SymbolicLink target semantics cannot be verified";
+    else add(destination, spec.target, "cwd");
+  }
   return paths;
 }
 // Reuse the established tokenizer; quoted prose/comments are not commands.
@@ -235,6 +362,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
       if (method) {
         const methodTokens = segments.flatMap(segment => segment.tokens).filter(t => t.quoted || (t.text.includes("$") && !/^\$(true|false)$/i.test(t.text))).map(t => command.slice(t.start, t.end).endsWith(",") ? { ...t, text: t.text.replace(/,$/, "") } : t);
         const targets = literalArguments(methodTokens, shell, command);
+        targets.pathOperands = true;
         if (!targets.length) targets.error = "Delete method target cannot be verified";
         emit({ kind: "delete", targets });
       }
@@ -282,11 +410,11 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
       }
       if (["cd", "set-location", "pushd", "push-location"].includes(name)) {
         hasLocation = true;
-        const operands = targets.filter(text => !text.startsWith("-")), target = operands[0];
+        const operands = pathArguments(args, argumentShell, command), target = operands[0];
         if (operands.length !== 1) locationError = "Location argument cardinality cannot be verified";
-        if (targets.error || args.some(t => /^-stackname(?::|$)/i.test(t.text))) locationError = targets.error ?? "Named location stack cannot be verified";
+        if (operands.error || operands.options.some(text => /^-stackname(?::|$)/i.test(text))) locationError = operands.error ?? "Named location stack cannot be verified";
         const allowedFlag = argumentShell === "powershell" ? /^-(?:path|literalpath)(?::|$)|^-passthru$/i : name === "cd" ? /^(?:--|-L|-P)$/ : /$^/;
-        if (args.some(t => t.text.startsWith("-") && !allowedFlag.test(t.text))) locationError = "Location options cannot be verified";
+        if (operands.options.some(text => !allowedFlag.test(text))) locationError = "Location options cannot be verified";
         if (!target || /[`$*?\[]/.test(target)) locationError = "Effective location cannot be verified";
         if (target && !locationError) {
           const prior = [...possibleCwds];
@@ -309,7 +437,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         }
         continue;
       }
-      if (["rm", "rmdir", "rd", "remove-item", "del", "erase"].includes(name)) emit({ kind: "delete", targets });
+      if (["rm", "rmdir", "rd", "remove-item", "del", "erase"].includes(name)) emit({ kind: "delete", targets: pathArguments(args, argumentShell, command) });
       if (name === "git") {
         let k = 0;
         while (args[k]?.text.startsWith("-")) { const value = args[k].text; k += gitValueOptions.has(value) ? 2 : 1; }
@@ -340,8 +468,12 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
           else emit({ kind: "setup", targets: npmSetupTargets(args, argumentShell, command) });
         }
       }
-      if (name === "mklink" || (name === "ln" && args.some(t => /^-.*s/.test(t.text)))) emit({ kind: "link-setup", targets });
-      if (name === "new-item") { const paths = itemLinkTargets(args, targets); if (paths) emit({ kind: "link-setup", targets: paths }); }
+      if (name === "ln") { const linkSpec = lnLink(args, argumentShell, command); if (linkSpec) emit({ kind: "link-setup", targets: [], linkSpec }); }
+      if (name === "mklink") {
+        const operands = [...targets], mode = /^\/[DJH]$/i.test(operands[0]) ? operands.shift().toLowerCase() : "/d";
+        emit({ kind: "link-setup", targets: [], linkSpec: { form: "item", type: mode === "/j" ? "junction" : mode === "/h" ? "hardlink" : "symboliclink", destination: operands[0], target: operands[1], error: targets.error ?? (operands.length !== 2 ? "mklink parameter roles cannot be verified" : null) } });
+      }
+      if (name === "new-item") { const linkSpec = itemLink(args, targets, command); if (linkSpec) emit({ kind: "link-setup", targets: [], linkSpec }); }
     }
   }
   // The tokenizer collects substitutions without their execution positions.
@@ -368,9 +500,13 @@ function inspectAt(op) {
     // arbitrary repositories or treat unreadable identity as unrelated.
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
+  if (op.linkSpec) {
+    try { op = { ...op, targets: linkPaths(op.linkSpec, op.cwd) }; }
+    catch (error) { op = { ...op, targets: Object.assign([], { error: `Link setup identity cannot be checked: ${error.message}` }) }; }
+  }
   if (op.targets.error || op.locationError) return (fromRepository || op.contextKnown) ? `${op.targets.error ?? op.locationError}; direct operation is refused. ${route}` : null;
-  if ((fromRepository || op.contextKnown) && op.targets.some(text => !text.startsWith("-") && /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${route}`;
-  const candidates = op.targets.filter(s => !s.startsWith("-") && !/[`$]/.test(s));
+  const candidates = op.targets.pathOperands ? [...op.targets] : op.targets.filter(s => !s.startsWith("-"));
+  if ((fromRepository || op.contextKnown) && candidates.some(text => /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${route}`;
   if (op.kind === "delete" && !candidates.length && (fromRepository || op.contextKnown)) return `Cleanup target is missing or cannot be verified. ${route}`;
   for (const candidate of candidates) {
     const target = absoluteLiteral(op.cwd, candidate);
@@ -393,7 +529,8 @@ function inspectAt(op) {
   return null;
 }
 function inspect(op) {
-  const relative = ["setup", "link-setup"].includes(op.kind) || op.targets.some(text => !text.startsWith("-") && !path.isAbsolute(text));
+  const candidates = op.targets.pathOperands ? op.targets : op.targets.filter(text => !text.startsWith("-"));
+  const relative = ["setup", "link-setup"].includes(op.kind) || candidates.some(text => !path.isAbsolute(text));
   for (const cwd of relative ? op.cwds : [op.cwd]) {
     const reason = inspectAt({ ...op, cwd, locationError: relative ? op.locationError : null });
     if (reason) return reason;
