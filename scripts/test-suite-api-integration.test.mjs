@@ -2,7 +2,8 @@
 // Prior complete21-case Windows CI measured417.6s; four added local controls
 // measured about102.7s. Allow9s for the longer genuine-event stimulus, leaving
 // about250s margin. One additional pure fixture-error control brings the CI
-// inventory to 26 cases; this is not a measured 26-case full run. A Linux-only
+// inventory to 26 cases; this is not a measured 26-case full run. One pure
+// cadence/density control adds a case without another native run. A Linux-only
 // prerequisite-refusal service control adds one case on that platform, within
 // the existing margin; its actual duration is retained separately.
 // Other checks and per-operation budgets stay unchanged.
@@ -21,6 +22,28 @@ import {startExecutionService} from './reviewer-execution.mjs';
 import {requestExecution} from './reviewer-execution-client.mjs';
 import {validateAggregateInputs} from './test-suite-aggregate.mjs';
 import {machineRoot,read as readReservation,acquire,acquireWaiting,reservationState,same} from './test-suite-process.mjs';
+
+function assertCoalescedProgress(journal,nativeProgress) {
+  const started=Date.parse(journal?.startedAt),ended=Date.parse(journal?.endedAt);
+  const elapsedMs=ended-started,sequence=journal?.progress?.sequence,publications=journal?.progressPublications;
+  // ownedChild samples every1000ms; confirmed exit flushes the final event.
+  // The whole attempt conservatively includes launch and exit reconciliation.
+  const allowance=Math.ceil(elapsedMs/1000)+1;
+  console.log('Task progress batching '+JSON.stringify({sequence,publications,elapsedMs,allowance}));
+  assert.ok(typeof journal?.startedAt==='string'&&typeof journal?.endedAt==='string'
+    &&Number.isFinite(started)&&Number.isFinite(ended)&&elapsedMs>0,'Measured attempt timestamps are ordered and finite');
+  assert.ok(Number.isSafeInteger(sequence)&&sequence>=50,'Real native task batches exercised frequent event delivery');
+  assert.ok(Number.isSafeInteger(publications)&&publications>0,'Shared progress publications are a positive measured count');
+  assert.ok(sequence>allowance,'Genuine event density must distinguish batching from publication on every event');
+  assert.ok(publications<=allowance,'Shared progress persistence respects its sampling cadence and final flush');
+  assert.ok(publications<sequence,'Shared progress persistence coalesces genuine events');
+  assert.equal(journal.progress.event,'finished','The terminal genuine event is retained');
+  const finished=Date.parse(journal.progress.at);
+  assert.ok(typeof journal.progress.at==='string'&&Number.isFinite(finished)&&finished>=started&&finished<=ended,
+    'The terminal genuine event timestamp belongs to the measured attempt');
+  assert.deepEqual(journal.progress,nativeProgress,'Shared progress retains the exact final native event');
+  return {sequence,publications,elapsedMs,allowance};
+}
 
 const scratch=()=>fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(),'vitest-integration-control-')));
 const terminalSummary=result=>result.stdout.split(/\r?\n/).flatMap(line=>{
@@ -99,6 +122,36 @@ function retainNativeEvidence(directory,key,disposition) {
 const waitForAck='const fs=require("node:fs");const until=Date.now()+10000;const t=setInterval(()=>{if(fs.existsSync(process.argv[1])){clearInterval(t);process.exit(0)}else if(Date.now()>until)process.exit(2)},10)';
 
 const admissionControls=[];
+admissionControls.push(test('measured progress cadence requires genuine density and the exact terminal event',()=>{
+  const progress={version:1,mode:'run-direct',file:'/private/src/tasks.test.ts',sequence:104,event:'finished',at:'2026-10-10T20:15:02.159Z'};
+  // Retained Windows Vitest3.2.6 CI: genuine104/publications26 over56.966s.
+  const measured={startedAt:'2026-10-10T20:14:09.631Z',endedAt:'2026-10-10T20:15:06.597Z',progress,progressPublications:26};
+  assert.deepEqual(assertCoalescedProgress(measured,progress),{sequence:104,publications:26,elapsedMs:56966,allowance:58});
+  const nominal={...measured,endedAt:'2026-10-10T20:14:20.631Z',progressPublications:12,
+    progress:{...progress,at:'2026-10-10T20:14:20.159Z'}};
+  assert.equal(assertCoalescedProgress(nominal,nominal.progress).allowance,12);
+  assert.throws(()=>assertCoalescedProgress({...measured,progressPublications:104},progress),/sampling cadence/);
+  assert.throws(()=>assertCoalescedProgress({...nominal,progressPublications:13},progress),/sampling cadence/);
+  assert.throws(()=>assertCoalescedProgress({...measured,endedAt:'2026-10-10T20:15:52.631Z'},progress),/event density/);
+  for(const sequence of [49,1.5,NaN,Infinity,undefined]) {
+    assert.throws(()=>assertCoalescedProgress({...measured,progress:{...progress,sequence}},progress),/frequent event/);
+  }
+  for(const value of [0,-1,1.5,NaN,Infinity,undefined]) {
+    assert.throws(()=>assertCoalescedProgress({...measured,progressPublications:value},progress),/positive measured count/);
+  }
+  for(const times of [{startedAt:'invalid'},{endedAt:undefined},{endedAt:measured.startedAt},{endedAt:'2026-10-10T20:14:08.631Z'}]) {
+    assert.throws(()=>assertCoalescedProgress({...measured,...times},progress),/timestamps/);
+  }
+  assert.throws(()=>assertCoalescedProgress({...measured,progress:{...progress,event:'task-update'}},progress),/terminal genuine event/);
+  for(const at of ['invalid',undefined,'2026-10-10T20:14:08.631Z','2026-10-10T20:15:07.597Z']) {
+    const final={...progress,at};
+    assert.throws(()=>assertCoalescedProgress({...measured,progress:final},final),/timestamp belongs/);
+  }
+  for(const final of [undefined,{...progress,sequence:103},{...progress,at:'2026-10-10T20:15:01.159Z'},
+    {...progress,file:'/private/src/other.test.ts'}]) {
+    assert.throws(()=>assertCoalescedProgress(measured,final),/exact final native event/);
+  }
+}));
 admissionControls.push(test('fixture cleanup preserves primary failures across reconciliation and evidence errors',async()=>{
   for(const boundary of ['reconcile','persist']) {
     const primary=new Error('Original fixture assertion'),secondary=new Error('Reached cleanup '+boundary);
@@ -745,9 +798,8 @@ if(!dependencies) {
       assert.equal(result.close.exit,0,result.stderr);
       const owned=result.disposition.record.attempts.find(row=>row.mode==='run-direct');
       const journal=JSON.parse(fs.readFileSync(path.join(owned.directory,'attempt.json'),'utf8'));
-      assert.ok(journal.progress.sequence>=50,'Real native task batches exercised frequent event delivery');
-      assert.ok(journal.progressPublications<journal.progress.sequence/5,'Shared progress persistence is coalesced');
-      console.log('Actual task events '+journal.progress.sequence+'; shared progress publications '+journal.progressPublications);
+      const nativeProgress=JSON.parse(fs.readFileSync(path.join(owned.directory,'progress.json'),'utf8'));
+      assertCoalescedProgress(journal,nativeProgress);
     });
   }
   if(process.env.CI==='true'||process.argv.includes('--budget-sensitivity')) {
