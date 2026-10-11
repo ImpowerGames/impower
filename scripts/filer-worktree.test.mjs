@@ -482,6 +482,42 @@ if (process.platform !== "win32") {
 } else console.log("SKIP: native GNU -n trailing-directory roles require POSIX; retained POSIX-semantic local proof is separate");
 assert.equal(fs.existsSync(operandDestination), false);
 console.log("PASS: verified symbolic-link destination roles and dash path operands through both adapters; ordinary positives preserved");
+const aliasOutside = path.join(scratch, "builtin-alias-outside");
+fs.mkdirSync(aliasOutside); fs.writeFileSync(path.join(aliasOutside, "ordinary.txt"), "alias ordinary bytes");
+const aliasSafe = aliasOutside.replaceAll(path.sep, "/"), aliasTree = reproduction.replaceAll(path.sep, "/");
+const aliasCases = [];
+for (const alias of ["del", "erase", "rd", "ri", "rm", "rmdir"]) {
+  for (const [target, denied] of [[`${aliasTree}/node_modules/tracked.txt`, true], [`${aliasSafe}/ordinary.txt`, false]]) aliasCases.push([`${alias} -LiteralPath '${target}'`, "PowerShell", denied]);
+}
+for (const [target, denied] of [[aliasTree, true], [aliasSafe, false]]) aliasCases.push([`ni -ItemType Junction -Path '${aliasSafe}/future-alias' -Target '${target}'`, "PowerShell", denied]);
+for (const alias of ["cd", "chdir", "sl", "pushd"]) {
+  for (const [location, target, denied] of [[`${aliasTree}/node_modules`, "tracked.txt", true], [aliasSafe, `${aliasSafe}/ordinary.txt`, false]]) aliasCases.push([`${alias} -LiteralPath '${location}'; Remove-Item -LiteralPath '${target}'`, "PowerShell", denied]);
+}
+aliasCases.push(
+  [`pushd -LiteralPath '${aliasSafe}'; popd; ri -LiteralPath '${aliasSafe}/ordinary.txt'`, "PowerShell", false],
+  [`powershell -Command "ri -LiteralPath '${aliasTree}/node_modules/tracked.txt'"`, "Bash", true],
+  [`rm -f -- '${aliasSafe}/ordinary.txt'`, "Bash", false],
+  [`Write-Output "ri ni sl chdir Remove-Item '${aliasTree}/node_modules/tracked.txt'"`, "PowerShell", false],
+);
+for (const [command, shell, denied] of aliasCases) {
+  assert.equal(Boolean(cleanup(command, shell.toLowerCase(), main)), denied); verifyAdapters(command, shell, main, denied); chainPreserved();
+}
+assert.ok(cleanup(`ri -LiteralPath '${aliasTree}/node_modules/tracked.txt'`, undefined, main), "Unknown reader includes builtin PowerShell aliases");
+const bashAliasText = `ri -LiteralPath '${aliasTree}/node_modules/tracked.txt'`;
+assert.equal(cleanup(bashAliasText, "bash", main), null, "PowerShell-only builtin is not dispatched as a Bash alias");
+verifyAdapters(bashAliasText, "Bash", main, false, true); chainPreserved();
+if (process.platform === "win32") {
+  const catalog = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Get-Alias del,erase,rd,ri,rm,rmdir,ni,cd,chdir,sl,pushd,popd | Select-Object Name,Definition | ConvertTo-Json -Compress"], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(catalog.status, 0, catalog.stderr);
+  const aliases = new Map(JSON.parse(catalog.stdout).map(row => [row.Name, row.Definition]));
+  for (const name of ["del", "erase", "rd", "ri", "rm", "rmdir"]) assert.equal(aliases.get(name), "Remove-Item");
+  for (const name of ["cd", "chdir", "sl"]) assert.equal(aliases.get(name), "Set-Location");
+  assert.equal(aliases.get("ni"), "New-Item"); assert.equal(aliases.get("pushd"), "Push-Location"); assert.equal(aliases.get("popd"), "Pop-Location");
+  const read = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `$ErrorActionPreference='Stop'; ri -LiteralPath '${aliasTree}/node_modules/tracked.txt' -WhatIf; ni -ItemType Junction -Path '${aliasSafe}/native-alias' -Target '${aliasTree}' -WhatIf; sl -LiteralPath '${aliasTree}/node_modules'; Get-Content -Raw -LiteralPath tracked.txt`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.equal(read.status, 0, read.stderr); assert.ok(read.stdout.includes(chainSentinels.find(([name]) => name === "tracked.txt")[1].toString().trim()));
+  assert.equal(fs.existsSync(path.join(aliasOutside, "native-alias")), false); chainPreserved();
+} else console.log("SKIP: native builtin PowerShell alias catalog/WhatIf/read controls require Windows; decision controls remain asserted");
+console.log("PASS: builtin PowerShell alias cleanup/link/location roles; unknown/nested readers, unrelated literals, Bash semantics and prose controls");
 for (const dash of ["\u2013", "\u2014", "\u2015"]) {
   for (const [command, denied] of [
     [`Remove-Item ${dash}LiteralPath:'-operand-link/tracked.txt'`, true],

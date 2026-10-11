@@ -92,6 +92,14 @@ const gitValueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--name
 const singlePowerShellLiteral = /^(?:'(?:[^']|'')*'|"[^"$`]*")$/;
 const singleBashLiteral = /^(?:'[^']*'|"(?:[^"$`\\]|\\[^\r\n])*")$/;
 const canonicalCmdlets = new Set(["remove-item", "set-location", "push-location", "pop-location", "new-item"]);
+// Installed PowerShell built-ins share the canonical command's grammar. Do
+// not reinterpret these spellings in Bash or infer arbitrary custom aliases.
+const powerShellAliases = new Map([
+  ...["del", "erase", "rd", "ri", "rm", "rmdir"].map(name => [name, "remove-item"]),
+  ...["cd", "chdir", "sl"].map(name => [name, "set-location"]),
+  ["ni", "new-item"], ["pushd", "push-location"], ["popd", "pop-location"],
+]);
+const commandName = (name, shell) => shell === "powershell" ? powerShellAliases.get(name) ?? name : name;
 const shellPrograms = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "pwsh", "powershell", "cmd", "env", "eval"]);
 // These are refusal boundaries for the existing reader's wrapper traversal;
 // this policy does not implement another wrapper argument parser.
@@ -356,7 +364,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
     // names. Quoted command wrappers refuse independently below.
     const recognitionTokens = tokens.map((token, i) => shell === "bash" && positions.has(i) && token.quoted && shellPrograms.has(baseName(token)) && !literalArguments([token], shell, command).error ? { ...token, quoted: false } : token);
     for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i], name = baseName(token);
+      const token = tokens[i], name = commandName(baseName(token), shell);
       if (isShellCommandString(recognitionTokens, i, positions)) {
         const literal = literalArguments([token], shell, command);
         if (literal.error) { emit({ kind: "analysis-limit", targets: literal }); continue; }
