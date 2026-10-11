@@ -120,6 +120,29 @@ async function until(predicate,ms=10000) {
 function absence(file) {
   for(const row of records(file))assert.equal(processIdentity(row.pid),null,`Fixture PID ${row.pid} remained live`);
 }
+async function waitForAbsence(originals,ms,inspect=processIdentity) {
+  for(const original of originals)assert.ok(Number.isSafeInteger(original?.pid)&&original.pid>0,'Owned fixture PID is required');
+  const end=Date.now()+ms;let uncertainty;
+  while(Date.now()<end) {
+    let absent=true;
+    for(const original of originals) {
+      let current;
+      try {current=inspect(original.pid);} catch(error) {uncertainty=error;absent=false;continue;}
+      if(current!==null)absent=false;
+    }
+    if(absent)return;
+    await delay(25);
+  }
+  throw new Error('Fixture process absence was not confirmed within its bounded deadline',{cause:uncertainty});
+}
+test('fixture exit polling retries only inspection uncertainty and requires confirmed absence',async()=>{
+  const original={pid:1,start:'fixture-start'},unknown=new Error('Controlled unavailable start identity');
+  let calls=0;
+  await waitForAbsence([original],100,()=>{if(++calls===1)throw unknown;return null;});
+  assert.equal(calls,2,'Transient inspection uncertainty is followed by confirmed absence');
+  await assert.rejects(waitForAbsence([original],35,()=>original),/absence was not confirmed/);
+  await assert.rejects(waitForAbsence([original],35,()=>{throw unknown;}),error=>error.cause===unknown);
+});
 function expectedProof(directory=scratch()) {
   const requestedDirectory=directory;
   directory=fs.realpathSync.native(directory);
@@ -284,7 +307,7 @@ test('blocked preparation publication preserves live pipe-holder uncertainty',{s
     assert.equal(typeof result.preparationPublicationError,'string');
     assert.deepEqual(processIdentity(owned.pid),owned,'Publication failure does not manufacture descendant exit');
     assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
-  } finally {if(owned)await until(()=>processIdentity(owned.pid)===null,25000);}
+  } finally {if(owned)await waitForAbsence([owned],25000);}
 });
 
 test('blocked capability publication preserves live pipe-holder uncertainty',{skip:process.platform!=='win32',timeout:40000},async()=>{
@@ -310,7 +333,7 @@ test('blocked capability publication preserves live pipe-holder uncertainty',{sk
     assert.equal(typeof result.capabilityPublicationError,'string');
     assert.deepEqual(processIdentity(owned.pid),owned,'Publication failure does not manufacture descendant exit');
     assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
-  } finally {if(owned)await until(()=>processIdentity(owned.pid)===null,25000);}
+  } finally {if(owned)await waitForAbsence([owned],25000);}
 });
 
 test('preparation deadline includes forced synchronous identity capture',{skip:process.platform!=='win32',timeout:15000},async()=>{
@@ -611,7 +634,7 @@ test('actual coordinator death closes both pipes and leaves independently recove
   fs.writeFileSync(path.join(directory,'coordinator-stderr.log'),diagnostics);
   assert.equal(exit,29,diagnostics);
   const expected=JSON.parse(fs.readFileSync(path.join(directory,'expected.json'),'utf8'));
-  await until(()=>processIdentity(expected.helper.pid)===null&&processIdentity(expected.launcher.pid)===null,15000);
+  await waitForAbsence([expected.helper,expected.launcher],15000);
   const proof=readTreeProof(expected);
   assert.equal(proof.status,'interrupted');
   assert.equal(proof.timedOut,false);
@@ -689,7 +712,7 @@ test('helper death after authorization never substitutes for a final proof',{ski
   assert.equal(result.status,'unknown',JSON.stringify(result));
   assert.equal(result.exitConfirmed,false);
   assert.equal(fs.existsSync(path.join(directory,'tree-proof.json')),false);
-  await until(()=>records(inventory).every(row=>processIdentity(row.pid)===null));
+  await waitForAbsence(records(inventory),10000);
   absence(inventory);
 });
 

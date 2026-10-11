@@ -315,7 +315,9 @@ function linkPaths(spec, cwd) {
     else destination = absoluteLiteral(cwd, sources.pop());
     let directory = spec.directory !== null || spec.operands.length === 1;
     if (!directory && !spec.noDirectory) {
-      try { directory = (!spec.noDereference || !fs.lstatSync(entrySpelling(destination)).isSymbolicLink()) && fs.statSync(destination).isDirectory(); }
+      // This is a command role decision, not link-entry inspection: POSIX
+      // trailing slashes make even a -n destination denote the directory.
+      try { directory = (!spec.noDereference || !fs.lstatSync(destination).isSymbolicLink()) && fs.statSync(destination).isDirectory(); }
       catch (error) { if (error.code !== "ENOENT") throw error; }
     }
     if ((sources.length > 1 && !directory) || (spec.directory !== null && !fs.statSync(destination).isDirectory())) throw new Error("Link destination directory cannot be verified");

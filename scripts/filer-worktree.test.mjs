@@ -1,4 +1,4 @@
-// agent-tooling-timeout-ms: 600000
+// agent-tooling-timeout-ms: 900000
 // Real Windows/Bash controls and complete adapters exceeded 300s locally.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -450,6 +450,36 @@ if (process.platform !== "win32") {
   assert.equal(native.status, 0, native.stderr); assert.equal(native.stdout, fs.readFileSync(path.join(chainExternal, "tracked.txt"), "utf8")); chainPreserved();
   console.log("PASS: native GNU relative link destination reaches external sentinel without cleanup");
 } else console.log("SKIP: native GNU symbolic-link semantics require POSIX; Windows decision controls remain asserted");
+if (process.platform !== "win32") {
+  const directoryRoles = path.join(scratch, "ln-directory-roles"), aliases = path.join(directoryRoles, "aliases");
+  fs.mkdirSync(aliases, { recursive: true });
+  for (const [index, flag, suffix] of [[0, "-sn", "/"], [1, "-s --no-dereference", "///"]]) {
+    const nested = path.join(directoryRoles, "outside", index ? "nested-long" : "nested"), gateway = path.join(aliases, `gateway-${index}`);
+    fs.mkdirSync(nested, { recursive: true }); fs.symlinkSync(nested, gateway, "dir");
+    const source = path.relative(nested, reproduction), slashCommand = `ln ${flag} '${source}' '${gateway}${suffix}'`;
+    for (const [command, denied] of [
+      [slashCommand, true], [`ln -sn '${source}' '${gateway}'`, false],
+      [`ln -sn '${setupExternal}' '${gateway}${suffix}'`, false],
+      [`ln -snT '${source}' '${gateway}${suffix}'`, false],
+      [`ln -s -t '${gateway}${suffix}' '${source}'`, true],
+      [`ln -s -t '${gateway}${suffix}' '${setupExternal}'`, false],
+    ]) {
+      assert.equal(Boolean(cleanup(command, "bash", main)), denied, command);
+      verifyAdapters(command, "Bash", main, denied); chainPreserved();
+    }
+    // Only native link creation/read is executed. Neither cleanup command runs.
+    for (const command of [`ln -sn '${source}' '${gateway}'`, `ln -snT '${source}' '${gateway}${suffix}'`]) {
+      const failed = spawnSync("bash", ["-c", command], { cwd: main, encoding: "utf8", windowsHide: true });
+      assert.notEqual(failed.status, 0, "Existing no-slash/-T destination must not become a directory link setup");
+      assert.equal(fs.existsSync(path.join(nested, path.basename(reproduction))), false); chainPreserved();
+    }
+    const native = spawnSync("bash", ["-c", `${slashCommand} && cat '${gateway}/${path.basename(reproduction)}/node_modules/tracked.txt'`], { cwd: main, encoding: "utf8", windowsHide: true });
+    assert.equal(native.status, 0, native.stderr);
+    assert.equal(native.stdout, fs.readFileSync(path.join(external, "tracked.txt"), "utf8"));
+    assert.equal(fs.realpathSync(path.join(nested, path.basename(reproduction))), fs.realpathSync(reproduction)); chainPreserved(); preserved();
+  }
+  console.log("PASS: native GNU -n trailing/repeated directory-link roles, no-slash/-T failures and unrelated/-t controls");
+} else console.log("SKIP: native GNU -n trailing-directory roles require POSIX; retained POSIX-semantic local proof is separate");
 assert.equal(fs.existsSync(operandDestination), false);
 console.log("PASS: verified symbolic-link destination roles and dash path operands through both adapters; ordinary positives preserved");
 for (const dash of ["\u2013", "\u2014", "\u2015"]) {
