@@ -5,7 +5,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import type { LowerContext } from "../context";
 import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
-import { REASSIGNMENT_NAMES } from "../../utils/reassignmentNames";
+import { REASSIGNMENT_NAMES, reassignmentParts } from "../../utils/reassignmentNames";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import {
   VARIABLE_DEFINITION_BEGIN_NAMES,
@@ -69,9 +69,22 @@ export function validateStatementNode(
   ctx: LowerContext,
 ): void {
   if (REASSIGNMENT_NAMES.has(node.name)) {
-    const content = node.getChild(`${node.name}_content`) ?? node;
-    validateReassignmentList(content, continuation, ctx);
-    const op = (content.getChild("LuauAssignmentOperation") ?? content.getChild("LuauSparkdownExplicitAssignmentOperation"));
+    const parts = reassignmentParts(node);
+    const isOperation = (part: SyntaxNode) => isExplicitRuleName(part.name, "LuauAssignmentOperation");
+    // A target list that ends its line with a comma goes on at the next
+    // line. When that line is unindented the reassignment ends at its
+    // start (`a,` then `g = 1, 2`, or `g` alone), and the converter reads
+    // the nodes there as the rest of this one, up to its operation.
+    let rest = continuation;
+    while (!parts.some(isOperation)) {
+      const at = rest.findIndex((n) => !isInsignificant(n.name));
+      const next = at < 0 ? undefined : rest[at];
+      if (!next) break;
+      parts.push(...rest.slice(0, at), ...(REASSIGNMENT_NAMES.has(next.name) ? reassignmentParts(next) : [next]));
+      rest = rest.slice(at + 1);
+    }
+    validateReassignmentList(parts, rest, ctx);
+    const op = parts.find(isOperation);
     if (op) validateAssignmentValue(op, ctx);
     return;
   }
@@ -92,7 +105,7 @@ export function validateStatementNode(
     // A comma that ends the statement's value list: the statement ends at
     // its line, so the comma is left without a value (`& a, b = 1,`).
     const content = node.getChild(`${node.name}_content`);
-    if (content) validateReassignmentList(content, continuation, ctx);
+    if (content) validateReassignmentList(childrenOf(content), continuation, ctx);
     return;
   }
   // In a function body, a target and its operation (`x = 1`), or a call or
@@ -100,6 +113,12 @@ export function validateStatementNode(
   // (`o:get().x = 6`, `(t)[k] = v`), are sibling nodes.
   const op = siblingAssignmentOperation(node);
   if (op) validateAssignmentValue(op, ctx);
+}
+
+function childrenOf(node: SyntaxNode): SyntaxNode[] {
+  const children: SyntaxNode[] = [];
+  for (let child = node.firstChild; child; child = child.nextSibling) children.push(child);
+  return children;
 }
 
 // The links a store through a call or a parenthesized value goes through,
@@ -240,8 +259,8 @@ export function validateSecondAssignment(
 // which continue the last value), a comma followed by an operator that
 // cannot begin a value (`a, g = 1,` then `+ 2`), and a second `=` after a
 // comma that ends its line (`a, g = 1,` then `x = 99`). Each is reported
-// once, at the first. `content` is the statement's content node, whose
-// children are its targets, commas, operation and values.
+// once, at the first. `parts` are the statement's targets, commas,
+// operation and values, in order.
 //
 // A compound operator (`+=`) takes one target and one value: after a target
 // list Luau expects `=` there (`a, g += 1`), and a comma after its value
@@ -250,7 +269,7 @@ export function validateSecondAssignment(
 // with a comma last Luau is missing the next target (`a,` then `end`), and
 // otherwise the `=` (`a,` then `g` then `end`).
 export function validateReassignmentList(
-  content: SyntaxNode,
+  parts: readonly SyntaxNode[],
   continuation: readonly SyntaxNode[],
   ctx: LowerContext,
 ): void {
@@ -261,11 +280,11 @@ export function validateReassignmentList(
   let onlyTargets = true;
   let sawTargetComma = false;
   let last: SyntaxNode | null = null;
-  for (let child = content.firstChild; child; child = child.nextSibling) {
+  for (const child of parts) {
     if (isInsignificant(child.name)) continue;
     if (!sawAssignment && !isExplicitRuleName(child.name, "LuauAssignmentOperation")) {
       if (isListCommaName(child.name)) sawTargetComma = true;
-      else if (!isExplicitRuleName(child.name, "LuauAccessPath")) onlyTargets = false;
+      else if (!isExplicitRuleName(child.name, "LuauAccessPath") && child.name !== "LuauVariable") onlyTargets = false;
     }
     if (isExplicitRuleName(child.name, "LuauAssignmentOperation")) {
       if (sawAssignment) {
