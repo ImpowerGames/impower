@@ -236,12 +236,13 @@ try {
     // Entries the directory held before the reviewer ran (another round's journal, a later step's prompt) are never removed.
     fs.writeFileSync(path.join(dir,'adjudication.txt'),'later prompt');fs.mkdirSync(path.join(dir,'other-round'));fs.writeFileSync(path.join(dir,'other-round','handoff.jsonl'),'j');
     const had=snapshotReviewerDirectory(dir);
-    fs.mkdirSync(path.join(dir,'clone','deep'),{recursive:true});fs.writeFileSync(path.join(dir,'clone','deep','a.js'),'a');
+    fs.mkdirSync(path.join(dir,'clone','deep'),{recursive:true});fs.mkdirSync(path.join(dir,'clone','.git'));fs.mkdirSync(path.join(dir,'reports'));fs.writeFileSync(path.join(dir,'reports','first-pass.md'),'first pass');fs.writeFileSync(path.join(dir,'clone','deep','a.js'),'a');
     fs.symlinkSync(outside,path.join(dir,'clone','link'),'junction');fs.symlinkSync(outside,path.join(dir,'top-link'),'junction');
     fs.writeFileSync(path.join(dir,'..report.md'),'report');fs.writeFileSync(path.join(dir,'notes.txt'),'n');
     const keepReport=process.platform==='win32'?path.join(dir,'..REPORT.md'):path.join(dir,'..report.md');
     const counts=removeProbeCheckouts(dir,{preserve:had,keep:[keepReport]});
-    assert.deepEqual(fs.readdirSync(dir).sort(),['..report.md','adjudication.txt','notes.txt','other-round'],'the kept dot-prefixed report (named in another case on Windows), the reviewer\'s other files and the pre-existing entries remain');
+    assert.deepEqual(fs.readdirSync(dir).sort(),['..report.md','adjudication.txt','notes.txt','other-round','reports'],'the kept dot-prefixed report (named in another case on Windows), the reviewer\'s other files and the pre-existing entries remain');
+    assert.equal(fs.readFileSync(path.join(dir,'reports','first-pass.md'),'utf8'),'first pass','a report the reviewer wrote in a subdirectory stays');
     assert.equal(fs.existsSync(path.join(dir,'other-round','handoff.jsonl')),true);
     assert.deepEqual([counts.files,counts.links],[1,2]);
     assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives','links are not followed');
@@ -286,10 +287,10 @@ try {
   // running and names its path in the error.
   {
     const directory=fs.mkdtempSync(path.join(scratch,'cleanup-unicode-'));
-    fs.mkdirSync(path.join(directory,'probe-repo','snow ☃'),{recursive:true});fs.writeFileSync(path.join(directory,'probe-repo','snow ☃','index.html'),'x');
+    fs.mkdirSync(path.join(directory,'probe-repo','snow ☃'),{recursive:true});fs.mkdirSync(path.join(directory,'probe-repo','.git'));fs.writeFileSync(path.join(directory,'probe-repo','snow ☃','index.html'),'x');
     assert.equal(removeProbeCheckouts(directory).files,1);
     assert.deepEqual(fs.readdirSync(directory),[],'the non-ASCII directory and its file are gone');
-    fs.mkdirSync(path.join(directory,'a-stuck'));fs.writeFileSync(path.join(directory,'a-stuck','f'),'x');fs.mkdirSync(path.join(directory,'b-later'));fs.writeFileSync(path.join(directory,'b-later','g'),'x');
+    fs.mkdirSync(path.join(directory,'a-stuck','.git'),{recursive:true});fs.writeFileSync(path.join(directory,'a-stuck','f'),'x');fs.mkdirSync(path.join(directory,'b-later','.git'),{recursive:true});fs.writeFileSync(path.join(directory,'b-later','g'),'x');
     // Entries are moved aside before deletion, so the stuck file is named inside the aside directory.
     const unlink=fs.unlinkSync;let stuck;
     fs.unlinkSync=function(target,...args){if(path.basename(target)==='f'&&path.basename(path.dirname(path.dirname(target))).startsWith('.probe-cleanup-')){stuck=target;throw Object.assign(new Error('EBUSY: stuck'),{code:'EBUSY'});}return unlink(target,...args);};
@@ -304,7 +305,7 @@ try {
   {
     const directory=fs.mkdtempSync(path.join(scratch,'cleanup-ownership-'));
     const probe=path.join(directory,'probe'),proof=path.join(probe,'tree-proof.json'),sentinelDir=path.join(directory,'sentinel-dir'),sentinel=path.join(sentinelDir,'sentinel');
-    const refill=()=>{fs.mkdirSync(probe,{recursive:true});fs.writeFileSync(proof,'canonical proof bytes');fs.mkdirSync(sentinelDir,{recursive:true});fs.writeFileSync(sentinel,'untouched');};
+    const refill=()=>{fs.mkdirSync(path.join(probe,'.git'),{recursive:true});fs.mkdirSync(path.join(sentinelDir,'.git'),{recursive:true});fs.writeFileSync(proof,'canonical proof bytes');fs.mkdirSync(sentinelDir,{recursive:true});fs.writeFileSync(sentinel,'untouched');};
     refill();
     const file=path.join(cleanupReservationRoot,'reservation.json');
     // An unreadable entry, one naming a path inside the directory, and one
@@ -329,7 +330,7 @@ try {
     const alias=path.join(scratch,'cleanup-probe-alias');fs.symlinkSync(probe,alias,'junction');
     const brokenAlias=path.join(scratch,'cleanup-broken-alias');fs.symlinkSync(path.join(scratch,'no-such-target'),brokenAlias,'junction');
     try{
-      for(const [named,pattern] of [[path.join(alias,'tree-proof.json'),/overlaps this reviewer directory/],[path.join(brokenAlias,'run'),/could not be resolved/]]){
+      for(const [named,pattern] of [[alias,/overlaps this reviewer directory/],[path.join(brokenAlias,'run'),/could not be resolved/]]){
         fs.writeFileSync(file,JSON.stringify({run:named}));
         const aliased=removeProbeCheckouts(directory);
         assert.equal(aliased.skipped,true,named);assert.match(aliased.reason,pattern);
@@ -400,7 +401,7 @@ const reservations=fs.readdirSync(slots).filter(name=>name.endsWith('.jsonl')).m
 fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv,home,reservations,authSha256:createHash('sha256').update(fs.readFileSync(auth)).digest('hex'),authMode:process.platform==='win32'?null:(fs.statSync(auth).mode&0o777),homeFiles:fs.readdirSync(home).sort(),secretVisible:Object.hasOwn(process.env,${JSON.stringify(secretName)}),github:Object.keys(process.env).filter(key=>/^GH_|^GITHUB_TOKEN$/i.test(key))}));
 const reviewDir=path.dirname(argv[argv.indexOf('--output-last-message')+1]);
 fs.mkdirSync(path.join(reviewDir,'probe-head','node_modules','pkg'),{recursive:true});fs.writeFileSync(path.join(reviewDir,'probe-head','node_modules','pkg','index.js'),'x');
-fs.mkdirSync(path.join(reviewDir,'probe-base'));fs.writeFileSync(path.join(reviewDir,'probe-base','package.json'),'{}');fs.symlinkSync(process.env.FIXTURE_EXTERNAL,path.join(reviewDir,'probe-base','linked'),'junction');
+fs.mkdirSync(path.join(reviewDir,'probe-base','.git'),{recursive:true});fs.writeFileSync(path.join(reviewDir,'probe-base','package.json'),'{}');fs.symlinkSync(process.env.FIXTURE_EXTERNAL,path.join(reviewDir,'probe-base','linked'),'junction');
 fs.writeFileSync(argv[argv.indexOf('--output-last-message')+1],'### Adversarial review — undirected (gpt-test)\\n\\nRound 1, reviewed head '+head+'.\\n\\nNo findings through this lens.\\n\\n'+(process.env.FIXTURE_NO_TOKEN?'':token+'\\n'));
 fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head,next:null,commentIds:[],summary:'Report returned for the coordinator to post'}));
 for(const row of [{type:'thread.started',thread_id:'fixture-thread'},{type:'turn.started'},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Report returned.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}])console.log(JSON.stringify(row));
@@ -630,8 +631,8 @@ console.error('diagnostic after terminal result');
       const shared=path.join(job,'reviewer-shared');fs.mkdirSync(shared);
       const sharedJournal=path.join(handoff,'shared.jsonl');
       const launchRow=(index,had)=>({event:'launching',index,role:'review',reviewerDirectory:shared,reviewerHad:had,args:['--output-last-message',path.join(shared,`report-${index}.md`)]});
-      fs.mkdirSync(path.join(shared,'earlier-clone'));fs.writeFileSync(path.join(shared,'report-0.md'),'r0');
-      fs.mkdirSync(path.join(shared,'active-clone'));fs.writeFileSync(path.join(shared,'active-clone','work.txt'),'running');
+      fs.mkdirSync(path.join(shared,'earlier-clone','.git'),{recursive:true});fs.writeFileSync(path.join(shared,'report-0.md'),'r0');
+      fs.mkdirSync(path.join(shared,'active-clone','.git'),{recursive:true});fs.writeFileSync(path.join(shared,'active-clone','work.txt'),'running');
       const writeShared=rows=>fs.writeFileSync(sharedJournal,rows.map(row=>JSON.stringify(row)).join('\n')+'\n');
       writeShared([launchRow(0,[]),{event:'exited',index:0},launchRow(1,['earlier-clone','report-0.md'])]);
       assert.throws(()=>cleanupFromJournal(sharedJournal,{reservationRoot:cleanupReservationRoot}),/launch 1 has no exited row/);
@@ -648,7 +649,7 @@ console.error('diagnostic after terminal result');
         const realWrite=fs.writeSync;let probeDir;
         fs.writeSync=(fd,data,...rest)=>{
           if(typeof data==='string'&&data.includes('"event":"running"')){
-            probeDir=path.join(job,'reviewer-stopped','probe-clone');fs.mkdirSync(probeDir);fs.writeFileSync(path.join(probeDir,'x.js'),'x');
+            probeDir=path.join(job,'reviewer-stopped','probe-clone');fs.mkdirSync(path.join(probeDir,'.git'),{recursive:true});fs.writeFileSync(path.join(probeDir,'x.js'),'x');
             throw new Error('fixture: running row failed');
           }
           return realWrite(fd,data,...rest);

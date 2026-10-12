@@ -3,9 +3,11 @@
 // every concurrent round (#1451). Once the reviewer has exited, those probe
 // checkouts and temp directories are scratch. The launcher snapshots the
 // directory's top-level names before the reviewer starts and records them in
-// its `launching` row, and this removes only the directories and links that
-// appeared after, never what the plan or another round already had there and
-// never a regular file the reviewer wrote (its report, its first pass).
+// its `launching` row. Among the entries that appeared after, this removes the
+// Git repositories, `node_modules` installs and links, never what the plan or
+// another round already had there and never a regular file the reviewer wrote
+// outside a repository or install (its report, its first pass, wherever it
+// put them).
 //
 // The launcher calls removeProbeCheckouts on every path after the exit is
 // confirmed. The adjudicating writer runs the same removal from the journal:
@@ -138,20 +140,31 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     if(!stat.isFile())throw new Error(`Kept file ${file} is not a regular file; nothing was removed`);
     kept.add(target);
   }
-  // Directories and links to remove; a directory holding a kept file is walked
-  // instead, and regular files the walk meets stay.
-  const targets=[];
+  // What to remove: every link, every Git repository (a directory holding a
+  // `.git` entry, or a bare layout), every `node_modules` install and any
+  // `.probe-cleanup-` directory an earlier cleanup left. Any other directory is
+  // walked, so the regular files a reviewer wrote anywhere stay; a directory
+  // holding a kept file is walked even when it is a repository.
+  const targets=[],walked=[];
+  const scratch=(target,name,top)=>{
+    if(name==='node_modules'||top&&name.startsWith('.probe-cleanup-'))return true;
+    const names=new Set(fs.readdirSync(target).map(entry=>entry.toLowerCase()));
+    return names.has('.git')||names.has('head')&&names.has('objects')&&names.has('refs');
+  };
   const visit=(current,top)=>{
     for(const name of fs.readdirSync(current)){
       const target=path.join(current,name);
       if(top&&preserve.has(name)||kept.has(target))continue;
       const stat=fs.lstatSync(target);
-      if(!stat.isDirectory()&&!stat.isSymbolicLink())continue;
-      if(stat.isDirectory()&&[...kept].some(file=>isInside(target,file))){visit(target,false);continue;}
+      if(stat.isSymbolicLink()){targets.push(target);continue;}
+      if(!stat.isDirectory())continue;
+      if(!scratch(target,name,top)||[...kept].some(file=>isInside(target,file))){walked.push(target);visit(target,false);continue;}
       targets.push(target);
     }
   };
   visit(root,true);
+  // A walked directory the removal leaves empty goes too; one holding a file stays.
+  const pruneEmpty=()=>{for(const dir of walked.reverse()){try{fs.rmdirSync(dir);}catch(error){if(!['ENOTEMPTY','EEXIST','ENOENT'].includes(error.code))throw error;}}};
   const counts={files:0,links:0};
   if(!targets.length)return {...counts,elapsedMs:Date.now()-began};
   const trash=path.join(root,`.probe-cleanup-${randomUUID()}`);
@@ -171,6 +184,7 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
   if(moved.skipped)return {...counts,skipped:true,reason:moved.reason,elapsedMs:Date.now()-began};
   const failures=[];
   removeEntry(trash,counts,failures);
+  try{pruneEmpty();}catch(error){stuck.push(`an emptied directory (${error.code??error.message})`);}
   if(failures.length){const [{target,error}]=failures;stuck.push(`${failures.length} entr${failures.length===1?'y':'ies'} in ${trash}, first ${target} (${error.code??error.message})`);}
   if(stuck.length)throw new Error(`Probe cleanup removed ${counts.files} files and ${counts.links} links but could not remove ${stuck.join(', ')}`);
   return {...counts,elapsedMs:Date.now()-began};
