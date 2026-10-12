@@ -41,7 +41,8 @@ function claudeDesktopCheck(model, request) {
 // rollout unchanged, so the model catalog is the only source for supported
 // efforts. The catalog also lists models an account refuses, so a short
 // launch with the exact model and effort proves the account accepts them.
-function codexCliCheck(model, request) {
+// Confirming a launched writer reads the catalog without the probe.
+function codexCliCheck(model, request, repo, { probe = true } = {}) {
   const command = request.evidence?.codex ?? "codex";
   const [program, ...prefix] = Array.isArray(command) ? command : [command];
   const run = (args) => spawnSync(program, [...prefix, ...args], { cwd: os.tmpdir(), encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
@@ -65,6 +66,7 @@ function codexCliCheck(model, request) {
     }
     if (catalog.reason) return { reason: catalog.reason };
     if (!catalog.supported.includes(effort)) return { reason: `the Codex CLI model catalog supports ${model} only at ${catalog.supported.join(", ")}, not ${effort}` };
+    if (!probe) return {};
     if (!probes.has(effort)) {
       const result = run(["exec", "--model", model, "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "Reply with the single word ready."]);
       probes.set(effort, result.error || result.status !== 0 ? failure("the Codex CLI probe", result) : null);
@@ -94,15 +96,24 @@ function codexAppCheck(model, request) {
 }
 
 const checks = { "claude-agent": claudeAgentCheck, "claude-desktop": claudeDesktopCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
+// A Codex rollout records the requested effort even when the model does not
+// support it, so a matching Codex observation still needs the host's list of
+// supported efforts. Claude session metadata reports the effort in force.
+const confirmChecks = { "codex-cli": (model, request, repo) => codexCliCheck(model, request, repo, { probe: false }), "codex-app": codexAppCheck };
 
 // What the launched writer actually runs: the model and effort from its own
 // metadata, or a Codex rollout file whose latest turn_context records them.
-function observedRoute(observed) {
-  if (typeof observed.rollout !== "string") return observed;
-  if (!path.isAbsolute(observed.rollout)) throw new Error("observed.rollout must be an absolute path");
+function observedRoute(observed, number) {
+  const pair = (value, source) => {
+    if (typeof value?.model !== "string" || !value.model || typeof value?.effort !== "string" || !value.effort) throw new Error(`Ticket ${number} ${source} needs a model and an effort`);
+    return { model: value.model, effort: value.effort };
+  };
+  if (observed === null || typeof observed !== "object" || Array.isArray(observed)) throw new Error(`Ticket ${number} observed must be { model, effort } or { rollout }`);
+  if (!Object.hasOwn(observed, "rollout")) return pair(observed, "observed");
+  if (typeof observed.rollout !== "string" || !path.isAbsolute(observed.rollout)) throw new Error(`Ticket ${number} observed.rollout must be an absolute path`);
   const context = fs.readFileSync(observed.rollout, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)).findLast((row) => row.type === "turn_context")?.payload;
   if (!context) throw new Error(`${observed.rollout} has no turn_context row`);
-  return { model: context.model, effort: context.effort };
+  return pair(context, "rollout turn_context");
 }
 
 export function preflight(request, repo = root) {
@@ -115,15 +126,19 @@ export function preflight(request, repo = root) {
     if (!Number.isInteger(ticket?.number) || ticket.number <= 0) throw new Error("Each ticket needs a positive integer number");
     if (!allowed.includes(ticket.effort)) throw new Error(`Ticket ${ticket.number} effort must be one of ${allowed.join(", ")}`);
   }
-  // Built on first use, so a batch that only confirms launched writers needs
-  // no pre-launch evidence.
-  let check;
-  const verdicts = tickets.map(({ number, effort, observed }) => {
-    if (observed !== undefined) {
-      const actual = observedRoute(observed);
-      return actual.model === model && actual.effort === effort
-        ? { ticket: number, effort, verdict: "confirmed" }
-        : { ticket: number, effort, verdict: "blocked", reason: `the launched writer runs ${actual.model} at ${actual.effort}, not ${model} at ${effort}` };
+  const observations = new Map(tickets.filter((ticket) => ticket.observed !== undefined).map((ticket) => [ticket, observedRoute(ticket.observed, ticket.number)]));
+  // Built on first use, so a batch that only confirms launched Claude writers
+  // needs no pre-launch evidence.
+  let check, confirmCheck;
+  const verdicts = tickets.map((ticket) => {
+    const { number, effort } = ticket;
+    if (observations.has(ticket)) {
+      const actual = observations.get(ticket);
+      if (actual.model !== model || actual.effort !== effort) return { ticket: number, effort, verdict: "blocked", reason: `the launched writer runs ${actual.model} at ${actual.effort}, not ${model} at ${effort}` };
+      if (!confirmChecks[route]) return { ticket: number, effort, verdict: "confirmed" };
+      confirmCheck ??= confirmChecks[route](model, request, repo);
+      const { reason } = confirmCheck(effort);
+      return reason ? { ticket: number, effort, verdict: "blocked", reason } : { ticket: number, effort, verdict: "confirmed" };
     }
     check ??= checks[route](model, request, repo);
     const { reason, launch } = check(effort);

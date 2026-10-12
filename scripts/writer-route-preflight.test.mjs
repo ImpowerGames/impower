@@ -65,14 +65,35 @@ try {
   assert.match(preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 27, effort: "low" }], evidence: { codex } }).verdicts[0].reason, /catalog does not list gpt-6-astra/);
   assert.match(preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 16, effort: "low" }], evidence: { codex: path.join(tmp, "missing-codex") } }).verdicts[0].reason, /catalog could not run/);
 
-  // After launch: the writer's own metadata or rollout confirms the route,
-  // and needs no pre-launch evidence.
-  const rollout = path.join(tmp, "rollout.jsonl");
-  fs.writeFileSync(rollout, [{ type: "session_meta", payload: {} }, { type: "turn_context", payload: { model: "gpt-6-astra", effort: "medium" } }, { type: "turn_context", payload: { model: "gpt-6-astra", effort: "high" } }].map((row) => JSON.stringify(row)).join("\n") + "\n");
-  const confirmed = preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 17, effort: "high", observed: { rollout } }, { number: 18, effort: "medium", observed: { rollout } }] });
+  // After launch: the writer's own metadata or rollout confirms the route. A
+  // Claude session's metadata needs no pre-launch evidence.
+  const rolloutOf = (name, ...contexts) => {
+    const file = path.join(tmp, name);
+    fs.writeFileSync(file, [{ type: "session_meta", payload: {} }, ...contexts.map((payload) => ({ type: "turn_context", payload }))].map((row) => JSON.stringify(row)).join("\n") + "\n");
+    return file;
+  };
+  const rollout = rolloutOf("rollout.jsonl", { model: "gpt-6-astra", effort: "medium" }, { model: "gpt-6-astra", effort: "high" });
+  const confirmed = preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 17, effort: "high", observed: { rollout } }, { number: 18, effort: "medium", observed: { rollout } }], evidence: { modelParameter } });
   assert.equal(only(confirmed), "17:confirmed 18:blocked", "the latest turn_context row is current");
   assert.match(confirmed.verdicts[1].reason, /runs gpt-6-astra at high, not gpt-6-astra at medium/);
   assert.equal(only(preflight({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 19, effort: "medium", observed: { model: "claude-opus-5-5", effort: "medium" } }, { number: 20, effort: "medium", observed: { model: "claude-sonnet-5-5", effort: "medium" } }] })), "19:confirmed 20:blocked");
+
+  // A Codex rollout records an unsupported effort unchanged, so a matching
+  // observation is still checked against the host's supported efforts: the
+  // CLI catalog (without a paid probe) or the app's advertised list.
+  fs.writeFileSync(calls, "");
+  const unsupported = preflight({ route: "codex-cli", model: "gpt-5.6-terra", tickets: [{ number: 28, effort: "ultra", observed: { rollout: rolloutOf("ultra.jsonl", { model: "gpt-5.6-terra", effort: "ultra" }) } }, { number: 29, effort: "high", observed: { rollout: rolloutOf("high.jsonl", { model: "gpt-5.6-terra", effort: "high" }) } }], evidence: { codex } });
+  assert.equal(only(unsupported), "28:blocked 29:confirmed");
+  assert.match(unsupported.verdicts[0].reason, /catalog supports gpt-5\.6-terra only at low, medium, high, not ultra/);
+  assert.deepEqual(fs.readFileSync(calls, "utf8").trim().split("\n").map((line) => JSON.parse(line)[0]), ["debug"], "confirmation reads the catalog and launches nothing");
+  const appUnsupported = preflight({ route: "codex-app", model: "gpt-5.5", tickets: [{ number: 30, effort: "max", observed: { model: "gpt-5.5", effort: "max" } }], evidence: { modelParameter } });
+  assert.match(appUnsupported.verdicts[0].reason, /only at low, medium, high, xhigh, not max/);
+  assert.throws(() => preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 31, effort: "high", observed: { rollout } }] }), /evidence\.modelParameter/);
+
+  // Malformed observations are refused, before any probe runs.
+  for (const observed of [{}, null, [], { model: "claude-opus-5-5" }, { rollout: "relative.jsonl" }, { rollout: rolloutOf("bare.jsonl", { model: "gpt-6-astra" }) }]) {
+    assert.throws(() => preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 32, effort: "low" }, { number: 33, effort: "low", observed }], evidence: { codex: path.join(tmp, "missing-codex") } }), /Ticket 33 |needs a model and an effort/, JSON.stringify(observed));
+  }
 
   // Malformed requests are refused rather than judged.
   assert.throws(() => preflight({ route: "claude-agent", model: "gpt-6-astra", tickets: [{ number: 21, effort: "low" }] }), /claude model id/);
@@ -96,6 +117,9 @@ try {
   const malformed = run({ route: "claude-agent" });
   assert.equal(malformed.status, 2);
   assert.match(malformed.stderr, /model must be/);
+  const emptyObservation = run({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 1479, effort: "medium", observed: {} }] });
+  assert.equal(emptyObservation.status, 2, "an empty observation is a malformed request, not a blocked route");
+  assert.match(emptyObservation.stderr, /Ticket 1479 observed needs a model and an effort/);
   assert.equal(spawnSync(process.execPath, [script, "request.json"], { encoding: "utf8", windowsHide: true }).status, 2, "a relative request path is refused");
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
