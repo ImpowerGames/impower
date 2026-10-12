@@ -361,12 +361,23 @@ let listParser: TextmateGrammarParser | undefined;
 // Whether `node` begins a statement that ends a list rather than continuing
 // it: a reassignment continues a target list or is a second `=` the list
 // reads on to, and a function whose header names nothing (`function (`,
-// `function<T>(`) is a value.
-function beginsListEndingStatement(node: SyntaxNode, source: ListSource): boolean {
-  if (node.name === "LuauFunctionDefinition") {
-    return !/^\s*function\s*[(<]/.test(source.text.slice(node.from, node.to));
-  }
+// `function --[[c]] <T>(`) is a value.
+function beginsListEndingStatement(node: SyntaxNode): boolean {
+  if (node.name === "LuauFunctionDefinition") return functionHeaderName(node) !== null;
   return node.name !== "LuauReassignment" && isStatementNodeName(node.name);
+}
+
+// The name in a function definition's header, before its parameters: a
+// plain name (`LuauFunctionDeclarationName`) or a dotted or method name,
+// which parses as a `LuauAccessPath`. Null for an anonymous function,
+// whatever comments its header holds.
+function functionHeaderName(node: SyntaxNode): SyntaxNode | null {
+  const content = node.getChild("LuauFunctionDefinition_content");
+  for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
+    if (child.name === "LuauFunctionParameters") return null;
+    if (child.name === "LuauFunctionDeclarationName" || isExplicitRuleName(child.name, "LuauAccessPath")) return child;
+  }
+  return null;
 }
 
 // Where the reassignment at `reassignment` would end if the lines after its
@@ -436,12 +447,12 @@ function listEnd(reassignment: SyntaxNode, source: ListSource): number {
 // siblings' shapes. A sibling that begins before that end, including a
 // comment between two parts of the list, is on a continued line.
 function continuesReassignmentList(node: SyntaxNode, source: ListSource): boolean {
-  if (beginsListEndingStatement(node, source)) return false;
+  if (beginsListEndingStatement(node)) return false;
   let prev = node.prevSibling;
   // A sibling that begins a statement ends any list before it, which keeps
   // the walk to the lines of one statement.
   while (prev && prev.name !== "LuauReassignment") {
-    if (beginsListEndingStatement(prev, source)) return false;
+    if (beginsListEndingStatement(prev)) return false;
     prev = prev.prevSibling;
   }
   if (!prev) return false;

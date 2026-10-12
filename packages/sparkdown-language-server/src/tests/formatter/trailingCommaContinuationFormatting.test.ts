@@ -211,6 +211,21 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(wrap(formatted))).toBe(wrap(formatted));
   });
 
+  // A function whose header names nothing is a value of the list, whatever
+  // comments sit between `function` and its parameters (#1494, round 6).
+  test.each([
+    ["a block comment", "function --[[note]] ()"],
+    ["a long-bracket comment", "function --[=[note]=] ()"],
+    ["a block comment and type parameters", "function --[[note]] <T>()"],
+  ])("indents an anonymous function value with %s in its header after a trailing comma at column 0", (_name, header) => {
+    const wrap = (body: string[]) => ["function f()", "  local a, g = 0, 0", "  a, g = 1,", ...body, "  return g", "end", ""].join("\n");
+    const once = formatSource(wrap([header, "return 2", "end"]));
+    const lines = once.split("\n");
+    const at = lines.findIndex((line) => line.trim().startsWith("function --"));
+    expect(lines.slice(at, at + 3).map((line) => line.length - line.trimStart().length)).toEqual([4, 6, 4]);
+    expect(formatSource(once)).toBe(once);
+  });
+
   // The continued lines are found by reading the rest of the block, however
   // many lines the list runs over.
   test("indents a value after more than two hundred comment lines in a continued list", () => {
