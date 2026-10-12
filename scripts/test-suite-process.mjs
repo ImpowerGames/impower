@@ -258,9 +258,10 @@ function recoverAbandonedGuard(root, guard, identify, admitting = false) {
 
 const guardWaitMs = 5000;
 const sleeper = new Int32Array(new SharedArrayBuffer(4));
-// Cleanup owns this same guard for its entire synchronous deletion callback,
-// preventing admission between checking absence and deleting canonical proof.
-// It never recovers a guard or reservation, or interprets malformed ownership.
+// Probe cleanup owns this same guard while its synchronous callback reads the
+// reservation entry (passed as a path that may not exist) and moves the
+// reviewer's scratch aside, so no run can be admitted between that read and
+// the move. It never recovers a guard or reservation.
 export function withProbeCleanupGuard(action, { root = machineRoot } = {}) {
   const began = Date.now();
   const inspect = allowMissing => {
@@ -288,9 +289,7 @@ export function withProbeCleanupGuard(action, { root = machineRoot } = {}) {
       if (!current || current.ino !== original.ino || current.dev !== original.dev || current.birthtimeNs !== original.birthtimeNs)
         throw new Error(`Cleanup reservation store changed at ${directory}; preserve reviewer scratch`);
     }
-    try { fs.lstatSync(file); return { files: 0, links: 0, skipped: true, reason: `Reservation entry present at ${file}; preserve reviewer scratch` }; }
-    catch (error) { if (error.code !== "ENOENT") throw error; }
-    const value = action();
+    const value = action(file);
     if (value && typeof value.then === "function") {
       Promise.resolve(value).catch(() => {});
       throw new Error("Probe cleanup callback must complete synchronously under its guard");

@@ -21,7 +21,7 @@ Use the configured writer and reviewer models to check independence. The launch 
 
 ## 3. Launch and await
 
-Launch as soon as the draft PR is open; do not wait for the Test Suite workflow, which runs alongside the round and is the writer's to answer. Its package jobs are skipped on a PR outside their scope, and its `test-suite` gate job, the required check, passes either way. Before preparing a round, read [launch procedure](references/launch.md). Build the complete [reviewer prompt](references/reviewer-prompt.md) with `node scripts/build-review-prompt.mjs <absolute-context.json> <absolute-prompt.txt>`.
+Launch as soon as the draft PR is open; do not wait for the Test Suite workflow, which runs alongside the round and is the writer's to answer. Its required `test-suite` gate passes even when package jobs are skipped. Before preparing a round, read [launch procedure](references/launch.md). Build the complete [reviewer prompt](references/reviewer-prompt.md) with `node scripts/build-review-prompt.mjs <absolute-context.json> <absolute-prompt.txt>`.
 
 For a PR with no linked issue, set the prompt builder's `issue` field to `null`; never invent an issue number.
 
@@ -33,7 +33,7 @@ Every report must appear on the PR verbatim, including reports posted by the coo
 
 ## 4. Adjudicate and reverify
 
-Before handling findings, read [adjudication and readiness](references/adjudication.md). Confirm each claim in code and use experiments to resolve disagreement. Post each finding's disposition with comment ID, round and reviewed head: accepted with fix and verification, rejected with concrete evidence, already covered with earlier IDs, or, for a non-blocking quality finding only, deferred to a filed Task. Preserve superseded reports and answer the reviewer's final position.
+Before handling findings, read [adjudication and readiness](references/adjudication.md). Confirm each claim in code and use experiments to resolve disagreement. Post each finding's disposition with comment ID, round and reviewed head: accepted with fix and verification, rejected with concrete evidence, already covered with earlier IDs, or, for a non-blocking quality finding only, deferred to a filed Task. Preserve superseded reports and answer the reviewer's final position. Then remove the exited reviewer's probe clones and temp directories: `node scripts/reviewer-probe-cleanup.mjs <absolute-journal>` keeps reports, journal rows and the plan.
 
 Before the next reviewer launches, look past the report: fix every other instance of each accepted defect, and settle by experiment anything you suspect is wrong or expect the next reviewer to raise. Never hold a suspicion back to see whether a reviewer raises it.
 

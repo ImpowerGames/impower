@@ -17,7 +17,8 @@ import {validateReviewPlan} from './review-supervisor.mjs';
 import {proxyAuthTemplate,checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
 import {testScratch} from './review-job-root.mjs';
 import {removeScratch} from './remove-scratch.mjs';
-import {removeProbeCheckouts as guardedProbeCleanup,snapshotReviewerDirectory} from './reviewer-probe-cleanup.mjs';
+import * as probeCleanupModule from './reviewer-probe-cleanup.mjs';
+const {removeProbeCheckouts:guardedProbeCleanup,snapshotReviewerDirectory}=probeCleanupModule;
 import {acquire} from './test-suite-process.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
@@ -235,14 +236,15 @@ try {
     // Entries the directory held before the reviewer ran (another round's journal, a later step's prompt) are never removed.
     fs.writeFileSync(path.join(dir,'adjudication.txt'),'later prompt');fs.mkdirSync(path.join(dir,'other-round'));fs.writeFileSync(path.join(dir,'other-round','handoff.jsonl'),'j');
     const had=snapshotReviewerDirectory(dir);
-    fs.mkdirSync(path.join(dir,'clone','deep'),{recursive:true});fs.writeFileSync(path.join(dir,'clone','deep','a.js'),'a');
+    fs.mkdirSync(path.join(dir,'clone','deep'),{recursive:true});fs.mkdirSync(path.join(dir,'clone','.git'));fs.mkdirSync(path.join(dir,'reports'));fs.writeFileSync(path.join(dir,'reports','first-pass.md'),'first pass');fs.writeFileSync(path.join(dir,'clone','deep','a.js'),'a');
     fs.symlinkSync(outside,path.join(dir,'clone','link'),'junction');fs.symlinkSync(outside,path.join(dir,'top-link'),'junction');
     fs.writeFileSync(path.join(dir,'..report.md'),'report');fs.writeFileSync(path.join(dir,'notes.txt'),'n');
     const keepReport=process.platform==='win32'?path.join(dir,'..REPORT.md'):path.join(dir,'..report.md');
     const counts=removeProbeCheckouts(dir,{preserve:had,keep:[keepReport]});
-    assert.deepEqual(fs.readdirSync(dir).sort(),['..report.md','adjudication.txt','other-round'],'the kept dot-prefixed report (named in another case on Windows) and the pre-existing entries remain');
+    assert.deepEqual(fs.readdirSync(dir).sort(),['..report.md','adjudication.txt','notes.txt','other-round','reports'],'the kept dot-prefixed report (named in another case on Windows), the reviewer\'s other files and the pre-existing entries remain');
+    assert.equal(fs.readFileSync(path.join(dir,'reports','first-pass.md'),'utf8'),'first pass','a report the reviewer wrote in a subdirectory stays');
     assert.equal(fs.existsSync(path.join(dir,'other-round','handoff.jsonl')),true);
-    assert.deepEqual([counts.files,counts.links],[2,2]);
+    assert.deepEqual([counts.files,counts.links],[1,2]);
     assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives','links are not followed');
     assert.deepEqual(removeProbeCheckouts(dir,{preserve:had,keep:[keepReport]}).files,0,'a second run removes nothing');
     // A kept report that is a link (to a file, through a chain, or to a directory) refuses the whole cleanup before anything is removed.
@@ -277,7 +279,7 @@ try {
     // Later scans of the scratch folder read every entry as a file. A POSIX link unlinks; a Windows junction needs rmdir.
     try{fs.unlinkSync(linked);}catch{fs.rmdirSync(linked);}
     fs.rmSync(dir,{recursive:true});fs.rmSync(outside,{recursive:true});
-    console.log('PASS: probe cleanup removes what the reviewer created except the kept report, leaves pre-existing entries, unlinks links without following them and refuses a linked directory');
+    console.log('PASS: probe cleanup removes the directories and links the reviewer created, keeps its files and the pre-existing entries, unlinks links without following them and refuses a linked directory');
   }
 
   // A file under a non-ASCII directory name is removed (npm ships `snow ☃`
@@ -285,23 +287,42 @@ try {
   // running and names its path in the error.
   {
     const directory=fs.mkdtempSync(path.join(scratch,'cleanup-unicode-'));
-    fs.mkdirSync(path.join(directory,'probe-repo','snow ☃'),{recursive:true});fs.writeFileSync(path.join(directory,'probe-repo','snow ☃','index.html'),'x');
+    fs.mkdirSync(path.join(directory,'probe-repo','snow ☃'),{recursive:true});fs.mkdirSync(path.join(directory,'probe-repo','.git'));fs.writeFileSync(path.join(directory,'probe-repo','snow ☃','index.html'),'x');
     assert.equal(removeProbeCheckouts(directory).files,1);
     assert.deepEqual(fs.readdirSync(directory),[],'the non-ASCII directory and its file are gone');
-    fs.mkdirSync(path.join(directory,'a-stuck'));fs.writeFileSync(path.join(directory,'a-stuck','f'),'x');fs.writeFileSync(path.join(directory,'b-later'),'x');
-    const unlink=fs.unlinkSync;
-    fs.unlinkSync=function(target,...args){if(target===path.join(directory,'a-stuck','f'))throw Object.assign(new Error('EBUSY: stuck'),{code:'EBUSY'});return unlink(target,...args);};
-    try{assert.throws(()=>removeProbeCheckouts(directory),error=>error.message.includes(path.join(directory,'a-stuck','f')));}finally{fs.unlinkSync=unlink;}
-    assert.deepEqual(fs.readdirSync(directory),['a-stuck'],'the walk continues past a failed entry');
+    fs.mkdirSync(path.join(directory,'a-stuck','.git'),{recursive:true});fs.writeFileSync(path.join(directory,'a-stuck','f'),'x');fs.mkdirSync(path.join(directory,'b-later','.git'),{recursive:true});fs.writeFileSync(path.join(directory,'b-later','g'),'x');
+    // Entries are moved aside before deletion, so the stuck file is named inside the aside directory.
+    const unlink=fs.unlinkSync;let stuck;
+    fs.unlinkSync=function(target,...args){if(path.basename(target)==='f'&&path.basename(path.dirname(path.dirname(target))).startsWith('.probe-cleanup-')){stuck=target;throw Object.assign(new Error('EBUSY: stuck'),{code:'EBUSY'});}return unlink(target,...args);};
+    try{assert.throws(()=>removeProbeCheckouts(directory),error=>!!stuck&&error.message.includes(stuck));}finally{fs.unlinkSync=unlink;}
+    const left=fs.readdirSync(directory);
+    assert.equal(left.length,1,'the walk continues past a failed entry');assert.match(left[0],/^\.probe-cleanup-/);
+    assert.deepEqual(fs.readdirSync(path.join(directory,left[0])).map(name=>fs.readdirSync(path.join(directory,left[0],name))),[['f']],'only the stuck file and its directory remain');
     fs.rmSync(directory,{recursive:true});
-    console.log('PASS: probe cleanup removes files under non-ASCII names and continues past an entry it cannot remove, naming it');
+    // An entry discovery cannot read is reported and left in place, and a
+    // healthy clone beside it is still removed.
+    {
+      const denied=fs.mkdtempSync(path.join(scratch,'cleanup-denied-'));
+      fs.mkdirSync(path.join(denied,'a-denied'));fs.writeFileSync(path.join(denied,'a-denied','note.md'),'kept');
+      fs.mkdirSync(path.join(denied,'b-clone','.git'),{recursive:true});fs.mkdirSync(path.join(denied,'b-clone','node_modules'));fs.writeFileSync(path.join(denied,'b-clone','node_modules','x.js'),'x');
+      fs.writeFileSync(path.join(denied,'report.md'),'report');
+      const readdir=fs.readdirSync;
+      fs.readdirSync=function(target,...args){if(target===path.join(denied,'a-denied'))throw Object.assign(new Error('EACCES: denied'),{code:'EACCES'});return readdir(target,...args);};
+      try{assert.throws(()=>removeProbeCheckouts(denied,{keep:[path.join(denied,'report.md')]}),error=>error.message.includes(path.join(denied,'a-denied'))&&/EACCES/.test(error.message));}finally{fs.readdirSync=readdir;}
+      assert.deepEqual(fs.readdirSync(denied).sort(),['a-denied','report.md'],'the healthy clone goes and the unreadable entry stays');
+      fs.rmSync(denied,{recursive:true});
+    }
+    console.log('PASS: probe cleanup removes files under non-ASCII names and continues past an entry it cannot remove or read, naming it');
   }
 
   {
     const directory=fs.mkdtempSync(path.join(scratch,'cleanup-ownership-'));
-    const proof=path.join(directory,'tree-proof.json'),sentinel=path.join(directory,'sentinel');
-    fs.writeFileSync(proof,'canonical proof bytes');fs.writeFileSync(sentinel,'untouched');
+    const probe=path.join(directory,'probe'),proof=path.join(probe,'tree-proof.json'),sentinelDir=path.join(directory,'sentinel-dir'),sentinel=path.join(sentinelDir,'sentinel');
+    const refill=()=>{fs.mkdirSync(path.join(probe,'.git'),{recursive:true});fs.mkdirSync(path.join(sentinelDir,'.git'),{recursive:true});fs.writeFileSync(proof,'canonical proof bytes');fs.mkdirSync(sentinelDir,{recursive:true});fs.writeFileSync(sentinel,'untouched');};
+    refill();
     const file=path.join(cleanupReservationRoot,'reservation.json');
+    // An unreadable entry, one naming a path inside the directory, and one
+    // naming a directory that holds it each preserve everything.
     for(const bytes of ['{',JSON.stringify({run:directory,supervision:{proofFile:proof}}),JSON.stringify({run:path.dirname(scratch)})]) {
       fs.writeFileSync(file,bytes);
       const result=removeProbeCheckouts(directory);
@@ -310,20 +331,53 @@ try {
       assert.equal(fs.readFileSync(sentinel,'utf8'),'untouched');assert.equal(fs.readFileSync(file,'utf8'),bytes);
       fs.unlinkSync(file);
     }
-    // This synchronous I/O seam attempts admission during the real deletion
-    // walk. Only the store is private; identity and guard mechanics are real.
-    const remove=fs.unlinkSync;let reached=false;
+    // A direct run whose journal names a probe clone as its package root preserves it too.
+    const directRun=fs.mkdtempSync(path.join(scratch,'cleanup-direct-run-'));
+    fs.writeFileSync(path.join(directRun,'run.json'),JSON.stringify({packageRoot:path.join(probe,'packages','sparkdown')}));
+    fs.writeFileSync(file,JSON.stringify({run:directRun}));
+    assert.equal(removeProbeCheckouts(directory).skipped,true,'a run testing inside the directory preserves it');
+    assert.equal(fs.readFileSync(proof,'utf8'),'canonical proof bytes');
+    fs.unlinkSync(file);
+    // So does an entry that reaches the directory only through a junction
+    // outside it, and one naming a path that exists but does not resolve.
+    const alias=path.join(scratch,'cleanup-probe-alias');fs.symlinkSync(probe,alias,'junction');
+    const brokenAlias=path.join(scratch,'cleanup-broken-alias');fs.symlinkSync(path.join(scratch,'no-such-target'),brokenAlias,'junction');
+    try{
+      for(const [named,pattern] of [[alias,/overlaps this reviewer directory/],[path.join(brokenAlias,'run'),/could not be resolved/]]){
+        fs.writeFileSync(file,JSON.stringify({run:named}));
+        const aliased=removeProbeCheckouts(directory);
+        assert.equal(aliased.skipped,true,named);assert.match(aliased.reason,pattern);
+        assert.equal(fs.readFileSync(proof,'utf8'),'canonical proof bytes');
+        fs.unlinkSync(file);
+      }
+    } finally {for(const link of [alias,brokenAlias]){try{fs.unlinkSync(link);}catch{fs.rmdirSync(link);}}}
+    // Another session's run holding the reservation does not delay the
+    // cleanup (#1793): the probe goes and the reservation entry is untouched.
+    const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,census:()=>[]});
+    const foreignBytes=fs.readFileSync(file,'utf8');
+    let result;
+    try {result=removeProbeCheckouts(directory);}finally{assert.equal(fs.readFileSync(file,'utf8'),foreignBytes);foreign.release();}
+    assert.equal(result.skipped,undefined,result.reason);assert.equal(result.files,2);
+    assert.equal(fs.existsSync(probe),false);assert.equal(fs.existsSync(sentinelDir),false);
+    assert.deepEqual(fs.readdirSync(directory),[],'the aside directory is gone too');
+    refill();
+    // Entries move aside under the guard, so no run is admitted between the
+    // reservation check and the move; the deletion runs after the guard is
+    // released, so admission meanwhile succeeds. Only the store is private;
+    // identity and guard mechanics are real.
+    const rename=fs.renameSync,remove=fs.unlinkSync;let moving=false,deleting=false;
+    fs.renameSync=function(from,...args){
+      if(from===probe){moving=true;assert.throws(()=>acquire('competing admission during the move',{root:cleanupReservationRoot,census:()=>[],guardWaitMs:0,admitWaitMs:0}),/transaction unavailable/);}
+      return rename(from,...args);
+    };
     fs.unlinkSync=function(target,...args){
-      if(target===proof){reached=true;assert.throws(()=>acquire('competing cleanup admission',{root:cleanupReservationRoot,census:()=>[],guardWaitMs:0,admitWaitMs:0}),/transaction unavailable/);
-        assert.equal(fs.existsSync(file),false,'No reservation can appear while cleanup owns the guard');}
+      if(path.basename(target)==='tree-proof.json'&&!deleting){deleting=true;const lease=acquire('admission during the deletion',{root:cleanupReservationRoot,census:()=>[],guardWaitMs:0,admitWaitMs:0});lease.release();}
       return remove(target,...args);
     };
-    let result;
-    try {result=removeProbeCheckouts(directory);}finally{fs.unlinkSync=remove;}
-    assert.equal(reached,true);assert.equal(result.files,2);assert.equal(fs.existsSync(proof),false);
+    try {result=removeProbeCheckouts(directory);}finally{fs.renameSync=rename;fs.unlinkSync=remove;}
+    assert.equal(moving,true);assert.equal(deleting,true);assert.equal(result.files,2);assert.equal(fs.existsSync(proof),false);
     assert.equal(fs.existsSync(path.join(cleanupReservationRoot,'guard.json')),false,'Exact cleanup guard was released');
-    const lease=acquire('post-cleanup admission',{root:cleanupReservationRoot,census:()=>[]});lease.release();
-    fs.writeFileSync(sentinel,'untouched');
+    refill();
     fs.writeFileSync(path.join(cleanupReservationRoot,'guard.json'),'abandoned-or-unknown');
     assert.throws(()=>removeProbeCheckouts(directory),/transaction unavailable/);
     assert.equal(fs.readFileSync(sentinel,'utf8'),'untouched');
@@ -340,10 +394,10 @@ try {
     try{fs.unlinkSync(linkedStore);}catch{fs.rmdirSync(linkedStore);}
     const freshStore=path.join(scratch,'fresh-cleanup-store','nested');
     const fresh=guardedProbeCleanup(directory,{reservationRoot:freshStore});
-    assert.equal(fresh.files,1,'A genuinely absent store is initialized before guarded deletion');
+    assert.equal(fresh.files,2,'A genuinely absent store is initialized before guarded deletion');
     assert.equal(fs.existsSync(sentinel),false);assert.equal(fs.existsSync(path.join(freshStore,'guard.json')),false);
     console.log(JSON.stringify({cleanupGuard: 'actual removal/preservation', elapsedMs:result.elapsedMs}));
-    console.log('PASS: any reservation preserves canonical proof and scratch; guarded deletion excludes concurrent admission without recovery');
+    console.log('PASS: a reservation naming the reviewer directory, or one that cannot be read, preserves it; another session\'s reservation does not delay cleanup; entries move aside under the guard and are deleted after it');
   }
 
   // The real launcher, with a stand-in for the Codex CLI: the reviewer gets
@@ -360,7 +414,7 @@ const reservations=fs.readdirSync(slots).filter(name=>name.endsWith('.jsonl')).m
 fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv,home,reservations,authSha256:createHash('sha256').update(fs.readFileSync(auth)).digest('hex'),authMode:process.platform==='win32'?null:(fs.statSync(auth).mode&0o777),homeFiles:fs.readdirSync(home).sort(),secretVisible:Object.hasOwn(process.env,${JSON.stringify(secretName)}),github:Object.keys(process.env).filter(key=>/^GH_|^GITHUB_TOKEN$/i.test(key))}));
 const reviewDir=path.dirname(argv[argv.indexOf('--output-last-message')+1]);
 fs.mkdirSync(path.join(reviewDir,'probe-head','node_modules','pkg'),{recursive:true});fs.writeFileSync(path.join(reviewDir,'probe-head','node_modules','pkg','index.js'),'x');
-fs.mkdirSync(path.join(reviewDir,'probe-base'));fs.writeFileSync(path.join(reviewDir,'probe-base','package.json'),'{}');fs.symlinkSync(process.env.FIXTURE_EXTERNAL,path.join(reviewDir,'probe-base','linked'),'junction');
+fs.mkdirSync(path.join(reviewDir,'probe-base','.git'),{recursive:true});fs.writeFileSync(path.join(reviewDir,'probe-base','package.json'),'{}');fs.symlinkSync(process.env.FIXTURE_EXTERNAL,path.join(reviewDir,'probe-base','linked'),'junction');
 fs.writeFileSync(argv[argv.indexOf('--output-last-message')+1],'### Adversarial review — undirected (gpt-test)\\n\\nRound 1, reviewed head '+head+'.\\n\\nNo findings through this lens.\\n\\n'+(process.env.FIXTURE_NO_TOKEN?'':token+'\\n'));
 fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head,next:null,commentIds:[],summary:'Report returned for the coordinator to post'}));
 for(const row of [{type:'thread.started',thread_id:'fixture-thread'},{type:'turn.started'},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Report returned.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}])console.log(JSON.stringify(row));
@@ -508,25 +562,124 @@ console.error('diagnostic after terminal result');
       console.log('PASS: a validated launcher report survives skipped cleanup while unresolved ownership preserves original scratch');
     }
 
-    // A review that fails validation keeps its probe checkouts for diagnosis and journals no cleanup.
-    {
-      const journal3=path.join(handoff,'unvalidated.jsonl'),planFile3=path.join(job,'plan-unvalidated.json');
-      const privateDir3=path.join(job,'reviewer-cloud-3');fs.mkdirSync(privateDir3);
-      const swap=value=>value===privateDir?privateDir3:value===report?path.join(privateDir3,'report.md'):value;
-      fs.writeFileSync(planFile3,JSON.stringify({...plan,journal:journal3,steps:{check:{...plan.steps.check,args:fullArgs.map(swap),permissions:{...permissions,cwd:privateDir3}}}}));
+    // Each case below runs the real launcher with the stand-in in its own
+    // reviewer directory; `env` adds stand-in variables and `options` the
+    // launcher seams.
+    const launchCase=async(name,{env={},options={}}={})=>{
+      const directory=path.join(job,`reviewer-${name}`);fs.mkdirSync(directory);
+      const caseReport=path.join(directory,'report.md'),caseJournal=path.join(handoff,`${name}.jsonl`),casePlan=path.join(job,`plan-${name}.json`);
+      const swap=value=>value===privateDir?directory:value===report?caseReport:value;
+      fs.writeFileSync(casePlan,JSON.stringify({...plan,journal:caseJournal,steps:{check:{...plan.steps.check,args:fullArgs.map(swap),permissions:{...permissions,cwd:directory}}}}));
+      const planBytes=fs.readFileSync(casePlan,'utf8');
       childProcess.execFileSync=(exe,args,options)=>{if(exe==='gh')throw new Error('fixture: no gh login');if(exe===process.execPath&&args[0]==='--version')return `codex-cli ${minimumFullAccessCodexVersion}`;return originalExec(exe,args,options);};
       childProcess.spawn=(exe,args,options)=>{
         if(exe!==process.execPath||args[0]!=='exec')return originalSpawn(exe,args,options);
-        return originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots,FIXTURE_EXTERNAL:external,FIXTURE_NO_TOKEN:'1'}});
+        return originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots,FIXTURE_EXTERNAL:external,...env}});
       };
       syncBuiltinESMExports();
-      try {await assert.rejects(runHandoff(planFile3,{jobRoot:scratch,slotRoot:slots,probeCleanup:removeProbeCheckouts}));}
+      let failure=null;
+      try {await runHandoff(casePlan,{jobRoot:scratch,slotRoot:slots,probeCleanup:removeProbeCheckouts,...options});}
+      catch(error){failure=error;}
       finally {restore();}
-      const rows4=fs.readFileSync(journal3,'utf8').trim().split('\n').map(line=>JSON.parse(line));
-      assert.equal(rows4.at(-1).event,'blocked');
-      assert.equal(rows4.some(row=>row.event==='probe-checkouts-removed'||row.event==='probe-cleanup-failed'),false,'no cleanup runs before the report validates');
-      assert.deepEqual(fs.readdirSync(privateDir3).sort(),['probe-base','probe-head','report.md'],'a review that failed validation keeps its checkouts');
-      console.log('PASS: a review whose report fails validation keeps its probe checkouts and journals no cleanup');
+      const readRows=()=>fs.readFileSync(caseJournal,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+      assert.equal(fs.readFileSync(casePlan,'utf8'),planBytes,'the launcher plan is kept unchanged');
+      return {directory,caseReport,caseJournal,casePlan,planBytes,failure,rows:readRows(),readRows};
+    };
+
+    // A review whose report fails validation still frees its probe checkouts
+    // once the reviewer has exited (#1793), keeping its report for diagnosis
+    // and journalling the cleanup before the blocked row.
+    {
+      const {directory,failure,rows}=await launchCase('unvalidated',{env:{FIXTURE_NO_TOKEN:'1'}});
+      assert.ok(failure,'the unvalidated report blocks the chain');
+      assert.equal(rows.at(-1).event,'blocked');
+      const removed=rows.findIndex(row=>row.event==='probe-checkouts-removed');
+      assert.ok(removed>rows.findIndex(row=>row.event==='exited')&&removed<rows.length-1,'cleanup is journalled after the exit and before the blocked row');
+      assert.deepEqual([rows[removed].files,rows[removed].links],[2,1]);
+      assert.deepEqual(fs.readdirSync(directory).sort(),['report.md'],'only the report remains of what the reviewer created');
+      assert.equal(fs.readFileSync(path.join(external,'keep.txt'),'utf8'),'survives');
+      console.log('PASS: a review whose report fails validation frees its probe checkouts, keeps its report and journals the cleanup before blocking');
+    }
+
+    // Another session holding the machine test reservation does not delay the
+    // cleanup of an exited reviewer (#1793).
+    {
+      const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,census:()=>[]});
+      let outcome;
+      try {outcome=await launchCase('foreign-reservation');}
+      finally {foreign.release();}
+      const {directory,failure,rows}=outcome;
+      assert.equal(failure,null);
+      assert.equal(rows.some(row=>row.event==='probe-cleanup-skipped'),false,JSON.stringify(rows.find(row=>row.event==='probe-cleanup-skipped')));
+      assert.ok(rows.some(row=>row.event==='probe-checkouts-removed'));
+      assert.deepEqual(fs.readdirSync(directory).sort(),['report.md']);
+      assert.equal(rows.at(-1).event,'report-awaiting-post');
+      console.log('PASS: another session\'s test reservation does not keep an exited reviewer\'s probe checkouts');
+    }
+
+    // When the launcher's own cleanup could not run, the adjudicating writer's
+    // journal command removes the same entries, keeping the report, the
+    // journal and the plan; it refuses a journal whose reviewer has not exited.
+    {
+      const {directory,caseReport,caseJournal,casePlan,planBytes,rows}=await launchCase('adjudicated',{options:{probeCleanup:()=>{throw new Error('fixture: cleanup interrupted');}}});
+      assert.ok(rows.some(row=>row.event==='probe-cleanup-failed'));
+      assert.deepEqual(fs.readdirSync(directory).sort(),['probe-base','probe-head','report.md']);
+      const launching=rows.find(row=>row.event==='launching');
+      assert.equal(launching.reviewerDirectory,directory);assert.deepEqual(launching.reviewerHad,[]);
+      const journalBytes=fs.readFileSync(caseJournal,'utf8'),reportBytes=fs.readFileSync(caseReport,'utf8');
+      const {cleanupFromJournal}=probeCleanupModule;
+      assert.equal(typeof cleanupFromJournal,'function','the adjudication command exists');
+      const results=cleanupFromJournal(caseJournal,{reservationRoot:cleanupReservationRoot});
+      assert.deepEqual(results.map(result=>[result.directory,result.files,result.links,result.skipped]),[[directory,2,1,undefined]]);
+      assert.deepEqual(fs.readdirSync(directory).sort(),['report.md']);
+      assert.equal(fs.readFileSync(caseReport,'utf8'),reportBytes,'the report is kept');
+      assert.equal(fs.readFileSync(caseJournal,'utf8'),journalBytes,'the journal rows are kept unchanged');
+      assert.equal(fs.readFileSync(casePlan,'utf8'),planBytes,'the launcher plan is kept unchanged');
+      assert.equal(fs.readFileSync(path.join(external,'keep.txt'),'utf8'),'survives');
+      const running=path.join(handoff,'still-running.jsonl');
+      fs.writeFileSync(running,journalBytes.split('\n').filter(Boolean).map(line=>JSON.parse(line)).filter(row=>row.event!=='exited').map(row=>JSON.stringify(row)).join('\n')+'\n');
+      assert.throws(()=>cleanupFromJournal(running,{reservationRoot:cleanupReservationRoot}),/has no exited row/);
+      // A later launch into the same directory that has not exited refuses the
+      // whole journal before the earlier launch's cleanup touches anything.
+      const shared=path.join(job,'reviewer-shared');fs.mkdirSync(shared);
+      const sharedJournal=path.join(handoff,'shared.jsonl');
+      const launchRow=(index,had)=>({event:'launching',index,role:'review',reviewerDirectory:shared,reviewerHad:had,args:['--output-last-message',path.join(shared,`report-${index}.md`)]});
+      fs.mkdirSync(path.join(shared,'earlier-clone','.git'),{recursive:true});fs.writeFileSync(path.join(shared,'report-0.md'),'r0');
+      fs.mkdirSync(path.join(shared,'active-clone','.git'),{recursive:true});fs.writeFileSync(path.join(shared,'active-clone','work.txt'),'running');
+      const writeShared=rows=>fs.writeFileSync(sharedJournal,rows.map(row=>JSON.stringify(row)).join('\n')+'\n');
+      writeShared([launchRow(0,[]),{event:'exited',index:0},launchRow(1,['earlier-clone','report-0.md'])]);
+      assert.throws(()=>cleanupFromJournal(sharedJournal,{reservationRoot:cleanupReservationRoot}),/launch 1 has no exited row/);
+      assert.deepEqual(fs.readdirSync(shared).sort(),['active-clone','earlier-clone','report-0.md'],'nothing was removed before the refusal');
+      // Once both have exited, the directory is cleaned once against the earliest snapshot.
+      writeShared([launchRow(0,[]),{event:'exited',index:0},launchRow(1,['earlier-clone','report-0.md']),{event:'exited',index:1}]);
+      const sharedResults=cleanupFromJournal(sharedJournal,{reservationRoot:cleanupReservationRoot});
+      assert.deepEqual(sharedResults.map(result=>result.indexes),[[0,1]]);
+      assert.deepEqual(fs.readdirSync(shared),['report-0.md']);
+      // A reviewer the launcher stops after an error still leaves exit
+      // evidence, so the journal command can remove its probes when the
+      // launcher's own cleanup could not.
+      {
+        const realWrite=fs.writeSync;let probeDir;
+        fs.writeSync=(fd,data,...rest)=>{
+          if(typeof data==='string'&&data.includes('"event":"running"')){
+            probeDir=path.join(job,'reviewer-stopped','probe-clone');fs.mkdirSync(path.join(probeDir,'.git'),{recursive:true});fs.writeFileSync(path.join(probeDir,'x.js'),'x');
+            throw new Error('fixture: running row failed');
+          }
+          return realWrite(fd,data,...rest);
+        };
+        let stopped;
+        try {stopped=await launchCase('stopped',{options:{probeCleanup:()=>{throw new Error('fixture: cleanup interrupted');}}});}
+        finally {fs.writeSync=realWrite;}
+        assert.match(String(stopped.failure?.message),/running row failed/);
+        const exitedAt=stopped.rows.findIndex(row=>row.event==='exited'&&row.stopped===true);
+        assert.ok(exitedAt>=0&&exitedAt<stopped.rows.findIndex(row=>row.event==='blocked'),'the stopped reviewer\'s exit is journalled before the blocked row');
+        assert.ok(fs.existsSync(probeDir));
+        assert.deepEqual(cleanupFromJournal(stopped.caseJournal,{reservationRoot:cleanupReservationRoot}).map(result=>result.files),[1]);
+        assert.equal(fs.existsSync(probeDir),false);
+      }
+      const cli=childProcess.spawnSync(process.execPath,[path.join(here,'reviewer-probe-cleanup.mjs'),'relative.jsonl'],{encoding:'utf8',windowsHide:true});
+      assert.equal(cli.status,1);assert.match(cli.stderr,/absolute path/);
+      console.log('PASS: the adjudication command removes an exited reviewer\'s probe checkouts from its journal, keeping the report, journal and plan, and refuses one still running');
     }
 
     // A failure writing the reservation's launching row refuses before the

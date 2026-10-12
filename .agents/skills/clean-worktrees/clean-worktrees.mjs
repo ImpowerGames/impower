@@ -1329,7 +1329,87 @@ function physicalPath(value, deps) {
   }
 }
 
-function jobProtection(dir, deps, ctx) {
+// Why a non-bare clone at `clone` (one holding a `.git` directory) must be
+// kept, or null when it holds nothing origin/main lacks: it answers as its own
+// repository, `git status` lists no change or untracked file (ignored files,
+// a probe's install among them, are scratch), and every commit the clone holds
+// outside its remote-tracking refs is an ancestor of the main checkout's
+// origin/main: HEAD, every local branch, stash and other ref, every tag the
+// main checkout does not hold with the same object, and every commit the
+// reflogs of HEAD and every non-remote ref reach. A clone with a linked
+// worktree of its own, or with an unfinished Git operation, is kept. A reviewer's probe clone of a merged PR passes;
+// anything git cannot answer for, an unreadable HEAD included, is kept.
+function embeddedCloneReason(clone, deps, ctx) {
+  const kept = (why) => `protected embedded Git repository ${clone} (${why})`;
+  const git = (args, cwd = clone) => {
+    try { return deps.exec("git", args, cwd, 60_000); }
+    catch (err) { return { status: null, out: "", err: err.message }; }
+  };
+  const top = git(["rev-parse", "--show-toplevel"]);
+  let own = false;
+  if (top.status === 0) {
+    try { own = samePath(physicalPath(top.out, deps), physicalPath(clone, deps)); } catch {}
+  }
+  if (!own) return kept(`it does not answer as its own repository${top.err ? `: ${top.err}` : ""}`);
+  const status = git(["status", "--porcelain", "--untracked-files=all"]);
+  if (status.status !== 0) return kept(`git status could not be read${status.err ? `: ${status.err}` : ""}`);
+  if (status.out) return kept("it has uncommitted or untracked files");
+  // Status skips a file marked assume-unchanged (a lowercase tag) or
+  // skip-worktree (`S`), so a change to one would not show above.
+  const flagged = git(["ls-files", "-v"]);
+  if (flagged.status !== 0) return kept(`its index could not be read${flagged.err ? `: ${flagged.err}` : ""}`);
+  if (flagged.out.split("\n").some((line) => /^[a-zS] /.test(line))) return kept("it has files marked assume-unchanged or skip-worktree, whose changes status does not show");
+  // An unfinished rebase, am, merge, bisect, cherry-pick or revert keeps its
+  // pending work in the Git directory, where status does not show it.
+  for (const name of [...IN_PROGRESS, "sequencer"]) {
+    const where = git(["rev-parse", "--git-path", name]);
+    if (where.status !== 0 || !where.out) return kept(`git could not locate its ${name} state${where.err ? `: ${where.err}` : ""}`);
+    if ((deps.exists ?? liveDeps.exists)(path.resolve(clone, where.out))) return kept(`a git operation is unfinished in it (${name})`);
+  }
+  // A worktree the clone registered elsewhere shares its object database, so
+  // removing the clone would take that checkout's repository with it.
+  const linked = git(["worktree", "list", "--porcelain"]);
+  if (linked.status !== 0) return kept(`its worktrees could not be listed${linked.err ? `: ${linked.err}` : ""}`);
+  const others = parseWorktreeList(linked.out).filter((entry) => { try { return !samePath(physicalPath(entry.path, deps), physicalPath(clone, deps)); } catch { return true; } });
+  if (others.length) return kept(`it has linked worktrees: ${others.map((entry) => entry.path).join(", ")}`);
+  const head = git(["rev-parse", "--verify", "-q", "HEAD^{commit}"]);
+  if (head.status !== 0 || !head.out) return kept(`its HEAD could not be read${head.err ? `: ${head.err}` : ""}`);
+  const refs = git(["for-each-ref", "--format=%(objectname) %(*objectname) %(refname)"]);
+  if (refs.status !== 0) return kept(`its refs could not be listed${refs.err ? `: ${refs.err}` : ""}`);
+  const tips = new Set([head.out]);
+  for (const line of refs.out.split("\n").filter(Boolean)) {
+    const [object, peeled, name] = line.split(" ");
+    // Remote-tracking refs record what the clone fetched, not work made in it.
+    if (!name || name.startsWith("refs/remotes/")) continue;
+    // A tag the main checkout holds with the same object was fetched, not made here.
+    if (name.startsWith("refs/tags/") && git(["rev-parse", "-q", "--verify", name], ctx.mainRoot).out === object) continue;
+    tips.add(peeled || object);
+  }
+  // Commits only a reflog still reaches, after a reset or a deleted branch, in
+  // every local ref namespace.
+  const reflogs = git(["log", "-g", "--format=%H", "--exclude=refs/remotes/*", "--all", "HEAD"]);
+  if (reflogs.status !== 0) return kept(`its reflogs could not be read${reflogs.err ? `: ${reflogs.err}` : ""}`);
+  for (const commit of reflogs.out.split(/\s+/).filter(Boolean)) tips.add(commit);
+  for (const tip of tips) {
+    // A commit the main checkout has never seen is local to the clone.
+    if (git(["cat-file", "-e", `${tip}^{commit}`], ctx.mainRoot).status !== 0) return kept(`commit ${tip.slice(0, 12)} is not on origin/main`);
+    const on = git(["merge-base", "--is-ancestor", tip, "refs/remotes/origin/main"], ctx.mainRoot);
+    if (on.status === 1) return kept(`commit ${tip.slice(0, 12)} is not on origin/main`);
+    if (on.status !== 0) return kept(`whether commit ${tip.slice(0, 12)} is on origin/main could not be told${on.err ? `: ${on.err}` : ""}`);
+  }
+  return null;
+}
+
+// `judgeClones` is set for the directory of a closed PR: an embedded clone
+// there is scratch unless embeddedCloneReason finds something to keep. Every
+// other embedded repository, a bare layout or a `.git` file or link, and any
+// registered worktree inside the directory keep it. Classification passes
+// `approved`, a set it fills with each clone found disposable; the removal's
+// repeated checks pass that set back as `trusted`, so a clone judged moments
+// before is not judged again after the removal has unlinked links inside it
+// (a tracked symbolic link then reads as a deletion). A repository that
+// appears during the removal is not in the set and is judged as usual.
+function jobProtection(dir, deps, ctx, { judgeClones = false, approved, trusted } = {}) {
   const reasons = [];
   const { entries, reason } = registeredWorktrees(ctx, deps);
   if (reason) reasons.push(reason);
@@ -1358,7 +1438,13 @@ function jobProtection(dir, deps, ctx) {
       if (names.has("head") && names.has("objects") && names.has("refs")) reasons.push(`protected embedded Git repository ${current}`);
       for (const entry of children) {
         const child = path.join(current, entry.name);
-        if (entry.name.toLowerCase() === ".git") reasons.push(`protected embedded Git repository ${current}`);
+        if (entry.name.toLowerCase() === ".git") {
+          const clone = judgeClones && entry.isDirectory() && !entry.isSymbolicLink();
+          const key = path.resolve(current);
+          const why = !clone ? `protected embedded Git repository ${current}` : trusted?.has(key) ? null : embeddedCloneReason(current, deps, ctx);
+          if (why) reasons.push(why);
+          else approved?.add(key);
+        }
         else if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(child);
       }
     } catch (err) {
@@ -1373,14 +1459,16 @@ export function classifyJob(name, dir, deps, ctx) {
   const test = /^test-/.test(name);
   if (!m && !test) return { remove: false, reason: "not a pr-<N> or test-* job directory; left for a person" };
   const keep = [];
-  const protection = jobProtection(dir, deps, ctx);
-  if (protection) keep.push(protection);
   let github = null;
   if (m) {
     github = numberState(Number(m[1]), deps, ctx.mainRoot);
     if (github.state === null) keep.push(`the state of #${m[1]} could not be read (${github.err})`);
     else if (github.state === "open") keep.push(`${github.kind} #${m[1]} is open`);
   }
+  const judgeClones = github?.state === "closed";
+  const approvedClones = new Set();
+  const protection = jobProtection(dir, deps, ctx, { judgeClones, approved: approvedClones });
+  if (protection) keep.unshift(protection);
   const { journals, unreadable } = jobJournals(dir);
   if (unreadable.length) keep.push(`${n(unreadable.length, "directory", "directories")} inside it could not be read (${listSome(unreadable, 2)})`);
   const live = new Set();
@@ -1411,7 +1499,7 @@ export function classifyJob(name, dir, deps, ctx) {
   if (test && !journals.length) keep.push("a test directory with no journal naming its process; left for a person");
   if (keep.length) return { remove: false, reason: keep.join("; ") };
   const why = m ? `${github.kind} #${m[1]} is closed and` : "a test's scratch directory, and";
-  return { remove: true, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
+  return { remove: true, judgeClones, approvedClones, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
 }
 
 // Removes a job directory without following any link in it: every symlink
@@ -1485,7 +1573,7 @@ export function cleanJobs(ctx, deps, apply, record) {
         record({ decision: "removing", path: dir, why });
         try {
           const unlinked = removeJobDir(dir, () => {
-            const protection = jobProtection(dir, deps, ctx);
+            const protection = jobProtection(dir, deps, ctx, { judgeClones: verdict.judgeClones, trusted: verdict.approvedClones });
             if (protection) throw new Refusal(protection);
           });
           decision = "removed";
