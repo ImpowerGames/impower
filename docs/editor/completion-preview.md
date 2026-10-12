@@ -95,4 +95,6 @@ Measured on 2026-09-24 on the Raffles & Bunny project (main script 8,254 lines, 
 
 The page receives only the display's messages; no program, checkpoint or path locations cross. The largest remaining costs are the compiler's incremental parse and runtime export and the route replay, both shared with ordinary edits.
 
+With the display in place (#657), measured on 2026-10-12 at `main.sd` line 3514 (the same directive after the project's 2026-10-10 revision) in three rounds alternating with the full display: a highlighted suggestion that replaces another is displayed in about 11 ms in the worker (checkpoint load 8 ms, the display in place 0.4 ms, preview 2.7 ms), against about 21 ms in full, and sends the page 20 messages and 8.5 KB, against 193 messages and 239 KB.
+
 No worker, game or application is created for a suggestion: the worker's game and the page's application are the ones the ordinary preview uses.
