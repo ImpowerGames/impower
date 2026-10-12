@@ -107,9 +107,12 @@ try {
   assert.match(appUnsupported.verdicts[0].reason, /only at low, medium, high, xhigh, not max/);
   assert.throws(() => preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 31, effort: "high", observed: { rollout } }] }), /evidence\.modelParameter/);
 
-  // Malformed observations are refused, before any probe runs.
-  for (const observed of [{}, null, [], { model: "claude-opus-5-5" }, { rollout: "relative.jsonl" }, { rollout: rolloutOf("bare.jsonl", { model: "gpt-6-astra" }) }]) {
-    assert.throws(() => preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 32, effort: "low" }, { number: 33, effort: "low", observed }], evidence: { codex: path.join(tmp, "missing-codex") } }), /Ticket 33 |needs a model and an effort/, JSON.stringify(observed));
+  // Malformed observations are refused before any catalog read or probe runs,
+  // even when an earlier ticket in the batch would launch one.
+  for (const observed of [{}, null, [], { model: "gpt-5.6-terra" }, { rollout: "relative.jsonl" }, { rollout: rolloutOf("bare.jsonl", { model: "gpt-5.6-terra" }) }]) {
+    fs.writeFileSync(calls, "");
+    assert.throws(() => preflight({ route: "codex-cli", model: "gpt-5.6-terra", tickets: [{ number: 32, effort: "low" }, { number: 33, effort: "low", observed }], evidence: { codex } }), /Ticket 33 |needs a model and an effort/, JSON.stringify(observed));
+    assert.equal(fs.readFileSync(calls, "utf8"), "", `no catalog read or probe for ${JSON.stringify(observed)}`);
   }
 
   // Malformed requests are refused rather than judged.
