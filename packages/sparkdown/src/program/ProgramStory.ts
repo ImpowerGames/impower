@@ -439,7 +439,8 @@ export class ProgramStory implements StoryEngine {
    *  engine's: until the next reset, which runs them. */
   protected _declarationsCarried = false;
   /** Whether the run of the declarations the globals descend from ran every
-   *  chunk without an error, as one handed on to the next engine must. */
+   *  chunk without an error or a warning, as one handed on to the next
+   *  engine must. */
   protected _declarationsClean = false;
 
   protected _state!: ProgramStoryState;
@@ -540,20 +541,27 @@ export class ProgramStory implements StoryEngine {
    * declarations (#1759), or nothing when that engine must run them: when
    * `root` runs other declaration chunks than this engine's root, or in
    * another order, or in another table generation, or names other
-   * constants, or when the run the globals descend from raised an error. A
-   * caller asks only for a root a compile measured against this engine's
-   * and found running no other declaration and no other function
-   * (`ChunkChanges.initializers`), the compiler's own rule for running the
-   * declarations again (`ProgramBuild.declarationsChanged`): the
-   * declarations then compute what they computed here.
+   * constants, or when the run the globals descend from raised an error or
+   * a warning, or when a constant holds a table. A caller asks only for a
+   * root a compile measured against this engine's and found running no
+   * other declaration and no other function (`ChunkChanges.initializers`),
+   * the compiler's own rule for running the declarations again
+   * (`ProgramBuild.declarationsChanged`): the declarations then compute what
+   * they computed here.
    *
-   * The globals handed on are the globals as they stand, which the tables
-   * the declarations built may have been written in since: the state a game
-   * restores or resets next, which an engine handed this state does before
-   * it continues (`stateIsPristine` is false until it resets).
+   * The globals handed on are the globals as they stand, and the tables the
+   * declarations built are the ones the story may have written in since:
+   * the state a game restores or resets next, which an engine handed this
+   * state does before it continues (`stateIsPristine` is false until it
+   * resets). What reads those tables as the declarations built them takes a
+   * fresh run instead: a load (`ownDeclarations`), and a restore of an image
+   * another engine took, which gives each constant its compiled value
+   * (`restoreImage`). A constant's value is the run's own, so a constant
+   * that holds a table, which the story can write in, is never handed on.
    */
   declarationsFor(root: ProgramRoot): CarriedDeclarations | null {
     const before = this.root;
+    const variables = this._state.variablesState;
     if (
       !this._declarationsClean ||
       root.generation !== before.generation ||
@@ -562,10 +570,32 @@ export class ProgramStory implements StoryEngine {
     ) {
       return null;
     }
+    const declared = variables.Declared;
+    if (declared.constantTables.size > 0) {
+      return null;
+    }
     // The globals by reference: the engine handed them copies them into its
     // own (`VariablesState.RestoreGlobals`) as it is built.
-    const variables = this._state.variablesState;
-    return { declared: variables.Declared, globals: variables.globalEntries };
+    return { declared, globals: variables.globalEntries };
+  }
+
+  /** Gives a state whose globals descend from a carried run of the
+   *  declarations what a fresh run records (`Declared`), the defaults a load
+   *  puts the save over and the tables its anchors name, leaving the
+   *  globals as they stand: a save holds no property of a named define but
+   *  its `store` ones, and a load into the engine of a fresh run rebuilds
+   *  the rest as the declarations built them, which the carried tables may
+   *  no longer hold (#1759). Called as a load opens (`beginLoad`). */
+  protected ownDeclarations(): void {
+    if (!this._declarationsCarried) {
+      return;
+    }
+    // A run on an engine of its own, which leaves this one's state, images
+    // and history as they are. The carried run was clean on the same
+    // declaration chunks, so this one is too.
+    const run = new ProgramStory(this.root);
+    this._state.variablesState.AdoptDeclared(run.variablesState.Declared);
+    this._declarationsCarried = false;
   }
 
   /** Whether the globals descend from a run of the declarations the engine
@@ -1222,6 +1252,7 @@ export class ProgramStory implements StoryEngine {
     // at no beat this engine took.
     this._state.onBeginLoad = () => {
       this._currentBeat = null;
+      this.ownDeclarations();
     };
     if (carried) {
       // The globals as the engine before held them, over its declarations'
@@ -3567,8 +3598,10 @@ export class ProgramStory implements StoryEngine {
     state.blockStack = [];
     state.previousAddress = -1;
     state.evaluationStack.length = 0;
-    // Read before the report, which clears the errors it hands a handler.
-    this._declarationsClean = !state.hasError;
+    // Read before the report, which clears what it hands a handler. A run
+    // with a warning is not handed on either: the engine that runs the
+    // declarations again for a load (`ownDeclarations`) has no handler.
+    this._declarationsClean = !state.hasError && !state.hasWarning;
     this.reportErrors();
   }
 

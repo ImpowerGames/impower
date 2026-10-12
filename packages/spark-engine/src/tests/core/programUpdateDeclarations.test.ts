@@ -286,6 +286,103 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
   });
 });
 
+// A save holds a named define's `store` properties alone, and a load puts
+// them over the define as the declarations built it (`SetJsonToken`). The
+// tables a carried engine took over are the ones the story wrote in, so a
+// load into it must not read what the story wrote into a property no save
+// holds: it loads as it loads into the engine of a fresh run, which is what
+// the engine of the program before an update held.
+const GUIDE = `define guide with
+  store mood = 1
+  title = "calm"
+end
+
+-> start
+scene start
+  Before.
+  Restored {guide.title}.
+  & guide.title = "stern"
+  After.
+end
+`;
+
+const guideTitle = (game: Game) =>
+  (
+    game.programStory.variablesState.GetVariableWithName("guide") as {
+      value?: Map<string, { valueObject?: unknown }>;
+    } | null
+  )?.value?.get("title")?.valueObject;
+
+describe("a save loaded after an update that carried the declarations (#1759)", () => {
+  it("rebuilds the properties a save does not hold, as a load after a fresh run does", () => {
+    const s = session(GUIDE);
+    const game = makeGame(s.compile());
+    const story = game.programStory;
+    quiet(() => story.Continue());
+    const saved = quiet(() => game.save());
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+    });
+    expect(guideTitle(game)).toBe("stern");
+
+    const second = s.edit("After.", "After edited.");
+    expect(update(game, second).declarations).toBe(0);
+    quiet(() => game.load(saved));
+    expect(guideTitle(game)).toBe("calm");
+    const shown: string[] = [];
+    quiet(() => {
+      while (game.programStory.canContinue) {
+        shown.push(game.programStory.Continue() ?? "");
+      }
+    });
+    expect(shown.join("")).toContain("Restored calm.");
+
+    // As the same save loads into a game of the edited program from nothing.
+    const fresh = makeGame(second);
+    quiet(() => fresh.load(saved));
+    expect(guideTitle(fresh)).toBe("calm");
+  });
+
+});
+
+describe("a game whose constant holds a table (#1759)", () => {
+  // A restore of an image another program's engine took gives each
+  // constant its compiled value. The story can write in a constant's table,
+  // so only a fresh run holds that value: the declarations run.
+  it("runs the declarations, and a checkpoint restores the constant as compiled", () => {
+    const s = session(`const LIMITS = { cap = 3 }
+
+-> start
+scene start
+  Before.
+  & LIMITS.cap = 9
+  After.
+end
+`);
+    const game = makeGame(s.compile());
+    const story = game.programStory;
+    const cap = () =>
+      (
+        game.programStory.variablesState.GetVariableWithName("LIMITS") as {
+          value?: Map<string, { valueObject?: unknown }>;
+        } | null
+      )?.value?.get("cap")?.valueObject;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+      game.checkpoint();
+    });
+    expect(cap()).toBe(9);
+
+    const ran = update(game, s.edit("After.", "After edited."));
+    expect(ran.declarations).toBeGreaterThan(0);
+    expect(game.programStory.declarationsCarried === true).toBe(false);
+    expect(
+      quiet(() => game.restoreCheckpoint(game.checkpoints.length - 1)),
+    ).toBe(true);
+    expect(cap()).toBe(3);
+  });
+});
+
 describe("a game given a program that changes a declaration (#1759)", () => {
   it.each([
     {
