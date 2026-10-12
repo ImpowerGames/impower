@@ -211,7 +211,12 @@ export function recoverHandoffLock(worktree, { identifyProcess = processIdentity
     fs.writeSync(marker, JSON.stringify({ pid: process.pid, processIdentity: identifyProcess(process.pid), host, startedAt: new Date().toISOString(), lock }) + "\n");
     fs.fsyncSync(marker);
     return recoverMarkedLock(lock, identifyProcess, host);
-  } finally { fs.closeSync(marker); fs.unlinkSync(recovery); }
+  } catch (error) {
+    // A lock that could not be put back stays protected by the marker, so no
+    // coordinator takes the worktree while its record sits aside.
+    if (error.keepMarker) { fs.closeSync(marker); marker = undefined; error.message += `; the recovery marker ${recovery} is kept until that record is restored by hand`; }
+    throw error;
+  } finally { if (marker !== undefined) { fs.closeSync(marker); fs.unlinkSync(recovery); } }
 }
 
 // The lock path's recovery marker, which a coordinator checks after it takes the lock.
@@ -261,18 +266,28 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   const claimed = `${lock}.recovering-${randomUUID()}`;
   try { fs.renameSync(lock, claimed); }
   catch (error) { if (error.code === "ENOENT") return { alreadyAbsent: lock }; throw error; }
-  // Linking back never replaces a lock another coordinator took meanwhile.
+  // Every failure from here on puts the record back first. Linking back never
+  // replaces a lock another coordinator took meanwhile.
   const restore = (why) => {
-    try { fs.linkSync(claimed, lock); fs.unlinkSync(claimed); }
-    catch (error) { return refuse(`${why}; restoring it failed (${error.message}), so the claimed record is at ${claimed}`); }
+    try { fs.linkSync(claimed, lock); }
+    catch (error) { return Object.assign(refuse(`${why}; restoring it failed (${error.message}), so the claimed record is at ${claimed}`), { keepMarker: true }); }
+    try { fs.unlinkSync(claimed); }
+    catch (error) { return refuse(`${why}; the lock is restored, and a duplicate of it remains at ${claimed} (${error.message})`); }
     return refuse(why);
   };
-  // Under the marker no one else moves the lock; a changed record is put back.
-  if (fs.readFileSync(claimed, "utf8") !== text) throw restore("it changed during recovery; inspect it again");
   const copy = path.join(path.dirname(record.journal), `agent-handoff.lock.recovered-${Date.now()}.json`);
-  try { fs.mkdirSync(path.dirname(copy), { recursive: true }); fs.copyFileSync(claimed, copy, fs.constants.COPYFILE_EXCL); }
-  catch (error) { throw restore(`its copy could not be kept at ${copy}: ${error.message}`); }
-  fs.unlinkSync(claimed);
+  let failure;
+  // Under the marker no one else moves the lock; a changed record is put back.
+  try { if (fs.readFileSync(claimed, "utf8") !== text) failure = "it changed during recovery; inspect it again"; }
+  catch (error) { failure = `the claimed record could not be read back (${error.message})`; }
+  if (!failure) {
+    try { fs.mkdirSync(path.dirname(copy), { recursive: true }); fs.copyFileSync(claimed, copy, fs.constants.COPYFILE_EXCL); }
+    catch (error) { failure = `its copy could not be kept at ${copy}: ${error.message}`; }
+  }
+  if (failure) throw restore(failure);
+  // The lock is released and its copy kept; a leftover claimed file is reported, not fatal.
+  try { fs.unlinkSync(claimed); }
+  catch (error) { return { recovered: lock, copy, coordinator: owner, leftover: claimed, leftoverError: error.message }; }
   return { recovered: lock, copy, coordinator: owner };
 }
 

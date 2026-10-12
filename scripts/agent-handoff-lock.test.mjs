@@ -125,4 +125,40 @@ accepted("a coordinator that died waiting for a slot", lockRecord, [...launched,
 accepted("a child confirmed absent at registration", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "confirmed-absent", index: 0 }], {});
 console.log("PASS: recover-lock removes the lock of a gone coordinator whose journal leaves no child that may run");
 
+// A filesystem failure after the lock is moved aside puts the record back;
+// when even that fails, the marker stays so no coordinator takes the worktree.
+const faulted = (overrides, act) => {
+  const saved = Object.fromEntries(Object.keys(overrides).map((name) => [name, fs[name]]));
+  Object.assign(fs, Object.fromEntries(Object.entries(overrides).map(([name, wrap]) => [name, wrap(saved[name])])));
+  try { return act(); } finally { Object.assign(fs, saved); }
+};
+const failOnClaimed = (code) => (original) => (file, ...rest) => { if (String(file).includes(".recovering-")) throw Object.assign(new Error(`${code}: injected`), { code }); return original(file, ...rest); };
+const copies = () => fs.readdirSync(jobDir).filter((name) => name.startsWith("agent-handoff.lock.recovered-")).length;
+const claimedAside = () => fs.readdirSync(path.dirname(lock)).filter((name) => name.includes(".recovering-"));
+for (const [label, overrides, pattern] of [
+  ["a failed read-back of the claimed record", { readFileSync: failOnClaimed("EIO") }, /could not be read back/],
+  ["a failed copy", { copyFileSync: failOnClaimed("ENOSPC") }, /copy could not be kept/],
+]) {
+  setup(lockRecord, null);
+  const before = fs.readFileSync(lock, "utf8"), kept = copies();
+  assert.throws(() => faulted(overrides, () => recoverHandoffLock(worktree, { identifyProcess: probe({}), host })), pattern, label);
+  assert.equal(fs.readFileSync(lock, "utf8"), before, `${label}: the lock is put back unchanged`);
+  assert.equal(fs.existsSync(marker), false, `${label}: the recovery marker is removed once the lock is back`);
+  assert.equal(copies(), kept, `${label}: no copy is claimed`);
+  assert.deepEqual(claimedAside(), [], `${label}: no claimed record is left aside`);
+}
+setup(lockRecord, null);
+const unrestored = fs.readFileSync(lock, "utf8");
+const failLink = () => () => { throw Object.assign(new Error("EIO: injected"), { code: "EIO" }); };
+assert.throws(() => faulted({ readFileSync: failOnClaimed("EIO"), linkSync: failLink }, () => recoverHandoffLock(worktree, { identifyProcess: probe({}), host })), /restoring it failed.*marker .* is kept/, "a failed restore keeps the marker");
+const aside = claimedAside();
+assert.equal(aside.length, 1, "the unrestored record stays aside");
+assert.equal(fs.readFileSync(path.join(path.dirname(lock), aside[0]), "utf8"), unrestored, "the record aside is the lock as it was");
+assert.ok(!fs.existsSync(lock) && fs.existsSync(marker), "the marker keeps protecting the worktree while its lock is aside");
+const whileAside = path.join(jobDir, "while-aside.jsonl");
+assert.match(run(plan(whileAside)).stderr, /lock recovery is running/, "a coordinator refuses the worktree while a record is aside");
+assert.ok(!fs.existsSync(lock) && !fs.existsSync(whileAside), "the refused coordinator leaves no lock or journal");
+fs.unlinkSync(path.join(path.dirname(lock), aside[0])); fs.unlinkSync(marker);
+console.log("PASS: a failure after the lock is moved aside puts it back, and a failed restore keeps the recovery marker");
+
 fs.rmSync(scratch, { recursive: true, force: true });
