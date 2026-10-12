@@ -488,7 +488,7 @@ export async function runHandoff(configFile, options = {}) {
   finally { withheld.restore(); }
 }
 
-async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs, editorPreflight = driverPreflight, probeCleanup = removeProbeCheckouts } = {}, withheld) {
+async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs, editorPreflight = driverPreflight, probeCleanup = removeProbeCheckouts, startExecution = startExecutionService } = {}, withheld) {
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   applyLensEditorGrant(config);
   validatePlanShape(config);
@@ -654,7 +654,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       try {
         if (step.execution) {
           const directory = fs.mkdtempSync(path.join(artifacts, "execution-"));
-          executionService = await startExecutionService({ operations: step.execution, root: cwd, directory, head });
+          executionService = await startExecution({ operations: step.execution, root: cwd, directory, head });
           Object.assign(env, executionService.environment);
           append({ event: "execution-service", index, head, directory, operations: step.execution });
         }

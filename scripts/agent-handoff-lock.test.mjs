@@ -129,6 +129,52 @@ accepted("a coordinator that died waiting for a slot", lockRecord, [...launched,
 accepted("a child confirmed absent at registration", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "confirmed-absent", index: 0 }], {});
 console.log("PASS: recover-lock removes the lock of a gone coordinator whose journal leaves no child that may run");
 
+// The launcher itself writes executionDrained on the exit row only once the
+// delegated service has closed, and false when the close fails; recovery
+// accepts the first journal and refuses the second.
+{
+  const { runHandoff } = await import("./agent-handoff.mjs");
+  const repo = path.join(scratch, "exec-repo");
+  fs.mkdirSync(path.join(repo, ".agents", "skills", "drive-web-editor"), { recursive: true });
+  fs.writeFileSync(path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs"), "");
+  const repoGit = (...args) => execFileSync("git", args, { cwd: repo, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
+  repoGit("init"); repoGit("add", "."); repoGit("commit", "-m", "execution fixture");
+  const repoLock = repoGit("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim();
+  const reviewer = path.join(scratch, "exiting-reviewer.mjs");
+  fs.writeFileSync(reviewer, `let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} process.exit(1);`);
+  const execJobs = path.join(scratch, "repo.review-jobs", "pr-962", "round-2");
+  fs.mkdirSync(execJobs, { recursive: true });
+  const execPrompt = path.join(execJobs, "prompt.txt");
+  fs.writeFileSync(execPrompt, "test fixture");
+  for (const fails of [false, true]) {
+    const name = fails ? "failed-drain" : "drained";
+    const execJournal = path.join(execJobs, `${name}.jsonl`);
+    const planFile = path.join(execJobs, `${name}.json`);
+    fs.writeFileSync(planFile, JSON.stringify({ worktree: repo, pr: 962, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", completedReviewRound: 0, maxSteps: 1, first: "review", journal: execJournal, steps: { review: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [reviewer, "--model", "reviewer-test"], prompt: execPrompt, next: [null], execution: [{ id: "ui", kind: "editor", maxRequests: 1, timeoutSeconds: 60 }] } } }));
+    let exitedBeforeDrain;
+    const startExecution = async () => ({ environment: {}, close: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      exitedBeforeDrain = fs.readFileSync(execJournal, "utf8").includes('"event":"exited"');
+      if (fails) throw new Error("Editor shutdown unverified");
+    } });
+    await assert.rejects(runHandoff(planFile, { jobRoot: scratch, slotRoot: path.join(scratch, "exec-slots"), editorPreflight: async () => ({ passed: true, failing: [] }), startExecution }), fails ? /Editor shutdown unverified/ : /exit|failed/, `${name}: the run ends blocked`);
+    assert.equal(exitedBeforeDrain, false, `${name}: the exit row waits for the service to finish closing`);
+    const execRows = fs.readFileSync(execJournal, "utf8").trim().split("\n").map(JSON.parse);
+    assert.equal(execRows.find((row) => row.event === "exited").executionDrained, !fails, `${name}: the exit row records whether the service drained`);
+    // Treat the run's coordinator as dead and its lock as left behind.
+    const ran = execRows.find((row) => row.event === "coordinator").processIdentity;
+    fs.writeFileSync(repoLock, JSON.stringify({ pid: ran.pid, processIdentity: ran, host, startedAt: new Date().toISOString(), journal: execJournal }));
+    if (fails) {
+      assert.throws(() => recoverHandoffLock(repo, { identifyProcess: probe({}), host }), /shutdown failed or was not recorded/, "a failed drain refuses recovery");
+      assert.ok(fs.existsSync(repoLock), "a failed drain keeps the lock");
+      fs.unlinkSync(repoLock);
+    } else {
+      assert.ok(recoverHandoffLock(repo, { identifyProcess: probe({}), host }).recovered, "a clean drain lets recovery proceed");
+    }
+  }
+}
+console.log("PASS: the launcher records executionDrained only after the delegated service closes, and recovery refuses a failed drain");
+
 // A filesystem failure after the lock is moved aside puts the record back;
 // when even that fails, the marker stays so no coordinator takes the worktree.
 const faulted = (overrides, act) => {
