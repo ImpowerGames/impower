@@ -250,6 +250,11 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   if (launch && !Number.isSafeInteger(launch.index)) throw refuse(`its journal ${record.journal} records a launch without a step index`);
   if (launch && !rows.some((row) => row.event === "exited" && row.index === launch.index)) {
     const ofLaunch = rows.filter((row) => row.index === launch.index);
+    // The coordinator drains its delegated execution service before it
+    // journals the child's exit; without that row a delegated command, which
+    // may run detached, can outlive both.
+    const service = ofLaunch.find((row) => row.event === "execution-service");
+    if (service) throw refuse(`step ${launch.step} started a delegated execution service (${service.directory}) whose commands may still run; confirm they have exited by hand`);
     const running = ofLaunch.find((row) => row.event === "running");
     if (!running) {
       // Waiting for a slot or a probed route precede the reserved row; the
