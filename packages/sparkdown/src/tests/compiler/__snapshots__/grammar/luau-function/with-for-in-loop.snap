@@ -108,33 +108,32 @@ sparkdown [0..76]
      │       │   │   │       ├─ LuauDoBlock_content [50..67]
      │       │   │   │       │   ├─ Newline [50..51]: "\n"
      │       │   │   │       │   ├─ LuauReassignment [51..66]
-     │       │   │   │       │   │   ├─ LuauReassignment_begin [51..55]
-     │       │   │   │       │   │   │   └─ LuauReassignment_begin_c1 [51..55]
-     │       │   │   │       │   │   │       └─ OptionalWhitespace [51..55]: "    "
-     │       │   │   │       │   │   ├─ LuauReassignment_content [55..66]
-     │       │   │   │       │   │   │   ├─ LuauAccessPath [55..63]
-     │       │   │   │       │   │   │   │   ├─ LuauAccessPath_begin 55
-     │       │   │   │       │   │   │   │   ├─ LuauAccessPath_content [55..62]
-     │       │   │   │       │   │   │   │   │   ├─ LuauAccessPart [55..56]
-     │       │   │   │       │   │   │   │   │   │   └─ LuauVariable [55..56]
-     │       │   │   │       │   │   │   │   │   │       └─ LuauVariable_c1 [55..56]
-     │       │   │   │       │   │   │   │   │   │           └─ LuauVariableName [55..56]: "v"
-     │       │   │   │       │   │   │   │   │   └─ LuauAccessPart [56..62]
-     │       │   │   │       │   │   │   │   │       └─ LuauPropertyAccessor [56..62]
-     │       │   │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c1 56
-     │       │   │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c2 [56..57]
-     │       │   │   │       │   │   │   │   │           │   └─ LuauAccessorOperator [56..57]: "."
-     │       │   │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c3 57
-     │       │   │   │       │   │   │   │   │           └─ LuauPropertyAccessor_c4 [57..62]
-     │       │   │   │       │   │   │   │   │               └─ LuauPropertyName [57..62]: "trust"
-     │       │   │   │       │   │   │   │   └─ LuauAccessPath_end [62..63]
-     │       │   │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [62..63]
-     │       │   │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [62..63]
-     │       │   │   │       │   │   │   │               └─ OptionalWhitespace [62..63]: " "
-     │       │   │   │       │   │   │   └─ LuauAssignmentOperation [63..66]
-     │       │   │   │       │   │   │       ├─ LuauAssignmentOperation_begin 63
-     │       │   │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 63
-     │       │   │   │       │   │   │       │       └─ OptionalWhitespace 63
+     │       │   │   │       │   │   ├─ LuauReassignment_begin [51..62]
+     │       │   │   │       │   │   │   ├─ LuauReassignment_begin_c1 [51..55]
+     │       │   │   │       │   │   │   │   └─ OptionalWhitespace [51..55]: "    "
+     │       │   │   │       │   │   │   └─ LuauReassignment_begin_c2 [55..62]
+     │       │   │   │       │   │   │       └─ LuauAccessPath [55..62]
+     │       │   │   │       │   │   │           ├─ LuauAccessPath_begin 55
+     │       │   │   │       │   │   │           ├─ LuauAccessPath_content [55..62]
+     │       │   │   │       │   │   │           │   ├─ LuauAccessPart [55..56]
+     │       │   │   │       │   │   │           │   │   └─ LuauVariable [55..56]
+     │       │   │   │       │   │   │           │   │       └─ LuauVariable_c1 [55..56]
+     │       │   │   │       │   │   │           │   │           └─ LuauVariableName [55..56]: "v"
+     │       │   │   │       │   │   │           │   └─ LuauAccessPart [56..62]
+     │       │   │   │       │   │   │           │       └─ LuauPropertyAccessor [56..62]
+     │       │   │   │       │   │   │           │           ├─ LuauPropertyAccessor_c1 56
+     │       │   │   │       │   │   │           │           ├─ LuauPropertyAccessor_c2 [56..57]
+     │       │   │   │       │   │   │           │           │   └─ LuauAccessorOperator [56..57]: "."
+     │       │   │   │       │   │   │           │           ├─ LuauPropertyAccessor_c3 57
+     │       │   │   │       │   │   │           │           └─ LuauPropertyAccessor_c4 [57..62]
+     │       │   │   │       │   │   │           │               └─ LuauPropertyName [57..62]: "trust"
+     │       │   │   │       │   │   │           └─ LuauAccessPath_end 62
+     │       │   │   │       │   │   │               └─ LuauAccessPath_end_c1 62
+     │       │   │   │       │   │   ├─ LuauReassignment_content [62..66]
+     │       │   │   │       │   │   │   └─ LuauAssignmentOperation [62..66]
+     │       │   │   │       │   │   │       ├─ LuauAssignmentOperation_begin [62..63]
+     │       │   │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 [62..63]
+     │       │   │   │       │   │   │       │       └─ OptionalWhitespace [62..63]: " "
      │       │   │   │       │   │   │       ├─ LuauAssignmentOperation_content [63..66]
      │       │   │   │       │   │   │       │   ├─ LuauAssignmentOperator [63..65]
      │       │   │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [63..65]

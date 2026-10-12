@@ -21,10 +21,12 @@ describe("the two reassignment rules", () => {
   const narrative = repository["LuauSparkdownReassignment"]!;
 
   test("share their begin and captures, except the Luau rule's target list that ends its line", () => {
-    // `({{WS}}*)(?=START)` and `({{WS}}*)(?=START|TARGETS_CONTINUED)`.
-    const narrativeStart = narrative.begin!.slice(0, -1);
+    // `({{WS}}*)(TARGETS)(?={{WS}}*(?:OPERATOR))` and
+    // `({{WS}}*)(TARGETS)(?={{WS}}*(?:OPERATOR|,{{WS}}*(?:$|--)))`.
+    const narrativeStart = narrative.begin!.slice(0, -2);
+    expect(narrative.begin!.endsWith("))")).toBe(true);
     expect(luau.begin!.startsWith(`${narrativeStart}|`)).toBe(true);
-    expect(luau.begin!.endsWith(")")).toBe(true);
+    expect(luau.begin!.endsWith("))")).toBe(true);
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
   });
 

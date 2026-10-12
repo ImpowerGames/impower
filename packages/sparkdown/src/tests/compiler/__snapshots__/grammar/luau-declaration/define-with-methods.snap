@@ -194,33 +194,32 @@ sparkdown [0..206]
  │   │   │   │   │           └─ PunctuationParenClose [122..123]: ")"
  │   │   │   │   ├─ Newline [123..124]: "\n"
  │   │   │   │   ├─ LuauReassignment [124..150]
- │   │   │   │   │   ├─ LuauReassignment_begin [124..128]
- │   │   │   │   │   │   └─ LuauReassignment_begin_c1 [124..128]
- │   │   │   │   │   │       └─ OptionalWhitespace [124..128]: "    "
- │   │   │   │   │   ├─ LuauReassignment_content [128..150]
- │   │   │   │   │   │   ├─ LuauAccessPath [128..144]
- │   │   │   │   │   │   │   ├─ LuauAccessPath_begin 128
- │   │   │   │   │   │   │   ├─ LuauAccessPath_content [128..143]
- │   │   │   │   │   │   │   │   ├─ LuauAccessPart [128..132]
- │   │   │   │   │   │   │   │   │   └─ LuauVariable [128..132]
- │   │   │   │   │   │   │   │   │       └─ LuauVariable_c1 [128..132]
- │   │   │   │   │   │   │   │   │           └─ LuauSelfKeyword [128..132]: "self"
- │   │   │   │   │   │   │   │   └─ LuauAccessPart [132..143]
- │   │   │   │   │   │   │   │       └─ LuauPropertyAccessor [132..143]
- │   │   │   │   │   │   │   │           ├─ LuauPropertyAccessor_c1 132
- │   │   │   │   │   │   │   │           ├─ LuauPropertyAccessor_c2 [132..133]
- │   │   │   │   │   │   │   │           │   └─ LuauAccessorOperator [132..133]: "."
- │   │   │   │   │   │   │   │           ├─ LuauPropertyAccessor_c3 133
- │   │   │   │   │   │   │   │           └─ LuauPropertyAccessor_c4 [133..143]
- │   │   │   │   │   │   │   │               └─ LuauPropertyName [133..143]: "isSwimming"
- │   │   │   │   │   │   │   └─ LuauAccessPath_end [143..144]
- │   │   │   │   │   │   │       └─ LuauAccessPath_end_c1 [143..144]
- │   │   │   │   │   │   │           └─ LuauAccessPath_end_c1 [143..144]
- │   │   │   │   │   │   │               └─ OptionalWhitespace [143..144]: " "
- │   │   │   │   │   │   └─ LuauAssignmentOperation [144..150]
- │   │   │   │   │   │       ├─ LuauAssignmentOperation_begin 144
- │   │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 144
- │   │   │   │   │   │       │       └─ OptionalWhitespace 144
+ │   │   │   │   │   ├─ LuauReassignment_begin [124..143]
+ │   │   │   │   │   │   ├─ LuauReassignment_begin_c1 [124..128]
+ │   │   │   │   │   │   │   └─ OptionalWhitespace [124..128]: "    "
+ │   │   │   │   │   │   └─ LuauReassignment_begin_c2 [128..143]
+ │   │   │   │   │   │       └─ LuauAccessPath [128..143]
+ │   │   │   │   │   │           ├─ LuauAccessPath_begin 128
+ │   │   │   │   │   │           ├─ LuauAccessPath_content [128..143]
+ │   │   │   │   │   │           │   ├─ LuauAccessPart [128..132]
+ │   │   │   │   │   │           │   │   └─ LuauVariable [128..132]
+ │   │   │   │   │   │           │   │       └─ LuauVariable_c1 [128..132]
+ │   │   │   │   │   │           │   │           └─ LuauSelfKeyword [128..132]: "self"
+ │   │   │   │   │   │           │   └─ LuauAccessPart [132..143]
+ │   │   │   │   │   │           │       └─ LuauPropertyAccessor [132..143]
+ │   │   │   │   │   │           │           ├─ LuauPropertyAccessor_c1 132
+ │   │   │   │   │   │           │           ├─ LuauPropertyAccessor_c2 [132..133]
+ │   │   │   │   │   │           │           │   └─ LuauAccessorOperator [132..133]: "."
+ │   │   │   │   │   │           │           ├─ LuauPropertyAccessor_c3 133
+ │   │   │   │   │   │           │           └─ LuauPropertyAccessor_c4 [133..143]
+ │   │   │   │   │   │           │               └─ LuauPropertyName [133..143]: "isSwimming"
+ │   │   │   │   │   │           └─ LuauAccessPath_end 143
+ │   │   │   │   │   │               └─ LuauAccessPath_end_c1 143
+ │   │   │   │   │   ├─ LuauReassignment_content [143..150]
+ │   │   │   │   │   │   └─ LuauAssignmentOperation [143..150]
+ │   │   │   │   │   │       ├─ LuauAssignmentOperation_begin [143..144]
+ │   │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 [143..144]
+ │   │   │   │   │   │       │       └─ OptionalWhitespace [143..144]: " "
  │   │   │   │   │   │       ├─ LuauAssignmentOperation_content [144..150]
  │   │   │   │   │   │       │   ├─ LuauAssignmentOperator [144..146]
  │   │   │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [144..146]

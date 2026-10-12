@@ -23,25 +23,24 @@ sparkdown [0..25]
  │   │   │           └─ LuauThenKeyword [8..12]: "then"
  │   │   ├─ Newline [12..13]: "\n"
  │   │   ├─ LuauSparkdownReassignment [13..20]
- │   │   │   ├─ LuauSparkdownReassignment_begin [13..15]
- │   │   │   │   └─ LuauSparkdownReassignment_begin_c1 [13..15]
- │   │   │   │       └─ OptionalWhitespace [13..15]: "  "
- │   │   │   ├─ LuauSparkdownReassignment_content [15..20]
- │   │   │   │   ├─ LuauAccessPath [15..17]
- │   │   │   │   │   ├─ LuauAccessPath_begin 15
- │   │   │   │   │   ├─ LuauAccessPath_content [15..16]
- │   │   │   │   │   │   └─ LuauAccessPart [15..16]
- │   │   │   │   │   │       └─ LuauVariable [15..16]
- │   │   │   │   │   │           └─ LuauVariable_c1 [15..16]
- │   │   │   │   │   │               └─ LuauVariableName [15..16]: "x"
- │   │   │   │   │   └─ LuauAccessPath_end [16..17]
- │   │   │   │   │       └─ LuauAccessPath_end_c1 [16..17]
- │   │   │   │   │           └─ LuauAccessPath_end_c1 [16..17]
- │   │   │   │   │               └─ OptionalWhitespace [16..17]: " "
- │   │   │   │   └─ LuauAssignmentOperation [17..20]
- │   │   │   │       ├─ LuauAssignmentOperation_begin 17
- │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 17
- │   │   │   │       │       └─ OptionalWhitespace 17
+ │   │   │   ├─ LuauSparkdownReassignment_begin [13..16]
+ │   │   │   │   ├─ LuauSparkdownReassignment_begin_c1 [13..15]
+ │   │   │   │   │   └─ OptionalWhitespace [13..15]: "  "
+ │   │   │   │   └─ LuauSparkdownReassignment_begin_c2 [15..16]
+ │   │   │   │       └─ LuauAccessPath [15..16]
+ │   │   │   │           ├─ LuauAccessPath_begin 15
+ │   │   │   │           ├─ LuauAccessPath_content [15..16]
+ │   │   │   │           │   └─ LuauAccessPart [15..16]
+ │   │   │   │           │       └─ LuauVariable [15..16]
+ │   │   │   │           │           └─ LuauVariable_c1 [15..16]
+ │   │   │   │           │               └─ LuauVariableName [15..16]: "x"
+ │   │   │   │           └─ LuauAccessPath_end 16
+ │   │   │   │               └─ LuauAccessPath_end_c1 16
+ │   │   │   ├─ LuauSparkdownReassignment_content [16..20]
+ │   │   │   │   └─ LuauAssignmentOperation [16..20]
+ │   │   │   │       ├─ LuauAssignmentOperation_begin [16..17]
+ │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 [16..17]
+ │   │   │   │       │       └─ OptionalWhitespace [16..17]: " "
  │   │   │   │       ├─ LuauAssignmentOperation_content [17..20]
  │   │   │   │       │   ├─ LuauAssignmentOperator [17..19]
  │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [17..19]
