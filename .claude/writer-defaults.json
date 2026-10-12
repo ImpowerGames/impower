@@ -1,0 +1,17 @@
+{
+  "orchestrators": {
+    "claude": { "model": "claude-opus-5-5" },
+    "codex": { "model": "gpt-6.1-sol" }
+  },
+  "routes": {
+    "claude": [
+      { "route": "claude-desktop", "userTurnOnly": true, "selfCheck": "get_session on self reports the model and effort" },
+      { "route": "claude-cli", "selfCheck": "the stream's init event reports the model and CLAUDE_EFFORT in the writer's own shell reports the effort" },
+      { "route": "claude-agent", "endsWithCoordinator": true, "selfCheck": "the pinned writer definition sets the model and effort, and CLAUDE_EFFORT in the writer's own shell reports the effort" }
+    ],
+    "codex": [
+      { "route": "codex-cli", "selfCheck": "the latest turn_context row of the writer's rollout reports the model and effort" },
+      { "route": "codex-app", "selfCheck": "the latest turn_context row of the writer's rollout reports the model and effort" }
+    ]
+  }
+}

@@ -75,6 +75,35 @@ try {
   assert.match(preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 27, effort: "low" }], evidence: { codex } }).verdicts[0].reason, /catalog does not list gpt-6-astra/);
   assert.match(preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 16, effort: "low" }], evidence: { codex: path.join(tmp, "missing-codex") } }).verdicts[0].reason, /catalog could not run/);
 
+  // Detached Claude CLI: one probe launch per effort with the exact model and
+  // effort, without the coordinator's CLAUDE* variables, which a detached
+  // writer does not inherit. The stand-in answers with the model it was
+  // given, except that it serves claude-sonnet-5-5 in place of
+  // claude-fable-5-1 and fails at max effort.
+  const fakeClaude = path.join(tmp, "fake-claude.mjs"), claudeCalls = path.join(tmp, "claude-calls.log");
+  fs.writeFileSync(fakeClaude, [
+    'import fs from "node:fs";',
+    `fs.appendFileSync(${JSON.stringify(claudeCalls)}, JSON.stringify({ argv: process.argv.slice(2), inherited: Object.keys(process.env).filter((key) => /^CLAUDE/i.test(key)), prompt: fs.readFileSync(0, "utf8") }) + "\\n");`,
+    'const arg = (flag) => process.argv[process.argv.indexOf(flag) + 1];',
+    'if (arg("--effort") === "max") { console.log(JSON.stringify({ type: "result", is_error: true, result: "API Error: effort max is unavailable", modelUsage: {} })); process.exit(1); }',
+    'const served = arg("--model") === "claude-fable-5-1" ? "claude-sonnet-5-5" : arg("--model");',
+    'console.log(JSON.stringify({ type: "result", is_error: false, result: "ready", modelUsage: { [served]: { outputTokens: 1 } } }));',
+  ].join("\n"));
+  const claude = [process.execPath, fakeClaude];
+  process.env.CLAUDE_EFFORT = "low";
+  try {
+    const cliClaude = preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 40, effort: "high" }, { number: 41, effort: "high" }, { number: 42, effort: "max" }], evidence: { claude } });
+    assert.equal(only(cliClaude), "40:available 41:available 42:blocked");
+    assert.match(cliClaude.verdicts[2].reason, /Claude CLI probe exited 1: API Error: effort max is unavailable/);
+    const probes = fs.readFileSync(claudeCalls, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+    assert.deepEqual(probes.map((p) => p.argv.slice(0, 5)), [["-p", "--model", "claude-opus-5-5", "--effort", "high"], ["-p", "--model", "claude-opus-5-5", "--effort", "max"]], "one probe per distinct effort, at that effort");
+    assert.deepEqual(probes.map((p) => p.inherited), [[], []], "the probe drops the coordinator's CLAUDE* variables");
+    const substituted = preflight({ route: "claude-cli", model: "claude-fable-5-1", tickets: [{ number: 43, effort: "low" }], evidence: { claude } });
+    assert.match(substituted.verdicts[0].reason, /answered with claude-sonnet-5-5, not claude-fable-5-1/, "a probe answered by another model is blocked");
+    assert.match(preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 44, effort: "low" }], evidence: { claude: path.join(tmp, "missing-claude") } }).verdicts[0].reason, /probe could not run/);
+    assert.equal(only(preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 45, effort: "high", observed: { model: "claude-opus-5-5", effort: "high" } }, { number: 46, effort: "high", observed: { model: "claude-opus-5-5", effort: "low" } }] })), "45:confirmed 46:blocked", "a launched CLI writer is confirmed from its own model and shell effort");
+  } finally { delete process.env.CLAUDE_EFFORT; }
+
   // After launch: the writer's own metadata or rollout confirms the route. A
   // Claude session's metadata needs no pre-launch evidence.
   const rolloutOf = (name, ...contexts) => {
@@ -118,6 +147,7 @@ try {
   // Malformed requests are refused rather than judged.
   assert.throws(() => preflight({ route: "claude-agent", model: "gpt-6-astra", tickets: [{ number: 21, effort: "low" }] }), /claude model id/);
   assert.throws(() => preflight({ route: "claude-agent", model: "claude-opus-5-5", tickets: [{ number: 22, effort: "ultra" }] }), /effort must be one of/);
+  assert.throws(() => preflight({ route: "claude-cli", model: "gpt-6-astra", tickets: [{ number: 39, effort: "low" }] }), /claude model id/);
   assert.throws(() => preflight({ route: "codex-exec", model: "gpt-6-astra", tickets: [{ number: 23, effort: "low" }] }), /route must be one of/);
   assert.throws(() => preflight({ route: "claude-agent", model: "claude-opus-5-5", tickets: [] }), /at least one/);
 

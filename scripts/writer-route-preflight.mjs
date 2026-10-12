@@ -10,7 +10,7 @@ import { efforts, routeVendor, writerEfforts } from "./reviewer-defaults.mjs";
 // effort. A route that cannot is a per-ticket blocker; the preflight never
 // proposes another model or effort in its place.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const writerRoutes = { "claude-agent": "claude", "claude-desktop": "claude", "codex-cli": "codex", "codex-app": "codex" };
+export const writerRoutes = { "claude-agent": "claude", "claude-desktop": "claude", "claude-cli": "claude", "codex-cli": "codex", "codex-app": "codex" };
 
 // Each route's check returns an empty result when the host provides the model
 // at that effort, or the reason it does not.
@@ -40,6 +40,34 @@ function claudeDesktopCheck(model, request) {
     if (coordinator.model !== model) return { reason: `the coordinator runs ${coordinator.model}; a desktop session it starts is certain to run only that model, not ${model}` };
     if (efforts.indexOf(effort) > efforts.indexOf(coordinator.effort)) return { reason: `the coordinator runs at ${coordinator.effort}; a session it starts cannot exceed that effort, and ${effort} was requested` };
     return {};
+  };
+}
+
+// A detached writer process starts without the coordinator's environment, so
+// the probe drops the session's CLAUDE* variables too. Its result names the
+// model that answered; the effort in force is read after launch from the
+// writer's own shell, because the result does not report it.
+function claudeCliCheck(model, request) {
+  const command = request.evidence?.claude ?? "claude";
+  const [program, ...prefix] = Array.isArray(command) ? command : [command];
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^CLAUDE/i.test(key)));
+  const probes = new Map();
+  return (effort) => {
+    if (!probes.has(effort)) {
+      const result = spawnSync(program, [...prefix, "-p", "--model", model, "--effort", effort, "--output-format", "json", "--allowedTools", "Read"], { cwd: os.tmpdir(), env, input: "Reply with the single word ready.", encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+      let reason = null;
+      if (result.error) reason = `the Claude CLI probe could not run: ${result.error.message}`;
+      else {
+        let answer;
+        try { answer = JSON.parse(result.stdout); } catch { answer = undefined; }
+        const detail = (answer?.result || result.stderr || "").split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
+        if (result.status !== 0 || !answer || answer.is_error !== false) reason = `the Claude CLI probe exited ${result.status}${detail ? `: ${detail}` : ""}`;
+        else if (!Object.hasOwn(answer.modelUsage ?? {}, model)) reason = `the Claude CLI probe answered with ${Object.keys(answer.modelUsage ?? {}).join(", ") || "no model"}, not ${model}`;
+      }
+      probes.set(effort, reason);
+    }
+    const reason = probes.get(effort);
+    return reason ? { reason } : {};
   };
 }
 
@@ -101,7 +129,7 @@ function codexAppCheck(model, request) {
   };
 }
 
-const checks = { "claude-agent": claudeAgentCheck, "claude-desktop": claudeDesktopCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
+const checks = { "claude-agent": claudeAgentCheck, "claude-desktop": claudeDesktopCheck, "claude-cli": claudeCliCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
 // A Codex rollout records the requested effort even when the model does not
 // support it, so a matching Codex observation still needs the host's list of
 // supported efforts. Claude session metadata reports the effort in force.
