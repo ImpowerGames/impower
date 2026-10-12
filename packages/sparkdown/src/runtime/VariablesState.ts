@@ -716,6 +716,17 @@ export class VariablesState extends VariablesStateAccessor<
     return !(this._constantWatch?.written ?? false);
   }
 
+  /** Counts every table a constant reaches as written: a load writes the
+   *  tables it reads saved contents into by paths of its own, not through
+   *  the table barrier (`SetJsonToken`'s merge of a named define's token,
+   *  the load session's redefinitions), and one of them can be a table a
+   *  constant reaches through a `store` that holds it. */
+  public ConstantsMayHaveChanged(): void {
+    if (this._constantWatch !== null) {
+      this._constantWatch.written = true;
+    }
+  }
+
   /** Takes over what another engine's variables recorded of the same
    *  declarations' run (`Declared`), in place of running them and taking the
    *  snapshot again (#1759). The tables it names are that run's, so an

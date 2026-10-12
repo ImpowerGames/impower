@@ -434,6 +434,45 @@ end
     expect(capOf(game)).toBe(3);
     expect(ran.declarations).toBeGreaterThan(0);
   });
+
+  it("runs the declarations after a load that merged into a table a constant reaches", () => {
+    // A save's named-define token for a `store` that holds the constant's
+    // table (an older save, written when `guide` was a define with a
+    // `store cap`) is merged onto that table in place as the load reads it.
+    const s = session(`const LIMITS = { cap = 3 }
+store guide = LIMITS
+
+-> start
+scene start
+  Before.
+  After.
+end
+`);
+    const game = makeGame(s.compile());
+    const story = game.programStory;
+    quiet(() => story.Continue());
+    const save = JSON.parse(quiet(() => game.save()));
+    const storySave = JSON.parse(save.story);
+    for (const beat of storySave.beats) {
+      if (beat.variablesState) {
+        beat.variablesState.guide = { obj: { cap: 9 }, defself: "guide" };
+      }
+    }
+    save.story = JSON.stringify(storySave);
+    quiet(() => game.load(JSON.stringify(save)));
+    expect(capOf(game)).toBe(9);
+    quiet(() => {
+      while (game.programStory.canContinue) game.programStory.Continue();
+      game.checkpoint();
+    });
+
+    const ran = update(game, s.edit("After.", "After edited."));
+    expect(
+      quiet(() => game.restoreCheckpoint(game.checkpoints.length - 1)),
+    ).toBe(true);
+    expect(capOf(game)).toBe(3);
+    expect(ran.declarations).toBeGreaterThan(0);
+  });
 });
 
 describe("a game given a program that changes a declaration (#1759)", () => {

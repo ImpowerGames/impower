@@ -1259,6 +1259,10 @@ export class ProgramStory implements StoryEngine {
     this._state.onBeginLoad = () => {
       this._currentBeat = null;
       this.ownDeclarations();
+      // The load writes what it reads by paths no table barrier hears, so
+      // a constant's table may no longer be its compiled value
+      // (`declarationsFor`).
+      this._state.variablesState.ConstantsMayHaveChanged();
     };
     if (carried) {
       // The globals as the engine before held them, over its declarations'
