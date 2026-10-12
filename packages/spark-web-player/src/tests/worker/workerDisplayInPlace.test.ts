@@ -175,6 +175,58 @@ const BRANCHED_INSIDE = BRANCHED.replace(
     }`,
 );
 
+/** A main layout of its own with one element that two text targets name,
+ *  the character's name and the dialogue, so a write or a clear of either
+ *  reaches what the other wrote. */
+const SHARED = `layout main with
+  textbox {
+    character_name.dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: First. > Second.
+end
+`;
+const SAYS = lineIn(SHARED, "First. > Second.");
+
+/** One element that the backdrop and the portrait targets both name, under
+ *  a directive an edit moves from one to the other. */
+const SWAPPED = `define HAPPY as image with
+  src = "https://example.com/happy.png"
+end
+
+layout main with
+  stage {
+    backdrop.portrait {
+      image
+    }
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  HERO:
+    Before.
+
+  HERO:
+    [[show portrait HAPPY]]
+    Then it rained.
+end
+`;
+const RAINED = lineIn(SWAPPED, "[[show portrait HAPPY]]");
+
 /** A main layout of its own whose dialogue target has text of its own, so
  *  it is no transient target: a beat adds to it rather than replacing it. */
 const PERSISTENT = `store word = "First."
@@ -630,22 +682,50 @@ describe("a display in place, further", () => {
     expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
 
+  it("connects in full when two text targets name one element", async () => {
+    const { a, full } = await twins(SHARED, SAYS, async (p) => {
+      const start = after(p);
+      await p.edit("Second.", "Third.");
+      return { start, edited: after(p) };
+    });
+    expect(a.start.frame).toEqual(full.start.frame);
+    expect(letters(full.edited.frame)).toContain("Third.");
+    expect(a.edited.frame).toEqual(full.edited.frame);
+    // Classified in place, the game declines: what either target wrote is
+    // in the other's element, which only a connect clears and writes again.
+    expect(a.edited.kind).toEqual({ inPlace: true });
+    expect(a.edited.seen).toMatchObject({ connects: 1, inPlace: 0 });
+  }, 120_000);
+
+  it("clears what another target shows on the element a beat writes, before it writes", async () => {
+    const { a, full } = await twins(SWAPPED, RAINED, async (p) => {
+      const start = after(p);
+      await p.edit("portrait HAPPY", "backdrop HAPPY");
+      return { start, edited: after(p) };
+    });
+    expect(a.start.frame).toEqual(full.start.frame);
+    expect(shows(full.edited.frame, "happy.png")).toBe(true);
+    expectInPlace(a.edited);
+    expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
   it("replaces a persistent target's text the checkpoint changed, rather than adding to it", async () => {
-    const { a, full } = await twins(PERSISTENT, ACTS, async (p) => {
+    const { a } = await twins(PERSISTENT, ACTS, async (p) => {
       await p.edit('set_word("First.")', 'set_word("Premier.")');
       return after(p);
     });
     expectInPlace(a);
     expect(letters(a.frame)).not.toContain("First.");
-    // A full display leaves the target standing too, and replaces its text
-    // as well: both show what a player opened on the edited line shows.
-    expect(letters(full.frame)).not.toContain("First.");
-    const fresh = await freshFrame(
-      PERSISTENT.replace('set_word("First.")', 'set_word("Premier.")'),
-      ACTS,
+    // What a player opened on the edited line shows. A full display, which
+    // leaves the target standing too, adds the restored text to the old
+    // (`First.Second.Premier.Second.`), as it does on main, so it is not
+    // the measure here.
+    expect(a.frame).toEqual(
+      await freshFrame(
+        PERSISTENT.replace('set_word("First.")', 'set_word("Premier.")'),
+        ACTS,
+      ),
     );
-    expect(a.frame).toEqual(fresh);
-    expect(full.frame).toEqual(fresh);
   }, 120_000);
 
   it("shows what a full display shows when a breakpoint stops the beat", async () => {

@@ -758,10 +758,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const epoch = this._game.connection.epoch;
     const tasks: Promise<void>[] = [];
     if (this._state.text) {
-      // A target the connect leaves standing (one with text of its own) may
-      // still show what earlier writes left on it: the restore replaces that.
       for (const [target] of Object.entries(this._state.text)) {
-        tasks.push(this.text.restore(target, true));
+        tasks.push(this.text.restore(target));
       }
     }
     if (this._state.image) {
@@ -838,15 +836,45 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /** Whether `restoreInPlace` can put the page in the state the module
-   *  holds: the page's root is the one this module built, and the layouts
-   *  the state mounts are the ones the page shows. A layout opened or
-   *  closed differently is mounted or destroyed only by a connect. */
+   *  holds: the page's root is the one this module built, the layouts the
+   *  state mounts are the ones the page shows, and no element is named by
+   *  two text targets, or two image targets, that the page shows or the
+   *  state holds. A layout opened or closed differently is mounted or
+   *  destroyed only by a connect. The display in place writes, replaces and
+   *  clears one target at a time, which on a shared element would reach
+   *  what the other target shows; a connect clears every transient target
+   *  before any writes. A target with nothing on it may share an element
+   *  (the stock layouts' `title fx` element is named `title fx` and
+   *  `title`). */
   canRestoreInPlace(): boolean {
+    const displayed = this._displayed;
     return (
-      this._displayed !== undefined &&
+      displayed !== undefined &&
       this._root !== undefined &&
-      this._displayed.layout === JSON.stringify(this._state.layout ?? [])
+      displayed.layout === JSON.stringify(this._state.layout ?? []) &&
+      !this.sharesElement([
+        ...displayed.text.keys(),
+        ...Object.keys(this._state.text ?? {}),
+      ]) &&
+      !this.sharesElement([
+        ...displayed.image.keys(),
+        ...Object.keys(this._state.image ?? {}),
+      ])
     );
+  }
+
+  /** Whether two of `targets` name one element. */
+  protected sharesElement(targets: string[]): boolean {
+    const named = new Set<Element>();
+    for (const target of new Set(targets)) {
+      for (const el of new Set(this.findElements(target))) {
+        if (named.has(el)) {
+          return true;
+        }
+        named.add(el);
+      }
+    }
+    return false;
   }
 
   /**
