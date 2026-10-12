@@ -50,8 +50,55 @@ export function checkReviewRound(round, completedRound, finalCorrections, review
 
 // A round's reviewers run one at a time and the writer may correct between them,
 // so a reviewer the round still plans may launch on a head the last one did not see.
+// `reviewers` is the planned count or the planned reviewer ids. With named
+// reviewers the completed count holds distinct planned reviewers, so a retried
+// attempt never spends another reviewer's place.
 export function plannedReviewerPending(round, completedRound, completedRoundReviews, reviewers) {
-  return round === completedRound && Number.isInteger(completedRoundReviews) && Number.isInteger(reviewers) && completedRoundReviews < reviewers;
+  const planned = Array.isArray(reviewers) ? reviewers.length : reviewers;
+  return round === completedRound && Number.isInteger(completedRoundReviews) && Number.isInteger(planned) && completedRoundReviews < planned;
+}
+
+const reviewerIdPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+// A step naming its planned reviewers names its own place among them; a retry
+// of that place carries a higher attempt and keeps the same reviewerId.
+function validateReviewerIdentity(name, step) {
+  const named = Array.isArray(step?.reviewers);
+  if (named && (step.reviewers.length < 1 || step.reviewers.length > 3 || !step.reviewers.every((id) => typeof id === "string" && reviewerIdPattern.test(id)) || new Set(step.reviewers).size !== step.reviewers.length)) throw new Error(`Step ${name} reviewers must be its round's planned reviewer count from 1 through 3, or its 1 to 3 distinct planned reviewer ids`);
+  if (step?.reviewerId === undefined && step?.attempt === undefined) {
+    if (named) throw new Error(`Step ${name} names its round's planned reviewers, so it needs reviewerId, the planned reviewer it launches`);
+    return;
+  }
+  if (!named) throw new Error(`Step ${name} reviewerId and attempt need reviewers listing the round's planned reviewer ids`);
+  if (!step.reviewers.includes(step.reviewerId)) throw new Error(`Step ${name} reviewerId must be one of its planned reviewers ${step.reviewers.join(", ")}; a reviewer added after the round was planned needs a new round`);
+  if (step.attempt !== undefined && (!Number.isSafeInteger(step.attempt) || step.attempt < 1)) throw new Error(`Step ${name} attempt must be a positive integer`);
+}
+
+// Validated completions of the completed round, keyed by planned reviewer id,
+// each holding the attempt that completed.
+function validateCompletedRoundReviewers(config) {
+  const record = config.completedRoundReviewers;
+  if (record === undefined) return;
+  if (!record || typeof record !== "object" || Array.isArray(record)) throw new Error("Supply completedRoundReviewers from the journal as an object of planned reviewer ids and their completed attempts");
+  const entries = Object.entries(record);
+  if (!entries.length || !entries.every(([id, attempt]) => reviewerIdPattern.test(id) && Number.isSafeInteger(attempt) && attempt >= 1)) throw new Error("completedRoundReviewers maps each completed planned reviewer id to its positive completed attempt");
+  if (config.completedRoundReviews !== entries.length) throw new Error("Supply completedRoundReviewers with completedRoundReviews equal to its number of reviewers, both from the journal's latest completed row");
+}
+
+// Refuses a launch whose identity the round's record cannot place: a planned
+// reviewer list that omits a completed reviewer, a retry that does not advance
+// the attempt, or a mix of named and unnamed reviewers in one round.
+export function checkReviewerPlace(step, completedRound, completedRoundReviews, completedRoundReviewers) {
+  if (step.round !== completedRound || completedRoundReviews === null) return;
+  if (step.reviewerId === undefined) {
+    if (completedRoundReviewers) throw new Error(`Round ${step.round} records reviewers ${Object.keys(completedRoundReviewers).join(", ")}; its later reviewers need reviewerId and the planned reviewer ids`);
+    return;
+  }
+  if (!completedRoundReviewers) throw new Error(`Supply completedRoundReviewers from the journal: reviewer ${step.reviewerId} in round ${step.round} needs the round's completed reviewers to know whether it retries one`);
+  const unplanned = Object.keys(completedRoundReviewers).filter((id) => !step.reviewers.includes(id));
+  if (unplanned.length) throw new Error(`Round ${step.round} completed reviewers ${unplanned.join(", ")} that the step's planned reviewers omit; the round's planned reviewers cannot change once it has started`);
+  const previous = Object.hasOwn(completedRoundReviewers, step.reviewerId) ? completedRoundReviewers[step.reviewerId] : undefined;
+  if (previous !== undefined && (step.attempt ?? 1) <= previous) throw new Error(`Reviewer ${step.reviewerId} completed attempt ${previous} in round ${step.round}; a retry needs a higher attempt`);
 }
 
 export function verifyNativeReviewResult(output,format='claude-json') {
@@ -72,9 +119,10 @@ export function validateReviewRecovery(config) {
   if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply the journal's boolean finalCorrections (valid at round 3 or later); recovery at the configured limit ${limit}, including a pending serial reviewer, requires it. Carry completedReviewRound, reviewedHead and completedRoundReviews forward too; unchanged HEAD does not establish correction state`);
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
   if(config.completedRoundReviews!==undefined&&(!Number.isInteger(config.completedRoundReviews)||config.completedRoundReviews<1||config.completedReviewRound<1))throw new Error('Supply completedRoundReviews from the journal as a positive integer, and only with a nonzero completedReviewRound');
+  validateCompletedRoundReviewers(config);
 }
 
-const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
+const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "completedRoundReviewers", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
 
 // A review step's lens is the value scripts/build-review-prompt.mjs received.
 // An author-experience lens needs the editor, so a lens step that declares no
@@ -126,7 +174,8 @@ export function validatePlanShape(config) {
     validateExecutionShape(step);
     const misplaced = planFields.filter((field) => Object.hasOwn(step ?? {}, field));
     if (misplaced.length) throw new Error(`Move ${misplaced.join(", ")} from step ${name} to the top level of the plan; only round and reviewers, not completedReviewRound, belong on a review step`);
-    if (step?.reviewers !== undefined && (!Number.isInteger(step.reviewers) || step.reviewers < 1 || step.reviewers > 3)) throw new Error(`Step ${name} reviewers must be its round's planned reviewer count, an integer from 1 through 3`);
+    if (step?.reviewers !== undefined && !Array.isArray(step.reviewers) && (!Number.isInteger(step.reviewers) || step.reviewers < 1 || step.reviewers > 3)) throw new Error(`Step ${name} reviewers must be its round's planned reviewer count, an integer from 1 through 3, or its planned reviewer ids`);
+    validateReviewerIdentity(name, step);
   }
   // A reviewer without GitHub access leaves its report for the coordinator to
   // post, which the chain cannot await, so such a plan holds one review.
@@ -452,6 +501,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   let completedRound = config.completedReviewRound;
   let reviewedHead = config.reviewedHead ?? null;
   let completedRoundReviews = config.completedRoundReviews ?? null;
+  let completedRoundReviewers = config.completedRoundReviewers ?? null;
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild, pendingReport;
   const usedReports=new Set();
@@ -472,7 +522,10 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       const step = config.steps[current];
       if (!step) throw new Error(`Unknown step: ${current}`);
       const plannedPending = step.role === "review" && plannedReviewerPending(step.round, completedRound, completedRoundReviews, step.reviewers);
-      if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections && !plannedPending, reviewRoundLimit);
+      if (step.role === "review") {
+        checkReviewRound(step.round, completedRound, finalCorrections && !plannedPending, reviewRoundLimit);
+        checkReviewerPlace(step, completedRound, completedRoundReviews, completedRoundReviewers);
+      }
       const head = gitHead(cwd), status = gitStatus(cwd);
       if (status) throw new Error("Handoff requires a clean committed worktree");
       const install = step.role === "review" ? installFingerprint(cwd) : null;
@@ -492,7 +545,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       const reportNotBefore=new Date().toISOString();
       // What the reviewer directory holds before the reviewer runs is never cleaned up afterwards.
       const reviewerHad = step.role === "review" && step.nativeResult === "codex-jsonl" ? snapshotReviewerDirectory(step.permissions.cwd) : null;
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, completedRoundReviews, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1, plannedReviewers: step.reviewers } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
       const log = fs.openSync(output, "wx");
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
@@ -652,12 +705,21 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         } catch (error) { append({ event: "probe-cleanup-failed", index, step: current, directory: step.permissions.cwd, reason: error.message }); }
       }
       if (step.role === "review") {
-        completedRoundReviews = step.round > completedRound ? 1 : completedRoundReviews === null ? null : completedRoundReviews + 1;
+        const newRound = step.round > completedRound;
+        if (step.reviewerId !== undefined && (newRound || completedRoundReviewers)) {
+          // A retried attempt replaces its reviewer's place instead of taking another.
+          completedRoundReviewers = { ...(newRound ? {} : completedRoundReviewers), [step.reviewerId]: step.attempt ?? 1 };
+          completedRoundReviews = Object.keys(completedRoundReviewers).length;
+        } else {
+          completedRoundReviewers = null;
+          completedRoundReviews = newRound ? 1 : completedRoundReviews === null ? null : completedRoundReviews + 1;
+        }
         if (step.round > completedRound || head !== reviewedHead) finalCorrections = false;
         completedRound = step.round; reviewedHead = head;
       }
       if (step.role !== "review" && completedRound === reviewRoundLimit && done.head !== reviewedHead) finalCorrections = true;
-      append({ head:done.head,next:done.next,commentIds:done.commentIds,summary:done.summary,event: "completed", index, step: current, completedRound, reviewedHead, completedRoundReviews, finalCorrections });
+      const pendingReviewers = step.role === "review" && Array.isArray(step.reviewers) && completedRoundReviewers ? step.reviewers.filter((id) => !Object.hasOwn(completedRoundReviewers, id)) : undefined;
+      append({ head:done.head,next:done.next,commentIds:done.commentIds,summary:done.summary,event: "completed", index, step: current, ...(step.role === "review" && step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1 } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, ...(pendingReviewers ? { pendingReviewers } : {}), finalCorrections });
       pendingReport = awaiting;
       current = done.next;
     }
