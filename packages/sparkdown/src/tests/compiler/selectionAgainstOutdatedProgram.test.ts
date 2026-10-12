@@ -11,7 +11,6 @@
 // live documents, so it is what says whether a selection can be resolved at
 // all. These tests pin that verdict, and pin that it is stamped on the params
 // the selection listeners see.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SelectedCompilerDocumentMessage } from "../../compiler/classes/messages/SelectedCompilerDocumentMessage";

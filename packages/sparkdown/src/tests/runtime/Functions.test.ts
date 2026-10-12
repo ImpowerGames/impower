@@ -9,7 +9,10 @@
 // Runtime-level function behavior is covered by `CallStack.test.ts`.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
+import {
+  collectDiagnosticsFromFile,
+  makeRuntimeStoryFromFile,
+} from "./runtimeTestHarness";
 
 describe("Functions — clean-compile invariants", () => {
   // These tests assert "no diagnostics emitted" for valid sparkdown
@@ -60,14 +63,16 @@ describe("Functions — clean-compile invariants", () => {
     //   -> myFunc    — diverting to a function (must be called)
     // The upstream test asserts the specific wording `"hasn't been
     // marked as a function"` and `"can only be called as a function"`.
-    // Sparkdown happens to emit the exact same substrings (inherited
-    // from inkjs's ExportRuntime divert validation), so we keep the
-    // substring asserts. If sparkdown's wording diverges in the
-    // future, relax to `.length > 0`.
+    // Sparkdown keeps the first; the divert to a function says how to
+    // call the function instead (#1708), so that assert reads its words.
     //
     // Sparkdown rewrite: `& aKnot()` for the bad-call form (sparkdown's
     // explicit-statement marker), `-> myFunc` for the bad-divert form.
-    const ctx = makeRuntimeStoryFromFile(
+    //
+    // The compile reports both errors and makes no program a story runs
+    // (its divert to a function is no construct the program engine
+    // carries), so only its diagnostics are read.
+    const ctx = collectDiagnosticsFromFile(
       "functions",
       "function-call-restrictions",
     );
@@ -75,7 +80,9 @@ describe("Functions — clean-compile invariants", () => {
       ctx.errorMessages.some((m) => /hasn't been marked as a function/.test(m)),
     ).toBe(true);
     expect(
-      ctx.errorMessages.some((m) => /can only be called as a function/.test(m)),
+      ctx.errorMessages.some((m) =>
+        /^A function can't be diverted to: call `myFunc` instead/.test(m),
+      ),
     ).toBe(true);
   });
 

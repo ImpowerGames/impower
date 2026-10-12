@@ -5,10 +5,9 @@
 
 import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { ControlCommand } from "../../inkjs/engine/ControlCommand";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { ObjectValue, StringValue } from "../../inkjs/engine/Value";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { ControlCommand } from "../../runtime/ControlCommand";
+import { ObjectValue, StringValue } from "../../runtime/Value";
 
 interface Step {
   text: string;
@@ -19,7 +18,7 @@ interface Step {
 }
 
 function compile(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -36,10 +35,10 @@ function compile(source: string) {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("display-call producer fixture failed to compile");
   }
-  return new RuntimeStory(result.program.compiled as Record<string, any>);
+  return testStory(result.program.chunks);
 }
 
 // Runs the story to its end, picking the first choice whenever it stops on

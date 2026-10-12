@@ -4,18 +4,16 @@
 // the errors Luau finds after it, each mistake once, #1175), and its names get the warnings
 // Luau's type checker gives them; the function still ends at its own `end`
 // (#1158).
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { testCompiler, testStory } from "../engineUnderTest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { officialSyntaxErrors } from "./officialSyntax";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { checkLuau } from "../luau-conformance/typecheckTestHarness";
 
 const URI = "inmemory:///main.sd";
 
 function compile(text: string) {
-  const c = new SparkdownCompiler();
+  const c = testCompiler();
   c.configure({
     files: [
       {
@@ -128,7 +126,7 @@ const inBody = (line: string) => `function greet()\n  ${line}\nend\n`;
 /** The lines to read to the end, as a runtime story plays them. */
 function playedLines(source: string): string[] {
   const program = compile(source);
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   const lines: string[] = [];
   while (story.canContinue) {
     const text = story.Continue();

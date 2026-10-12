@@ -6,9 +6,9 @@
 // non-nil default is saved and reloaded as nil.
 
 import { describe, expect, test } from "vitest";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { NullValue } from "../../inkjs/engine/Value";
-import { VariablesState } from "../../inkjs/engine/VariablesState";
+import { testStory } from "../engineUnderTest";
+import { NullValue } from "../../runtime/Value";
+import { VariablesState } from "../../runtime/VariablesState";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const NIL_STORES = [
@@ -26,10 +26,10 @@ describe("a story state holding a nil store", () => {
 
   test("a nil store reloads as nil", () => {
     const src = "store trust\n\nHello there.\ndone\n";
-    const { story, compiledJson } = makeRuntimeStoryFromSource(src);
+    const { story, root } = makeRuntimeStoryFromSource(src);
     const saved = story.state.toJson();
 
-    const loaded = new RuntimeStory(compiledJson as Record<string, any>);
+    const loaded = testStory(root);
     loaded.state.LoadJson(saved);
     const trust = loaded.state.variablesState.GetVariableWithName("trust");
     expect(trust).not.toBeNull();
@@ -39,12 +39,12 @@ describe("a story state holding a nil store", () => {
 
   test("a nil written over a non-nil default saves and loads as nil", () => {
     const src = "store trust = 1\n\ntrust = nil\nHello there.\ndone\n";
-    const { story, compiledJson } = makeRuntimeStoryFromSource(src);
+    const { story, root } = makeRuntimeStoryFromSource(src);
     story.ContinueMaximally();
     const saved = story.state.toJson();
     expect(JSON.parse(saved).variablesState.trust).toBe("nil");
 
-    const loaded = new RuntimeStory(compiledJson as Record<string, any>);
+    const loaded = testStory(root);
     loaded.state.LoadJson(saved);
     expect(loaded.state.variablesState.GetVariableWithName("trust")).toBeInstanceOf(NullValue);
   });

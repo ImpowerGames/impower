@@ -1,3 +1,4 @@
+import type { ProgramAddress } from "../types/ProgramAddress";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import {
   type SceneAssetCapture,
@@ -164,7 +165,7 @@ const dynamicBaseOf = (fragment: string, hasVerb: boolean): string | null => {
 
 /**
  * Scan one text leaf for `[[…]]` and `((…))` directives and record what they
- * reference into `capture` under `path`.
+ * reference into `capture` under `address`, where the beat stands.
  *
  * Mirrors the runtime interpreter's scan: a backslash escapes the next
  * character and a backtick toggles a raw run in which brackets are literal. An
@@ -173,7 +174,7 @@ const dynamicBaseOf = (fragment: string, hasVerb: boolean): string | null => {
  */
 export function scanAssetDirectives(
   text: string,
-  path: string,
+  address: ProgramAddress,
   capture: SceneAssetCapture,
 ): SceneBeat | undefined {
   const names: ScannedNames = { image: [], audio: [], layouts: [], loads: [] };
@@ -242,7 +243,7 @@ export function scanAssetDirectives(
   ) {
     return undefined;
   }
-  const beat: SceneBeat = { path };
+  const beat: SceneBeat = { address };
   if (names.image.length > 0) {
     beat.image = names.image;
   }

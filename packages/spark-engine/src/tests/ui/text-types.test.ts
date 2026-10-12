@@ -29,7 +29,7 @@ end
 async function beatFor(body: string, instant = true) {
   const harness = createHarness(`${SCREEN}\n-> start\n\nscene start\n${body}\nend\n`);
   await harness.ready;
-  harness.jumpTo("start");
+  harness.jumpToFlow("start");
   harness.reset();
   const beat = harness.nextBeat();
   await harness.display(beat!, instant);

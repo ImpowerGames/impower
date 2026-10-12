@@ -17,7 +17,6 @@
 // are timed. Each reports a digest of every line it produced, which
 // engine-bench.mjs requires to be equal, so that neither candidate changed what
 // the story did.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -54,14 +53,10 @@ function main() {
   const realLog = silenceConsole();
   const startFrom = { file: MAIN_URI, line: 0 };
   const compiler = new SparkdownCompiler();
-  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom, {
-    programChunks: true,
-  });
+  configurePlayerCompiler(compiler, loadProjectFiles(config.project), startFrom);
   const cold: any = compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any);
   const program = cold.program;
-  if (!program.chunks) {
-    throw new Error(`the scene falls back for ${JSON.stringify(program.fallback)}`);
-  }
+  if (!program.chunks) throw new Error("the project did not compile");
   const story = new ProgramStory(program.chunks);
   story.onError = () => {};
   const images = config.candidate === "image";

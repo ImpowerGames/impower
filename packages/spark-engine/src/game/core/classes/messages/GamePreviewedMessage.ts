@@ -1,12 +1,15 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { DocumentLocation } from "../../types/DocumentLocation";
 
 export type GamePreviewedMethod = typeof GamePreviewedMessage.method;
 
 export interface GamePreviewedParams {
   location: DocumentLocation;
-  path: string;
+  /** The address of the beat previewed, which is opaque
+   *  (`ProgramLocator.addressAt`). */
+  address: ProgramAddress;
 }
 
 export class GamePreviewedMessage {

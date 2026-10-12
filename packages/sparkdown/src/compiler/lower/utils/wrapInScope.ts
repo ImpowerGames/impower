@@ -1,4 +1,4 @@
-import { ControlCommand as RuntimeControlCommand } from "../../../inkjs/engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../runtime/ControlCommand";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Wrap } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
 

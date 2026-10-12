@@ -10,6 +10,7 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness } from "../ui/harness/uiTestHarness";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -30,12 +31,8 @@ const compileProgram = (source: string) => {
       },
     ],
   } as never);
-  const program = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  }).program;
-  expect(program.compiled).toBeTruthy();
-  return program;
+  const program = compiler.compile({ textDocument: { uri: URI } }).program;
+  return requireChunks(program);
 };
 
 const runtimeErrors = (messages: any[]) =>
@@ -189,7 +186,7 @@ end
     const route = planRoute(
       new Game({ program: program as any } as any).story,
       "start",
-      locator.startPath as string,
+      locator.startAddress!,
       { maxSteps: 5000, searchTimeout: Number.MAX_SAFE_INTEGER },
     );
     expect(route).toBeNull();
@@ -217,11 +214,11 @@ end
       return realError(message, ...rest);
     };
     game.setStartFrom({ file: URI, line: source.split("\n").indexOf("  B") });
-    const toPath = anyGame.startPath as string;
+    const toPath = anyGame.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      anyGame.routeStartOf(toPath),
       toPath,
     );
     expect(route).not.toBeNull();
@@ -337,7 +334,7 @@ end
     const route = planRoute(
       new Game({ program: program as any } as any).story,
       "start",
-      locator.startPath as string,
+      locator.startAddress!,
       { maxSteps: 5000, searchTimeout: Number.MAX_SAFE_INTEGER },
     );
     expect(route).toBeNull();
@@ -384,7 +381,7 @@ end
     const targetLine = SOURCE.split("\n").indexOf("  C");
     const locator: any = newGame();
     locator.setStartFrom({ file: URI, line: targetLine });
-    const toPath = locator.startPath as string;
+    const toPath = locator.startAddress!;
 
     const route = Game.planRoute(newGame().story, program, "start", toPath);
     expect(lastSearchStats.endReason).toBe("found");

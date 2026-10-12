@@ -1,12 +1,11 @@
 import type { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
-import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
-import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import {
   installGameWorker,
@@ -16,13 +15,13 @@ import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   executionWatch,
   type WatchedStory,
-} from "@impower/sparkdown/src/inkjs/engine/ExecutionWatch";
-import type { Story as RuntimeStory } from "@impower/sparkdown/src/inkjs/engine/Story";
+} from "@impower/sparkdown/src/runtime/ExecutionWatch";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
@@ -59,7 +58,6 @@ import { watchExecution } from "./watchExecution";
 interface DisplayableProgram {
   id: string;
   program: SparkProgram;
-  story: RuntimeStory;
   /** Its own: a search run in one program says nothing about another. The
    *  newest real program's is `routeSearches`, whose searches the compiler
    *  remembers the choices of; no other program's are remembered. */
@@ -77,6 +75,9 @@ export function installPlayerWorker(connection: MessageConnection) {
   const player = {
     /** How PLAY's game is put at its start point. */
     putAtStartPoint,
+    /** The identities of the programs the worker keeps to display, which
+     *  stay bounded however long the author browses and edits. */
+    keptPrograms: (): string[] => [...displayable.keys()],
   };
   // The warm-up is planned before the compiler handles the selection, which
   // can recompile the real documents first, so the fetches start as soon as
@@ -109,19 +110,20 @@ export function installPlayerWorker(connection: MessageConnection) {
   const gameState = installGameWorker(connection);
   const compiler = compilerState.compiler;
 
-  // P5: the PLAYER's compiler seeds the builtins prelude into the runtime story
-  // VM (source-injection), so the engine can source `define` context from the
+  // P5: the PLAYER's compiler seeds the builtins prelude into the program
+  // (source-injection), so the engine can source `define` context from the
   // live `__def` tables (runtime inheritance: authored `as animation` inherits
   // the builtin `timing`, etc.). This is the player's OWN compiler instance —
   // the editor's LSP diagnostics compiler is separate and stays unseeded, so
   // keystroke latency is unaffected. configure() merges, so later editor
   // configures (files, startFrom, …) leave this flag set.
   //
-  // The page reads no compiled story, so the compiler does not serialize one;
-  // a PLAY writes one out for its own game (`emitCompiledProgramOf`).
+  // The compiler builds statement chunks and the games run them on the
+  // program engine, for every host of this worker: the web editor, the VS
+  // Code game webview and the player app (docs/engine/binary-program.md,
+  // section 9).
   compiler.configure({
     seedBuiltinsIntoStory: true,
-    emitCompiledProgram: false,
   });
 
   // The record of what the last route search in the real program the game
@@ -131,9 +133,9 @@ export function installPlayerWorker(connection: MessageConnection) {
   // the game starts a new one.
   let routeSearches = new RouteSearchLog();
 
-  /** Plan a route to `toPath` and replay it for the real program. */
-  const searchRealRouteTo = (game: Game, toPath: string) =>
-    searchRouteTo(game, toPath, routeSearches, {
+  /** Plan a route to the address `to` and replay it for the real program. */
+  const searchRealRouteTo = (game: Game, to: ProgramAddress) =>
+    searchRouteTo(game, to, routeSearches, {
       config: compiler.config,
       profilerId: compiler.profilerId,
     });
@@ -141,17 +143,18 @@ export function installPlayerWorker(connection: MessageConnection) {
   // ---- The programs the game can display ----------------------------------
   //
   // The page names what it wants displayed and the game shows it from the
-  // story compiled for it: every real program the page can still name,
+  // program compiled for it: every real program the page can still name,
   // which PLAY names too; the two newest suggestions, since the page asks
   // for one after the next may have compiled; the suggestion the page
   // shows, which a return to it displays again without compiling; the one
-  // displayed last, which the page takes as shown once its display answers; and the one the newest display asks for, from when its
-  // request arrives. The compiler keeps each of their stories runnable
-  // across later compiles (`keepStory`), and the story of the program the
-  // game holds, which the game runs until it is given another. Whatever
-  // nothing keeps is released each time that changes: after a compile, a
-  // preview compile, a program the page takes, a display, PLAY, and a
-  // selection that gives the game the real program back.
+  // displayed last, which the page takes as shown once its display answers;
+  // and the one the newest display asks for, from when its request arrives.
+  // The worker keeps each of their programs, whose statement chunks stay as
+  // they were built, and the program the game holds, which the game runs
+  // until it is given another. Whatever nothing keeps is let go each time
+  // that changes: after a compile, a preview compile, a program the page
+  // takes, a display, PLAY, and a selection that gives the game the real
+  // program back.
   const displayable = new Map<string, DisplayableProgram>();
   let canonicalId: string | undefined;
   // The real programs the page can still name, oldest first: the last it
@@ -175,11 +178,6 @@ export function installPlayerWorker(connection: MessageConnection) {
   };
 
   const retain = (entry: DisplayableProgram) => {
-    const previous = displayable.get(entry.id);
-    if (previous && previous.story !== entry.story) {
-      compiler.releaseStory(previous.story);
-    }
-    compiler.keepStory(entry.story);
     displayable.set(entry.id, entry);
   };
   const releaseUnneeded = () => {
@@ -194,7 +192,6 @@ export function installPlayerWorker(connection: MessageConnection) {
         id !== requestedId &&
         entry.program !== held
       ) {
-        compiler.releaseStory(entry.story);
         displayable.delete(id);
       }
     }
@@ -206,43 +203,25 @@ export function installPlayerWorker(connection: MessageConnection) {
   // supersedes the display, however it came: a compile, a suggestion, a
   // selection, a return to the real program, or PLAY taking the program.
   let gameTouches = 0;
-  const updateGameProgram = (
-    game: Game,
-    program: SparkProgram,
-    story: RuntimeStory,
-  ) => {
+  const updateGameProgram = (game: Game, program: SparkProgram) => {
     gameTouches += 1;
     profile("start", compiler.profilerId + " " + "game/update");
-    game.updateProgram(program, story);
+    game.updateProgram(program);
     profile("end", compiler.profilerId + " " + "game/update");
   };
 
-  const createOrUpdateGame = (program: SparkProgram, story: RuntimeStory) => {
+  const createOrUpdateGame = (program: SparkProgram) => {
     const profilerId = compiler.profilerId;
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
       // Built with what the editor has asked of the preview's debugger so
       // far.
-      gameState.game = gameState.createGame({
-        program,
-        story,
-        // This is the live-preview / HMR route-simulation game: it saves a
-        // checkpoint at every beat while replaying to the edited line, which
-        // is the O(n^2) cost incremental checkpoints exist to remove. Deltas
-        // store periodic full keyframes + per-beat deltas; `verifyCheckpoints:
-        // false` drops the per-beat full-save self-check so capture is bounded
-        // per beat (the full time win). The delta reconstruction is covered by
-        // the byte-identical round-trip tests (incl. the pure-delta path);
-        // flip verify back on if a regression ever needs the self-check's
-        // fall-back-to-full.
-        incrementalCheckpoints: true,
-        verifyCheckpoints: false,
-      });
+      gameState.game = gameState.createGame({ program });
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       // A compile that changed nothing serves the program the game already
       // holds, which needs no giving again.
-      updateGameProgram(gameState.game, program, story);
+      updateGameProgram(gameState.game, program);
     }
     return gameState.game;
   };
@@ -254,26 +233,24 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   compiler.addEventListener("compiler/didCompile", (params) => {
     routingTo = params.program.startFrom ?? null;
-    const story = params.story;
-    if (!story) {
-      // A compile that produced no story, which is one that threw, leaves the
-      // game and the page with the program before it, whose searches still
-      // describe it.
+    if (!params.produced) {
+      // A compile that produced no program that runs, which is one that
+      // threw, leaves the game and the page with the program before it,
+      // whose searches still describe it.
       return;
     }
     // Whatever the last search established was established against the OLD
-    // program and the story it was compiled from, so nothing from before this
+    // program, so nothing from before this
     // compile may be reported for the new one. The old log stays with the old
     // program, which the page can still ask to display until it has taken
     // this one.
     routeSearches = new RouteSearchLog();
     // The route below is replayed on the game.
     gameTouches += 1;
-    const game = createOrUpdateGame(params.program, story);
+    const game = createOrUpdateGame(params.program);
     const entry: DisplayableProgram = {
       id: programIdentity(params.program)!,
       program: params.program,
-      story,
       log: routeSearches,
     };
     canonicalId = entry.id;
@@ -289,12 +266,12 @@ export function installPlayerWorker(connection: MessageConnection) {
       // The route ends at the beat the preview shows: a line's last beat.
       game.setStartFrom(params.program.startFrom, "last");
       profile("end", compiler.profilerId + " " + "game/setStartFrom");
-      const toPath = game.startPath;
-      if (toPath) {
-        searchRealRouteTo(game, toPath);
+      const to = game.startAddress;
+      if (to != null) {
+        searchRealRouteTo(game, to);
         // Augment with the simulated checkpoint, and with what the search
         // established about this start point.
-        routeSearches.report(params, toPath);
+        routeSearches.report(params, to);
       }
     }
   });
@@ -307,30 +284,28 @@ export function installPlayerWorker(connection: MessageConnection) {
   compiler.addEventListener("compiler/didPreviewCompile", (params) => {
     routingTo = params.startFrom;
     const profilerId = compiler.profilerId;
-    const story = params.story;
-    if (!story) {
+    if (!params.produced) {
       return;
     }
     // The route below is replayed on the game.
     gameTouches += 1;
-    const game = createOrUpdateGame(params.program, story);
+    const game = createOrUpdateGame(params.program);
     const log = new RouteSearchLog();
     profile("start", profilerId + " " + "game/setStartFrom");
     game.setStartFrom(params.startFrom, "last");
     profile("end", profilerId + " " + "game/setStartFrom");
-    const toPath = game.startPath;
-    if (toPath) {
-      searchRouteTo(game, toPath, log, {
+    const to = game.startAddress;
+    if (to != null) {
+      searchRouteTo(game, to, log, {
         config: compiler.config,
         profilerId,
         remember: false,
       });
-      log.report(params, toPath);
+      log.report(params, to);
     }
     const entry: DisplayableProgram = {
       id: programIdentity(params.program)!,
       program: params.program,
-      story,
       log,
     };
     newestSuggestionIds.push(entry.id);
@@ -360,12 +335,11 @@ export function installPlayerWorker(connection: MessageConnection) {
       // The selection's route is replayed on the game.
       gameTouches += 1;
       // A selection is routed against the real program. The game can be
-      // holding a suggestion it displayed again from its kept story, with no
-      // compile since to give it the real one back.
+      // holding a suggestion it displayed again from its kept program, with
+      // no compile since to give it the real one back.
       const kept = canonicalId ? displayable.get(canonicalId) : undefined;
       if (kept && gameState.game && gameState.game.program !== kept.program) {
-        compiler.activateStory(kept.story);
-        createOrUpdateGame(kept.program, kept.story);
+        createOrUpdateGame(kept.program);
         releaseUnneeded();
       }
     }
@@ -424,33 +398,6 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  the one it shows. */
   let displayErrors: SimulationError[] | undefined;
 
-  /** `message` as `game` sends it to the page. The execution report names
-   *  where a route that failed was simulated from and was headed, which the
-   *  page labels with document locations it cannot look up itself. */
-  const withDocumentLocations = (message: Message, game: Game): Message => {
-    const program = game.program;
-    if (
-      !program ||
-      !GameExecutedMessage.type.isNotification(message) ||
-      message.params.simulation !== "fail"
-    ) {
-      return message;
-    }
-    const { simulatePath, startPath } = message.params;
-    return {
-      ...message,
-      params: {
-        ...message.params,
-        simulateLocation: simulatePath
-          ? (Game.pathToDocumentLocation(program, simulatePath) ?? undefined)
-          : undefined,
-        startLocation: startPath
-          ? (Game.pathToDocumentLocation(program, startPath) ?? undefined)
-          : undefined,
-      },
-    } as Message;
-  };
-
   // Everything the game sends while it displays goes to the page, and
   // nothing while PLAY's game runs: the page shows that game alone, and a
   // stream from this one would supersede it there. A request it makes then
@@ -480,7 +427,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       }
       return;
     }
-    connection.postMessage(withDocumentLocations(message, game), transfer);
+    connection.postMessage(message, transfer);
   };
 
   /** The route to `point`'s `beat` in `entry`, with the game holding the
@@ -492,13 +439,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     point: { file: string; line: number },
     beat: "first" | "last",
   ) => {
-    const toPath = routeGameTo(
+    const to = routeGameTo(
       game,
       point,
       beat,
       entry.log,
-      (searched, path) =>
-        searchRouteTo(searched, path, entry.log, {
+      (searched, address) =>
+        searchRouteTo(searched, address, entry.log, {
           config: compiler.config,
           profilerId: compiler.profilerId,
           remember: entry.log === routeSearches,
@@ -507,12 +454,12 @@ export function installPlayerWorker(connection: MessageConnection) {
     );
     const report: {
       checkpoint?: string;
-      simulatedPath?: string | null;
+      simulatedAddress?: ProgramAddress | null;
       simulatedProgramId?: string;
       simulationFailure?: any;
       simulationErrors?: SimulationError[];
     } = {};
-    entry.log.report(report, toPath);
+    entry.log.report(report, to);
     return report;
   };
 
@@ -543,11 +490,10 @@ export function installPlayerWorker(connection: MessageConnection) {
       if (!entry || !game) {
         return { displayed: false, missing: true };
       }
-      compiler.activateStory(entry.story);
       const programChanged =
         fresh || displayedId !== entry.id || game.program !== entry.program;
       if (game.program !== entry.program) {
-        updateGameProgram(game, entry.program, entry.story);
+        updateGameProgram(game, entry.program);
       }
       const touches = gameTouches;
       const route = routeTo(
@@ -609,12 +555,11 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   // ---- PLAY ---------------------------------------------------------------
   //
-  // PLAY's game is built beside the game above, with its own story, which it
-  // writes out from the compiled program once per PLAY: a compile re-parents
-  // the runtime containers of every flow it reuses into its new story, so a
-  // game that outlives compiles cannot run the compiler's. While it runs, the
-  // page shows it, hears from it and debugs it, and the game above sends the
-  // page nothing (`sendToPage`) and replays no route for a selection.
+  // PLAY's game is built beside the game above, with its own engine over the
+  // program's statement chunks, which no later compile changes. While it
+  // runs, the page shows it, hears from it and debugs it, and the game above
+  // sends the page nothing (`sendToPage`) and replays no route for a
+  // selection.
 
   /** PLAY's game while it runs, with the run the page knows it by, a
    *  settlement that STOP answers everything still waiting on it with, and
@@ -643,7 +588,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       ) {
         return;
       }
-      channel.postMessage(withDocumentLocations(message, running));
+      channel.postMessage(message);
     };
 
   /** Build PLAY's game for the program the page names, at the start point
@@ -659,9 +604,11 @@ export function installPlayerWorker(connection: MessageConnection) {
       return { built: false };
     }
     stopPlay({});
-    const program = compiler.emitCompiledProgramOf(entry.story, entry.program);
+    // PLAY's game runs the program's statement chunks, which stay as they
+    // were built however many compiles follow.
+    const program = entry.program;
     if (game.program !== entry.program) {
-      updateGameProgram(game, entry.program, entry.story);
+      updateGameProgram(game, entry.program);
     }
     // PLAY from a line starts at its first beat (#721).
     const route = params.startFrom
@@ -669,7 +616,6 @@ export function installPlayerWorker(connection: MessageConnection) {
       : {};
     releaseUnneeded();
     profile("start", compiler.profilerId + " " + "play/create");
-    // No story: the game builds its own from the program.
     const running = gameState.createGame({
       program,
       startFrom: params.startFrom,
@@ -681,7 +627,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       params.simulationOptions,
       {
         checkpoint: route.checkpoint,
-        path: route.simulatedPath,
+        address: route.simulatedAddress,
         programId: route.simulatedProgramId,
         failure: route.simulationFailure,
         errors: route.simulationErrors,
@@ -694,7 +640,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     current = { run: ++runs, game: running, stopped, stop };
     return {
       built: true,
-      compiled: hasCompiledProgram(program),
+      compiled: isRunnableProgram(program),
       run: current.run,
       errors,
     };
@@ -741,11 +687,6 @@ export function installPlayerWorker(connection: MessageConnection) {
         return game.program;
       }
     }
-    for (const entry of displayable.values()) {
-      if ((entry.story as unknown) === story) {
-        return entry.program;
-      }
-    }
     return canonicalId ? displayable.get(canonicalId)?.program : undefined;
   };
 
@@ -755,11 +696,16 @@ export function installPlayerWorker(connection: MessageConnection) {
     notice: (story, busyMs) => {
       let location: DocumentLocation | null = null;
       try {
-        const path = story.state.previousPointer.path?.toString();
         const program = programOf(story);
-        if (path && program) {
-          location = Game.pathToDocumentLocation(program, path);
+        if (program) {
+          location = Game.storyLocation(story as never, program);
         }
+        // A story that stands nowhere (the program engine's, once its flow
+        // has ended) is placed where its game last ran.
+        location ??=
+          [gameState.running, gameState.game]
+            .find((game) => game && (game.story as unknown) === story)
+            ?.getLastExecutedDocumentLocation() ?? null;
       } catch (e) {
         // Where it is matters less than that it is still running.
         console.warn("Could not locate the running story:", e);

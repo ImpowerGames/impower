@@ -16,7 +16,7 @@ import {
   makeRuntimeStoryFromSource,
   runToEnd,
 } from "./runtimeTestHarness";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import type { TestStory } from "../engineUnderTest";
 
 // Drive `Continue()` one beat at a time. A correctly-glued continuation
 // joins onto the previous line's beat, so the whole join is a SINGLE
@@ -27,7 +27,7 @@ import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 // visible text, so the tables are what show which line a joined beat is
 // routed by.
 type Routing = { target?: string; character?: string };
-function beatsWithRouting(story: RuntimeStory): [string, Routing[]][] {
+function beatsWithRouting(story: TestStory): [string, Routing[]][] {
   const beats: [string, Routing[]][] = [];
   while (story.canContinue) {
     const text = story.Continue() ?? "";

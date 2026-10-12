@@ -22,7 +22,7 @@
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { programStoryOf } from "../harness/compileProgram";
 import { convertDefine } from "../../game/core/utils/buildContextFromStory";
 
 const URI = "file:///main.sd";
@@ -45,7 +45,7 @@ function compileStory(source: string): any {
     ],
   } as never);
   const result = compiler.compile({ textDocument: { uri: URI } });
-  return new Story(result.program.compiled as Record<string, any>);
+  return programStoryOf(result.program);
 }
 
 const metaVal = (v: any, key: string): any =>
@@ -104,7 +104,7 @@ end
 `;
 
   test("the story still compiles and the authored override wins", () => {
-    // compileStory throws here pre-fix: `program.compiled` is undefined once
+    // compileStory throws here pre-fix: the program is not built once
     // the aborted resolve pass poisons serialization.
     const story = compileStory(SOURCE);
     const override = findDefine(story, "ambient", "channel");

@@ -35,7 +35,7 @@ export const selectProperty = <T>(
   const parts = propertyPath.split(".");
   for (let i = 0; i < parts.length; i += 1) {
     const part = parts[i];
-    if (cur === undefined) {
+    if (cur == null) {
       return [undefined, found.join(".")];
     }
     if (typeof cur !== "object") {
@@ -43,7 +43,7 @@ export const selectProperty = <T>(
     }
     if (part) {
       // Continue to next part of path
-      const next = cur[part];
+      const next = Object.hasOwn(cur, part) ? cur[part] : undefined;
       if (next === undefined) {
         return [undefined, found.join(".")];
       }

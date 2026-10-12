@@ -18,6 +18,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { extendSeq } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -38,14 +39,8 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 /** A scene with `beats` display lines, so a route to the end has many steps. */
@@ -60,34 +55,34 @@ function longScene(beats: number): string {
 
 describe("step identity is a fixed-width hash of the history", () => {
   test("the same history yields the same identity", () => {
-    const a = extendSeq(extendSeq(extendSeq("", "0.1"), "0.2"), "0.3");
-    const b = extendSeq(extendSeq(extendSeq("", "0.1"), "0.2"), "0.3");
+    const a = extendSeq(extendSeq(extendSeq("", 1), 2), 3);
+    const b = extendSeq(extendSeq(extendSeq("", 1), 2), 3);
     expect(a).toBe(b);
   });
 
   test("a different history yields a different identity", () => {
-    const base = extendSeq(extendSeq("", "0.1"), "0.2");
-    expect(extendSeq(base, "0.3")).not.toBe(extendSeq(base, "0.4"));
+    const base = extendSeq(extendSeq("", 1), 2);
+    expect(extendSeq(base, 3)).not.toBe(extendSeq(base, 4));
     // Order matters: the same paths in a different sequence are a different
     // position in the story.
-    const forward = extendSeq(extendSeq("", "0.1"), "0.2");
-    const reversed = extendSeq(extendSeq("", "0.2"), "0.1");
+    const forward = extendSeq(extendSeq("", 1), 2);
+    const reversed = extendSeq(extendSeq("", 2), 1);
     expect(forward).not.toBe(reversed);
   });
 
   test("a revisit is distinguished from a first visit", () => {
     // A loop that comes back to the same path must not look like the first
     // time it was there, or a re-plan would resume from the wrong checkpoint.
-    const first = extendSeq(extendSeq("", "loop.0"), "loop.1");
-    const second = extendSeq(extendSeq(first, "loop.0"), "loop.1");
+    const first = extendSeq(extendSeq("", 10), 11);
+    const second = extendSeq(extendSeq(first, 10), 11);
     expect(second).not.toBe(first);
   });
 
   test("identity stays a fixed width however deep the history goes", () => {
-    let shallow = extendSeq("", "path.0");
+    let shallow = extendSeq("", 0);
     let deep = "";
     for (let i = 0; i < 5_000; i += 1) {
-      deep = extendSeq(deep, `some.long.container.path.${i}`);
+      deep = extendSeq(deep, 2 ** 40 + i);
     }
     expect(deep.length).toBeLessThanOrEqual(shallow.length + 4);
     expect(deep.length).toBeLessThan(20);
@@ -127,11 +122,11 @@ end
 
   const planTo = (game: Game, program: any, line: number) => {
     game.setStartFrom({ file: URI, line });
-    const toPath = (game as any).startPath as string;
+    const toPath = game.startAddress!;
     return Game.planRoute(
       game.story,
       program,
-      Game.getSimulateFromPath(toPath),
+      game.routeStartOf(toPath),
       toPath,
     );
   };
@@ -180,11 +175,16 @@ end
     const game = newGame(program);
     const anyGame = game as any;
 
+    // A resume restores the checkpoint (`restoreCheckpoint`): the program
+    // engine puts its beat image back. Counted when it restores.
     let loads = 0;
-    const realLoad = anyGame.load.bind(anyGame);
-    anyGame.load = (...args: unknown[]) => {
-      loads += 1;
-      return realLoad(...args);
+    const realRestore = anyGame.restoreCheckpoint.bind(anyGame);
+    anyGame.restoreCheckpoint = (...args: unknown[]) => {
+      const restored = realRestore(...args);
+      if (restored) {
+        loads += 1;
+      }
+      return restored;
     };
 
     // First preview: nothing to resume from.
@@ -212,7 +212,7 @@ end
     }
     // And the great majority of a simulated route does resolve to one.
     const resolved = route.steps.filter(
-      (s, i) => game.getCheckpoint(s.seq, { path: s.path, index: i }) != null,
+      (s, i) => game.getCheckpoint(s.seq, { address: s.address, index: i }) != null,
     ).length;
     expect(resolved).toBeGreaterThan(route.steps.length / 2);
   });
@@ -252,13 +252,13 @@ end
         }) as any,
       } as any);
       game.setStartFrom({ file: URI, line: 12 });
-      const toPath = (game as any).startPath as string;
+      const toPath = game.startAddress!;
       const route = Game.planRoute(
         game.story,
         program as any,
-        Game.getSimulateFromPath(toPath),
+        game.routeStartOf(toPath),
         toPath,
-        { [Game.getSimulateFromPath(toPath)]: { favoredConditions: [favored] } },
+        { [game.routeStartOf(toPath)]: { favoredConditions: [favored] } },
       );
       return route?.steps ?? [];
     };
@@ -270,10 +270,10 @@ end
 
     // Wherever the two routes reach the SAME path having taken different
     // branches, their identities must differ.
-    const trueByPath = new Map(viaTrue.map((s) => [s.path, s.seq]));
+    const trueByPath = new Map(viaTrue.map((s) => [s.address, s.seq]));
     let comparedAnySharedPath = false;
     for (const step of viaFalse) {
-      const otherSeq = trueByPath.get(step.path);
+      const otherSeq = trueByPath.get(step.address);
       if (otherSeq == null) {
         continue;
       }
@@ -284,8 +284,8 @@ end
     // At minimum the routes must not be identity-identical end to end.
     const trueTail = viaTrue.at(-1)!.seq;
     const falseTail = viaFalse.at(-1)!.seq;
-    if (JSON.stringify(viaTrue.map((s) => s.path)) !==
-        JSON.stringify(viaFalse.map((s) => s.path))) {
+    if (JSON.stringify(viaTrue.map((s) => s.address)) !==
+        JSON.stringify(viaFalse.map((s) => s.address))) {
       expect(trueTail).not.toBe(falseTail);
       comparedAnySharedPath = true;
     }
@@ -306,11 +306,11 @@ describe("a planned route does not grow quadratically", () => {
     } as any);
     // Target the last beat so the route spans the whole scene.
     game.setStartFrom({ file: URI, line: 400 });
-    const toPath = (game as any).startPath as string;
+    const toPath = game.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      game.routeStartOf(toPath),
       toPath,
     );
     expect(route).toBeTruthy();

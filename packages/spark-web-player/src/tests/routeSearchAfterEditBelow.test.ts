@@ -52,8 +52,6 @@ const newGame = (program: any) =>
       fn();
       return 0;
     }) as never,
-    incrementalCheckpoints: true,
-    verifyCheckpoints: false,
   } as never);
 
 // Each search targets the edited line: the conditional before the edit, the
@@ -61,7 +59,7 @@ const newGame = (program: any) =>
 const search = (game: Game, compiler: SparkdownCompiler) => {
   const log = new RouteSearchLog();
   game.setStartFrom({ file: URI, line: 5 });
-  searchRouteTo(game, game.startPath!, log, { config: compiler.config } as any);
+  searchRouteTo(game, game.startAddress!, log, { config: compiler.config } as any);
   return {
     reachedTarget: log.last?.reachedTarget,
     simulationFailure: log.last?.simulationFailure,

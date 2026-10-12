@@ -9,7 +9,7 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/VariablePointerExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { lookupGlobalStdLibBuiltin } from "../../../inkjs/engine/StdLib";
+import { lookupGlobalStdLibBuiltin } from "../../../runtime/StdLib";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { currentStatement } from "../utils/statementShape";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";

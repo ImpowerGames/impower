@@ -6,9 +6,11 @@ import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Ga
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lower, lowerStatements } from "../lower";
+import { lower, lowerBodyStatement, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { captionDisplayCall, isDisplayCall } from "../utils/displayCall";
 import {
@@ -130,8 +132,7 @@ export function lowerSparkdownChooseBlock(
                 // line, as a statement unwrapped from its weave takes it
                 // (`appendBlockContent`), in place of the block's header
                 // line, which `stampStatement` gives the block's choices.
-                // Only when shapes are recorded, which the current engine's
-                // compile leaves as it was.
+                // Only when shapes are recorded (`currentStatement`).
                 if (
                   currentStatement(ctx) &&
                   obj.ownDebugMetadata &&
@@ -173,7 +174,7 @@ export function lowerSparkdownChooseBlock(
     const shape = currentBody ? openStatement(ctx, child) : undefined;
     const items: ParsedObject[] = [];
     try {
-      const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+      const block = lowerBodyStatement(child as GrammarSyntaxNode<SparkdownNodeName>, ctx, shape);
       if (block?.diagnostics) {
         diagnostics.push(...block.diagnostics);
       }
@@ -232,7 +233,10 @@ export function lowerSparkdownChooseBlock(
   // the block follows it. The Gather ends the block: the flow stops before it
   // once the choices are offered, and runs on out of it into whatever follows
   // the block. A block in another block's preamble keeps only its `then`
-  // clause, as an ordinary Gather.
+  // clause, as an ordinary Gather. A block that offers no choice ends the
+  // same way: its end runs on out of it as any block's does, and is never a
+  // loose end that the weave around it would divert to its own end past what
+  // follows the block (#1622).
   (ctx as MutableCtx).inChoosePreamble = false;
   const gather = thenClause
     ? buildGatherFromThenClause(
@@ -245,7 +249,7 @@ export function lowerSparkdownChooseBlock(
       ? null
       : new Gather(null, depth);
   if (gather) {
-    gather.endsChooseBlock = sawChoice && !inPreamble;
+    gather.endsChooseBlock = !inPreamble;
     weaveContent.push(gather);
   }
 
@@ -301,15 +305,18 @@ function buildGatherFromThenClause(
   ctx: LowerContext,
   endStart: number,
 ): Gather {
-  // Optional `(label)` after `then` is captured as a `Label` child by
-  // the begin pattern — find its `LabelDeclarationName` descendant.
-  const label = getDescendent("LabelDeclarationName", thenClause);
-  const identifier = label ? identifierAt(label, ctx) : null;
-
   const header = findChildByName(
     thenClause,
     "LuauSparkdownChooseThenClause_begin",
   );
+  // Optional `(label)` after `then` is captured as a `Label` child by
+  // the begin pattern. Only the header is searched: a `label` statement in
+  // the body names a gather of its own, not the clause (#1604).
+  const label = header
+    ? getDescendent("LabelDeclarationName", header)
+    : null;
+  const identifier = label ? identifierAt(label, ctx) : null;
+
   const body = findChildByName(
     thenClause,
     "LuauSparkdownChooseThenClause_content",

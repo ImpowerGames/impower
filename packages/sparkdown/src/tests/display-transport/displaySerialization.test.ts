@@ -8,12 +8,12 @@
 // ObjectValue save serialization.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { ObjectValue } from "../../inkjs/engine/Value";
+import { testCompiler, testStory } from "../engineUnderTest";
+import { ObjectValue } from "../../runtime/Value";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 
-function compile(source: string): Record<string, any> {
-  const compiler = new SparkdownCompiler();
+function compile(source: string): ProgramRoot {
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -30,10 +30,10 @@ function compile(source: string): Record<string, any> {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("display serialization fixture failed to compile");
   }
-  return result.program.compiled as Record<string, any>;
+  return result.program.chunks;
 }
 
 function field(obj: ObjectValue, key: string): unknown {
@@ -47,7 +47,7 @@ describe("display() output-stream serialization", () => {
 done
 `);
 
-    const storyA = new RuntimeStory(compiled);
+    const storyA = testStory(compiled);
     const errorsA: string[] = [];
     storyA.onError = (m) => errorsA.push(m);
     storyA.Continue(); // completes the display beat — table is in the output stream
@@ -59,7 +59,7 @@ done
     const savedJson = storyA.state.ToJson() as string;
 
     // Restore into a fresh story.
-    const storyB = new RuntimeStory(compiled);
+    const storyB = testStory(compiled);
     const errorsB: string[] = [];
     storyB.onError = (m) => errorsB.push(m);
     storyB.state.LoadJson(savedJson);

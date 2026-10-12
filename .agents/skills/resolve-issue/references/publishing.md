@@ -2,18 +2,32 @@
 
 All commands run from the worktree root unless stated otherwise.
 
+## Private writer allocation
+
+At resolve-issue preflight, before writing any artifacts, run:
+
+```sh
+node .agents/skills/resolve-issue/writer-artifacts.mjs --parent <existing-absolute-scratch-parent> --issue <N> --writer <writer-identity> --session <session-identity>
+```
+
+Keep the returned absolute `artifactDir`, `commitMessage` and `prBody` paths for the whole attempt. The allocator creates an exclusive directory, protects it for its owner and reads back `owner.json`; it refuses missing identities, linked ancestors and checkout parents. Each writer and retry allocates anew, even for the same issue and session. Use an editor to fill the returned files and put other artifacts under `artifactDir`. A shared parent scratch directory is allowed; its root filenames are not private artifacts. Allocation failure stops artifact creation. This directory already exists before a PR number is available.
+
+Repository refusal covers Git discovery, ancestor `.git` entries and recognizable Git administration storage: Git core configuration with objects or refs, or the canonical objects/info, objects/pack, refs/heads and refs/tags layout. Generic config/objects/refs names with valid unrelated configuration remain allowed. A failed config read, including malformed ordinary config beside objects/refs, is unverifiable and stops allocation. Arbitrarily destroyed metadata cannot always be recognized; choose a scratch parent known to be outside repository storage.
+
 ## 7. Commit, push, and open a draft PR
 
 The PR opens before the review so the reviewers have a PR to comment on; findings live on the PR itself, tracked next to the code they criticize, instead of dying in a session transcript. Open it as a draft and leave it a draft until `/review-pr` says otherwise.
 
-Clean up scratch files, then look at what you are about to stage (`rm -f testrun.log`, `git status --short`). Stage deliberately, by path; `git add -A` will happily commit a screenshot, a scratch `.sd`, or a crash dump. Stage new files before running any index-based check or pushing: `git ls-files`, the check loops built on it, and CI see only what is tracked, so an unstaged new file passes locally and is absent from the pull request.
+Use the paths returned by the [initial writer allocation](../SKILL.md#0-preflight), which exists before a PR number: set `COMMIT_MESSAGE` to `commitMessage` and `PR_BODY` to `prBody`, preserving their absolute paths. Fill these files with an editor. Keep reproductions, screenshots and logs under the same `artifactDir`; remove only your own disposable files. Preserve this directory through publication and read-back. A fresh retry uses a new allocation rather than another writer's directory or a fixed per-issue name.
+
+Look at what you are about to stage (`git status --short`). Stage deliberately, by path; `git add -A` will happily commit a screenshot, a scratch `.sd`, or a crash dump. Stage new files before running any index-based check or pushing: `git ls-files`, the check loops built on it, and CI see only what is tracked, so an unstaged new file passes locally and is absent from the pull request.
 
 ```bash
 git add packages/sparkdown/src/compiler/utils/filterImage.ts packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts
 git status --short
-git commit -F commit-msg.txt
+git commit -F "$COMMIT_MESSAGE"
 git push -u origin fix/302-filterimage-layers
-gh pr create --draft --title "fix(compiler): accumulate all matching filtered_layers (#302)" --body-file pr-body.md
+gh pr create --draft --title "fix(compiler): accumulate all matching filtered_layers (#302)" --body-file "$PR_BODY"
 ```
 
 The body follows `.github/PULL_REQUEST_TEMPLATE.md` (same headings, same order; `gh pr create` does not apply it for you) and must contain the line `Closes #302`, the only thing that makes GitHub close the issue on merge; the `(#302)` in the title is a mention and closes nothing. Read [shared publishing rules](../../references/publishing.md) before publication: bodies go through `--body-file` (never `@-`), and you read the artifact back (`gh pr view --json number,title,body,isDraft`, then `gh pr view --json body --jq .body | grep -i "closes #302"`).

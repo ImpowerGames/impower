@@ -8,13 +8,11 @@
 // moved or dropped. These tests count what each pass of the chunk store
 // visited (`ChunkStore.passesLastBuild`), compare chunks by identity, and run
 // the stories the roots hold.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import { Container } from "../../inkjs/engine/Container";
-import type { Story } from "../../inkjs/engine/Story";
+import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { ChunkStore, type FlowSource } from "../../program/ChunkStore";
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
@@ -26,10 +24,11 @@ import {
   blockField,
   exportCount,
   exportSymbol,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   describeRoot,
+  errorsOf,
   MAIN_URI,
   programCompiler,
   rootChunks,
@@ -68,7 +67,6 @@ function session(
   configure?: (compiler: SparkdownCompiler) => void,
 ) {
   const c = programCompiler(texts, {
-    programChunks: true,
     seedBuiltinsIntoStory: true,
   });
   configure?.(c.compiler);
@@ -82,9 +80,6 @@ function session(
     },
     get program() {
       return program;
-    },
-    get story() {
-      return compiled.story;
     },
     get text() {
       return text;
@@ -122,7 +117,7 @@ function session(
 const cold = (texts: Record<string, string>): SparkProgram =>
   quietly(
     () =>
-      programCompiler(texts, { programChunks: true, seedBuiltinsIntoStory: true })
+      programCompiler(texts, { seedBuiltinsIntoStory: true })
         .compile().program,
   );
 
@@ -140,7 +135,7 @@ const lostChunks = (before: ProgramRoot, after: ProgramRoot) => {
 
 /** The innermost statement chunk that line `line` (counting from 0) of the
  *  main script falls in. */
-const chunkAtLine = (root: ProgramRoot, line: number): StatementChunk => {
+const chunkAtLine = (root: ProgramRoot, line: number): ProgramChunk => {
   const at = root.statementAt(MAIN_URI, line);
   expect(at, `a statement holds line ${line}`).toBeDefined();
   return at!.sequence.arrays.chunks[at!.entry]!;
@@ -156,7 +151,7 @@ const chunkAt = (root: ProgramRoot, text: string, needle: string) => {
 
 /** How many statements a chunk's subtree holds: the chunk and the
  *  statements of its bodies, at any depth. */
-const subtreeSize = (root: ProgramRoot, chunk: StatementChunk): number => {
+const subtreeSize = (root: ProgramRoot, chunk: ProgramChunk): number => {
   let size = 1;
   for (let k = 0; k < blockCount(chunk); k += 1) {
     for (const inner of root.body(chunk, k)?.arrays.chunks ?? []) {
@@ -247,11 +242,12 @@ describe("an edit inside one beat", () => {
     expect(passes.chunkTable).toBeLessThanOrEqual(2);
   });
 
-  it("leaves the runtime tree unflattened and its containers uncounted", () => {
-    // A read count of a label and a once-only choice: the current engine's
-    // resolution sets their containers' count flags, and flattening inlines
-    // every unnamed container. A program that runs from its chunks needs
-    // neither, so neither pass runs for it unless it falls back.
+  it("builds no runtime tree", () => {
+    // A read count of a label and a once-only choice, which the current
+    // engine's resolution counted in their containers. A program runs from
+    // its chunks, and its compile builds no runtime story (#1607, #705): its
+    // root holds what the engine reads of the story besides its chunks, the
+    // lists, structs and constants (`ProgramRoot.tables`).
     const text = [
       "scene MAIN",
       "  label knock",
@@ -263,36 +259,174 @@ describe("an edit inside one beat", () => {
       "end",
       "",
     ].join("\n");
-    const containers = (story: Story) => {
-      let unnamed = 0;
-      let knock: Container | undefined;
-      const walk = (c: Container) => {
-        if (!c.hasValidName) {
-          unnamed += 1;
-        }
-        if (c.name === "knock") {
-          knock = c;
-        }
-        for (const child of [...c.content, ...(c.namedOnlyContent?.values() ?? [])]) {
-          if (child instanceof Container) {
-            walk(child);
-          }
-        }
-      };
-      walk(story.mainContentContainer);
-      return { unnamed, knock };
-    };
     const s = session({ [MAIN_URI]: text });
     s.edit("Knocked", "Knocked, again,");
-    expect(s.program.fallback).toBeUndefined();
-    const chunked = containers(s.story);
-    const current = containers(
-      quietly(() => programCompiler({ [MAIN_URI]: text.replace("Knocked", "Knocked, again,") }).compile())
-        .story,
-    );
-    expect(current.knock?.visitsShouldBeCounted).toBe(true);
-    expect(chunked.knock?.visitsShouldBeCounted).toBe(false);
-    expect(chunked.unnamed).toBeGreaterThan(current.unnamed);
+    expect(s.program.chunks).toBeDefined();
+    const tables = s.compiler.chunkStore!.current!.tables;
+    expect(tables).not.toBeNull();
+    expect(tables!.structDefinitions).toBeTypeOf("object");
+    expect(tables!.constantNames).toBeInstanceOf(Set);
+  });
+});
+
+// The listing of the current root's statements and the assembly of the
+// sequences' entries scale with the edit (#1599): the compile hands the store
+// the lines of the blocks it lowered anew (`ProgramSource.changed`), the
+// alignment reads the old statements only between the carried ones around
+// the statements that are not carried, and a sequence keeps the entries
+// above and below its window as the current root holds them.
+describe("the bookkeeping of a build over an edit", () => {
+  // `count` scenes, each a line, an `if` block and a line, under a top level
+  // that runs them in turn.
+  const scenes = (count: number) =>
+    [
+      ...Array.from({ length: count }, (_, i) => `-> S${i} ->`),
+      "",
+      ...Array.from({ length: count }, (_, i) => [
+        `scene S${i}`,
+        `  First line of S${i}.`,
+        "  if true",
+        `    Inside S${i}.`,
+        "  end",
+        `  Last line of S${i}.`,
+        "end",
+        "",
+      ]).flat(),
+    ].join("\n");
+  // A flat scene of `lines` beats.
+  const beats = (lines: number) => {
+    const { files } = buildBeatsFixture({ lines });
+    return {
+      [MAIN_URI]: files.get("main.sd")!,
+      [CHARACTERS]: files.get("scripts/characters.sd")!,
+    };
+  };
+  // A line of dialogue or action halfway down a beats scene.
+  const middleBeat = (text: string) => {
+    const lines = text.split("\n");
+    return lines.find((l, i) => i >= lines.length / 2 && /^ {4}\S/.test(l))!;
+  };
+  type Edit = (text: string) => [string, string];
+  const counted = (texts: Record<string, string>, edits: readonly Edit[]) => {
+    const s = session(texts);
+    return edits.map((edit) => {
+      const [find, replace] = edit(s.text);
+      const before = s.root;
+      const after = s.edit(find, replace)!;
+      expect(s.program.chunks).toBeDefined();
+      expect(newChunks(before, after).length).toBeLessThanOrEqual(2);
+      const { order, assembly } = s.store.passesLastBuild;
+      return { order, assembly, statements: after.statementOrder().length };
+    });
+  };
+  const middle = (count: number) => Math.floor(count / 2);
+  const sceneEdits = (count: number): Edit[] => [
+    () => [`  Last line of S${middle(count)}.`, `  Last line of S${middle(count)}, edited.`],
+    () => [`    Inside S${middle(count)}.`, `    Inside S${middle(count)}, edited.`],
+    () => [`  First line of S${middle(count)}.`, `  First line of S${middle(count)}.\n`],
+  ];
+  const beatEdits: Edit[] = [
+    (text) => [middleBeat(text), `${middleBeat(text)} Still.`],
+  ];
+
+  type Sized = [Record<string, string>, readonly Edit[]];
+  const sizes: [string, () => [Sized, Sized]][] = [
+    [
+      "scenes",
+      () => [
+        [{ [MAIN_URI]: scenes(30) }, sceneEdits(30)],
+        [{ [MAIN_URI]: scenes(120) }, sceneEdits(120)],
+      ],
+    ],
+    [
+      "a flat scene of beats",
+      () => [
+        [beats(600), beatEdits],
+        [beats(3000), beatEdits],
+      ],
+    ],
+  ];
+  it.each(sizes)(
+    "of one statement in a program of %s lists and assembles as many entries at either size",
+    (_, programs) => {
+      const [[smallTexts, smallEdits], [largeTexts, largeEdits]] = programs();
+      const smallCounts = counted(smallTexts!, smallEdits!);
+      const largeCounts = counted(largeTexts!, largeEdits!);      smallCounts.forEach((counts, i) => {
+        const largeCount = largeCounts[i]!;
+        expect(largeCount.statements).toBeGreaterThan(3 * counts.statements);
+        expect(counts.statements).toBeGreaterThan(100);
+        // Neither count grows with the program, and both stay a handful.
+        expect(largeCount.order).toBe(counts.order);
+        expect(largeCount.assembly).toBe(counts.assembly);
+        expect(largeCount.order).toBeLessThan(10);
+        expect(largeCount.assembly).toBeLessThan(20);
+      });
+    },
+  );
+
+  // `count` scenes, then as many declarations and a declaration whose
+  // initializer writes a function: the declarations' line starts are the
+  // script's own lines, which a line inserted in a scene above moves, and
+  // the function's body is a body of the declaration, whose statements the
+  // order lists after every flow's.
+  const declared = (count: number) =>
+    [
+      scenes(count),
+      ...Array.from({ length: count }, (_, i) => `store v${i} = ${i}`),
+      "store handler = function()",
+      "  return 1",
+      "end",
+      "",
+    ].join("\n");
+  const declarationEdits: [string, (count: number) => Edit][] = [
+    [
+      "a line inserted in a scene above the declarations",
+      (count) => () => [
+        `  First line of S${middle(count)}.`,
+        `  First line of S${middle(count)}.\n  Inserted.`,
+      ],
+    ],
+    ["the body of a declaration's function", () => () => ["  return 1", "  return 2"]],
+  ];
+  it.each(declarationEdits)(
+    "of %s lists and assembles as many entries at either size",
+    (_, edit) => {
+      const [smallCounts] = counted({ [MAIN_URI]: declared(30) }, [edit(30)]);
+      const [largeCounts] = counted({ [MAIN_URI]: declared(120) }, [edit(120)]);
+      expect(largeCounts!.order).toBe(smallCounts!.order);
+      expect(largeCounts!.assembly).toBe(smallCounts!.assembly);
+      expect(largeCounts!.order).toBeLessThan(10);
+      expect(largeCounts!.assembly).toBeLessThan(10);
+    },
+  );
+
+  it("builds the same root without the changed blocks, listing every old statement", () => {
+    const texts = { [MAIN_URI]: scenes(12) };
+    const withChanges = session(texts);
+    const without = session(texts);
+    const forget = () => {
+      (without.compiler as unknown as { _chunkStoreBlocks?: Set<object> })._chunkStoreBlocks =
+        undefined;
+    };
+    for (const edit of [
+      ...sceneEdits(12),
+      (): [string, string] => ["scene S3\n", "scene S3\n  Inserted.\n"],
+      (): [string, string] => ["  Last line of S9.\n", ""],
+      (): [string, string] => ["  if true\n    Inside S7.", "  if false\n    Inside S7."],
+    ]) {
+      const [find, replace] = edit(withChanges.text);
+      const kept = withChanges.edit(find, replace)!;
+      forget();
+      const old = without.root.statementOrder().length;
+      const listed = without.edit(find, replace)!;
+      expect(withChanges.store.emittedLastBuild).toBe(without.store.emittedLastBuild);
+      expect(describeRoot(kept)).toEqual(describeRoot(listed));
+      expect(storyBeats(new ProgramStory(kept) as never)).toEqual(
+        storyBeats(new ProgramStory(listed) as never),
+      );
+      expect(without.store.passesLastBuild.order).toBe(old);
+      expect(withChanges.store.passesLastBuild.order).toBeLessThan(old / 4);
+    }
   });
 });
 
@@ -324,16 +458,23 @@ describe("a position inside an unchanged block below an edit", () => {
   const BELOW = ["    After the block.", "    Inserted below.\n    After the block."];
   const edited = text.replace(ABOVE[0]!, ABOVE[1]!).replace(BELOW[0]!, BELOW[1]!);
   const beatTexts = (beats: ReturnType<typeof storyBeats>) => beats.beats.map((b) => b.text.trim());
-  // An engine on `root` that places a path at the line of `script` that
-  // holds `line`, as a game's path locations place a line of the editor
-  // (`Game.setStartFrom`), which enters the blocks that hold it.
-  const engineAt = (root: ProgramRoot, script: string) =>
-    new ProgramStory(root, {
-      locate: (path) => {
-        const line = script.split("\n").findIndex((l) => l.trim() === path);
-        return line < 0 ? undefined : { uri: MAIN_URI, line, column: 0 };
-      },
-    });
+  // An engine on `root` that chooses a line of `script`, named by its text,
+  // at the line's address, as a game places a line of the editor
+  // (`Game.setStartFrom`, #700), which enters the blocks that hold it.
+  const engineAt = (root: ProgramRoot, script: string) => {
+    const story = new ProgramStory(root);
+    const choose = story.ChoosePathString.bind(story);
+    story.ChoosePathString = (path: string, ...rest: [boolean?, unknown[]?]) => {
+      const line = script.split("\n").findIndex((l) => l.trim() === path);
+      const address = line < 0 ? undefined : root.addressAt(MAIN_URI, line);
+      if (address === undefined) {
+        choose(path, ...rest);
+      } else {
+        story.ChooseAddress(address);
+      }
+    };
+    return story;
+  };
 
   it("is reached through the new root, whose `if` chunk, block rows and their chunks are the old ones", () => {
     const s = session({ [MAIN_URI]: text });
@@ -735,7 +876,7 @@ describe("a hazard of reuse", () => {
 
   it("a function written in a scene above renumbers the names of the functions below it, and their statements are read again nowhere", () => {
     // The compiler names a function a statement writes by document order
-    // (`__synth_<n>`), so one written in an earlier scene renames every one
+    // (`__synth$<n>`), so one written in an earlier scene renames every one
     // after it. A chunk names such a function by its anonymous symbol, which
     // belongs to the function for as long as its statement is kept.
     const scene = (name: string, closures: boolean) => [
@@ -911,13 +1052,12 @@ describe("a naming collision", () => {
   });
 });
 
-// A compile whose program falls back runs on the current engine, whose
-// runtime tree the switch-on path neither flattens nor counts until then
-// (`Story.FinishForCurrentEngine`), and whose containers a later compile
-// reuses. Through one compiler that goes back and forth between the two,
-// each fallen-back program is the current engine's program of its text.
-describe("a program that falls back after compiles that did not", () => {
-  it("compiles to the current engine's program, however often it goes back and forth", () => {
+// An edit that writes a construct the writer has no emit path for makes the
+// compile report it at its line and make no program (#705); the edit that
+// removes it builds the root a cold compile builds, however often one
+// compiler goes back and forth between the two.
+describe("a construct the program cannot compile, written and removed by edits", () => {
+  it("is reported at its line, and its removal builds the cold compile's root, however often it goes back and forth", () => {
     const scene = (name: string, next: string) => [
       `scene ${name}`,
       "  label knock",
@@ -947,13 +1087,7 @@ describe("a program that falls back after compiles that did not", () => {
     // A read of a list builtin, which the writer has no emit path for.
     const FALL = "\n  Rolled {LIST_RANDOM(knock)}.";
     const s = session({ [MAIN_URI]: text });
-    expect(s.program.fallback).toBeUndefined();
-    const current = (script: string) =>
-      quietly(
-        () =>
-          programCompiler({ [MAIN_URI]: script }, { seedBuiltinsIntoStory: true }).compile()
-            .program.compiled,
-      );
+    expect(s.program.chunks).toBeDefined();
     const steps: [string, string][] = [
       ["  Knocked {knock} times in SECOND.", `  Knocked {knock} times in SECOND.${FALL}`],
       [FALL, ""],
@@ -965,17 +1099,16 @@ describe("a program that falls back after compiles that did not", () => {
     const outcomes: string[] = [];
     for (const [find, replace] of steps) {
       s.edit(find, replace);
-      if (s.program.fallback) {
-        expect(s.program.fallback.construct).toBe("list");
-        expect(s.program.compiled).toBeDefined();
-        expect(s.program.compiled).toEqual(current(s.text));
-        outcomes.push("fell back");
+      if (!s.program.chunks) {
+        const line = s.text.split("\n").findIndex((l) => l.includes("LIST_RANDOM"));
+        expect(errorsOf(s.program)).toContainEqual([line, unsupportedConstructMessage("list")]);
+        outcomes.push("error");
       } else {
         expect(describeRoot(s.root)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
         outcomes.push("chunks");
       }
     }
-    expect(outcomes).toEqual(["fell back", "chunks", "fell back", "fell back", "chunks", "fell back"]);
+    expect(outcomes).toEqual(["error", "chunks", "error", "error", "chunks", "error"]);
   });
 
   it("builds the root a cold compile builds after a preview whose compile reseeded the table", () => {
@@ -1026,11 +1159,11 @@ describe("a program that falls back after compiles that did not", () => {
     expect(describeRoot(s.root)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
   });
 
-  it("reads a name as the current engine reads it when an assignment below makes the name a global", () => {
+  it("reads a label's count above an assignment below that makes the name a global", () => {
     // Resolution makes `knock` a global as it reaches the bare assignment,
-    // after the line above it has read the label's count. A program that
-    // falls back is resolved again for the current engine, which must start
-    // from the declarations it started from the first time.
+    // after the line above it has read the label's count. A scene that reads
+    // a list builtin makes the compile report it, at its line, and make no
+    // program.
     const text = [
       "-> MAIN",
       "scene MAIN",
@@ -1040,26 +1173,20 @@ describe("a program that falls back after compiles that did not", () => {
       "  done",
       "end",
       "",
-      "scene UNUSED",
-      "  Rolled {LIST_RANDOM(knock)}.",
-      "end",
-      "",
     ].join("\n");
-    const { program, story } = quietly(() =>
-      programCompiler(
-        { [MAIN_URI]: text },
-        { programChunks: true, seedBuiltinsIntoStory: true },
-      ).compile(),
-    );
-    expect(program.fallback?.construct).toBe("list");
-    const current = quietly(() =>
+    const unused = ["scene UNUSED", "  Rolled {LIST_RANDOM(knock)}.", "end", ""].join("\n");
+    const { program } = quietly(() =>
       programCompiler({ [MAIN_URI]: text }, { seedBuiltinsIntoStory: true }).compile(),
     );
-    expect(program.compiled).toEqual(current.program.compiled);
-    const beatTexts = (s: Story) => storyBeats(s).beats.map((b) => b.text.trim());
-    const ran = beatTexts(story);
-    expect(ran).toEqual(["Count 1."]);
-    expect(ran).toEqual(beatTexts(current.story));
+    expect(program.chunks).toBeDefined();
+    expect(storyBeats(new ProgramStory(program.chunks!)).beats.map((b) => b.text.trim())).toEqual([
+      "Count 1.",
+    ]);
+    const listed = quietly(() =>
+      programCompiler({ [MAIN_URI]: `${text}\n${unused}` }, { seedBuiltinsIntoStory: true }).compile(),
+    ).program;
+    expect(listed.chunks).toBeUndefined();
+    expect(errorsOf(listed)).toContainEqual([9, unsupportedConstructMessage("list")]);
   });
 });
 
@@ -1071,7 +1198,7 @@ function messages(program: SparkProgram): string[] {
 }
 
 /** The symbols a chunk exports, in its export table's order. */
-const exportedSymbols = (chunk: StatementChunk): number[] =>
+const exportedSymbols = (chunk: ProgramChunk): number[] =>
   Array.from({ length: exportCount(chunk) }, (_, r) => exportSymbol(chunk, r));
 
 /** A diagnostic's message as text. */

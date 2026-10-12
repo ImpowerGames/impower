@@ -26,6 +26,7 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { writeBeatText } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
@@ -47,21 +48,22 @@ export interface DOMHarness {
   /** Preview at a line. A beat with pictures displays once the page
    *  answers the preview's gate, so await the result before reading what
    *  such a beat wrote. */
-  preview(line?: number): Promise<string | null>;
+  preview(line?: number): Promise<ProgramAddress | null>;
   /** Re-render a (possibly edited) source into the same overlay via the same
    *  reconciling UIManager — models a live-preview edit. */
   rerender(newSource: string, line?: number): Promise<void>;
-  jumpTo(path: string): void;
+  /** Reset the story to the top of a flow named by its qualified name. */
+  jumpTo(flow: string): void;
   nextBeat(): Instructions | undefined;
   display(instructions: Instructions, instant: boolean): Promise<void>;
   /** Serialize the overlay DOM into a stable, id-normalized tree snapshot. */
   snapshotDOM(): unknown;
 }
 
-/** A fixture's program. With `programChunks`, the program is compiled to
- *  statement chunks for the binary program's engine (#692), and a fixture
- *  that falls back to the current engine is refused. */
-export function compile(source: string, programChunks = false) {
+/** A fixture's program, compiled to statement chunks for the binary
+ *  program's engine (#692); a fixture the compile makes no chunks for is
+ *  refused, with the errors it reported. */
+export function compile(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     // Builtins come from the implicitly-imported builtins prelude (the compiler
@@ -70,7 +72,6 @@ export function compile(source: string, programChunks = false) {
     // The engine sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
-    programChunks,
     files: [
       {
         uri: MAIN_URI,
@@ -84,14 +85,12 @@ export function compile(source: string, programChunks = false) {
     ],
   });
   const result = compiler.compile({ textDocument: { uri: MAIN_URI } });
-  if (programChunks) {
-    if (!result.program.chunks) {
-      throw new Error(
-        `DOM fixture falls back to the current engine for ${result.program.fallback?.construct}`,
-      );
-    }
-  } else if (!result.program.compiled) {
-    throw new Error("DOM fixture failed to compile");
+  if (!result.program.chunks) {
+    const errors = Object.values(result.program.diagnostics ?? {})
+      .flat()
+      .filter((d) => d.severity === 1)
+      .map((d) => `${d.range.start.line}: ${typeof d.message === "string" ? d.message : d.message.value}`);
+    throw new Error(`DOM fixture made no program: ${errors.join("; ")}`);
   }
   return result.program;
 }
@@ -295,12 +294,9 @@ export function createDOMHarness(
     /** Load a saved checkpoint before the connect, as the page does when it
      *  displays a preview from the worker's route. */
     loadCheckpoint?: string;
-    /** Run the game on the binary program's engine (`compile`). */
-    programChunks?: boolean;
   },
 ): DOMHarness {
-  const programChunks = opts?.programChunks ?? false;
-  const program = compile(source, programChunks);
+  const program = compile(source);
   const { overlay } = installJSDOM();
 
   // Timers armed with a real delay (an asset gate's timeout, the loading
@@ -311,7 +307,6 @@ export function createDOMHarness(
   const makeGame = (prog: any) => {
     const g = new Game({
       program: prog,
-      programChunks,
       previewFrom: { file: MAIN_URI, line: startLine },
       now: () => 0,
       setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
@@ -400,7 +395,7 @@ export function createDOMHarness(
      * rebuilt. Returns once settled.
      */
     async rerender(newSource: string, line = startLine) {
-      const newProgram = compile(newSource, programChunks);
+      const newProgram = compile(newSource);
       game = makeGame(newProgram);
       router = makeRouter();
       // Faithfully model GamePlayerController.buildApp on an edit: the OLD
@@ -420,8 +415,8 @@ export function createDOMHarness(
       game.module.ui.sweepReconcile();
       await flushMicrotasks(10);
     },
-    jumpTo(path: string) {
-      (game as any).jumpToPath(path);
+    jumpTo(flow: string) {
+      game.jumpToFlow(flow);
     },
     nextBeat() {
       const interpreter: any = game.module.interpreter;

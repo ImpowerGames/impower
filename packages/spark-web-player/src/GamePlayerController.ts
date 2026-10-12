@@ -633,11 +633,11 @@ export class GamePlayerController {
     }
     this.refs.leftItems.hidden = false;
     // The page holds only a program's summary, which has no locations to
-    // look paths up in: the worker that holds the program sends them with
+    // place addresses with: the worker that holds the program sends them with
     // the report.
     if (
       (this._program || params.simulateLocation) &&
-      params.simulatePath &&
+      params.simulateFlow != null &&
       params.simulation === "fail"
     ) {
       const simulateFromLocation = params.simulateLocation;
@@ -661,7 +661,7 @@ export class GamePlayerController {
     }
     if (
       (this._program || params.startLocation) &&
-      params.startPath &&
+      params.startLocation != null &&
       params.simulation === "fail"
     ) {
       const startFromLocation = params.startLocation;
@@ -846,9 +846,14 @@ export class GamePlayerController {
       this._audioContext = new AudioContext();
     }
     if (this._audioContext.state !== "running") {
-      try {
-        await this._audioContext.resume();
-      } catch {}
+      const context = this._audioContext;
+      // A webview can keep resume() pending until its first pointer gesture.
+      // Rendering must finish so the player can receive that gesture.
+      void context.resume().then(() => {
+        if (!this._disposed && this._audioContext === context && context.state === "running") {
+          this._app?.setAudioContext(context);
+        }
+      }).catch(() => {});
     }
     if (this._audioContext.state === "running") {
       this._app?.setAudioContext(this._audioContext);
@@ -863,8 +868,7 @@ export class GamePlayerController {
     const stops = this._stops;
     const clicked = this._plays;
     await this.ensureAudioContext();
-    // STOP, another PLAY or the controller going while the audio context
-    // resumed ended this click before it asked for anything.
+    // STOP, another PLAY or disposal can supersede this click while it yields.
     if (stops !== this._stops || clicked !== this._plays || this._disposed) {
       return;
     }

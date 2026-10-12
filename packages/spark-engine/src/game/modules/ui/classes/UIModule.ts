@@ -30,7 +30,7 @@ import {
   IntValue,
   ObjectValue,
   StringValue,
-} from "@impower/sparkdown/src/inkjs/engine/Value";
+} from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Module } from "../../../core/classes/Module";
@@ -540,7 +540,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /**
    * Evaluate a reactive {@link Binding} to its live value by calling the hoisted
-   * nullary evaluator the compiler emitted (`__binding_<id>() return <expr>
+   * nullary evaluator the compiler emitted (`__binding$<id>() return <expr>
    * end`, lowerSparkleBody.ts). Guarded by HasFunction so a snapshot-only /
    * never-hoisted binding returns `undefined` instead of throwing. MUST only be
    * called between turns (EvaluateFunction asserts IfAsyncWeCant). The story

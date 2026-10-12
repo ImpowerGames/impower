@@ -1,0 +1,17 @@
+choose
+  do
+    choose
+      * Inner
+        Chose inner.
+    end
+  end
+  do
+    local x = 1
+    * Second {x}
+      Chose second {x}.
+  end
+  * Outer
+    Chose outer.
+end
+After.
+done

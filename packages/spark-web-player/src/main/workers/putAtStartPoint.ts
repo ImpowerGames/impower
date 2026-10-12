@@ -1,4 +1,4 @@
-import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import { profile } from "../../utils/profile";
@@ -8,8 +8,9 @@ import { programIdentity, type IdentifiableProgram } from "../../utils/programId
  *  reports it. */
 export interface StartPointRoute {
   checkpoint?: string;
-  /** The path the search was for, or null for one it resolved to nothing. */
-  path?: string | null;
+  /** The address the search was for, or null for one it resolved to
+   *  nothing. */
+  address?: ProgramAddress | null;
   /** The program the search ran in. */
   programId?: string;
   failure?: SimulationFailure;
@@ -21,8 +22,9 @@ export interface StartPointRoute {
  *  the rule can be checked against a recording stand-in. */
 export interface StartableGame {
   readonly program: IdentifiableProgram;
-  readonly startPath: string | null | undefined;
-  simulatePath: string | null | undefined;
+  readonly startAddress: ProgramAddress | null | undefined;
+  simulateFlow: string | null | undefined;
+  routeStartOf(address: ProgramAddress): string;
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
   /** What the game's own replay of a route raised. */
@@ -49,8 +51,8 @@ export interface StartableGame {
  * for.
  *
  * The worker already runs that identical search, on every compile and every
- * cursor move, and reports the paths it reached a definite answer about
- * (`path`): either the story state at that path (`checkpoint`), or, with no
+ * cursor move, and reports the addresses it reached a definite answer about
+ * (`address`): either the story state at that address (`checkpoint`), or, with no
  * checkpoint, that no route to it exists. When that answer is about the same
  * start point this run begins from, and about the same program this run is
  * built from, there is nothing left to look for. Anything less definite is
@@ -81,22 +83,22 @@ export function putAtStartPoint(
   profile("start", mark);
   const {
     checkpoint,
-    path: simulatedPath,
+    address: simulatedAddress,
     programId,
     failure,
     errors,
   } = route ?? {};
   let raised: SimulationError[] = [];
-  const startPath = game.startPath;
-  // Both halves are required. The path says where the answer is about; the
-  // program identity says what script it is about, which the path cannot:
-  // the same path string survives an edit that changes what the story does
-  // at it, and a compile landing while PLAY is being set up leaves the
+  const startAddress = game.startAddress;
+  // Both halves are required. The address says where the answer is about;
+  // the program identity says what script it is about, which the address
+  // cannot: an address survives an edit that changes what the story does
+  // before it, and a compile landing while PLAY is being set up leaves the
   // worker an edit ahead of the program the game was built from. A mismatch
   // is not an error: the answer does not apply, so the search runs.
   const answersThisRun =
-    startPath != null &&
-    simulatedPath === startPath &&
+    startAddress != null &&
+    simulatedAddress === startAddress &&
     programId != null &&
     programId === programIdentity(game.program);
   if (answersThisRun) {
@@ -120,7 +122,7 @@ export function putAtStartPoint(
       // record it, and `start` falls back to jumping straight to the start
       // point. The toolbar then reports an unreachable start point, and why,
       // as it does for the preview.
-      game.simulatePath = Game.getSimulateFromPath(startPath);
+      game.simulateFlow = game.routeStartOf(startAddress);
       game.simulation = "fail";
       game.simulationFailure = failure;
       // What stopped the worker's search, which this run reports as its own.
@@ -128,7 +130,7 @@ export function putAtStartPoint(
     }
   } else {
     // No worker answer applies to this run: nothing was ever selected, the
-    // worker resolved a different path, or it answered for a different
+    // worker resolved a different address, or it answered for a different
     // version of the script. This is the only search there is.
     game.simulate(simulationOptions);
     raised = game.routeErrors;

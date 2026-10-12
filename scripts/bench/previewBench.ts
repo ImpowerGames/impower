@@ -3,8 +3,9 @@
 // browser and times each phase of a highlighted suggestion (`preview`) or an
 // accepted edit (`edit`) at one line of a project.
 //
-// It models the player as it ships: the compiler emits no compiled story, the
-// game that searched the route loads its own checkpoint, connects to a sink
+// It models the player as it ships: the worker's game runs the program engine
+// on the compile's statement chunks, the game that searched the route loads
+// its own checkpoint, connects to a sink
 // and previews, and only the messages it emits are cloned, as they are on
 // their way to the page. The compiler certifies an edit's changes as confined
 // with its `ink/flowShapes` walk, so the route search resumes from its last
@@ -13,12 +14,13 @@
 // Run through preview-bench.mjs, which bundles this file with esbuild and runs
 // one configuration per process; it passes the configuration as one JSON
 // argument: { project, line, word, options, mode, samples, warmup, json, gaps }.
-import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import * as v8 from "node:v8";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
+import type { ProgramAddress } from "../../packages/sparkdown/src/compiler/types/ProgramAddress";
 import { profile, setRetainProfilerEntries } from "../../packages/sparkdown/src/compiler/utils/profile";
+import { ParsedObject } from "../../packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
@@ -31,16 +33,31 @@ interface BenchConfig {
   line: number;
   word: string;
   options: string[];
-  mode: "preview" | "edit";
+  // `cold`: each sample compiles the project on a compiler of its own, with
+  // no game (#1712).
+  mode: "preview" | "edit" | "cold";
   samples: number;
   warmup: number;
   json?: string;
   // Where to write, for profile-shares.mjs --gaps, the stretches of each
   // measured sample's worker time that no phase covers.
   gaps?: string;
-  // Whether the compiler builds the binary program's statement chunks
-  // (`programChunks`, #694), whose phases replace the current engine's.
-  chunks?: boolean;
+  // Refuse the compiler's parsed-flow reuse (`tryReuseFlowRun`) on every
+  // compile, as `_disableFlowReuseNextCompile` does for one (#1712).
+  noFlowReuse?: boolean;
+  // After the last sample, a heap snapshot at `<heapProbe>.heapsnapshot` and
+  // the parsed classes alive then at `<heapProbe>.parsed.json`, for
+  // heap-retained.mjs (#1712).
+  heapProbe?: string;
+  // Where to write, for profile-shares.mjs --windows, the stretch of each
+  // measured sample's compile, so that a profile leaves out the warm-up and
+  // the first compile (#1712).
+  windows?: string;
+}
+
+function writeWindows(file: string, clockOriginUs: number, windows: [number, number][]) {
+  const us = (t: number) => clockOriginUs + t * 1000;
+  fs.writeFileSync(file, JSON.stringify({ clock: "process.hrtime, microseconds", samples: windows.map(([s, e]) => [[us(s), us(e)]]) }));
 }
 
 const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
@@ -182,7 +199,98 @@ class PageSink {
   }
 }
 
+// The parsed objects alive after full collections, counted by class, and,
+// with `heapProbe`, a heap snapshot beside them: heap-retained.mjs reads the
+// two and measures what only parsed objects hold (#1712). A class's name is
+// its constructor's name in this bundle, which is the name the snapshot gives
+// its instances.
+function probeParsedObjects(): Record<string, unknown> {
+  const gc = (globalThis as { gc?: () => void }).gc;
+  gc?.();
+  gc?.();
+  const byClass: Record<string, number> = {};
+  for (const line of v8.queryObjects(ParsedObject as any, { format: "summary" }) as string[]) {
+    const name = /^[\w$]+/.exec(line)?.[0] ?? "?";
+    byClass[name] = (byClass[name] ?? 0) + 1;
+  }
+  const probe: Record<string, unknown> = {
+    heapUsedMB: Math.round(process.memoryUsage().heapUsed / 104857.6) / 10,
+    // Each class's prototype is listed once among them.
+    parsedObjects: Object.values(byClass).reduce((a, b) => a + b, 0),
+    byClass,
+  };
+  if (config.heapProbe) {
+    fs.writeFileSync(`${config.heapProbe}.parsed.json`, JSON.stringify(probe, null, 2));
+    probe.snapshot = v8.writeHeapSnapshot(`${config.heapProbe}.heapsnapshot`);
+  }
+  return probe;
+}
+
+// A cold compile: a compiler of its own for each sample, configured and
+// compiled as the worker's first compile is, with no game listening.
+async function coldMain() {
+  setRetainProfilerEntries(true);
+  const files = loadProjectFiles(config.project);
+  const startFrom = { file: MAIN_URI, line: Math.max(0, (config.line ?? 1) - 1) };
+  realLog = silenceConsole();
+  takeMeasures();
+  const samples: { wall: number; phases: Record<string, number> }[] = [];
+  const clockOriginUs = Number(process.hrtime.bigint() / 1000n) - performance.now() * 1000;
+  const windows: [number, number][] = [];
+  let compiler: SparkdownCompiler | undefined;
+  for (let i = 0; i < config.warmup + config.samples; i++) {
+    compiler = undefined;
+    (globalThis as { gc?: () => void }).gc?.();
+    takeMeasures();
+    const t0 = performance.now();
+    compiler = new SparkdownCompiler();
+    compiler.profilerId = PROFILER_ID;
+    configurePlayerCompiler(compiler, files, startFrom);
+    compiler.compile({ textDocument: { uri: MAIN_URI }, startFrom } as any);
+    const t1 = performance.now();
+    const { sums } = takeMeasures();
+    if (i < config.warmup) continue;
+    samples.push({ wall: t1 - t0, phases: sums });
+    windows.push([t0, t1]);
+  }
+  if (config.windows) writeWindows(config.windows, clockOriginUs, windows);
+  const probe = probeParsedObjects();
+  const report = {
+    mode: "cold",
+    project: config.project,
+    warmup: config.warmup,
+    samples: samples.length,
+    wall: stats(samples.map((s) => s.wall)),
+    phases: Object.fromEntries(
+      [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
+    ),
+    parsedProbe: probe,
+    perSample: samples,
+  };
+  if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
+  const row = (label: string, s: { min: number; median: number; max: number }) =>
+    `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
+  realLog(
+    [
+      `mode cold: ${report.samples} samples after ${report.warmup} warm-up, a compiler of its own each`,
+      `after the last: ${probe.heapUsedMB} MB after full collections, ${probe.parsedObjects} parsed objects alive`,
+      "",
+      `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
+      row("compile", report.wall),
+      "",
+      `  ${"profiler phases (ms per sample)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
+      ...Object.entries(report.phases)
+        .sort((a: any, b: any) => b[1].median - a[1].median)
+        .filter(([, s]: any) => s.max >= 0.3)
+        .map(([k, s]: any) => row(k, s)),
+    ].join("\n"),
+  );
+  // Held until here, so the probe sees the last compile's objects.
+  void compiler;
+}
+
 async function main() {
+  if (config.mode === "cold") return coldMain();
   setRetainProfilerEntries(true);
   const files = loadProjectFiles(config.project);
   const mainUri = MAIN_URI;
@@ -213,12 +321,12 @@ async function main() {
   // Each update's stretch, which counts as covered: it has no phase of its own.
   let workerGameIntervals: Interval[] = [];
   let routeSteps = 0;
-  const updateWorkerGame = (program: any, story: any) => {
+  const updateWorkerGame = (program: any) => {
     const t0 = performance.now();
     if (!workerGame) {
-      workerGame = new Game({ program, story, ...system, incrementalCheckpoints: true, verifyCheckpoints: false } as any);
+      workerGame = new Game({ program, ...system } as any);
     } else {
-      workerGame.updateProgram(program, story);
+      workerGame.updateProgram(program);
     }
     const t1 = performance.now();
     workerGameMs += t1 - t0;
@@ -229,46 +337,45 @@ async function main() {
   // indexes the first time a program is asked for a path.
   const setStartFrom = (game: Game, startFrom: { file: string; line: number }) => {
     profile("start", PROFILER_ID, "game/setStartFrom");
-    game.setStartFrom(startFrom);
+    // The line's last beat, which the worker routes a preview to
+    // (`installPlayerWorker.ts`, both compile handlers).
+    game.setStartFrom(startFrom, "last");
     profile("end", PROFILER_ID, "game/setStartFrom");
   };
   // The last route search's target and the checkpoint it produced.
-  let searched: { toPath: string; checkpoint?: string } | undefined;
-  const search = (game: Game, toPath: string, log: RouteSearchLog, remember: boolean) => {
-    const checkpoint = searchRouteTo(game, toPath, log, { config: (compiler as any).config, profilerId: PROFILER_ID, remember });
+  let searched: { to: ProgramAddress; checkpoint?: string } | undefined;
+  const search = (game: Game, to: ProgramAddress, log: RouteSearchLog, remember: boolean) => {
+    const checkpoint = searchRouteTo(game, to, log, { config: (compiler as any).config, profilerId: PROFILER_ID, remember });
     routeSteps = (game as any)._plannedRoute?.steps?.length ?? 0;
-    searched = { toPath, checkpoint };
+    searched = { to, checkpoint };
   };
   const routeSearches = new RouteSearchLog();
-  // A chunked program runs on the program engine, which the worker does not
-  // run yet (its route search reads runtime paths), so with `chunks` only the
-  // compile is measured.
-  if (!config.chunks) compiler.addEventListener("compiler/didCompile", (params: any) => {
+  compiler.addEventListener("compiler/didCompile", (params: any) => {
     routeSearches.forget();
-    const game = updateWorkerGame(params.program, params.story);
+    const game = updateWorkerGame(params.program);
     if (params.program.startFrom) {
       setStartFrom(game, params.program.startFrom);
-      const toPath = game.startPath;
-      if (toPath) {
-        search(game, toPath, routeSearches, true);
+      const to = game.startAddress;
+      if (to != null) {
+        search(game, to, routeSearches, true);
         // Attaches the route's checkpoint to the result, as the worker does.
-        routeSearches.report(params, toPath);
+        routeSearches.report(params, to);
       }
     }
   });
-  if (!config.chunks) compiler.addEventListener("compiler/didPreviewCompile", (params: any) => {
-    const game = updateWorkerGame(params.program, params.story);
+  compiler.addEventListener("compiler/didPreviewCompile", (params: any) => {
+    const game = updateWorkerGame(params.program);
     setStartFrom(game, params.startFrom);
-    const toPath = game.startPath;
-    if (toPath) {
+    const to = game.startAddress;
+    if (to != null) {
       const log = new RouteSearchLog();
-      search(game, toPath, log, false);
-      log.report(params, toPath);
+      search(game, to, log, false);
+      log.report(params, to);
     }
   });
 
   const startFrom = { file: mainUri, line: line0 };
-  configurePlayerCompiler(compiler, files, startFrom, { emitCompiledProgram: false, ...(config.chunks ? { programChunks: true } : {}) });
+  configurePlayerCompiler(compiler, files, startFrom);
   compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
 
   // A preview's display, in the order the worker's display runs it
@@ -288,7 +395,7 @@ async function main() {
     // What a preview displays is a suggestion, whose report the player takes
     // without what only the editors read.
     game.reportsExecutedLines = config.mode !== "preview";
-    game.markPreviewing(searched?.toPath);
+    game.markPreviewing(searched?.to);
     game.module.ui.forgetDisplayedImages();
     game.endSimulation();
     const t0 = performance.now();
@@ -313,17 +420,31 @@ async function main() {
     simulation: game._simulation,
     "system.simulating": game._context.system.simulating ?? null,
     "system.previewing": game._context.system.previewing ?? null,
-    incrementalCheckpoints: game._checkpoints?._incremental ?? game._checkpoints?.options?.incremental ?? null,
-    previewedPath: game.previewedPath ?? null,
+    previewedAddress: game.previewedAddress ?? null,
   });
 
   takeMeasures();
 
   const samples: any[] = [];
+  // The heap the process holds after full collections (the launcher exposes
+  // `gc`), in MB: after the first measured sample, when the warm-up has
+  // filled the caches, after every 50th, and after the last, so that a run
+  // of N samples says whether N highlights left the worker holding more, and
+  // whether what it holds grows with them or settles.
+  const heapNow = () => {
+    const gc = (globalThis as { gc?: () => void }).gc;
+    gc?.();
+    gc?.();
+    return Math.round(process.memoryUsage().heapUsed / 104857.6) / 10;
+  };
+  let heapAfterFirst = 0;
+  const heapEvery50: number[] = [];
   // The profile's clock is process.hrtime in microseconds; performance.now()
   // is milliseconds from a later origin on the same clock.
   const clockOriginUs = Number(process.hrtime.bigint() / 1000n) - performance.now() * 1000;
   const gapsBySample: Interval[][] = [];
+  // Each measured sample's compile, game and route, for --windows.
+  const windowsBySample: Interval[] = [];
   let version = 1;
   let current = token;
   let residue: any;
@@ -336,6 +457,7 @@ async function main() {
     // The store counts the declarations' runs over its lifetime; a sample
     // reports the runs its own compile made.
     const runsBefore = compiler.chunkStore?.initializerRuns ?? 0;
+    if (config.noFlowReuse) (compiler as any)._disableFlowReuseNextCompile = true;
     const t0 = performance.now();
     if (config.mode === "preview") {
       compiler.previewCompile({ textDocument: { uri: mainUri, version }, contentChanges, root: { uri: mainUri }, startFrom } as any);
@@ -346,19 +468,11 @@ async function main() {
       compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
     }
     const t1 = performance.now();
-    if (config.chunks) {
-      const { sums: phases } = takeMeasures();
-      const store = compiler.chunkStore;
-      if (i >= config.warmup) {
-        samples.push({
-          option,
-          wall: { compile: t1 - t0 },
-          phases,
-          passes: { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.fallback?.construct ?? null },
-        });
-      }
-      continue;
-    }
+    // What each pass of the chunk store and of the program resolver visited
+    // for this sample's compile.
+    const store = compiler.chunkStore;
+    const passes = { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.unsupported?.construct ?? null };
+    const resolver = compiler.programResolver?.passesLastResolve;
     const game = workerGame!;
     const before = residueOf(game);
     lastCheckpoint = searched?.checkpoint ?? "";
@@ -368,6 +482,7 @@ async function main() {
     if (i < config.warmup) continue;
     const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
     gapsBySample.push(gaps);
+    windowsBySample.push([t0, t1]);
     residue = { calls: CALLS, beforeDisplay: before, afterDisplay: residueOf(game), outsideMessages: { ...sink.outside }, previewed: shown.previewed };
     lastStream = sink.stream;
     samples.push({
@@ -384,8 +499,14 @@ async function main() {
       },
       phases,
       messages: sink.stats(),
+      passes,
+      ...(resolver ? { resolver } : {}),
     });
+    if (i === config.warmup) heapAfterFirst = heapNow();
+    else if ((i - config.warmup + 1) % 50 === 0) heapEvery50.push(heapNow());
   }
+  const heapAtEnd = heapNow();
+  const parsedProbe = config.heapProbe ? probeParsedObjects() : undefined;
 
   const withMessages = samples.filter((s) => s.messages);
   const last = samples.at(-1)?.messages;
@@ -400,6 +521,12 @@ async function main() {
     samples: samples.length,
     routeSteps,
     heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1048576),
+    // After full collections, when the launcher exposes them.
+    heapAfterFirstSampleMB: heapAfterFirst,
+    heapAfterLastSampleMB: heapAtEnd,
+    heapEvery50SamplesMB: heapEvery50,
+    noFlowReuse: Boolean(config.noFlowReuse),
+    ...(parsedProbe ? { parsedProbe } : {}),
     wall: Object.fromEntries(Object.keys(samples[0]?.wall ?? {}).map((k) => [k, stats(samples.map((s) => s.wall[k]))])),
     phases: Object.fromEntries(
       [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
@@ -424,6 +551,7 @@ async function main() {
     const us = (t: number) => clockOriginUs + t * 1000;
     fs.writeFileSync(config.gaps, JSON.stringify({ clock: "process.hrtime, microseconds", samples: gapsBySample.map((gaps) => gaps.map(([s, e]) => [us(s), us(e)])) }));
   }
+  if (config.windows) writeWindows(config.windows, clockOriginUs, windowsBySample);
   if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
   printReport(report);
 }
@@ -434,6 +562,9 @@ function printReport(report: any) {
   const out = [
     `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
+    `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
+    ...(report.noFlowReuse ? ["parsed-flow reuse refused on every compile (--no-flow-reuse)"] : []),
+    ...(report.parsedProbe ? [`parsed objects alive after the last sample: ${report.parsedProbe.parsedObjects}`] : []),
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
     ...Object.entries(report.wall).map(([k, s]: any) => row(k, s)),
@@ -449,6 +580,12 @@ function printReport(report: any) {
     // What each pass of the chunk store visited, per sample
     // (`ChunkStore.passesLastBuild`).
     out.push("", "  chunk store passes, per sample:", ...passes.map((p: any) => `    ${JSON.stringify(p)}`));
+  }
+  const resolves = report.perSample?.map((s: any) => s.resolver).filter(Boolean);
+  if (resolves?.length) {
+    // What the program path's resolver visited, per sample
+    // (`ProgramResolver.passesLastResolve`, #1607).
+    out.push("", "  resolver passes, per sample:", ...resolves.map((p: any) => `    ${JSON.stringify(p)}`));
   }
   const m = report.messages;
   if (m) {

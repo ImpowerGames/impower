@@ -1,7 +1,7 @@
 // Fengari-backed reference oracle for Lua pattern matching.
 //
 // Sparkdown compiles Lua patterns down to JS RegExp via
-// `inkjs/engine/LuaPatterns.ts`. Behaviour should match upstream
+// `runtime/LuaPatterns.ts`. Behaviour should match upstream
 // Lua/Luau bit-for-bit on ASCII inputs (where JS code units and
 // Lua bytes coincide).
 //

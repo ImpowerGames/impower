@@ -1,4 +1,5 @@
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 
 type Context = { [type: string]: { [name: string]: any } };
@@ -20,11 +21,11 @@ export const rootHasInlinedData = (
   let name = filteredImage?.["image"]?.["$name"];
   while (typeof name === "string" && !seen.has(name)) {
     seen.add(name);
-    const image = context["image"]?.[name];
+    const image = getContextEntry(context, "image", name);
     if (image) {
       return !!image["data"];
     }
-    const nested = context["filtered_image"]?.[name];
+    const nested = getContextEntry(context, "filtered_image", name);
     if (!nested) {
       // A layered root (or nothing at all) — neither carries inlined source
       // that `filterImage` would have to parse.
@@ -47,7 +48,7 @@ const imageSrcOf = (context: Context, ref: unknown): string | undefined => {
   if (typeof name !== "string") {
     return undefined;
   }
-  const image = context["image"]?.[name];
+  const image = getContextEntry(context, "image", name);
   return typeof image?.["src"] === "string" ? image["src"] : undefined;
 };
 
@@ -100,7 +101,7 @@ export const resolveImageSrcs = (
       continue;
     }
     const name = sortFilteredName(raw);
-    const filtered = context["filtered_image"]?.[name];
+    const filtered = getContextEntry(context, "filtered_image", name);
     if (filtered) {
       if (rootHasInlinedData(context, filtered)) {
         continue;
@@ -124,7 +125,7 @@ export const resolveImageSrcs = (
         continue;
       }
     }
-    const layered = context["layered_image"]?.[name];
+    const layered = getContextEntry(context, "layered_image", name);
     if (layered) {
       const assets = layered["assets"];
       const refs = Array.isArray(assets)
@@ -137,7 +138,7 @@ export const resolveImageSrcs = (
       }
       continue;
     }
-    push(context["image"]?.[name]?.["src"]);
+    push(getContextEntry(context, "image", name)?.["src"]);
   }
   return out;
 };

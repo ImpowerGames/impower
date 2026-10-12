@@ -4,7 +4,7 @@ import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Cond
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
-import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
+import { NativeFunctionCall } from "../../../runtime/NativeFunctionCall";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { AstStatIf } from "../../typecheck/Ast";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";

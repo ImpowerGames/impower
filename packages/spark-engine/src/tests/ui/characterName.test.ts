@@ -53,7 +53,7 @@ end
 `;
     const harness = createHarness(story);
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const beat = harness.nextBeat();
 
     expect(beatText(beat, "character_name")).toBe("King Arthur");
@@ -77,7 +77,7 @@ end
 `;
     const harness = createHarness(story);
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const beat = harness.nextBeat();
 
     // No `define GUARD` → no character object → the cue text is the name.
@@ -101,7 +101,7 @@ end
 `;
     const harness = createHarness(story);
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const beat = harness.nextBeat();
 
     expect(beatText(beat, "character_name")).toBe("GUARD");
@@ -132,7 +132,7 @@ end
 `;
     const harness = createHarness(withName);
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(beatText(harness.nextBeat(), "character_name")).toBe("King Arthur");
 
     // Simulate the editor recompiling the EDITED source into the SAME game
@@ -140,7 +140,7 @@ end
     // refresh, not keep the previous program's "King Arthur".
     const { program } = compileUI(withoutName);
     harness.game.updateProgram(program as any);
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(beatText(harness.nextBeat(), "character_name")).toBe("KING");
   });
 });

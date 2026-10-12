@@ -1,0 +1,14 @@
+choose
+  local i = 0
+  repeat
+    i = i + 1
+    * Repeat {i}
+      Chose repeat {i}.
+  until i >= 2
+  for _, v in ipairs({"a", "b"}) do
+    * Each {v}
+  end
+  * Outer
+end
+After.
+done

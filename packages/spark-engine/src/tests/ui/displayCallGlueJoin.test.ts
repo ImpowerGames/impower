@@ -39,7 +39,7 @@ function story(body: string) {
 async function beats(body: string) {
   const harness = createHarness(story(body));
   await harness.ready;
-  harness.jumpTo("start");
+  harness.jumpToFlow("start");
   harness.reset();
   const out: { target: string; text: string }[] = [];
   let beat = harness.nextBeat();
@@ -111,7 +111,7 @@ describe("display() glue join", () => {
       ),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const texts = (beat: ReturnType<typeof harness.nextBeat>) =>
       Object.fromEntries(
@@ -143,7 +143,7 @@ describe("display() glue join", () => {
       story(`  choose\n    HERO: Pick one.\n    * One\n    * Two\n  end`),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     expect(beat?.choices).toEqual(["choice 0", "choice 1"]);

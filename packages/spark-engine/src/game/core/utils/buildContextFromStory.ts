@@ -1,4 +1,5 @@
-import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { InkList } from "@impower/sparkdown/src/runtime/InkList";
+import type { ProgramStory as Story } from "@impower/sparkdown/src/program/ProgramStory";
 import { applyBuiltinDefaults } from "./applyBuiltinDefaults";
 
 // Convert Luau runtime `__def` tables (the source of truth for authored

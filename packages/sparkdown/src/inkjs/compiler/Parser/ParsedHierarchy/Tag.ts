@@ -1,6 +1,4 @@
 import { ParsedObject } from "./Object";
-import { ControlCommand } from "../../../engine/ControlCommand";
-import { InkObject as RuntimeObject } from "../../../engine/Object";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { Op } from "../../../../program/ProgramInstructions";
 
@@ -16,13 +14,10 @@ export class Tag extends ParsedObject {
   override get typeName(): string {
     return "Tag";
   }
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    if (this.isStart) {
-      return ControlCommand.BeginTag();
-    } else {
-      return ControlCommand.EndTag();
-    }
-  };
+  /** Nothing but the marker it writes. */
+  protected override Prepare(): boolean {
+    return true;
+  }
 
   public override EmitProgram(emitter: ProgramEmitter): void {
     emitter.emit(this.isStart ? Op.BeginTag : Op.EndTag);
@@ -37,7 +32,7 @@ export class Tag extends ParsedObject {
   };
 }
 
-import { Tag as RuntimeTag } from "../../../engine/Tag";
+import { Tag as RuntimeTag } from "../../../../runtime/Tag";
 import { Wrap } from "./Wrap";
 export class LegacyTag extends Wrap<RuntimeTag> {
   constructor(tag: RuntimeTag) {

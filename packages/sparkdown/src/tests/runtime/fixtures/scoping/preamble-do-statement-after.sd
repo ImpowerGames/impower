@@ -1,0 +1,12 @@
+store x = "global"
+choose
+  do
+    local x = "local"
+    * Inner {x}
+      Chose inner {x}.
+  end
+  Pre {x}.
+  * Outer {x}
+end
+After {x}.
+done

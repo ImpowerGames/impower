@@ -10,9 +10,10 @@ import {
   ObjectValue,
   StringValue,
   type AbstractValue,
-} from "@impower/sparkdown/src/inkjs/engine/Value";
+} from "@impower/sparkdown/src/runtime/Value";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness } from "./harness/uiTestHarness";
+import { requireChunks } from "../harness/compileProgram";
 
 const DEFS = `define HERO as character with
   name = "HERO"
@@ -135,14 +136,8 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 const SCENE = `-> start
@@ -174,18 +169,18 @@ describe("a route replay", () => {
     } as any);
     const line = SCENE.split("\n").findIndex((l) => l.includes("Last line."));
     game.setStartFrom({ file: URI, line });
-    const toPath = (game as any).startPath as string;
+    const toPath = game.startAddress!;
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      game.routeStartOf(toPath),
       toPath,
     )!;
     expect(route).toBeTruthy();
     // A target the replay never reaches, so it runs on to the story's end,
     // where the continue after the last line ends the story with nothing to
     // flush.
-    route.toPath = "start.nowhere";
+    route.to = 2 ** 40;
 
     const anyGame = game as any;
     let beats = 0;
@@ -258,7 +253,7 @@ describe("a game", () => {
     };
 
     game.start();
-    (game as any).jumpToPath("start");
+    game.jumpToFlow("start");
     beats.length = 0;
     game.continue();
     expect(beats).toEqual([{ text: ["Pick a door."], choices: [] }]);

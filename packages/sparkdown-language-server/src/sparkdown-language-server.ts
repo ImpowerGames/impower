@@ -8,6 +8,10 @@ import {
   createConnection,
   TextDocumentSyncKind,
 } from "vscode-languageserver/browser";
+import type {
+  AddressQuery,
+  ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
@@ -425,8 +429,8 @@ try {
   );
   // Custom: previous/next beat location for PageUp/PageDown navigation.
   // Answered here (rather than from a client-side copy of the program) so
-  // `pathLocations` — ~12k entries / ~600KB on a feature-length script —
-  // never has to ride along with every compile notification.
+  // the program's locations — large on a feature-length script — never
+  // have to ride along with every compile notification.
   connection.onRequest(
     "sparkdown/offsetSourceLocation",
     (params: { uri: string; line: number; offset: number }) => {
@@ -434,10 +438,39 @@ try {
       const program = workspace.program(mainUri ?? params.uri);
       return getOffsetSourceLocation(
         program,
+        program && workspace.locatorOf(program),
         params.uri,
         params.line,
         params.offset,
       );
+    },
+  );
+  // Custom: the program's accessor (`ProgramLocator`), for a client that
+  // holds no program of its own: the address of a line, and where an
+  // address stands. An address is opaque, and the client only compares it
+  // or hands it back. The compiler's worker answers (`locatorOf`): it holds
+  // the root a program compiled with statement chunks is located by (#704).
+  connection.onRequest(
+    "sparkdown/addressAt",
+    async (params: { uri: string; line: number; query?: AddressQuery }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return program
+        ? ((await workspace
+            .locatorOf(program)
+            .addressAt(params.uri, params.line, params.query)) ?? null)
+        : null;
+    },
+  );
+  connection.onRequest(
+    "sparkdown/locationOf",
+    async (params: { uri: string; address: ProgramAddress }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return program && params.address != null
+        ? ((await workspace.locatorOf(program).locationOf(params.address)) ??
+            null)
+        : null;
     },
   );
   connection.onRequest(

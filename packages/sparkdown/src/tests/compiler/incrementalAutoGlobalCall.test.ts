@@ -5,9 +5,8 @@
 // does: to the function `count`, which a global made that way does not
 // shadow, while a global declared with `store` does, and a global made that
 // way that no flow is named after is the call's target.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
@@ -43,20 +42,14 @@ const file = (text: string) => ({
   languageId: "sparkdown",
 });
 
-/** A compiler and the story its latest compile handed to `didCompile`. */
+/** A compiler and a story of its latest compile's program. */
 function compiler(text: string) {
-  const c = new SparkdownCompiler();
-  const compiled: { story?: any } = {};
-  c.addEventListener("compiler/didCompile", (params) => {
-    compiled.story = params.story;
-  });
+  const c = testCompiler();
   c.configure({ files: [file(text)] as never });
   return {
     c,
-    compile: () => {
-      c.compile({ textDocument: { uri: URI } });
-      return compiled.story;
-    },
+    compile: () =>
+      testStory(c.compile({ textDocument: { uri: URI } }).program.chunks),
   };
 }
 

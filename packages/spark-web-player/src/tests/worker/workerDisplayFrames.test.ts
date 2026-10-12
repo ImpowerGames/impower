@@ -221,9 +221,13 @@ describe("the preview displayed from the worker's game", () => {
       expect(shows(frame, "The second line.")).toBe(true);
     }
     // Every frame names both images once for the assets it holds; a picture
-    // on screen names its image again.
+    // on screen names its image again. The frame of the selected line, which
+    // shows no picture, is the one to count from: the first frame previews
+    // line 0, inside a `define`, which on the program engine is the next
+    // statement's address (docs/engine/binary-program.md, section 8), so it
+    // shows the first beat with its picture.
     const shown = (frame: unknown, image: string) =>
-      JSON.stringify(frame).split(image).length - JSON.stringify(on[0]).split(image).length;
+      JSON.stringify(frame).split(image).length - JSON.stringify(on[1]).split(image).length;
     expect(shown(on[3], "a.png")).toBeGreaterThan(0);
     expect(shown(on[6], "b.png")).toBeGreaterThan(0);
     // Closing the list shows the real document, whose name matches no image.

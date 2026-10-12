@@ -11,8 +11,14 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
+
+/** An address no program here holds: chunk 2^19, far past any chunk id a
+ *  test program is given. */
+const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 const SRC = `store score = 0
 
@@ -45,14 +51,8 @@ function compileSrc(src: string) {
       },
     ],
   });
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("route-reset fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program, "route-reset fixture");
 }
 
 function newGame(program: unknown) {
@@ -66,12 +66,15 @@ function newGame(program: unknown) {
   } as any);
 }
 
-/** Count `ResetGlobals` on this one story, and report the count so far. */
+/** Count the runs of the declarations on this one story (the program
+ *  engine's `runDeclarations`, which every reset runs), and report the count
+ *  so far. */
 function countGlobalEvaluations(game: Game): () => number {
   const story = game.story as any;
+  const method = "runDeclarations";
   let count = 0;
-  const original = story.ResetGlobals.bind(story);
-  story.ResetGlobals = (...args: unknown[]) => {
+  const original = story[method].bind(story);
+  story[method] = (...args: unknown[]) => {
     count += 1;
     return original(...args);
   };
@@ -80,8 +83,8 @@ function countGlobalEvaluations(game: Game): () => number {
 
 function planTo(game: Game, program: any, line: number) {
   game.setStartFrom({ file: URI, line });
-  const toPath = (game as any).startPath as string;
-  const fromPath = Game.getSimulateFromPath(toPath);
+  const toPath = game.startAddress!;
+  const fromPath = game.routeStartOf(toPath);
   // As the player's worker asks for it: the replay that follows installs a
   // state of its own.
   return Game.planRoute(game.story, program, fromPath, toPath, undefined, {
@@ -139,6 +142,16 @@ describe("route search resets (#650)", () => {
     expect(evaluations()).toBeGreaterThanOrEqual(1);
   });
 
+  test("a global written from outside leaves the story not pristine on the program engine (#1692)", () => {
+    const program = compileSrc(SRC);
+    const game = newGame(program);
+    expect(game.story.stateIsPristine).toBe(true);
+
+    (game.story.variablesState as any)["score"] = 999;
+
+    expect(game.story.stateIsPristine).toBe(false);
+  });
+
   test("a found route leaves a story the caller can reset straight away", () => {
     const program = compileSrc(SRC);
     const game = newGame(program);
@@ -158,7 +171,7 @@ describe("route search resets (#650)", () => {
     game.story.ChoosePathString("start");
     game.story.Continue();
 
-    const route = planRoute(game.story, "start", "start.NO_SUCH_PATH", {
+    const route = planRoute(game.story, "start", NO_SUCH_ADDRESS, {
       callerResetsStory: true,
     });
 
@@ -166,7 +179,9 @@ describe("route search resets (#650)", () => {
     // A reset story is back at the very beginning: nothing has been visited
     // and the first line is still ahead of it.
     expect(
-      (game.story.state as any).VisitCountAtPathString("start"),
+      (game.story.state as any)
+        .GetVisitCountEntries()
+        .find(([key]: [string, number]) => key === "start")?.[1] ?? 0,
     ).toBe(0);
     expect(game.story.canContinue).toBe(true);
   });
@@ -185,7 +200,7 @@ describe("route search resets (#650)", () => {
     };
 
     expect(() =>
-      planRoute(game.story, "start", "start.NO_SUCH_PATH", {
+      planRoute(game.story, "start", NO_SUCH_ADDRESS, {
         callerResetsStory: true,
       }),
     ).toThrow("planted failure inside the search");

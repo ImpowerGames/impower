@@ -19,7 +19,7 @@ import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/
 // and sets `identifier` to match. So it's safe to run every compile on the
 // SAME cached VariableAssignment objects (a leaf stays scoped; a name that
 // GAINED a cross-file type use since the last compile is un-scoped back to
-// bare). Only the VA identifier — the runtime global key read by ExportRuntime —
+// bare). Only the VA identifier — the runtime global key resolution reads —
 // changes; the struct registration and `__def` args stay keyed by the bare name,
 // so `context.T.D` and dialogue-cue resolution are untouched.
 export function scopeDefineInstances(
@@ -35,10 +35,14 @@ export function scopeDefineInstances(
     // Populated with every define VA this call processes — the prelude pass
     // hands its set to the user pass as `skip`.
     collect?: Set<ParsedObject>;
+    // Given each define VA whose key this call changed, whose statement the
+    // program path's resolver resolves again (`ProgramResolver`).
+    renamed?: ParsedObject[];
   },
 ): void {
   const skip = opts?.skip;
   const collect = opts?.collect;
+  const renamed = opts?.renamed;
   const stack: ParsedObject[] = [...roots];
   while (stack.length > 0) {
     const obj = stack.pop()!;
@@ -60,6 +64,7 @@ export function scopeDefineInstances(
           : `$${parentName}_${bareName}`; // leaf instance → scope it
         if (obj.identifier?.name !== desired) {
           obj.identifier = new Identifier(desired);
+          renamed?.push(obj);
         }
       }
     }

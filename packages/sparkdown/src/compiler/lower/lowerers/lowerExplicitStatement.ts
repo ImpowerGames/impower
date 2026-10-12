@@ -36,7 +36,7 @@ export function lowerExplicitStatement(
   // A statement's weave is unwrapped wherever its content is placed (the
   // enclosing flow's weave, a choice body, an alternator arm), so the weave's
   // range, stamped by `lower()`, no longer reaches the statements it held.
-  // Give them the line's range themselves: `program.pathLocations` then has
+  // Give them the line's range themselves: the statement's chunk then has
   // rows for the line, so a runtime error it raises is reported on it and
   // PLAY, a preview or a breakpoint on it resolves to it. A `& local`
   // declaration runs in the flow like any other logic line and is stamped

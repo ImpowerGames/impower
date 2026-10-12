@@ -2,7 +2,7 @@
 
 This guide is for anyone adding, modifying, or debugging a rule in `definitions/yaml/sparkdown.language-grammar.yaml` — the file that tells sparkdown's parser how to turn `.sd` source into a syntax tree. It assumes no prior experience with TextMate grammars, Lezer, or this codebase's pipeline.
 
-> **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](./RUNTIME.md) covers the bytecode interpreter.
+> **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](../runtime/RUNTIME.md) covers the binary-program interpreter.
 
 ## How to read this guide
 
@@ -43,10 +43,10 @@ Syntax tree (Lezer-shaped)              ← what printTree shows
     │  (lowerers — src/compiler/lower/, see LOWERING.md)
     ▼
 inkjs ParsedHierarchy
-    │  (inkjs's bytecode generator)
+    │  (EmitProgram methods + program/BinaryProgramWriter.ts)
     ▼
-Bytecode (JSON)
-    │  (engine/Story.ts interpreter, see RUNTIME.md)
+Binary program (ProgramRoot with typed-array chunks)
+    │  (program/ProgramStory.ts interpreter, see RUNTIME.md)
     ▼
 Output stream + state
 ```
@@ -782,6 +782,8 @@ When you need cross-line reconciliation, the grammar can't fully express it. Pic
 
 VS Code's TextMate engine tokenizes one line at a time. The trailing `\n` _is_ part of the line input — `Newline` and friends match it explicitly — but **no single `begin:`, `end:`, or `match:` pattern can extend past that `\n` into the next line's content.** Lookbehinds and lookaheads in those patterns are equally line-bound: a lookbehind to `if\b` on a previous line will not succeed on a continuation line.
 
+The compiler's parser is handed far more than one line, so the grammar has to keep each pattern on its line itself. A consuming part or a lookahead may not read past the current line's break, with two exceptions: a lookahead that skips only blank and comment lines to the next token (`_LUAU_TRIVIA_AHEAD_`), and the column-0 stops described below (`BEFORE_LUAU_COLUMN_0_LINE`, `BEFORE_LUAU_COLUMN_0_STATEMENT`). A negated class such as `[^()]` or `[^"]` matches a line break, so write it `[^()\r\n]` wherever the pattern repeats it or reads on after it. A pattern that reads further sees text that VS Code and the web editor never show it, and an incremental reparse keeps its token when an edit on a later line changes what it read: the reparse starts at the last code line above the edit, which is as far as either exception reads. The `no-line-crossing-class` lint rule refuses such a class; a variable that reads past the line on purpose carries a `# reads-past-line:` comment saying why.
+
 **Once `begin:` opens a scope, the rule's `patterns:` list is iterated line by line.** Inside the open scope, a `Newline` include consumes the line terminator; the next iteration starts at the next line; a whitespace include consumes the leading indent there; and the next pattern picks up content on whatever line it sits on. This is the trick that lets a scope span newlines even though no individual regex ever crosses one.
 
 Sparkdown uses this pattern wherever a Luau construct needs to tolerate `\n` between its keyword and the next token — `if\n  cond\n  then`, `for\n  k, v in iter()\n  do`, `and\n  rhs`. The cleanest expression of it is the two-rule **Operation / Operator** split, used by every binary-operator rule in the grammar:
@@ -843,7 +845,7 @@ For `if\n  a == 1 and\n  b == 2\n  then …`, the begin fires right after `if`, 
 
 > IMPORTANT: textmate-grammar-tree, the runtime parser we use for compiling scripts, happens to be more permissive than vscode's textmate highlighter — a `begin:` like `if\b\s*` can in fact consume past `\n` there. **Don't rely on that.** The same grammar ships to VS Code, where the extra match silently fails and highlighting diverges from the runtime tree.
 
-**The one exception: stopping before a column-0 line.** An if expression and its clauses stop before the line break when the next line starts at column 0 with something the expression cannot read on to. `BEFORE_LUAU_COLUMN_0_LINE` and `BEFORE_LUAU_COLUMN_0_STATEMENT` are the only lookaheads allowed to look past the `\n`. They exist because the statement around such an expression, such as a `LuauReassignment`, has nothing at a line start that ends it, so in the runtime tree the expression must stop before the break or the statement reads the next line into itself. They are pure lookaheads that consume nothing, and each one starts with `(?=\S)` after the break. A line-by-line tokenizer sees nothing after the `\n`, so there they never match, and the rule takes the break through its own `Newline` and ends at the next line's start instead. Both engines then give the next line the same scopes, which `scopeEquality.test.ts` checks over every grammar fixture. When an if-expression rule adds one of these to its `end:`, every rule that can be open at the same position needs the same alternative. A rule left without it can reopen at that position, since its begin matches nothing, and the parser then stops on its empty-match limit; `LuauTernaryExpression`, `LuauThenExpression` and `LuauThenOperator` carry it for this reason. Use no other cross-line lookahead.
+**Stopping before a column-0 line.** An if expression and its clauses stop before the line break when the next line starts at column 0 with something the expression cannot read on to. `BEFORE_LUAU_COLUMN_0_LINE` and `BEFORE_LUAU_COLUMN_0_STATEMENT` are, with the lookaheads that skip only blank and comment lines to the next token (`_LUAU_TRIVIA_AHEAD_`), the only lookaheads allowed to look past the `\n`. They exist because the statement around such an expression, such as a `LuauReassignment`, has nothing at a line start that ends it, so in the runtime tree the expression must stop before the break or the statement reads the next line into itself. They are pure lookaheads that consume nothing, and each one starts with `(?=\S)` after the break. A line-by-line tokenizer sees nothing after the `\n`, so there they never match, and the rule takes the break through its own `Newline` and ends at the next line's start instead. Both engines then give the next line the same scopes, which `scopeEquality.test.ts` checks over every grammar fixture. When an if-expression rule adds one of these to its `end:`, every rule that can be open at the same position needs the same alternative. A rule left without it can reopen at that position, since its begin matches nothing, and the parser then stops on its empty-match limit; `LuauTernaryExpression`, `LuauThenExpression` and `LuauThenOperator` carry it for this reason. Use no other cross-line lookahead.
 
 **A construct that may go on at the next line.** The Operation / Operator split works because the line ends on the operator, which says the construct goes on. A Luau type is the harder case: `local v: number?` may be the whole type, or the next line may start with `| string` and continue it as a union. Nothing on the first line decides it, and no pattern may look past the line break to find out. So the type does not end at the line break; it takes the break in and lets the next line decide:
 
@@ -1210,6 +1212,8 @@ All 151 `begin`/`end` rules were audited for this class. Grouped by `end`-patter
 **Known residual (invalid/incomplete input only, not gated):** an `if` / `for` / `while` header written _without_ its `then` / `do` terminator (a transient mid-edit state) leaves the condition/header expression — which legitimately includes `Newline` so multi-line conditions can parse — running across lines until it hits a `{{BEAT}}` or `end`. The two engines scope that run-on region differently. This is invalid syntax and a separate, deeper concern than the boundary-tiling class; it is characterized here rather than fixed, because bounding the condition to one line would break valid multi-line conditions.
 
 **Stray text after a divert's targets** (`-> a -> b > After`, `x .. queue|-> A > y|b .. z`) is tiled rather than left to close the rule incomplete. `Divert` and the nested `Tunnel` end their line, so each takes a `// note` comment and then the rest of the line as `Unknown`. Inside an alternator arm the line-eating `Unknown` would swallow the arm's `|`, closing glue and `end`, so `ArmDivert` chains `ArmTunnel` (a `Tunnel` bounded by the arm) and both take stray text as `ArmUnknown`, which stops at those same boundaries. Arms have no `//` comments, so neither arm rule includes one.
+
+**A divert target's bracketed argument list spans lines in every spelling** (#1655). A relative call's list is `LuauFunctionCallParameters` and a dotted target's (`-> a.b(x,` then `y)` on the next line) is `DivertArguments`; both read to their `)` across lines, because the editor closes a `(` as it is typed. A dotted *path* stays on its line (`DivertPath` ends at `$`), so `-> a.` while typing never reads the next line into the target. An unclosed list ends where the relative one does: `DivertArgumentsUnknown` tiles stray punctuation (`;`, `}`) but not a word, so a word no argument rule reads (`end`, `done`) closes the list there incomplete in both spellings, and `DivertArguments` also ends before a `scene` or `branch` line (`{{BEAT}}`, §3.1).
 
 ---
 

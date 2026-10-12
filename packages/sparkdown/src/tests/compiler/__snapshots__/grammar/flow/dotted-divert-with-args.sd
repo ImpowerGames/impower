@@ -1,0 +1,11 @@
+-> outer.inner(1)
+scene outer
+  branch inner(a)
+    -> outer.visit(a + 1, "t") ->
+    <- outer.aside (a + 2)
+    -> outer.second(f(a), -> outer.last)(9)
+  end
+  branch visit(n, s)
+    ->-> outer.last(n)
+  end
+end

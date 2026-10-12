@@ -4,7 +4,6 @@
 // bytes are the portraits' attribute vocabularies, which do not change from one
 // compile to the next. These tests pin that what arrives is the program that
 // was compiled, and that an unchanged vocabulary is not sent again.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
@@ -61,6 +60,10 @@ function stable(value: unknown): string {
   return JSON.stringify(walk(value));
 }
 
+/** What a program sends: all of it but its statement chunks, which the
+ *  compiler's worker reads by reference. */
+const sent = (program: any) => ({ ...program, chunks: undefined });
+
 /** Every shared-part marker in an encoded program. */
 function markers(encoded: unknown) {
   const found: { $shared: number; value?: unknown }[] = [];
@@ -95,15 +98,15 @@ describe("the program transport", () => {
     const encoder = new ProgramTransportEncoder();
     const decoder = new ProgramTransportDecoder();
     const program = compile(c);
-    const expected = stable(program);
-    const expectedPaths = [...(program.pathLocations?.paths ?? [])];
+    const chunks = program.chunks;
+    const expected = stable(sent(program));
 
     const received = decoder.decode(structuredClone(encoder.encode(program)));
 
     expect(stable(received)).toBe(expected);
-    expect(received.pathLocations?.paths).toEqual(expectedPaths);
     // Encoding copies; the compiler's own program is untouched.
-    expect(stable(program)).toBe(expected);
+    expect(stable(sent(program))).toBe(expected);
+    expect(program.chunks).toBe(chunks);
   });
 
   it("sends an unchanged vocabulary once and a changed one again", () => {
@@ -122,7 +125,7 @@ describe("the program transport", () => {
     const second = encoder.encode(program);
     expect(markers(second).length).toBeGreaterThan(0);
     expect(markers(second).every((m) => !("value" in m))).toBe(true);
-    expect(stable(decoder.decode(structuredClone(second)))).toBe(stable(program));
+    expect(stable(decoder.decode(structuredClone(second)))).toBe(stable(sent(program)));
 
     quiet(() =>
       c.updateFile({
@@ -132,7 +135,7 @@ describe("the program transport", () => {
     const changed = compile(c);
     const third = encoder.encode(changed);
     expect(markers(third).some((m) => "value" in m)).toBe(true);
-    expect(stable(decoder.decode(structuredClone(third)))).toBe(stable(changed));
+    expect(stable(decoder.decode(structuredClone(third)))).toBe(stable(sent(changed)));
     // Both sides now hold only what the newest program uses.
     expect((decoder as any)._held.size).toBe(new Set(markers(third).map((m) => m.$shared)).size);
   });

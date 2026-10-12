@@ -237,6 +237,7 @@ const allows = [
   ["the suite runner at the bound with a redirect, a chained echo and a grep", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > run.log 2>&1; echo exit $?; grep -E "Tests" run.log`],
   ["the suite runner at the bound with separate stdout and stderr redirects", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 1> out.log 2> err.log`],
   ["the suite runner at the bound with glued redirect targets", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 >out.log 2>err.log`],
+  ["the suite runner at the bound with execution budget and authored receipt", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 --file-timeout 1800 --internal-receipt descriptor.json`],
   ["the suite runner at the bound with a merged-stderr pipe", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 2>&1 | grep -E "Tests"`],
   ["the suite runner at the bound with a quoted redirect target", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > "my run.log" 2>&1`],
   ["the suite runner at the bound with a PowerShell all-streams redirect and chained filter", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 900 *> run.log; "exit $LASTEXITCODE"; Select-String -Path run.log -Pattern "Tests"`, "powershell"],

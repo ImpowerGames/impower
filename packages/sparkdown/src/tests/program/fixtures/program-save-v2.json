@@ -1,0 +1,391 @@
+{
+  "engine": "program",
+  "format": 2,
+  "engineVersion": "2",
+  "gameVersion": "",
+  "beats": [
+    {
+      "flags": 0,
+      "decisions": [
+        {
+          "st": {
+            "levels": [
+              {
+                "s": 0,
+                "at": 2,
+                "flow": "start"
+              }
+            ]
+          },
+          "a": {
+            "ch": [
+              0,
+              "choices",
+              0
+            ]
+          }
+        }
+      ],
+      "position": {
+        "st": {
+          "levels": [
+            {
+              "s": 1,
+              "at": 0,
+              "flow": ""
+            }
+          ]
+        },
+        "a": "start"
+      },
+      "evalStack": [],
+      "output": [],
+      "lineEndPending": false,
+      "lineJoinable": false,
+      "turnIdx": -1,
+      "storySeed": 92,
+      "previousRandom": 0,
+      "didSafeExit": false,
+      "variablesState": {
+        "picks": 0,
+        "shared": {
+          "objid": 1,
+          "anchor": "[\"shared\"]",
+          "obj": {
+            "1": 1
+          }
+        },
+        "alias": "nil",
+        "bump": "nil",
+        "peek": "nil"
+      },
+      "frames": [
+        {
+          "type": 0,
+          "start": 0,
+          "height": 0,
+          "temps": [
+            {}
+          ]
+        }
+      ],
+      "counts": []
+    },
+    {
+      "flags": 0,
+      "decisions": [],
+      "position": {
+        "st": {
+          "levels": [
+            {
+              "s": 0,
+              "at": 2,
+              "flow": "start"
+            }
+          ]
+        },
+        "a": {
+          "ch": [
+            0,
+            "choices",
+            0
+          ]
+        }
+      },
+      "evalStack": [],
+      "output": [],
+      "lineEndPending": false,
+      "lineJoinable": false,
+      "turnIdx": 0,
+      "storySeed": 92,
+      "previousRandom": 0,
+      "previousFlow": "start",
+      "didSafeExit": false,
+      "globals": {
+        "alias": {
+          "objref": 1,
+          "anchor": "[\"shared\"]"
+        },
+        "bump": {
+          "objid": 2,
+          "obj": {
+            "__closure_fn": {
+              "^symsave": "{\"st\":{\"levels\":[{\"s\":3,\"at\":0,\"flow\":\"cell\"},{\"s\":2,\"at\":1,\"p\":1,\"k\":\"functions\",\"i\":0}]},\"k\":\"functions\",\"i\":0,\"pl\":2}"
+            },
+            "__closure_upvals": {
+              "objid": 3,
+              "obj": {
+                "0": {
+                  "^var": "n",
+                  "ci": 2,
+                  "cell": 1,
+                  "si": 0,
+                  "closed": 1,
+                  "cv": 10
+                }
+              }
+            },
+            "__closure_user_arity": 0
+          }
+        },
+        "peek": {
+          "objid": 4,
+          "obj": {
+            "__closure_fn": {
+              "^symsave": "{\"st\":{\"levels\":[{\"s\":3,\"at\":0,\"flow\":\"cell\"},{\"s\":2,\"at\":2,\"p\":1,\"k\":\"functions\",\"i\":0}]},\"k\":\"functions\",\"i\":0,\"pl\":3}"
+            },
+            "__closure_upvals": {
+              "objid": 5,
+              "obj": {
+                "0": {
+                  "^var": "n",
+                  "ci": 2,
+                  "cell": 1
+                }
+              }
+            },
+            "__closure_user_arity": 0
+          }
+        }
+      },
+      "frames": [
+        {
+          "type": 0,
+          "start": 0,
+          "height": 0,
+          "temps": [
+            {}
+          ]
+        }
+      ],
+      "counts": [
+        [
+          {
+            "n": "start"
+          },
+          1,
+          -1
+        ],
+        [
+          {
+            "n": "cell"
+          },
+          1,
+          -1
+        ]
+      ],
+      "tables": [],
+      "cells": []
+    },
+    {
+      "flags": 1,
+      "decisions": [],
+      "position": {
+        "st": {
+          "levels": [
+            {
+              "s": 0,
+              "at": 4,
+              "flow": "start"
+            }
+          ]
+        },
+        "a": "start"
+      },
+      "evalStack": [],
+      "output": [
+        {
+          "objid": 6,
+          "obj": {
+            "target": "^action",
+            "text": "^Picked 1 1 2 11."
+          }
+        },
+        "\n"
+      ],
+      "lineEndPending": false,
+      "lineJoinable": false,
+      "turnIdx": 0,
+      "storySeed": 92,
+      "previousRandom": 0,
+      "previousFlow": "start",
+      "didSafeExit": false,
+      "globals": {
+        "picks": 1
+      },
+      "frames": [
+        {
+          "type": 0,
+          "start": 0,
+          "height": 0,
+          "temps": [
+            {}
+          ]
+        }
+      ],
+      "counts": [
+        [
+          {
+            "st": {
+              "levels": [
+                {
+                  "s": 3,
+                  "at": 0,
+                  "flow": "cell"
+                },
+                {
+                  "s": 2,
+                  "at": 1,
+                  "p": 1,
+                  "k": "functions",
+                  "i": 0
+                }
+              ]
+            },
+            "k": "functions",
+            "i": 0,
+            "pl": 2
+          },
+          1,
+          0
+        ],
+        [
+          {
+            "st": {
+              "levels": [
+                {
+                  "s": 3,
+                  "at": 0,
+                  "flow": "cell"
+                },
+                {
+                  "s": 2,
+                  "at": 2,
+                  "p": 1,
+                  "k": "functions",
+                  "i": 0
+                }
+              ]
+            },
+            "k": "functions",
+            "i": 0,
+            "pl": 3
+          },
+          1,
+          0
+        ],
+        [
+          {
+            "st": {
+              "levels": [
+                {
+                  "s": 0,
+                  "at": 2,
+                  "flow": "start"
+                }
+              ]
+            },
+            "k": "choices",
+            "i": 0,
+            "pl": 0
+          },
+          1,
+          0
+        ]
+      ],
+      "tables": [
+        {
+          "objid": 1,
+          "anchor": "[\"shared\"]",
+          "obj": {
+            "1": 1,
+            "2": 2
+          },
+          "bnd": 2
+        }
+      ],
+      "cells": [
+        [
+          1,
+          1,
+          2,
+          0,
+          11
+        ]
+      ]
+    }
+  ],
+  "listings": [
+    {
+      "n": 7,
+      "windows": [
+        [
+          0,
+          "127b723880ba44dd",
+          "41026c6b71f5d98c",
+          "b6fbcd507d421d00",
+          "23cf0abac6bc79fd",
+          "03f0dcd07890d757",
+          "64ba264fd625c3a7",
+          "e1a32ab0c3ec7a74"
+        ]
+      ]
+    },
+    {
+      "n": 1,
+      "windows": [
+        [
+          0,
+          "ee423c268b6f5d6c"
+        ]
+      ]
+    },
+    {
+      "n": 3,
+      "windows": [
+        [
+          0,
+          "e99d53380ab0d791",
+          "7da8019515acad45",
+          "866c130ca967d7ab"
+        ]
+      ]
+    },
+    {
+      "n": 1,
+      "windows": [
+        [
+          0,
+          "73874776ce5c5be8"
+        ]
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "k": "choices",
+      "l": [
+        "37f5febdf7ae5945",
+        "df35ba71cf714395"
+      ]
+    },
+    {
+      "k": "functions",
+      "l": [
+        "09d9dac047903287"
+      ]
+    },
+    {
+      "k": "functions",
+      "l": [
+        "151806aa5691d2c1"
+      ]
+    },
+    {
+      "k": "functions",
+      "l": [
+        "b9a1eb0bc4de3e4b"
+      ]
+    }
+  ]
+}

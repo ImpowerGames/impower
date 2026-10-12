@@ -30,6 +30,11 @@ vi.mock("../../attributes", async () => {
   };
 });
 
+// A module loaded before this one may have loaded the compiler, and
+// `filterImage` with it, against the real `../../attributes`; the modules are
+// loaded again so that `filterImage` calls the counting one.
+vi.resetModules();
+
 const { buildSVGAttributeVocabulary } = await import("../../attributes");
 const { filterImage, resolveImageAttributes } = await import(
   "../../compiler/utils/filterImage"

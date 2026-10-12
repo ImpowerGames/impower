@@ -2,7 +2,6 @@
 // same statement. The route search resumes from checkpoints taken before the
 // first changed statement, and a checkpoint that resumed anywhere else would
 // run content the story never reached, in the wrong evaluation mode (#751).
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 

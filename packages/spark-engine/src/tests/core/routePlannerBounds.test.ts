@@ -28,8 +28,17 @@ import {
   planRoute,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+} from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 const URI = "inmemory:///main.sd";
+
+/** An address no program here holds: chunk 2^19, far past any chunk id a
+ *  test program is given. */
+const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
@@ -48,14 +57,8 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 const newGame = (program: unknown) =>
@@ -80,10 +83,10 @@ function longScene(beats: number): string {
 }
 
 /** Resolve a source line to the runtime path the preview would target. */
-function targetPathForLine(program: unknown, line: number): string {
+function targetPathForLine(program: unknown, line: number): ProgramAddress {
   const game = newGame(program);
   game.setStartFrom({ file: URI, line });
-  return (game as any).startPath as string;
+  return game.startAddress!;
 }
 
 describe("a long scene is not mistaken for an unreachable one", () => {
@@ -96,21 +99,21 @@ describe("a long scene is not mistaken for an unreachable one", () => {
     const beats = 24_000;
     const program = compileSrc(longScene(beats));
     const toPath = targetPathForLine(program, beats + 2);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     const game = newGame(program);
     const route = Game.planRoute(
       game.story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      newGame(program).routeStartOf(toPath),
       toPath,
     );
 
     expect(route).toBeTruthy();
     // The route really does span the scene rather than stopping early.
     expect(route!.steps.length).toBeGreaterThan(100_000);
-    expect(route!.steps.at(-1)!.path).toBe(toPath);
-    expect(route!.toPath).toBe(toPath);
+    expect(route!.steps.at(-1)!.address).toBe(toPath);
+    expect(route!.to).toBe(toPath);
   }, 300_000);
 });
 
@@ -120,7 +123,7 @@ describe("the declared budget decides the verdict, and decides it the same way e
   // advances a scene costs changes for unrelated reasons.
   const SCENE = longScene(300);
 
-  const planWithBudget = (program: unknown, toPath: string, maxSteps: number) =>
+  const planWithBudget = (program: unknown, toPath: ProgramAddress, maxSteps: number) =>
     planRoute(newGame(program).story, "start", toPath, {
       stayWithinKnot: true,
       maxSteps,
@@ -129,7 +132,7 @@ describe("the declared budget decides the verdict, and decides it the same way e
   test("one advance below what the scene needs fails, and at it succeeds", () => {
     const program = compileSrc(SCENE);
     const toPath = targetPathForLine(program, 302);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     // Smallest budget that still finds the route.
     let low = 1;
@@ -184,7 +187,7 @@ describe("a budget of N permits N, not N minus one", () => {
   test("a fork-free scene plans with a single node expansion", () => {
     const program = compileSrc(longScene(20));
     const toPath = targetPathForLine(program, 22);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
 
     // No decisions anywhere in this scene, so one expansion is the whole
     // search. If it needs two, the budget is being charged twice.
@@ -193,7 +196,7 @@ describe("a budget of N permits N, not N minus one", () => {
       maxNodes: 1,
     });
     expect(route).toBeTruthy();
-    expect(route!.steps.at(-1)!.path).toBe(toPath);
+    expect(route!.steps.at(-1)!.address).toBe(toPath);
   }, 120_000);
 
   test("a budget of zero nodes explores nothing", () => {
@@ -243,7 +246,7 @@ end
     const route = planRoute(
       newGame(program).story,
       "start",
-      "start.NO_SUCH_PATH",
+      NO_SUCH_ADDRESS,
       {
         stayWithinKnot: true,
         maxSteps: 5_000,
@@ -295,7 +298,7 @@ end
 
   const searchForMissingTarget = (src: string) => {
     const program = compileSrc(src);
-    planRoute(newGame(program).story, "start", "start.NO_SUCH_PATH", {
+    planRoute(newGame(program).story, "start", NO_SUCH_ADDRESS, {
       stayWithinKnot: true,
       maxSteps: 400_000,
       maxNodes: 10_000,
@@ -354,41 +357,41 @@ end
 
     const truePath = targetPathForLine(program, 7);
     const falsePath = targetPathForLine(program, 9);
-    expect(truePath).not.toBe("0");
-    expect(falsePath).not.toBe("0");
+    expect(truePath).not.toBe(TOP_LEVEL_START);
+    expect(falsePath).not.toBe(TOP_LEVEL_START);
     // The two sides really are different places in the story.
     expect(truePath).not.toBe(falsePath);
 
-    const planTo = (toPath: string) =>
+    const planTo = (toPath: ProgramAddress) =>
       Game.planRoute(
         newGame(program).story,
         program as any,
-        Game.getSimulateFromPath(toPath),
+        newGame(program).routeStartOf(toPath),
         toPath,
       );
 
     const viaTrue = planTo(truePath);
     expect(viaTrue).toBeTruthy();
     expect(viaTrue!.conditions.map((c) => c.selected)).toEqual([true]);
-    expect(viaTrue!.steps.at(-1)!.path).toBe(truePath);
+    expect(viaTrue!.steps.at(-1)!.address).toBe(truePath);
 
     const viaFalse = planTo(falsePath);
     expect(viaFalse).toBeTruthy();
     expect(viaFalse!.conditions.map((c) => c.selected)).toEqual([false]);
-    expect(viaFalse!.steps.at(-1)!.path).toBe(falsePath);
+    expect(viaFalse!.steps.at(-1)!.address).toBe(falsePath);
   }, 120_000);
 
   test("a beat after the branch is still reachable", () => {
     const program = compileSrc(TWO_BRANCHES);
     const toPath = targetPathForLine(program, 11);
-    expect(toPath).not.toBe("0");
+    expect(toPath).not.toBe(TOP_LEVEL_START);
     const route = Game.planRoute(
       newGame(program).story,
       program as any,
-      Game.getSimulateFromPath(toPath),
+      newGame(program).routeStartOf(toPath),
       toPath,
     );
     expect(route).toBeTruthy();
-    expect(route!.steps.at(-1)!.path).toBe(toPath);
+    expect(route!.steps.at(-1)!.address).toBe(toPath);
   }, 120_000);
 });

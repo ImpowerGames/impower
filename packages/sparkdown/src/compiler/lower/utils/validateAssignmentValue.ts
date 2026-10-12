@@ -2,7 +2,7 @@ import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import type { LowerContext } from "../context";
 import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import { REASSIGNMENT_NAMES } from "../../utils/reassignmentNames";

@@ -13,22 +13,21 @@ import { Game } from "./Game";
  * flush/wait handoff that is the whole point. Like the save/load suite, that
  * makes this one of the slower files in the package.
  *
+ * Every case runs on the program engine, which a program compiled to
+ * statement chunks runs on (#702).
+ *
  * Deliberately out of scope: the `in` / `out` / `over` traversal modes and
- * breakpoint stops. Those only engage mid-flow with a debugger attached, and
- * they belong with the debug-adapter work rather than here.
+ * breakpoint stops. Those only engage mid-flow with a debugger attached;
+ * `src/tests/core/programDebugger.test.ts` covers them.
  */
 
 const THREE_BEATS = ["First beat.", "Second beat.", "Third beat.", ""].join(
   "\n",
 );
 
-const compile = compileProgram;
+const compile = (source: string) => compileProgram(source);
 
-let program: ReturnType<typeof compile>;
-
-beforeAll(() => {
-  program = compile(THREE_BEATS);
-});
+let program: ReturnType<typeof compileProgram>;
 
 interface Recorded {
   method: string;
@@ -68,10 +67,20 @@ const createGame = (
   };
 };
 
-describe("Game flow", () => {
+describe("Game flow on the program engine", () => {
+  beforeAll(() => {
+    program = compile(THREE_BEATS);
+  });
+
   it("compiles the fixture without diagnostics", () => {
     expect(program.diagnostics ?? {}).toEqual({});
-    expect(program.compiled).toBeTruthy();
+    expect(program.chunks).toBeDefined();
+    expect(program.chunks).toBeTruthy();
+  });
+
+  it("runs on the program engine", () => {
+    const { game } = createGame();
+    expect(game.programStory !== null).toBe(true);
   });
 
   describe("starting", () => {
@@ -112,7 +121,7 @@ describe("Game flow", () => {
       expect(executed?.params?.["executedLines"]).toEqual({
         "inmemory:///main.sd": { ranges: [0, 0], last: 0 },
       });
-      expect(executed?.params?.["lastExecutedPath"]).toBeTruthy();
+      expect(executed?.params?.["lastExecutedAddress"]).toBeTruthy();
     });
   });
 

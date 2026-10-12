@@ -49,7 +49,7 @@ const STYLE = `
 
 // Previous/next beat lookup for PageUp/PageDown now lives in the language
 // server (`sparkdown/offsetSourceLocation`) — it owns the program, and its
-// pathLocations are far too large to mirror on the main thread.
+// locations are far too large to mirror on the main thread.
 
 /**
  * Right-pane Game preview. Hosts an `<iframe>` pointed at the sparkdown
@@ -314,18 +314,18 @@ export default function PreviewGame(_props: PreviewGameProps) {
               executedLines,
               state,
               restarted,
-              simulatePath,
+              simulateFlow,
               conditions,
               choices,
             } = message.params;
-            if (simulatePath) {
+            if (simulateFlow != null) {
               const favoredConditions = conditions.map(
                 (c: { selected?: boolean }) => c.selected,
               );
               const favoredChoices = choices.map(
                 (c: { selected?: number }) => c.selected,
               );
-              Workspace.window.setSimulationOptions(simulatePath, {
+              Workspace.window.setSimulationOptions(simulateFlow, {
                 favoredConditions,
                 favoredChoices,
               });
@@ -411,7 +411,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           const { uri, selectedRange } = editor;
           const currLine = selectedRange?.start.line ?? 0;
           // Resolved by the language server on demand — the program's
-          // pathLocations are far too large to ship to the main thread on
+          // locations are far too large to ship to the main thread on
           // every compile just to answer this occasional keypress.
           const target = await Workspace.ls.getOffsetSourceLocation(
             uri,

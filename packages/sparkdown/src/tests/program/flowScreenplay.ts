@@ -1,7 +1,9 @@
 // A screenplay made of the flow constructs the writer emits (#696): scenes
 // and branches, labels passed by falling through and by a jump, diverts with
 // fixed and variable targets, written in full and relative to the scene,
-// tunnels that return and that return onward, threads, visit and turn counts
+// tunnels that return and that return onward, threads, branches with
+// parameters that a tunnel, a thread and an onward return pass arguments,
+// a variadic one among them (#1436), visit and turn counts
 // read through the language, and alternators of each kind, inline, glued, on
 // one line and as a block. Each scene runs to its end: its loop through its
 // first label stops after a few passes.
@@ -26,7 +28,9 @@ export function flowScreenplay(scenes = 3): string {
     L.push(`  Chained .. chain|one|two|three .. here.`);
     L.push("  shuffle queue | Lucky. | Plain. end");
     L.push(`  -> FLOW_${s}.side ->`);
+    L.push(`  -> carry(${s}, "tunnel") ->`);
     L.push("  <- thread_part");
+    L.push("  <- forked(passes, \"x\", \"y\")");
     L.push("  if passes < 3 then");
     L.push("    -> top");
     L.push("  end");
@@ -42,13 +46,21 @@ export function flowScreenplay(scenes = 3): string {
     L.push(`    In the thread of ${s}.`);
     L.push("    done");
     L.push("  end");
+    L.push("  branch carry(n, how)");
+    L.push("    Carried {n} by {how}.");
+    L.push("    ->->");
+    L.push("  end");
+    L.push("  branch forked(n, ...)");
+    L.push("    Forked on pass {n} with {select(\"#\", ...)} more.");
+    L.push("    done");
+    L.push("  end");
     L.push("  branch onward");
     L.push("    Going onward.");
-    L.push(`    ->-> FLOW_${s}.after`);
+    L.push(s % 2 === 0 ? `    ->-> FLOW_${s}.after` : `    ->-> after(${s} + 1)`);
     L.push("  end");
-    L.push("  branch after");
+    L.push(s % 2 === 0 ? "  branch after" : "  branch after(k)");
     L.push("    label mid");
-    L.push(`    After ${s}, mid {mid}.`);
+    L.push(s % 2 === 0 ? `    After ${s}, mid {mid}.` : `    After ${s}, mid {mid}, k {k}.`);
     L.push(s % 2 === 0 ? "    -> route" : "    done");
     L.push("  end");
     L.push("end");
@@ -73,6 +85,9 @@ export const FLOW_INSERTS = [
   "\n  -> top\n",
   "\n  -> FLOW_1.side ->\n",
   "\n  <- FLOW_0.thread_part\n",
+  "\n  -> carry(7, \"again\") ->\n",
+  "\n  <- forked(1)\n",
+  ", extra",
   "{top}",
   "{FLOW_0}",
   "{cycle|1|2}",

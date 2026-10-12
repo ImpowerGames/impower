@@ -1,0 +1,22 @@
+choose
+  if true then
+    * Gated
+      choose
+        * Inner
+          Chose inner.
+      end
+      Took gated.
+  end
+  do
+    * Held
+      choose
+        * Nested
+      then
+        Then nested.
+      end
+  end
+  * Outer
+    Chose outer.
+end
+After.
+done

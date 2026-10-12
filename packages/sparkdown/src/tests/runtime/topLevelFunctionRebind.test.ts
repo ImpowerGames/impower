@@ -1,9 +1,7 @@
 // A top-level `function f` is Luau's `f = function` (#1591): `f` is a global,
-// and a later assignment to it changes what `f()` calls, on both engines.
-import "../../inkjs/engine/Container";
+// and a later assignment to it changes what `f()` calls.
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import type { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
 import {
   compileScript,
@@ -12,32 +10,22 @@ import {
   storyBeats,
 } from "../program/programHarness";
 
-// The text a compiled story runs to on the engine `programChunks` selects,
-// with the compile's error diagnostics and the run's errors.
-const outcome = (
-  { program, story }: { program: SparkProgram; story: Story },
-  programChunks: boolean,
-) => {
+// The text a compiled story runs to, with the compile's error diagnostics
+// and the run's errors.
+const outcome = ({ program }: { program: SparkProgram }) => {
   const diagnostics = Object.values(program.diagnostics ?? {})
     .flat()
     .filter((d) => d.severity === 1)
     .map((d) => d.message);
-  if (programChunks) {
-    expect(program.fallback).toBeUndefined();
-  } else {
-    story.ResetState();
-  }
-  const beats = storyBeats(
-    programChunks ? new ProgramStory(program.chunks!) : story,
-  );
+  expect(program.fallback).toBeUndefined();
+  const beats = storyBeats(new ProgramStory(program.chunks!));
   return {
     text: beats.beats.map((b) => b.text).join(""),
     errors: [...diagnostics, ...beats.errors],
   };
 };
 
-const run = (text: string, programChunks: boolean) =>
-  outcome(compileScript(text, { programChunks }), programChunks);
+const run = (text: string) => outcome(compileScript(text));
 
 const cases: [string, string, string][] = [
   [
@@ -121,9 +109,8 @@ const runAfterEdit = (
   text: string,
   before: string,
   after: string,
-  programChunks: boolean,
 ) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks });
+  const c = programCompiler({ [MAIN_URI]: text });
   c.compile();
   const at = text.indexOf(before);
   const lineOf = (offset: number) => text.slice(0, offset).split("\n");
@@ -140,57 +127,53 @@ const runAfterEdit = (
       },
     ],
   });
-  return outcome(c.compile(), programChunks);
+  return outcome(c.compile());
 };
 
 describe("rebinding a top-level named function (#1591)", () => {
-  for (const programChunks of [false, true]) {
-    describe(`programChunks ${programChunks}`, () => {
-      it.each(cases)("%s", (_name, text, expected) => {
-        const result = run(text, programChunks);
-        expect(result.errors).toEqual([]);
-        expect(result.text).toBe(expected);
-      });
+  it.each(cases)("%s", (_name, text, expected) => {
+    const result = run(text);
+    expect(result.errors).toEqual([]);
+    expect(result.text).toBe(expected);
+  });
 
-      const fixed = "function f() return 7 end\n& x = 1\nf is {f()}.\n";
-      const rebound =
-        "function f() return 7 end\n& f = function() return 2 end\nf is {f()}.\n";
-      it("an edit that adds the assignment rebinds the call", () => {
-        expect(
-          runAfterEdit(fixed, "& x = 1", "& f = function() return 2 end", programChunks),
-        ).toEqual({ text: "f is 2.\n", errors: [] });
-      });
-      it("an edit that removes the assignment calls the function again", () => {
-        expect(
-          runAfterEdit(rebound, "& f = function() return 2 end", "& x = 1", programChunks),
-        ).toEqual({ text: "f is 7.\n", errors: [] });
-      });
-      it("a nested function's write to a captured local keeps the call held to the function's parameters", () => {
-        const text =
-          "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
-        const { errors } = run(text, programChunks);
-        expect(errors).toHaveLength(1);
-        expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
-      });
-      it("a same-named function nested elsewhere is no site of the function that writes the local", () => {
-        const text =
-          "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\n  function g(...)\n    function h(...) return 0 end\n    h()\n  end\n  g()\nend\n& swap()\nf is {f()}.\n";
-        const { errors } = run(text, programChunks);
-        expect(errors).toHaveLength(1);
-        expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
-      });
-      it("a nested function's write to a captured local leaves the function alone", () => {
-        const text =
-          "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
-        expect(run(text, programChunks)).toEqual({ text: "f is 7.\n", errors: [] });
-      });
-      it("an edit that adds the assignment releases the call from the original's parameters", () => {
-        const before = "function f() return 7 end\n& x = 1\nf is {f(2)}.\n";
-        expect(run(before, programChunks).errors).toHaveLength(1);
-        expect(
-          runAfterEdit(before, "& x = 1", "& f = function(x) return x end", programChunks),
-        ).toEqual({ text: "f is 2.\n", errors: [] });
-      });
-    });
-  }
+  const fixed = "function f() return 7 end\n& x = 1\nf is {f()}.\n";
+  const rebound =
+    "function f() return 7 end\n& f = function() return 2 end\nf is {f()}.\n";
+  it("an edit that adds the assignment rebinds the call", () => {
+    expect(
+      runAfterEdit(fixed, "& x = 1", "& f = function() return 2 end"),
+    ).toEqual({ text: "f is 2.\n", errors: [] });
+  });
+  it("an edit that removes the assignment calls the function again", () => {
+    expect(
+      runAfterEdit(rebound, "& f = function() return 2 end", "& x = 1"),
+    ).toEqual({ text: "f is 7.\n", errors: [] });
+  });
+  it("a nested function's write to a captured local keeps the call held to the function's parameters", () => {
+    const text =
+      "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
+    const { errors } = run(text);
+    expect(errors).toHaveLength(1);
+    expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
+  });
+  it("a same-named function nested elsewhere is no site of the function that writes the local", () => {
+    const text =
+      "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\n  function g(...)\n    function h(...) return 0 end\n    h()\n  end\n  g()\nend\n& swap()\nf is {f()}.\n";
+    const { errors } = run(text);
+    expect(errors).toHaveLength(1);
+    expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
+  });
+  it("a nested function's write to a captured local leaves the function alone", () => {
+    const text =
+      "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
+    expect(run(text)).toEqual({ text: "f is 7.\n", errors: [] });
+  });
+  it("an edit that adds the assignment releases the call from the original's parameters", () => {
+    const before = "function f() return 7 end\n& x = 1\nf is {f(2)}.\n";
+    expect(run(before).errors).toHaveLength(1);
+    expect(
+      runAfterEdit(before, "& x = 1", "& f = function(x) return x end"),
+    ).toEqual({ text: "f is 2.\n", errors: [] });
+  });
 });

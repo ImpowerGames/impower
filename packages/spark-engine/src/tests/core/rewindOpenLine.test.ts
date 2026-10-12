@@ -31,6 +31,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
+import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
@@ -51,14 +52,8 @@ function compileSrc(src: string) {
       },
     ],
   } as never);
-  const result = compiler.compile({
-    textDocument: { uri: URI },
-    countAllVisits: true,
-  });
-  if (!result.program.compiled) {
-    throw new Error("fixture failed to compile");
-  }
-  return result.program;
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  return requireChunks(result.program);
 }
 
 /** A story that can always continue and never completes a line: two scenes
@@ -205,25 +200,24 @@ const expectDiscardedForFree = (p: Probe) => {
 };
 
 /** Drive an ordinary story one advance at a time — the same unit the engine's
- *  own step loop uses — and stop on the first step that leaves a line open
- *  with output already written, so the line has something to lose. */
+ *  own step loop uses — and stop on the first step that leaves a line open,
+ *  so the line has the steps it ran to lose. */
 const driveToOpenLine = () => {
   const p = probe(newGame(compileSrc(ORDINARY)));
   const story: any = p.game.story;
   story.ChoosePathString("start");
   for (let i = 0; i < 60 && story.canContinue; i += 1) {
     story.ContinueAsync();
-    if (story.state.outputStream.length > 0 && p.midLine()) {
+    if (p.midLine()) {
       return p;
     }
   }
-  throw new Error("fixture never reached an open line holding output");
+  throw new Error("fixture never reached an open line");
 };
 
 describe("letting go of a line the story cannot finish", () => {
   test("the rewind does not advance the story at all", () => {
     const baseline = resetCostWithNothingOpen();
-    expect(baseline).toBeGreaterThan(0); // the globals really are re-declared
 
     const p = stoppedMidUnfinishableLine();
     const before = p.advances();
@@ -255,7 +249,7 @@ describe("letting go of a line the story cannot finish", () => {
     const before = p.advances();
     p.capAdvances(baseline + 100_000);
 
-    expect(() => p.game.jumpToPath("a")).not.toThrow();
+    expect(() => p.game.jumpToFlow("a")).not.toThrow();
     expect(p.midLine()).toBe(false);
     // A jump re-declares globals like a reset does, and does nothing else.
     expect(p.advances() - before).toBe(baseline);
@@ -265,7 +259,7 @@ describe("letting go of a line the story cannot finish", () => {
   test("loading a save lets go of the line the same way", () => {
     // `load` carries the same discard and is reached by the editor's own
     // checkpoint restore, so it needs its own coverage: with only `rewindStory`
-    // and `jumpToPath` converted, everything else in this file still passes.
+    // and `jumpTo` converted, everything else in this file still passes.
     const save = newGame(compileSrc(UNFINISHABLE_LINE), 5_000).save();
     const p = stoppedMidUnfinishableLine();
     p.capAdvances(200_000);
@@ -358,14 +352,14 @@ describe("the route planner lets go of an open line too", () => {
     };
 
     game.setStartFrom({ file: URI, line: 3 });
-    const toPath = anyGame.startPath as string;
+    const toPath = anyGame.startAddress!;
     expect(toPath).toBeTruthy();
 
     expect(() =>
       Game.planRoute(
         game.story,
         program as any,
-        Game.getSimulateFromPath(toPath),
+        anyGame.routeStartOf(toPath),
         toPath,
       ),
     ).not.toThrow();
@@ -376,14 +370,17 @@ describe("letting go of an ordinary open line", () => {
   test("loading a save lets go of it", () => {
     // Load replaces the state outright and runs no continue of its own, so
     // it is the path where a discard that left the continue open would show.
+    // The program engine's save load ends the line itself
+    // (`ProgramStory.loadSave`), and runs none of it.
     const save = newGame(compileSrc(ORDINARY)).save();
     const p = driveToOpenLine();
     p.capAdvances(200_000);
+    const before = p.advances();
 
     expect(p.game.load(save)).toBe(true);
 
     expect(p.midLine()).toBe(false);
-    expectDiscardedForFree(p);
+    expect(p.advances() - before).toBe(0);
   }, 300_000);
 
   test("rewinding lets go of it, and the story still replays correctly", () => {
@@ -474,7 +471,7 @@ describe("ordinary content is unaffected", () => {
       return lines;
     };
 
-    game.jumpToPath("start");
+    game.jumpToFlow("start");
     const first = readAll();
     expect(first).toEqual([
       "The first thing that happens.",
@@ -482,7 +479,7 @@ describe("ordinary content is unaffected", () => {
       "The third thing that happens.",
     ]);
 
-    game.jumpToPath("start");
+    game.jumpToFlow("start");
     expect(readAll()).toEqual(first);
   }, 300_000);
 });

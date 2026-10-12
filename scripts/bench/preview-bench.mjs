@@ -19,15 +19,19 @@
 //   --mode <m>          preview | edit | both (default both), or coverage: no
 //                       timing, but how many of the project's statements the
 //                       binary program's writer emits and, counted by
-//                       construct, which ones make the program fall back to
-//                       the current engine (programCoverage.ts, #694); it
-//                       needs no --line or --word
-//   --chunks            compile with the binary program's statement chunks on
-//                       (`programChunks`, #694) and time the compile alone,
-//                       since the worker's route search reads runtime paths;
-//                       prints what each pass of the chunk store visited per
-//                       sample (`ChunkStore.passesLastBuild`, #701)
-//   --samples <K>       measured samples per mode (default 12)
+//                       construct, which ones it has no emit path for
+//                       (programCoverage.ts, #694); it needs no --line or
+//                       --word
+//                       Or cold: each sample compiles the project on a
+//                       compiler of its own, with no game; --line, when
+//                       given, is where the compile starts from (#1712)
+//   --no-flow-reuse     refuse the compiler's parsed-flow reuse on every
+//                       compile (`_disableFlowReuseNextCompile`, #1712)
+//   --heap-probe <file> after the last sample, count the parsed objects alive
+//                       and write <file>.parsed.json and a heap snapshot at
+//                       <file>.heapsnapshot, for heap-retained.mjs (#1712);
+//                       not with --cpu-prof
+//   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
 //   --cpu-prof <dir>    also write a V8 CPU profile of each process there
@@ -35,7 +39,9 @@
 //                       each a .gaps.json of the same name: the stretches of
 //                       worker time no phase covers, for --gaps. A
 //                       profiled bundle keeps function names, which slows the
-//                       engine, so read times from a run without this flag
+//                       engine, so read times from a run without this flag.
+//                       Also a .windows.json of the same name: each measured
+//                       sample's stretch, for profile-shares.mjs --windows
 //
 // The worker path outside the browser: see
 // .agents/skills/drive-web-editor/references/performance.md.
@@ -72,10 +78,16 @@ export function parseBenchArgs(args) {
         break;
       case "--mode": {
         const mode = value(args, i++, name);
-        if (!["preview", "edit", "both", "coverage"].includes(mode)) throw new Error("--mode is preview, edit, both or coverage");
+        if (!["preview", "edit", "both", "coverage", "cold"].includes(mode)) throw new Error("--mode is preview, edit, both, coverage or cold");
         out.mode = mode;
         break;
       }
+      case "--no-flow-reuse":
+        out.noFlowReuse = true;
+        break;
+      case "--heap-probe":
+        out.heapProbe = value(args, i++, name);
+        break;
       case "--samples":
         out.samples = count(value(args, i++, name), name, 1);
         break;
@@ -88,16 +100,17 @@ export function parseBenchArgs(args) {
       case "--cpu-prof":
         out.cpuProf = value(args, i++, name);
         break;
-      case "--chunks":
-        out.chunks = true;
-        break;
       default:
         throw new Error(`unknown argument ${name}`);
     }
   }
   if (out.project && out.fixture) throw new Error("--project and --fixture are exclusive");
+  // A profiled bundle keeps its functions' given names, which the heap
+  // snapshot does not report for a class esbuild renamed, so the snapshot
+  // and the probe would name the parsed classes differently.
+  if (out.heapProbe && out.cpuProf) throw new Error("--heap-probe and --cpu-prof are exclusive");
   if (!out.project && !out.fixture) throw new Error("pass --project <dir> or --fixture");
-  if (out.project && out.mode !== "coverage" && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
+  if (out.project && out.mode !== "coverage" && out.mode !== "cold" && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
   return out;
 }
 
@@ -151,6 +164,17 @@ async function main(args) {
       process.exitCode = run.status === 0 ? 0 : 1;
       return;
     }
+    const cpuProfDir = options.cpuProf && path.resolve(options.cpuProf);
+    const heapProbe = options.heapProbe && path.resolve(options.heapProbe);
+    if (options.mode === "cold") {
+      const script = await bundleBench("previewBench.ts", scratch, cpuProfDir);
+      const json = options.json ? path.resolve(`${options.json}.cold.json`) : undefined;
+      const config = { project, line, word, options: [], mode: "cold", samples: options.samples, warmup: options.warmup, json, heapProbe: heapProbe && `${heapProbe}.cold`, windows: cpuProfDir && path.join(cpuProfDir, "cold.windows.json") };
+      const profile = cpuProfDir ? ["--cpu-prof", "--cpu-prof-dir", cpuProfDir, "--cpu-prof-name", "cold.cpuprofile"] : [];
+      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", "--expose-gc", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
+      process.exitCode = run.status === 0 ? 0 : 1;
+      return;
+    }
     const lineText = fs.readFileSync(path.join(project, "main.sd"), "utf8").split(/\r?\n/)[line - 1] ?? "";
     const around = tokenAround(lineText, word);
     if (!around) throw new Error(`"${word}" is not on line ${line}: ${JSON.stringify(lineText)}`);
@@ -163,9 +187,9 @@ async function main(args) {
     for (const mode of modes) {
       const json = options.json ? path.resolve(`${options.json}.${mode}.json`) : path.join(scratch, `${mode}.json`);
       const gaps = cpuProf ? path.join(cpuProf, `${mode}.gaps.json`) : undefined;
-      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json, gaps, chunks: !!options.chunks };
+      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json, gaps, noFlowReuse: options.noFlowReuse, heapProbe: heapProbe && `${heapProbe}.${mode}`, windows: cpuProf && path.join(cpuProf, `${mode}.windows.json`) };
       const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
-      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
+      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", "--expose-gc", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;
       console.log("");
     }

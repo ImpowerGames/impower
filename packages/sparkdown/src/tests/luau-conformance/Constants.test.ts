@@ -11,8 +11,8 @@ function compileAndCapture(source: string): { errors: string[]; recorded: unknow
   });
   const result = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
   const errors: string[] = [];
-  if (!result.program.compiled) return { errors: ["NO_COMPILED"], recorded: [] };
-  const story = testStory(result.program.compiled as Record<string, any>);
+  if (!result.program.chunks) return { errors: ["NO_COMPILED"], recorded: [] };
+  const story = testStory(result.program.chunks);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => { recorded.push(v); return v; });
   story.onError = (m: string) => errors.push(m);

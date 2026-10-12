@@ -1,14 +1,18 @@
-import type { Simulator,SimulatorSnapshot } from "../../inkjs/engine/Simulator";
-import { ErrorType, type RaisedError } from "../../inkjs/engine/Error";
-import { Story } from "../../inkjs/engine/Story";
-import { StepLimitExceeded } from "../../inkjs/engine/StoryException";
+import type { Simulator,SimulatorSnapshot } from "../../runtime/Simulator";
+import { ErrorType } from "../../runtime/Error";
+import type { ProgramStory as Story } from "../../program/ProgramStory";
+import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
+import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
+import { chunkOfAddress } from "../../program/ProgramChunk";
+import type { ProgramAddress } from "../types/ProgramAddress";
 
 export interface RoutePlan {
-  /** The path to start from */
-  fromPath: string;
-  /** The path to end at */
-  toPath: string;
+  /** The flow the route starts at the top of: a scene's name, or `"0"` for
+   *  the top-level content. */
+  from: string;
+  /** The address the route ends at (`ProgramLocator.addressAt`). */
+  to: ProgramAddress;
   /** The sequence of steps that led here */
   steps: RouteStep[];
   /** The decisions in the order you'll make them along the route. */
@@ -27,7 +31,7 @@ export type SearchState = string | ProgramImage;
 export interface SearchNode {
   /** The state the node runs from, which siblings share. */
   state: SearchState;
-  /** Opaque identity of the sequence of paths taken to reach this step
+  /** Opaque identity of the sequence of addresses taken to reach this step
    *  (see {@link extendSeq}) */
   seq: string;
   /** The sequence of steps that led here */
@@ -43,7 +47,8 @@ export interface SearchNode {
 }
 
 /**
- * Extend a step-sequence identity with one more path.
+ * Extend a step-sequence identity with one more path: a step's address, or a
+ * string a search keys a fork by (a state's text, an override's site).
  *
  * The identity used to be the paths themselves, joined: `"a|b|c"`. Every step
  * stored the whole running string, and `Game.simulateRoute` then uses each one
@@ -55,17 +60,20 @@ export interface SearchNode {
  *
  * Only equality is ever asked of a `seq`, so the identity is folded into a
  * fixed-width hash instead: same history in, same value out, constant size.
- * Two 32-bit lanes (cyrb53-style) give ~2^53 distinct values, so across the
+ * Two 32-bit lanes (cyrb53-style) give ~2^64 distinct values, so across the
  * tens of thousands of steps a route can hold, two histories colliding is
  * vanishingly unlikely — and `Game.getCheckpoint` corroborates a match against
- * the step's own path, so even a collision costs a re-simulation rather than
- * resuming from an unrelated position.
+ * the step's own address, so even a collision costs a re-simulation rather
+ * than resuming from an unrelated position.
  *
  * The value is meaningful only WITHIN one session's plans: it is compared
  * between an earlier plan and a re-plan (which is how checkpoint reuse works),
  * never persisted or parsed.
  */
-export const extendSeq = (seq: string, path: string): string => {
+export const extendSeq = (
+  seq: string,
+  path: ProgramAddress | string,
+): string => {
   let h1 = 0xdeadbeef;
   let h2 = 0x41c6ce57;
   // The characters of `seq`, a separator, then the characters of `path` — the
@@ -74,7 +82,19 @@ export const extendSeq = (seq: string, path: string): string => {
   // helper is a closure allocated on every one of the tens of thousands of
   // calls a deep search makes.
   for (let piece = seq ? 0 : 2; piece < 3; piece += 1) {
-    const text = piece === 0 ? seq : piece === 1 ? "|" : path;
+    if (piece === 2 && typeof path === "number") {
+      // An address (docs/engine/binary-program.md, section 8) is folded as
+      // its two 32-bit halves: a fold of the number with no string made for
+      // it.
+      const low = path % 4294967296;
+      const high = (path - low) / 4294967296;
+      h1 = Math.imul(h1 ^ low, 2654435761);
+      h2 = Math.imul(h2 ^ low, 1597334677);
+      h1 = Math.imul(h1 ^ high, 2654435761);
+      h2 = Math.imul(h2 ^ high, 1597334677);
+      continue;
+    }
+    const text = piece === 0 ? seq : piece === 1 ? "|" : (path as string);
     for (let i = 0; i < text.length; i += 1) {
       const ch = text.charCodeAt(i);
       h1 = Math.imul(h1 ^ ch, 2654435761);
@@ -85,41 +105,28 @@ export const extendSeq = (seq: string, path: string): string => {
   h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
   h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  const combined = 4294967296 * (2097151 & h2) + (h1 >>> 0);
-  return combined.toString(36);
+  // The two lanes whole, as four UTF-16 code units: a string of four
+  // characters costs a fraction of a number's text in any radix, and a
+  // search makes one per step.
+  return String.fromCharCode(h1 & 0xffff, h1 >>> 16, h2 & 0xffff, h2 >>> 16);
 };
 
 export type RouteOverride = ConditionOverride | ChoiceOverride;
 
 export interface RouteStep {
-  /** Opaque identity of the sequence of paths taken to reach this step. Two
-   *  steps carry the same `seq` exactly when the same paths led to them, which
-   *  is what lets a re-plan reuse an earlier plan's checkpoints
+  /** Opaque identity of the sequence of addresses taken to reach this step.
+   *  Two steps carry the same `seq` exactly when the same addresses led to
+   *  them, which is what lets a re-plan reuse an earlier plan's checkpoints
    *  (`Game.getCheckpoint`). Not parseable — see {@link extendSeq}. */
   seq: string;
-  /** The path encountered this step */
-  path: string;
+  /** The address of the position the step stands at: the address of the
+   *  instruction that ran last, which survives a compile for every statement
+   *  that was not emitted again. */
+  address: ProgramAddress;
   /** The index of the latest decision made so far */
   decision: number;
   /** The index of the latest checkpoint made so far */
   checkpoint?: number;
-  /** Where this step's path pointed in the program it was REPLAYED in: the
-   *  script, and the location the compiler recorded for the path (`Game`'s
-   *  replay stamps both).
-   *
-   *  This is what lets a later compile decide whether the step still means what
-   *  it meant. Two different things can go wrong and both are read from here:
-   *  the author can have edited the text the step came from, and an edit
-   *  elsewhere can have renumbered the path so that it now points at other
-   *  content entirely.
-   *
-   *  `stamped` says the step was reached and looked up, which is what separates
-   *  "the compiler recorded no location for this path" from "nobody has asked".
-   *  An object with no location of its own is ordinary — a beat's control
-   *  objects have none — and a step that acquires one has still moved. */
-  stamped?: boolean;
-  uri?: string;
-  location?: readonly number[];
 }
 
 /**
@@ -132,8 +139,9 @@ export interface RouteStep {
  * behind it still forces what it forced.
  */
 export interface RouteResumePoint {
-  /** Story state at that step, as `story.state.toJson()` writes it. */
-  stateJson: string;
+  /** Story state at that step: as `story.state.toJson()` writes it, or an
+   *  image of the program engine's state. */
+  state: SearchState;
   /** The route's steps up to but not including that step: a resumed search
    *  reads the position it is standing on before advancing, so recording that
    *  step here as well would put it into the plan twice. */
@@ -242,7 +250,7 @@ export interface SearchOptions {
 
   /**
    * Start the search part-way along a route already taken rather than at the
-   * top of `fromPath`.
+   * top of `from`.
    *
    * The story ahead of a resume point is the story that was already searched
    * and replayed, so searching it again finds the same thing at the cost of
@@ -269,6 +277,84 @@ export interface SearchOptions {
   stateImages?: boolean;
 }
 
+/** Where a story stands, as a search reads it: the position each step is
+ *  known by, and the flow the story runs in and those it will come back to,
+ *  which keep a search within its scene. */
+interface StoryPositions {
+  /** The address of the position the story's last step ran, or nothing
+   *  before one has. */
+  previous(): ProgramAddress | undefined;
+  /** The flow the story's next step runs in. */
+  knot(): string;
+  /** Whether a flow on the story's call stack is `knot`. */
+  stackHolds(knot: string): boolean;
+  /** The address of the step that raised an error. */
+  errorAddress(
+    raised: { path?: string | null; address?: number } | null | undefined,
+  ): ProgramAddress | null;
+}
+
+// The scene each chunk of a root stands in, found once per chunk.
+const chunkScenes = new WeakMap<ProgramRoot, Map<number, string>>();
+
+/** The flow an address of `root` stands in, as a route search keeps to its
+ *  scene: its scene's name, or `"0"` for the top level, a declaration, or a
+ *  chunk the root does not hold. */
+const sceneOfAddress = (root: ProgramRoot, address: number): string => {
+  if (address < 0) {
+    return "0";
+  }
+  let scenes = chunkScenes.get(root);
+  if (!scenes) {
+    scenes = new Map();
+    chunkScenes.set(root, scenes);
+  }
+  const id = chunkOfAddress(address);
+  let scene = scenes.get(id);
+  if (scene === undefined) {
+    scene = root.sceneAt(address) ?? "0";
+    scenes.set(id, scene);
+  }
+  return scene;
+};
+
+const storyPositions = (story: Story): StoryPositions => {
+  // The scene of the sequence the story last stood in, which most steps
+  // share: the scene follows from the sequence alone.
+  let lastSequence: SequenceRow | null = null;
+  let lastScene = "0";
+  return {
+    previous: () => {
+      const address = story.previousAddress;
+      return address >= 0 ? address : undefined;
+    },
+    knot: () => {
+      const sequence = story.state.position?.sequence ?? null;
+      if (!sequence) {
+        return "0";
+      }
+      if (sequence !== lastSequence) {
+        lastSequence = sequence;
+        lastScene = story.root.sceneOf(sequence) ?? "0";
+      }
+      return lastScene;
+    },
+    stackHolds: (knot) =>
+      story
+        .stackAddresses()
+        .some((address) => sceneOfAddress(story.root, address) === knot),
+    // The instruction that raised the error, as the error recorded it: the
+    // story it ended no longer says where it stood.
+    errorAddress: (raised) => {
+      if (raised?.address !== undefined) {
+        return raised.address;
+      }
+      const address = story.previousAddress;
+      return address >= 0 ? address : null;
+    },
+  };
+};
+
 /** How a search forks the story's state and runs a node from it. */
 interface StatePort {
   /** The state as it stands, and the key a fork site is claimed by. */
@@ -276,17 +362,9 @@ interface StatePort {
   restore(state: SearchState): void;
 }
 
-/** The program engine's surface for images, which the current engine
- *  lacks. */
-interface ImageStory {
-  capture(): ProgramImage;
-  restore(image: ProgramImage): boolean;
-}
-
 const statePort = (story: Story, images: boolean): StatePort => {
-  const imaging = story as unknown as Partial<ImageStory>;
-  if (images && typeof imaging.capture === "function") {
-    const program = imaging as ImageStory;
+  if (images) {
+    const program = story;
     return {
       fork: () => {
         const image = program.capture();
@@ -546,8 +624,9 @@ export const lastSearchStats: {
   /** The runtime errors that ended the search's runs, once each, in the order
    *  they were raised. An error ends the story, so a search that found no
    *  route and raised one was stopped by it on the way; warnings end nothing
-   *  and are not kept. */
-  errors: RaisedError[];
+   *  and are not kept. Each names the address of the step that raised it,
+   *  which `ProgramLocator.locationOf` places. */
+  errors: SearchError[];
 } = {
   nodesExpanded: 0,
   stepsUsed: 0,
@@ -557,10 +636,24 @@ export const lastSearchStats: {
   errors: [],
 };
 
+/** A runtime error that ended one of a search's runs. */
+export interface SearchError {
+  message: string;
+  /** The address of the step that raised it, or nothing when no step had
+   *  run. */
+  address: ProgramAddress | null;
+}
+
+/**
+ * Search for a way from the top of the flow `from` to the address `to`, by
+ * stepping the story and forking it at every decision. A step is known by the
+ * address of the position it stands at (docs/engine/binary-program.md,
+ * section 8), folded into a running identity (`extendSeq`).
+ */
 export const planRoute = (
   story: Story,
-  fromPath: string,
-  toPath: string,
+  from: string,
+  to: ProgramAddress,
   options?: SearchOptions,
 ): RoutePlan | null => {
   lastSearchStats.nodesExpanded = 0;
@@ -582,9 +675,10 @@ export const planRoute = (
   };
   const favoredConditionalValues = options?.favoredConditions ?? [];
   const favoredChoiceIndices = options?.favoredChoices ?? [];
-  const fromKnotName = fromPath.split(".")[0] || "0";
+  const fromKnotName = from.split(".")[0] || "0";
+  const positions = storyPositions(story);
 
-  let routePlan = null;
+  let routePlan: RoutePlan | null = null;
   /** Set when a node run threw (see the catch in the search loop). */
   let nodeErrored = false;
   const startingSteps = budget.stepsRemaining;
@@ -595,6 +689,15 @@ export const planRoute = (
   const prevOnExecute = story.onExecute;
   const prevOnMakeChoice = story.onMakeChoice;
   const prevOnEvaluateCondition = story.onEvaluateCondition;
+  // A story that keeps the image of each beat for its game's checkpoints
+  // (`ProgramStory.keepBeatImages`) keeps none while the search steps it: a
+  // search node holds the images it forks, and a beat's image is the
+  // checkpoint's, which the replay after the search takes.
+  const beatImages = story as unknown as { keepBeatImages?: boolean };
+  const prevKeepBeatImages = beatImages.keepBeatImages;
+  if (prevKeepBeatImages !== undefined) {
+    beatImages.keepBeatImages = false;
+  }
 
   try {
     // Inside the guarded region, and before the hooks are replaced: the start
@@ -603,7 +706,7 @@ export const planRoute = (
     queue.push(
       options?.resumeFrom
         ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, fromPath, port),
+        : makeStartNode(story, from, port),
     );
 
     const raisedErrors = new Set<string>();
@@ -611,11 +714,11 @@ export const planRoute = (
       if (type !== ErrorType.Error) {
         return;
       }
-      const error = {
+      const error: SearchError = {
         message: raised?.message ?? message,
-        path: raised?.path ?? null,
+        address: positions.errorAddress(raised),
       };
-      const key = `${error.path} ${error.message}`;
+      const key = `${error.address} ${error.message}`;
       if (!raisedErrors.has(key)) {
         raisedErrors.add(key);
         lastSearchStats.errors.push(error);
@@ -642,8 +745,9 @@ export const planRoute = (
           story,
           port,
           node,
+          positions,
           fromKnotName,
-          toPath,
+          to,
           favoredChoiceIndices,
           favoredConditionalValues,
           options?.stayWithinKnot !== false,
@@ -653,8 +757,8 @@ export const planRoute = (
 
         if (result.hitTarget) {
           routePlan = {
-            fromPath,
-            toPath,
+            from,
+            to,
             steps: result.steps,
             decisions: result.decisions,
             conditions: result.conditions,
@@ -719,6 +823,9 @@ export const planRoute = (
       story.onExecute = prevOnExecute;
       story.onMakeChoice = prevOnMakeChoice;
       story.onEvaluateCondition = prevOnEvaluateCondition;
+      if (prevKeepBeatImages !== undefined) {
+        beatImages.keepBeatImages = prevKeepBeatImages;
+      }
     }
   }
 
@@ -729,8 +836,9 @@ const runUntilDecisionOrBranch = (
   story: Story,
   port: StatePort,
   node: SearchNode,
+  positions: StoryPositions,
   fromKnotName: string,
-  targetPath: string | null, // set null for "enumerate all"
+  target: ProgramAddress | null, // set null for "enumerate all"
   favoredChoiceIndices: (number | undefined)[],
   favoredConditionalValues: (boolean | undefined)[],
   stayWithinKnot: boolean,
@@ -765,25 +873,25 @@ const runUntilDecisionOrBranch = (
       }
       budget.stepsRemaining -= 1;
 
-      const previousPath = pointerPathString(story.state.previousPointer)!;
+      const previous = positions.previous();
 
-      if (previousPath) {
+      if (previous !== undefined) {
         if (
           stepsEncountered.length === 0 ||
-          previousPath !== stepsEncountered.at(-1)?.path
+          previous !== stepsEncountered.at(-1)?.address
         ) {
-          seq = extendSeq(seq, previousPath);
+          seq = extendSeq(seq, previous);
           stepsEncountered.push({
             checkpoint: undefined,
             decision: node.decisions.length - 1,
-            path: previousPath,
+            address: previous,
             seq,
           });
         }
       }
 
       // A) Target reached?
-      if (previousPath === targetPath) {
+      if (previous !== undefined && previous === target) {
         hitTarget = true;
         terminal = true;
         break;
@@ -791,8 +899,11 @@ const runUntilDecisionOrBranch = (
 
       // B) Story requires choice to advance
       if (!story.canContinue && story.currentChoices.length > 0) {
-        if (simulator.willForceChoice(previousPath)) {
-          const forcedSourcePath = simulator?.forceChoice(previousPath);
+        // A decision site is named to the route simulator by its address as
+        // text, as the engine asks for a forced verdict.
+        const site = previous === undefined ? "" : String(previous);
+        if (simulator.willForceChoice(site)) {
+          const forcedSourcePath = simulator?.forceChoice(site);
           const forced = story.currentChoices.find(
             (choice) => choice.sourcePath === forcedSourcePath,
           );
@@ -811,7 +922,7 @@ const runUntilDecisionOrBranch = (
           if (
             !claimForkSite(
               budget,
-              previousPath,
+              site,
               fork.key,
               node.overrides,
               simulator.saveSnapshot(),
@@ -835,7 +946,7 @@ const runUntilDecisionOrBranch = (
                   stepsEncountered,
                   {
                     kind: "choice",
-                    path: previousPath,
+                    path: site,
                     value: choice.sourcePath,
                   },
                   {
@@ -861,7 +972,7 @@ const runUntilDecisionOrBranch = (
                 stepsEncountered,
                 {
                   kind: "choice",
-                  path: previousPath,
+                  path: site,
                   value: choice.sourcePath,
                 },
                 {
@@ -882,14 +993,15 @@ const runUntilDecisionOrBranch = (
       }
 
       // D) Stay within starting knot?
-      if (stayWithinKnot && exitedKnot(story, fromKnotName, functions)) {
+      if (stayWithinKnot && exitedKnot(story, positions, fromKnotName, functions)) {
         terminal = true;
         break;
       }
 
-      // Ask the engine to pause before evaluating conditions
-      story.pauseBeforeEvaluatingConditions =
-        !simulator.willForceCondition(previousPath);
+      // Ask the engine to pause before evaluating conditions. The program
+      // engine asks the simulator by the decision's own address, and runs on
+      // through a forced one itself.
+      story.pauseBeforeEvaluatingConditions = true;
 
       // One step was charged above. A Luau callback runs all of its steps
       // inside the step that called it, and those count too: the limit stops
@@ -998,82 +1110,6 @@ const runUntilDecisionOrBranch = (
   };
 };
 
-/**
- * Path strings for the positions the search visits, remembered per position.
- *
- * `Pointer.path` builds a fresh `Path` object every time it is read and joining
- * its components into a string is what the search spends much of its per-step
- * time on — and it reads the same handful of positions over and over, because a
- * route revisits containers and every fork re-runs the steps before it. The
- * answer cannot change: a compiled story's content tree is fixed, so the path
- * of a container and of the item at one of its indexes is fixed with it.
- *
- * Keyed weakly by container, so the entries for a story go away with the story.
- */
-interface PointerPaths {
-  /** Indexed by the pointer's index plus one; slot 0 is the container itself. */
-  paths: (string | undefined)[];
-  /** The knot name of the same position (see {@link knotNameFromPath}). */
-  knots: (string | undefined)[];
-}
-
-const pointerPathCache = new WeakMap<object, PointerPaths>();
-
-const pointerPaths = (container: object): PointerPaths => {
-  let entry = pointerPathCache.get(container);
-  if (!entry) {
-    entry = { paths: [], knots: [] };
-    pointerPathCache.set(container, entry);
-  }
-  return entry;
-};
-
-/** The pointer's path as a string, or undefined for a null pointer. */
-const pointerPathString = (
-  ptr: {
-    container: unknown;
-    index: number | null;
-    path: { toString(): string } | null;
-  } | null,
-): string | undefined => {
-  if (!ptr || !ptr.container) {
-    return undefined;
-  }
-  const entry = pointerPaths(ptr.container as object);
-  const slot = ptr.index == null ? 0 : ptr.index + 1;
-  const cached = entry.paths[slot];
-  if (cached !== undefined) {
-    return cached;
-  }
-  const computed = ptr.path?.toString();
-  if (computed !== undefined) {
-    entry.paths[slot] = computed;
-  }
-  return computed;
-};
-
-/** The knot the pointer sits in, by the same fallback `knotNameFromPath` uses. */
-const pointerKnotName = (
-  ptr: {
-    container: unknown;
-    index: number | null;
-    path: { toString(): string } | null;
-  } | null,
-): string => {
-  if (!ptr || !ptr.container) {
-    return knotNameFromPath(undefined);
-  }
-  const entry = pointerPaths(ptr.container as object);
-  const slot = ptr.index == null ? 0 : ptr.index + 1;
-  const cached = entry.knots[slot];
-  if (cached !== undefined) {
-    return cached;
-  }
-  const computed = knotNameFromPath(pointerPathString(ptr));
-  entry.knots[slot] = computed;
-  return computed;
-};
-
 const resetStory = (story: Story) => {
   // End any line the story is part-way through rather than running it to its
   // end. `ResetState` below refuses to run while a line is open, but finishing
@@ -1092,7 +1128,7 @@ const resetStory = (story: Story) => {
 
 const makeStartNode = (
   story: Story,
-  fromPath: string,
+  from: string,
   port: StatePort,
 ): SearchNode => {
   // Start from fresh state, and jump to the knot start.
@@ -1107,7 +1143,7 @@ const makeStartNode = (
   if (!story.stateIsPristine) {
     resetStory(story);
   }
-  story.ChoosePathString(fromPath);
+  story.ChoosePathString(from);
   return {
     state: port.fork().state,
     seq: "",
@@ -1132,7 +1168,7 @@ const makeStartNode = (
  * happens if it ever did.
  */
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
-  state: resumeFrom.stateJson,
+  state: resumeFrom.state,
   seq: resumeFrom.steps.at(-1)?.seq ?? "",
   steps: [...resumeFrom.steps],
   decisions: [...resumeFrom.decisions],
@@ -1141,29 +1177,24 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => ({
   overrides: [...resumeFrom.decisions],
 });
 
-const knotNameFromPath = (path: string | undefined): string =>
-  path?.split(".")[0] || "0";
-
 const isRootLevel = (knot: string): boolean =>
   knot === "0" || /^\d+$/.test(knot);
 
 const exitedKnot = (
-  story: Story,
+  _story: Story,
+  positions: StoryPositions,
   knotName: string,
   functions: string[],
 ): boolean => {
-  const ptr = story.state.currentPointer;
-
-  if (!ptr || ptr.isNull) {
-    return false;
-  }
-  const curKnot = pointerKnotName(ptr);
-
-  if (isRootLevel(curKnot)) {
-    return false;
-  }
+  // A story that stands nowhere is in the top-level content's flow, `"0"`.
+  // Read first, since a step that stays in its scene is the common case.
+  const curKnot = positions.knot();
 
   if (curKnot === knotName) {
+    return false;
+  }
+
+  if (isRootLevel(curKnot)) {
     return false;
   }
 
@@ -1171,18 +1202,7 @@ const exitedKnot = (
     return false;
   }
 
-  for (const thread of story.state.callStack._threads) {
-    for (const el of thread.callstack) {
-      const elKnot = el.currentPointer.isNull
-        ? pointerKnotName(el.previousPointer)
-        : pointerKnotName(el.currentPointer);
-      if (elKnot === knotName) {
-        return false;
-      }
-    }
-  }
-
-  return true;
+  return !positions.stackHolds(knotName);
 };
 
 const forkCondition = (

@@ -49,7 +49,7 @@ describe("choices", () => {
   test("N choices render (text + per-choice observe)", async () => {
     const harness = createHarness(CHOICE_STORY);
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     expect(beat?.choices).toEqual(["choice 0", "choice 1", "choice 2"]);
@@ -61,7 +61,7 @@ describe("choices", () => {
   test("click first choice → clear + advance round-trip", async () => {
     const harness = createHarness(CHOICE_STORY);
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     await harness.display(beat!, true);

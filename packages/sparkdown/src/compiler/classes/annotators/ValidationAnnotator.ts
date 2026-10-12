@@ -1,6 +1,7 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { documentString } from "../../utils/documentString";
 import { Range, type Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
@@ -329,7 +330,9 @@ function reportedBefore(
 // expression, and `then` and `else` are keywords it expects. It adds the
 // token it found instead, which lies outside the expression, so these leave
 // it out. Where the type checker reads the Luau and Luau finds a value
-// missing too, the checker reports that one with Luau's token and range.
+// missing too, the checker reports that one with Luau's token and range;
+// where it reads on to the token after a missing `else`, that error is
+// Luau's own, with its token and range.
 const IF_EXPRESSION_WITHOUT_VALUE =
   "Expected identifier when parsing expression";
 const IF_EXPRESSION_WITHOUT_THEN =
@@ -568,7 +571,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     const text = this.text;
     if (!text) return "";
     if (this.diagnosticDocument?.text !== text) {
-      this.diagnosticDocument = { text, source: text.toString() };
+      this.diagnosticDocument = { text, source: documentString(text) };
     }
     return this.diagnosticDocument.source;
   };
@@ -1360,7 +1363,33 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const checkerReportsValue =
         missing?.message === IF_EXPRESSION_WITHOUT_VALUE &&
         typeCheckerReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read, this.statementDocumentText);
-      if (missing && !checkerReportsValue) {
+      // A missing `else` is Luau's error, worded and placed as Luau's reading
+      // of the expression finds it, at the token after the then arm's value
+      // (which may be on the line after `then`, #1501), where the checker
+      // reads the Luau on to that token (`checkerReadsOnTo`).
+      let reportedElse = false;
+      if (missing?.message === IF_EXPRESSION_WITHOUT_ELSE) {
+        const text = this.statementDocumentText();
+        const start = firstDescendant(nodeRef.node, LUAU_IF_KEYWORD)?.from ?? nodeRef.from;
+        const error = readLuauExpressionAfter(start, text, authoredIslandEnd(nodeRef.node)).errors[0];
+        if (error?.message.startsWith(`${IF_EXPRESSION_WITHOUT_ELSE}, got `)) {
+          let from = luauPositionOffset(error.location.begin, text);
+          let to = luauPositionOffset(error.location.end, text);
+          let message = error.message;
+          // The `end` a `run` file's wrapper closes it with is not in the
+          // file, so the token found there is the file's end.
+          if (this.isRunWrapperEnd(from)) {
+            from = to = from - 1;
+            message = `${IF_EXPRESSION_WITHOUT_ELSE}, got <eof>`;
+          }
+          const atEof = message.endsWith("got <eof>");
+          if (this.checkerReadsOnTo(nodeRef.node, atEof ? undefined : from)) {
+            this.error(annotations, message, from, to);
+            reportedElse = true;
+          }
+        }
+      }
+      if (missing && !checkerReportsValue && !reportedElse) {
         this.error(
           annotations,
           missing.message,

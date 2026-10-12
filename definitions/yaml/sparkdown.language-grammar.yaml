@@ -161,7 +161,11 @@ variables:
   LUAU_MODULE_KEYWORDS: ["require", "export"]
   LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
-  LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else"]
+  # The keywords an expression can follow, so an `if` right after one begins
+  # an if expression whether or not its `else` is on the same line: an
+  # operator's or `return`'s operand, a clause's value, and the condition of
+  # `if`, `elseif`, `while` and `until` or the iterated value after `in`.
+  LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else", "if", "elseif", "while", "until", "in"]
   # Statement-boundary keywords that end an `until` condition
   # (`LuauUntilStatement`); `until` itself is left out.
   LUAU_UNTIL_CONDITION_END_KEYWORDS:
@@ -380,6 +384,10 @@ variables:
   IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}\b)
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
+  # A `#` run that is not a TAG_START: a line rule ends before it, while a
+  # tag that touches the line's text (`Hello# t`) stays inside the line's
+  # Annotation, so its tags are the line's own (#1710).
+  NOT_TAG_HASH: (?:[#]+[^#\s])
   COMMENT_START: (?:[-][-])
   # A `>` in display text, which may touch the words around it (`A>B`), and
   # each `>` of `>>` is one. The marks that hold a `>` are matched before it:
@@ -421,7 +429,17 @@ variables:
   # The `..` that opens and closes an inline alternator mid-line
   # (`.. queue|a|b ..`).
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))
-  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}+)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}){{WS}}*{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
+  # The heads that `LuauSparkdownInlineGluedSequentialAlternatorBlock` and
+  # `LuauSparkdownInlineGluedConditionalAlternatorBlock` open on, without
+  # captures, so `INLINE_LEADING_GLUE` refuses exactly the `..` they take.
+  #
+  # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})`, `(?=[|])` and
+  # `(?=[(])` repeat those begins' lookaheads, whose comments name the
+  # rival (`TextChunk` and `LeadingGlue`) and why no reordering, `end:` or
+  # tighter variable replaces them. A different test here would let
+  # `INLINE_LEADING_GLUE` take a `..` an alternator opens on, or refuse
+  # one no alternator takes.
+  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}*)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{WS}}*(?=[|])|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
 
   # Newline
   NL: (?:\r\n|\r|\n)
@@ -520,7 +538,17 @@ variables:
   # Restored value/selector highlighting helpers (pre-Luau-port leaf rules).
   INTEGER: "[0-9]+"
   NUMBER: (?:[-]?(?:\d*[.])?\d+)
-  QUOTED_STRING: (?:["](?:\\.|[^"\r\n])*["])
+  # One character inside quotes or a command's brackets: a backslash escape,
+  # or any character but the closer and a line break, so the text stays on
+  # its line (GRAMMAR.md §11.5).
+  DOUBLE_QUOTED_CHAR: (?:\\.|[^"\r\n])
+  # One character inside single quotes: any character but `'` and a line
+  # break. Its first branch matches a literal `.`, not a backslash escape,
+  # so a `\'` ends the string.
+  SINGLE_QUOTED_CHAR: (?:\.|[^'\r\n])
+  IMAGE_COMMAND_CHAR: (?:\\.|[^\]\r\n])
+  AUDIO_COMMAND_CHAR: (?:\\.|[^)\r\n])
+  QUOTED_STRING: (?:["]{{DOUBLE_QUOTED_CHAR}}*["])
   STRICT_PROPERTY_IDENTIFIER: (?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
@@ -587,7 +615,7 @@ variables:
   _STRUCT_TEXT_THEN_COMMENT_: ({{STRUCT_VALUE_TEXT_PART}}+?)(?:({{STRUCT_TEXT_DASH_COMMENT}})|({{STRUCT_TEXT_SLASH_COMMENT}}))?
   STRUCT_LITERAL_DASH_COMMENT: (?:{{WS}}*{{LUAU_COMMENT_START}}.*)
   STRUCT_LITERAL_SLASH_COMMENT: (?:{{WS}}*[/][/].*)
-  STRUCT_VALUE_TEXT_PART: (?:{{STRUCT_BLOCK_QUOTED}}|[^"])
+  STRUCT_VALUE_TEXT_PART: (?:{{STRUCT_BLOCK_QUOTED}}|[^"\r\n])
   STRUCT_TEXT_DASH_COMMENT: (?:{{WS}}+{{LUAU_COMMENT_START}}.*)
   STRUCT_TEXT_SLASH_COMMENT: (?:{{WS}}+[/][/](?:{{WS}}.*)?)
   # A property's key, and the key with its `=` and the whitespace around it.
@@ -1000,6 +1028,9 @@ variables:
   # is captured and matched by `\4`: every rule using this must put exactly
   # three capture groups before it. A line comment must run to its line end,
   # so the token is never a character inside it (`local x: -- a, b`).
+  # reads-past-line: it skips blank lines and comments to the next token on
+  # purpose. An incremental reparse restarts at the last code line above an
+  # edit (`lookaheadContextStart`), so a lookahead built on it sees the edit.
   _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
   _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
   # The same, ending at a token that cannot start an expression: a `;`, `,`
@@ -1443,6 +1474,13 @@ repository:
   #
   #   Here is some text .. queue|a|b|c .. and more text after.
   #
+  # The head takes the same keywords as the other alternator forms: an
+  # optional `shuffle` and an optional `queue`, `cycle` or `chain`, at
+  # least one of them (`.. shuffle|a|b ..` is a plain shuffle, #1706).
+  #
+  # The head is `LuauSparkdownSingleLineSequentialAlternatorBlock`'s:
+  # the first arm separator must follow it.
+  #
   # Required `..` delimiters give the grammar an unambiguous scope.
   # Inside the scope, arm bodies are parsed as display content (text +
   # nested `{interp}`), with `|` separating arms.
@@ -1454,7 +1492,23 @@ repository:
   # for the arms.
 
   LuauSparkdownInlineGluedSequentialAlternatorBlock:
-    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}+))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}"
+    # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})` makes one of the
+    # two optional keywords present, so `.. |a|b ..` opens no alternator;
+    # the captures stay optional so the lowerer reads the modifier and the
+    # keyword from fixed indices. `(?=[|])` leaves the first separator to
+    # `LuauAlternatorSeparator`, the body's first pattern. The rival is the
+    # glued text path (`TextChunk`, and `LeadingGlue` through
+    # `INLINE_LEADING_GLUE`), which takes any `..` this begin refuses.
+    # Without the separator lookahead, keyword-shaped text after `..`
+    # opened a scope: `.. shuffle,a,b ..` became a shuffle over no arms
+    # that the engine cannot run, `.. queue,a ..` emitted nothing, and
+    # backtracking past an optional keyword accepted `.. shuffle queue.x`
+    # and `.. queue.x`. Reordering cannot replace it: this rule is tried
+    # before `TextChunk`, which accepts anything. The parent's `end:`
+    # closes the line, not this begin, and no keyword variable can be
+    # tightened to say what follows the keyword. Fixture
+    # alternator/inline-glued-plain-shuffle changes without it.
+    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)(?=[|])"
     beginCaptures:
       1:
         patterns:
@@ -1676,7 +1730,7 @@ repository:
     #      it by name (§6.4) — `Choice_begin_c6` would otherwise be
     #      auto-generated and unstable.
     #   7: optional trailing newline
-    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:[(][^()]*[)]|{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*))(?={{WS}}|$))?(\r\n|\r|\n)?
+    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()\r\n]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:[(][^()\r\n]*[)]|{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*))(?={{WS}}|$))?(\r\n|\r|\n)?
     beginCaptures:
       1:
         patterns:
@@ -1716,7 +1770,7 @@ repository:
 
   ChoiceConditional:
     name: entity.choice.sd
-    match: ^({{WS}}*)((?:[{][^{}]*[}]{{WS}}*)+)(\r\n|\r|\n)
+    match: ^({{WS}}*)((?:[{][^{}\r\n]*[}]{{WS}}*)+)(\r\n|\r|\n)
     captures:
       1:
         patterns:
@@ -2176,11 +2230,68 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # A relative call (`-> f(x)`) is a `LuauFunctionCall`, whose name cannot
+    # span a `.`. A dotted path (`-> a.b(x)`) is a `DivertPath` followed by its
+    # `DivertArguments`, which owns the optional space before its `(` as a
+    # relative call does. The end is tried after the patterns, so the target
+    # goes on exactly as far as one of them continues it: an argument list
+    # (and a second one, `-> a.b(x)(y)`, which the compiler reports as not
+    # passed) stays in the target, and anything else (a space before `->`,
+    # `//` or stray text) ends it for the parent.
     patterns:
-      - { include: "#Annotation" }
       - { include: "#LuauFunctionCall" }
       - { include: "#DivertPath" }
+      - { include: "#DivertArguments" }
+    applyEndPatternLast: true
     end: (?=$)|(?!{{IDENTIFIER}}|[.^])
+
+  # The argument list after a dotted divert target. A bracketed argument list
+  # spans lines in every spelling of a divert, as a relative call's
+  # `LuauFunctionCallParameters` does: the editor closes a `(` as it is typed,
+  # so the list reads to its `)`. The dotted path before it stays on its line
+  # (`DivertPath` ends with the line), so `-> a.` while typing never reads the
+  # next line as part of the target.
+  DivertArguments:
+    tag: meta
+    name: meta.parameter.luau
+    brackets: true
+    begin: ({{WS}}*)([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    # `DivertArgumentsUnknown` tiles what no argument rule reads (`(1; 2)`),
+    # so the list reaches its `)` in both engines instead of closing
+    # incomplete at that character (GRAMMAR.md §17).
+    patterns:
+      - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+      - { include: "#DivertArgumentsUnknown" }
+    # An unclosed list still ends before the next `scene` or `branch` line,
+    # so the flows after it keep their shape in both engines.
+    end: (?={{BEAT}})|([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  # A character in a divert's argument list that no argument rule reads. The
+  # compiler reports it. A word character is not one: a word no argument rule
+  # reads (`end`, `done`) closes the list there, as it closes a relative
+  # call's, so an unclosed list ends where a relative one does rather than
+  # reading the rest of the script.
+  DivertArgumentsUnknown:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    match: ([^\s\w)])
 
   DivertPath:
     tag: heading
@@ -2571,7 +2682,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   TitleMark:
     tag: definition(punctuation)
     name: punctuation.title.mark.sd
@@ -2635,7 +2746,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   HeadingMark:
     tag: definition(punctuation)
     name: punctuation.heading.mark.sd
@@ -2699,7 +2810,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   TransitionalMark:
     tag: definition(punctuation)
     name: punctuation.transitional.mark.sd
@@ -2866,7 +2977,7 @@ repository:
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*)({{WS}}[(][^()]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*)({{WS}}[(][^()\r\n]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
     captures:
       1:
         patterns:
@@ -2902,7 +3013,7 @@ repository:
   DialogueCharacterParenthetical:
     tag: escape
     name: constant.character.escape.dialogue.character.parenthetical.sd
-    match: ({{WS}})([(])({{WS}}*)([^()]*?)({{WS}}*)([)])({{WS}}*)
+    match: ({{WS}})([(])({{WS}}*)([^()\r\n]*?)({{WS}}*)([)])({{WS}}*)
     captures:
       1:
         patterns:
@@ -3005,7 +3116,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   ImplicitAction:
     begin: ({{WS}}*)(?!{{END}})(?=\S)
     beginCaptures:
@@ -3020,7 +3131,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   # Action bodies share display parsing, but also expose the load directive.
   # Keep the enclosing line shapes parallel to the ordinary display rules.
   BlockActionLineContinue:
@@ -3107,7 +3218,7 @@ repository:
     # alternative inside a star makes a failing match explore every partition
     # of a whitespace run (catastrophic backtracking: ~15s on a line with 28
     # leading spaces). See issue #280 and grammarRegexSafety.test.ts.
-    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()\r\n]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
     captures:
       1:
         patterns:
@@ -3137,7 +3248,7 @@ repository:
   ParentheticalLineContent:
     tag: escape
     name: constant.character.escape.sd
-    match: ({{WS}}*)([(])({{WS}}*)([^()]*?)({{WS}}*)([)])({{WS}}*)
+    match: ({{WS}}*)([(])({{WS}}*)([^()\r\n]*?)({{WS}}*)([)])({{WS}}*)
     captures:
       1:
         patterns:
@@ -3274,7 +3385,7 @@ repository:
   ########## Commands ##########
 
   ImageLine:
-    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|{{WS}}+)+)({{EOL}})
+    match: ^({{WS}}*)(?=\S)((?:\[\[{{IMAGE_COMMAND_CHAR}}*?\]\]|{{WS}}+)+)({{EOL}})
     captures:
       1:
         patterns:
@@ -3288,7 +3399,7 @@ repository:
           - { include: "#EndOfLine" }
 
   AudioLine:
-    match: ^({{WS}}*)(?=\S)((?:[(][(](?:\\.|[^)])*?[)][)]|{{WS}}+)+)({{EOL}})
+    match: ^({{WS}}*)(?=\S)((?:[(][(]{{AUDIO_COMMAND_CHAR}}*?[)][)]|{{WS}}+)+)({{EOL}})
     captures:
       1:
         patterns:
@@ -3302,7 +3413,7 @@ repository:
           - { include: "#EndOfLine" }
 
   ImageAndAudioLine:
-    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|{{WS}}+)+)({{EOL}})
+    match: ^({{WS}}*)(?=\S)((?:\[\[{{IMAGE_COMMAND_CHAR}}*?\]\]|[(][(]{{AUDIO_COMMAND_CHAR}}*?[)][)]|{{WS}}+)+)({{EOL}})
     captures:
       1:
         patterns:
@@ -3350,7 +3461,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   ImageCommandContent:
-    match: ((?:\\.|[^\]])*?)(?=$|{{WS}}*\]\])
+    match: ({{IMAGE_COMMAND_CHAR}}*?)(?=$|{{WS}}*\]\])
     captures:
       1:
         patterns:
@@ -3384,7 +3495,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   AudioCommandContent:
-    match: ((?:\\.|[^)])*?)(?=$|{{WS}}*[)][)])
+    match: ({{AUDIO_COMMAND_CHAR}}*?)(?=$|{{WS}}*[)][)])
     captures:
       1:
         patterns:
@@ -3542,7 +3653,7 @@ repository:
   TextCommand:
     tag: macroName
     name: meta.text.sd
-    match: ([<](?!{{WS}}))((?:\\.|[^>])*?)((?<![-])[>])
+    match: ([<](?!{{WS}}))((?:\\.|[^>\r\n])*?)((?<![-])[>])
     captures:
       1:
         tag: keyword
@@ -3555,7 +3666,7 @@ repository:
         name: keyword.operator.expression.end.tag.sd
 
   TextCommandContent:
-    match: ({{WS}}*)([^ :]+)({{WS}}*)(?:([:])({{WS}}*)(.*))?
+    match: ({{WS}}*)([^ :\r\n]+)({{WS}}*)(?:([:])({{WS}}*)(.*))?
     captures:
       1:
         patterns:
@@ -4687,7 +4798,7 @@ repository:
   StringFieldValue:
     tag: string
     name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])({{WS}}*)$
+    match: (["])({{DOUBLE_QUOTED_CHAR}}*)(["])({{WS}}*)$
     captures:
       1:
         patterns:
@@ -4717,7 +4828,7 @@ repository:
   StringFieldValueInterpolated:
     tag: string
     name: string.quoted.double.sd
-    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
+    begin: (["])(?=(?:[^"{\\\r\n]|\\.)*\{)
     beginCaptures:
       1:
         patterns:
@@ -5101,7 +5212,7 @@ repository:
     name: punctuation.definition.string.begin.sd
 
   PlainStringContent:
-    match: ((?:\\.|[^"])*?)(?=$|")
+    match: ({{DOUBLE_QUOTED_CHAR}}*?)(?=$|")
     captures:
       1:
         patterns:
@@ -5563,7 +5674,7 @@ repository:
     match: ({{COMPARISON_OPERATOR}})
 
   StringContent:
-    match: ((?:\\.|[^"])*?)(?=$|")
+    match: ({{DOUBLE_QUOTED_CHAR}}*?)(?=$|")
     captures:
       1:
         patterns:
@@ -5706,7 +5817,7 @@ repository:
   InlinePropQuotedValue:
     tag: string
     name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])
+    match: (["])({{DOUBLE_QUOTED_CHAR}}*)(["])
     captures:
       1:
         patterns:
@@ -5756,7 +5867,7 @@ repository:
   LuauElementContentStringInterpolated:
     tag: string
     name: string.quoted.double.sd
-    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
+    begin: (["])(?=(?:[^"{\\\r\n]|\\.)*\{)
     beginCaptures:
       1:
         patterns:
@@ -5778,7 +5889,7 @@ repository:
   LuauElementContentStringPlain:
     tag: string
     name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])
+    match: (["])({{DOUBLE_QUOTED_CHAR}}*)(["])
     captures:
       1:
         patterns:
@@ -10428,7 +10539,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSparkdownChooseThenClause:
-    begin: ({{WS}}*)(then)\b({{WS}}*)([(][^()]*[)]{{WS}}*)?
+    begin: ({{WS}}*)(then)\b({{WS}}*)([(][^()\r\n]*[)]{{WS}}*)?
     beginCaptures:
       1:
         patterns:
@@ -10920,7 +11031,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()]*[)]{{WS}}*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()\r\n]*[)]{{WS}}*[|])
     beginCaptures:
       1:
         patterns:
@@ -13864,7 +13975,7 @@ repository:
     name: storage.type.attribute.luau
 
   SparkleRichTextTag:
-    match: (</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)("[^"]*"|[^>]*))?(>)
+    match: (</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)("[^"\r\n]*"|[^>\r\n]*))?(>)
     captures:
       "1":
         tag: keyword
@@ -13885,7 +13996,7 @@ repository:
         name: punctuation.definition.tag.end.sd
 
   SparkleRichTextTagUnknown:
-    match: (</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)("[^"]*"|[^>]*))?(>)
+    match: (</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)("[^"\r\n]*"|[^>\r\n]*))?(>)
     captures:
       "1":
         tag: invalid
@@ -13968,7 +14079,7 @@ repository:
   LuauRegexEscapedCharacterClass:
     tag: escape
     name: constant.other.character-class.regexp.sd
-    match: \\[dDwWsShHvVnrtfv0]|\\[pP]\{[^}]*\}|\\u\{[0-9A-Fa-f]+\}|\\x[0-9A-Fa-f]{2}|\\[0-9]+|\.
+    match: \\[dDwWsShHvVnrtfv0]|\\[pP]\{[^}\r\n]*\}|\\u\{[0-9A-Fa-f]+\}|\\x[0-9A-Fa-f]{2}|\\[0-9]+|\.
 
   LuauRegexAnchor:
     tag: controlKeyword
@@ -13998,12 +14109,12 @@ repository:
   LuauRegexText:
     tag: regexp
     name: string.regexp.sd
-    match: "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
+    match: "[^\\\\\\[\\]()|*+?{}^$\\r\\n-]+|[\\s\\S]"
 
   LuauElementContentStringSingleQuoted:
     tag: string
     name: string.quoted.single.sd
-    match: (['])((?:\.|[^'])*)(['])
+    match: (['])({{SINGLE_QUOTED_CHAR}}*)(['])
     captures:
       "1":
         patterns:
@@ -14016,7 +14127,7 @@ repository:
           - include: "#PunctuationStringClose"
 
   PlainStringContentSingleQuoted:
-    match: ((?:\.|[^'])*?)(?=$|')
+    match: ({{SINGLE_QUOTED_CHAR}}*?)(?=$|')
     captures:
       "1":
         patterns:

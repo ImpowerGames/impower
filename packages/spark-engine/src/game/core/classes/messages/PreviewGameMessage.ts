@@ -1,6 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
 export type PreviewGameMethod = typeof PreviewGameMessage.method;
 
@@ -9,7 +10,9 @@ export interface PreviewGameParams {
 }
 
 export interface PreviewGameResult {
-  previewPath: string;
+  /** The address of the beat previewed, or null when the point resolves
+   *  to none or the preview was taken over. */
+  previewAddress: ProgramAddress | null;
 }
 
 export class PreviewGameMessage {

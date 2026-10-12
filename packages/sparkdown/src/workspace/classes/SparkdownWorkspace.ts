@@ -16,6 +16,10 @@ import {
 import { CompilerInitializeMessage } from "../../compiler/classes/messages/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
 import {
+  LocateProgramMessage,
+  type LocateQuery,
+} from "../../compiler/classes/messages/LocateProgramMessage";
+import {
   PreviewCompileProgramMessage,
   type PreviewCompileProgramResult,
 } from "../../compiler/classes/messages/PreviewCompileProgramMessage";
@@ -29,6 +33,12 @@ import { UpdateCompilerDocumentMessage } from "../../compiler/classes/messages/U
 import { UpdateCompilerFileMessage } from "../../compiler/classes/messages/UpdateCompilerFileMessage";
 import type { SparkdownDocumentContentChangeEvent } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { type SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
+import type {
+  AsyncProgramLocator,
+  LineBeat,
+  ProgramAddress,
+  SourceLocation,
+} from "../../compiler/types/ProgramAddress";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
 import { profile } from "../utils/logging/profile";
 import { ProgramTransportDecoder } from "../utils/programTransport";
@@ -197,13 +207,13 @@ export abstract class SparkdownWorkspace {
 
   /**
    * When enabled, the `compiler/didCompile` notification relays a SLIM
-   * projection of the program (uri/scripts/files/pathLocations/diagnostics/
-   * version) instead of the whole thing. On a large project the full program
-   * is huge (~9MB for an ~8kloc script) and re-broadcast on EVERY compile —
-   * the receiving thread pays a structured-clone deserialization of all of it
-   * per keystroke. The impower web editor's main thread only ever reads
-   * diagnostics (WorkspaceWindow debug store) and scripts+pathLocations
-   * (PreviewGame PageUp/PageDown source navigation), so it opts in via
+   * projection of the program (uri/scripts/files/version) instead of the
+   * whole thing. On a large project the full program is huge (~9MB for an
+   * ~8kloc script) and re-broadcast on EVERY compile — the receiving thread
+   * pays a structured-clone deserialization of all of it per keystroke. The
+   * impower web editor's main thread only ever reads diagnostics
+   * (WorkspaceWindow debug store) and scripts, and asks the language server
+   * for the PreviewGame's PageUp/PageDown source navigation, so it opts in via
    * initializationOptions. Defaults to false: the vscode extension consumes
    * the full program from this notification (SparkProgramManager).
    */
@@ -1193,6 +1203,38 @@ export abstract class SparkdownWorkspace {
       this._programTransport.decode(result.program);
     }
     return result;
+  }
+
+  /**
+   * The accessor of a program this workspace received (`ProgramLocator`),
+   * answered by the compiler's worker from the last program it compiled for
+   * the same uri (`LocateProgramMessage`). The copy a compile hands the
+   * workspace leaves the statement chunks' root behind, and a program is
+   * located by its root. An answer the worker's restart abandoned is none.
+   */
+  locatorOf(program: SparkProgram): AsyncProgramLocator {
+    const ask = async (query: LocateQuery) => {
+      try {
+        const [answer] = await this._compilerChannelConnection.sendRequest(
+          LocateProgramMessage.type,
+          { program: program.uri, queries: [query] },
+        );
+        return answer ?? undefined;
+      } catch (e) {
+        unlessRestarted(e);
+        return undefined;
+      }
+    };
+    return {
+      addressAt: async (uri, line, query) =>
+        (await ask({ addressAt: { uri, line, query } })) as
+          | ProgramAddress
+          | undefined,
+      locationOf: async (address) =>
+        (await ask({ locationOf: address })) as SourceLocation | undefined,
+      beatAt: async (uri, line, query) =>
+        (await ask({ beatAt: { uri, line, query } })) as LineBeat | undefined,
+    };
   }
 
   /** Where a compile routes the preview to: the author's selection. */

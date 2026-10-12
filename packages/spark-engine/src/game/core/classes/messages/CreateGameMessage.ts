@@ -1,6 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import type { GameConfiguration } from "../../types/GameConfiguration";
 import type { SaveData } from "../../types/SaveData";
@@ -12,7 +13,7 @@ export interface CreateGameParams extends GameConfiguration {
 }
 
 export interface CreateGameResult {
-  simulatePath: string | null;
+  simulateFlow: string | null;
   simulationOptions?: Record<
     string,
     {
@@ -20,7 +21,8 @@ export interface CreateGameResult {
       favoredConditions?: (boolean | undefined)[];
     }
   >;
-  startPath: string | null;
+  /** The address the game starts at (`Game.startAddress`), which is opaque. */
+  startAddress: ProgramAddress | null;
   saveData: SaveData;
 }
 

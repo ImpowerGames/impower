@@ -1,0 +1,6 @@
+scene FINISH
+  The driver choice worked.
+  driver_score = driver_score + 1
+  Continue reaches this later line.
+  done
+end

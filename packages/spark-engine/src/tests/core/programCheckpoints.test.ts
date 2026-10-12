@@ -5,12 +5,10 @@
 // the engine's durable save of its image, which loads into a fresh game and
 // saves again as it was; a checkpoint restores in place within the session,
 // across a compile for every statement the compile kept.
-import "@impower/sparkdown/src/inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildChunksFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import {
   keyedStateOf,
   type ProgramImage,
@@ -31,32 +29,24 @@ const scriptFiles = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
-/** A compiler configured as the player's worker configures its compiler,
- *  with statement chunks on. */
+/** A compiler configured as the player's worker configures its compiler. */
 function compiler(texts: Record<string, string>) {
   const c = new SparkdownCompiler();
-  let story: Story | undefined;
-  c.addEventListener("compiler/didCompile", (params) => {
-    story = params.story as Story | undefined;
-  });
   c.configure({
     files: scriptFiles(texts) as never,
     seedBuiltinsIntoStory: true,
-    emitCompiledProgram: false,
-    programChunks: true,
   });
   return {
     compiler: c,
     compile() {
       const program = c.compile({ textDocument: { uri: MAIN } }).program;
-      return { program, story: story! };
+      return { program };
     },
   };
 }
 
 function createGame(
   program: SparkProgram,
-  story: Story,
   config: Record<string, unknown> = {},
 ) {
   return new Game({
@@ -69,8 +59,6 @@ function createGame(
     fetch: async () => "",
     log: () => {},
     program,
-    story,
-    programChunks: true,
     startFrom: { file: MAIN, line: FIRST_LINE },
     ...config,
   } as never);
@@ -129,16 +117,15 @@ const FIRST_LINE =
 
 describe("the checkpoints of a game on the program engine", () => {
   it("are images, a keyframe every base interval beats and deltas between", () => {
-    const { program, story } = compiler(TEXTS).compile();
-    expect(program.fallback).toBeUndefined();
-    const game = createGame(program, story, { checkpointBaseInterval: 10 });
+    const { program } = compiler(TEXTS).compile();
+    expect(program.chunks).toBeDefined();
+    const game = createGame(program, { checkpointBaseInterval: 10 });
     const run = drive(game);
     expect(run.finished).toBe(true);
     expect(game.story).toBeInstanceOf(ProgramStory);
     const store = game.checkpoints;
     expect(store.length).toBeGreaterThan(80);
     expect(store.stats.keyframes).toBe(Math.ceil(store.length / 10));
-    expect(store.stats.fallbacks).toBe(0);
     for (let i = 0; i < store.length; i += 1) {
       const image = store.imageAt(i)!.image as ProgramImage;
       expect(image.keyframe === image).toBe(i % 10 === 0);
@@ -146,8 +133,8 @@ describe("the checkpoints of a game on the program engine", () => {
   });
 
   it("hold the changed count ids only, and do not grow with the number of beats replayed", () => {
-    const { program, story } = compiler(TEXTS).compile();
-    const game = createGame(program, story, { checkpointBaseInterval: 50 });
+    const { program } = compiler(TEXTS).compile();
+    const game = createGame(program, { checkpointBaseInterval: 50 });
     drive(game);
     const store = game.checkpoints;
     const images = Array.from(
@@ -194,15 +181,15 @@ describe("the checkpoints of a game on the program engine", () => {
   });
 
   it("each load into a fresh game, which saves again as it was and continues as the game did", () => {
-    const { program, story } = compiler(TEXTS).compile();
-    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    const { program } = compiler(TEXTS).compile();
+    const game = createGame(program, { checkpointBaseInterval: 7 });
     const run = drive(game);
     const store = game.checkpoints;
     for (let i = 0; i < store.length; i += Math.ceil(store.length / 12)) {
       const save = store.getJson(i)!;
       expect(JSON.parse(JSON.parse(save).story).engine).toBe("program");
       const again = compiler(TEXTS).compile();
-      const fresh = createGame(again.program, again.story);
+      const fresh = createGame(again.program);
       fresh.start();
       expect(fresh.load(save)).toBe(true);
       expect(fresh.save()).toBe(save);
@@ -211,11 +198,72 @@ describe("the checkpoints of a game on the program engine", () => {
     }
   });
 
+  // Round 1 of the review of #1618 (report 6026303325): a save's executed
+  // record held the addresses of the process that wrote it, whose chunk ids
+  // another compile does not give again, so a game that loaded it into such
+  // a program lost the last executed location, or read another statement's.
+  it("write the executed record durably, which a program whose chunk ids differ places", () => {
+    const { program } = compiler(TEXTS).compile();
+    const game = createGame(program, { checkpointBaseInterval: 7 });
+    drive(game);
+    // A program of the same statements whose chunk ids all differ: a scene
+    // above them takes the first ids.
+    const EXTRA = ["scene EXTRA", "  Extra one.", "  Extra two.", "end", ""];
+    const shifted = { ...TEXTS, [MAIN]: [...EXTRA, TEXTS[MAIN]].join("\n") };
+    const lineText = (texts: Record<string, string>, location: any) =>
+      texts[location.uri]!.split("\n")[location.range.start.line];
+    const executed = (g: Game) =>
+      (g as any)._runtimeState.pathsExecutedThisFrame.toArray() as unknown[];
+    const store = game.checkpoints;
+    // A checkpoint whose beat ran statements, restored in place: a continue
+    // starts the record again, so where the run happens to stop says
+    // nothing of it.
+    const ran = Array.from({ length: store.length }, (_, i) => i).filter(
+      (i) => JSON.parse(JSON.parse(store.getJson(i)!).runtime).pathsExecutedThisFrame.length > 0,
+    );
+    expect(ran.length).toBeGreaterThan(2);
+    const mid = ran[Math.floor(ran.length / 2)]!;
+    expect(game.restoreCheckpoint(mid)).toBe(true);
+    expect(executed(game).length).toBeGreaterThan(0);
+    const saves = [game.save(), store.getJson(mid)!];
+    for (const save of saves) {
+      const runtime = JSON.parse(JSON.parse(save).runtime);
+      expect(runtime.pathsExecutedThisFrame.length).toBeGreaterThan(0);
+      const same = compiler(TEXTS).compile();
+      const here = createGame(same.program);
+      here.start();
+      expect(here.load(save)).toBe(true);
+      const other = compiler(shifted).compile();
+      const there = createGame(other.program);
+      there.start();
+      expect(there.load(save)).toBe(true);
+      // The last executed location is the same line of the same script.
+      const hereAt = here.getLastExecutedDocumentLocation();
+      const thereAt = there.getLastExecutedDocumentLocation();
+      expect(hereAt).not.toBeNull();
+      expect(thereAt).not.toBeNull();
+      expect(thereAt!.range.start.line - hereAt!.range.start.line).toBe(
+        thereAt!.uri === MAIN ? EXTRA.length : 0,
+      );
+      expect(lineText(shifted, thereAt)).toBe(lineText(TEXTS, hereAt));
+      // Every executed position is placed, at another address, and the save
+      // holds none of the writer's addresses.
+      expect(executed(there).length).toBe(runtime.pathsExecutedThisFrame.length);
+      expect(executed(here).length).toBe(runtime.pathsExecutedThisFrame.length);
+      expect(executed(there)).not.toEqual(executed(here));
+      expect(
+        runtime.pathsExecutedThisFrame.every((e: unknown) => typeof e === "string"),
+      ).toBe(true);
+      // And it saves again as it was written.
+      expect(JSON.parse(there.save()).runtime).toBe(JSON.parse(save).runtime);
+    }
+  });
+
   // Round 1 of the review of #1579 (report 6016565874): a refused save left
   // the modules it carried loaded.
   it("refuse a save the story cannot place, leaving every module, the story and a waiting preview as they were", () => {
-    const { program, story } = compiler(TEXTS).compile();
-    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    const { program } = compiler(TEXTS).compile();
+    const game = createGame(program, { checkpointBaseInterval: 7 });
     drive(game);
     const store = game.checkpoints;
     // An early checkpoint's save, with a module state the game does not
@@ -255,12 +303,12 @@ describe("the checkpoints of a game on the program engine", () => {
   // Round 1 of the review of #1579 (report 6017530237): a save the story
   // places but cannot read ended the line in progress before it failed.
   it("refuse a save malformed past its placement with a line in progress, which stays in progress", () => {
-    const { program, story } = compiler(TEXTS).compile();
-    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    const { program } = compiler(TEXTS).compile();
+    const game = createGame(program, { checkpointBaseInterval: 7 });
     drive(game);
     const malformed = JSON.parse(game.checkpoints.getJson(5)!);
     const inner = JSON.parse(malformed.story);
-    inner.counts = [null];
+    inner.beats[0].counts = [null];
     malformed.story = JSON.stringify(inner);
     malformed.modules.core = { ...malformed.modules.core, marker: "from the refused save" };
     const engine = game.story as unknown as ProgramStory;
@@ -297,18 +345,20 @@ describe("the checkpoints of a game on the program engine", () => {
   // Round 4 (report 6020262053): a module state missing or null, a module
   // map that is a list, a runtime record missing or of another shape.
   it("refuse a save with no story, or whose runtime record or module states cannot be read, changing nothing", () => {
-    const { program, story } = compiler(TEXTS).compile();
-    const game = createGame(program, story, { checkpointBaseInterval: 7 });
+    const { program } = compiler(TEXTS).compile();
+    const game = createGame(program, { checkpointBaseInterval: 7 });
     drive(game);
     const valid = game.checkpoints.getJson(5)!;
     const engine = game.story as unknown as ProgramStory;
     engine.ChoosePathString("MAIN");
     engine.ContinueAsync();
     expect(engine.asyncContinueComplete).toBe(false);
-    // The story cannot save with a line in progress, so the game's save
-    // holds an empty story.
-    const storyless = game.save();
-    expect(JSON.parse(storyless).story).toBe("");
+    // A save the game wrote while its story could not save (asked from
+    // inside a continue, or with a line in progress on a story that keeps no
+    // beat images) holds an empty story. A line in progress on the game's
+    // story saves (#1693), so that save is written here as the game writes
+    // it.
+    const storyless = JSON.stringify({ ...JSON.parse(valid), story: "" });
     const unreadableRuntime = { ...JSON.parse(valid), runtime: "{not json" };
     const noModules = JSON.parse(valid);
     delete noModules.modules;
@@ -366,7 +416,7 @@ describe("the checkpoints of a game on the program engine", () => {
     expect(cancelled).toBe(1);
   });
 
-  it("restore in place after a compile for every statement it kept, and report one it emitted again unplaced", () => {
+  it("restore in place after a compile for every statement it kept, translate one it emitted again, and report one it cannot place unplaced", () => {
     const text = [
       "store seen = 0",
       "",
@@ -381,7 +431,7 @@ describe("the checkpoints of a game on the program engine", () => {
     ].join("\n");
     const c = compiler({ [MAIN]: text });
     const first = c.compile();
-    const game = createGame(first.program, first.story, {
+    const game = createGame(first.program, {
       startFrom: { file: MAIN, line: 3 },
     });
     const run = drive(game);
@@ -403,18 +453,37 @@ describe("the checkpoints of a game on the program engine", () => {
     };
     // An edit below the checkpoint keeps every statement it names.
     const below = edit(2, 7, "  Four.".length, "\n  Five.");
-    game.updateProgram(below.program, below.story);
+    game.updateProgram(below.program);
     expect(game.restoreCheckpoint(two)).toBe(true);
     expect(game.story.variablesState.GetVariableWithName("seen")?.toString()).toBe("1");
-    // An edit to the statement the checkpoint rests at emits it again.
+    // An edit to the statement the checkpoint rests at emits it again: the
+    // checkpoint is translated through its saved form in the root it was
+    // taken in, and placed at the edited statement (#1429).
     const at = edit(3, 6, "  Three".length, " again");
-    game.updateProgram(at.program, at.story);
+    game.updateProgram(at.program);
+    expect(game.checkpoints.getJson(two)).not.toBeNull();
+    expect(game.restoreCheckpoint(two)).toBe(true);
+    expect(game.story.variablesState.GetVariableWithName("seen")?.toString()).toBe("1");
+    // A compile that leaves none of the scene's statements places nothing.
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN, version: 4 },
+      contentChanges: [
+        {
+          range: {
+            start: { line: 3, character: 0 },
+            end: { line: 8, character: "  Five.".length },
+          },
+          text: "  Elsewhere.",
+        },
+      ],
+    });
+    const gone = c.compile();
+    game.updateProgram(gone.program);
     // It has no save (round 2 of the review of #1579, report 6019356082):
     // one with no story would load the checkpoint's modules beside a story
-    // that stands elsewhere. One whose statements the compile kept has one.
+    // that stands elsewhere.
     expect(game.checkpoints.getJson(two)).toBeNull();
     expect(game.checkpoints.at(two)).toBeNull();
-    expect(game.checkpoints.getJson(0)).not.toBeNull();
     // With a line in progress (round 1 of the review of #1579, report
     // 6016969769): the unplaced checkpoint cancels nothing.
     const engine = game.story as unknown as ProgramStory;

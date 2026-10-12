@@ -1,11 +1,11 @@
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
-import type { InkObject } from "../inkjs/engine/Object";
+import type { ProgramTable } from "./ProgramTable";
+import type { InkObject } from "../runtime/Object";
 import {
   type AbstractValue,
   ObjectValue,
   VariablePointerValue,
-} from "../inkjs/engine/Value";
-import type { ImageBarrier } from "../inkjs/engine/VariablesState";
+} from "../runtime/Value";
+import type { ImageBarrier } from "../runtime/VariablesState";
 import type { ProgramRoot } from "./ProgramRoot";
 import { countIdOf } from "./ProgramSymbols";
 import type {
@@ -88,7 +88,11 @@ export class ProgramImages {
     return this._nextId++;
   }
 
-  /** Keeps `table`'s pristine copy unless it has one. */
+  /** Keeps `table`'s pristine copy unless it has one. A table the engine
+   *  made since the last image it took or restored is not kept when it is
+   *  written (`ImageTracker.isFresh`): no image before it reaches it, and the
+   *  next image holds what was written to it, so its pristine copy would
+   *  never be what a restore reads (#700). */
   keepTable(table: ObjectValue): void {
     if (!this._tables.has(table)) {
       this._tables.set(table, copyTable(table));
@@ -255,6 +259,15 @@ export interface ProgramImage {
    *  written since the image before in a delta. */
   readonly tables: ReadonlyMap<ObjectValue, TableCopy>;
   readonly cells: ReadonlyMap<VariablePointerValue, CellCopy>;
+  /** For the image of a beat the story passed, the beat's flags and the
+   *  decisions taken at it (docs/engine/binary-program.md, section 7,
+   *  Rewind and roll forward), which the story's history keeps
+   *  (`BeatHistory`) and a save writes beside it. */
+  beat?: { flags: number; readonly decisions: number[] };
+  /** For an image of the state just after a choice was taken, the image of
+   *  the beat before its menu and the address of the `Choice` taken, which a
+   *  durable save of the image writes in its place (section 7). */
+  afterChoice?: { readonly menu: ProgramImage; readonly address: number };
 }
 
 /**
@@ -269,15 +282,36 @@ export class ImageTracker implements ImageBarrier {
   readonly globals = new Set<string>();
   readonly counts = new Set<number>();
 
+  /** The tables the engine made since `base`, which no image taken or
+   *  restored before them reaches (`made`). */
+  protected _fresh = new WeakSet<ObjectValue>();
+
   constructor(readonly images: ProgramImages) {}
 
+  /** Notes a table the engine just made (`MakeTable`). */
+  made(table: ObjectValue): void {
+    this._fresh.add(table);
+  }
+
   table(table: ObjectValue): void {
-    this.images.keepTable(table);
+    if (!this.isFresh(table)) {
+      this.images.keepTable(table);
+    }
     this.tables.add(table);
   }
 
   prepare(table: ObjectValue): void {
-    this.images.keepTable(table);
+    if (!this.isFresh(table)) {
+      this.images.keepTable(table);
+    }
+  }
+
+  /** Whether the engine made `table` since `base`: a table no image taken
+   *  or restored before it reaches, which the next image holds whole when
+   *  it was written, and which is registered as written only once it is
+   *  written after an image (`ProgramImages.keepTable`). */
+  isFresh(table: ObjectValue): boolean {
+    return this._fresh.has(table);
   }
 
   global(name: string): void {
@@ -300,6 +334,7 @@ export class ImageTracker implements ImageBarrier {
     this.cells.clear();
     this.globals.clear();
     this.counts.clear();
+    this._fresh = new WeakSet();
   }
 }
 
@@ -337,7 +372,11 @@ export const captureImage = (
     const reached = reachedFrom(state, positional);
     const tables = new Map<ObjectValue, TableCopy>();
     for (const table of reached.tables) {
-      if (images.pristineTable(table)) tables.set(table, copyTable(table));
+      // Written: kept as written before, or made and written since the base,
+      // which is not kept (`ImageTracker.isFresh`).
+      if (images.pristineTable(table) || tracker.tables.has(table)) {
+        tables.set(table, copyTable(table));
+      }
     }
     const cells = new Map<VariablePointerValue, CellCopy>();
     for (const cell of reached.cells) {
@@ -547,7 +586,8 @@ export const keyedStateOf = (image: ProgramImage): KeyedState => {
  * Restores `image` into `state` in place, or returns false and changes
  * nothing when a position the image holds cannot be placed in the root
  * `state` runs on: a chunk the root no longer holds, or a sequence it no
- * longer has (docs/engine/binary-program.md, section 8). An image taken in
+ * longer has, which `translate`, when given, places through the position's
+ * saved form (docs/engine/binary-program.md, section 8). An image taken in
  * an older table generation has its counts taken through the reseeds since
  * (section 2, Reseed).
  */
@@ -556,13 +596,13 @@ export const restoreImage = (
   tracker: ImageTracker,
   engine: object,
   image: ProgramImage,
+  translate?: (image: ProgramImage) => PlacedPositional | undefined,
 ): boolean => {
   if (image.images !== tracker.images) {
     return false;
   }
-  const placed: PlacedPositional | undefined = state.placePositional(
-    image.positional,
-  );
+  const placed: PlacedPositional | undefined =
+    state.placePositional(image.positional) ?? translate?.(image);
   if (!placed) {
     return false;
   }
@@ -578,7 +618,6 @@ export const restoreImage = (
     // costs the changes along that path.
     restoreKeys(state, images, image, keys);
     state.installPositional(placed);
-    state.ResetCountDeltaTracking();
     tracker.reset(image);
     return true;
   }
@@ -612,7 +651,6 @@ export const restoreImage = (
     state.turns = counts.turns;
   }
   state.installPositional(placed);
-  state.ResetCountDeltaTracking();
   // An image of this engine and generation is the state's base. One of
   // another engine (whose compiled constants the restore replaced) or of an
   // older table generation (whose count ids it remapped) holds keyed state

@@ -34,6 +34,7 @@
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { writeBeatText } from "../../../game/core/classes/Coordinator";
 import { Game } from "../../../game/core/classes/Game";
 import type { Instructions } from "../../../game/core/types/Instructions";
@@ -57,19 +58,22 @@ export interface UIHarness {
   ready: Promise<void>;
   /** Clear the captured-message buffer (e.g. after preview screen setup). */
   reset(): void;
-  /** Build the screen tree + reveal at a path (the real preview). A beat
-   *  with pictures displays once the page answers the preview's gate, so
-   *  await the result before reading what such a beat wrote; a beat with
-   *  none displays before this returns. */
-  preview(line?: number): Promise<string | null>;
+  /** Build the screen tree + reveal at a line (the real preview), resolving
+   *  to the address of the beat previewed. A beat with pictures displays
+   *  once the page answers the preview's gate, so await the result before
+   *  reading what such a beat wrote; a beat with none displays before this
+   *  returns. */
+  preview(line?: number): Promise<ProgramAddress | null>;
   /** Connect the game again over the same transport, as the page does
    *  before every preview: the modules' `onConnected` and the restore run
    *  again, and a preview waiting from before is taken over. Resolves once
    *  the connect's own gates have been answered. */
   reconnect(): Promise<void>;
-  /** Reset the story to a path so subsequent `nextBeat()` calls start there.
-   *  (The screen tree is already built by `connect()`'s onConnected.) */
-  jumpTo(path: string): void;
+  /** Reset the story to an address so subsequent `nextBeat()` calls start
+   *  there. (The screen tree is already built by `connect()`'s onConnected.) */
+  jumpTo(address: ProgramAddress): void;
+  /** Reset the story to the top of a flow named by its qualified name. */
+  jumpToFlow(flow: string): void;
   /** Run one story beat and return the real interpreter `Instructions`. */
   nextBeat(): Instructions | undefined;
   /** Fan a beat's text/image/audio out through the real module methods,
@@ -119,8 +123,6 @@ export function compileUI(
      *  file (source offsets start again in every one) names them here and
      *  writes `include <uri>` in its main source. */
     scripts?: Record<string, string>;
-    /** Compile statement chunks too (`SparkdownCompilerConfig.programChunks`). */
-    programChunks?: boolean;
   },
 ) {
   const compiler = new SparkdownCompiler();
@@ -130,7 +132,6 @@ export function compileUI(
     // Game-feeding compile must seed the builtins prelude into the story VM
     // (the production player does the same). Default on.
     seedBuiltinsIntoStory: opts?.seedBuiltinsIntoStory ?? true,
-    programChunks: opts?.programChunks ?? false,
     files: [
       {
         uri: MAIN_URI,
@@ -166,7 +167,7 @@ export function compileUI(
       }
     }
   }
-  if (!result.program.compiled && !result.program.chunks) {
+  if (!result.program.chunks) {
     throw new Error(
       "UI fixture failed to compile:\n  " + (errors.join("\n  ") || "(none)"),
     );
@@ -233,9 +234,6 @@ export function createHarness(
     assets?: File[];
     /** Scripts `main.sd` includes, by URI (see `compileUI`). */
     scripts?: Record<string, string>;
-    /** Run the program on the program engine (`GameConfiguration.programChunks`)
-     *  when it compiles to statement chunks without falling back. */
-    programChunks?: boolean;
   },
 ): UIHarness {
   const { program } = compileUI(source, {
@@ -243,7 +241,6 @@ export function createHarness(
     // defines from the live runtime __def tables).
     assets: opts?.assets,
     scripts: opts?.scripts,
-    programChunks: opts?.programChunks,
   });
   if (opts?.staticFallback) {
     delete (program as any).sparkle;
@@ -259,7 +256,6 @@ export function createHarness(
   const game = new Game({
     program: program as any,
     previewFrom: { file: MAIN_URI, line: startLine },
-    programChunks: opts?.programChunks ?? false,
     now: () => 0,
     setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
       if (ms != null && ms > 0) {
@@ -351,8 +347,11 @@ export function createHarness(
     reconnect() {
       return game.connect(respond);
     },
-    jumpTo(path: string) {
-      (game as any).jumpToPath(path);
+    jumpTo(address: ProgramAddress) {
+      game.jumpTo(address);
+    },
+    jumpToFlow(flow: string) {
+      game.jumpToFlow(flow);
     },
     nextBeat() {
       const interpreter: any = game.module.interpreter;

@@ -11,7 +11,7 @@
 // called as a running story calls it.
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
-import { executionWatch } from "@impower/sparkdown/src/inkjs/engine/ExecutionWatch";
+import { executionWatch } from "@impower/sparkdown/src/runtime/ExecutionWatch";
 import { describe, expect, it, vi } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { WorkerBusyMessage } from "../../main/workers/messages/WorkerBusyMessage";

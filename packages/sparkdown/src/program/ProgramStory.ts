@@ -1,54 +1,26 @@
-import { Container } from "../inkjs/engine/Container";
 import { debugFileName } from "../compiler/utils/debugFileName";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
-import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
-import { ErrorType, type RaisedError } from "../inkjs/engine/Error";
+import { ControlCommand } from "../runtime/ControlCommand";
+import { DebugMetadata } from "../runtime/DebugMetadata";
+import { ErrorType, type RaisedError } from "../runtime/Error";
 import {
   EXECUTION_WATCH_STEPS,
   executionWatch,
-} from "../inkjs/engine/ExecutionWatch";
-import { InkList } from "../inkjs/engine/InkList";
-import { NativeFunctionCall } from "../inkjs/engine/NativeFunctionCall";
-import { InkObject } from "../inkjs/engine/Object";
-import { cleanOutputWhitespace } from "../inkjs/engine/outputWhitespace";
-import { PushPopType } from "../inkjs/engine/PushPop";
-import type { Simulator } from "../inkjs/engine/Simulator";
-import { lookupStateAwareStdLib } from "../inkjs/engine/StdLib";
-import {
-  Story,
-  arrangeArgsFor,
-  callNativeFunction,
-  callValueAsFunction,
-  callVariableTarget,
-  captureString,
-  captureTag,
-  extractClosureTarget,
-  indexValue,
-  isFunctionReference,
-  lookupMetamethod,
-  normalizeLuauCallArgs,
-  oneValue,
-  openVariablePointer,
-  packTuple,
-  popLuauCondition,
-  pushStdLibResult,
-  readVariable,
-  sequenceShuffleIndex,
-  shortCircuitDecides,
-  spreadCallArgs,
-  storeIndex,
-  tableFromPairs,
-  tryInvokeStdLibMarkerValue,
-  unpackTuple,
-  type FunctionTarget,
-} from "../inkjs/engine/Story";
+} from "../runtime/ExecutionWatch";
+import { InkList } from "../runtime/InkList";
+import { NativeFunctionCall } from "../runtime/NativeFunctionCall";
+import { InkObject } from "../runtime/Object";
+import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
+import { PushPopType } from "../runtime/PushPop";
+import type { Simulator } from "../runtime/Simulator";
+import { lookupStateAwareStdLib } from "../runtime/StdLib";
+import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
   StepLimitExceeded,
   StoryException,
-} from "../inkjs/engine/StoryException";
-import { StringBuilder } from "../inkjs/engine/StringBuilder";
-import { Tag } from "../inkjs/engine/Tag";
-import { asOrThrows } from "../inkjs/engine/TypeAssertion";
+} from "../runtime/StoryException";
+import { StringBuilder } from "../runtime/StringBuilder";
+import { Tag } from "../runtime/Tag";
+import { asOrThrows } from "../runtime/TypeAssertion";
 import {
   AbstractValue,
   BoolValue,
@@ -63,16 +35,24 @@ import {
   Value,
   ValueType,
   VariablePointerValue,
-} from "../inkjs/engine/Value";
-import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
-import type { VariablesState } from "../inkjs/engine/VariablesState";
-import { Void } from "../inkjs/engine/Void";
+} from "../runtime/Value";
+import { VariableAssignment } from "../runtime/VariableAssignment";
+import { VariablesState } from "../runtime/VariablesState";
+import { CallStack } from "../runtime/CallStack";
+import type { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
+import type { StructDefinitionTable } from "../runtime/StructDefinition";
+import { Void } from "../runtime/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
+  BEAT_WAITED,
   checkSave,
   readSave,
+  translateChoiceAddress,
+  translatePositional,
   writeSave,
+  type BeatRecord,
   type SaveHeader,
+  type SaveReport,
 } from "./ProgramSave";
 import {
   ImageTracker,
@@ -85,6 +65,7 @@ import {
   CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
   CALL_TUNNEL,
+  JUMP_ARGUMENTS,
   CHOICE_CONDITION,
   CHOICE_DECISION,
   CHOICE_INVISIBLE_DEFAULT,
@@ -102,6 +83,7 @@ import {
   Op,
   SET_DECLARE,
   SET_GLOBAL,
+  SET_INITIALIZE,
   SET_VARARGS,
   auxOf,
   flagsOf,
@@ -114,18 +96,24 @@ import {
   UNDEFINED_KIND,
   countIdOf,
   isAnonymousSymbol,
+  readableSymbolLabel,
 } from "./ProgramSymbols";
 import {
   ProgramChoice,
   ProgramStoryState,
   blockStackOf,
+  scopeDepthAt,
   type BlockEntry,
+  type ProgramFrame,
   type ProgramPosition,
   type SuspendedLineEnd,
 } from "./ProgramStoryState";
 import {
-  ADDRESS_OFFSETS,
+  addressOf,
+  chunkOfAddress,
+  offsetOfAddress,
   ANCHOR_STATEMENT,
+  BLOCK_FUNCTION,
   BLOCK_LOOP,
   BLOCK_PASS_SCOPE,
   B_BREAK,
@@ -140,28 +128,35 @@ import {
   exportSymbol,
   lineRowAt,
   lineRowField,
-  type StatementChunk,
-} from "./StatementChunk";
-
-/** What a caller needs to place a runtime path the current engine's path
- *  locations name (`SparkProgram.pathLocations` and `scripts`). */
-export interface ProgramPathLocations {
-  /** Where the content a path names starts: its script, and the line and
-   *  column, counting from 0. A line can hold several beats and statements,
-   *  and the column tells them apart. */
-  locate(path: string): { uri: string; line: number; column: number } | undefined;
-}
-
-type ErrorHandler = (
-  message: string,
-  type: ErrorType,
-  source?: unknown,
-  raised?: RaisedError | null,
-) => void;
+  type ProgramChunk,
+} from "./ProgramChunk";
+import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
 
 /** The function a symbol names, as the call handlers the two engines share
  *  read it (`FunctionTarget`): where its entry code starts, and what its
  *  entry binds, which the leading `SetVar`s of that code say. */
+/** What the entry code at `offset` of `chunk` binds: the `SetVar`s it starts
+ *  with, the first of which binds the last parameter, and whether that one
+ *  is a variadic flow's or function's `...`. */
+const entryBindings = (
+  chunk: ProgramChunk,
+  offset: number,
+): { bindings: number; variadic: boolean } => {
+  let bindings = 0;
+  let variadic = false;
+  for (let at = offset; at < codeWords(chunk); at += 2) {
+    const w0 = chunk[HEADER_WORDS + at]!;
+    if (opOf(w0) !== Op.SetVar) {
+      break;
+    }
+    if (bindings === 0) {
+      variadic = (flagsOf(w0) & SET_VARARGS) !== 0;
+    }
+    bindings += 1;
+  }
+  return { bindings, variadic };
+};
+
 class SymbolTarget implements FunctionTarget {
   constructor(
     readonly symbol: number,
@@ -179,6 +174,163 @@ interface RunningInstruction {
   offset: number;
 }
 
+/**
+ * The beats a game passed, which a rewind restores and a save writes
+ * (docs/engine/binary-program.md, section 7): the image of each beat, with
+ * its flags and the decisions taken at it, the newest last, at most `limit`
+ * of them (`GameConfiguration.rewindBeats`). The engines of one game share
+ * it, as they share their images, so a checkpoint's beat stays in it across
+ * a compile.
+ */
+export class BeatHistory {
+  readonly records: BeatRecord[] = [];
+  /** Whether the newest record is the image of the beat a continue just
+   *  ended, which the image the next continue starts from replaces (the
+   *  same beat, with whatever the host wrote since). */
+  provisional = false;
+  /** The root the decisions' addresses are in: that of the engine that
+   *  holds the history now, which translates them when it is handed on
+   *  (`translateTo`). */
+  root: ProgramRoot | null = null;
+
+  constructor(public limit = 128) {}
+
+  /** Puts the decisions' addresses in `root`, each translated through its
+   *  saved form in the root they were in (`translateChoiceAddress`); a
+   *  decision whose choice `root` no longer holds is forgotten, as a save
+   *  would leave it out. Each record names the root its decisions are in
+   *  (`BeatRecord.root`), which it keeps once the history no longer holds
+   *  it, so that a checkpoint of its beat still reads them. */
+  translateTo(root: ProgramRoot): void {
+    const from = this.root;
+    this.root = root;
+    for (const record of this.records) {
+      translateDecisions(record, root, from);
+    }
+  }
+
+  get newest(): BeatRecord | undefined {
+    return this.records[this.records.length - 1];
+  }
+
+  /** Adds the image of a beat, unless it is the newest's. */
+  push(image: ProgramImage, flags: number, provisional = false): BeatRecord {
+    const newest = this.newest;
+    if (newest?.image === image) {
+      this.provisional &&= provisional;
+      return newest;
+    }
+    if (newest && this.provisional) {
+      // The beat the last continue ended, as the next one starts from it.
+      (newest as { image: ProgramImage }).image = image;
+      image.beat = newest;
+      this.provisional = provisional;
+      return newest;
+    }
+    // The beat of an image the history no longer holds (evicted, or
+    // forgotten by a rewind or a reset), taken again from that image as a
+    // restore left it, keeps its flags and decisions (`ProgramImage.beat`).
+    const was = image.beat as BeatRecord | undefined;
+    const record: BeatRecord = {
+      image,
+      flags: flags | (was?.flags ?? 0),
+      decisions: [...(was?.decisions ?? [])],
+      ...(was?.root ? { root: was.root } : {}),
+    };
+    if (this.root) {
+      translateDecisions(record, this.root, this.root);
+    }
+    image.beat = record;
+    this.records.push(record);
+    if (this.records.length > Math.max(1, this.limit)) {
+      this.records.splice(0, this.records.length - Math.max(1, this.limit));
+    }
+    this.provisional = provisional;
+    return record;
+  }
+
+  /** The record whose image is `image`, or nothing. */
+  recordOf(image: ProgramImage): BeatRecord | undefined {
+    for (let i = this.records.length - 1; i >= 0; i -= 1) {
+      if (this.records[i]!.image === image) return this.records[i];
+    }
+    return undefined;
+  }
+
+  /** The records up to the one whose image is `image`, or nothing. */
+  upTo(image: ProgramImage): BeatRecord[] | undefined {
+    for (let i = this.records.length - 1; i >= 0; i -= 1) {
+      if (this.records[i]!.image === image) return this.records.slice(0, i + 1);
+    }
+    return undefined;
+  }
+
+  /** Forgets the records after `image`, as a rewind to it does: the
+   *  record of its beat and those before, the image the record's again when
+   *  the next continue took the beat once more (`push`), or, for an image
+   *  of no record (a checkpoint taken after a choice, or one of a
+   *  playthrough a reset or another rewind left), the records taken before
+   *  it. The records are one line of play, each taken after the one before
+   *  (`ProgramImage.id` grows as images are taken), and a record a rewind or
+   *  a reset forgets never comes back, so a record taken before the image
+   *  is a beat that led to it; one taken after it is not, whatever line of
+   *  play it belongs to. */
+  truncateTo(image: ProgramImage): void {
+    for (let i = this.records.length - 1; i >= 0; i -= 1) {
+      const record = this.records[i]!;
+      if (record.image === image || record === image.beat) {
+        (record as { image: ProgramImage }).image = image;
+        this.records.length = i + 1;
+        this.provisional = false;
+        return;
+      }
+    }
+    let kept = 0;
+    while (kept < this.records.length) {
+      const taken = this.records[kept]!.image;
+      if (taken.images !== image.images || taken.id >= image.id) break;
+      kept += 1;
+    }
+    this.records.length = kept;
+    this.provisional = false;
+  }
+
+  /** Gives the record of `was` the image `now`, the same beat taken
+   *  again. */
+  replaceImage(was: ProgramImage, now: ProgramImage): void {
+    const record = this.recordOf(was);
+    if (record) {
+      (record as { image: ProgramImage }).image = now;
+      now.beat = record;
+    }
+  }
+
+  /** Puts `records` in place of the history, as a load seeds it. */
+  replace(records: readonly BeatRecord[], provisional: boolean): void {
+    this.records.length = 0;
+    this.records.push(...records.slice(-Math.max(1, this.limit)));
+    for (const record of this.records) {
+      record.image.beat = record;
+      if (this.root) record.root ??= this.root;
+    }
+    this.provisional = provisional;
+  }
+}
+
+/** Puts `record`'s decisions in `root`, from the root they are in (the
+ *  record's, or else `from`); a decision whose choice `root` no longer
+ *  holds is forgotten. */
+const translateDecisions = (record: BeatRecord, root: ProgramRoot, from: ProgramRoot | null): void => {
+  const was = record.root ?? from;
+  record.root = root;
+  if (!was || was === root) {
+    return;
+  }
+  const decisions = record.decisions.flatMap((address) => translateChoiceAddress(root, was, address) ?? []);
+  record.decisions.length = 0;
+  record.decisions.push(...decisions);
+};
+
 // What a callback suspends of the step that calls it, and gets back when it
 // returns (`ProgramStory.CallLuauFunction`).
 interface SuspendedStep {
@@ -195,7 +347,7 @@ interface SuspendedStep {
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
  * (docs/engine/binary-program.md, sections 3, 5, 6, 9 and 10): an eval stack,
- * the value operations of the current engine (`Story`'s shared handlers),
+ * the value operations the two engines share (`runtime/evaluation.ts`),
  * native functions and operators through `NativeFunctionCall`, variables
  * through `VariablesState`, block statements whose bodies it enters and
  * leaves through a block stack, calls of functions in frames that return to
@@ -205,7 +357,7 @@ interface SuspendedStep {
  * of every counted symbol in typed arrays, decisions the route simulator can
  * force, and a continue that returns at its line's newline.
  *
- * It presents the members of the current engine's `Story` that a `Game` uses
+ * It presents the members of the object engine's `Story` (deleted in #705) that a `Game` uses
  * to create a game from a compile, continue, read a beat's display
  * instructions, run a preview compile's program and evaluate a function
  * (`HasFunction`, `EvaluateFunction`), and the members the builtins read
@@ -215,29 +367,44 @@ interface SuspendedStep {
  * belongs to later slices of #692: images and saves across compiles (#699),
  * addresses (#700) and the debugger (#702).
  *
- * Each engine keeps its own copy of the current engine's story of the same
- * compile (`ProgramRoot.runtimeStory`, `Story.CopyWithOwnState`), which runs
- * nothing: its `VariablesState` holds this engine's globals, and its call
- * stack this engine's frames, whose scopes hold the temporaries and whose
- * open upvalues close as the current engine's do. `ResetState` runs the
+ * Each reset gives the engine a call stack of its own (`CallStack.ForProgram`)
+ * and a `VariablesState` over it with the story's lists and constants
+ * (`ProgramRoot.tables`), as the object engine's state built them: the
+ * globals hold this engine's variables, and the call stack this engine's
+ * frames, whose scopes hold the temporaries and whose open upvalues close as
+ * the object engine's did. `ResetState` runs the
  * program's declaration sequences against those globals. Engines built from
  * one root share its chunks and nothing they write.
  */
-export class ProgramStory {
+export class ProgramStory implements StoryEngine {
   collapseWhitespace = true;
   processEscapes = true;
 
-  onError: ErrorHandler | null = null;
+  onError: StoryErrorHandler | null = null;
   onDidContinue: (() => void) | null = null;
-  onMakeChoice: ((choice: unknown) => void) | null = null;
+  onMakeChoice: ((choice: ProgramChoice) => void) | null = null;
   onEvaluateCondition: ((value: boolean) => void) | null = null;
-  /** Called with the address of the content that ran, once addresses reach
-   *  the game (#700). */
-  onExecute: ((path: string | undefined) => void) | null = null;
+  /** Called with the address of each instruction as it runs
+   *  (docs/engine/binary-program.md, section 9, The Story surface), when
+   *  set: the game keeps the addresses a beat ran, as it keeps the paths the
+   *  object engine's `onExecute` named. */
+  onExecute: ((address: number) => void) | null = null;
+  /** When set, each instruction's address is appended to it as it runs,
+   *  the instructions of a Luau callback the step calls included: what a
+   *  game reads after each step it takes to find a breakpoint's, with no
+   *  call per step (#702). */
+  executedLog: number[] | null = null;
+  /** When set, the same addresses are appended to it in the continue whose
+   *  beat shows what they ran: what a game reads to keep the addresses a
+   *  beat ran. An instruction that runs while a line end waits is held
+   *  until the line ends; when something shows first, the cut carries its
+   *  step, and those addresses, to the next continue, which appends them
+   *  as it starts (#1686). */
+  beatLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
 
-  /** Formats the message the `error` builtin raises, as the current engine's
-   *  `Story.errorMessageFormatter` does; it reads `currentDebugMetadata`. */
+  /** Formats the message the `error` builtin raises, as the object engine's
+   *  `Story.errorMessageFormatter` did; it reads `currentDebugMetadata`. */
   errorMessageFormatter?: (story: any, message: string) => string;
 
   /** Forces the verdict of a decision (a `JumpIfFalse` with the decision
@@ -271,7 +438,6 @@ export class ProgramStory {
   protected _asyncContinueActive = false;
   protected _recursiveContinueCount = 0;
   protected _stateIsPristine = false;
-  protected _runtimeStory: Story;
 
   /** The pristine copies the images of this engine read, shared with the
    *  engines of the programs before and after it in one game, so that an
@@ -284,22 +450,65 @@ export class ProgramStory {
    *  from the first capture or restore on. */
   protected _imagesOn = false;
   /** Whether each continue that starts a line keeps the image of the beat
-   *  before it (`captureBeat`), which a game that checkpoints its beats or
-   *  saves at a menu sets. */
+   *  before it (`captureBeat`), and the history of the beats it passes
+   *  (`beats`), which a game that checkpoints its beats, saves or rewinds
+   *  sets. */
   keepBeatImages = false;
+  /** The beats the story passed, which a rewind restores and a save writes
+   *  the last `saveHistory` of (docs/engine/binary-program.md, section 7). */
+  readonly history: BeatHistory;
+  /** How many beats a save holds (`GameConfiguration.saveHistory`). */
+  saveHistory: number;
+  /** The beat whose menu a choice was just taken at, until the next
+   *  continue: a save then is that beat with the choice. */
+  protected _chosenAt: BeatRecord | null = null;
+  /** The address of the `Choice` taken there. */
+  protected _chosenAddress = -1;
+  /** The menu's beat and the choice taken at it, when the line the story
+   *  last started began just after that choice, which a save taken while
+   *  the line is in progress writes (`toSave`). */
+  protected _lineChosenAt: { record: BeatRecord; address: number } | null = null;
+  /** The record of the beat this engine's state is at, until the story
+   *  moves on (a step, a jump, a reset, a load, a choice): after a restore,
+   *  the restored beat (the history's newest record, or the record an image
+   *  the history no longer holds keeps, `ProgramImage.beat`); after a
+   *  continue that ended a beat, that beat. An image taken of the state
+   *  then, however it was taken, is that beat (`adoptBeat`). An engine a
+   *  history was handed to has none until it restores or ends a beat: the
+   *  history's newest record is then another engine's state. */
+  protected _currentBeat: BeatRecord | null = null;
+  /** The `stepCount` `_currentBeat` was set at. */
+  protected _currentAtStep = -1;
 
   constructor(
     readonly root: ProgramRoot,
-    protected _paths: ProgramPathLocations | null = null,
-    options: { images?: ProgramImages } = {},
+    options: {
+      images?: ProgramImages;
+      history?: BeatHistory;
+      saveHistory?: number;
+      rewindBeats?: number;
+    } = {},
   ) {
     this._reader = new BinaryProgramReader(root);
-    this._runtimeStory =
-      root.runtimeStory?.CopyWithOwnState() ??
-      new Story(new Container(), null, null);
+    this.history = options.history ?? new BeatHistory(options.rewindBeats ?? 128);
+    if (options.rewindBeats !== undefined) {
+      this.history.limit = options.rewindBeats;
+    }
+    // A history handed on by the engine of the program before names its
+    // decisions in this root from now on. Its newest record is no longer the
+    // beat a continue of this engine ended, which this engine's next
+    // continue or save would take again (`BeatHistory.provisional`): this
+    // engine stands at no beat of it until it restores one.
+    this.history.translateTo(root);
+    if (options.history) {
+      this.history.provisional = false;
+    }
+    this.saveHistory = options.saveHistory ?? 16;
     this.images = options.images ?? new ProgramImages();
     this._tracker = new ImageTracker(this.images);
-    this.ResetState();
+    // The first state, which leaves a history handed on by the engine of
+    // the program before as it is.
+    this.resetState();
   }
 
   // ------------------------------------------------------------------ images
@@ -326,7 +535,9 @@ export class ProgramStory {
 
   /** An image of the state as it stands: a delta on the image last taken
    *  or restored, or a keyframe when `keyframe` is set or there is none
-   *  since a reset or a load. A route search takes one at each fork. */
+   *  since a reset or a load. A route search takes one at each fork. It is
+   *  no beat's image: the image of the current beat, which its history
+   *  record, its flags and a save of it follow, is `captureBeat`'s. */
   capture(keyframe = false): ProgramImage {
     this.enableImages();
     const image = captureImage(this._state, this._tracker, this, keyframe);
@@ -371,7 +582,20 @@ export class ProgramStory {
   captureBeat(keyframe = false): ProgramImage {
     const held = this._state.beatImage;
     if (!held) {
-      return this.capture(keyframe);
+      // The image the beat's history record holds, when nothing moved the
+      // state since; a keyframe of that state is the same beat, which takes
+      // the record's place, or the beat a restored image's record was.
+      const still = this.stillImage();
+      const image = (!keyframe && still) || this.capture(keyframe);
+      this.adoptBeat(image, still);
+      // Just after a choice: the beat before its menu with the choice, which
+      // a durable save of the image writes (`saveOfImage`), so that a load
+      // raises the menu again and is unplaced when the choice is not
+      // offered (section 7).
+      if (this._chosenAt) {
+        image.afterChoice = { menu: this._chosenAt.image, address: this._chosenAddress };
+      }
+      return image;
     }
     if (!keyframe) {
       return held;
@@ -379,23 +603,64 @@ export class ProgramStory {
     // A keyframe of the beat before the menu: that beat is put in place to
     // be taken whole, and the state as it stands put back.
     const live = this.capture();
-    this.restore(held);
+    this.restoreInPlace(held);
     const image = this.capture(true);
-    this.restore(live);
+    this.restoreInPlace(live);
     this._state.beatImage = image;
+    this.history.replaceImage(held, image);
     return image;
   }
 
   /** Restores an image in place, which this engine or the engine of an
-   *  earlier program of the same game (`images`) took; or returns false and
-   *  changes nothing when a position it holds names a chunk or a sequence
-   *  this engine's root no longer holds, so that the caller replays
-   *  (section 8). */
-  restore(image: ProgramImage): boolean {
+   *  earlier program of the same game (`images`) took. A position that names
+   *  a chunk or a sequence this engine's root no longer holds is translated
+   *  through its saved form in the root it was taken in (section 8, Within a
+   *  session), unless `translate` is false, as a route's resumption asks;
+   *  when a position still cannot be placed, it returns false and changes
+   *  nothing, so that the caller replays. The history keeps the beats that
+   *  led to the image and forgets those after it (`BeatHistory.truncateTo`).
+   *  An image taken just after a choice (`ProgramImage.afterChoice`) is the
+   *  state after that choice again, which a save writes as the beat before
+   *  its menu with the choice, as it does when the choice was just taken. */
+  restore(image: ProgramImage, translate = true): boolean {
+    if (!this.restoreInPlace(image, translate)) {
+      return false;
+    }
+    // A rewind forgets the beats after the image.
+    this.history.truncateTo(image);
+    this._currentBeat = (image.beat as BeatRecord | undefined) ?? null;
+    this._currentAtStep = this.stepCount;
+    const after = image.afterChoice;
+    if (after) {
+      // The menu's record, which a keyframe taken of it since may hold
+      // under another image (`captureBeat`), or one of its own when the
+      // history no longer holds it; the choice's address in this root.
+      const menu = after.menu;
+      const chosen = this.choiceHere(image);
+      this._chosenAt =
+        this.history.records.find((record) => record.image === menu || record === menu.beat) ??
+        this.recordFor(menu, chosen);
+      this._chosenAddress = chosen ?? -1;
+    } else {
+      this._chosenAt = null;
+    }
+    return true;
+  }
+
+  // Restores an image without touching the history of beats.
+  protected restoreInPlace(image: ProgramImage, translate = true): boolean {
     // As a load of a state's JSON, a restore runs between the steps of an
     // asynchronous continue, which a route search drives.
     this.enableImages();
-    if (!restoreImage(this._state, this._tracker, this, image)) {
+    if (
+      !restoreImage(
+        this._state,
+        this._tracker,
+        this,
+        image,
+        translate ? this.translator : undefined,
+      )
+    ) {
       return false;
     }
     this.notMovedSince(image);
@@ -404,68 +669,253 @@ export class ProgramStory {
     return true;
   }
 
+  /** Places the positions of an image an engine of an earlier program of
+   *  the same game took, whose chunks this engine's root no longer holds,
+   *  through their saved form in the root they were taken in
+   *  (docs/engine/binary-program.md, section 8, Within a session). */
+  protected readonly translator = (image: ProgramImage) => {
+    const engine = image.engine;
+    if (!(engine instanceof ProgramStory) || engine.root === this.root) {
+      return undefined;
+    }
+    return translatePositional(
+      this._state,
+      engine.root,
+      image.positional,
+      image.generation,
+    );
+  };
+
   /** Whether `restore` would place `image` in this engine's root: false
    *  for an image of another game's engines, or one that names a chunk or a
-   *  sequence the root does not hold. Changes nothing. */
-  canRestore(image: ProgramImage): boolean {
+   *  sequence the root does not hold and its saved form cannot place, or,
+   *  with `translate` false, that names one the root does not hold at all.
+   *  Changes nothing. */
+  canRestore(image: ProgramImage, translate = true): boolean {
     return (
       image.images === this.images &&
-      this._state.placePositional(image.positional) !== undefined
+      (this._state.placePositional(image.positional) !== undefined ||
+        (translate && this.translator(image) !== undefined))
     );
+  }
+
+  /** The beats the story passed, from the oldest, each with its image, its
+   *  flags and the decisions taken at it (`BeatHistory`). */
+  get beats(): readonly BeatRecord[] {
+    return this.history.records;
+  }
+
+  /** Sets the flags of the current beat (`BEAT_WAITED`,
+   *  `BEAT_REWIND_FLOOR`, `BEAT_DECISIONS_FIXED`), which its image and a save
+   *  carry. */
+  setBeatFlags(flags: number): void {
+    // This engine's current beat (after a restore, the restored beat, which
+    // the history may no longer hold), or at a menu, the beat before it;
+    // never the history's newest record as such, which may be the beat
+    // another engine ended.
+    const held = this._state.beatImage;
+    const current =
+      this.currentBeat() ??
+      (held ? (this.history.recordOf(held) ?? (held.beat as BeatRecord | undefined)) : undefined);
+    if (current) {
+      current.flags = flags;
+    }
+  }
+
+  // The beat this engine's state is at (`_currentBeat`), while no step has
+  // run since it was set: a step (the next continue's, or an asynchronous
+  // continue's a restore came between) moves the story on from it.
+  protected currentBeat(): BeatRecord | null {
+    return this._currentBeat && this._currentAtStep === this.stepCount ? this._currentBeat : null;
+  }
+
+  // Makes `image`, taken of the state as it stands, the image of the beat
+  // the state is at: the current beat (after a restore, the restored beat;
+  // after a continue that ended a beat, that beat, which the host may have
+  // written to since), and otherwise the beat of the image the state still
+  // is (`still`), when nothing moved it. A recapture (a keyframe, after a
+  // host's write, an image of another engine that this one cannot take a
+  // delta on) is the same beat, which takes the place of that beat's image
+  // when the beat is the history's newest, as the next continue would, so
+  // that the next continue takes it once.
+  protected adoptBeat(image: ProgramImage, still: ProgramImage | null): void {
+    const beat = this.currentBeat() ?? (still?.beat as BeatRecord | undefined);
+    if (!beat || image.beat === beat) {
+      return;
+    }
+    image.beat = beat;
+    if (this.history.newest === beat) {
+      (beat as { image: ProgramImage }).image = image;
+    }
   }
 
   /** The header of the last save `loadSave` read, or nothing. */
   loadedSaveHeader: SaveHeader | null = null;
+  /** How the last save `loadSave` read was placed, or nothing. */
+  loadedSaveReport: SaveReport | null = null;
 
   /**
    * The durable save of the current beat (docs/engine/binary-program.md,
-   * sections 7 and 8): the image `captureBeat` gives, every position in the
-   * saved form, with a header naming the format's version, the engine's
-   * and `gameVersion`, the game's own (`GameConfiguration.version`). At a
-   * menu it is the beat before the menu and holds none of the menu's
-   * choices, which needs `keepBeatImages` set while the story ran.
+   * sections 7 and 8): the last `saveHistory` beats of the history, the
+   * current one newest, every position in the saved form, with a header
+   * naming the format's version, the engine's and `gameVersion`, the game's
+   * own (`GameConfiguration.version`). At a menu the newest beat is the beat
+   * before the menu and holds none of the menu's choices, which needs
+   * `keepBeatImages` set while the story ran; after a choice was taken it is
+   * that beat with the choice, which a load takes again.
    */
   toSave(gameVersion = ""): string {
-    this.IfAsyncWeCant("save");
     const held = this._state.beatImage;
-    if (!held) {
-      if (!this.canContinue && this._state.currentChoices.length > 0) {
-        throw new Error(
-          "A save at a menu holds the beat before it, which the story keeps only while keepBeatImages is set.",
-        );
+    if (held && this._asyncContinueActive) {
+      // A line in progress, which a stop at a breakpoint or at the execution
+      // step ceiling leaves, is no beat. With `keepBeatImages` set the line
+      // started from the image of the beat before it, which the save is, and
+      // the line is put back still in progress (`saveOf`); without it there
+      // is no beat to write, and the guard below refuses (#1693). A line that
+      // started just after a choice was taken is saved as a save before it
+      // would be: the menu's beat with the choice, which a load takes again
+      // only when the choice is still offered.
+      this.IfInsideContinueWeCant("save");
+      const chosen = this._lineChosenAt;
+      if (chosen) {
+        const records = this.history.upTo(chosen.record.image) ?? [chosen.record];
+        const save = this.saveOf(records, chosen.address < 0 ? undefined : chosen.address, gameVersion);
+        if (save) {
+          return save;
+        }
       }
-      return writeSave(this._state, gameVersion);
+      return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
     }
-    return this.saveOfImage(held, gameVersion)!;
+    this.IfAsyncWeCant("save");
+    if (held) {
+      return this.saveOf(this.history.upTo(held) ?? [this.recordFor(held)], undefined, gameVersion)!;
+    }
+    if (this._chosenAt) {
+      // The menu's beat with the beats before it, or alone when a restore
+      // put back an image whose menu the history no longer holds.
+      const records = this.history.upTo(this._chosenAt.image) ?? [this._chosenAt];
+      const save = this.saveOf(records, this._chosenAddress < 0 ? undefined : this._chosenAddress, gameVersion);
+      if (save) {
+        return save;
+      }
+    }
+    if (!this.canContinue && this._state.currentChoices.length > 0) {
+      throw new Error(
+        "A save at a menu holds the beat before it, which the story keeps only while keepBeatImages is set.",
+      );
+    }
+    const still = this.stillImage();
+    const live = still ?? this.capture();
+    this.adoptBeat(live, still);
+    const records =
+      this.history.upTo(live) ??
+      (this.history.provisional && this.keepBeatImages
+        ? (this.history.push(live, BEAT_WAITED, true), this.history.upTo(live)!)
+        : [...this.history.records, this.recordFor(live)]);
+    return this.saveOf(records, undefined, gameVersion)!;
+  }
+
+  // A record for an image that is no beat of the history: the flags and
+  // decisions of the beat it was taken at, when the history held that beat
+  // once (`ProgramImage.beat`, which the image keeps when the history
+  // forgets it), its decisions put in this root, with `chosen`.
+  protected recordFor(image: ProgramImage, chosen?: number): BeatRecord {
+    const beat = image.beat as BeatRecord | undefined;
+    const record: BeatRecord = { image, flags: beat?.flags ?? 0, decisions: [...(beat?.decisions ?? [])] };
+    if (beat) {
+      const engine = image.engine;
+      translateDecisions(record, this.root, beat.root ?? (engine instanceof ProgramStory ? engine.root : this.root));
+    }
+    if (chosen !== undefined && !record.decisions.includes(chosen)) {
+      record.decisions.push(chosen);
+    }
+    return record;
   }
 
   /** The durable save of an image this engine, or the engine of an earlier
-   *  program of the same game, took (`toSave`): the image is put in place to
-   *  be written, and the state as it stands put back. Nothing, and nothing
-   *  changed, when the image names a position this engine's root does not
-   *  hold. */
-  saveOfImage(image: ProgramImage, gameVersion = ""): string | null {
-    this.IfAsyncWeCant("save");
-    const held = this._state.beatImage;
-    const live = this.capture();
-    if (!this.restore(image)) {
+   *  program of the same game, took (`toSave`): the image's beat alone, as a
+   *  checkpoint's full save is, or with `withHistory` the beats of the
+   *  history up to it; for an image taken just after a choice
+   *  (`ProgramImage.afterChoice`), the beat before its menu with the choice,
+   *  as `toSave` writes one. Each image is put in place to be written, and
+   *  the state as it stands put back. Nothing, and nothing changed, when the
+   *  image names a position this engine's root cannot place. */
+  saveOfImage(image: ProgramImage, gameVersion = "", withHistory = false): string | null {
+    // The image is written, not the state, so a line in progress, which a
+    // stop at the execution step ceiling or at a breakpoint leaves, does not
+    // stand in the way: an image holds that line's positional state as a
+    // route search's does, and the line is put back still in progress
+    // (`saveOf`) (#1693).
+    this.IfInsideContinueWeCant("save");
+    const after = image.afterChoice;
+    const beat = after ? after.menu : image;
+    const chosen = this.choiceHere(image);
+    const record = this.history.recordOf(beat) ?? this.recordFor(beat, chosen);
+    return this.saveOf(withHistory ? (this.history.upTo(beat) ?? [record]) : [record], chosen, gameVersion);
+  }
+
+  // The address in this root of the choice taken just before `image`
+  // (`ProgramImage.afterChoice`), which the engine that took the image named
+  // in its own root, translated as the image's positions are; nothing when
+  // this root no longer holds the choice, which a save then leaves out, so
+  // that a load raises the menu again.
+  protected choiceHere(image: ProgramImage): number | undefined {
+    const after = image.afterChoice;
+    if (!after || after.address < 0) {
+      return undefined;
+    }
+    const engine = image.engine;
+    return translateChoiceAddress(
+      this.root,
+      engine instanceof ProgramStory ? engine.root : this.root,
+      after.address,
+    );
+  }
+
+  // Writes the last `saveHistory` of `records`, without the oldest this
+  // engine can no longer restore, or nothing when it cannot restore the
+  // newest.
+  protected saveOf(
+    records: readonly BeatRecord[],
+    chosen: number | undefined,
+    gameVersion: string,
+  ): string | null {
+    const last = records.slice(-Math.max(1, this.saveHistory));
+    let first = last.length;
+    while (first > 0 && this.canRestore(last[first - 1]!.image)) {
+      first -= 1;
+    }
+    const beats = last.slice(first);
+    if (beats.length === 0) {
       return null;
     }
+    const held = this._state.beatImage;
+    // The image the state is, when nothing moved it, which stays the image
+    // the next continue takes the beat from, its beat's record with it.
+    const live = this.stillImage() ?? this.capture();
     try {
-      return writeSave(this._state, gameVersion);
+      return writeSave(this._state, gameVersion, beats, chosen, (image) =>
+        this.restoreInPlace(image),
+      );
     } finally {
-      this.restore(live);
+      this.restoreInPlace(live);
       this._state.beatImage = held;
     }
   }
 
   /**
    * Loads a durable save `toSave` wrote, into this engine's program, and
-   * returns its header. The program must have every statement the save's
-   * positions name, unchanged: a save that cannot be placed so is refused
-   * (`SaveRefused`), naming the flow, and the state is left as it was. A
-   * save of a newer format version is refused, and one of an older version
-   * goes through its migration.
+   * returns its header (docs/engine/binary-program.md, section 8). Each
+   * position is placed by its saved form in the program as it is now, and
+   * the load takes the newest beat whose frames are all placed exactly, or
+   * else the newest placed at all, with the state that beat had; the beats
+   * up to it become the story's history. A save taken after a choice was
+   * made runs the continue that raises the menu again and takes the choice
+   * its part matches, or stays at the menu when none does. A save none of
+   * whose beats can be placed is refused (`SaveRefused`), naming the flow,
+   * and the state is left as it was. A save of a newer format version is
+   * refused, and one of an older version goes through its migration.
+   * `loadedSaveReport` says how the save was placed.
    */
   loadSave(json: string): SaveHeader {
     if (this._recursiveContinueCount > 0) {
@@ -477,28 +927,63 @@ export class ProgramStory {
     this.enableImages();
     const held = this._state.beatImage;
     const before = this.capture();
-    let header: SaveHeader;
+    const records: BeatRecord[] = [];
+    let load: ReturnType<typeof readSave>;
     try {
-      header = readSave(this._state, json, (symbol) =>
-        this.symbolValue(symbol),
+      load = readSave(
+        this._state,
+        json,
+        (symbol) => this.symbolValue(symbol),
+        (flags, decisions) => {
+          records.push({ image: this.capture(), flags, decisions });
+        },
       );
     } catch (e) {
-      this.restore(before);
+      this.restoreInPlace(before);
       this._state.beatImage = held;
       throw e;
     }
     this.CancelAsyncContinue();
     this._stateIsPristine = false;
-    this.loadedSaveHeader = header;
-    return header;
+    this._chosenAt = null;
+    this._currentBeat = null;
+    this.notMovedSince(records[records.length - 1]?.image ?? null);
+    const report = load.report;
+    if (load.chosen !== undefined && records.length > 0) {
+      // The choice is recorded again as it is taken.
+      const menu = records[records.length - 1]!;
+      const index = menu.decisions.lastIndexOf(load.chosen);
+      if (index >= 0) menu.decisions.splice(index, 1);
+      this.history.replace(records, false);
+      this.Continue();
+      const choice = this._state.currentChoices.find(
+        (c) => Number(c.sourcePath) === load.chosen,
+      );
+      if (choice) {
+        this.ChooseChoice(choice);
+        report.chosen = "taken";
+      } else {
+        this.restoreInPlace(menu.image);
+        report.chosen = "unplaced";
+        report.exact = false;
+        report.warnings.push("The choice made after the saved beat is not offered by its menu now.");
+      }
+    } else {
+      this.history.replace(records, true);
+      // The loaded beat is this engine's.
+      this._currentBeat = this.history.newest ?? null;
+      this._currentAtStep = this.stepCount;
+    }
+    this.loadedSaveHeader = load.header;
+    this.loadedSaveReport = report;
+    return load.header;
   }
 
   /** Throws what `loadSave` would refuse a save for (`SaveRefused`): a
    *  format version this engine does not read, another engine's save, or a
-   *  position or function value this program cannot place. Changes
-   *  nothing. */
+   *  save none of whose beats this program can place. Changes nothing. */
   checkSave(json: string): void {
-    checkSave(this._state, json, (symbol) => this.symbolValue(symbol));
+    checkSave(this._state, json);
   }
 
   // ------------------------------------------------------------- the surface
@@ -511,12 +996,12 @@ export class ProgramStory {
     return this._state.variablesState;
   }
 
-  get listDefinitions() {
-    return this._runtimeStory.listDefinitions;
+  get listDefinitions(): ListDefinitionsOrigin | null {
+    return this.root.tables?.listDefinitions ?? null;
   }
 
-  get structDefinitions() {
-    return this._runtimeStory.structDefinitions;
+  get structDefinitions(): StructDefinitionTable {
+    return this.root.tables?.structDefinitions ?? {};
   }
 
   get canContinue(): boolean {
@@ -557,9 +1042,15 @@ export class ProgramStory {
     return choices;
   }
 
+  // A menu counts as something shown, as on the object engine's `Story`: a
+  // `choose` block with no caption raises its choices from a continue that
+  // returns no text and no display instruction (binary-program.md sections 4
+  // and 7), and the game queues a beat only when a continue showed something.
   get continueShowedSomething(): boolean {
     return (
-      Boolean(this.currentText) || this.currentDisplayInstructions.length > 0
+      Boolean(this.currentText) ||
+      this.currentDisplayInstructions.length > 0 ||
+      this.currentChoices.length > 0
     );
   }
 
@@ -583,15 +1074,24 @@ export class ProgramStory {
     return this._stateIsPristine;
   }
 
-  /** A fresh state: the story copy's, with no global initialized, then the
-   *  program's declaration chunks run in the order the current engine's
-   *  `global decl` container initializes the globals in. */
+  /** A fresh state: a call stack of the engine's own and its variables
+   *  (`CallStack.ForProgram`, `ProgramRoot.tables`), with no global
+   *  initialized, then the program's declaration chunks run in the order the
+   *  object engine's `global decl` container initialized the globals in. */
+  /** Resets the story to its initial state, a fresh playthrough, whose
+   *  history of beats starts empty. */
   ResetState(): void {
+    this.resetState();
+    this.history.replace([], false);
+  }
+
+  protected resetState(): void {
     this.IfAsyncWeCant("ResetState");
     const reactiveDepsEnabled =
       this._state?.variablesState?.reactiveDepsEnabled ?? false;
-    this._runtimeStory.ResetState(false);
-    const variablesState = this._runtimeStory.state.variablesState;
+    const callStack = CallStack.ForProgram();
+    const variablesState = new VariablesState(callStack, this.listDefinitions);
+    variablesState.constantNames = new Set(this.root.tables?.constantNames ?? []);
     variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
     this._state = new ProgramStoryState(
       this.root,
@@ -600,15 +1100,31 @@ export class ProgramStory {
       () => {
         this._stateIsPristine = false;
       },
-      this._runtimeStory.state.callStack,
+      callStack,
     );
+    // A state loaded in place (`LoadJson`, a route search's port) stands
+    // at no beat this engine took.
+    this._state.onBeginLoad = () => {
+      this._currentBeat = null;
+    };
     this.runDeclarations();
     variablesState.SnapshotDefaultGlobals();
+    // A global written from outside the story (`variablesState[name] = v`)
+    // leaves the state no longer the one this reset built, as the deleted object
+    // engine's `VariableStateDidChangeEvent` records (#1692). Registered after
+    // the declarations run, whose own writes are part of the reset; the
+    // `_stateIsPristine = true` below comes later still. Each reset gets a
+    // fresh `VariablesState`, so the callbacks do not accumulate.
+    variablesState.ObserveVariableChange(() => {
+      this._stateIsPristine = false;
+    });
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
     if (this._imagesOn) {
       this.attachImages();
     }
+    this._chosenAt = null;
+    this._currentBeat = null;
     this._stateIsPristine = true;
   }
 
@@ -620,6 +1136,9 @@ export class ProgramStory {
     this.IfAsyncWeCant("ResetCallstack");
     this._stateIsPristine = false;
     this._stillImage = null;
+    // The story ended: no longer the state just after a choice.
+    this._chosenAt = null;
+    this._currentBeat = null;
     this._state.ForceEnd();
   }
 
@@ -658,34 +1177,63 @@ export class ProgramStory {
   }
 
   /** Moves to the start of a flow, named by its qualified name (the top-level
-   *  content's flow is `""` or `"0"`), or to the statement a runtime path of
-   *  the current engine's path locations falls in, inside the blocks that
-   *  hold it. */
-  ChoosePathString(path: string, resetCallstack = true, args: unknown[] = []): void {
+   *  content's flow is `""` or `"0"`), or of a label; a position in the
+   *  source is chosen by its address (`ChooseAddress`). The host's arguments
+   *  go on the stack as they are, for the entry of a flow that takes
+   *  parameters to bind, as the object engine's `ChoosePathString` passed
+   *  them to the knot it chose. */
+  ChoosePathString(path: string, resetCallstack = true, args: any[] = []): void {
     this.IfAsyncWeCant("call ChoosePathString right now");
     if (this.onChoosePathString !== null) this.onChoosePathString(path, args);
-    if (args.length > 0) {
-      throw new StoryException(
-        "A flow of the binary program takes no arguments yet.",
-      );
-    }
-    const target = this.placePath(path);
+    const target = this.placeName(path);
     if (!target) {
       throw new StoryException(`Path not found: '${path}'`);
     }
+    this.choose(target, resetCallstack, args);
+  }
+
+  /** Moves to an address (`ProgramRoot.addressAt`), inside the blocks that
+   *  hold it, with the scopes their owners have open there: the beat a line
+   *  starts, which is where PLAY from the line starts and the route to a
+   *  preview of it ends (docs/engine/binary-program.md, section 8). */
+  ChooseAddress(address: number, resetCallstack = true): void {
+    this.IfAsyncWeCant("call ChooseAddress right now");
+    const at = Number.isInteger(address)
+      ? this.root.position(chunkOfAddress(address))
+      : undefined;
+    const chunk = at?.sequence.arrays.chunks[at.entry];
+    const offset = offsetOfAddress(address);
+    if (!at || !chunk || offset >= Math.max(1, codeWords(chunk))) {
+      throw new StoryException(`Address not found: ${address}`);
+    }
+    this.choose(
+      { position: { sequence: at.sequence, entry: at.entry, offset } },
+      resetCallstack,
+    );
+  }
+
+  protected choose(
+    target: { position: ProgramPosition; symbol?: number },
+    resetCallstack: boolean,
+    args: any[] = [],
+  ): void {
     // The flows the choice enters are counted from the flow the last
     // instruction ran in, which a save keeps, or from none when the call
-    // stack is reset, as the current engine's `ChoosePath` counts them from
-    // its thread's previous pointer after the turn it starts.
+    // stack is reset, as the object engine's `ChoosePath` counted them from
+    // its thread's previous pointer after the turn it started.
     const left = resetCallstack ? -1 : this._state.previousFlow;
     if (resetCallstack) {
       this.ResetCallstack();
     }
-    // Changing direction drops the choices waiting (`SetChosenPath`).
+    // Changing direction drops the choices waiting (`SetChosenPath`), and
+    // the state is no longer the one just after a choice.
     this._state.generatedChoices.length = 0;
     this._state.beatImage = null;
     this._stillImage = null;
+    this._chosenAt = null;
+    this._currentBeat = null;
     this._state.DiscardLineEnd();
+    this.passArguments(args);
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
     this.land(target.position, this._state.blockStack);
@@ -711,6 +1259,16 @@ export class ProgramStory {
    *  (docs/engine/binary-program.md, section 5). */
   ChooseChoice(choice: ProgramChoice): void {
     if (this.onMakeChoice !== null) this.onMakeChoice(choice);
+    // The decision, by the address of the choice's `Choice`, beside the beat
+    // before the menu (docs/engine/binary-program.md, section 7).
+    const held = this._state.beatImage;
+    const record = held ? this.history.recordOf(held) : undefined;
+    if (record) {
+      record.decisions.push(Number(choice.sourcePath));
+    }
+    this._chosenAt = record ?? null;
+    this._currentBeat = null;
+    this._chosenAddress = Number(choice.sourcePath);
     const left = this._state.previousFlow;
     // What a choice leads to starts a new box, so no line before the choice
     // is one a `..` after it joins.
@@ -735,7 +1293,7 @@ export class ProgramStory {
   }
 
   /** Takes the first choice when every choice waiting is an invisible
-   *  default, as the current engine does when the flow can no longer
+   *  default, as the object engine did when the flow could no longer
    *  continue (`Story.TryFollowDefaultInvisibleChoice`): in the same turn,
    *  entered from the flow it was raised in. */
   protected tryFollowDefaultInvisibleChoice(): boolean {
@@ -750,7 +1308,7 @@ export class ProgramStory {
   }
 
   /** Whether a scene or a function declared at the top level has the name,
-   *  as the current engine finds a knot by name (`Story.HasFunction`). */
+   *  as the object engine found a knot by name (`Story.HasFunction`). */
   HasFunction(functionName: string): boolean {
     try {
       return this.FlowValueNamed(functionName) !== null;
@@ -762,8 +1320,8 @@ export class ProgramStory {
   /** Runs the function or scene declared at the top level under
    *  `functionName` with `args` from outside the story, in a frame of its own
    *  that ends when the function returns or the scene ends, collecting the
-   *  text it writes against an output of its own, as the current engine's
-   *  `Story.EvaluateFunction` does: its result is what the function returns,
+   *  text it writes against an output of its own, as the object engine's
+   *  `Story.EvaluateFunction` did: its result is what the function returns,
    *  as a JS value. */
   EvaluateFunction(
     functionName: string,
@@ -794,24 +1352,36 @@ export class ProgramStory {
       state.evaluationStack.length,
     );
     // A scene with no content of its own runs its first branch, which it
-    // enters from the scene, as the current engine's knot diverts to its
-    // first stitch; the scene itself is not counted, as the current engine
-    // counts no container a host's evaluation starts in.
+    // enters from the scene, as the object engine's knot diverted to its
+    // first stitch; the scene itself is not counted, as the object engine
+    // counted no container a host's evaluation started in.
     const scene = found ? this.root.flow(found.ref.symbol) : undefined;
     if (scene && target.entry.sequence !== scene) {
       this.countEntered(target.entry.sequence, scene.flow);
     }
     this.passArguments(args);
     // A function takes the host's arguments as a call gives them
-    // (`arrangeArgsFor`); a scene, which binds nothing, takes them as they
-    // are, as on the current engine.
+    // (`arrangeArgsFor`), and so does a scene that takes parameters, for
+    // what its entry binds (`sceneTargetOf`); a scene that takes none takes
+    // them as they are, as the object engine did.
     if (target.bindings > 0) {
       arrangeArgsFor(this, target, args?.length ?? 0);
     }
 
+    // The host's evaluation runs no beat of the story: its continues take no
+    // beat images and push no history records, and the beat the story
+    // stood at stays its beat, as after a host's write.
+    const beat = this.currentBeat();
+    const held = state.beatImage;
+    const keep = this.keepBeatImages;
+    this.keepBeatImages = false;
     const stringOutput = new StringBuilder();
-    while (this.canContinue) {
-      stringOutput.Append(this.Continue());
+    try {
+      while (this.canContinue) {
+        stringOutput.Append(this.Continue());
+      }
+    } finally {
+      this.keepBeatImages = keep;
     }
     const textOutput = stringOutput.toString();
 
@@ -819,13 +1389,16 @@ export class ProgramStory {
     state.ResumeLineEnd(lineEnd);
 
     const result = this.completeFunctionEvaluation();
+    state.beatImage = held;
+    this._currentBeat = beat;
+    this._currentAtStep = this.stepCount;
     return returnTextOutput ? { returned: result, output: textOutput } : result;
   }
 
   /**
    * Calls a function value from inside a step, as a builtin that takes a
    * function does (`table.sort`'s comparator, a metamethod, `gsub`'s
-   * replacement), and returns what it left on the eval stack, as the current
+   * replacement), and returns what it left on the eval stack, as the deleted object
    * engine's `Story.CallLuauFunction` does: the call enters the function in a
    * frame of its own and steps until that frame returns, against an output of
    * its own, and the step that called it resumes where it was.
@@ -902,6 +1475,15 @@ export class ProgramStory {
         results.unshift(state.PopEvaluationStack() as AbstractValue);
       }
       return results;
+    } catch (e) {
+      // The running instruction is restored to the caller's below, so an
+      // error the callback raised keeps the address of the instruction that
+      // raised it. An error from a callback nested inside this one already
+      // carries its own.
+      if (e instanceof StoryException && e.raisedAddress == null) {
+        e.raisedAddress = this.runningAddress() ?? null;
+      }
+      throw e;
     } finally {
       this.resumeStep(suspended, false);
     }
@@ -909,7 +1491,7 @@ export class ProgramStory {
 
   /**
    * The protected form of `CallLuauFunction`, which `pcall` and `xpcall`
-   * call, as the current engine's `Story.CallLuauFunctionProtected` does: an
+   * call, as the object engine's `Story.CallLuauFunctionProtected` did: an
    * error the function raises, thrown or added, is trapped and taken off the
    * story's errors, and returned as the call's error message.
    */
@@ -1060,7 +1642,7 @@ export class ProgramStory {
 
   /** The value a read of `name` gives when no variable has that name but a
    *  scene or a function declared at the top level does: the symbol value of
-   *  its flow, as the current engine gives a divert target to its knot
+   *  its flow, as the object engine gave a divert target to its knot
    *  (`Story.FlowValueNamed`), or null. */
   FlowValueNamed(name: string): SymbolValue | null {
     const symbol = this.root.table.symbolIds.get(name);
@@ -1091,8 +1673,8 @@ export class ProgramStory {
     this.enter(target as SymbolTarget, PushPopType.Function);
   }
 
-  /** The stack trace `debug.traceback` prints, as the current engine's call
-   *  stack prints it: each call frame from the outermost, with the function
+  /** The stack trace `debug.traceback` prints, as the object engine's call
+   *  stack printed it: each call frame from the outermost, with the function
    *  it runs, named by its symbol, or for the flow's own frame, the flow's
    *  name. */
   CallStackTrace(): string {
@@ -1120,8 +1702,8 @@ export class ProgramStory {
   /** The name of call frame `index`, counting from the outermost, as
    *  `debug.info` names a frame: the name of the function a call frame runs,
    *  or for the flow's own frame, the name of the flow it is in (`0` for the
-   *  top-level content, as the current engine's path of that container
-   *  reads); null for a frame with no position. */
+   *  top-level content, as the object engine's path of that container
+   *  read); null for a frame with no position. */
   CallFramePath(index: number): string | null {
     const state = this._state;
     const elements = state.callStack.elements;
@@ -1141,14 +1723,90 @@ export class ProgramStory {
     }
     const frame = state.frameOf(element);
     if (frame) {
-      return this.root.labelOf(frame.symbol);
+      return readableSymbolLabel(this.root.labelOf(frame.symbol));
     }
-    const flow = position.sequence.flow;
+    return this.flowName(position.sequence.flow);
+  }
+
+  /** The name a frame that runs no function shows: the name of the flow it
+   *  stands in, `0` for the top-level content, as the object engine's path
+   *  of that container read, and `global decl` for a declaration. An
+   *  included script's top-level content runs in the top level's frame
+   *  (`IncludeEntry`), so its flow shows `0` too. */
+  flowName(flow: number): string {
     if (flow < 0) {
       return "global decl";
     }
+    if (this.root.kindOf(flow) === SymbolKind.Root) {
+      return "0";
+    }
     const name = this.root.labelOf(flow);
     return name === ROOT_FLOW_NAME ? "0" : name;
+  }
+
+  /**
+   * The frames view the debugger reads (docs/engine/binary-program.md,
+   * section 9, The Story surface): the call frames of the thread whose
+   * index is `threadIndex`, outermost first, or nothing for a thread the
+   * call stack does not have. Each is named from the symbol of the function
+   * or tunnel it runs, or, for the flow's own frame, from the flow it stands
+   * in (`CallFramePath`), and stands at an address: the frame that runs at
+   * the instruction that ran last, or -1 when none has since a reset or a
+   * load (a suspended thread's at where it resumes), and a frame below
+   * another at the call that pushed the one above, as the object engine's
+   * elements named the pointers they last ran. Its call stack element holds
+   * its temporaries.
+   */
+  debugFrames(threadIndex: number): DebugFrame[] | undefined {
+    const state = this._state;
+    const thread = state.callStack.ThreadWithIndex(threadIndex);
+    if (!thread) {
+      return undefined;
+    }
+    const current = thread === state.callStack.currentThread;
+    const top = current ? state.position : state.resumeOf(thread);
+    const elements = thread.callstack;
+    const frames: DebugFrame[] = [];
+    for (let i = 0; i < elements.length; i += 1) {
+      const element = elements[i]!;
+      const above = elements[i + 1];
+      let at: ProgramPosition | null;
+      let address = -1;
+      if (above) {
+        // The caller resumes after its call, which is the instruction
+        // before the position it returns to.
+        at = state.frameOf(above)?.returnTo ?? null;
+        const chunk = at?.sequence.arrays.chunks[at.entry];
+        if (at && chunk) {
+          address = addressOf(chunkId(chunk), Math.max(0, at.offset - 2));
+        }
+      } else {
+        at = top;
+        if (current) {
+          // Nothing has run since a reset or a load, which a save does not
+          // keep the last instruction across, when it is -1.
+          address = state.previousAddress;
+        } else {
+          const chunk = at?.sequence.arrays.chunks[at.entry];
+          if (at && chunk) {
+            address = addressOf(chunkId(chunk), at.offset);
+          }
+        }
+      }
+      const frame = state.frameOf(element);
+      const symbol = frame ? frame.symbol : (at?.sequence.flow ?? -1);
+      frames.push({
+        type: element.type,
+        symbol,
+        name: frame
+          ? readableSymbolLabel(this.root.labelOf(frame.symbol))
+          : this.flowName(symbol),
+        scope: frame ? this.root.labelOf(frame.symbol) : this.flowName(symbol),
+        address,
+        element,
+      });
+    }
+    return frames;
   }
 
   /** The source of the instruction running, or of the last one that ran, as
@@ -1163,6 +1821,15 @@ export class ProgramStory {
     dm.startLineNumber = where.startLine + 1;
     dm.endLineNumber = where.endLine + 1;
     return dm;
+  }
+
+  // Refuses what cannot run from inside a continue, such as a callback the
+  // continue is running, where the state is mid-instruction; between the
+  // steps of an asynchronous continue it can.
+  protected IfInsideContinueWeCant(activityStr: string): void {
+    if (this._recursiveContinueCount > 0) {
+      throw new Error("Can't " + activityStr + " from inside a Continue.");
+    }
   }
 
   IfAsyncWeCant(activityStr: string): void {
@@ -1189,6 +1856,7 @@ export class ProgramStory {
     const e = new StoryException(message);
     if (cause instanceof StoryException) {
       e.raisedPath = cause.raisedPath;
+      e.raisedAddress = cause.raisedAddress;
     }
     throw e;
   }
@@ -1198,12 +1866,26 @@ export class ProgramStory {
   }
 
   /** Records an error or warning at the instruction running, prefixed with
-   *  its script and line as the current engine prefixes it
-   *  (`Story.AddError`). */
-  AddError(message: string, isWarning = false, useEndLineNumber = false): void {
+   *  its script and line as the object engine prefixed it
+   *  (`Story.AddError`). An error a callback raised names the instruction
+   *  that raised it (`StoryException.raisedAddress`) for where it was
+   *  raised; the prefix names the instruction running, as the deleted object
+   *  engine's names the content its pointer stands at. */
+  AddError(
+    message: string,
+    isWarning = false,
+    useEndLineNumber = false,
+    raisedAddress: number | null = null,
+  ): void {
     // The raised record keeps the text without the prefix, and no path: the
-    // instruction running is a chunk's word, which no runtime path names.
+    // instruction running is a chunk's word, which no runtime path names. It
+    // keeps that instruction's address, which `ForceEnd` below forgets
+    // before the error is reported.
     const raised: RaisedError = { message, path: null };
+    const address = raisedAddress ?? this.runningAddress();
+    if (address !== undefined) {
+      raised.address = address;
+    }
     const where = this.sourceOfRunning();
     const kind = isWarning ? "WARNING" : "ERROR";
     if (where) {
@@ -1216,6 +1898,14 @@ export class ProgramStory {
     if (!isWarning) this._state.ForceEnd();
   }
 
+  /** The address of the instruction running, or of the last one that ran,
+   *  or undefined when none has. */
+  protected runningAddress(): number | undefined {
+    const running = this._running;
+    const chunk = running?.sequence.arrays.chunks[running.entry];
+    return running && chunk ? addressOf(chunkId(chunk), running.offset) : undefined;
+  }
+
   CleanOutputWhitespace(str: string): string {
     return cleanOutputWhitespace(
       str,
@@ -1226,8 +1916,32 @@ export class ProgramStory {
 
   /** The address of the instruction at `offset` of the statement `chunk`,
    *  which names a decision to the route simulator. */
-  static addressOf(chunk: StatementChunk, offset: number): string {
-    return String(chunkId(chunk) * ADDRESS_OFFSETS + offset);
+  static addressOf(chunk: ProgramChunk, offset: number): string {
+    return String(addressOf(chunkId(chunk), offset));
+  }
+
+  /** The address of the instruction that ran last, which a route step is
+   *  known by and a beat's execution record holds, or -1 when none has run
+   *  since a reset (docs/engine/binary-program.md, section 9, The Story
+   *  surface, `previousAddress`). */
+  get previousAddress(): number {
+    return this._state.previousAddress;
+  }
+
+  /** The addresses the story will come back to, from the outermost thread
+   *  in: where each thread a fork suspended resumes, where each frame of the
+   *  current thread returns to, and the position, as the object engine's
+   *  call stack named them by the pointer of each element. */
+  stackAddresses(): number[] {
+    return this._state.stackAddresses();
+  }
+
+  /** The address of the instruction that runs next, or -1 when the flow
+   *  has run out. */
+  get currentAddress(): number {
+    const position = this._state.position;
+    const chunk = position?.sequence.arrays.chunks[position.entry];
+    return position && chunk ? addressOf(chunkId(chunk), position.offset) : -1;
   }
 
   // ------------------------------------------------------------ continuing
@@ -1251,7 +1965,18 @@ export class ProgramStory {
       // continue that ends with choices raised and no newline leaves as the
       // image of its beat (`captureBeat`).
       if (this.keepBeatImages && this._recursiveContinueCount == 1) {
-        state.beatImage = this.stillImage() ?? this.capture();
+        const still = this.stillImage();
+        state.beatImage = still ?? this.capture();
+        this.adoptBeat(state.beatImage, still);
+        this.history.push(state.beatImage, 0);
+        this._lineChosenAt = this._chosenAt
+          ? { record: this._chosenAt, address: this._chosenAddress }
+          : null;
+        this._chosenAt = null;
+      }
+      if (this._recursiveContinueCount == 1) {
+        // The story moves on from the beat a restore left.
+        this._currentBeat = null;
       }
       state.didSafeExit = false;
       // The step the last continue cut off after its line ended starts this
@@ -1260,6 +1985,10 @@ export class ProgramStory {
       state.ResetOutput(carried?.output ?? null);
       state.lineEndPending = carried?.lineEndPending ?? false;
       state.outputCut = null;
+      // The carried step's instructions ran for this beat. What a continue
+      // that did not end left held is dropped with it.
+      state.TakeHeldAddresses();
+      if (carried) this.logBeat(carried.addresses);
       if (this._recursiveContinueCount == 1) {
         state.variablesState.StartVariableObservation();
       }
@@ -1279,7 +2008,14 @@ export class ProgramStory {
           this._recursiveContinueCount--;
           throw e;
         }
-        this.AddError(e.message, undefined, e.useEndLineNumber);
+        this.AddError(
+          e.message,
+          undefined,
+          e.useEndLineNumber,
+          e.raisedAddress,
+        );
+        // The step that raised the error ran for the beat it ends.
+        this.logBeat(state.TakeHeldAddresses());
         break;
       }
       if (this.pausedBeforeCondition !== null || this._asyncContinueActive) {
@@ -1288,6 +2024,12 @@ export class ProgramStory {
     }
 
     state.CarryOutputPastCut();
+    // A line end still waiting when the continue ends, as a caption's does
+    // when its choices are raised, ends with this beat, and so does the
+    // step a cut closed with no next continue to carry it to.
+    if (outputStreamEndsInNewline || !this.canContinue) {
+      this.logBeat(state.TakeHeldAddresses());
+    }
 
     // A continue that ended at its newline, or with the flow ended and no
     // choice waiting, leaves the state as it stands as its beat's image; one
@@ -1298,6 +2040,9 @@ export class ProgramStory {
     ) {
       state.beatImage = null;
     }
+    const endedBeat =
+      state.beatImage === null &&
+      (outputStreamEndsInNewline || !this.canContinue);
     if (outputStreamEndsInNewline || !this.canContinue) {
       state.didSafeExit = false;
       if (this._recursiveContinueCount == 1) {
@@ -1306,11 +2051,26 @@ export class ProgramStory {
       this._asyncContinueActive = false;
       if (this.onDidContinue !== null) this.onDidContinue();
     }
+    // The beat the continue ended, which the next continue starts from.
+    if (
+      endedBeat &&
+      this.keepBeatImages &&
+      this._recursiveContinueCount == 1 &&
+      this.pausedBeforeCondition === null
+    ) {
+      // A continue a restore came between the steps of, which ran no step
+      // since, ended the restored beat itself.
+      const ended = this.capture();
+      this.adoptBeat(ended, null);
+      // The beat this engine's state is at, until the story moves on.
+      this._currentBeat = this.history.push(ended, BEAT_WAITED, true);
+      this._currentAtStep = this.stepCount;
+    }
 
     this._recursiveContinueCount--;
     this.reportErrors();
     // A route simulation takes the choice its route forces at the menu, as
-    // the current engine does, asked by the address of the instruction that
+    // the object engine did, asked by the address of the instruction that
     // stopped the flow.
     const running = this._running;
     if (
@@ -1401,7 +2161,7 @@ export class ProgramStory {
       // does not move. A decision the route simulator forces is not one to
       // stop at: a route search that forked at it runs on through it with
       // the verdict it forces, which it asks by the decision's address, as
-      // the current engine's search asks by the path it stands at.
+      // the object engine's search asked by the path it stood at.
       const address = ProgramStory.addressOf(chunk, position.offset);
       if (!this.simulator?.willForceCondition(address)) {
         this.pausedBeforeCondition = address;
@@ -1420,7 +2180,30 @@ export class ProgramStory {
       this.done();
       return;
     }
+    const address = addressOf(chunkId(chunk), position.offset);
+    state.previousAddress = address;
+    if (this.onExecute !== null) this.onExecute(address);
+    if (this.executedLog !== null) this.executedLog.push(address);
+    if (state.holdsAddresses) {
+      state.heldAddresses.push(address);
+    } else if (this.beatLog !== null) {
+      this.beatLog.push(address);
+    }
+    state.lineEndJoined = false;
     this.execute(position, chunk);
+    // A line end that stopped waiting with nothing cut, as a join that
+    // continues the line does, keeps what it held in this beat, the joining
+    // instruction's own address with it, even when the joining line leaves
+    // a line end waiting of its own. Inside a callback a held step calls,
+    // the step's hold decides.
+    if (
+      state.heldAddresses.length > 0 &&
+      state.outputCut === null &&
+      !state.holdsInherited &&
+      (state.lineEndJoined || !state.lineEndPending)
+    ) {
+      this.logBeat(state.TakeHeldAddresses());
+    }
     // A statement whose last instruction ran rests at the start of the next.
     const current = state.position;
     if (current) {
@@ -1437,11 +2220,18 @@ export class ProgramStory {
 
   // --------------------------------------------------------------- internals
 
+  /** Appends `addresses` to `beatLog`, when it is set. */
+  protected logBeat(addresses: readonly number[]): void {
+    const log = this.beatLog;
+    if (log === null) return;
+    for (const address of addresses) log.push(address);
+  }
+
   /** The chunk the position is in, after moving past the end of each
    *  statement and each body the position has reached the end of, closing
    *  the pass scope of a body that runs in one (`BLOCK_PASS_SCOPE`); nothing
    *  when the flow has run out. */
-  protected fetch(position: ProgramPosition): StatementChunk | undefined {
+  protected fetch(position: ProgramPosition): ProgramChunk | undefined {
     const state = this._state;
     for (;;) {
       const chunks = position.sequence.arrays.chunks;
@@ -1472,7 +2262,7 @@ export class ProgramStory {
 
   // Whether the instruction at `offset` is a decision: a conditional's jump,
   // or a choice with a condition.
-  protected pausesAt(chunk: StatementChunk, offset: number): boolean {
+  protected pausesAt(chunk: ProgramChunk, offset: number): boolean {
     const w0 = chunk[HEADER_WORDS + offset]!;
     const op = opOf(w0);
     return (
@@ -1491,7 +2281,7 @@ export class ProgramStory {
    * blocks the entry is inside; its identity is the instruction's address.
    */
   protected raiseChoice(
-    chunk: StatementChunk,
+    chunk: ProgramChunk,
     position: ProgramPosition,
     flags: number,
     arg: number,
@@ -1562,7 +2352,7 @@ export class ProgramStory {
   }
 
   /** Runs the instruction at the position, which `fetch` found in `chunk`. */
-  protected execute(position: ProgramPosition, chunk: StatementChunk): void {
+  protected execute(position: ProgramPosition, chunk: ProgramChunk): void {
     const state = this._state;
     this._running = {
       sequence: position.sequence,
@@ -1640,7 +2430,12 @@ export class ProgramStory {
       case Op.MakeTable: {
         const stack = state.evaluationStack;
         const between = stack.splice(stack.length - arg * 2, arg * 2);
-        state.PushEvaluationStack(tableFromPairs(between, 0));
+        const table = tableFromPairs(between, 0);
+        if (this._imagesOn && table instanceof ObjectValue) {
+          // No image taken before it reaches it (`ImageTracker.made`).
+          this._tracker.made(table);
+        }
+        state.PushEvaluationStack(table);
         break;
       }
       case Op.Dup:
@@ -1721,6 +2516,14 @@ export class ProgramStory {
           entry: position.entry,
           block: arg,
         });
+        // A function's body starts with its parameters bound: the eval
+        // stack's height there is the frame's at every statement boundary
+        // (docs/engine/binary-program.md, section 1), which a load that
+        // places the frame after a statement cuts the stack to (section 8).
+        if (blockFlags(chunk, arg) & BLOCK_FUNCTION && state.frame) {
+          state.frame.evaluationStackHeightWhenPushed =
+            state.evaluationStack.length;
+        }
         position.sequence = body;
         position.entry = 0;
         position.offset = 0;
@@ -1731,6 +2534,9 @@ export class ProgramStory {
         break;
       case Op.Call: {
         if (flags & CALL_TUNNEL) {
+          if (!(flags & JUMP_ARGUMENTS)) {
+            this.padVariadicFlow(arg);
+          }
           this.callTunnel(arg);
           break;
         }
@@ -1794,6 +2600,9 @@ export class ProgramStory {
         state.ForceEnd();
         break;
       case Op.JumpSym:
+        if (!(flags & JUMP_ARGUMENTS)) {
+          this.padVariadicFlow(arg);
+        }
         this.jumpTo(arg);
         break;
       case Op.JumpVar:
@@ -1839,11 +2648,11 @@ export class ProgramStory {
   }
 
   /** Pops a condition and tests it: by Luau truthiness for an `if`
-   *  expression, and otherwise as the current engine tests a conditional
+   *  expression, and otherwise as the object engine tested a conditional
    *  divert's condition. A decision's verdict is the route simulator's when
    *  it forces one, and the story reports every decision's verdict. */
   protected condition(
-    chunk: StatementChunk,
+    chunk: ProgramChunk,
     offset: number,
     flags: number,
   ): boolean {
@@ -1870,8 +2679,8 @@ export class ProgramStory {
     return truthy;
   }
 
-  /** A condition's truth as the current engine tests a conditional divert's
-   *  (`Story.IsTruthy`): a function value is refused, named as the current
+  /** A condition's truth as the object engine tested a conditional divert's
+   *  (`Story.IsTruthy`): a function value is refused, named as the object
    *  engine names its divert target. */
   protected isTruthy(obj: InkObject): boolean {
     if (obj instanceof Value) {
@@ -1911,8 +2720,8 @@ export class ProgramStory {
   }
 
   /** The function value of `symbol`, made once. It holds the symbol's name,
-   *  or nothing for an anonymous symbol, and prints as the current engine
-   *  prints the divert target of the function's container. */
+   *  or nothing for an anonymous symbol, and prints as the object engine
+   *  printed the divert target of the function's container. */
   protected symbolValue(symbol: number): SymbolValue {
     let value = this._symbols.get(symbol);
     if (!value) {
@@ -1922,7 +2731,7 @@ export class ProgramStory {
           symbol,
           this.root.generation,
           isAnonymousSymbol(table, symbol) ? null : table.symbols[symbol]!,
-          this.root.labelOf(symbol),
+          readableSymbolLabel(this.root.labelOf(symbol)),
         ),
       );
       this._symbols.set(symbol, value);
@@ -1962,19 +2771,10 @@ export class ProgramStory {
       target = null;
       const entry = this.root.functionEntry(symbol);
       if (entry) {
-        const chunk = entry.sequence.arrays.chunks[entry.entry]!;
-        let bindings = 0;
-        let variadic = false;
-        for (let at = entry.offset; at < codeWords(chunk); at += 2) {
-          const w0 = chunk[HEADER_WORDS + at]!;
-          if (opOf(w0) !== Op.SetVar) {
-            break;
-          }
-          if (bindings === 0) {
-            variadic = (flagsOf(w0) & SET_VARARGS) !== 0;
-          }
-          bindings += 1;
-        }
+        const { bindings, variadic } = entryBindings(
+          entry.sequence.arrays.chunks[entry.entry]!,
+          entry.offset,
+        );
         target = new SymbolTarget(symbol, entry, variadic, bindings);
       }
       this._targets.set(symbol, target);
@@ -1982,9 +2782,11 @@ export class ProgramStory {
     return target;
   }
 
-  /** The scene `symbol` names, run from the start of its flow, as the
-   *  current engine runs a knot a host evaluates as a function; or null when
-   *  `symbol` names no scene. A scene binds no parameters. */
+  /** The scene `symbol` names, run from the start of its flow, as a host
+   *  evaluates it as a function; or null when `symbol` names no scene. A
+   *  scene that takes parameters binds them at its start (`FlowEntry`), and
+   *  the target says what its entry binds, so the host's arguments are
+   *  arranged for them. */
   protected sceneTargetOf(symbol: number): SymbolTarget | null {
     const flow = this.root.flow(symbol);
     if (flow?.kind !== SymbolKind.Scene) {
@@ -1996,11 +2798,14 @@ export class ProgramStory {
       start >= 0 && flow.arrays.chunks.length === 0
         ? this.root.place(start)
         : undefined;
+    const first = flow.arrays.chunks[0];
+    const { bindings, variadic } =
+      branch || !first ? { bindings: 0, variadic: false } : entryBindings(first, 0);
     return new SymbolTarget(
       symbol,
       branch ?? { sequence: flow, entry: 0, offset: 0 },
-      false,
-      0,
+      variadic,
+      bindings,
     );
   }
 
@@ -2034,7 +2839,7 @@ export class ProgramStory {
    *  function's frame and resumes its caller where the call left it. A frame
    *  a host's evaluation pushed ends the evaluation and stays, for
    *  `completeFunctionEvaluation` to pop. A return outside a function is the
-   *  current engine's error. */
+   *  object engine's error. */
   protected returnFromFunction(): void {
     const state = this._state;
     const callStack = state.callStack;
@@ -2059,6 +2864,22 @@ export class ProgramStory {
     const frame = state.PopCallStack();
     state.position = frame?.returnTo ?? null;
     state.blockStack = frame?.blocks ?? [];
+    this.dropResultOf(frame);
+  }
+
+  /** For a frame whose caller a load placed after the statement the call
+   *  was made in (`ProgramFrame.dropResult`), drops what it returned and
+   *  what its caller had on the eval stack: the caller resumes at a
+   *  statement boundary, at its own height. */
+  protected dropResultOf(frame: ProgramFrame | undefined): void {
+    if (!frame?.dropResult) {
+      return;
+    }
+    const state = this._state;
+    const height = state.callStack.currentElement?.evaluationStackHeightWhenPushed ?? 0;
+    if (state.evaluationStack.length > height) {
+      state.evaluationStack.length = height;
+    }
   }
 
   /** Pops the frame of a host's evaluation and returns what the function
@@ -2135,7 +2956,7 @@ export class ProgramStory {
       position: state.position,
       blocks: state.blockStack,
       output: [...state.outputStream],
-      lineEnd: state.SuspendLineEnd(),
+      lineEnd: state.SuspendLineEnd(true),
       pause: this.pauseBeforeEvaluatingConditions,
       running: this._running,
     };
@@ -2167,14 +2988,15 @@ export class ProgramStory {
 
   /** The runtime assignment `SetVar`'s operands describe, made once. */
   protected assignment(name: number, flags: number): VariableAssignment {
-    const mask = SET_DECLARE | SET_GLOBAL | SET_VARARGS;
-    const key = name * 8 + (flags & mask);
+    const mask = SET_DECLARE | SET_GLOBAL | SET_VARARGS | SET_INITIALIZE;
+    const key = name * 16 + (flags & mask);
     let assignment = this._assignments.get(key);
     if (!assignment) {
       assignment = new VariableAssignment(
         this.root.table.strings[name]!,
         (flags & SET_DECLARE) !== 0,
         (flags & SET_VARARGS) !== 0,
+        (flags & SET_INITIALIZE) !== 0,
       );
       assignment.isGlobal = (flags & SET_GLOBAL) !== 0;
       this._assignments.set(key, assignment);
@@ -2246,14 +3068,7 @@ export class ProgramStory {
       while (frame.temporaryScopes.length > kept) {
         frame.PopScope(state.callStack.cellBarrier);
       }
-      let scopes = 1;
-      for (const block of blocks) {
-        scopes += scopesOf(block);
-      }
-      const chunk = target.sequence.arrays.chunks[target.entry];
-      if (chunk) {
-        scopes += scopesBefore(chunk, target.offset);
-      }
+      const scopes = scopeDepthAt(this.root, target, blocks);
       // The scopes past the shared blocks are opened. Every count is exact,
       // inside a `choose` block's entries and bodies too (section 4), so the
       // frame holds the shared blocks' scopes and keeps their bindings.
@@ -2264,7 +3079,7 @@ export class ProgramStory {
   }
 
   /** `JumpSym`: moves to where `symbol` is defined, counting the flows the
-   *  jump enters from the position it left, or raises the current engine's
+   *  jump enters from the position it left, or raises the object engine's
    *  error for a target the program does not define, with the jump's line. */
   protected jumpTo(
     symbol: number,
@@ -2280,13 +3095,42 @@ export class ProgramStory {
     this.enterStart(symbol, place.sequence);
   }
 
+  /** A divert that passes no arguments to a scene or a branch whose last
+   *  parameter is `...` gives it nil for each fixed parameter and an empty
+   *  `...`, as the object engine's divert pushed a `PackTuple(0)` for a
+   *  variadic target, whether it wrote arguments or not. The divert's chunk
+   *  reads no fact about its target, so that it stays the same while the
+   *  target disappears and comes back (docs/engine/binary-program.md,
+   *  section 2), and the flow's entry says what it binds: the `SetVar`s its
+   *  first chunk starts with, the first of which binds the last
+   *  parameter. */
+  protected padVariadicFlow(symbol: number): void {
+    const kind = this.root.kindOf(symbol);
+    if (kind !== SymbolKind.Scene && kind !== SymbolKind.Branch) {
+      return;
+    }
+    const place = this.root.place(symbol);
+    const chunk = place?.sequence.arrays.chunks[0];
+    if (!place || place.entry !== 0 || place.offset !== 0 || !chunk) {
+      return;
+    }
+    const { bindings, variadic } = entryBindings(chunk, 0);
+    if (!variadic) {
+      return;
+    }
+    for (let p = 1; p < bindings; p += 1) {
+      this._state.PushEvaluationStack(new NullValue());
+    }
+    packTuple(this, 0);
+  }
+
   /** A jump to a label counts too the labels written right before it with
-   *  nothing between, as the current engine's does: its weave nests a label
+   *  nothing between, as the object engine's did: its weave nested a label
    *  as the first content of the label before it, and a divert counts each
    *  label container it enters at its start
    *  (`Story.VisitChangedContainersDueToDivert`). A statement with no code
-   *  and no export (`const`, `store`) is nothing between: the current engine
-   *  makes no runtime object of it, so its weave nests the labels around it
+   *  and no export (`const`, `store`) is nothing between: the object engine
+   *  made no runtime object of it, so its weave nests the labels around it
    *  all the same. */
   protected countLabelsAbove(place: ProgramPosition): void {
     const chunks = place.sequence.arrays.chunks;
@@ -2306,7 +3150,7 @@ export class ProgramStory {
   }
 
   /** A scene with no content of its own before its first branch enters that
-   *  branch when it is entered, as the current engine's knot diverts to its
+   *  branch when it is entered, as the object engine's knot diverted to its
    *  first stitch; the branch is entered from the scene. */
   protected enterStart(symbol: number, at: SequenceRow): void {
     const start = this.root.startOf(symbol);
@@ -2360,11 +3204,22 @@ export class ProgramStory {
     if (!place) {
       this.Error("Divert target not found.");
     }
-    state.PushFrame(PushPopType.Tunnel, {
-      returnTo: state.position,
-      blocks: state.blockStack,
-      symbol,
-    });
+    // The tunnel's frame stands at the height the stack has once its
+    // flow's entry has bound the arguments the call pushed for it.
+    const first = place.entry === 0 ? place.sequence.arrays.chunks[0] : undefined;
+    const bound =
+      first && place.offset === 0 && this.root.flow(symbol) === place.sequence
+        ? entryBindings(first, 0).bindings
+        : 0;
+    state.PushFrame(
+      PushPopType.Tunnel,
+      {
+        returnTo: state.position,
+        blocks: state.blockStack,
+        symbol,
+      },
+      Math.max(0, state.evaluationStack.length - bound),
+    );
     this.land(place, []);
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
@@ -2373,7 +3228,7 @@ export class ProgramStory {
 
   /** `TunnelReturn`: pops a tunnel frame and resumes its caller after the
    *  tunnel call, or with a symbol value on the stack, jumps to it from the
-   *  tunnel; a frame that is no tunnel's raises the current engine's error
+   *  tunnel; a frame that is no tunnel's raises the object engine's error
    *  (`PopTunnel`). */
   protected tunnelReturn(): void {
     const state = this._state;
@@ -2404,19 +3259,20 @@ export class ProgramStory {
     const frame = state.PopCallStack();
     state.position = frame?.returnTo ?? null;
     state.blockStack = frame?.blocks ?? [];
+    this.dropResultOf(frame);
     if (override) {
       const symbol = this.symbolIn(override.ref);
       if (symbol === undefined) {
         this.Error("Divert target not found.");
       }
       // The onward jump leaves from the caller the frame returned to, as
-      // the current engine's divert after `PopTunnel` does.
+      // the object engine's divert after `PopTunnel` did.
       this.jumpTo(symbol, state.position?.sequence ?? null);
     }
   }
 
   /** The symbol the variable `name` holds as a symbol value, for a jump or a
-   *  tunnel to it, or the current engine's error for anything else. */
+   *  tunnel to it, or the object engine's error for anything else. */
   protected symbolOfVariable(name: string): number {
     const value = this._state.variablesState.GetVariableWithName(name);
     if (value == null) {
@@ -2446,8 +3302,8 @@ export class ProgramStory {
   }
 
   /** `CountOf`: pops a symbol value and pushes its visits, or the turns
-   *  since its last visit, as the current engine's `ReadCount` and
-   *  `TurnsSince` do. */
+   *  since its last visit, as the object engine's `ReadCount` and
+   *  `TurnsSince` did. */
   protected countOf(turns: boolean): void {
     const state = this._state;
     const target = state.PopEvaluationStack();
@@ -2503,7 +3359,7 @@ export class ProgramStory {
   }
 
   /** Runs the program's declaration chunks, in the order the root gives,
-   *  against the globals. An error stops the run, as it stops the current
+   *  against the globals. An error stops the run, as it stops the deleted object
    *  engine's `global decl` container, and is reported as a continue's. An
    *  initializer that calls a function steps into it, and a chunk's run ends
    *  when its own frame has run its last instruction. No decision pauses the
@@ -2512,6 +3368,15 @@ export class ProgramStory {
     const state = this._state;
     const pause = this.pauseBeforeEvaluatingConditions;
     this.pauseBeforeEvaluatingConditions = false;
+    // The declarations run no story: the game hears none of their
+    // instructions, as the object engine's `global decl` container was
+    // none of the game's executed paths.
+    const onExecute = this.onExecute;
+    this.onExecute = null;
+    const executedLog = this.executedLog;
+    this.executedLog = null;
+    const beatLog = this.beatLog;
+    this.beatLog = null;
     const depth = state.callStack.elements.length;
     for (const chunk of this.root.initialization) {
       const at = this.root.position(chunkId(chunk));
@@ -2550,7 +3415,12 @@ export class ProgramStory {
         if (!(e instanceof StoryException)) {
           throw e;
         }
-        this.AddError(e.message, undefined, e.useEndLineNumber);
+        this.AddError(
+          e.message,
+          undefined,
+          e.useEndLineNumber,
+          e.raisedAddress,
+        );
         break;
       }
       if (state.hasError) {
@@ -2558,14 +3428,18 @@ export class ProgramStory {
       }
     }
     this.pauseBeforeEvaluatingConditions = pause;
+    this.onExecute = onExecute;
+    this.executedLog = executedLog;
+    this.beatLog = beatLog;
     state.position = null;
     state.blockStack = [];
+    state.previousAddress = -1;
     state.evaluationStack.length = 0;
     this.reportErrors();
   }
 
-  /** Calls a state-aware builtin as the current engine's `RunStdLibFunction`
-   *  does, with this story as the story it is given. */
+  /** Calls a state-aware builtin as the object engine's `RunStdLibFunction`
+   *  did, with this story as the story it is given. */
   protected callStd(name: string, arity: number, discard: boolean): void {
     const entry = lookupStateAwareStdLib(name);
     if (!entry) {
@@ -2576,7 +3450,7 @@ export class ProgramStory {
       args.unshift(this._state.PopEvaluationStack());
     }
     spreadCallArgs(args);
-    const result = entry.fn(this as unknown as Story, args);
+    const result = entry.fn(this, args);
     if (discard) {
       return;
     }
@@ -2619,16 +3493,10 @@ export class ProgramStory {
   /** The instruction the last step ran. */
   protected _running: RunningInstruction | null = null;
 
-  /** The position a path names: a flow by its qualified name, the top-level
-   *  content's flow as `""` or `"0"`, or the content a path's location starts
-   *  at. A line can hold several statements (tags written after inline text)
-   *  and several beats (a `>` break), which the location's column tells
-   *  apart: of the statements that start on the line the statement holding
-   *  the location starts on, the last one that starts at or before the
-   *  location, and in it the last `LineStart` at or before the location, or
-   *  the statement's start when none is (a continuation, which joins the beat
-   *  before it, or tags). */
-  protected placePath(
+  /** The start of the flow or label a qualified name names, the top-level
+   *  content's flow as `""` or `"0"`; a position in the source is chosen
+   *  by its address (`ChooseAddress`). */
+  protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {
     const name = path === "0" ? ROOT_FLOW_NAME : path;
@@ -2645,55 +3513,13 @@ export class ProgramStory {
         return { position: place, symbol };
       }
     }
-    const position = this.placeLocation(path);
-    return position ? { position } : undefined;
-  }
-
-  /** The position the content a path's location starts at. */
-  protected placeLocation(path: string): ProgramPosition | undefined {
-    const location = this._paths?.locate(path);
-    if (!location) {
-      return undefined;
-    }
-    const at = this.root.statementAt(location.uri, location.line);
-    if (!at) {
-      return undefined;
-    }
-    const sequence = at.sequence;
-    const atOrBefore = (range: { startLine: number; startColumn: number } | null) =>
-      range !== null &&
-      (range.startLine < location.line ||
-        (range.startLine === location.line && range.startColumn <= location.column));
-    // The statements that start on the same line as the one holding the
-    // location, which the line starts alone cannot order.
-    const line = this.root.lineOf(sequence, at.entry);
-    let first = at.entry;
-    while (first > 0 && this.root.lineOf(sequence, first - 1) === line) {
-      first -= 1;
-    }
-    let entry = first;
-    for (let e = first + 1; e <= at.entry; e++) {
-      if (atOrBefore(this._reader.rangeAt(sequence, e, 0))) {
-        entry = e;
-      }
-    }
-    const chunk = sequence.arrays.chunks[entry]!;
-    let offset = 0;
-    for (const instruction of this._reader.instructions(chunk)) {
-      if (
-        instruction.op === Op.LineStart &&
-        atOrBefore(this._reader.rangeAt(sequence, entry, instruction.offset))
-      ) {
-        offset = instruction.offset;
-      }
-    }
-    return { sequence, entry, offset };
+    return undefined;
   }
 }
 
 /** Whether `chunk` is a `label` statement's: its code the one `Visit` of the
  *  symbol it exports. */
-const isLabelChunk = (chunk: StatementChunk | undefined): boolean =>
+const isLabelChunk = (chunk: ProgramChunk | undefined): boolean =>
   !!chunk &&
   codeWords(chunk) === 2 &&
   opOf(chunk[HEADER_WORDS]!) === Op.Visit &&
@@ -2702,28 +3528,12 @@ const isLabelChunk = (chunk: StatementChunk | undefined): boolean =>
 
 /** Whether `chunk` runs nothing and defines nothing: a declaration whose
  *  value the declaration sequence sets (`const`, `store`). */
-const isEmptyChunk = (chunk: StatementChunk | undefined): boolean =>
+const isEmptyChunk = (chunk: ProgramChunk | undefined): boolean =>
   !!chunk && codeWords(chunk) === 0 && exportCount(chunk) === 0;
 
 /** Whether two block stack entries name one block of one owner. */
 const sameBlock = (a: BlockEntry, b: BlockEntry): boolean =>
   a.sequence.id === b.sequence.id && a.entry === b.entry && a.block === b.block;
-
-/** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
- *  its `EndScope`s, read once in order (docs/engine/binary-program.md,
- *  section 1). */
-const scopesBefore = (chunk: StatementChunk, offset: number): number => {
-  let scopes = 0;
-  for (let at = 0; at < offset && at < codeWords(chunk); at += 2) {
-    const op = opOf(chunk[HEADER_WORDS + at]!);
-    if (op === Op.BeginScope) {
-      scopes += 1;
-    } else if (op === Op.EndScope) {
-      scopes -= 1;
-    }
-  }
-  return Math.max(0, scopes);
-};
 
 const constValue = (aux: number): InkObject => {
   switch (aux) {

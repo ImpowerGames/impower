@@ -1,7 +1,7 @@
 /**
  * What a parsed object's emit path writes through. Each class of the parsed
- * hierarchy that the binary program covers implements `EmitProgram` beside
- * `GenerateRuntimeObject`; the others inherit `ParsedObject.EmitProgram`,
+ * hierarchy that the binary program covers implements `EmitProgram`; the
+ * others inherit `ParsedObject.EmitProgram`,
  * which reports the construct the writer does not emit.
  *
  * The parsed hierarchy imports this module's types, and values from three
@@ -27,11 +27,16 @@ export interface ProgramEmitter {
   emitBranchBody(branch: object): void;
   /** Emits a function (a `FlowBase`) that runs where it is written: one
    *  written at the top level inside a block that the story leaves it in,
-   *  whose container the current engine runs as content of the block. Its
+   *  whose container the object engine ran as content of the block. Its
    *  parameters are bound from the evaluation stack, the locals the lowering
    *  hoisted to the top of its body are declared, and its body runs as a
    *  block of the statement. */
   emitFunctionInPlace(fn: object): void;
+  /** Binds parameters from the evaluation stack, last first as the
+   *  arguments were pushed: a `SetVar` with the declare flag each, the
+   *  `...` with the varargs flag, as a function's entry and a scene's or a
+   *  branch's (`FlowEntry`) bind them. */
+  bindParameters(params: readonly { name: string; vararg: boolean }[]): void;
   /** Emits a `choose` block (a `Weave` that is one) as one chunk: the code
    *  that raises its choices, the `Done` that ends their presentation, each
    *  choice's entry code with its body entered as a block, and its `then`
@@ -42,6 +47,11 @@ export interface ProgramEmitter {
    *  presentation, its choices continuing at its `then` clause when it has
    *  one. */
   emitPreambleChoose(weave: object): void;
+  /** Emits a `break` or `continue` (`divert`, which `exit` names): a jump to
+   *  the loop's exit or its next pass when the loop's body is the chunk's
+   *  own code, and otherwise `Leave`, which leaves the blocks up to the
+   *  loop's body. */
+  emitLoopExit(divert: object, exit: "break" | "continue"): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump to a label the caller already holds, bound or not: a
@@ -107,9 +117,9 @@ export interface ProgramEmitter {
   /** Exports `symbol` at the next instruction: the chunk defines it
    *  there. */
   exportHere(symbol: number): void;
-  /** Stops the statement's emission: the program falls back to the current
-   *  engine as a whole and names `construct` (the parsed class's `typeName`,
-   *  or the builtin's name). */
+  /** Stops the statement's emission: the compile reports `construct` (the
+   *  parsed class's `typeName`, or the builtin's name) as an error at the
+   *  statement's line and makes no program. */
   unsupported(construct: string): never;
 }
 

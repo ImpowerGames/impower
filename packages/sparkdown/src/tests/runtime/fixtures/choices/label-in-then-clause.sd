@@ -1,0 +1,19 @@
+store back = false
+-> main
+scene main
+  choose
+    * Up
+  then
+    label inner
+    Then.
+  end
+  -> other
+end
+scene other
+  Back.
+  if not back then
+    back = true
+    -> main.inner
+  end
+  done
+end

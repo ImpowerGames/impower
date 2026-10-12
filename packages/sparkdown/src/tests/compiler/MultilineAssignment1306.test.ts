@@ -1,7 +1,5 @@
-import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
 import { officialSyntaxErrors } from "./officialSyntax";
 
@@ -13,9 +11,9 @@ const URI = "inmemory:///main.sd";
 
 const crlf = (text: string) => text.replaceAll("\n", "\r\n");
 
-function compile(text: string, programEngine = false) {
+function compile(text: string) {
   const compiler = new SparkdownCompiler();
-  compiler.configure({ programChunks: programEngine, files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
+  compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
   const { program } = compiler.compile({ textDocument: { uri: URI } });
   const errors = (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)
@@ -23,10 +21,10 @@ function compile(text: string, programEngine = false) {
   return { errors, program };
 }
 
-function execute(text: string, programEngine = false) {
-  const { errors, program } = compile(text, programEngine);
-  expect(programEngine ? program.chunks != null : program.compiled != null, program.fallback?.construct).toBe(true);
-  const story = programEngine ? new ProgramStory(program.chunks!) : new Story(program.compiled as Record<string, any>);
+function execute(text: string) {
+  const { errors, program } = compile(text);
+  expect(program.chunks != null, JSON.stringify(errors)).toBe(true);
+  const story = new ProgramStory(program.chunks!);
   const runtimeErrors: string[] = [];
   story.onError = (message: string) => runtimeErrors.push(message);
   return { errors, output: story.ContinueMaximally(), runtimeErrors };
@@ -59,7 +57,7 @@ function f()
 end
 `;
 
-describe.each([false, true])("next-line values on the program engine: %s", (programEngine) => {
+describe("next-line values", () => {
   test.each([
     ["a local", "function f()\n  local a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
     ["a reassignment", "function f()\n  local a = 0\n  a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
@@ -71,12 +69,12 @@ describe.each([false, true])("next-line values on the program engine: %s", (prog
     ["comma-ended lines after a comment ending in else", "function f()\n  local x, y = -- else\n    tostring(1),\n    tostring(2)\n  return x .. y\nend\n\n{f()}\n", "12\n"],
   ])("reads %s", (_name, source, output) => {
     for (const text of [source, crlf(source)]) {
-      expect(execute(text, programEngine)).toEqual({ errors: [], runtimeErrors: [], output });
+      expect(execute(text)).toEqual({ errors: [], runtimeErrors: [], output });
     }
   });
 
   test.each(["LF", "CRLF"])("calls all eight next-line values in order exactly once (%s)", (ending) => {
-    const result = execute(ending === "CRLF" ? crlf(EIGHT_CALLS) : EIGHT_CALLS, programEngine);
+    const result = execute(ending === "CRLF" ? crlf(EIGHT_CALLS) : EIGHT_CALLS);
     expect(result).toEqual({ errors: [], runtimeErrors: [], output: "Value 12345678:12345678:8.\n" });
   });
 });
@@ -110,11 +108,16 @@ describe.each(["LF", "CRLF"])("Luau's errors after a line-ending operator (%s)",
     expect(compile(lines(source)).errors).toEqual(officialErrors(source));
   });
 
-  test("keeps the missing else of an empty then arm before an assignment", () => {
-    const source = "function f()\n  local a = if true then\n  b = 2\n  return a\nend\n";
-    expect(officialSyntaxErrors(source)).toHaveLength(1);
-    expect(compile(lines(source)).errors).toEqual([{ message: "Expected 'else' when parsing if then else expression", line: 1, column: 12 }]);
-  });
+  // An empty then arm reads the next line's `b` as its value, as Luau does,
+  // so the missing `else` falls on the `=` after it with Luau's wording (#1501).
+  test.each(["if true then", "if (true)then", "if true then -- note"])(
+    "reports the missing else of an empty then arm (%s) at the next assignment's `=`",
+    (opening) => {
+      const source = `function f()\n  local a = ${opening}\n  b = 2\n  return a\nend\n`;
+      expect(officialSyntaxErrors(source)).toHaveLength(1);
+      expect(compile(lines(source)).errors).toEqual(officialErrors(source));
+    },
+  );
 });
 
 describe.each(["LF", "CRLF"])("story after an unfinished marked statement (%s)", (ending) => {

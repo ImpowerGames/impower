@@ -46,7 +46,7 @@ function story(body: string) {
 async function runInstant(body: string) {
   const harness = createHarness(story(body));
   await harness.ready;
-  harness.jumpTo("start");
+  harness.jumpToFlow("start");
   harness.reset();
   let beat = harness.nextBeat();
   while (beat) {
@@ -83,7 +83,7 @@ describe("image", () => {
   test("animated (non-instant) show emits per-layer animate", async () => {
     const harness = createHarness(story(`  [[show backdrop BG]]`));
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
     await harness.display(beat!, /* instant */ false);

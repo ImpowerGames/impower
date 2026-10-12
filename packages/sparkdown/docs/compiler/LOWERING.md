@@ -1,10 +1,10 @@
 # Sparkdown Lowering Guide
 
-The lowerer translates the **Lezer parse tree** (produced by the grammar — see [`GRAMMAR.md`](./GRAMMAR.md)) into the **inkjs `ParsedHierarchy`** that inkjs's `ExportRuntime` then converts to runtime bytecode. It's the layer that decides "what does this construct *mean*?" — every grammar node either becomes a `ParsedObject` of some kind, becomes part of a parent's ParsedObject, or is intentionally discarded.
+The lowerer translates the **Lezer parse tree** (produced by the grammar — see [`GRAMMAR.md`](./GRAMMAR.md)) into the **inkjs `ParsedHierarchy`**, which the program path's resolver resolves and the program writer emits as statement chunks (`docs/engine/binary-program.md`). It's the layer that decides "what does this construct *mean*?" — every grammar node either becomes a `ParsedObject` of some kind, becomes part of a parent's ParsedObject, or is intentionally discarded.
 
 If the grammar is "shape of the syntax," the lowerer is "shape of the runtime semantics." When they agree well, the lowerer is short and obvious. When they don't, the lowerer ends up doing parse-tree archaeology — which is a sign the grammar layer needs more structure (see [GRAMMAR.md §2 "Golden Rule"](./GRAMMAR.md#2-the-golden-rule)).
 
-> **Companion docs:** [`GRAMMAR.md`](./GRAMMAR.md) covers the TextMate grammar layer. [`RUNTIME.md`](./RUNTIME.md) covers the bytecode interpreter.
+> **Companion docs:** [`GRAMMAR.md`](./GRAMMAR.md) covers the TextMate grammar layer. [`RUNTIME.md`](../runtime/RUNTIME.md) covers the binary-program interpreter.
 
 ---
 
@@ -391,7 +391,7 @@ The runtime side of the table, and how the engine builds a beat from it, is in `
 
 ### 11.1 Snapshot tests
 
-`src/tests/compiler/compileSnapshot.test.ts` walks `src/tests/compiler/__snapshots__/compile/**` and snapshots the **lowered ParsedHierarchy JSON** (the input to inkjs's `ExportRuntime`). When you change a lowerer, these are the tests that catch regressions.
+`src/tests/compiler/compileSnapshot.test.ts` walks `src/tests/compiler/__snapshots__/compile/**` and snapshots the **lowered ParsedHierarchy JSON** (the input to the program path's resolver and writer). When you change a lowerer, these are the tests that catch regressions.
 
 Reading a failing compile snapshot diff requires familiarity with the inkjs ParsedObject vocabulary (`VariableAssignment`, `FunctionCall`, `Conditional`, `Divert`, etc.). The same advice as grammar snapshots applies: **read the diff**. Don't reflexively regenerate.
 
@@ -416,7 +416,7 @@ If a runtime test fails, the failure is usually visible in:
 
 1. **The grammar tree** (`dumpTree`) — is the structure what you expected?
 2. **The lowered hierarchy** (`compileSnapshot.test.ts`) — does the lowered shape do what you want?
-3. **The bytecode** (`ctx.story.ToJson()`) — is the final emit correct?
+3. **The binary program** (`ctx.root`) — is the final emit correct?
 
 Inspect them in that order. The bug is almost always at the lowest level that doesn't match your mental model.
 
@@ -426,10 +426,10 @@ A useful one-off debug pattern (used in this project's investigation work):
 
 ```typescript
 const ctx = makeRuntimeStoryFromSource(src);
-console.log(JSON.stringify(JSON.parse(ctx.story.ToJson()).root, null, 2));
+console.dir(ctx.root, { depth: null });
 ```
 
-You'll see the runtime container structure: `ev`/`/ev` for eval sections, `out` for outputs, `VAR?`/`VAR=` for variable ops, `f()` for function calls, conditional containers, etc. See [`RUNTIME.md`](./RUNTIME.md) for the bytecode vocabulary.
+You'll see the compiled `ProgramRoot`: its sequences, typed-array chunks, and interned table. Each chunk contains instruction words and metadata, rather than a JSON container tree. See the [binary-program specification](../../../../docs/engine/binary-program.md) sections 1–3 for the chunk layout and instruction vocabulary, and [`RUNTIME.md`](../runtime/RUNTIME.md) for how `ProgramStory` executes it.
 
 ---
 

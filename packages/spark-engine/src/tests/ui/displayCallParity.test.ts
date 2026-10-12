@@ -116,7 +116,7 @@ function summarize(beat: Instructions): Beat {
 async function renderedBeats(source: string): Promise<Beat[]> {
   const harness = createHarness(source);
   await harness.ready;
-  harness.jumpTo("start");
+  harness.jumpToFlow("start");
   harness.reset();
   const out: Beat[] = [];
   for (let guard = 0; guard < 50; guard++) {
@@ -525,7 +525,7 @@ describe("display() renders inline asset directives", () => {
 async function beats(body: string) {
   const harness = createHarness(story(body));
   await harness.ready;
-  harness.jumpTo("start");
+  harness.jumpToFlow("start");
   const out = [];
   for (let beat = harness.nextBeat(); beat; beat = harness.nextBeat()) {
     out.push(beat);
@@ -580,7 +580,7 @@ describe("display() load beats", () => {
     test(`a load line reached through ${label} is a load beat of its own`, async () => {
       const harness = createHarness(story(body));
       await harness.ready;
-      harness.jumpTo("start");
+      harness.jumpToFlow("start");
       const run = [];
       for (let guard = 0; guard < 20; guard++) {
         const beat = harness.nextBeat();

@@ -16,11 +16,10 @@
 //      text — it is not a comment.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const compile = (text: string) => {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -45,7 +44,7 @@ const compile = (text: string) => {
 };
 
 const run = (compiled: any): string => {
-  const story = new RuntimeStory(compiled);
+  const story = testStory(compiled);
   const rtErrors: string[] = [];
   story.onError = (m: string) => rtErrors.push(m);
   const out = story.ContinueMaximally();
@@ -69,7 +68,7 @@ end
 `;
     const { result, errors } = compile(SRC);
     expect(errors).toBe(0);
-    const out = run((result.program as any).compiled);
+    const out = run(result.program.chunks);
     expect(out).not.toContain("whole-line");
     expect(out).not.toContain("//");
     expect(out).toContain("Action line one.");
@@ -90,7 +89,7 @@ end
 `;
     const { result, errors } = compile(SRC);
     expect(errors).toBe(0);
-    const out = run((result.program as any).compiled);
+    const out = run(result.program.chunks);
     expect(out).not.toContain("trailing note");
     expect(out).toContain("Action before.");
     expect(out).toContain("Action after.");
@@ -109,7 +108,7 @@ end
 `;
     const { result, errors } = compile(SRC);
     expect(errors).toBe(0);
-    const out = run((result.program as any).compiled);
+    const out = run(result.program.chunks);
     // The whole URL survives — `//` inside it is not a comment.
     expect(out).toContain("http://example.com");
     expect(out).toContain("Visit http://example.com today.");
