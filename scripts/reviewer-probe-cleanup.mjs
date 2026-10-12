@@ -151,24 +151,35 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     const names=new Set(fs.readdirSync(target).map(entry=>entry.toLowerCase()));
     return names.has('.git')||names.has('head')&&names.has('objects')&&names.has('refs');
   };
+  // An entry that cannot be read is left in place and reported; discovery
+  // carries on with its siblings, so one denied directory never keeps a
+  // healthy clone beside it.
+  const unreadable=[];
   const visit=(current,top)=>{
-    for(const name of fs.readdirSync(current)){
+    let names;
+    try{names=fs.readdirSync(current);}catch(error){unreadable.push(`${current} (${error.code??error.message})`);return;}
+    for(const name of names){
       const target=path.join(current,name);
       if(top&&preserve.has(name)||kept.has(target))continue;
-      const stat=fs.lstatSync(target);
-      if(stat.isSymbolicLink()){targets.push(target);continue;}
-      if(!stat.isDirectory())continue;
-      if(!scratch(target,name,top)||[...kept].some(file=>isInside(target,file))){walked.push(target);visit(target,false);continue;}
-      targets.push(target);
+      try{
+        const stat=fs.lstatSync(target);
+        if(stat.isSymbolicLink()){targets.push(target);continue;}
+        if(!stat.isDirectory())continue;
+        if(!scratch(target,name,top)||[...kept].some(file=>isInside(target,file))){walked.push(target);visit(target,false);continue;}
+        targets.push(target);
+      }catch(error){unreadable.push(`${target} (${error.code??error.message})`);}
     }
   };
   visit(root,true);
   // A walked directory the removal leaves empty goes too; one holding a file stays.
   const pruneEmpty=()=>{for(const dir of walked.reverse()){try{fs.rmdirSync(dir);}catch(error){if(!['ENOTEMPTY','EEXIST','ENOENT'].includes(error.code))throw error;}}};
   const counts={files:0,links:0};
-  if(!targets.length)return {...counts,elapsedMs:Date.now()-began};
+  const stuck=unreadable.map(entry=>`unreadable ${entry}`);
+  if(!targets.length){
+    if(stuck.length)throw new Error(`Probe cleanup removed nothing and could not read ${stuck.join(', ')}`);
+    return {...counts,elapsedMs:Date.now()-began};
+  }
   const trash=path.join(root,`.probe-cleanup-${randomUUID()}`);
-  const stuck=[];
   const moved=withProbeCleanupGuard((file)=>{
     let named;
     try{named=reservationNaming(file,directory,root);}

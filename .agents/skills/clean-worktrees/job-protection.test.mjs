@@ -225,6 +225,23 @@ try {
     assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
     if (state === 'am') assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply', 'patch')), 'the paused patch survives apply');
   }
+  // The removal's repeated checks do not judge an approved clone again: once
+  // the walk unlinks a tracked symbolic link inside it, status reports a
+  // deletion the removal itself made. The status after classification is
+  // made to read as that deletion, as git reports it once the link is gone.
+  {
+    const fixture = job();
+    const clone = probeClone(fixture.dir);
+    let statusCalls = 0;
+    const unlinking = { ...deps, exec: (cmd, args, cwd, timeout) => {
+      if (cmd === 'git' && args[0] === 'status' && path.resolve(cwd) === path.resolve(clone) && ++statusCalls > 1) return { status: 0, out: 'D tracked-link', err: '' };
+      return deps.exec(cmd, args, cwd, timeout);
+    } };
+    const run = cleanJobs(ctx, unlinking, true, () => {});
+    assert.ok(run.rows.some((row) => row.name === fixture.name && row.decision === 'removed'), JSON.stringify(run.rows.filter((row) => row.name === fixture.name)));
+    assert.equal(statusCalls, 1, 'the approved clone was judged once');
+    assert.equal(fs.existsSync(fixture.dir), false);
+  }
   // A HEAD git cannot read keeps the clone, even when its branches are all merged.
   {
     const fixture = job();

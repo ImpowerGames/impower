@@ -1403,8 +1403,13 @@ function embeddedCloneReason(clone, deps, ctx) {
 // `judgeClones` is set for the directory of a closed PR: an embedded clone
 // there is scratch unless embeddedCloneReason finds something to keep. Every
 // other embedded repository, a bare layout or a `.git` file or link, and any
-// registered worktree inside the directory keep it.
-function jobProtection(dir, deps, ctx, { judgeClones = false } = {}) {
+// registered worktree inside the directory keep it. Classification passes
+// `approved`, a set it fills with each clone found disposable; the removal's
+// repeated checks pass that set back as `trusted`, so a clone judged moments
+// before is not judged again after the removal has unlinked links inside it
+// (a tracked symbolic link then reads as a deletion). A repository that
+// appears during the removal is not in the set and is judged as usual.
+function jobProtection(dir, deps, ctx, { judgeClones = false, approved, trusted } = {}) {
   const reasons = [];
   const { entries, reason } = registeredWorktrees(ctx, deps);
   if (reason) reasons.push(reason);
@@ -1434,8 +1439,11 @@ function jobProtection(dir, deps, ctx, { judgeClones = false } = {}) {
       for (const entry of children) {
         const child = path.join(current, entry.name);
         if (entry.name.toLowerCase() === ".git") {
-          const why = judgeClones && entry.isDirectory() && !entry.isSymbolicLink() ? embeddedCloneReason(current, deps, ctx) : `protected embedded Git repository ${current}`;
+          const clone = judgeClones && entry.isDirectory() && !entry.isSymbolicLink();
+          const key = path.resolve(current);
+          const why = !clone ? `protected embedded Git repository ${current}` : trusted?.has(key) ? null : embeddedCloneReason(current, deps, ctx);
           if (why) reasons.push(why);
+          else approved?.add(key);
         }
         else if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(child);
       }
@@ -1458,7 +1466,8 @@ export function classifyJob(name, dir, deps, ctx) {
     else if (github.state === "open") keep.push(`${github.kind} #${m[1]} is open`);
   }
   const judgeClones = github?.state === "closed";
-  const protection = jobProtection(dir, deps, ctx, { judgeClones });
+  const approvedClones = new Set();
+  const protection = jobProtection(dir, deps, ctx, { judgeClones, approved: approvedClones });
   if (protection) keep.unshift(protection);
   const { journals, unreadable } = jobJournals(dir);
   if (unreadable.length) keep.push(`${n(unreadable.length, "directory", "directories")} inside it could not be read (${listSome(unreadable, 2)})`);
@@ -1490,7 +1499,7 @@ export function classifyJob(name, dir, deps, ctx) {
   if (test && !journals.length) keep.push("a test directory with no journal naming its process; left for a person");
   if (keep.length) return { remove: false, reason: keep.join("; ") };
   const why = m ? `${github.kind} #${m[1]} is closed and` : "a test's scratch directory, and";
-  return { remove: true, judgeClones, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
+  return { remove: true, judgeClones, approvedClones, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
 }
 
 // Removes a job directory without following any link in it: every symlink
@@ -1564,7 +1573,7 @@ export function cleanJobs(ctx, deps, apply, record) {
         record({ decision: "removing", path: dir, why });
         try {
           const unlinked = removeJobDir(dir, () => {
-            const protection = jobProtection(dir, deps, ctx, { judgeClones: verdict.judgeClones });
+            const protection = jobProtection(dir, deps, ctx, { judgeClones: verdict.judgeClones, trusted: verdict.approvedClones });
             if (protection) throw new Refusal(protection);
           });
           decision = "removed";

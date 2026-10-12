@@ -299,7 +299,20 @@ try {
     assert.equal(left.length,1,'the walk continues past a failed entry');assert.match(left[0],/^\.probe-cleanup-/);
     assert.deepEqual(fs.readdirSync(path.join(directory,left[0])).map(name=>fs.readdirSync(path.join(directory,left[0],name))),[['f']],'only the stuck file and its directory remain');
     fs.rmSync(directory,{recursive:true});
-    console.log('PASS: probe cleanup removes files under non-ASCII names and continues past an entry it cannot remove, naming it');
+    // An entry discovery cannot read is reported and left in place, and a
+    // healthy clone beside it is still removed.
+    {
+      const denied=fs.mkdtempSync(path.join(scratch,'cleanup-denied-'));
+      fs.mkdirSync(path.join(denied,'a-denied'));fs.writeFileSync(path.join(denied,'a-denied','note.md'),'kept');
+      fs.mkdirSync(path.join(denied,'b-clone','.git'),{recursive:true});fs.mkdirSync(path.join(denied,'b-clone','node_modules'));fs.writeFileSync(path.join(denied,'b-clone','node_modules','x.js'),'x');
+      fs.writeFileSync(path.join(denied,'report.md'),'report');
+      const readdir=fs.readdirSync;
+      fs.readdirSync=function(target,...args){if(target===path.join(denied,'a-denied'))throw Object.assign(new Error('EACCES: denied'),{code:'EACCES'});return readdir(target,...args);};
+      try{assert.throws(()=>removeProbeCheckouts(denied,{keep:[path.join(denied,'report.md')]}),error=>error.message.includes(path.join(denied,'a-denied'))&&/EACCES/.test(error.message));}finally{fs.readdirSync=readdir;}
+      assert.deepEqual(fs.readdirSync(denied).sort(),['a-denied','report.md'],'the healthy clone goes and the unreadable entry stays');
+      fs.rmSync(denied,{recursive:true});
+    }
+    console.log('PASS: probe cleanup removes files under non-ASCII names and continues past an entry it cannot remove or read, naming it');
   }
 
   {
