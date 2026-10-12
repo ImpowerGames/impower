@@ -1,10 +1,11 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { randomUUID, createHash } from "node:crypto";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
-import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
+import { withJob,retryBusy,git,failureDetails,sameIdentity } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs,codexReviewMode,discardCodexAuthCopy} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-defaults.mjs";
@@ -186,6 +187,68 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
       fs.fsyncSync(fd);
     }
   } finally { fs.closeSync(fd); }
+}
+
+// Releases a worktree lock whose coordinator is gone. The lock is removed only
+// when it was written on this host, its coordinator's recorded OS start
+// identity is absent or reused, and its journal shows no launched child that
+// may still run; every other state, including a lock or journal it cannot
+// parse, refuses and leaves the lock in place. A copy of the lock is kept in
+// the job directory beside the journal before the lock is removed. Nothing is
+// signalled and nothing but the verified lock file is deleted.
+export function recoverHandoffLock(worktree, { identifyProcess = processIdentity, host = os.hostname() } = {}) {
+  const lock = git(fs.realpathSync.native(worktree), ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"]);
+  let text;
+  try { text = fs.readFileSync(lock, "utf8"); }
+  catch (error) { if (error.code === "ENOENT") return { alreadyAbsent: lock }; throw error; }
+  const refuse = (why) => new Error(`Lock kept at ${lock}: ${why}`);
+  let record;
+  try { record = JSON.parse(text); } catch { throw refuse("its record is empty or unreadable, so its coordinator may still be starting; inspect it by hand"); }
+  const owner = record?.processIdentity;
+  if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid < 1 || typeof owner.start !== "string" || !owner.start || owner.pid !== record.pid) throw refuse("it records no OS start identity for its coordinator");
+  if (typeof record.host !== "string" || !record.host) throw refuse("it records no source host, so a locally absent PID does not show its coordinator is gone");
+  if (record.host !== host) throw refuse(`it was written on host ${record.host}, not ${host}; recover it from that host`);
+  if (typeof record.journal !== "string" || !path.isAbsolute(record.journal)) throw refuse("it names no absolute journal path");
+  if (sameIdentity(owner, identifyProcess(owner.pid))) throw refuse(`its coordinator (PID ${owner.pid}) is still running; await its exit`);
+  let rows = [];
+  try { rows = fs.readFileSync(record.journal, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)); }
+  catch (error) {
+    // The coordinator opens its journal before it launches any child.
+    if (error.code !== "ENOENT") throw refuse(`its journal ${record.journal} is unreadable (${error.message}); a child it launched may still run`);
+  }
+  const coordinatorRow = rows.find((row) => row.event === "coordinator");
+  if (rows.length && !sameIdentity(coordinatorRow?.processIdentity, owner)) throw refuse(`its journal ${record.journal} names a different coordinator`);
+  if (rows.some((row) => row.event === "blocked" && /unconfirmed/.test(row.reason ?? ""))) throw refuse("its coordinator reported a child whose exit is unconfirmed; confirm that child's exit by hand");
+  const launch = rows.findLast((row) => row.event === "launching");
+  if (launch && !rows.some((row) => row.event === "exited" && row.index === launch.index)) {
+    const ofLaunch = rows.filter((row) => row.index === launch.index);
+    const running = ofLaunch.find((row) => row.event === "running");
+    if (!running) {
+      // Waiting for a slot or a probed route precede the reserved row; the
+      // child is spawned only after that row.
+      if (!["waiting", "route-probed"].includes(ofLaunch.at(-1).event)) throw refuse(`step ${launch.step} may have spawned a child before its running row; confirm no child of the coordinator runs and inspect it by hand`);
+    } else if (!ofLaunch.some((row) => row.event === "confirmed-absent")) {
+      const child = ofLaunch.find((row) => row.event === "identified")?.childIdentity;
+      const live = child ? identifyProcess(child.pid) : identifyProcess(running.pid);
+      if (child ? sameIdentity(child, live) : live) throw refuse(child ? `its child (PID ${child.pid}) is still running; await its exit` : `PID ${running.pid} of its child is in use and the journal records no OS start identity to tell reuse apart; confirm the child's exit by hand`);
+    }
+  }
+  const claimed = `${lock}.recovering-${randomUUID()}`;
+  try { fs.renameSync(lock, claimed); }
+  catch (error) { if (error.code === "ENOENT") return { alreadyAbsent: lock }; throw error; }
+  // Linking back never replaces a lock another coordinator took meanwhile.
+  const restore = (why) => {
+    try { fs.linkSync(claimed, lock); fs.unlinkSync(claimed); }
+    catch (error) { return refuse(`${why}; restoring it failed (${error.message}), so the claimed record is at ${claimed}`); }
+    return refuse(why);
+  };
+  // A new coordinator took the lock after the check.
+  if (fs.readFileSync(claimed, "utf8") !== text) throw restore("it changed during recovery; inspect it again");
+  const copy = path.join(path.dirname(record.journal), `agent-handoff.lock.recovered-${Date.now()}.json`);
+  try { fs.mkdirSync(path.dirname(copy), { recursive: true }); fs.copyFileSync(claimed, copy, fs.constants.COPYFILE_EXCL); }
+  catch (error) { throw restore(`its copy could not be kept at ${copy}: ${error.message}`); }
+  fs.unlinkSync(claimed);
+  return { recovered: lock, copy, coordinator: owner };
 }
 
 export function validateNativeReviewArgs(review) {
@@ -443,7 +506,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   let owner;
   try { owner = fs.openSync(lock, "wx"); }
   catch(error) {
-    if(error.code==="EEXIST")throw new Error(`EEXIST: a coordinator already owns this worktree; inspect ${lock} and await confirmed exit`);
+    if(error.code==="EEXIST")throw new Error(`EEXIST: a coordinator already owns this worktree; inspect ${lock} and await confirmed exit, or, once its coordinator is gone, run node scripts/agent-handoff.mjs recover-lock ${cwd}`);
     throw error;
   }
   let fd;
@@ -462,7 +525,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       const claim=read(freeze);
       if(claim.jobId!==automaticJob?.jobId||fs.realpathSync.native(claim.jobDir)!==fs.realpathSync.native(automaticJob.jobDir))throw new Error('Worktree reserved by automatic review job; claim or cancel that job first');
     } else if(automaticJob)throw new Error('Automatic review ownership marker missing');
-    fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
+    fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), host: os.hostname(), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
     // Job cleanup retains a job directory while any process a journal names is running.
     append({ event: "coordinator", pid: process.pid, processIdentity: processIdentity(process.pid) });
@@ -682,6 +745,11 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
     try {
       if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs record-report <absolute-journal> <comment-id> <read-back-body-file>");
       recordCoordinatorReport(process.argv[3], process.argv[4], process.argv[5]);
+    } catch (error) { console.error(error.message); process.exitCode = 1; }
+  } else if (process.argv[2] === "recover-lock") {
+    try {
+      if (process.argv.length !== 4) throw new Error("Usage: node scripts/agent-handoff.mjs recover-lock <worktree>");
+      console.log(JSON.stringify(recoverHandoffLock(process.argv[3])));
     } catch (error) { console.error(error.message); process.exitCode = 1; }
   } else runHandoff(process.argv[2]).then(({ journal, pendingReport }) => {
     if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim after one line saying it is posted on the reviewer's behalf and why, read the comment back into a file, then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back-body-file>`);
