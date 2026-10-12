@@ -57,6 +57,23 @@ export type VariableBinding =
  *  a global's writes the one global of its name. */
 export type WriteWatch = (binding: VariableBinding, name: string) => void;
 
+/** What the variables recorded of the globals a run of the declarations
+ *  left (`VariablesState.SnapshotDefaultGlobals`): each default global, and
+ *  the graph of tables and closed upvalue cells init built, with each one's
+ *  anchor and the tables a constant reaches. */
+export interface DeclaredGlobals {
+  readonly defaults: ReadonlyMap<string, InkObject>;
+  readonly tablePaths: ReadonlyMap<object, string>;
+  readonly roots: ReadonlyMap<string, ObjectValue>;
+  readonly edges: ReadonlyMap<object, ReadonlyMap<string, ObjectValue>>;
+  readonly constantTables: ReadonlySet<object>;
+  readonly cellEdges: ReadonlyMap<
+    object,
+    ReadonlyMap<string, VariablePointerValue>
+  >;
+  readonly cellPaths: ReadonlyMap<VariablePointerValue, string>;
+}
+
 export class VariablesState extends VariablesStateAccessor<
   Record<string, any>
 >() {
@@ -658,6 +675,44 @@ export class VariablesState extends VariablesStateAccessor<
   public SnapshotDefaultGlobals() {
     this._defaultGlobalVariables = new Map(this._globalVariables);
     this.SnapshotInitTables();
+  }
+
+  /** What `SnapshotDefaultGlobals` recorded of the globals the declarations
+   *  left: the defaults and the graph of tables and cells they built. Read
+   *  only: a snapshot is never written after it is taken, so the variables
+   *  of another engine can take it over (`AdoptDeclared`). */
+  public get Declared(): DeclaredGlobals {
+    return {
+      defaults: this._defaultGlobalVariables,
+      tablePaths: this._initTablePaths,
+      roots: this._initRoots,
+      edges: this._initEdges,
+      constantTables: this._constantInitTables,
+      cellEdges: this._initCellEdges,
+      cellPaths: this._initCellPaths,
+    };
+  }
+
+  /** Takes over what another engine's variables recorded of the same
+   *  declarations' run (`Declared`), in place of running them and taking the
+   *  snapshot again (#1759). The tables it names are that run's, so an
+   *  anchor a save writes or reads names the tables the images of both
+   *  engines hold. The constants it records as kept are those of the same
+   *  constant names, which the caller compares. */
+  public AdoptDeclared(declared: DeclaredGlobals) {
+    this._defaultGlobalVariables = declared.defaults as Map<string, InkObject>;
+    this._initTablePaths = declared.tablePaths as Map<object, string>;
+    this._initRoots = declared.roots as Map<string, ObjectValue>;
+    this._initEdges = declared.edges as Map<object, Map<string, ObjectValue>>;
+    this._constantInitTables = declared.constantTables as Set<object>;
+    this._initCellEdges = declared.cellEdges as Map<
+      object,
+      Map<string, VariablePointerValue>
+    >;
+    this._initCellPaths = declared.cellPaths as Map<
+      VariablePointerValue,
+      string
+    >;
   }
 
   // Records the graph of tables init built, as it stands when the defaults
