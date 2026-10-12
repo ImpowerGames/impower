@@ -273,7 +273,7 @@ export class VariableAssignment extends ParsedObject {
       const variableReference = asOrNull(this.expression, VariableReference);
       if (variableReference && !variableReference.isConstantReference) {
         this.Error(
-          "A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+          "A variable must be initialized to a number, string, boolean, constant, or divert target.",
           variableReference.diagnosticSource,
         );
       }

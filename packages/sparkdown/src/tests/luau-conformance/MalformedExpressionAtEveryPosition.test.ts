@@ -453,12 +453,12 @@ describe("the reported layouts", () => {
     ["function f(t)\n  store x = 0xZ --[[\n  ]] 2\nend", ["1:12-1:15 Malformed number", "2:5-2:6 Expected identifier when parsing expression, got '2'"]],
     // A keyword on the line after a `.` with no name begins a statement.
     ["function f(t)\n  store x = t.a.\n  return 1 +;\nend", [
-      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, or divert target.",
       "2:2-2:8 Expected identifier, got 'return'",
       "2:12-2:13 Expected identifier when parsing expression, got ';'",
     ]],
     ["function f(t)\n  store x = t.a.\n  --[[c]] return 1 +;\nend", [
-      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, or divert target.",
       "2:10-2:16 Expected identifier, got 'return'",
       "2:20-2:21 Expected identifier when parsing expression, got ';'",
     ]],

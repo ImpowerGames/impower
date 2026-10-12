@@ -4,7 +4,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 const URI = "file:///project/main.sd";
 
 const MESSAGE =
-  "A variable must be initialized to a number, string, boolean, constant, list item, or divert target.";
+  "A variable must be initialized to a number, string, boolean, constant, or divert target.";
 
 function initializerDiagnostics(source: string) {
   const compiler = new SparkdownCompiler();

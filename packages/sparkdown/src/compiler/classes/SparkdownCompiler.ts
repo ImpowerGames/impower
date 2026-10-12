@@ -2298,7 +2298,7 @@ export class SparkdownCompiler {
     };
 
     // ---- Flow-reuse guards computed from this file's chunk list ----
-    // (1) ROOT-REGION STRUCTURE: the ordered sequence of `include`/`run`
+    // ROOT-REGION STRUCTURE: the ordered sequence of `include`/`run`
     // targets and `EXTERNAL` signatures. These change which files contribute
     // flows, and which call sites compile to external calls — neither of
     // which a reused flow can re-derive on its own. Compared by DESCRIPTOR
