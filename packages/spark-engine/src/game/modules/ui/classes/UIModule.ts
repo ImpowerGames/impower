@@ -758,8 +758,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const epoch = this._game.connection.epoch;
     const tasks: Promise<void>[] = [];
     if (this._state.text) {
+      // A target the connect leaves standing (one with text of its own) may
+      // still show what earlier writes left on it: the restore replaces that.
       for (const [target] of Object.entries(this._state.text)) {
-        tasks.push(this.text.restore(target));
+        tasks.push(this.text.restore(target, true));
       }
     }
     if (this._state.image) {
@@ -872,16 +874,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // The connect's construction takes the reactive changes; here they go
     // with a refresh that reads every binding against the loaded state. A
     // region whose branch or items change mounts new elements, which show
-    // nothing whatever the page showed under their target's name.
+    // nothing whatever the page showed under their target's name, whether
+    // the region mounts the target itself or content inside it.
     const created = (this._created = new Set<Element>());
     try {
       this.refreshAllBindings();
     } finally {
       this._created = undefined;
     }
-    const remounted = (target: string) =>
-      created.size > 0 &&
-      this.findElements(target).some((el) => created.has(el));
+    const remounted = (target: string) => {
+      if (created.size === 0) {
+        return false;
+      }
+      const targetEls = new Set(this.findElements(target));
+      for (const el of created) {
+        for (let at: Element | null = el; at; at = at.parent) {
+          if (targetEls.has(at)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
     const transient = new Set(this.getTransientTargets());
     const empty = (this._emptyOnPage ??= {
       text: new Set(),
@@ -894,7 +908,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const tasks: Promise<void>[] = [];
     for (const target of transient) {
       // Shown on the page, its clear waits for the beat, unless the target
-      // was mounted again, which a beat writes as a target nothing shows
+      // or its content was mounted again, which a beat writes as a target nothing shows
       // on: it is cleared now. Otherwise cleared on the page by the connect
       // or a beat since, and written by none.
       const fresh = remounted(target);

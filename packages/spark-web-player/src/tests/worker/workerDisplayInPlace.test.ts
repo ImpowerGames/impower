@@ -154,6 +154,27 @@ end
 `;
 const PICKS = lineIn(BRANCHED, "First. > Second.");
 
+/** The same, with the `if` inside the dialogue slot: the slot stays mounted
+ *  and the branch mounts its text leaf again. */
+const BRANCHED_INSIDE = BRANCHED.replace(
+  `    if mode then
+      dialogue {
+        text
+      }
+    else
+      dialogue {
+        text
+      }
+    end`,
+  `    dialogue {
+      if mode then
+        text
+      else
+        text
+      end
+    }`,
+);
+
 /** A main layout of its own whose dialogue target has text of its own, so
  *  it is no transient target: a beat adds to it rather than replacing it. */
 const PERSISTENT = `store word = "First."
@@ -594,17 +615,37 @@ describe("a display in place, further", () => {
     expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
 
+  it("writes a slot whose text the layout mounted again inside it, though the beat writes what it showed", async () => {
+    expect(BRANCHED_INSIDE).not.toBe(BRANCHED);
+    const picks = lineIn(BRANCHED_INSIDE, "First. > Second.");
+    const { a, full } = await twins(BRANCHED_INSIDE, picks, async (p) => {
+      const start = after(p);
+      await p.edit("set_mode(true)", "set_mode(false)");
+      return { start, edited: after(p) };
+    });
+    expect(a.start.frame).toEqual(full.start.frame);
+    expect(letters(a.start.frame)).toContain("Second.");
+    expectInPlace(a.edited);
+    expect(letters(a.edited.frame)).toContain("Second.");
+    expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
   it("replaces a persistent target's text the checkpoint changed, rather than adding to it", async () => {
-    const p = await player(PERSISTENT, ACTS);
-    await p.edit('set_word("First.")', 'set_word("Premier.")');
-    const edited = after(p);
-    harnesses.splice(harnesses.indexOf(p.h), 1);
-    p.h.dispose();
-    expectInPlace(edited);
-    expect(letters(edited.frame)).not.toContain("First.");
-    expect(edited.frame).toEqual(
-      await freshFrame(PERSISTENT.replace('set_word("First.")', 'set_word("Premier.")'), ACTS),
+    const { a, full } = await twins(PERSISTENT, ACTS, async (p) => {
+      await p.edit('set_word("First.")', 'set_word("Premier.")');
+      return after(p);
+    });
+    expectInPlace(a);
+    expect(letters(a.frame)).not.toContain("First.");
+    // A full display leaves the target standing too, and replaces its text
+    // as well: both show what a player opened on the edited line shows.
+    expect(letters(full.frame)).not.toContain("First.");
+    const fresh = await freshFrame(
+      PERSISTENT.replace('set_word("First.")', 'set_word("Premier.")'),
+      ACTS,
     );
+    expect(a.frame).toEqual(fresh);
+    expect(full.frame).toEqual(fresh);
   }, 120_000);
 
   it("shows what a full display shows when a breakpoint stops the beat", async () => {
