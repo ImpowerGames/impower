@@ -53,7 +53,7 @@ The run stops with `error` when the seed fails, the game never mounts, the playe
 
 The player's worker displays the stopped preview and runs PLAY, so the page runs neither `game/updateProgram` nor `game/preview`, and the worker's own phases are not observable from the page; the Node benchmark below reports them.
 
-With `--edit`, each sample deletes the word, highlights a different suggestion, waits for its preview, and accepts it with Enter. `ms` then runs from the start of the `workspace compile` that the edit caused to the first state carrying a newer program with a position, which has to be the measured line, and `keyToPainted` runs from the Enter key, which includes the editor's hold on a typed change before it sends it. Its `phases` include the selection and document-update requests that come before that compile.
+With `--edit`, each sample deletes the word, highlights a different suggestion, waits for its preview, and accepts it with Enter. `ms` then runs from the start of the `workspace compile` that the edit caused to the first state carrying a newer program with a position, which has to be the measured line; this compile clock is the figure #646's criterion reads. Two figures sit beside it per sample and in the summary: `msFromKey` runs from the Enter key to the same paint, the clock a suggestion's `ms` uses, so the two paths compare; `debounce` runs from the Enter key to the compile's start, the editor's hold on a typed change plus its request latency, so `msFromKey - debounce` is `ms` within the rounding. A suggestion run's summary likewise carries `keyToRequest`, the editor-side portion of its clock. Its `phases` include the selection and document-update requests that come before that compile.
 
 ### In Node: the worker benchmark
 

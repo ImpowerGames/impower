@@ -149,8 +149,11 @@ function offTarget(position, target) {
 // the editor holds a typed change back before sending it, and stops at the
 // first state carrying a program newer than `versionBefore` with a position,
 // which is the preview painting the edited document; that position has to be
-// `target`, as for a suggestion. Key to paint, which includes that hold, is
-// reported beside it.
+// `target`, as for a suggestion. `ms` is that compile clock, the one #646's
+// criterion reads. Beside it, `msFromKey` runs from the Enter keydown to the
+// same paint, the clock a suggestion's `ms` uses, and `debounce` from the
+// keydown to the compile's start (the editor's hold and its request latency),
+// so `msFromKey - debounce` is `ms` within the rounding.
 export function attributeEditSample(events, versionBefore, target, key = "Enter") {
   const press = events.find((e) => e.kind === "key" && e.key === key);
   if (!press) return { failure: `no ${key} keydown was recorded` };
@@ -163,23 +166,29 @@ export function attributeEditSample(events, versionBefore, target, key = "Enter"
   return {
     programVersion: painted.programVersion,
     ms: ms(painted.t - compile.start),
-    keyToPainted: ms(painted.t - press.t),
+    msFromKey: ms(painted.t - press.t),
+    debounce: ms(compile.start - press.t),
     phases: phasesBetween(events, press.t, painted.t),
     longtasks: longtasksFrom(events, press.t),
   };
 }
 
+// The clocks a sample can carry besides `ms`: an accepted edit's key clock and
+// debounce, and a suggestion's key-to-request time. Each is summarized over the
+// samples that did not fail and carry it, and left out when none does.
+const CLOCKS = ["msFromKey", "debounce", "keyToRequest"];
+
 export function summarize(samples) {
-  const times = samples
-    .filter((s) => !s.failure)
-    .map((s) => s.ms)
-    .sort((a, b) => a - b);
+  const passed = samples.filter((s) => !s.failure);
+  const times = passed.map((s) => s.ms).sort((a, b) => a - b);
   const stats = (list) => (list.length ? { min: list[0], median: list[Math.floor(list.length / 2)], max: list.at(-1) } : null);
   const phaseNames = [...new Set(samples.flatMap((s) => Object.keys(s.phases ?? {})))];
+  const clocks = CLOCKS.map((name) => [name, passed.filter((s) => s[name] != null).map((s) => s[name]).sort((a, b) => a - b)]).filter(([, list]) => list.length);
   return {
     samples: samples.length,
     failures: samples.filter((s) => s.failure).length,
     ms: stats(times),
+    ...Object.fromEntries(clocks.map(([name, list]) => [name, stats(list)])),
     phases: Object.fromEntries(
       phaseNames.map((name) => [
         name,
