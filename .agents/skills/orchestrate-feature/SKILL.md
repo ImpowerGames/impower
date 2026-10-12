@@ -36,7 +36,7 @@ For each `dispatch` ticket, one at a time:
 
 1. `claim --plan <file> --ticket N --worktree <path> --branch <type>/<N>-<slug> --artifact-parent <dir>` records the intent before anything starts. The worktree follows resolve-issue's layout and must not exist yet. Plan again after each claim; the next claim needs the new revision.
 2. `brief --record --plan --ticket N [--decision "<settled decision>" ...]` prints the writer's whole contract, from its worktree and self-check to its review cap and report fields.
-3. Start the writer on the claimed route as the writing routes describe, with the brief as its prompt. A detached process starts through `launch`, which checks its model and effort arguments and records its process identity; any other route is confirmed with `launched --handle-kind session|task --handle <id>`.
+3. Start the writer on the claimed route as the writing routes describe, with the brief as its prompt. A detached process starts through `launch`, which checks its model and effort arguments and records its process identity. A session created and handed to the app goes through `create`, `handoff`, `launched` and, once its brief is sent by message, `delivered`. Any other route is confirmed with `launched --handle-kind session|task --handle <id>`.
 4. Once the writer has checked its own model and effort, confirm the route with the preflight's observed verdict and record it with `verify --preflight <file>`. A blocked verdict marks the ticket `stop-writer`; never relaunch it on another model or effort.
 
 For `propose`, offer the start to the user and record it with `claim --operation proposed`, so the proposal is a pending dispatch rather than an untracked card. Confirm a started proposal with `launched`; withdraw a declined one with `withdraw --evidence`.
@@ -45,7 +45,7 @@ For `propose`, offer the start to the user and record it with `claim --operation
 
 A writer is replaced only after it is observed to have ended; `release --observations <file> --evidence <text>` refuses any other owner. Missing output, a cancellation request, an unanswered session or an unknown launch outcome proves nothing. For a pending detached start, `reconcile` searches running processes for its launch directory; for another route, find the started writer and record it with `launched`, or `withdraw --evidence` with what you observed.
 
-For `adopt-pr` and `adopt-worktree`, identify the existing writer and record it with `adopt`; the PR keeps its started review rounds, and the brief says so. Release an ended writer before a new one continues its branch and PR.
+For `adopt-pr` and `adopt-worktree`, identify the existing writer and record it with `adopt`. Once it is known to have ended (released first if the record holds it), `claim --operation continue --evidence <how you know>` starts a new writer on its branch; the PR keeps its started rounds.
 
 For `collect-report`, store the writer's report with `result --report <file>`, which refuses a report missing any required field. A writer asking for a further review round sends its checkpoint report; relay it to the maintainer with your own reading, and pass the answer back. Writers keep their own review jobs, round counts, freezes and the machine-wide reviewer and test reservations; the coordinator holds no lock on their worktrees.
 

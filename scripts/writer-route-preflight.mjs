@@ -10,7 +10,7 @@ import { efforts, routeVendor, writerEfforts } from "./reviewer-defaults.mjs";
 // effort. A route that cannot is a per-ticket blocker; the preflight never
 // proposes another model or effort in its place.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const writerRoutes = { "claude-agent": "claude", "claude-desktop": "claude", "claude-cli": "claude", "codex-cli": "codex", "codex-app": "codex" };
+export const writerRoutes = { "claude-agent": "claude", "claude-desktop": "claude", "claude-adopted": "claude", "claude-cli": "claude", "codex-cli": "codex", "codex-app": "codex" };
 
 // Each route's check returns an empty result when the host provides the model
 // at that effort, or the reason it does not.
@@ -71,6 +71,13 @@ function claudeCliCheck(model, request) {
   };
 }
 
+// An adopted writer is created by the same CLI and handed to the desktop app,
+// so the CLI probe applies; the handoff has been exercised only on Windows.
+function claudeAdoptedCheck(model, request, repo, { platform = process.platform } = {}) {
+  const probe = claudeCliCheck(model, request);
+  return (effort) => (platform === "win32" ? probe(effort) : { reason: `handing a CLI session to the desktop app is verified only on Windows, not ${platform}` });
+}
+
 // The CLI accepts an effort its model does not support and records it in the
 // rollout unchanged, so the model catalog is the only source for supported
 // efforts. The catalog also lists models an account refuses, so a short
@@ -129,7 +136,7 @@ function codexAppCheck(model, request) {
   };
 }
 
-const checks = { "claude-agent": claudeAgentCheck, "claude-desktop": claudeDesktopCheck, "claude-cli": claudeCliCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
+const checks = { "claude-agent": claudeAgentCheck, "claude-desktop": claudeDesktopCheck, "claude-adopted": claudeAdoptedCheck, "claude-cli": claudeCliCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
 // A Codex rollout records the requested effort even when the model does not
 // support it, so a matching Codex observation still needs the host's list of
 // supported efforts. Claude session metadata reports the effort in force.

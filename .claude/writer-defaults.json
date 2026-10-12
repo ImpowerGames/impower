@@ -6,6 +6,7 @@
   "routes": {
     "claude": [
       { "route": "claude-desktop", "userTurnOnly": true, "selfCheck": "get_session on self reports the model and effort" },
+      { "route": "claude-adopted", "reportsByMessage": true, "selfCheck": "get_session on self reports the model and effort" },
       { "route": "claude-cli", "selfCheck": "the stream's init event reports the model and CLAUDE_EFFORT in the writer's own shell reports the effort" },
       { "route": "claude-agent", "endsWithCoordinator": true, "selfCheck": "the pinned writer definition sets the model and effort, and CLAUDE_EFFORT in the writer's own shell reports the effort" }
     ],

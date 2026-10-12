@@ -6,18 +6,20 @@
 | --- | --- |
 | `dispatch` | Every blocker's merged deliverable is on origin/main and capacity allows a writer on the named route: claim and start it. |
 | `propose` | Only a route this turn cannot start is available: propose the start to the user and record the proposal with `claim --operation proposed`. |
+| `dispatch-step` | A start that runs in recorded steps is between steps: run the step the reason names. |
 | `wait-dependency` | The reason names each blocker that is open or closed without its merged deliverable on origin/main. No stacked branches: wait for the merge. |
 | `wait-capacity` | Writers already hold the concurrency limit, or free disk admits no further writer (consider the bounded disk recovery). |
-| `adopt-pr`, `adopt-worktree` | Work for the ticket exists: find its writer and record it with `adopt`. Never start a second writer beside it. |
+| `adopt-pr`, `adopt-worktree` | Work for the ticket exists: find its writer and record it with `adopt`. Never start a second writer beside it. Once its writer is known to have ended, `claim --operation continue --evidence` starts a new writer on the route the entry's `continueWith` names, keeping the branch, worktree and the PR's started rounds; `continueBlocked` says why no route can. |
+| `deliver-brief` | The app adopted the writer's session: once its first turn has ended, send it the brief by message and record `delivered`. |
 | `observe` | The owner is running. |
 | `collect-report` | The owner ended its turn: read its report or question and answer it. |
-| `reconcile-pending` | A recorded start has no confirmed outcome: settle it with `reconcile`, `launched` or `withdraw --evidence` before any retry. |
+| `reconcile-pending` | A recorded start has no confirmed outcome: settle it with `reconcile`, `launched` or `withdraw --evidence` before any retry, as the reason says. |
 | `blocked-owner-unknown` | The owner's state is unknown: observe it before anything replaces it. |
 | `release` | The owner was observed to end: release it with that evidence; the ticket becomes eligible again. |
 | `stop-writer` | The writer runs another model or effort than requested: stop it and keep its evidence. It is never relaunched on a substitute. |
 | `blocked-route` | No offered route runs the writer model at the ticket's effort: report the preflight reasons to the user. |
-| `decision-needed` | Missing Effort, duplicate open PRs, a closed ticket without its deliverable, or a held writer outside the Feature: report it with a recommendation. |
+| `decision-needed` | Missing Effort, duplicate open PRs, a closed ticket without its deliverable, a held writer outside the Feature or on a ticket that gained sub-issues, or sub-issues nested past GitHub's limit: report it with a recommendation. |
 | `await-maintainer` | A ready PR waits for the maintainer to merge it. |
 | `done`, `container` | Delivered, or planned through its own sub-issues. |
 
-An owner's state comes from the observation file for sessions and tasks, and from the recorded process start identity for a detached process on this host. A process recorded on another host is unknown here.
+An owner's state comes from the observation file for sessions and tasks. A detached writer on this host is live while its recorded wrapper runs or while any process names its launch directory, which the writer carries on its own command line; a failed process census, or a process recorded on another host, leaves it unknown.

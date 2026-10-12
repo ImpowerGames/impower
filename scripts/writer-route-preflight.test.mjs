@@ -102,6 +102,13 @@ try {
     assert.match(substituted.verdicts[0].reason, /answered with claude-sonnet-5-5, not claude-fable-5-1/, "a probe answered by another model is blocked");
     assert.match(preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 44, effort: "low" }], evidence: { claude: path.join(tmp, "missing-claude") } }).verdicts[0].reason, /probe could not run/);
     assert.equal(only(preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 45, effort: "high", observed: { model: "claude-opus-5-5", effort: "high" } }, { number: 46, effort: "high", observed: { model: "claude-opus-5-5", effort: "low" } }] })), "45:confirmed 46:blocked", "a launched CLI writer is confirmed from its own model and shell effort");
+    // An adopted writer is created by the same CLI, so the same probe decides
+    // it, on the one platform where the desktop handoff has been exercised.
+    const adopted = preflight({ route: "claude-adopted", model: "claude-opus-5-5", tickets: [{ number: 47, effort: "high" }, { number: 48, effort: "max" }], evidence: { claude } });
+    if (process.platform === "win32") {
+      assert.equal(only(adopted), "47:available 48:blocked");
+      assert.match(adopted.verdicts[1].reason, /Claude CLI probe exited 1/);
+    } else assert.match(adopted.verdicts[0].reason, /verified only on Windows/);
   } finally { delete process.env.CLAUDE_EFFORT; }
 
   // After launch: the writer's own metadata or rollout confirms the route. A

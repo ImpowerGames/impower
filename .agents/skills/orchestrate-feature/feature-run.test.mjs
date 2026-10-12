@@ -23,6 +23,7 @@ const defaults = run.readWriterDefaults();
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const waitFor = (test, what, ms = 30000) => { const end = Date.now() + ms; while (!test()) { if (Date.now() > end) throw new Error(`Timed out waiting for ${what}`); sleep(200); } };
+const readJsonFile = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
 const started = [];
 
@@ -44,8 +45,8 @@ try {
   assert.throws(() => run.resolveWriterModel("claude", "gemini-3", defaults), /no supported writer route/);
   for (const routes of Object.values(defaults.routes)) for (const { route, selfCheck } of routes) { assert.ok(Object.hasOwn(writerRoutes, route), route); assert.ok(selfCheck, route); }
   const userTurn = run.routeOptions("claude-opus-5-5", "user", defaults), eventTurn = run.routeOptions("claude-opus-5-5", "event", defaults);
-  assert.deepEqual(userTurn.map((r) => [r.route, r.dispatchable]), [["claude-desktop", true], ["claude-cli", true], ["claude-agent", true]]);
-  assert.deepEqual(eventTurn.map((r) => [r.route, r.dispatchable]), [["claude-desktop", false], ["claude-cli", true], ["claude-agent", true]], "an event-driven turn cannot start a desktop session");
+  assert.deepEqual(userTurn.map((r) => [r.route, r.dispatchable]), [["claude-desktop", true], ["claude-adopted", true], ["claude-cli", true], ["claude-agent", true]]);
+  assert.deepEqual(eventTurn.map((r) => [r.route, r.dispatchable]), [["claude-desktop", false], ["claude-adopted", true], ["claude-cli", true], ["claude-agent", true]], "an event-driven turn cannot start a desktop session");
   assert.ok(eventTurn.find((r) => r.route === "claude-agent").endsWithCoordinator, "the in-process route is marked as ending with the coordinator");
   assert.deepEqual(run.routeOptions("gpt-6.1-sol", "event", defaults).map((r) => r.route), ["codex-cli", "codex-app"]);
   assert.throws(() => run.routeOptions("claude-opus-5-5", "timer", defaults), /--turn/);
@@ -125,7 +126,7 @@ try {
   assert.deepEqual([lastResort.action, lastResort.route, lastResort.endsWithCoordinator], ["dispatch", "claude-agent", true]);
   const blocked = plan({ preflights: [available("claude-desktop", "claude-sonnet-5-5", all), { route: "claude-cli", model: "claude-opus-5-5", verdicts: [{ ticket: 101, effort: "medium", verdict: "blocked", reason: "the Claude CLI probe exited 1: not signed in" }] }] }).tickets.find((t) => t.number === 101);
   assert.equal(blocked.action, "blocked-route");
-  assert.match(blocked.reason, /claude-desktop: no preflight result for claude-opus-5-5 at medium; claude-cli: the Claude CLI probe exited 1: not signed in; claude-agent: no preflight/);
+  assert.match(blocked.reason, /claude-desktop: no preflight result for claude-opus-5-5 at medium; claude-adopted: no preflight result .*; claude-cli: the Claude CLI probe exited 1: not signed in; claude-agent: no preflight/);
 
   // Claims are exclusive and bound to the plan's revision.
   const planFile = write("plan.json", p1);
@@ -209,7 +210,7 @@ try {
   const p5File = write("plan5.json", plan({ preflights: cliPreflights }));
   rev = mutate(rev, (r) => run.claim(r, { plan: p5File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
   const stopLost = path.join(tmp, "stop-lost");
-  assert.throws(() => mutate(rev, (r) => run.launch(r, { ticket: 101, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--stop", stopLost], prompt, spawner: (o) => { const out = run.spawnDetached(o); started.push({ stop: stopLost, pid: out.pid }); throw new Error("the host lost the reply"); } })), /outcome of launch .* is uncertain/);
+  assert.throws(() => mutate(rev, (r) => run.launch(r, { ticket: 101, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--stop", stopLost], prompt, spawner: (o) => { const out = run.startDetachedWriter(o); started.push({ stop: stopLost, pid: out.pid }); throw new Error("the host lost the reply"); } })), /outcome of launch .* is uncertain/);
   assert.equal(run.readRecord(record).tickets[101].pending.operation, "dispatch", "the uncertain launch stays pending");
   assert.equal(actions(plan({ preflights: cliPreflights }))[101], "reconcile-pending");
   waitFor(() => { const r = run.readRecord(record); return fs.existsSync(path.join(run.launchDirOf(r.tickets[101].pending, 101), "out.jsonl")) && fs.statSync(path.join(run.launchDirOf(r.tickets[101].pending, 101), "out.jsonl")).size > 0; }, "the unrecorded writer to start");
@@ -244,6 +245,59 @@ try {
   assert.equal(actions(plan({ observations: { sessions: { local_w101: { state: "idle" } } } }))[101], "collect-report");
   assert.equal(actions(plan())[101], "blocked-owner-unknown", "an unobserved session blocks replacement");
 
+  // Adopted desktop writer: from an event-driven turn the plan prefers it to
+  // the bare CLI. Each step records intent before its side effect and its
+  // outcome after; an uncertain create or handoff is never retried blindly,
+  // adoption is confirmed only from the session list, and the brief's
+  // delivery is its own recorded step.
+  const adoptedPreflights = [available("claude-desktop", "claude-opus-5-5", [108]), available("claude-adopted", "claude-opus-5-5", [108]), available("claude-cli", "claude-opus-5-5", [108])];
+  const adoptedPlan = () => plan({ record: widened(8), turn: "event", preflights: adoptedPreflights });
+  const pA = adoptedPlan();
+  assert.deepEqual([pA.tickets.find((t) => t.number === 108).action, pA.tickets.find((t) => t.number === 108).route], ["dispatch", "claude-adopted"]);
+  const wt108 = path.join(tmp, "wt-108");
+  const claimAdopted = () => { rev = mutate(rev, (r) => run.claim(r, { plan: write("planA.json", adoptedPlan()), ticket: 108, worktree: wt108, branch: "fix/108-thing", artifactParent: artifacts })); };
+  claimAdopted();
+  assert.equal(actions(adoptedPlan())[108], "dispatch-step");
+  const exe = path.join(tmp, "claude.exe");
+  const sessionId = "0f8c1e7a-2b3d-4c5e-9f60-718293a4b5c6";
+  assert.throws(() => run.handoffAdopted(record, { coordinator: "local_a", expectRevision: rev, ticket: 108, executable: exe, runner: () => ({ requested: true, pid: 1 }) }), /at step none, not create confirmed/, "no handoff before a confirmed create");
+  let out = run.createAdopted(record, { coordinator: "local_a", expectRevision: rev, ticket: 108, executable: exe, permissionMode: "auto", runner: () => { throw new Error("the host lost the reply"); } });
+  rev = out.revision;
+  assert.deepEqual(run.readRecord(record).tickets[108].pending.steps.map((s) => `${s.step} ${s.state}`), ["create intent", "create uncertain"], "the intent is recorded before the create runs");
+  assert.match(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights }).tickets.find((t) => t.number === 108).reason, /may have made a session/);
+  assert.throws(() => run.createAdopted(record, { coordinator: "local_a", expectRevision: rev, ticket: 108, executable: exe, permissionMode: "auto", runner: () => ({ created: true, sessionId }) }), /at step create uncertain, not none/, "an uncertain create is not retried");
+  rev = mutate(rev, (r) => run.withdraw(r, { ticket: 108, evidence: "no session for fix/108-thing in the list" }));
+  claimAdopted();
+  let ran;
+  out = run.createAdopted(record, { coordinator: "local_a", expectRevision: rev, ticket: 108, executable: exe, permissionMode: "auto", runner: (o) => { ran = o; return { created: true, sessionId }; } });
+  rev = out.revision;
+  assert.deepEqual([ran.model, ran.effort, ran.permissionMode, ran.cwd], ["claude-opus-5-5", "medium", "auto", checkout], "the session is created at the claimed model and effort");
+  assert.match(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights }).tickets.find((t) => t.number === 108).reason, new RegExp(`${sessionId} was created; run handoff`));
+  assert.throws(() => mutate(rev, (r) => run.launched(r, { ticket: 108, handleKind: "session", handle: "local_w108" })), /once its handoff was requested/);
+  out = run.handoffAdopted(record, { coordinator: "local_a", expectRevision: rev, ticket: 108, executable: exe, runner: (o) => { ran = o; return { requested: true, pid: 4242 }; } });
+  rev = out.revision;
+  assert.equal(ran.sessionId, sessionId);
+  assert.equal(actions(adoptedPlan())[108], "reconcile-pending", "a requested handoff waits for the session list");
+  assert.throws(() => mutate(rev, (r) => run.launched(r, { ticket: 108, handleKind: "task", handle: "t" })), /confirmed as a session/);
+  rev = mutate(rev, (r) => run.launched(r, { ticket: 108, handleKind: "session", handle: "local_w108" }));
+  const owner108 = run.readRecord(record).tickets[108].owner;
+  assert.deepEqual(owner108.steps.map((s) => `${s.step} ${s.state}`), ["create intent", "create confirmed", "handoff intent", "handoff requested", "adopt confirmed"]);
+  const running108 = { sessions: { local_w108: { state: "idle" } } };
+  assert.equal(actions(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }))[108], "deliver-brief");
+  const briefA = run.brief(run.readRecord(record), write("planA2.json", adoptedPlan()), 108, [], defaults);
+  assert.match(briefA, /not linked to the coordinator.*session local_a as a cross-session message/);
+  assert.match(briefA, /get_session on self/);
+  rev = mutate(rev, (r) => run.delivered(r, { ticket: 108 }));
+  assert.throws(() => mutate(rev, (r) => run.delivered(r, { ticket: 108 })), /already delivered/);
+  assert.equal(actions(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }))[108], "collect-report");
+  assert.doesNotMatch(run.brief(run.readRecord(record), p6File, 101, [], defaults), /cross-session message/, "a linked desktop writer reports by ending its turn");
+  // The CLI's answer is accepted only without error, with a session id and
+  // from the requested model.
+  assert.deepEqual(run.createOutcome({ status: 0, stdout: JSON.stringify({ is_error: false, session_id: sessionId, modelUsage: { "claude-opus-5-5": {} } }) }, "claude-opus-5-5"), { created: true, sessionId });
+  assert.match(run.createOutcome({ status: 0, stdout: JSON.stringify({ is_error: false, session_id: sessionId, modelUsage: { "claude-sonnet-5-5": {} } }) }, "claude-opus-5-5").reason, /answered with claude-sonnet-5-5/);
+  assert.match(run.createOutcome({ status: 1, stdout: JSON.stringify({ is_error: true, result: "Not logged in" }) }, "claude-opus-5-5").reason, /exited 1: Not logged in/);
+  assert.match(run.createOutcome({ error: new Error("ENOENT") }, "claude-opus-5-5").reason, /could not run: ENOENT/);
+
   // Adopting an existing PR records its writer without starting another and
   // carries the PR's started rounds into the brief.
   const p7File = write("plan7.json", plan());
@@ -270,7 +324,7 @@ try {
   const lock = `${record}.lock`;
   const self = processIdentity(process.pid);
   fs.writeFileSync(lock, JSON.stringify({ token: "x", identity: self }));
-  assert.throws(() => mutate(rev, () => {}), new RegExp(`Process ${process.pid} is updating`));
+  assert.throws(() => mutate(rev, () => {}), new RegExp(`Process ${process.pid} holds`));
   assert.throws(() => run.recoverLock(record), /still holds/);
   fs.writeFileSync(lock, JSON.stringify({ token: "x", identity: { pid: self.pid, start: "0" } }));
   assert.throws(() => mutate(rev, () => {}), /which has exited; run recover-lock/);
@@ -285,7 +339,7 @@ try {
   git(checkout, "worktree", "add", "-q", "-b", "fix/103-thing", wt103);
   const unlisted = plan({ record: widened(3), snapshot: { ...snapshot, tickets: snapshot.tickets.filter((t) => t.number !== 101) } });
   assert.equal(actions(unlisted)[101], "decision-needed", "a held writer outside the Feature is reported");
-  assert.equal(unlisted.concurrency.active, 3, "and still occupies capacity beside #104 and #110");
+  assert.equal(unlisted.concurrency.active, 4, "and still occupies capacity beside #104, #108 and #110");
   const p8File = write("plan8.json", plan({ record: widened(8) }));
   assert.throws(() => mutate(rev, (r) => run.claim(r, { plan: p8File, ticket: 103, worktree: wt103, branch: "fix/103-thing", artifactParent: artifacts })), /already exists; adopt/, "existing work is adopted, never claimed for a second writer");
   const wt109 = path.join(tmp, "wt-109");
@@ -353,6 +407,126 @@ try {
   assert.deepEqual(taken.record.previousCoordinators.map((c) => [c.session, c.record]), [["local_a", record]]);
   assert.throws(() => mutate(rev, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })), /this record no longer coordinates the Feature/);
   assert.equal(run.updateRecord(second, { expectRevision: 1, coordinator: "local_b" }, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })).record.revision, 2);
+
+  // Review regressions, each in a fresh scratch checkout and record.
+  const fresh = (name, feature = 300) => {
+    const dir = path.join(tmp, name);
+    fs.mkdirSync(path.join(dir, "artifacts"), { recursive: true });
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "artifacts", "run.json");
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", feature, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `Use orchestrate-feature for #${feature}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    let revision = 1;
+    const change = (fn) => { const out = run.updateRecord(file, { expectRevision: revision, coordinator: "local_r" }, fn); revision = out.record.revision; return out.output; };
+    return { dir, file, artifacts: path.join(dir, "artifacts"), change, revision: () => revision };
+  };
+  const snapshotOf = (feature, tickets) => ({ repository: "acme/widgets", feature: { number: feature, state: "open" }, originMain: "abc", tickets });
+  const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, turn: "user", freeBytes: 100 * GB, defaults, ...more });
+
+  // 1. A detached writer that outlives its wrapper still owns its ticket: it
+  // is live, cannot be released, and no replacement is offered.
+  {
+    const f = fresh("r1");
+    const snap = snapshotOf(300, [{ ...ticket(301), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [301])];
+    f.change((r) => run.claim(r, { plan: write("r1-plan.json", planOf(f, snap, { preflights: pre })), ticket: 301, worktree: path.join(f.dir, "wt-301"), branch: "fix/301-thing", artifactParent: f.artifacts }));
+    const stop = path.join(f.dir, "stop-301");
+    const owner = f.change((r) => run.launch(r, { ticket: 301, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--stop", stop], prompt })).owner;
+    started.push({ stop, pid: owner.handle.pid });
+    waitFor(() => fs.existsSync(path.join(owner.handle.launchDir, "out.jsonl")) && fs.statSync(path.join(owner.handle.launchDir, "out.jsonl")).size > 0, "the r1 writer to start");
+    process.kill(owner.handle.pid);
+    waitFor(() => { const now = processIdentity(owner.handle.pid); return !now || now.start !== owner.handle.start; }, "the r1 wrapper to exit");
+    const status = run.ownerStatus(owner);
+    assert.equal(status.status, "live", "the writer outlives its wrapper");
+    assert.match(status.reason, /still names launch directory/);
+    assert.throws(() => f.change((r) => run.release(r, { ticket: 301, observations: {} })), /writer is live/);
+    assert.equal(actions(planOf(f, snap, { preflights: pre }))[301], "observe", "no replacement is offered while the writer runs");
+    assert.equal(run.ownerStatus(owner, {}, { census: () => null }).status, "unknown", "a failed census proves nothing");
+    fs.writeFileSync(stop, "");
+    waitFor(() => run.ownerStatus(owner).status === "exited", "the r1 writer to exit");
+    f.change((r) => run.release(r, { ticket: 301, observations: {} }));
+  }
+
+  // 2. Takeovers and initializations are serialized on the pointer, and a
+  // takeover copies the previous record only while holding its lock.
+  {
+    const f = fresh("r2");
+    const pointerLock = `${run.pointerFile(f.dir, "acme/widgets", 300)}.lock`;
+    const takeover = () => run.initRecord({ record: path.join(f.artifacts, "c.json"), checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: "local_c", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    fs.writeFileSync(pointerLock, JSON.stringify({ token: "b", identity: processIdentity(process.pid) }));
+    assert.throws(takeover, new RegExp(`Process ${process.pid} holds .*pointer|Process ${process.pid} holds`), "a takeover in progress blocks another");
+    fs.unlinkSync(pointerLock);
+    fs.writeFileSync(`${f.file}.lock`, JSON.stringify({ token: "m", identity: processIdentity(process.pid) }));
+    assert.throws(takeover, /holds/, "a change in progress to the previous record blocks the copy");
+    fs.unlinkSync(`${f.file}.lock`);
+    assert.ok(!fs.existsSync(path.join(f.artifacts, "c.json")), "a refused takeover writes no record");
+    assert.equal(takeover().action, "takeover");
+    assert.throws(() => run.initRecord({ record: path.join(f.artifacts, "d.json"), checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: "local_d", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB }), /previous coordinator local_c is unknown/, "a stale view of the first coordinator cannot replace the second");
+  }
+
+  // 3. Lock recovery removes only the generation it judged, one recovery at a
+  // time, and a mutation never proceeds while a recovery marker exists.
+  {
+    const f = fresh("r3");
+    const lock = `${f.file}.lock`, self = processIdentity(process.pid);
+    fs.writeFileSync(lock, JSON.stringify({ token: "old", identity: { pid: self.pid, start: "0" } }));
+    assert.throws(() => run.recoverLock(f.file, { identify: () => { fs.writeFileSync(lock, JSON.stringify({ token: "new-live", identity: self })); return null; } }), /changed during recovery/);
+    assert.equal(JSON.parse(fs.readFileSync(lock, "utf8")).token, "new-live", "the new generation survives");
+    fs.unlinkSync(lock);
+    fs.writeFileSync(`${lock}.recovery`, "{}");
+    assert.throws(() => run.recoverLock(f.file), /Another recovery/);
+    assert.throws(() => f.change(() => {}), /Recovery of .* is in progress/);
+    assert.ok(!fs.existsSync(lock), "a refused mutation gives its lock back");
+    fs.unlinkSync(`${lock}.recovery`);
+  }
+
+  // 4. An ended writer's draft PR or worktree is continued by a new writer
+  // through a recorded claim that keeps the branch and the started rounds.
+  {
+    const f = fresh("r4");
+    const wt = path.join(f.dir, "wt-402");
+    fs.mkdirSync(wt);
+    const snap = snapshotOf(300, [{ ...ticket(401), parent: 300, prs: [{ number: 801, state: "OPEN", isDraft: true, branch: "fix/401-thing", head: "h1", rounds: 2 }] }, { ...ticket(402), parent: 300, worktrees: [{ path: wt, branch: "feat/402-thing", head: "h2" }] }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [401, 402])];
+    const planFile = write("r4-plan.json", planOf(f, snap, { preflights: pre }));
+    const entry = readJsonFile(planFile).tickets.find((t) => t.number === 401);
+    assert.deepEqual([entry.action, entry.continueWith.route, entry.rounds], ["adopt-pr", "claude-cli", 2]);
+    assert.throws(() => f.change((r) => run.claim(r, { plan: planFile, ticket: 401, worktree: path.join(f.dir, "wt-401"), branch: "fix/401-thing", artifactParent: f.artifacts, operation: "continue" })), /--evidence must say/);
+    assert.throws(() => f.change((r) => run.claim(r, { plan: planFile, ticket: 401, worktree: path.join(f.dir, "wt-401"), branch: "fix/401-other", artifactParent: f.artifacts, operation: "continue", evidence: "x" })), /existing branch fix\/401-thing/);
+    f.change((r) => run.claim(r, { plan: planFile, ticket: 401, worktree: path.join(f.dir, "wt-401"), branch: "fix/401-thing", artifactParent: f.artifacts, operation: "continue", evidence: "the previous writer's session is archived" }));
+    const pending = run.readRecord(f.file).tickets[401].pending;
+    assert.deepEqual([pending.operation, pending.route, pending.continues.pr, pending.continues.rounds], ["dispatch", "claude-cli", 801, 2]);
+    assert.match(run.brief(run.readRecord(f.file), planFile, 401, [], defaults), /checked out from the existing origin branch on branch fix\/401-thing and its PR #801, which has started 2 review rounds/);
+    const plan2 = write("r4-plan2.json", planOf(f, snap, { preflights: pre }));
+    assert.throws(() => f.change((r) => run.claim(r, { plan: plan2, ticket: 402, worktree: path.join(f.dir, "elsewhere"), branch: "feat/402-thing", artifactParent: f.artifacts, operation: "continue", evidence: "ended" })), /one the plan found for #402/);
+    f.change((r) => run.claim(r, { plan: plan2, ticket: 402, worktree: wt, branch: "feat/402-thing", artifactParent: f.artifacts, operation: "continue", evidence: "ended" }));
+    assert.match(run.brief(run.readRecord(f.file), plan2, 402, [], defaults), new RegExp(`Continue the existing work in ${wt.replace(/[\\.]/g, (c) => `\\${c}`)} on branch feat/402-thing`));
+  }
+
+  // 5. A ticket that becomes a container while its writer holds it keeps that
+  // writer's capacity.
+  {
+    const f = fresh("r5");
+    const held = { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" }, tickets: { 501: { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: "w", handle: { kind: "session", id: "local_w501" } }, pending: null, history: [], results: [] } } };
+    const snap = snapshotOf(300, [{ ...ticket(501), parent: 300, container: true }, { ...ticket(502), parent: 300 }]);
+    const p = run.planDispatch({ record: held, snapshot: snap, turn: "user", preflights: [available("claude-desktop", "claude-opus-5-5", [502])], observations: { sessions: { local_w501: { state: "running" } } }, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(p)[501], actions(p)[502], p.concurrency.active], ["decision-needed", "wait-capacity", 1]);
+    assert.match(p.tickets.find((t) => t.number === 501).reason, /gained sub-issues while writer local_w501 \(live\)/);
+  }
+
+  // 6. The snapshot reads sub-issues to GitHub's nesting limit, and marks a
+  // container beyond it instead of dispatching it.
+  {
+    const chain = (from, to) => Object.fromEntries(Array.from({ length: to - from }, (_, i) => [from + i, [{ number: from + i + 1, state: "open", title: `n${from + i + 1}` }]]));
+    const nested = (links) => ({ ...client, worktrees: () => [], pulls: () => [], blockedBy: () => [], subIssues: (n) => links[n] ?? [] });
+    const deep = run.takeSnapshot({ repository: "acme/widgets", feature: 600 }, nested(chain(600, 604)));
+    assert.deepEqual(deep.tickets.map((t) => [t.number, t.container]), [[601, true], [602, true], [603, true], [604, false]], "a leaf four levels down is a ticket");
+    const tooDeep = run.takeSnapshot({ repository: "acme/widgets", feature: 700 }, nested(chain(700, 700 + run.MAX_SUB_ISSUE_DEPTH + 1)));
+    const last = tooDeep.tickets.at(-1);
+    assert.deepEqual([last.container, last.truncated], [true, true]);
+    const f = fresh("r6", 700);
+    assert.equal(actions(planOf(f, tooDeep))[last.number], "decision-needed");
+  }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
   for (const { pid } of started) { try { waitFor(() => !processIdentity(pid), `stand-in ${pid} to exit`, 15000); } catch (error) { console.error(error.message); } }
