@@ -184,10 +184,10 @@ try {
   assert.ok(isRegistered(heldCheckout));
   // A local commit kept by a branch, by a tag alone, by a branch reflog alone
   // (the branch reset back to origin/main) or by a custom ref's reflog alone
-  // keeps the clone, as do an untracked file and a linked worktree of the
-  // clone's own. The tag and custom-ref commits are made with commit-tree, so
-  // no HEAD or branch reflog reaches them.
-  for (const state of ['untracked', 'committed', 'tagged', 'reflog', 'custom-reflog', 'linked']) {
+  // keeps the clone, as do an untracked file, a linked worktree of the clone's
+  // own and a paused `git am`. The tag and custom-ref commits are made with
+  // commit-tree, so no HEAD or branch reflog reaches them.
+  for (const state of ['untracked', 'committed', 'tagged', 'reflog', 'custom-reflog', 'linked', 'am']) {
     const fixture = job();
     const clone = probeClone(fixture.dir);
     const inClone = (...args) => { const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', ...args], { cwd: clone, windowsHide: true, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
@@ -204,11 +204,20 @@ try {
     }
     const external = path.join(scratch, `linked-${fixture.name}`);
     if (state === 'linked') inClone('worktree', 'add', '-q', '--detach', external, 'HEAD');
+    if (state === 'am') {
+      // A mail patch whose context does not apply leaves `git am` paused, its
+      // patch kept under the Git directory and the status clean.
+      const patch = ['From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001', 'From: Scratch <scratch@example.com>', 'Date: Mon, 12 Oct 2026 00:00:00 +0000', 'Subject: [PATCH] pending', '', '---', '', 'diff --git a/.gitignore b/.gitignore', '--- a/.gitignore', '+++ b/.gitignore', '@@ -1 +1 @@', '-not-the-content', '+pending-unique-work', '-- ', '2.40.1', ''].join('\n');
+      const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'am'], { cwd: clone, input: patch, windowsHide: true, encoding: 'utf8' });
+      assert.notEqual(r.status, 0, 'the fixture patch applied');
+      assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply')), r.stderr);
+    }
     const verdict = classifyJob(fixture.name, fixture.dir, deps, ctx);
     assert.equal(verdict.remove, false, `a ${state} probe clone was removable`);
-    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : state === 'linked' ? /has linked worktrees/ : /is not on origin\/main/);
+    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : state === 'linked' ? /has linked worktrees/ : state === 'am' ? /unfinished in it \(rebase-apply\)/ : /is not on origin\/main/);
     cleanJobs(ctx, deps, true, () => {});
     assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
+    if (state === 'am') assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply', 'patch')), 'the paused patch survives apply');
   }
   // A HEAD git cannot read keeps the clone, even when its branches are all merged.
   {

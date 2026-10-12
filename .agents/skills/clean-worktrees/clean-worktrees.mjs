@@ -1337,7 +1337,7 @@ function physicalPath(value, deps) {
 // origin/main: HEAD, every local branch, stash and other ref, every tag the
 // main checkout does not hold with the same object, and every commit the
 // reflogs of HEAD and every non-remote ref reach. A clone with a linked
-// worktree of its own is kept. A reviewer's probe clone of a merged PR passes;
+// worktree of its own, or with an unfinished Git operation, is kept. A reviewer's probe clone of a merged PR passes;
 // anything git cannot answer for, an unreadable HEAD included, is kept.
 function embeddedCloneReason(clone, deps, ctx) {
   const kept = (why) => `protected embedded Git repository ${clone} (${why})`;
@@ -1354,6 +1354,13 @@ function embeddedCloneReason(clone, deps, ctx) {
   const status = git(["status", "--porcelain", "--untracked-files=all"]);
   if (status.status !== 0) return kept(`git status could not be read${status.err ? `: ${status.err}` : ""}`);
   if (status.out) return kept("it has uncommitted or untracked files");
+  // An unfinished rebase, am, merge, bisect, cherry-pick or revert keeps its
+  // pending work in the Git directory, where status does not show it.
+  for (const name of [...IN_PROGRESS, "sequencer"]) {
+    const where = git(["rev-parse", "--git-path", name]);
+    if (where.status !== 0 || !where.out) return kept(`git could not locate its ${name} state${where.err ? `: ${where.err}` : ""}`);
+    if ((deps.exists ?? liveDeps.exists)(path.resolve(clone, where.out))) return kept(`a git operation is unfinished in it (${name})`);
+  }
   // A worktree the clone registered elsewhere shares its object database, so
   // removing the clone would take that checkout's repository with it.
   const linked = git(["worktree", "list", "--porcelain"]);
