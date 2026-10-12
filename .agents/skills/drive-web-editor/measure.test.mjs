@@ -132,7 +132,9 @@ await check("an accepted edit is timed from its compile's start to the first new
   assert.equal(sample.failure, undefined);
   assert.equal(sample.programVersion, 8);
   assert.equal(sample.ms, 680);
-  assert.equal(sample.keyToPainted, 900);
+  assert.equal(sample.msFromKey, 900);
+  assert.equal(sample.debounce, 220);
+  assert.equal(sample.msFromKey - sample.debounce, sample.ms);
   assert.deepEqual(sample.phases, { "player workspace compile": 400 });
   assert.match(attributeEditSample([key(100, "Enter"), state(1000, null, null, { programVersion: 8 })], 7, TARGET).failure, /no workspace compile/);
   assert.match(attributeEditSample([key(100, "Enter"), measure(320, 400, "player workspace compile x"), state(1000, null, null, { programVersion: 7 })], 7, TARGET).failure, /newer than version 7/);
@@ -145,6 +147,18 @@ await check("the summary counts failures and takes min, median and max over the 
   assert.deepEqual(summary.ms, { min: 100, median: 200, max: 300 });
   assert.deepEqual(summary.phases.a, { min: 0, median: 10, max: 30 });
   assert.equal(summarize([{ failure: "x" }]).ms, null);
+});
+
+await check("a mixed run summarizes each clock over the passing samples that carry it", () => {
+  const edit = (at) =>
+    attributeEditSample([key(100, "Enter"), measure(100 + at, 30, "player workspace compile x"), state(100 + at + 60, null, null, { programVersion: 8 })], 7, TARGET);
+  const summary = summarize([edit(200), edit(250), edit(220), { failure: "x", ms: 1, msFromKey: 1, debounce: 1 }, { ms: 90, keyToRequest: 4 }]);
+  assert.equal(summary.failures, 1);
+  assert.deepEqual(summary.ms, { min: 60, median: 60, max: 90 });
+  assert.deepEqual(summary.msFromKey, { min: 260, median: 280, max: 310 });
+  assert.deepEqual(summary.debounce, { min: 200, median: 220, max: 250 });
+  assert.deepEqual(summary.keyToRequest, { min: 4, median: 4, max: 4 });
+  assert.equal("debounce" in summarize([{ ms: 90, keyToRequest: 4 }]), false);
 });
 
 await check("measure names lose their document URI, and a replaced word is found between its neighbours", () => {
