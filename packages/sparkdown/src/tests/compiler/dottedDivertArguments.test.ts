@@ -35,7 +35,7 @@ const LINES = [
   "<- a.b(x, ",
   "-> a.b(1; 2)",
   "-> a.b(1 ; } 2) -> c",
-  "scene a\n  branch b\n    -> a.c(1, \"s\"\n  end\n  branch c(n, s)\n    done\n  end\nend",
+  "-> a.b(x + 1,\n  \"s\")\nAfter.",
 ];
 
 /** The names of a line's `DivertTarget` children, in order, for each
@@ -193,23 +193,68 @@ describe("text after a divert's one argument list is reported", () => {
   });
 });
 
-describe("a dotted target's unclosed argument list is reported on its line", () => {
-  // The list ends with its line, so the flows after it keep their shape:
-  // the only error is the missing `)`, not a scene or branch reported as
-  // missing its `end`.
+describe("a bracketed argument list spans lines in every spelling (#1655)", () => {
+  // The editor closes a `(` as it is typed, so a list written across lines
+  // reads to its `)` whether the target is relative or dotted. A dotted path
+  // itself stays on its line.
   test.each([
-    ["-> outer.second(1", "(1"],
-    ["-> outer.second(1, ", "(1, "],
-    ["<- outer.second(1", "(1"],
-    ["->-> outer.second(f(1)", "(f(1)"],
-  ])("%j reports %j as unclosed", (line, list) => {
-    expect(errorsOf(script(line))).toEqual([
-      {
-        message: "Expected `)` to close this divert's arguments before the end of its line.",
-        line: 2,
-        text: list,
-      },
+    "-> outer.second(\n      1\n    )",
+    "-> outer.second(1,\n      2)",
+    "-> second(1,\n      2)",
+    "<- outer.second(\n      1)",
+  ])("%j reports nothing", (line) => {
+    expect(errorsOf(script(line))).toEqual([]);
+  });
+
+  test("a multi-line dotted list holds its target's children", () => {
+    expect(targetShapes("-> a.b(x,\n  y)")).toEqual([
+      ["DivertPath", "DivertArguments"],
     ]);
+  });
+
+  test("a multi-line dotted list scopes the same in both engines", async () => {
+    const result = await compareEnginesFull("-> a.b(x + 1,\n  \"s\")\nAfter.\n");
+    expect(
+      result.divergences,
+      formatDivergences(result.source, result.divergences),
+    ).toEqual([]);
+  });
+
+  test("an unclosed dotted list diverges between engines nowhere a relative one does not", async () => {
+    // An unclosed list followed by more of the script scopes differently in
+    // the two engines for a relative call already. The dotted list also ends
+    // before the next `scene` or `branch` line, so it diverges only at
+    // characters where the relative spelling does (shifted by its two extra
+    // characters), and at fewer of them.
+    const shape = async (target: string, shift: number) =>
+      (
+        await compareEnginesFull(
+          `scene a\n  branch b\n    -> ${target}(1, "s"\n  end\n  branch c(n, s)\n    done\n  end\nend\n`,
+        )
+      ).divergences.map(({ offset, vscode, tree }) => ({
+        offset: offset - shift,
+        vscode,
+        tree,
+      }));
+    const dotted = (await shape("a.c", 2)).map(({ offset }) => offset);
+    const relative = (await shape("c", 0)).map(({ offset }) => offset);
+    expect(relative).toEqual(expect.arrayContaining(dotted));
+    expect(dotted.length).toBeLessThan(relative.length);
+  });
+
+  test("an unclosed dotted list reports what an unclosed relative one does", () => {
+    const at = (errors: ReturnType<typeof errorsOf>) =>
+      errors.map(({ message, line }) => ({ message, line }));
+    const dotted = errorsOf(script("-> outer.second(1, "));
+    const relative = errorsOf(script("-> second(1, "));
+    expect(relative.length).toBeGreaterThan(0);
+    expect(at(dotted)).toEqual(at(relative));
+  });
+
+  test("a dotted path with no arguments does not read the next line", () => {
+    expect(errorsOf(script("-> outer.\n    Story text."))).toEqual(
+      MAIN_DOTTED_PATH_ERRORS,
+    );
   });
 
   test.each([
@@ -224,39 +269,7 @@ describe("a dotted target's unclosed argument list is reported on its line", () 
       },
     ]);
   });
-
-  test("in the issue's scene and branches, the scene and its branches still close", () => {
-    const text = [
-      "-> outer.inner(1)",
-      "scene outer",
-      "  branch inner(a)",
-      "    -> outer.second(a + 1, \"b\"",
-      "  end",
-      "  branch second(n, s)",
-      "    Second {n} {s}.",
-      "    done",
-      "  end",
-      "end",
-      "",
-    ].join("\n");
-    expect(errorsOf(text)).toEqual([
-      {
-        message: "Expected `)` to close this divert's arguments before the end of its line.",
-        line: 3,
-        text: "(a + 1, \"b\"",
-      },
-    ]);
-  });
-
-  test("an argument list written across lines is reported on its first line", () => {
-    // A divert's arguments are written on its line, so a list broken across
-    // lines is reported where it opens rather than passing nothing silently.
-    expect(errorsOf(script("-> outer.second(\n      1\n    )"))).toEqual([
-      {
-        message: "Expected `)` to close this divert's arguments before the end of its line.",
-        line: 2,
-        text: "(",
-      },
-    ]);
-  });
 });
+
+/** What `-> outer.` followed by story text reports on main at bbc912833. */
+const MAIN_DOTTED_PATH_ERRORS: ReturnType<typeof errorsOf> = [];

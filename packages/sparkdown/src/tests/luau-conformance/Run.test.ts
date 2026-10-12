@@ -57,11 +57,9 @@ done
       { uri: "inmemory:///helpers.luau", text: luau },
     ]);
     expect(errs).toEqual([]);
-    expect(result.program.compiled).toBeTruthy();
+    expect(result.program.chunks).toBeTruthy();
 
-    const story = testStory(
-      result.program.compiled as Record<string, any>,
-    );
+    const story = testStory(result.program.chunks);
     const recorded: unknown[] = [];
     story.BindExternalFunction("harness_record", (v: unknown) => {
       recorded.push(v);

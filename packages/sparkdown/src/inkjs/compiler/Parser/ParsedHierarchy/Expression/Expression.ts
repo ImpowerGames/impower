@@ -1,33 +1,22 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { ParsedObject } from "../Object";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
 export abstract class Expression extends ParsedObject {
-  public abstract GenerateIntoContainer: (container: RuntimeContainer) => void;
-
   public outputWhenComplete: boolean = false;
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    const container = new RuntimeContainer();
+  protected override Prepare(): boolean {
+    this.PrepareIntoContainer();
+    return true;
+  }
 
-    // Tell Runtime to start evaluating the following content as an expression
-    container.AddContent(RuntimeControlCommand.EvalStart());
-
-    this.GenerateIntoContainer(container);
-
-    // Tell Runtime to output the result of the expression evaluation to the output stream
-    if (this.outputWhenComplete) {
-      container.AddContent(RuntimeControlCommand.EvalOutput());
-    }
-
-    // Tell Runtime to stop evaluating the content as an expression
-    container.AddContent(RuntimeControlCommand.EvalEnd());
-
-    return container;
-  };
+  /** The expression's preparation (`ParsedObject.prepare`), which its
+   *  parent calls directly: it is heard by no resolver tap and kept by
+   *  nothing, so it is prepared again each time it is asked. Each expression
+   *  says what its preparation does. */
+  public PrepareIntoContainer(): void {
+    throw new Error(`${this.typeName} has no preparation for the program path`);
+  }
 
   // (Constants used to be materialized here, once per reference site, by
   // copying a prototype of their runtime objects — each runtime object can

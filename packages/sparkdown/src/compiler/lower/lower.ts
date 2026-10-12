@@ -1,6 +1,7 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { AstStat, AstStatIf } from "../typecheck/Ast";
@@ -9,6 +10,8 @@ import type {
   LuauSyntaxError,
 } from "../typecheck/readLuauAst";
 import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
+import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import type { SparkdownNodeName } from "../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "./context";
 import {
@@ -75,13 +78,16 @@ import { lowerThread } from "./lowerers/lowerThread";
 import {
   headerLineRange,
   stampDebugMetadata,
+  statementBounds,
 } from "./utils/debugMetadata";
+import { CONSTRAINT_GENERATOR_RECURSION_LIMIT } from "../typecheck/ConstraintGenerator";
 import { offsetAt, readBlockAst } from "./utils/luauAst";
 import { forwardBlockDiagnostics } from "./utils/unwrapBlock";
 import {
   closeStatement,
   openStatement,
   type BodyShape,
+  type StatementShape,
 } from "./utils/statementShape";
 
 // Nodes whose lowerer returns a weave holding one control-flow statement (an
@@ -120,8 +126,8 @@ export function lower(
 
 /**
  * Stamps a statement's objects with the range `[from, to)` it was lowered
- * from, which `program.pathLocations` and the runtime's error positions
- * read.
+ * from, which the line rows of the statement's chunk and the runtime's error
+ * positions read.
  *
  * Trailing whitespace and newlines are clamped off the range, so a beat's
  * `endLineNumber` is its last VISIBLE content line, not a blank or the start
@@ -140,8 +146,8 @@ export function lower(
  * statement the range of its header line, so a diagnostic raised in its
  * condition, such as an unknown name, is reported on that line rather than
  * on the enclosing scene or branch. Only the header: the lines of its arms
- * own their own paths, and a range covering them would make
- * `program.pathLocations` resolve those lines to the statement instead.
+ * own their own addresses, and a range covering them would make those
+ * lines address the statement instead.
  */
 export function stampStatement(
   content: ParsedObject[],
@@ -150,12 +156,7 @@ export function stampStatement(
   rangeTo: number,
   ctx: LowerContext,
 ): void {
-  // value-level: the statement's isolated source range, trimming its trailing whitespace
-  const text = ctx.read(rangeFrom, rangeTo).replace(/\s+$/, "");
-  // value-level: the isolated statement text, measuring its indentation
-  const indentation = text.length - text.replace(/^[ \t]+/, "").length;
-  const from = rangeFrom + indentation;
-  const to = rangeFrom + text.length;
+  const { from, to } = statementBounds(rangeFrom, rangeTo, ctx);
   if (isBlockStatement) {
     const header = headerLineRange(from, to, ctx);
     for (const obj of content) {
@@ -325,6 +326,28 @@ export function lowerStatements(
   body?: BodyShape,
 ): ParsedObject[] {
   if (!parent) return [];
+  // Blocks nested past Luau's block recursion limit are not lowered: the
+  // checker reports `CodeTooComplex` at the block its limit is reached in
+  // (`ConstraintGenerator.visitBlockWithoutChildScope`, which counts every
+  // block and expression this counts and more), and the program is not
+  // run. The bound keeps the lowering's recursion, several frames per
+  // level, within the engine's stack whatever its size (#1688).
+  const depth = ctx.blockDepth ?? 0;
+  if (depth >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) return [];
+  ctx.blockDepth = depth + 1;
+  try {
+    return lowerBlockStatements(parent, ctx, skipNames, body);
+  } finally {
+    ctx.blockDepth = depth;
+  }
+}
+
+function lowerBlockStatements(
+  parent: SyntaxNode,
+  ctx: LowerContext,
+  skipNames: ReadonlySet<string>,
+  body: BodyShape | undefined,
+): ParsedObject[] {
   // The block is on the context's block stack while its statements lower:
   // what its `local`s hide is undone when it ends (`blockEndStack`). No
   // frame is added for it, since a block nests this function once per level.
@@ -454,13 +477,22 @@ export function lowerStatements(
           ...statements.flatMap((s) => s.nodes.map((n) => nodeIndex(n) ?? i)),
         );
         last = nodes[lastIndex]!;
-        const block = lowerLuauStatementsAt(
-          child,
-          statements,
-          { node: child, source: reading.source },
-          ctx,
-        );
-        if (block.content && statements.length === 1) {
+        const source = reading.source;
+        const lowerRead = (c: LowerContext) =>
+          lowerLuauStatementsAt(child, statements, { node: child, source }, c);
+        // Through the statement memo, as a statement lowered from its node
+        // is (`lowerBodyStatement`): its syntax runs over every node it reads.
+        const memo = shape ? ctx.statementMemo : undefined;
+        const block =
+          (memo
+            ? memo.lowerStatement(child as GrammarSyntaxNode<SparkdownNodeName>, ctx, shape!, lowerRead, last.to)
+            : undefined) ??
+          lowerRead(ctx);
+        if (
+          block.content &&
+          statements.length === 1 &&
+          !memoOf(block.content[0])
+        ) {
           const statement = statements[0]!;
           const range = statementRange(
             statement.statement,
@@ -493,7 +525,7 @@ export function lowerStatements(
           }
         }
       } else {
-        const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+        const block = lowerBodyStatement(child as GrammarSyntaxNode<SparkdownNodeName>, ctx, shape);
         if (block) appendBlockContent(result, block, ctx);
       }
     } finally {
@@ -510,6 +542,28 @@ export function lowerStatements(
   }
   ctx.blockEndStack?.pop()?.forEach((end) => end());
   return result;
+}
+
+/**
+ * Lowers a statement of a block's body that lowers from its own node, whose
+ * shape `shape` is open on the statement stack when shapes are recorded:
+ * through the statement memo of the node being lowered when the context
+ * has one, which serves the statement from its memo when the parse did not
+ * rebuild it and every read its last lowering made reads the same
+ * (`statementMemo.ts`, #656), and otherwise records what it reads.
+ */
+export function lowerBodyStatement(
+  child: GrammarSyntaxNode<SparkdownNodeName>,
+  ctx: LowerContext,
+  shape: StatementShape | undefined,
+): CompiledBlock | undefined {
+  const memo = ctx.statementMemo;
+  if (!memo || !shape) {
+    return lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+  }
+  return memo.lowerStatement(child, ctx, shape, (recorded) =>
+    lower(child as unknown as SparkdownSyntaxNodeRef, recorded),
+  );
 }
 
 // Unwraps a nested statement's block into `result`. The block's own

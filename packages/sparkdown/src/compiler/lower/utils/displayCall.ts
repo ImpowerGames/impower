@@ -16,7 +16,7 @@ import { stampDebugMetadata } from "./debugMetadata";
 // The name a display call's `group` carries. Lowering names the continuation
 // by its file and the offset its statement starts at, which is unique in the
 // story, and the compiler's synthetic-name pass renumbers every such name to
-// `__group_<n>` by document order before the program is generated. The
+// `__group$<n>` by document order before the program is generated. The
 // incremental compiler keeps the lowered calls of a line that did not change,
 // even when an edit above it moved the line, so only a name that does not
 // depend on the offset is the same in an incremental and a cold compile.

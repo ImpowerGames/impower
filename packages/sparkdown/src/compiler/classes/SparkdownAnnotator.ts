@@ -19,7 +19,7 @@ export abstract class SparkdownAnnotator<
   /**
    * URI of the document currently being annotated. Wired in so the
    * `CompilationAnnotator` can stamp `filePath` onto `DebugMetadata`,
-   * which lets inkjs's `ExportRuntime` diagnostics route back to the
+   * which lets the resolver's diagnostics route back to the
    * right URI in `program.diagnostics`.
    */
   uri?: string;

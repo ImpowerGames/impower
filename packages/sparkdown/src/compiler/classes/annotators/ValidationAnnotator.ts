@@ -1,6 +1,7 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { documentString } from "../../utils/documentString";
 import { Range, type Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
@@ -570,7 +571,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     const text = this.text;
     if (!text) return "";
     if (this.diagnosticDocument?.text !== text) {
-      this.diagnosticDocument = { text, source: text.toString() };
+      this.diagnosticDocument = { text, source: documentString(text) };
     }
     return this.diagnosticDocument.source;
   };

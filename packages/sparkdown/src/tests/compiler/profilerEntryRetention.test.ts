@@ -1,4 +1,3 @@
-import "../../inkjs/engine/Container";
 import { PerformanceObserver } from "node:perf_hooks";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

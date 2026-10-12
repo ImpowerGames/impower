@@ -12,7 +12,8 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // register Y in `story.variableDeclarations`. Without that
 // registration, `Divert.ResolveTargetContent` couldn't recognize Y
 // as a variable target. Worse, `ResolveTargetContent` runs early
-// (during `Divert.GenerateRuntimeObject`, before the resolve pass)
+// (during the divert's code generation, deleted in #705, before the
+// resolve pass)
 // so even adding the registration during `ResolveReferences` wasn't
 // enough on its own — the Divert also needs to retry resolution in
 // its own `ResolveReferences`.

@@ -6,15 +6,19 @@ import {
 import { scanAssetDirectives } from "../compiler/utils/scanAssetDirectives";
 import { CALL_TUNNEL, Op, flagsOf, opOf } from "./ProgramInstructions";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
-import { SymbolKind } from "./ProgramSymbols";
+import {
+  INCLUDED_FLOW_PREFIX,
+  ROOT_FLOW_NAME,
+  SymbolKind,
+} from "./ProgramSymbols";
 import {
   HEADER_WORDS,
   addressOf,
   blockCount,
   chunkId,
   codeWords,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /** Adds what `from` names to `into`, a record of the same beat, each name
  *  once and in the order the beat names them. */
@@ -39,8 +43,9 @@ const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
  * `program.sceneAssets` is built from it (`SparkdownCompiler.populateSceneAssets`):
  * the asset directives each beat writes, under the address of the beat's
  * `LineStart`, and the flows the flow's jumps, tunnels and calls leave for.
- * The current engine's program gathers the same from the walk of its runtime
- * tree that fills its path locations; a program of chunks has no such walk.
+ * Before #705 the current engine's program gathered the same from the walk
+ * of its runtime tree that filled its path locations; a program of chunks
+ * has no such walk.
  *
  * A top-level flow is the top-level content (`"0"`), a scene with its
  * branches, or a function, and each one's statements are read in the order
@@ -54,18 +59,22 @@ export const captureProgramAssets = (
   const strings = root.table.strings;
   const symbols = root.table.symbols;
   // The top-level flow a symbol's name stands in: its first segment, or the
-  // top-level content's.
+  // top-level content's, which an included script's top-level content and
+  // the label it jumps back to stand in too.
   const flowOfName = (name: string | undefined): string | undefined => {
     if (name === undefined) {
       return undefined;
     }
     const head = name.split(".")[0] ?? "";
-    return head === "" ? "0" : head;
+    return head === "" || head.startsWith(INCLUDED_FLOW_PREFIX) ? "0" : head;
   };
+  // The flows of included scripts' top-level content the walk has read,
+  // each where the flow that includes it runs it (`IncludeEntry`).
+  const includedRead = new Set<number>();
   // A chunk's code, and each of its bodies where the code enters it, so that
   // a choice's entry and its body come before the next choice's (round 2 of
   // the review of #1618); a body no instruction enters follows the code.
-  const visitChunk = (chunk: StatementChunk, capture: SceneAssetCapture) => {
+  const visitChunk = (chunk: ProgramChunk, capture: SceneAssetCapture) => {
     const id = chunkId(chunk);
     const words = codeWords(chunk);
     const visited = new Set<number>();
@@ -108,6 +117,15 @@ export const captureProgramAssets = (
           break;
         }
         case Op.JumpSym: {
+          // The content of an included script runs where the statement that
+          // jumps to it stands, so its beats are read there, in the order
+          // they run.
+          const included =
+            root.kindOf(arg) === SymbolKind.Root ? root.flow(arg) : undefined;
+          if (included && !includedRead.has(included.id)) {
+            includedRead.add(included.id);
+            visitSequence(included, capture);
+          }
           const target = flowOfName(symbols[arg]);
           if (target) {
             capture.edges.push({ target, call: false });
@@ -157,6 +175,13 @@ export const captureProgramAssets = (
   }
   for (const uri of uris) {
     for (const row of root.flows(uri)) {
+      if (
+        row.kind === SymbolKind.Root &&
+        symbols[row.flow] !== ROOT_FLOW_NAME
+      ) {
+        // An included script's top-level content, read where it runs.
+        continue;
+      }
       let symbol = row.flow;
       if (row.kind === SymbolKind.Branch) {
         const scene = root.parentOf(symbol);
@@ -183,8 +208,7 @@ export const captureProgramAssets = (
   for (const capture of captures.values()) {
     const keys = new Map<SceneBeat, [number, number, number]>();
     for (const beat of capture.beats) {
-      const at =
-        typeof beat.address === "number" ? root.locationOf(beat.address) : undefined;
+      const at = root.locationOf(beat.address);
       if (at && !scripts.has(at.uri)) {
         scripts.set(at.uri, scripts.size);
       }

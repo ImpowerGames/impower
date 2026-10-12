@@ -1,4 +1,3 @@
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Expression } from "../Expression/Expression";
 import { NumberExpression } from "../Expression/NumberExpression";
 import { StringExpression } from "../Expression/StringExpression";
@@ -67,9 +66,9 @@ export class StructPropertyDefinition extends ParsedObject {
     return undefined;
   };
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
+  protected override Prepare(): boolean {
     throw new Error("Not implemented.");
-  };
+  }
 
   public override readonly toString = (): string => this.identifier?.name!;
 }

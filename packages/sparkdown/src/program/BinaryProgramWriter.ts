@@ -1,7 +1,4 @@
-// Loads the engine's modules in the order that settles their import cycle
-// (see `CompilationAnnotator`).
-import "../inkjs/engine/Container";
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
+import type { ProgramTable } from "./ProgramTable";
 import {
   bodyOfBlock,
   choiceBodyOf,
@@ -12,9 +9,9 @@ import {
   loopOf,
   type LoopShape,
 } from "../compiler/lower/utils/statementShape";
-import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
+import type { DebugMetadata } from "../runtime/DebugMetadata";
 import { Choice } from "../inkjs/compiler/Parser/ParsedHierarchy/Choice";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { ControlCommand } from "../runtime/ControlCommand";
 import { Conditional } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import type { ConditionalSingleBranch } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -89,8 +86,8 @@ import {
   REFERENCE_ROW_WORDS,
   exportCount,
   exportSymbol,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /** One body of the statement being written: which body it is, the id of
  *  its sequence, and its lines. */
@@ -161,7 +158,7 @@ export interface DeclarationInput extends StatementInput {
 
 /** A statement the writer emitted. */
 export interface EmittedStatement {
-  chunk: StatementChunk;
+  chunk: ProgramChunk;
   /** The values the emission recorded with `recordRead`, in order. */
   reads: readonly string[];
   /** The resolutions the emission recorded with `recordResolution`,
@@ -224,8 +221,11 @@ interface BlockState {
 }
 
 // A name the compiler generates, which it numbers by document order
-// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`).
-const GENERATED_NAME = /^__synth_\d+$/;
+// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`). A chunk names such a
+// temporary by its own count (`__t$<n>`), so an edit that renumbers it
+// leaves the chunk as it was. Both forms hold a `$`, which no identifier can
+// contain, so an author's variable keeps its name whatever its shape.
+const GENERATED_NAME = /^__synth\$\d+$/;
 
 /**
  * `BinaryProgramWriter` emits a statement's chunk from the statement's parsed
@@ -256,6 +256,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _references = new Map<number, Map<string, string>>();
   protected _layout: string[] = [];
   protected _firstLine = 0;
+
+  /** The statement's source text, and its lines once a row asks for them. */
+  protected _source = "";
+  protected _sourceLines: string[] | undefined;
   protected _blocks: readonly BlockInput[] = [];
   protected _lineEnd: ((line: number) => number) | undefined;
   protected _blockStates: (BlockState | undefined)[] = [];
@@ -301,7 +305,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   /** A declaration statement's chunk: each global's initializer, then its
-   *  declaration as a global under the name the current engine's `global
+   *  declaration as a global under the name the object engine's `global
    *  decl` container assigns it. */
   writeDeclaration(input: DeclarationInput): EmittedStatement {
     this.begin(input);
@@ -323,6 +327,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._references = new Map();
     this._layout = [];
     this._firstLine = input.firstLine;
+    this._sourceLines = undefined;
+    this._source = input.source;
     this._blocks = input.blocks ?? [];
     this._lineEnd = input.lineEnd;
     this._blockStates = [];
@@ -681,19 +687,26 @@ export class BinaryProgramWriter implements ProgramEmitter {
       if (obj instanceof Choice) {
         // A choice is raised by the code of the `choose` block that offers
         // it. What follows a choice an `if` of the block's preamble gates in
-        // its branch, up to the next choice, is its body, which the current
+        // its branch, up to the next choice, is its body, which the deleted object
         // engine's weave nests in the choice, and then what the branch
         // closes (its scope), which closes here, where the branch ends, as
         // Luau closes a block's scope (`emitChoicePoint`).
         if (!this._choose) {
           this.unsupported(obj.typeName);
         }
+        // The body ends at the next choice, or at a `do` block or a loop
+        // whose body raises one, which is the statement's own code too
+        // (`inlineChoiceBranches`).
         let end = i + 1;
-        while (end < objects.length && !(objects[end] instanceof Choice)) {
+        while (
+          end < objects.length &&
+          !(objects[end] instanceof Choice) &&
+          !opensChoices(objects[end]!)
+        ) {
           end += 1;
         }
         // A label between two such choices makes the later one a choice the
-        // current engine raises only once the earlier is taken, which its
+        // object engine raised only once the earlier is taken, which its
         // weave reaches through the label.
         if (
           end < objects.length &&
@@ -1452,6 +1465,32 @@ export class BinaryProgramWriter implements ProgramEmitter {
     // the body changes no row.
     let end = range.endLineNumber - 1;
     let endColumn = Math.max(0, range.endCharacterNumber - 1);
+    // A range that takes its last line's break (a dialogue block's does)
+    // ends at the start of the next line, which holds none of it: it ends
+    // with the line before, as the object engine's locations did, so that a
+    // reader of the last line of a location (the preview's executed-line
+    // label and ranges, the editor's selection after STOP) reads the line
+    // the object engine gave it. That line's end was read from the script
+    // when the statement can read it (a block statement can, whose source
+    // has its bodies cut out), and otherwise from the statement's own
+    // source, which is whole and which its fingerprint hashes.
+    if (endColumn === 0 && end > start) {
+      end -= 1;
+      if (this._lineEnd) {
+        endColumn = this._lineEnd(end);
+      } else if (this._blocks.length === 0) {
+        const lines = (this._sourceLines ??= this._source.split("\n"));
+        const text = lines[end - this._firstLine];
+        // The first line of the source starts at the statement's column,
+        // which the source does not say, so it gives no column.
+        endColumn =
+          end === this._firstLine || text === undefined
+            ? 0
+            : text.replace(/\r$/, "").length;
+      } else {
+        endColumn = 0;
+      }
+    }
     for (const block of this._blocks) {
       const below = block.firstLine > start && block.firstLine <= end;
       const fromFirstLine =
@@ -1533,7 +1572,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return part >= 0 ? `function#${part}` : "function";
   }
 
-  protected assemble(input: StatementInput): StatementChunk {
+  protected assemble(input: StatementInput): ProgramChunk {
     const code = this._code;
     const rows = this._rows;
     // The rows after the last instruction cover nothing, except the first row
@@ -1618,6 +1657,16 @@ const raisesChoice = (obj: ParsedObject): boolean =>
   ((obj as { isChooseBlock?: boolean }).isChooseBlock !== true &&
     (obj.content ?? []).some(raisesChoice));
 
+/** Whether `obj` starts a `do` block (its `BeginScope`) or a loop (its first
+ *  object) whose body is the statement's own code and raises a choice of
+ *  the presentation (`inlinedBodies`). */
+const opensChoices = (obj: ParsedObject): boolean => {
+  const body = loopOf.get(obj)?.body ?? bodyOfBlock.get(obj);
+  return (
+    !!body && inlinedBodies.has(body) && heldObjectsOf(body).some(raisesChoice)
+  );
+};
+
 /** A multiple assignment's targets: its values unpacked to as many as it
  *  has targets, and each target assigned in order, the first first, as its
  *  own assignment records it. */
@@ -1688,21 +1737,309 @@ export const NO_FACTS = factHash("");
 const numberText = (value: number): string =>
   Object.is(value, -0) ? "-0" : String(value);
 
-/** The source a fingerprint hashes: each line trimmed, and blank lines left
- *  out, so that re-indenting a statement keeps its fingerprint. */
-export const normalizeSource = (source: string): string =>
-  source
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join("\n");
+/** The source a fingerprint hashes (docs/engine/binary-program.md, section
+ *  1): comments removed, each line trimmed, blank lines left out, and in a
+ *  line of logic the spacing between tokens dropped, with the text of a
+ *  string and of a displayed line left as written. So re-indenting a
+ *  statement, editing a comment or changing the spacing between its tokens
+ *  keeps its fingerprint, and an edit inside a string or a displayed line
+ *  does not.
+ *
+ *  A line is logic when it starts with `&`, with a comment, or with a
+ *  keyword of the language's logic (`LOGIC_LINE`); its comments are Luau's,
+ *  `--` to the end of the line and `--[[ ]]` across lines. Whitespace
+ *  between two tokens is kept, as one space, only where dropping it would
+ *  join them into other tokens: two words (`local x`), or two operators
+ *  that read together as another (`- -` against `--`, `. .` against `..`;
+ *  `JOINED`). A string, a template string with its interpolations, a regex
+ *  literal (`@/ /`) and a long string (`[[ ]]`, `[=[ ]=]`) are kept as
+ *  written, whose text may hold a `--` (`endOfString`). Any other line is
+ *  displayed text (a line of narration or dialogue, a choice's line), whose
+ *  comment is a `//` that starts the line or follows whitespace and is
+ *  followed by whitespace or the line's end, outside its interpolations,
+ *  which are Luau (`endOfLuau`), as the grammar reads one
+ *  (`SparkdownInlineComment`); `--` there is text. Every line of a
+ *  statement whose first line is logic, but for a menu (`choose`, whose
+ *  choices are displayed lines), is logic, so a field of a `define`'s body
+ *  or a line a table literal runs on reads as the logic it is, where `//`
+ *  is Luau's floor division.
+ *
+ *  The statement is read as one text, as the grammar reads it: a token
+ *  that runs on past its line's end (a long string or a block comment, a
+ *  string continued by `\z` or by an escaped line end, an interpolation)
+ *  takes the lines it runs over into the line it starts on, kept as
+ *  written, and the line it ends on is read on in the same way. */
+export const normalizeSource = (source: string): string => {
+  const s = source.replace(/\r\n/g, "\n").replace(/\r$/, "");
+  const out: string[] = [];
+  // A statement of logic but a menu is logic throughout: the fields of a
+  // `define`'s body and the lines a table literal runs on start with no
+  // mark of their own.
+  const first = s.split("\n").find((line) => line.trim().length > 0)?.trimStart() ?? "";
+  const logic = LOGIC_STATEMENT.test(first);
+  let i = 0;
+  while (i < s.length) {
+    const eol = s.indexOf("\n", i);
+    const line = s.slice(i, eol < 0 ? s.length : eol);
+    const read =
+      logic || LOGIC_LINE.test(line.trimStart()) ? logicLine(s, i) : displayLine(s, i);
+    if (read.text.length > 0) {
+      out.push(read.text);
+    }
+    i = read.next;
+  }
+  return out.join("\n");
+};
+
+// The end of the physical line `i` is on: the index of its line end, or
+// the text's end.
+const lineEndFrom = (s: string, i: number): number => {
+  const eol = s.indexOf("\n", i);
+  return eol < 0 ? s.length : eol;
+};
+
+/** A displayed line from `i` of `s` without its comment, trimmed, and
+ *  where the next line starts. An interpolation that runs past the line
+ *  takes the lines it runs over; one that never closes keeps the rest of
+ *  its line as written.
+ *
+ *  The comment is dropped only where nothing before it, outside the
+ *  line's interpolations, is markup whose text a `//` may be part of: a
+ *  raw span (`` ` ` ``), styling, an escape, a parenthetical, a tag, a
+ *  command, an alternator, a break. Before any character but a letter, a
+ *  digit, whitespace or plain punctuation (`PLAIN_TEXT`), the line is
+ *  kept as written to its end, comment and all, so that two lines whose
+ *  text differs never read as one; editing such a line's comment changes
+ *  its fingerprint, which places it as an edited statement. */
+const displayLine = (s: string, i: number): { text: string; next: number } => {
+  const start = i;
+  let plain = true;
+  while (i < s.length && s[i] !== "\n") {
+    const c = s[i]!;
+    if (c === "{") {
+      const end = endOfLuau(s, i + 1);
+      if (end < 0) {
+        const eol = lineEndFrom(s, i);
+        return { text: s.slice(start, eol).trim(), next: eol + 1 };
+      }
+      i = end;
+      continue;
+    }
+    if (
+      plain &&
+      c === "/" &&
+      s[i + 1] === "/" &&
+      (i === start || /\s/.test(s[i - 1]!)) &&
+      (i + 2 >= s.length || /\s/.test(s[i + 2]!))
+    ) {
+      return { text: s.slice(start, i).trim(), next: lineEndFrom(s, i) + 1 };
+    }
+    if (!PLAIN_TEXT.test(c)) {
+      plain = false;
+    }
+    i += 1;
+  }
+  return { text: s.slice(start, i).trim(), next: i + 1 };
+};
+
+/** A character of a displayed line that is text and nothing else: a
+ *  letter, a digit, whitespace, or punctuation no markup of the grammar's
+ *  display text starts or ends with. */
+const PLAIN_TEXT = /^[\p{L}\p{N}\p{Zs}\t.,!?;:'"‘’“”…–—/-]$/u;
+
+/** A line of logic from `i` of `s`, its comments dropped and its spacing
+ *  between tokens dropped but where two tokens would join, and where the
+ *  next line starts. A token that never closes keeps the rest of its line
+ *  as written, or, for a long string, the rest of the statement. */
+const logicLine = (s: string, i: number): { text: string; next: number } => {
+  let text = "";
+  // Whitespace seen since the last token, written as one space only where
+  // the next token would otherwise join the last one.
+  let spaced = false;
+  const emit = (piece: string) => {
+    if (spaced && text.length > 0 && keepsSpace(text[text.length - 1]!, piece[0]!)) {
+      text += " ";
+    }
+    spaced = false;
+    text += piece;
+  };
+  while (i < s.length && s[i] !== "\n") {
+    const c = s[i]!;
+    const string = endOfString(s, i);
+    if (string !== i) {
+      const end = string < 0 ? lineEndFrom(s, i) : string;
+      emit(s.slice(i, end));
+      i = end;
+      continue;
+    }
+    const comment = c === "-" && s[i + 1] === "-";
+    const long = comment || c === "[" ? longBracketAt(s, comment ? i + 2 : i) : null;
+    if (long) {
+      const from = i + (comment ? 2 : 0) + long[0].length;
+      const close = s.indexOf(`]${long[1]}]`, from);
+      const end = close < 0 ? s.length : close + long[1]!.length + 2;
+      if (comment) {
+        // A block comment separates the tokens around it.
+        spaced = true;
+      } else {
+        emit(s.slice(i, end));
+      }
+      i = end;
+      continue;
+    }
+    if (comment) {
+      i = lineEndFrom(s, i);
+      break;
+    }
+    if (/\s/.test(c)) {
+      while (i < s.length && s[i] !== "\n" && /\s/.test(s[i]!)) i += 1;
+      spaced = true;
+      continue;
+    }
+    emit(c);
+    i += 1;
+  }
+  return { text, next: i + 1 };
+};
+
+/** Whether the space between two tokens, the one ending in `before` and
+ *  the one starting with `after`, is kept: between two words, and between
+ *  two operators that would otherwise read as another. */
+const keepsSpace = (before: string, after: string): boolean =>
+  (WORD.test(before) && WORD.test(after)) || JOINED.has(before + after);
+
+const WORD = /[\p{L}\p{N}_]/u;
+
+/** The pairs of operator characters that read as another token when
+ *  written together. */
+const JOINED = new Set([
+  "--", "..", "==", "<=", ">=", "~=", "//", "::", "[[", "]]", "[=", "=]",
+  "->", "<-", "+=", "-=", "*=", "/=", "%=", "^=", "=>", "!=", "&&", "||",
+  "<<", ">>",
+]);
+
+/** A line of logic: one that starts with `&`, with a Luau comment, or with
+ *  a keyword of the language's logic, a declaration or a block statement's
+ *  own part. */
+const LOGIC_LINE =
+  /^(?:&|--|(?:if|elseif|else|end|while|for|repeat|until|do|local|function|return|break|continue|store|const|define|choose|then|match|case|type|export)(?![\w]))/;
+
+/** The first line of a statement that is logic throughout: a line of
+ *  logic but a comment, which starts no statement, or a menu. */
+const LOGIC_STATEMENT =
+  /^(?:&|(?:if|elseif|else|end|while|for|repeat|until|do|local|function|return|break|continue|store|const|define|then|match|case|type|export)(?![\w]))/;
+
+/** Where the Luau of an interpolation that runs from `i` of `s` ends: just
+ *  after the `}` that closes it, or -1 when the statement ends first. It
+ *  may run over lines, as the grammar reads one. A `//` in it is an
+ *  operator, a brace opens or closes a table, a token whose text may hold
+ *  a brace, a `//` or a `--` is read whole (`endOfString`, a long string or
+ *  a block comment), and a line comment runs to its line's end. An
+ *  interpolation of a `"` string also ends, before it, at a `"` outside its
+ *  tables (`stop`), as the grammar reads one
+ *  (`LuauDoubleQuotedStringInterpolation`). */
+const endOfLuau = (s: string, i: number, stop?: string): number => {
+  let depth = 0;
+  while (i < s.length) {
+    const c = s[i]!;
+    if (c === stop && depth === 0) {
+      return i;
+    }
+    if (c === "}") {
+      if (depth === 0) {
+        return i + 1;
+      }
+      depth -= 1;
+      i += 1;
+      continue;
+    }
+    if (c === "{") {
+      depth += 1;
+      i += 1;
+      continue;
+    }
+    const comment = c === "-" && s[i + 1] === "-";
+    const long = comment || c === "[" ? longBracketAt(s, comment ? i + 2 : i) : null;
+    if (long) {
+      const close = s.indexOf(`]${long[1]}]`, i + (comment ? 2 : 0) + long[0].length);
+      if (close < 0) {
+        return -1;
+      }
+      i = close + long[1]!.length + 2;
+      continue;
+    }
+    if (comment) {
+      const eol = s.indexOf("\n", i);
+      if (eol < 0) {
+        return -1;
+      }
+      i = eol + 1;
+      continue;
+    }
+    const string = endOfString(s, i);
+    if (string < 0) {
+      return -1;
+    }
+    i = string > i ? string : i + 1;
+  }
+  return -1;
+};
+
+/** Where a string or a regex literal that starts at `i` of `s` ends: just
+ *  after its close; `i` itself when none starts there, or -1 when its line
+ *  ends first. A `'` string runs to its next unescaped quote, a `"` string
+ *  or a template string (`` ` ``) past its interpolations (`endOfLuau`; a
+ *  template's may hold templates of its own), and a regex literal (`@/ /`)
+ *  to its first unescaped `/`. A string runs on over a line end that an
+ *  escape continues: a backslash before the line end, or `\z`, which skips
+ *  the whitespace after it, line ends included. */
+const endOfString = (s: string, i: number): number => {
+  const c = s[i]!;
+  const regex = c === "@" && s[i + 1] === "/";
+  if (c !== '"' && c !== "'" && c !== "`" && !regex) {
+    return i;
+  }
+  const close = regex ? "/" : c;
+  let j = i + (regex ? 2 : 1);
+  while (j < s.length && s[j] !== close) {
+    const d = s[j]!;
+    if (d === "\n") {
+      return -1;
+    }
+    if (d === "\\") {
+      j += 2;
+      if (!regex && s[j - 1] === "z") {
+        while (j < s.length && /\s/.test(s[j]!)) j += 1;
+      }
+    } else if ((c === "`" || c === '"') && d === "{") {
+      j = endOfLuau(s, j + 1, c === '"' ? c : undefined);
+      if (j < 0) {
+        return -1;
+      }
+    } else {
+      j += 1;
+    }
+  }
+  return j < s.length ? j + 1 : -1;
+};
+
+/** The Luau long bracket that opens at `i` of `s` (`[[`, `[=[` and so on,
+ *  with any number of `=`), as its opener and its `=`, or nothing. */
+const longBracketAt = (s: string, i: number): [string, string] | null => {
+  if (s[i] !== "[") {
+    return null;
+  }
+  let j = i + 1;
+  while (s[j] === "=") j += 1;
+  return s[j] === "[" ? [s.slice(i, j + 1), s.slice(i + 1, j)] : null;
+};
 
 /** One instruction of `chunk`'s code as text, for a listing or a test. A
  *  symbol reads as its qualified name; an anonymous one that the chunk
  *  exports as `function#<k>`, its export row, and another as `symbolName`
  *  describes it, or as `function`. */
 export const describeInstruction = (
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
   offset: number,
   table: ProgramTable,
   symbolName?: (symbol: number) => string,

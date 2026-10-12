@@ -6,8 +6,8 @@
 // the body they stand below, and where a body starts is the root's to derive,
 // so an edit above a statement changes neither its chunk nor its line table
 // and `locationOf` of its address moves with the lines inserted.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
+import { programLocator } from "../../compiler/utils/programLocator";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { Op } from "../../program/ProgramInstructions";
@@ -17,8 +17,8 @@ import {
   chunkId,
   chunkOfAddress,
   offsetOfAddress,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   MAIN_URI,
   compileScript,
@@ -40,9 +40,9 @@ const quiet = <T>(run: () => T): T => {
 };
 
 const rootOf = (text: string): ProgramRoot => {
-  const { program } = quiet(() => compileScript(text, { programChunks: true }));
+  const { program } = quiet(() => compileScript(text));
   if (!program.chunks) {
-    throw new Error(`falls back: ${JSON.stringify(program.fallback)}`);
+    throw new Error(`no chunks: ${JSON.stringify(program.diagnostics)}`);
   }
   return program.chunks;
 };
@@ -69,8 +69,8 @@ const at = (root: ProgramRoot, address: number) => {
 };
 
 /** Every chunk a root holds, flow after flow, bodies after their owner. */
-const chunksOf = (root: ProgramRoot): StatementChunk[] => {
-  const out: StatementChunk[] = [];
+const chunksOf = (root: ProgramRoot): ProgramChunk[] => {
+  const out: ProgramChunk[] = [];
   const walk = (row: SequenceRow | undefined) => {
     for (const chunk of row?.arrays.chunks ?? []) {
       out.push(chunk);
@@ -148,6 +148,66 @@ describe("the address of a beat", () => {
       endColumn: "  Bunny waits.".length,
     });
     expect(root.locationOf(address + 2 ** 21 * 1000)).toBeUndefined();
+  });
+
+  // A dialogue block's range takes its last line's break, so it ends at the
+  // start of the line below. Its location ends with the line before, on the
+  // line the current engine's ends on, which is the line a reader of a
+  // location's end (the preview's executed-line label and ranges, the
+  // editor's selection after STOP) shows (#703).
+  it("ends on the line the current engine's location of the line ends on", () => {
+    const current = programLocator(quiet(() => compileScript(text)).program);
+    const lines = text.split("\n").length;
+    const program = programLocator(quiet(() => compileScript(text)).program);
+    const ends = (locator: typeof current) =>
+      Array.from({ length: lines }, (_, line) => {
+        const address = locator.addressAt(MAIN_URI, line, { beat: "last" });
+        const location = address == null ? undefined : locator.locationOf(address);
+        return location ? [location.endLine, location.endColumn] : null;
+      });
+    const first = lineOf(text, "RAFFLES:");
+    const last = lineOf(text, "Three > Four.");
+    // The scene's header is the program engine's first beat (section 8),
+    // so the lines compared are the beats'.
+    expect(ends(program).slice(first, last + 1)).toEqual(ends(current).slice(first, last + 1));
+    const dialogue = root.addressAt(MAIN_URI, lineOf(text, "_Do you understand_?"))!;
+    expect(root.locationOf(dialogue)?.endLine).toBe(lineOf(text, "_Do you understand_?") + 1);
+  });
+
+  // The same inside the bodies of a block statement and after them, whose
+  // source has its bodies cut out, with the script's lines ended by CRLF.
+  it("ends on the current engine's line inside and after a block's bodies", () => {
+    const blockText = [
+      "store x = true",
+      "scene A",
+      "  if x then",
+      "    HERO:",
+      "      Inside the branch.",
+      "",
+      "  else",
+      "    HERO:",
+      "      Inside the other.",
+      "",
+      "  end",
+      "  HERO:",
+      "    After the block.",
+      "",
+      "  The end.",
+      "end",
+      "",
+    ].join("\r\n");
+    const current = programLocator(quiet(() => compileScript(blockText)).program);
+    const program = programLocator(
+      quiet(() => compileScript(blockText)).program,
+    );
+    const end = (locator: typeof current, needle: string) => {
+      const address = locator.addressAt(MAIN_URI, lineOf(blockText, needle), { beat: "last" });
+      const location = address == null ? undefined : locator.locationOf(address);
+      return location ? [location.endLine, location.endColumn] : null;
+    };
+    for (const needle of ["Inside the branch.", "Inside the other.", "After the block.", "The end."]) {
+      expect(end(program, needle), needle).toEqual(end(current, needle));
+    }
   });
 });
 
@@ -315,12 +375,12 @@ describe("two scripts with a statement on the same line", () => {
     [CHAPTER]: ["", "", "scene B", "  Bunny arrives.", "end", "", "scene C", "  Later.", "end", ""].join("\n"),
   };
   const { program } = quiet(() =>
-    programCompiler(texts, { programChunks: true }).compile(MAIN),
+    programCompiler(texts).compile(MAIN),
   );
   const root = program.chunks!;
 
   it("compiles to statement chunks", () => {
-    expect(program.fallback).toBeUndefined();
+    expect(program.chunks).toBeDefined();
     expect(root).toBeDefined();
   });
 

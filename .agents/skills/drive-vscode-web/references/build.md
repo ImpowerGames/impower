@@ -4,12 +4,37 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 1. Build the extension
 
+Start with the full runtime build, about a minute on the development machine:
+
 ```bash
 cd vscode-sparkdown && npm run build
 ```
 
-About a minute here (49 s measured), once per worktree; after that the driver's own refusals name the shorter steps below. For an open `.sd` editor the served workbench loads `vscode-sparkdown/out/extension.js` (the extension bundle), `out/workers/sparkdown-language-server.js` (the language server every diagnostic and hover comes from, copied by `node scripts/esbuild.ts` from `packages/sparkdown-language-server/dist`, which only that package's own build rewrites) and `out/data/*` (copies of the files under `data/`). A launch and every `verify` refuse to go on while any of those is missing or older than a source that feeds it: `vscode-sparkdown/src/` and `vscode-sparkdown/language/` feed the extension bundle (the bundle takes the language configuration in by value), `data/` its copies, and `packages/*/src/` and `packages/*/language/` both bundles, since the bundles resolve the workspace packages by source and the compiler takes the grammar JSON in by value (tests, snapshots, `node_modules`, `dist` and `out` excepted), so `npm run language` under `definitions/` makes both stale. The message names the artifact, the newer source and the steps that rebuild it, so a screenshot is always of a build that includes the change; the report's `build` names the older of the two bundles and when it was written (the copies under `out/data` are checked too, but a copy carries its source's time and dates nothing). The webview bundles, the other workers and the rest of `out/data` (codicons, the player's types) are not watched, because the driver cannot show a webview, a command or an export. A source file touched but not changed (`git checkout`, a redgreen restore) does not refuse: whenever a build is accepted with no source newer than its artifacts, the driver stamps the artifacts and the content of every source into `out/.drive-vscode-web-build.json`, and a newer file whose content is what was stamped, with the stamped artifacts still in place, is the build's own. A source deleted or added since the stamp refuses, whatever the artifacts are, unless every artifact it feeds was written after the directory the entry changed in (the system writes a directory's time whenever an entry is added or removed), which is what the steps the refusal names do; the stamp is never rewritten over such a gap. An artifact rebuilt on its own while another is older than a touched file refuses too, and the full steps clear it. `package.json` is read by the workbench as it is and needs no build. The build log ends with `Error: Compiled with errors` from `dts-bundle-generator` in the `spark-web-player` step and `no type bundle produced; skipping post-process`; that type bundle is not part of the extension and the command exits 0.
+The optional `spark-web-player` declaration generator can report unresolved imports, finish with `Error: Compiled with errors` and `no type bundle produced; skipping post-process`, and leave the build command's exit status at 0. The runtime outputs do not require that type bundle; the extension handles an absent `spark.d.ts` separately.
 
-A change under `vscode-sparkdown/src/`, `vscode-sparkdown/language/` or `data/` alone needs only `cd vscode-sparkdown && node scripts/esbuild.ts` (5 s here); a change under `packages/` needs `cd vscode-sparkdown && npm run build:sparkdown-language-server && node scripts/esbuild.ts` (9 s here for both), which rebuilds the language server bundle and then the extension bundle with it. The refusal names exactly the steps for the artifacts it found stale, in the order they run. After those steps `out/` is no longer a full build: `out/workers/sparkdown-screenplay-pdf.js` and the webview bundles stay as they were, which matters to a session that then packages the extension or tests an export, and `npm run build` brings them up.
+The driver checks the artifacts for the selected surface:
 
----
+| Surface | Required artifacts |
+| --- | --- |
+| Served `up` and ordinary `verify` | `out/extension.js`, `out/workers/sparkdown-language-server.js`, copies of `data/*` |
+| `desktop --mode full`, F5 after its task, and served `verify --debug` | The editor artifacts, PDF worker and all four webviews, including the player and its embedded workers |
+
+For the served editor, `vscode-sparkdown/src/`, `language/` and `data/` feed the extension output; `packages/*/src/` and `packages/*/language/` feed the extension and language-server bundles because workspace imports resolve to source. Tests, snapshots, `node_modules`, `dist` and `out` are excluded. Regenerating language definitions makes their consuming bundles stale. `package.json` is read directly by the workbench.
+
+Complete-runtime checks additionally include package and extension build inputs and webview sources. Package and extension `tsconfig.json` files are inputs too: esbuild discovers them when compiling bundled TypeScript, and JSX or class-field settings can change runtime bytes without a source edit. Webview configs are already included through their source directories. An editor-only rebuild cannot verify Game Preview. The F5 task builds and watches both workers and all four webviews before starting the extension copier; it does not require the optional declaration bundle. See [desktop scenarios](desktop.md) for missing-output and source-propagation verification.
+
+A missing or stale artifact refuses launch/verification and names the outputs, sources and ordered rebuild steps. A source touched without changing its content, such as a red/green restore, may be accepted against the build's recorded hashes. A newly accepted build records artifact and source content in `out/.drive-vscode-web-build.json`, or the separate `.drive-vscode-desktop-build.json` for complete-runtime checks. A newer source must still match the stamp, and every stamped artifact must remain unchanged. A source added or deleted since that stamp refuses even with an old timestamp, unless all consuming outputs were rebuilt after the directory changed. The stamp is not rewritten over a source-set gap. `build` in the report names the oldest required runtime bundle, not a copied data file's timestamp.
+
+For changes confined to `vscode-sparkdown/src/`, `language/` or `data/`, the served editor can use:
+
+```bash
+cd vscode-sparkdown && node scripts/esbuild.ts
+```
+
+For shared-package changes, the served editor can use:
+
+```bash
+cd vscode-sparkdown && npm run build:sparkdown-language-server && node scripts/esbuild.ts
+```
+
+These narrower steps leave the PDF worker and webviews untouched. Run the full build before Game Preview, debugging, packaging or export verification when their inputs changed. Prefer the driver's refusal text for the exact required rebuild steps.

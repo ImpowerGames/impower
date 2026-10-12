@@ -16,7 +16,7 @@ import {
   executeLuaPattern,
   luaPatternToJs,
   LuaPatternError,
-} from "../../inkjs/engine/LuaPatterns";
+} from "../../runtime/LuaPatterns";
 import {
   fengariFind,
   fengariGmatch,

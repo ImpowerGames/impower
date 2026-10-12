@@ -14,6 +14,7 @@
 //     search that found no route leaves the previous start point's checkpoints
 //     in place.
 
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import { describe, expect, test } from "vitest";
 import { RouteSearchLog } from "../main/workers/RouteSearchLog";
@@ -26,7 +27,7 @@ describe("reporting why a route search did not get there (#379)", () => {
   test("a replay that fell short reports its reason even though it names no address", () => {
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       programId: "PROGRAM_V7",
       reachedTarget: false,
       checkpoint: "STATE_PARTWAY_ALONG",
@@ -35,10 +36,10 @@ describe("reporting why a route search did not get there (#379)", () => {
 
     const params: {
       checkpoint?: string;
-      simulatedAddress?: string | null;
+      simulatedAddress?: ProgramAddress | null;
       simulationFailure?: SimulationFailure;
     } = {};
-    log.report(params, "main.3");
+    log.report(params, 3);
 
     // Not a definite answer, so nothing to reuse...
     expect(params.simulatedAddress).toBeUndefined();
@@ -49,7 +50,7 @@ describe("reporting why a route search did not get there (#379)", () => {
   test("a search that found no route reports both the verdict and the reason", () => {
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       programId: "PROGRAM_V7",
       reachedTarget: false,
       simulationFailure: "exhausted",
@@ -57,19 +58,19 @@ describe("reporting why a route search did not get there (#379)", () => {
 
     const params: {
       checkpoint?: string;
-      simulatedAddress?: string | null;
+      simulatedAddress?: ProgramAddress | null;
       simulationFailure?: SimulationFailure;
     } = {};
-    log.report(params, "main.3");
+    log.report(params, 3);
 
-    expect(params.simulatedAddress).toBe("main.3");
+    expect(params.simulatedAddress).toBe(3);
     expect(params.simulationFailure).toBe("exhausted");
   });
 
   test("a search that got there reports no reason at all", () => {
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       programId: "PROGRAM_V7",
       reachedTarget: true,
       checkpoint: "STATE_AT_MAIN_3",
@@ -79,7 +80,7 @@ describe("reporting why a route search did not get there (#379)", () => {
       checkpoint?: string;
       simulationFailure?: SimulationFailure;
     } = {};
-    log.report(params, "main.3");
+    log.report(params, 3);
 
     expect(params.simulationFailure).toBeUndefined();
   });
@@ -90,14 +91,14 @@ describe("reporting why a route search did not get there (#379)", () => {
     // explained by what went wrong on a different one.
     const log = new RouteSearchLog();
     log.record({
-      address: "main.9",
+      address: 9,
       programId: "PROGRAM_V7",
       reachedTarget: false,
       simulationFailure: "timeout",
     });
 
     const params: { simulationFailure?: SimulationFailure } = {};
-    log.report(params, "main.3");
+    log.report(params, 3);
 
     expect(params.simulationFailure).toBeUndefined();
   });
@@ -107,7 +108,7 @@ describe("reporting what a route search established", () => {
   test("a replay that reached its target reports the address and the state there", () => {
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       programId: "PROGRAM_V7",
       reachedTarget: true,
       checkpoint: "STATE_AT_MAIN_3",
@@ -115,13 +116,13 @@ describe("reporting what a route search established", () => {
 
     const params: {
       checkpoint?: string;
-      simulatedAddress?: string | null;
+      simulatedAddress?: ProgramAddress | null;
       simulatedProgramId?: string;
     } = {};
-    log.report(params, "main.3");
+    log.report(params, 3);
 
     expect(params.checkpoint).toBe("STATE_AT_MAIN_3");
-    expect(params.simulatedAddress).toBe("main.3");
+    expect(params.simulatedAddress).toBe(3);
     // The identity travels with the address, always as a pair — a client is meant
     // to reuse the answer only while holding the same program.
     expect(params.simulatedProgramId).toBe("PROGRAM_V7");
@@ -133,7 +134,7 @@ describe("reporting what a route search established", () => {
     // and read the checkpoint as an answer about wherever it happens to be.
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       programId: "PROGRAM_V7",
       reachedTarget: false,
       checkpoint: "STATE_PARTWAY_ALONG",
@@ -141,10 +142,10 @@ describe("reporting what a route search established", () => {
 
     const params: {
       checkpoint?: string;
-      simulatedAddress?: string | null;
+      simulatedAddress?: ProgramAddress | null;
       simulatedProgramId?: string;
     } = {};
-    log.report(params, "main.3");
+    log.report(params, 3);
 
     expect(params.simulatedAddress).toBeUndefined();
     expect(params.simulatedProgramId).toBeUndefined();
@@ -155,20 +156,20 @@ describe("reporting what a route search established", () => {
     // the same and reaches the same verdict, so the client is told not to.
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       programId: "PROGRAM_V7",
       reachedTarget: false,
     });
 
     const params: {
       checkpoint?: string;
-      simulatedAddress?: string | null;
+      simulatedAddress?: ProgramAddress | null;
       simulatedProgramId?: string;
     } = {};
-    log.report(params, "main.3");
+    log.report(params, 3);
 
     expect(params.checkpoint).toBeUndefined();
-    expect(params.simulatedAddress).toBe("main.3");
+    expect(params.simulatedAddress).toBe(3);
     expect(params.simulatedProgramId).toBe("PROGRAM_V7");
   });
 
@@ -178,13 +179,13 @@ describe("reporting what a route search established", () => {
     // naming the address would tell a client it may start the game there.
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       reachedTarget: false,
       checkpoint: "STATE_PARTWAY_ALONG",
     });
 
-    const params: { checkpoint?: string; simulatedAddress?: string | null } = {};
-    log.report(params, "main.3");
+    const params: { checkpoint?: string; simulatedAddress?: ProgramAddress | null } = {};
+    log.report(params, 3);
 
     expect(params.checkpoint).toBe("STATE_PARTWAY_ALONG");
     expect(params.simulatedAddress).toBeUndefined();
@@ -196,14 +197,14 @@ describe("reporting what a route search established", () => {
     // line's state. Asking about the second line must not hand that over.
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       reachedTarget: true,
       checkpoint: "STATE_AT_MAIN_3",
     });
-    log.record({ address: "main.9", reachedTarget: false });
+    log.record({ address: 9, reachedTarget: false });
 
-    const params: { checkpoint?: string; simulatedAddress?: string | null } = {};
-    log.report(params, "main.3");
+    const params: { checkpoint?: string; simulatedAddress?: ProgramAddress | null } = {};
+    log.report(params, 3);
 
     expect(params.checkpoint).toBeUndefined();
     expect(params.simulatedAddress).toBeUndefined();
@@ -212,8 +213,8 @@ describe("reporting what a route search established", () => {
   test("nothing is said when no search has been run", () => {
     const log = new RouteSearchLog();
 
-    const params: { checkpoint?: string; simulatedAddress?: string | null } = {};
-    log.report(params, "main.3");
+    const params: { checkpoint?: string; simulatedAddress?: ProgramAddress | null } = {};
+    log.report(params, 3);
 
     expect(params.checkpoint).toBeUndefined();
     expect(params.simulatedAddress).toBeUndefined();
@@ -224,14 +225,14 @@ describe("reporting what a route search established", () => {
     // recompile replaces both.
     const log = new RouteSearchLog();
     log.record({
-      address: "main.3",
+      address: 3,
       reachedTarget: true,
       checkpoint: "STATE_FROM_THE_OLD_PROGRAM",
     });
     log.forget();
 
-    const params: { checkpoint?: string; simulatedAddress?: string | null } = {};
-    log.report(params, "main.3");
+    const params: { checkpoint?: string; simulatedAddress?: ProgramAddress | null } = {};
+    log.report(params, 3);
 
     expect(params.checkpoint).toBeUndefined();
     expect(params.simulatedAddress).toBeUndefined();
@@ -240,9 +241,9 @@ describe("reporting what a route search established", () => {
 
   test("an undefined start address matches nothing", () => {
     const log = new RouteSearchLog();
-    log.record({ address: "main.3", reachedTarget: true, checkpoint: "STATE" });
+    log.record({ address: 3, reachedTarget: true, checkpoint: "STATE" });
 
-    const params: { checkpoint?: string; simulatedAddress?: string | null } = {};
+    const params: { checkpoint?: string; simulatedAddress?: ProgramAddress | null } = {};
     log.report(params, undefined);
 
     expect(params.checkpoint).toBeUndefined();

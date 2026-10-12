@@ -7,10 +7,9 @@
 
 import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import type { Simulator } from "../../inkjs/engine/Simulator";
-import { ObjectValue } from "../../inkjs/engine/Value";
+import { testCompiler, testStory } from "../engineUnderTest";
+import type { Simulator } from "../../runtime/Simulator";
+import { ObjectValue } from "../../runtime/Value";
 
 interface Step {
   text: string;
@@ -32,7 +31,7 @@ const SILENT_SIMULATOR: Simulator = {
 };
 
 function steps(source: string, simulator?: Simulator): Step[] {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -49,12 +48,10 @@ function steps(source: string, simulator?: Simulator): Step[] {
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  if (!result.program.compiled) {
+  if (!result.program.chunks) {
     throw new Error("glue-join fixture failed to compile");
   }
-  const story = new RuntimeStory(
-    result.program.compiled as Record<string, any>,
-  );
+  const story = testStory(result.program.chunks);
   const errors: string[] = [];
   story.onError = (m) => errors.push(m);
   story.simulator = simulator ?? null;

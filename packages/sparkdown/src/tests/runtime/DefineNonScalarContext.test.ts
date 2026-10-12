@@ -11,11 +11,10 @@
 // every type by name), a typed reference `t.n` → `{ $type: "t", $name: "n" }`.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const compile = (text: string) => {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -108,8 +107,8 @@ end
       { $type: "audio", $name: "mus_a_flute" },
     ]);
     // And the story actually compiled + runs (no init throw).
-    expect((result.program as any).compiled).toBeDefined();
-    const story = new RuntimeStory((result.program as any).compiled);
+    expect(result.program.chunks).toBeDefined();
+    const story = testStory(result.program.chunks);
     const errors: string[] = [];
     story.onError = (m: string) => errors.push(m);
     const out = story.ContinueMaximally();

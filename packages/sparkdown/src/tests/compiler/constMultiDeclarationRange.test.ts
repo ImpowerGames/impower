@@ -1,7 +1,6 @@
 // The error for a `const` with more than one name or value is reported on the
 // declaration itself: its range spans the statement, starting at `const`
 // rather than at the line's indentation, also inside a function body.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

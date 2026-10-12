@@ -30,7 +30,7 @@ deferred work.
 
 | Doc | What it covers |
 | --- | --- |
-| [`RUNTIME.md`](./runtime/RUNTIME.md) | The inkjs runtime fork + sparkdown-specific additions |
+| [`RUNTIME.md`](./runtime/RUNTIME.md) | The binary-program interpreter and its runtime support layer |
 | [`STDLIB.md`](./runtime/STDLIB.md) | Luau stdlib coverage status table — what's implemented, what's deferred, what's intentionally not supported |
 | [`METHODS.md`](./runtime/METHODS.md) | `obj:method(args)` builtin method-dispatch surface |
 | [`FUNCTIONS.md`](./runtime/FUNCTIONS.md) | Luau function semantics — closures, upvalue capture, multi-return |

@@ -19,7 +19,6 @@
 // identity, every chunk and every array it did not change, and to leave the
 // real root's arrays as they were; and a body an edit removed has no row in
 // the root it leaves.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -29,17 +28,18 @@ import {
   B_SEQUENCE,
   blockCount,
   blockField,
-  type StatementChunk,
-} from "../../program/StatementChunk";
+  type ProgramChunk,
+} from "../../program/ProgramChunk";
 import {
   coupledScreenplay,
   cumulativeScreenplay,
 } from "../compiler/fixtures/coupledScreenplay";
+import { AUTO_GLOBAL_INSERTS, autoGlobalScreenplay } from "./autoGlobalScreenplay";
 import { CHOOSE_INSERTS, chooseScreenplay } from "./chooseScreenplay";
 import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 
 // As programChunkIdentity's `session` compiles.
-const CONFIG = { programChunks: true, seedBuiltinsIntoStory: true };
+const CONFIG = { seedBuiltinsIntoStory: true };
 
 function quiet<T>(fn: () => T): T {
   const { warn, error } = console;
@@ -98,14 +98,18 @@ const definedSymbols = (root: ProgramRoot): string[] => {
 /** What an incremental compile and a cold compile of the same text must
  *  agree on. */
 interface Surface {
-  fallback: string;
+  /** Whether the compile reported an error, which a compile that builds no
+   *  chunks does for the statement it could not compile. */
+  reportsError: boolean;
   chunks: string[] | null;
   symbols: string[] | null;
   diagnostics: string[];
 }
 
 const surface = (program: SparkProgram): Surface => ({
-  fallback: stable(program.fallback ?? null),
+  reportsError: Object.values(program.diagnostics ?? {})
+    .flat()
+    .some((d) => d.severity === 1),
   chunks: program.chunks ? describeRoot(program.chunks) : null,
   symbols: program.chunks ? definedSymbols(program.chunks) : null,
   diagnostics: Object.keys(program.diagnostics ?? {})
@@ -130,19 +134,17 @@ const firstDifference = (a: readonly string[], b: readonly string[]) => {
 /** How `incremental` differs from `cold`, field by field, or nothing. */
 function divergence(incremental: Surface, cold: Surface): string | undefined {
   const fields: string[] = [];
-  if (incremental.fallback !== cold.fallback) {
-    fields.push(`fallback ${incremental.fallback} vs cold ${cold.fallback}`);
+  // A compile that built no root and reported no error threw on its way (a
+  // failed `ChunkStore.verifyBuilds`, which the compiler logs and the tests
+  // silence): that is a failure on either side, even when both sides fail
+  // alike, and a root on one side alone is a divergence. The diagnostics,
+  // compared below, hold the error of a statement the compile could not
+  // compile.
+  if (!incremental.chunks && !incremental.reportsError) {
+    fields.push("incremental compile built no root and reported no error");
   }
-  // A compile with statement chunks on that built no root and names no
-  // fallback threw on its way (a failed `ChunkStore.verifyBuilds`, which the
-  // compiler logs and the tests silence): that is a failure on either side,
-  // even when both sides fail alike, and a root on one side alone is a
-  // divergence.
-  if (!incremental.chunks && incremental.fallback === "null") {
-    fields.push("incremental compile built no root and named no fallback");
-  }
-  if (!cold.chunks && cold.fallback === "null") {
-    fields.push("cold compile built no root and named no fallback");
+  if (!cold.chunks && !cold.reportsError) {
+    fields.push("cold compile built no root and reported no error");
   }
   if (!!incremental.chunks !== !!cold.chunks) {
     fields.push(
@@ -317,7 +319,8 @@ const record = (n: number, text: string, edit: RandomEdit, detail: string) => {
 
 // Whole lines the edits inside bodies insert into the coupled screenplays: a
 // line of dialogue, a line of action, a local, a call, a divert, an `end`, a
-// `then`, a new block and a closure.
+// `then`, a new block, a closure, a loop's head and its `break`, and a
+// `choose` block's head (#1683).
 const COUPLED_LINES = [
   "hero: A new line of dialogue.",
   "A new line of action.",
@@ -328,6 +331,9 @@ const COUPLED_LINES = [
   "then",
   "if trust > 1 then",
   "& local h = function(n) return n + 1 end",
+  "while trust < 1 do",
+  "break",
+  "choose",
 ];
 
 // Whole lines the edits inside bodies insert into the choose screenplay.
@@ -341,6 +347,8 @@ const CHOOSE_LINES = [
   "then",
   "* A new choice",
   "if gold > 1 then",
+  "for i = 1, 2 do",
+  "choose",
 ];
 
 // ---- incrementalEquivalence ------------------------------------------------
@@ -409,6 +417,13 @@ const EDITS: Edit[] = [
   { name: "insert a line into a choice body", find: "    You press on.\n", replace: "    You press on.\n    hero: Quickly now.\n" },
   { name: "insert an if into the then clause", find: "    The way opens.\n", replace: "    The way opens.\n    if trust > 1 then\n      hero: Inside the clause.\n    end\n" },
   { name: "insert a divert into the then clause", find: "    The way opens.\n", replace: "    -> scene_2\n    The way opens.\n" },
+  // A loop and a `choose` block in the clause, which the edits after this one
+  // serve from their memos when they lower the clause again (#1683).
+  {
+    name: "insert a loop and a choose block into the then clause",
+    find: "    The way opens.\n",
+    replace: "    The way opens.\n    while trust < 1 do\n      & trust = trust + 1\n    end\n    choose\n      * (inner_pick) [Inner]\n        Inner.\n    then (inner_after)\n      After the inner block.\n    end\n",
+  },
   // The finds below are left intact by the edits above them, so that the
   // sequential run makes every edit.
   { name: "delete a line of the then clause", find: "    & t.a += 1\n", replace: "" },
@@ -426,7 +441,6 @@ describe("incrementalEquivalence on the binary program", () => {
   // whose body holds a `for` and a `while` loop (bodies two deep).
   it("compiles the fixture cold to its chunks", () => {
     const cold = coldSurface(coupledScreenplay());
-    expect(cold.fallback).toBe("null");
     expect(cold.chunks).not.toBeNull();
     expect(bodyLines(coupledScreenplay()).filter((b) => b.depth >= 2).length).toBeGreaterThan(0);
   });
@@ -511,12 +525,12 @@ describe("a closure statement an edit moves between a scene and a block body", (
   const moved = (text: string, find: string, deleted: number, insert: string) =>
     quiet(() => {
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
-      expect(c.compile().program.fallback).toBeUndefined();
+      expect(c.compile().program.chunks).toBeDefined();
       const offset = text.indexOf(find);
       expect(offset, find).toBeGreaterThanOrEqual(0);
       const after = update(c.compiler, text, 2, offset, offset + deleted, insert);
       const program = c.compile().program;
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       return divergence(surface(program), coldSurface(after)) ?? "none";
     });
 
@@ -578,6 +592,8 @@ function cumulativeRun(
   const failures: string[] = [];
   let chunked = 0;
   let nested = 0;
+  // Statements of bodies the compiles served from their memos (#656).
+  let served = 0;
   let version = 1;
   let undo: RandomEdit | undefined;
   for (let n = 0; n < count; n++) {
@@ -604,13 +620,14 @@ function cumulativeRun(
     const before = text;
     text = update(c.compiler, text, version, edit.offset, edit.end, edit.insert);
     const program = c.compile().program;
+    served += c.compiler.memoStats(MAIN_URI)?.served ?? 0;
     if (program.chunks) chunked += 1;
     else if (undoFallback && edit.kind !== "undo") undo = inverseOf(before, edit);
     if (!["uniform", "shaped", "undo"].includes(edit.kind)) nested += 1;
     const detail = divergence(surface(program), coldSurface(text));
     if (detail) failures.push(record(n, before, edit, detail));
   }
-  return { failures, chunked, nested };
+  return { failures, chunked, nested, served };
 }
 
 describe("incrementalCumulativeEquivalence on the binary program", () => {
@@ -618,10 +635,10 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
   // `cfg` define and the glued continuations, with the same blocks.
   it("incremental == cold across many cumulative edits on ONE compiler, half inside nested blocks", () => {
     quiet(() => {
-      expect(coldSurface(cumulativeScreenplay()).fallback).toBe("null");
+      expect(coldSurface(cumulativeScreenplay()).chunks).not.toBeNull();
       const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5", "\n& f = function() return 9 end\n", "then", ":add(1)", " += 1", "{t.a}", "function() return 1 end", "\ndefine header with\n"];
       const EDIT_COUNT = 140;
-      const { failures, chunked, nested } = cumulativeRun(
+      const { failures, chunked, nested, served } = cumulativeRun(
         cumulativeScreenplay(),
         0x51ed5,
         EDIT_COUNT,
@@ -632,6 +649,9 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
       expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
       expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
+      // Edits inside the bodies leave some of their statements to their
+      // memos (#656).
+      expect(served, "statements served from their memos").toBeGreaterThan(0);
     });
   }, 600_000);
 
@@ -641,17 +661,242 @@ describe("incrementalCumulativeEquivalence on the binary program", () => {
   it("incremental == cold across many cumulative edits of the choose screenplay, half inside nested blocks", () => {
     quiet(() => {
       const text = chooseScreenplay(2);
-      expect(coldSurface(text).fallback).toBe("null");
+      expect(coldSurface(text).chunks).not.toBeNull();
       expect(bodyLines(text).filter((b) => b.depth >= 3).length).toBeGreaterThan(0);
       const EDIT_COUNT = 70;
       // An edit of a `choose` block's structure (an `end`, a `then`, a
       // choice outside a `choose`) can leave a program that falls back as a
       // whole, which the edits after it would not repair, so an edit after
       // which the program fell back is undone by the next one.
-      const { failures, chunked, nested } = cumulativeRun(text, 0x697a1, EDIT_COUNT, CHOOSE_INSERTS, CHOOSE_LINES, [], true);
+      const { failures, chunked, nested, served } = cumulativeRun(text, 0x697a1, EDIT_COUNT, CHOOSE_INSERTS, CHOOSE_LINES, [], true);
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
       expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
       expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
+      expect(served, "statements served from their memos").toBeGreaterThan(0);
+    });
+  }, 600_000);
+});
+
+// ---- Long block bodies, served from their memos ----------------------------
+
+// A screenplay whose blocks have bodies long enough that an edit inside one
+// rebuilds a few of its statements and the parse keeps the rest, so that the
+// compile serves them from their memos (#656): a `choose` block whose choice
+// bodies and `then` clause hold beats, interpolations, portraits, calls,
+// `if` blocks and a label, and a function whose body holds calls, a local
+// and an `if`.
+function longBodiesScreenplay(): string {
+  const beats = (pad: string, n: number, tag: string) =>
+    Array.from({ length: n }, (_, i) => {
+      switch (i % 7) {
+        case 0:
+          return `${pad}HERO: Line ${i} of ${tag}, said aloud.`;
+        case 1:
+          return `${pad}The action of ${tag} goes on, beat ${i}.`;
+        case 2:
+          return `${pad}Seen {trust} times in ${tag}, beat ${i}.`;
+        case 3:
+          return `${pad}[[show backdrop alley_${i}]]`;
+        case 4:
+          return `${pad}& heat = heat + ${i}`;
+        case 5:
+          return [`${pad}if trust > ${i} then`, `${pad}  HERO: Trusted ${i} in ${tag}.`, `${pad}end`].join("\n");
+        default:
+          return `${pad}A quiet beat ${i} of ${tag}.`;
+      }
+    });
+  return [
+    "store trust = 0",
+    "store heat = 0",
+    "",
+    "define hero as character with",
+    '  name = "Hero"',
+    "end",
+    "",
+    "scene OPENING",
+    "  An opening line.",
+    "  -> LONG",
+    "end",
+    "",
+    "scene LONG",
+    "  The long scene begins.",
+    "  choose",
+    "    + [Go on]",
+    "      You go on.",
+    ...beats("      ", 24, "the first choice"),
+    "    + [Stay]",
+    "      You stay.",
+    ...beats("      ", 12, "the second choice"),
+    "  then",
+    ...beats("    ", 50, "the clause"),
+    "    label middle",
+    ...beats("    ", 50, "the rest"),
+    "  end",
+    "  -> ENDING",
+    "end",
+    "",
+    "function tally()",
+    ...Array.from({ length: 20 }, (_, i) => `  print("tally ${i}")`),
+    "  local n = 1",
+    ...Array.from({ length: 20 }, (_, i) => `  print("more ${i}")`),
+    "  if n > 0 then",
+    '    print("positive")',
+    "  end",
+    "  return n",
+    "end",
+    "",
+    "scene ENDING",
+    "  Done with {tally()}.",
+    "  done",
+    "end",
+    "",
+  ].join("\n");
+}
+
+// Whole lines the edits inside bodies insert into the long screenplay.
+const LONG_LINES = [
+  "HERO: A new line of dialogue.",
+  "A new line of action.",
+  "local trust = 5",
+  "& trust = trust + 1",
+  "-> ENDING",
+  "end",
+  "then",
+  "if trust > 1 then",
+  "Seen {heat} more.",
+  "[[show backdrop alley]]",
+  "label extra",
+  'print("new")',
+];
+
+describe("the oracles over long block bodies, served from their memos", () => {
+  it("incremental == cold across many cumulative edits on ONE compiler, half inside the long bodies", () => {
+    quiet(() => {
+      const text = longBodiesScreenplay();
+      expect(coldSurface(text).chunks).not.toBeNull();
+      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "HERO:", "-> ENDING", "then", " += 1", "[[", "label late"];
+      const EDIT_COUNT = 80;
+      const { failures, chunked, nested, served } = cumulativeRun(text, 0x656a1, EDIT_COUNT, inserts, LONG_LINES, [], true);
+      expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+      expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
+      expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
+      // Most edits inside a body leave the rest of its statements to their
+      // memos.
+      expect(served, "statements served from their memos").toBeGreaterThan(EDIT_COUNT * 10);
+    });
+  }, 600_000);
+});
+
+// ---- Loops and `choose` blocks in long bodies, served from their memos -------
+
+// The long screenplay's shape, whose bodies hold a loop of each form, with a
+// `break` or a `continue` and a local in some, and `choose` blocks with a
+// named choice and a labelled `then` clause, among the beats, in choice
+// bodies and in the `then` clause (#1683).
+function loopsAndChooseScreenplay(): string {
+  const loops = (pad: string, i: number): string[] => {
+    switch (Math.floor(i / 5) % 4) {
+      case 0:
+        return [`${pad}while heat > ${i * 100} do`, `${pad}  & heat = heat - 1`, `${pad}  if heat < 0 then`, `${pad}    break`, `${pad}  end`, `${pad}end`];
+      case 1:
+        return [`${pad}for i = 1, ${i} do`, `${pad}  Count {i} of ${i}.`, `${pad}  if i > 1 then`, `${pad}    continue`, `${pad}  end`, `${pad}end`];
+      case 2:
+        return [`${pad}for k, v in { a = ${i} } do`, `${pad}  local seen = v`, `${pad}  Seen {k} {seen}.`, `${pad}end`];
+      default:
+        return [`${pad}repeat`, `${pad}  & heat = heat + ${i}`, `${pad}until heat > ${i}`];
+    }
+  };
+  const beats = (pad: string, n: number, tag: string) =>
+    Array.from({ length: n }, (_, i) => {
+      const id = `${tag.split(" ").join("_")}_${i}`;
+      switch (i % 5) {
+        case 0:
+          return `${pad}HERO: Line ${i} of ${tag}, said aloud.`;
+        case 1:
+          return loops(pad, i).join("\n");
+        case 2:
+          return `${pad}Seen {heat} times in ${tag}, beat ${i}.`;
+        case 3:
+          return [
+            `${pad}choose`,
+            `${pad}  * (pick_${id}) [Pick ${i}]`,
+            `${pad}    Picked ${i} in ${tag}.`,
+            `${pad}  + [Pass ${i}]`,
+            `${pad}    Passed ${i}.`,
+            `${pad}then (after_${id})`,
+            `${pad}  After ${i}, picked {pick_${id}}.`,
+            `${pad}end`,
+          ].join("\n");
+        default:
+          return `${pad}A quiet beat ${i} of ${tag}.`;
+      }
+    });
+  return [
+    "store trust = 0",
+    "store heat = 0",
+    "",
+    "define hero as character with",
+    '  name = "Hero"',
+    "end",
+    "",
+    "scene LOOPS",
+    "  The scene begins.",
+    "  choose",
+    "    + [Go on]",
+    "      You go on.",
+    ...beats("      ", 20, "the first choice"),
+    "    + [Stay]",
+    "      You stay.",
+    ...beats("      ", 10, "the second choice"),
+    "  then",
+    ...beats("    ", 60, "the clause"),
+    "  end",
+    "  -> ENDING",
+    "end",
+    "",
+    "scene ENDING",
+    "  Done with {heat}.",
+    "  done",
+    "end",
+    "",
+  ].join("\n");
+}
+
+// Whole lines the edits inside bodies insert into the loops screenplay: a
+// line of dialogue, a line of action, a local, an assignment, an `end`, the
+// heads of a loop of each form and of a `choose` block, a choice, a `then`,
+// a `break` and an `until`.
+const LOOP_LINES = [
+  "HERO: A new line of dialogue.",
+  "A new line of action.",
+  "local heat = 5",
+  "& heat = heat + 1",
+  "end",
+  "while heat < 2 do",
+  "for i = 1, 2 do",
+  "for k, v in { b = 2 } do",
+  "repeat",
+  "until heat > 0",
+  "break",
+  "choose",
+  "* [A late choice]",
+  "then",
+];
+
+describe("the oracles over loops and `choose` blocks in long bodies, served from their memos (#1683)", () => {
+  it("incremental == cold across many cumulative edits on ONE compiler, half inside the long bodies", () => {
+    quiet(() => {
+      const text = loopsAndChooseScreenplay();
+      expect(coldSurface(text).chunks).not.toBeNull();
+      const inserts = ["x", "\n", " ", "1", "}", "{", "{heat}", "// c", "->", "end", ")", "", "HERO:", "-> ENDING", "then", " += 1", "do", "until", "break"];
+      const EDIT_COUNT = 80;
+      const { failures, chunked, nested, served } = cumulativeRun(text, 0x1683a, EDIT_COUNT, inserts, LOOP_LINES, [], true);
+      expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+      expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
+      expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
+      // Most edits inside a body leave the rest of its statements, its loops
+      // and its `choose` blocks among them, to their memos.
+      expect(served, "statements served from their memos").toBeGreaterThan(EDIT_COUNT * 10);
     });
   }, 600_000);
 });
@@ -698,7 +943,7 @@ function syntheticNestedBase() {
 describe("incrementalSyntheticAppend on the binary program", () => {
   const run = (text: string, steps: Edit[]) =>
     quiet(() => {
-      expect(coldSurface(text).fallback).toBe("null");
+      expect(coldSurface(text).chunks).not.toBeNull();
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
       c.compile();
       const log: string[] = [];
@@ -708,7 +953,7 @@ describe("incrementalSyntheticAppend on the binary program", () => {
         text = update(c.compiler, text, i + 2, offset, offset + step.find.length, step.replace);
         const program = c.compile().program;
         const detail = divergence(surface(program), coldSurface(text));
-        log.push(`step ${i + 1} ${step.name}: ${program.chunks ? "chunks" : "fallback"} ${detail ?? "ok"}`);
+        log.push(`step ${i + 1} ${step.name}: ${program.chunks ? "chunks" : "no chunks"} ${detail ?? "ok"}`);
       });
       return log;
     });
@@ -733,6 +978,115 @@ describe("incrementalSyntheticAppend on the binary program", () => {
     ]);
     expect(log.filter((l) => !l.endsWith(" ok"))).toEqual([]);
   }, 120_000);
+});
+
+// ---- Auto-globals and functions of their names ------------------------------
+
+// The program path's resolver resolves only the statements whose resolution
+// can read otherwise, and a bare assignment makes a global of its name only
+// where a cold compile's resolution reaches it, a function of the name
+// winning for a call (#1607). The three oracles above, over a screenplay of
+// auto-globals read before and after their assignments, in scenes and
+// functions, and globals named like functions: whole lines of assignments,
+// reads, `local`s, declarations and functions of those names are written,
+// moved and removed.
+const AUTO_LINES = [
+  "tally = 4",
+  "score = 2",
+  "Read {tally} {score} {looped}.",
+  "local tally = 1",
+  "& score()",
+  "& seen = bump(seen)",
+  "late_1 = 3",
+  "end",
+];
+
+describe("the oracles over auto-globals and functions of their names", () => {
+  it("compiles the fixture cold to its chunks, with auto-globals read before their assignments", () => {
+    const cold = coldSurface(autoGlobalScreenplay(4));
+    expect(cold.chunks).not.toBeNull();
+    expect(cold.diagnostics.some((d) => d.includes("Cannot find variable named `tally`"))).toBe(true);
+  });
+
+  it("incremental == cold under randomized edits (fuzz, one edit per compiler)", () => {
+    quiet(() => {
+      const base = autoGlobalScreenplay(4);
+      const rand = lcg(0x1607a);
+      const draw = editDrawer(rand, AUTO_GLOBAL_INSERTS, AUTO_LINES);
+      const failures: string[] = [];
+      let chunked = 0;
+      const EDIT_COUNT = 30;
+      for (let n = 0; n < EDIT_COUNT; n++) {
+        const edit = draw(base);
+        if (edit.insert === "" && edit.end === edit.offset) continue;
+        const c = programCompiler({ [MAIN_URI]: base }, CONFIG);
+        c.compile();
+        const after = update(c.compiler, base, 2, edit.offset, edit.end, edit.insert);
+        const program = c.compile().program;
+        if (program.chunks) chunked += 1;
+        const detail = divergence(surface(program), coldSurface(after));
+        if (detail) failures.push(record(n, base, edit, detail));
+      }
+      expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+      expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 2);
+    });
+  }, 600_000);
+
+  it("incremental == cold across many cumulative edits on ONE compiler", () => {
+    quiet(() => {
+      const EDIT_COUNT = 90;
+      // Assignments, functions and declarations of the auto-globals' names
+      // move in and out of the program, both ways round.
+      const shaped: [string, string][] = [
+        ["  tally = 0\n", "  tally = 0\n  tally = 7\n"],
+        ["function score()\n  return 10\nend\n", "function tally()\n  return 10\nend\n"],
+        ["store seen = 0\n", "store seen = 0\nstore tally = 1\n"],
+        ["  late_0 = 1\n", ""],
+        ["  score = 5\n", "  local score = 5\n"],
+      ];
+      const { failures, chunked } = cumulativeRun(
+        autoGlobalScreenplay(4),
+        0x1607b,
+        EDIT_COUNT,
+        AUTO_GLOBAL_INSERTS,
+        AUTO_LINES,
+        shaped,
+        true,
+      );
+      expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+      expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
+    });
+  }, 600_000);
+
+  it("stays == cold as an assignment, a function and a declaration of a read name come and go", () => {
+    let text = autoGlobalScreenplay(4);
+    quiet(() => {
+      expect(coldSurface(text).chunks).not.toBeNull();
+      const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
+      c.compile();
+      const steps: Edit[] = [
+        { name: "warm", find: "Tally {tally} in 2.", replace: "Tally {tally} in 2!" },
+        { name: "an assignment above the first read", find: "Before any scene {tally}", replace: "Before any scene {tally}.\ntally = 1\nAgain {tally}" },
+        { name: "a function of an auto-global's name", find: "function bump(n)", replace: "function looped()\n  return 2\nend\n\nfunction bump(n)" },
+        { name: "a declaration of an auto-global's name", find: "store seen = 0", replace: "store seen = 0\nstore inner_1 = 5" },
+        { name: "the assignment goes", find: "tally = 1\nAgain {tally}", replace: "Again {tally}" },
+        { name: "the function goes", find: "function looped()\n  return 2\nend\n\n", replace: "" },
+        { name: "an assignment moves below its reads", find: "  late_2 = 1\n", replace: "" },
+        { name: "and back above them", find: "scene AUTO_2\n", replace: "scene AUTO_2\n  late_2 = 1\n" },
+        { name: "the declaration goes", find: "\nstore inner_1 = 5", replace: "" },
+      ];
+      const log: string[] = [];
+      steps.forEach((step, i) => {
+        const offset = text.indexOf(step.find);
+        expect(offset, `find ${step.find}`).toBeGreaterThanOrEqual(0);
+        text = update(c.compiler, text, i + 2, offset, offset + step.find.length, step.replace);
+        const program = c.compile().program;
+        const detail = divergence(surface(program), coldSurface(text));
+        log.push(`step ${i + 1} ${step.name}: ${program.chunks ? "chunks" : "no chunks"} ${detail ?? "ok"}`);
+      });
+      expect(log.filter((l) => !l.endsWith(" ok"))).toEqual([]);
+    });
+  }, 300_000);
 });
 
 // ---- previewCompileRestore: interleaved previews ---------------------------
@@ -814,7 +1168,7 @@ describe("previewCompileRestore's interleaved oracle on the binary program", () 
     it(`interleaved with random edits never changes the cumulative program of ${run.name}`, () => {
       quiet(() => {
         let text = run.text();
-        expect(coldSurface(text).fallback).toBe("null");
+        expect(coldSurface(text).chunks).not.toBeNull();
         const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
         c.compile();
         const store = c.compiler.chunkStore!;
@@ -930,7 +1284,7 @@ function snapshot(root: ProgramRoot) {
     lineStarts: row.arrays.lineStarts,
     chunkCopy: [...row.arrays.chunks],
     startsCopy: [...row.arrays.lineStarts],
-    words: row.arrays.chunks.map((chunk: StatementChunk) => chunk.join(",")),
+    words: row.arrays.chunks.map((chunk: ProgramChunk) => chunk.join(",")),
   }));
 }
 
@@ -1004,7 +1358,7 @@ describe("a preview compile's root", () => {
     quiet(() => {
       const c = programCompiler({ [MAIN_URI]: SHARING }, CONFIG);
       const first = c.compile().program;
-      expect(first.fallback).toBeUndefined();
+      expect(first.chunks).toBeDefined();
       const real = first.chunks!;
       const store = c.compiler.chunkStore!;
       expect(store.current === real, "the compile's root is current").toBe(true);
@@ -1021,7 +1375,7 @@ describe("a preview compile's root", () => {
       const inserted = SHARING.slice(0, at) + INSERTED + SHARING.slice(at);
       const result = preview(c.compiler, 1, at, at, SHARING, INSERTED);
       expect(result.outdated ?? false).toBe(false);
-      expect(result.program?.fallback).toBeUndefined();
+      expect(result.program?.chunks).toBeDefined();
       const previewRoot = result.program!.chunks!;
       expect(c.compiler.lastProgramBuild?.root === previewRoot, "the preview's build is its program's root").toBe(true);
       expect(previewRoot === real, "the preview built a root of its own").toBe(false);
@@ -1035,7 +1389,7 @@ describe("a preview compile's root", () => {
       const ifAt = SHARING.indexOf(IF_LINES);
       const removed = SHARING.slice(0, ifAt) + SHARING.slice(ifAt + IF_LINES.length);
       const second = preview(c.compiler, 1, ifAt, ifAt + IF_LINES.length, SHARING, "");
-      expect(second.program?.fallback).toBeUndefined();
+      expect(second.program?.chunks).toBeDefined();
       const without = second.program!.chunks!;
       expect(store.current === real, "the store's current root is the real one").toBe(true);
       expect(parts.ifBodies.filter((id) => without.sequence(id) !== undefined)).toEqual([]);

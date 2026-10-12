@@ -10,7 +10,7 @@
 // instead of relying on Jest globals.
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { SimpleJson } from "../../inkjs/engine/SimpleJson";
+import { SimpleJson } from "../../runtime/SimpleJson";
 
 describe("SimpleJson.Writer", () => {
   let writer: SimpleJson.Writer;

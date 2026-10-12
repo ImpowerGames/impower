@@ -1,4 +1,4 @@
-import { DebugMetadata } from "../../../inkjs/engine/DebugMetadata";
+import { DebugMetadata } from "../../../runtime/DebugMetadata";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { LowerContext } from "../context";
@@ -24,7 +24,7 @@ export function buildDebugMetadata(
   // `DebugMetadata.startLineNumber` is **1-based** by the compiler's
   // convention: the diagnostics path builds it as `lineNumberOffset + 1`,
   // the `offsetSource` rebase treats `diagnostic.source.startLineNumber` as
-  // 1-based, and `program.pathLocations` converts back to 0-based with
+  // 1-based, and its readers convert back to 0-based with
   // `startLineNumber - 1`. `ctx.lineNumber` is 0-based (chunk-relative in the
   // annotator, absolute in the snapshot context), so `+ 1` lifts it into that
   // 1-based convention. Without it, every lowerer-stamped entry lands one line
@@ -68,6 +68,21 @@ export function headerLineRange(
   const newline = text.indexOf("\n", start);
   const line = newline < 0 ? text : text.slice(0, newline);
   return { from: from + start, to: from + line.trimEnd().length };
+}
+
+// The range a statement's objects are stamped with (`stampStatement`), and
+// a statement served from its memo is placed at (#656): the statement's
+// source range without its indentation and its trailing whitespace.
+export function statementBounds(
+  rangeFrom: number,
+  rangeTo: number,
+  ctx: LowerContext,
+): { from: number; to: number } {
+  // value-level: the statement's isolated source range, trimming its trailing whitespace
+  const text = ctx.read(rangeFrom, rangeTo).replace(/\s+$/, "");
+  // value-level: the isolated statement text, measuring its indentation
+  const indentation = text.length - text.replace(/^[ \t]+/, "").length;
+  return { from: rangeFrom + indentation, to: rangeFrom + text.length };
 }
 
 // Stamps the given ParsedObjects with debug metadata derived from the

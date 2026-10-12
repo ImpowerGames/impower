@@ -3,10 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
-import { pathTableLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { expandLineRanges } from "../../game/core/utils/executedLineRanges";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import {
   beatIndexIn,
   previewWindow,
@@ -202,13 +200,12 @@ const beatShowing = (
   return beat.address;
 };
 
-/** The path the editor's cursor on `line` resolves to. */
-const pathAt = (game: Game, line: number): string | null =>
-  findClosestPath(
-    { file: MAIN_URI, line },
-    game.program.pathLocations,
-    Object.keys(game.program.scripts ?? {}),
-  );
+/** The address the editor's cursor on `line` resolves to: the last beat at
+ *  or before the line, by the program's own locator, as the preview reads
+ *  it. */
+const pathAt = (game: Game, line: number): ProgramAddress | null =>
+  programLocator(game.program).addressAt(MAIN_URI, line, { beat: "last" }) ??
+  null;
 
 /** Whether a promise has settled by the time the microtasks drain. */
 const settled = async (promise: Promise<unknown>): Promise<boolean> => {
@@ -301,7 +298,7 @@ const checkpointFor = (story: string, line: number): string | null => {
     setTimeout: syncTimeout,
   } as any);
   sim.setStartFrom({ file: MAIN_URI, line });
-  const to = sim.startAddress as string;
+  const to = sim.startAddress!;
   const from = sim.routeStartOf(to);
   const route = Game.planRoute(sim.story, program as any, from, to);
   return route ? sim.patchAndSimulateRoute(route) : null;
@@ -431,10 +428,13 @@ describe("preview prediction and gate", () => {
   it("gates exactly what the preview writes, whatever the source shape", async () => {
     // Beat lines: 1, 3, 5 in the alternating and blank shapes; 1, 2, 4 in
     // the consecutive one; 1 and 3 in the hide shape; 2 and 6 with control
-    // flow between. Line 0 is the scene heading. A jump to a line runs from
-    // that line's path, so a backdrop on the line above is not written.
+    // flow between. Line 0 is the scene heading, which holds no beat: the
+    // program's locator answers it with the first beat below it
+    // (`ProgramLocator.addressAt`), so a preview of it shows line 1 and gates
+    // that beat's backdrop. A jump to a line runs from that line's address,
+    // so a backdrop on the line above is not written.
     const cases: Array<[string, number, string[]]> = [
-      ["alternating", 0, []],
+      ["alternating", 0, ["room.png"]],
       ["alternating", 1, ["room.png"]],
       ["alternating", 3, ["bunny.png"]],
       ["alternating", 5, ["hat.png"]],
@@ -1743,7 +1743,7 @@ Line one.
   });
 
   it("divides a scene around an index", () => {
-    const beats = ["a", "b", "c", "d", "e", "f"].map((address) => ({
+    const beats = [1, 2, 3, 4, 5, 6].map((address) => ({
       address,
     }));
     const entry = {
@@ -1759,15 +1759,15 @@ Line one.
     const paths = (list: { address: ProgramAddress }[]) =>
       list.map((b) => b.address);
     let w = previewWindow(entry, 2, 1);
-    expect(paths(w.near)).toEqual(["b", "c", "d"]);
-    expect(paths(w.rest)).toEqual(["e", "f", "a"]);
+    expect(paths(w.near)).toEqual([2, 3, 4]);
+    expect(paths(w.rest)).toEqual([5, 6, 1]);
     w = previewWindow(entry, 0, 2);
-    expect(paths(w.near)).toEqual(["a", "b", "c"]);
-    expect(paths(w.rest)).toEqual(["d", "e", "f"]);
+    expect(paths(w.near)).toEqual([1, 2, 3]);
+    expect(paths(w.rest)).toEqual([4, 5, 6]);
     w = previewWindow(entry, 99, 1);
-    expect(paths(w.near)).toEqual(["e", "f"]);
+    expect(paths(w.near)).toEqual([5, 6]);
     w = previewWindow(entry, 3, 0);
-    expect(paths(w.near)).toEqual(["a", "b", "c", "d", "e", "f"]);
+    expect(paths(w.near)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(w.rest).toEqual([]);
     expect(previewWindow({ ...entry, beats: [] }, 0, 3)).toEqual({
       near: [],
@@ -1775,27 +1775,40 @@ Line one.
     });
   });
 
-  it("finds the beat at or before a path", () => {
-    const beats = [{ address: "A.0" }, { address: "A.3" }, { address: "A.7" }];
-    const locations = pathTableLocator(
-      pathLocationTableOf({
-        "A.0": [0, 1, 0, 1, 9],
-        "A.2": [0, 2, 0, 2, 9],
-        "A.3": [0, 3, 0, 3, 9],
-        "A.5": [0, 5, 2, 5, 9],
-        "A.7": [0, 7, 0, 7, 9],
-        "A.9": [0, 9, 0, 9, 9],
-        "B.0": [1, 0, 0, 0, 9],
-      }),
-      ["file:///main.sd", "file:///other.sd"],
-    );
-    expect(beatIndexIn(beats, locations, "A.3")).toBe(1);
-    expect(beatIndexIn(beats, locations, "A.5")).toBe(1);
-    expect(beatIndexIn(beats, locations, "A.2")).toBe(0);
-    expect(beatIndexIn(beats, locations, "A.9")).toBe(2);
+  it("finds the beat at or before an address", () => {
+    const OTHER_URI = "inmemory:///other.sd";
+    const main = [
+      "include other.sd",
+      "scene A",
+      "  Line one.",
+      "  Line two.",
+      "  Line three.",
+      "  Line four.",
+      "  Line five.",
+      "  Line six.",
+      "  Line seven.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    const { program } = compileUI(main, { scripts: { [OTHER_URI]: "Other line.\n" } });
+    const locator = programLocator(program);
+    const at = (line: number, uri = MAIN_URI): ProgramAddress => {
+      const address = locator.addressAt(uri, line);
+      if (address === undefined) {
+        throw new Error(`no address stands on line ${line} of ${uri}`);
+      }
+      return address;
+    };
+    const beats = [2, 4, 7].map((line) => ({ address: at(line) }));
+    expect(beatIndexIn(beats, locator, at(4))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(6))).toBe(1);
+    expect(beatIndexIn(beats, locator, at(3))).toBe(0);
+    expect(beatIndexIn(beats, locator, at(8))).toBe(2);
     // Only the beats in the address's own script precede it.
-    expect(beatIndexIn(beats, locations, "B.0")).toBe(-1);
-    expect(beatIndexIn(beats, locations, "nowhere")).toBe(-1);
-    expect(beatIndexIn(beats, locations, null)).toBe(-1);
+    expect(beatIndexIn(beats, locator, at(0, OTHER_URI))).toBe(-1);
+    // An address no chunk of the program holds.
+    expect(beatIndexIn(beats, locator, 2 ** 40)).toBe(-1);
+    expect(beatIndexIn(beats, locator, null)).toBe(-1);
   });
 });

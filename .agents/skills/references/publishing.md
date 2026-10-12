@@ -23,6 +23,8 @@ A pull request that resolves an issue must carry `Closes #N` in its body (the te
 
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 
+Allocate a private attempt directory before authoring publication files. Resolve-issue writers use its [initial allocator](../resolve-issue/SKILL.md#0-preflight) and returned absolute `commitMessage` and `prBody` paths, including for the first commit and draft PR before a PR number exists. Other filing routes use their own exclusive per-agent allocation. A coordinating session's scratch directory may be shared by subagents; generic example names below belong inside the allocated directory. Each retry gets a fresh directory, including retries for the same issue. Logs, reproductions and image attachments use that same private directory.
+
 `@-` means "read stdin" to **curl**, not to `gh` or `git`. Both accept it as a
 **literal string** and exit 0, so the command looks like it worked:
 

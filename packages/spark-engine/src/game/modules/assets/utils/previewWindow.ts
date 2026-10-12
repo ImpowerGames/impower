@@ -17,7 +17,7 @@ export function beatIndexIn(
   locator: ProgramLocator,
   address: ProgramAddress | null | undefined,
 ): number {
-  if (address == null || address === "") {
+  if (address == null) {
     return -1;
   }
   for (let i = 0; i < beats.length; i++) {

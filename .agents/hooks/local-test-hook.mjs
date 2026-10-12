@@ -382,7 +382,7 @@ function suiteRunReason(args, command, shell) {
   const words = located ? wordsWithoutRedirects(command.slice(args[0].start, args[args.length - 1].end), shell) : args.map((a) => a.text);
   const files = [];
   for (let i = 0; i < words.length; i++) {
-    if (words[i] === "--wait") {
+    if (["--wait", "--file-timeout", "--internal-receipt"].includes(words[i])) {
       i++;
       continue;
     }

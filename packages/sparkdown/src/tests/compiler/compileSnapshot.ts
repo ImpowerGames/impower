@@ -1,8 +1,3 @@
-// Load order matters: importing the engine's Container first primes
-// Container/Value/Object in the correct topological order so class-extends
-// cycles resolve without TDZ (same priming production code does in
-// CompilationAnnotator).
-import "../../inkjs/engine/Container";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Conditional } from "../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";

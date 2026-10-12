@@ -384,6 +384,10 @@ variables:
   IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}\b)
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
+  # A `#` run that is not a TAG_START: a line rule ends before it, while a
+  # tag that touches the line's text (`Hello# t`) stays inside the line's
+  # Annotation, so its tags are the line's own (#1710).
+  NOT_TAG_HASH: (?:[#]+[^#\s])
   COMMENT_START: (?:[-][-])
   # A `>` in display text, which may touch the words around it (`A>B`), and
   # each `>` of `>>` is one. The marks that hold a `>` are matched before it:
@@ -425,7 +429,17 @@ variables:
   # The `..` that opens and closes an inline alternator mid-line
   # (`.. queue|a|b ..`).
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))
-  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}+)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}){{WS}}*{{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
+  # The heads that `LuauSparkdownInlineGluedSequentialAlternatorBlock` and
+  # `LuauSparkdownInlineGluedConditionalAlternatorBlock` open on, without
+  # captures, so `INLINE_LEADING_GLUE` refuses exactly the `..` they take.
+  #
+  # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})`, `(?=[|])` and
+  # `(?=[(])` repeat those begins' lookaheads, whose comments name the
+  # rival (`TextChunk` and `LeadingGlue`) and why no reordering, `end:` or
+  # tighter variable replaces them. A different test here would let
+  # `INLINE_LEADING_GLUE` take a `..` an alternator opens on, or refuse
+  # one no alternator takes.
+  INLINE_GLUED_ALTERNATOR_START: "(?:{{WS}}*{{ALTERNATOR_GLUE}}{{WS}}+(?:(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})(?:(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}){{WS}}*)?(?:{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?{{WS}}*(?=[|])|{{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*(?=[(])))"
 
   # Newline
   NL: (?:\r\n|\r|\n)
@@ -1486,6 +1500,13 @@ repository:
   #
   #   Here is some text .. queue|a|b|c .. and more text after.
   #
+  # The head takes the same keywords as the other alternator forms: an
+  # optional `shuffle` and an optional `queue`, `cycle` or `chain`, at
+  # least one of them (`.. shuffle|a|b ..` is a plain shuffle, #1706).
+  #
+  # The head is `LuauSparkdownSingleLineSequentialAlternatorBlock`'s:
+  # the first arm separator must follow it.
+  #
   # Required `..` delimiters give the grammar an unambiguous scope.
   # Inside the scope, arm bodies are parsed as display content (text +
   # nested `{interp}`), with `|` separating arms.
@@ -1497,7 +1518,23 @@ repository:
   # for the arms.
 
   LuauSparkdownInlineGluedSequentialAlternatorBlock:
-    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}+))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*){{LUAU_SHARED_ALTERNATOR_NON_MEMBER}}"
+    # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})` makes one of the
+    # two optional keywords present, so `.. |a|b ..` opens no alternator;
+    # the captures stay optional so the lowerer reads the modifier and the
+    # keyword from fixed indices. `(?=[|])` leaves the first separator to
+    # `LuauAlternatorSeparator`, the body's first pattern. The rival is the
+    # glued text path (`TextChunk`, and `LeadingGlue` through
+    # `INLINE_LEADING_GLUE`), which takes any `..` this begin refuses.
+    # Without the separator lookahead, keyword-shaped text after `..`
+    # opened a scope: `.. shuffle,a,b ..` became a shuffle over no arms
+    # that the engine cannot run, `.. queue,a ..` emitted nothing, and
+    # backtracking past an optional keyword accepted `.. shuffle queue.x`
+    # and `.. queue.x`. Reordering cannot replace it: this rule is tried
+    # before `TextChunk`, which accepts anything. The parent's `end:`
+    # closes the line, not this begin, and no keyword variable can be
+    # tightened to say what follows the keyword. Fixture
+    # alternator/inline-glued-plain-shuffle changes without it.
+    begin: "({{WS}}*)({{ALTERNATOR_GLUE}})({{WS}}+)(?={{LUAU_SHARED_SEQUENTIAL_HEAD}}){{_LUAU_SHARED_SEQUENTIAL_MODIFIER_PREFIX_}}?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)(?=[|])"
     beginCaptures:
       1:
         patterns:
@@ -2234,10 +2271,12 @@ repository:
     applyEndPatternLast: true
     end: (?=$)|(?!{{IDENTIFIER}}|[.^])
 
-  # The argument list after a dotted divert target. It is a call's argument
-  # list on one line: a divert ends its line, so an unclosed `(` ends with the
-  # line, and the compiler reports the missing `)` there rather than the list
-  # reading the next lines as arguments.
+  # The argument list after a dotted divert target. A bracketed argument list
+  # spans lines in every spelling of a divert, as a relative call's
+  # `LuauFunctionCallParameters` does: the editor closes a `(` as it is typed,
+  # so the list reads to its `)`. The dotted path before it stays on its line
+  # (`DivertPath` ends with the line), so `-> a.` while typing never reads the
+  # next line as part of the target.
   DivertArguments:
     tag: meta
     name: meta.parameter.luau
@@ -2254,23 +2293,31 @@ repository:
     # so the list reaches its `)` in both engines instead of closing
     # incomplete at that character (GRAMMAR.md §17).
     patterns:
+      - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
       - { include: "#DivertArgumentsUnknown" }
-    end: ([)])|(?=$)
+    # An unclosed list still ends before the next `scene` or `branch` line,
+    # so the flows after it keep their shape in both engines.
+    end: (?={{BEAT}})|([)])
     endCaptures:
       1:
         patterns:
           - { include: "#PunctuationParenClose" }
 
   # A character in a divert's argument list that no argument rule reads. The
-  # compiler reports it.
+  # compiler reports it. A word character is not one: a word no argument rule
+  # reads (`end`, `done`) closes the list there, as it closes a relative
+  # call's, so an unclosed list ends where a relative one does rather than
+  # reading the rest of the script.
   DivertArgumentsUnknown:
     tag: invalid
     name: invalid.illegal.unknown-statement.sd
-    match: ([^\s)])
+    match: ([^\s\w)])
 
   DivertPath:
     tag: heading
@@ -2661,7 +2708,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   TitleMark:
     tag: definition(punctuation)
     name: punctuation.title.mark.sd
@@ -2725,7 +2772,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   HeadingMark:
     tag: definition(punctuation)
     name: punctuation.heading.mark.sd
@@ -2789,7 +2836,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   TransitionalMark:
     tag: definition(punctuation)
     name: punctuation.transitional.mark.sd
@@ -3095,7 +3142,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   ImplicitAction:
     begin: ({{WS}}*)(?!{{END}})(?=\S)
     beginCaptures:
@@ -3110,7 +3157,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
   # Action bodies share display parsing, but also expose the load directive.
   # Keep the enclosing line shapes parallel to the ordinary display rules.
   BlockActionLineContinue:

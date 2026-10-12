@@ -28,12 +28,12 @@ const PROGRAM = { uri: URI, scripts: { [URI]: 1 }, filesEpoch: 1 };
  *  locator (`ProgramLocator.addressAt`) would resolve it on the current
  *  engine: its first beat, and its last. Line 3 is blank and resolves to line
  *  2's address; line 4 holds three beats that a `>` breaks. */
-const ADDRESS_AT_LINE: Record<number, { first: string; last: string }> = {
-  2: { first: "main.2", last: "main.2" },
-  3: { first: "main.2", last: "main.2" },
-  4: { first: "main.4.0", last: "main.4.2" },
-  6: { first: "main.6", last: "main.6" },
-  8: { first: "main.8", last: "main.8" },
+const ADDRESS_AT_LINE: Record<number, { first: ProgramAddress; last: ProgramAddress }> = {
+  2: { first: 2, last: 2 },
+  3: { first: 2, last: 2 },
+  4: { first: 40, last: 42 },
+  6: { first: 6, last: 6 },
+  8: { first: 8, last: 8 },
 };
 
 /** A game that records what was asked of it, standing where the worker's real
@@ -46,7 +46,7 @@ function recordingGame() {
     calls,
     program: PROGRAM,
     startFrom: { file: URI, line: 2 } as { file: string; line: number },
-    startAddress: ADDRESS_AT_LINE[2]!.last as string | null,
+    startAddress: ADDRESS_AT_LINE[2]!.last as ProgramAddress | null,
     setStartFrom(
       startFrom: { file: string; line: number },
       beat: "first" | "last" = "first",
@@ -64,7 +64,7 @@ function recordingGame() {
  *  game holds. */
 function context(
   game: ReturnType<typeof recordingGame> | undefined,
-  address = "main.2",
+  address: ProgramAddress = 2,
   programId = programIdentity(PROGRAM),
 ) {
   const remembered: { file: string; line: number }[] = [];
@@ -153,7 +153,7 @@ describe("planning a route for a selection (#489)", () => {
     planRouteForSelection(selection(8, false), ctx);
 
     expect(game.calls).toEqual(["setStartFrom:8"]);
-    expect(searched).toEqual(["main.8"]);
+    expect(searched).toEqual([8]);
   });
 
   test("plans one when the compiler said nothing either way", () => {
@@ -162,7 +162,7 @@ describe("planning a route for a selection (#489)", () => {
 
     planRouteForSelection(selection(8, undefined), ctx);
 
-    expect(searched).toEqual(["main.8"]);
+    expect(searched).toEqual([8]);
   });
 
   test("reuses the standing search when the start point did not move", () => {
@@ -176,7 +176,7 @@ describe("planning a route for a selection (#489)", () => {
     planRouteForSelection(params, ctx);
 
     expect(searched).toEqual([]);
-    expect(params.checkpoint).toBe("the state at main.2");
+    expect(params.checkpoint).toBe("the state at 2");
   });
 
   test("reuses the standing search for another line that resolves to its address", () => {
@@ -188,7 +188,7 @@ describe("planning a route for a selection (#489)", () => {
     planRouteForSelection(params, ctx);
 
     expect(searched).toEqual([]);
-    expect(params.checkpoint).toBe("the state at main.2");
+    expect(params.checkpoint).toBe("the state at 2");
   });
 
   test("searches again when the standing search was for the line's other beat", () => {
@@ -197,26 +197,26 @@ describe("planning a route for a selection (#489)", () => {
     // but the address did.
     const game = recordingGame();
     game.setStartFrom({ file: URI, line: 4 }, "first");
-    const { searched, ctx } = context(game, "main.4.0");
+    const { searched, ctx } = context(game, 40);
     const params = selection(4, false);
 
     planRouteForSelection(params, ctx);
 
-    expect(searched).toEqual(["main.4.2"]);
-    expect(params.checkpoint).toBe("the new state at main.4.2");
+    expect(searched).toEqual([42]);
+    expect(params.checkpoint).toBe("the new state at 42");
   });
 
   test("searches again when the standing search ran in another program", () => {
     // An address survives edits that change what the story does at it, so
     // a search is evidence only about the program it ran in.
     const other = programIdentity({ ...PROGRAM, filesEpoch: 2 });
-    const { searched, ctx } = context(recordingGame(), "main.2", other);
+    const { searched, ctx } = context(recordingGame(), 2, other);
     const params = selection(2, false);
 
     planRouteForSelection(params, ctx);
 
-    expect(searched).toEqual(["main.2"]);
-    expect(params.checkpoint).toBe("the new state at main.2");
+    expect(searched).toEqual([2]);
+    expect(params.checkpoint).toBe("the new state at 2");
   });
 
   test("does nothing at all before a game exists", () => {

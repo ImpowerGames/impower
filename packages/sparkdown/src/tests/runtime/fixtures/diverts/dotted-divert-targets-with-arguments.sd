@@ -4,7 +4,8 @@ scene outer
     Inner {a}.
     -> outer.visit(a + 1, "t") ->
     <- outer.aside(a + 2)
-    -> outer.second(a + 3, "b")
+    -> outer.second(a + 3,
+      "b")
   end
   branch visit(n, s)
     Visit {n} {s}.

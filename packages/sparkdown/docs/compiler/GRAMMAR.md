@@ -2,7 +2,7 @@
 
 This guide is for anyone adding, modifying, or debugging a rule in `definitions/yaml/sparkdown.language-grammar.yaml` — the file that tells sparkdown's parser how to turn `.sd` source into a syntax tree. It assumes no prior experience with TextMate grammars, Lezer, or this codebase's pipeline.
 
-> **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](./RUNTIME.md) covers the bytecode interpreter.
+> **Companion docs:** [`LOWERING.md`](./LOWERING.md) covers the next stage (tree → ParsedObject). [`RUNTIME.md`](../runtime/RUNTIME.md) covers the binary-program interpreter.
 
 ## How to read this guide
 
@@ -43,10 +43,10 @@ Syntax tree (Lezer-shaped)              ← what printTree shows
     │  (lowerers — src/compiler/lower/, see LOWERING.md)
     ▼
 inkjs ParsedHierarchy
-    │  (inkjs's bytecode generator)
+    │  (EmitProgram methods + program/BinaryProgramWriter.ts)
     ▼
-Bytecode (JSON)
-    │  (engine/Story.ts interpreter, see RUNTIME.md)
+Binary program (ProgramRoot with typed-array chunks)
+    │  (program/ProgramStory.ts interpreter, see RUNTIME.md)
     ▼
 Output stream + state
 ```
@@ -1212,6 +1212,8 @@ All 151 `begin`/`end` rules were audited for this class. Grouped by `end`-patter
 **Known residual (invalid/incomplete input only, not gated):** an `if` / `for` / `while` header written _without_ its `then` / `do` terminator (a transient mid-edit state) leaves the condition/header expression — which legitimately includes `Newline` so multi-line conditions can parse — running across lines until it hits a `{{BEAT}}` or `end`. The two engines scope that run-on region differently. This is invalid syntax and a separate, deeper concern than the boundary-tiling class; it is characterized here rather than fixed, because bounding the condition to one line would break valid multi-line conditions.
 
 **Stray text after a divert's targets** (`-> a -> b > After`, `x .. queue|-> A > y|b .. z`) is tiled rather than left to close the rule incomplete. `Divert` and the nested `Tunnel` end their line, so each takes a `// note` comment and then the rest of the line as `Unknown`. Inside an alternator arm the line-eating `Unknown` would swallow the arm's `|`, closing glue and `end`, so `ArmDivert` chains `ArmTunnel` (a `Tunnel` bounded by the arm) and both take stray text as `ArmUnknown`, which stops at those same boundaries. Arms have no `//` comments, so neither arm rule includes one.
+
+**A divert target's bracketed argument list spans lines in every spelling** (#1655). A relative call's list is `LuauFunctionCallParameters` and a dotted target's (`-> a.b(x,` then `y)` on the next line) is `DivertArguments`; both read to their `)` across lines, because the editor closes a `(` as it is typed. A dotted *path* stays on its line (`DivertPath` ends at `$`), so `-> a.` while typing never reads the next line into the target. An unclosed list ends where the relative one does: `DivertArgumentsUnknown` tiles stray punctuation (`;`, `}`) but not a word, so a word no argument rule reads (`end`, `done`) closes the list there incomplete in both spellings, and `DivertArguments` also ends before a `scene` or `branch` line (`{{BEAT}}`, §3.1).
 
 ---
 

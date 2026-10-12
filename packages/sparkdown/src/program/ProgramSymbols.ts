@@ -1,11 +1,13 @@
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
+import type { ProgramTable } from "./ProgramTable";
 
 /** What a symbol names (docs/engine/binary-program.md, section 2). The build
  *  out defines the kinds it has reached; the others follow with their slices.
  *  A root records the kind its program defines each symbol as
  *  (`ProgramRoot.kindOf`, `SequenceRow.kind` for a flow). */
 export const SymbolKind = {
-  /** The flow of a script's top-level content, named by the empty string. */
+  /** The flow of a script's top-level content: the starting script's, named
+   *  by the empty string, or an included script's, named from its uri
+   *  (`INCLUDED_FLOW_PREFIX`), which the top level runs. */
   Root: 0,
   Scene: 1,
   Branch: 2,
@@ -32,6 +34,32 @@ export const UNDEFINED_KIND = -1;
 
 /** The name the flow of the top-level content is registered under. */
 export const ROOT_FLOW_NAME = "";
+
+/** How the names of the symbols of an included script's top-level content
+ *  start: its flow's and the label its content jumps back to
+ *  (`programFlows.ts`, `IncludeEntry`). Both stand in the top level. */
+export const INCLUDED_FLOW_PREFIX = "$include:";
+
+/** How a function the compiler named is shown to an author. */
+export const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
+
+/** A name the compiler generates: `__`, its family, then a `$`, which no
+ *  name an author writes holds (`__synth$3`, `__binding$...`;
+ *  docs/engine/binary-program.md, section 2). */
+const GENERATED_LABEL_PART = /^__[A-Za-z]\w*\$/;
+
+/** A symbol's label (`ProgramRoot.labelOf`) as an author reads it in a
+ *  stack trace, `debug.info`, the frames view or a function value: each
+ *  part the compiler named read as anonymous (#1729). The label itself
+ *  stays the symbol's identity, which data breakpoints name a scope by, so
+ *  two anonymous functions keep scopes of their own. */
+export const readableSymbolLabel = (label: string): string =>
+  label
+    .split(".")
+    .map((part) =>
+      GENERATED_LABEL_PART.test(part) ? ANONYMOUS_FUNCTION_LABEL : part,
+    )
+    .join(".");
 
 /** The id of the symbol named `name`, interned when it is new, with a count
  *  id when `counted`. The id is the name's in every root the table serves,

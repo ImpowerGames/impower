@@ -2,10 +2,12 @@
 // document order. In a script included from two places every continuation
 // keeps a name of its own, and an incremental compile still matches a cold
 // one.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
+import type { ProgramRoot } from "../../program/ProgramRoot";
+import { programListing } from "../programListing";
+import { describeRoot } from "../program/describeRoot";
 
 const MAIN_URI = "file://proj/main.sd";
 const CHAPTER_URI = "file://proj/chapter.sd";
@@ -51,12 +53,21 @@ function configure(compiler: SparkdownCompiler, project: Project, version: numbe
   });
 }
 
-function compiled(compiler: SparkdownCompiler): string {
-  return JSON.stringify(compiler.compile({ textDocument: { uri: MAIN_URI } }).program.compiled);
+/** The root of the statement chunks a compile of `main.sd` built. */
+function compiled(compiler: SparkdownCompiler): ProgramRoot {
+  const root = compiler.compile({ textDocument: { uri: MAIN_URI } }).program.chunks;
+  expect(root, "the compile built statement chunks").toBeDefined();
+  return root!;
 }
 
-function groups(json: string): string[] {
-  return [...json.matchAll(/"\^group","\/str","str","\^([^"]*)"/g)].map((m) => m[1]!);
+/** The group each display call of the program names, in the order of its
+ *  instructions: the string pushed after the table key `group`. */
+function groups(root: ProgramRoot): string[] {
+  const listing = programListing(root);
+  return listing.flatMap((line, i) => {
+    const value = line === 'Str "group"' ? /^Str (".*")$/.exec(listing[i + 1] ?? "") : null;
+    return value ? [JSON.parse(value[1]!) as string] : [];
+  });
 }
 
 // `shared.sd` is included by `main.sd` and again by `chapter.sd`.
@@ -78,12 +89,12 @@ const project: Project = {
 
 describe("continuation group names", () => {
   it("a script included twice keeps a name for each continuation", () => {
-    const json = quiet(() => {
+    const root = quiet(() => {
       const compiler = new SparkdownCompiler();
       configure(compiler, project, 1);
       return compiled(compiler);
     });
-    const names = groups(json);
+    const names = groups(root);
     expect(names.length).toBeGreaterThan(0);
     expect(names.filter((name) => name === "")).toEqual([]);
     // One name for the shared continuation and one for main's.
@@ -114,6 +125,6 @@ describe("continuation group names", () => {
       return [incremental, compiled(fresh)];
     });
     expect(groups(incremental).filter((name) => name === "")).toEqual([]);
-    expect(incremental).toBe(cold);
+    expect(describeRoot(incremental)).toEqual(describeRoot(cold));
   });
 });

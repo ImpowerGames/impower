@@ -1,6 +1,3 @@
-import { Container as RuntimeContainer } from "../../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
-import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
@@ -48,16 +45,12 @@ export class StorePropertyAssignment extends ParsedObject {
     emitter.emit(Op.StoreIndex);
   }
 
-  public readonly GenerateRuntimeObject = (): RuntimeObject => {
-    const container = new RuntimeContainer();
-    container.AddContent(RuntimeControlCommand.EvalStart());
-    this.baseExpression.GenerateIntoContainer(container);
-    this.keyExpression.GenerateIntoContainer(container);
-    this.valueExpression.GenerateIntoContainer(container);
-    container.AddContent(RuntimeControlCommand.StoreIndex());
-    container.AddContent(RuntimeControlCommand.EvalEnd());
-    return container;
-  };
+  protected override Prepare(): boolean {
+    this.baseExpression.PrepareIntoContainer();
+    this.keyExpression.PrepareIntoContainer();
+    this.valueExpression.PrepareIntoContainer();
+    return true;
+  }
 
   public override readonly toString = (): string =>
     `${this.baseExpression}[${this.keyExpression}] = ${this.valueExpression}`;

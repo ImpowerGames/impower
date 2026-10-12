@@ -1,8 +1,6 @@
-// Nothing the worker sends the page carries a program, a checkpoint or path
-// locations, for an edit or for a suggestion, and the worker never serializes
-// a compiled story: the page only ever reads a program's summary.
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+// Nothing the worker sends the page carries a program or a checkpoint, for an
+// edit or for a suggestion: the page only ever reads a program's summary.
+import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
 const SOURCE = [
@@ -25,7 +23,7 @@ const SOURCE = [
 
 const LINE = SOURCE.split("\n").indexOf("  Line one of dialogue in scene 2.");
 
-/** Where a program's body, a checkpoint or path locations appear in `value`. */
+/** Where a program's body or a checkpoint appears in `value`. */
 function programShaped(value: unknown): string[] {
   const found: string[] = [];
   const walk = (v: any, path: string) => {
@@ -35,9 +33,7 @@ function programShaped(value: unknown): string[] {
     for (const [key, child] of Object.entries(v)) {
       const at = `${path}.${key}`;
       if (
-        key === "pathLocations" ||
         key === "compiled" ||
-        key === "compiledBuffer" ||
         key === "checkpoint" ||
         key === "context" ||
         key === "sceneAssets"
@@ -54,18 +50,11 @@ function programShaped(value: unknown): string[] {
   return found;
 }
 
-afterEach(() => vi.restoreAllMocks());
-
 async function run() {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: 0 },
   });
-  // The player's own compiler. Configuring it compiled the builtins prelude
-  // once, in a compiler of the prelude's own, which is not the story of any
-  // edit or suggestion.
-  const compiler: SparkdownCompiler = h.workerState.compilerState.compiler;
-  const serialize = vi.spyOn(compiler as any, "serializeCompiledProgram");
   try {
     await h.compile();
     await h.select(LINE);
@@ -90,7 +79,6 @@ async function run() {
     await h.closeSuggestions();
     return {
       shaped: h.toPage.flatMap((message) => programShaped(message)),
-      serialized: serialize.mock.calls.length,
       overlay: h.overlay.textContent ?? "",
       messages: h.toPage.length,
     };
@@ -100,11 +88,10 @@ async function run() {
 }
 
 describe("what the worker sends the page", () => {
-  it("carries no program, checkpoint or path locations, and no story is serialized", async () => {
+  it("carries no program or checkpoint", async () => {
     const on = await run();
     expect(on.messages).toBeGreaterThan(0);
     expect(on.shaped).toEqual([]);
-    expect(on.serialized).toBe(0);
     // It displayed the preview all the same.
     expect(on.overlay).toContain("Line uno of dialogue in scene 2.");
   }, 120_000);
@@ -112,13 +99,12 @@ describe("what the worker sends the page", () => {
   it("is read by a check that finds a whole program and a checkpoint", () => {
     const answer = {
       result: {
-        program: { uri: MAIN_URI, pathLocations: {}, compiled: {} },
+        program: { uri: MAIN_URI, compiled: {} },
         checkpoint: "{}",
       },
     };
     expect(programShaped(answer)).toEqual([
       ".result.program (not a summary)",
-      ".result.program.pathLocations",
       ".result.program.compiled",
       ".result.checkpoint",
     ]);

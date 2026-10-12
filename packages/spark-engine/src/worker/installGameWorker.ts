@@ -1,6 +1,5 @@
-import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
@@ -139,7 +138,7 @@ export function installGameWorker(connection: MessageConnection) {
    *  that owns its game gives each game it builds the same settings. Every
    *  game this worker holds is built here. */
   const createGame = (
-    options: { program: SparkProgram; story?: Story } & GameConfiguration,
+    options: { program: SparkProgram } & GameConfiguration,
   ): Game => {
     const game = new Game({
       ...systemConfiguration,
@@ -282,7 +281,7 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         state.game.start();
-        return { success: hasCompiledProgram(state.game.program) };
+        return { success: isRunnableProgram(state.game.program) };
       });
       return;
     }
@@ -465,9 +464,12 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        const { scope, variablesReference, value } = message.params;
+        const { scope, variablesReference, value, threadId, frameId } =
+          message.params;
         if (scope === "temps") {
-          const variables = game.getTempVariables();
+          // The frame the debugger selected, or the one that runs when the
+          // request names none.
+          const variables = game.getTempVariables(threadId, frameId);
           return { variables };
         }
         if (scope === "vars") {

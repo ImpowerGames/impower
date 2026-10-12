@@ -1,18 +1,18 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
-// Side-effect import to stabilize the inkjs engine module load order.
-// `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
-// dependency cycle; if `Object.ts` is the first to load, `Value.ts`
-// resolves `InkObject` as undefined when extending it. Forcing
-// `Container.ts` to be the entry point evaluates `Value.ts` (and
-// therefore `Object.ts`) in an order that breaks the cycle cleanly.
-// The now-removed `Compiler` import used to do this implicitly; this
-// explicit import preserves the load order in its place.
-import "../../../inkjs/engine/Container";
-import { Range } from "@codemirror/state";
+import { documentString } from "../../utils/documentString";
+import { type ChangeDesc, Range, type Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
+import {
+  collectMemos,
+  noMemoStats,
+  StatementMemoSession,
+  type MemoStats,
+  type StatementMemoEntry,
+  type StatementMemoHost,
+} from "../../lower/statementMemo";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import type { SourceMetadata } from "../../../inkjs/engine/Error";
+import type { SourceMetadata } from "../../../runtime/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
 import type {
   LowerContext,
@@ -93,6 +93,9 @@ export interface CompiledBlock {
   // lowering read. Kept only with `recordLoweringReads`, for the binary
   // program's chunk store.
   statement?: StatementShape;
+  // The statements of its bodies its lowering served from their memos
+  // (`statementMemo.ts`), which hold none of their objects.
+  memoized?: ParsedObject[];
 }
 
 // A lowering read as its chunk keeps it: the node that read it by name and by
@@ -114,9 +117,13 @@ export interface CompilationConfig {
     };
   };
   // Whether a chunk's lowering keeps the reads it makes outside its own
-  // syntax (`CompiledBlock.reads`), which only the binary program's chunk
-  // store needs (`SparkdownCompilerConfig.programChunks`).
+  // syntax (`CompiledBlock.reads`), which the binary program's chunk store
+  // needs; the compiler always sets it.
   recordLoweringReads?: boolean;
+  // The statement memo's host, which the compiler gives when statement
+  // chunks are on: statements of blocks' bodies are remembered and served
+  // from their memos (`statementMemo.ts`).
+  statementMemo?: StatementMemoHost;
 }
 
 function sameNames(
@@ -219,7 +226,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   private documentText(): string {
     if (this._documentTextOf !== this.text) {
       this._documentTextOf = this.text;
-      this._documentText = this.text?.toString() ?? "";
+      this._documentText = this.text ? documentString(this.text) : "";
     }
     return this._documentText;
   }
@@ -302,27 +309,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
    *  differently from the answer its lowering got, asking the node that read
    *  it. A node no longer found where the read says it starts disagrees. */
   private loweringReadsDisagree(reads: RecordedRead[], from: number): boolean {
-    const text = this.text;
-    const tree = this.tree;
-    if (!text || !tree) {
-      return true;
-    }
-    const ctx = {
-      read: (a: number, b: number) => this.read(a, b),
-      lineNumber: (pos: number) => text.lineAt(pos).number - 1,
-      characterNumber: (pos: number) => pos - text.lineAt(pos).from,
-    };
-    return reads.some((read) => {
-      const node = nodeStartingAt(tree, from + read.at, read.node);
-      if (!node) {
-        return true;
-      }
-      const answer =
-        read.kind === "unreachable"
-          ? unreachableRead(node, ctx)
-          : continuationRoutingRead(node, ctx);
-      return answer !== read.value;
-    });
+    return reads.some(
+      (read) => this.loweringReadAt(read.kind, read.node, from + read.at) !== read.value,
+    );
   }
 
   /**
@@ -412,6 +401,112 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       nodeRef.name !== "RequiredWhitespace" &&
       nodeRef.name !== "FrontMatter"
     ) {
+      const host = this.config?.recordLoweringReads
+        ? this.config.statementMemo
+        : undefined;
+      let lowered = this.lowerTopLevel(nodeRef, host);
+      if (lowered === null) {
+        // A statement the memo served is code of its owner's own, which needs
+        // its objects: the node is lowered again without the memo.
+        lowered = this.lowerTopLevel(nodeRef, undefined);
+      }
+      if (lowered !== undefined && lowered !== null) {
+        annotations.push(
+          SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),
+        );
+      }
+      // Chunks the lowerer doesn't recognize are silently dropped.
+      // There is no parser fallback for unrecognized chunks (the
+      // grammar+lowerers are the only path); dropping them avoids
+      // re-interpreting Luau-tagged source as legacy ink (e.g. `{ a = 1 }`
+      // table literals look like ink `{interpolation}` blocks) and the
+      // misleading diagnostics that would follow. If a chunk shape needs
+      // handling, add a lowerer for it in `src/compiler/lower/lower.ts`.
+    }
+    return annotations;
+  }
+
+  /** How many statements of blocks' bodies the last update lowered, and how
+   *  many it served from their memos (`statementMemo.ts`). */
+  memoStats: MemoStats = noMemoStats();
+
+  // The memos served since the last update (`StatementMemoSession.used`).
+  protected _served = new Set<StatementMemoEntry>();
+
+  /** The range the incremental parse rebuilt in the update in progress,
+   *  whose statements are lowered whatever their memos say, set by the
+   *  combined annotator around the update's own window. */
+  get rebuilt(): { from: number; to: number } | null {
+    return this._rebuilt;
+  }
+  set rebuilt(window: { from: number; to: number } | null) {
+    this._rebuilt = window;
+    if (window) {
+      this.memoStats.rebuilt = window;
+    }
+  }
+  protected _rebuilt: { from: number; to: number } | null = null;
+
+  // The edit of the update in progress, inverted, which maps a range of the
+  // new document to the old one, where the annotations of the previous
+  // lowering still stand while the update's window is lowered.
+  protected _inverse?: ChangeDesc;
+
+  override update(tree: Tree, text: Text, uri?: string): void {
+    super.update(tree, text, uri);
+    this.memoStats = noMemoStats();
+    this._served = new Set();
+    this._inverse = undefined;
+    this.rebuilt = null;
+  }
+
+  override mapState(changes: ChangeDesc): void {
+    this._inverse = this.config?.statementMemo?.enabled
+      ? changes.invertedDesc
+      : undefined;
+  }
+
+  /** Marks the annotations as current: after the update's own window is
+   *  lowered they are mapped to the new document. `relower` starts a
+   *  lowering of blocks of the compiler's (`relowerCompilations`), whose
+   *  memos may be served again. */
+  settle(relower = false): void {
+    this._inverse = undefined;
+    this.rebuilt = null;
+    if (relower) {
+      this._served = new Set();
+    }
+  }
+
+  /** The memos of the statements the previous lowering of the node at
+   *  `[from, to)` held, by syntax. */
+  protected memoLookup(from: number, to: number): Map<string, StatementMemoEntry> {
+    const lookup = new Map<string, StatementMemoEntry>();
+    const inverse = this._inverse;
+    const oldFrom = inverse ? inverse.mapPos(from, -1) : from;
+    const oldTo = inverse ? inverse.mapPos(to, 1) : to;
+    this.current.between(oldFrom, oldTo, (f, _t, value) => {
+      collectMemos(value.type.statement, f, lookup);
+    });
+    return lookup;
+  }
+
+  /** Where a position of the document stood before the update the
+   *  annotator is making. */
+  protected before(pos: number): number {
+    return this._inverse ? this._inverse.mapPos(pos, 1) : pos;
+  }
+
+  /**
+   * Lowers a top-level node, through the statement memo when `host` is
+   * given. Returns null when a statement the memo served became code of its
+   * owner's own (`StatementMemoSession.finish`).
+   */
+  protected lowerTopLevel(
+    nodeRef: SparkdownSyntaxNodeRef,
+    host: StatementMemoHost | undefined,
+  ): CompiledBlock | undefined | null {
+    {
       // Snapshot the chunk's absolute start line so the lowerer can produce
       // chunk-relative debug metadata. `text.lineAt(pos).number` is 1-based,
       // so subtract 1 to get a 0-based absolute line. The 0-based chunk-
@@ -535,18 +630,46 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
         blockEndStack,
+        // The depth of the scoped blocks open around the statement being
+        // lowered, which a block statement raises and puts back: starting it
+        // at 0, as every reader reads it unset, leaves the context as a block
+        // statement found it (`recordLowering`, #656).
+        scopeDepth: 0,
       };
+      const session =
+        statement && host?.enabled
+          ? new StatementMemoSession(
+              host,
+              this.memoLookup(nodeRef.from, nodeRef.to),
+              (pos) => this.before(pos),
+              this.rebuilt,
+              this.memoStats,
+              this._served,
+              (kind, node, from) => this.loweringReadAt(kind, node, from),
+            )
+          : undefined;
+      ctx.statementMemo = session;
       let lowered = lower(nodeRef, ctx);
+      if (session && statement && !session.finish(statement)) {
+        return null;
+      }
       // The Luau blocks this chunk's own nodes show to be left open. A chunk
       // with no lowerer (a root-level type function) carries them on an empty
       // block.
-      const unclosed = validateBlockEnds(nodeRef.node, ctx);
+      const unclosed = validateBlockEnds(
+        nodeRef.node,
+        ctx,
+        session ? (node) => session.servedWithoutBlocks(node) : undefined,
+      );
       if (unclosed.length > 0) {
         lowered ??= {};
         chunkDiagnostics.push(...unclosed);
       }
       if (lowered && statement) {
         lowered.statement = statement;
+      }
+      if (lowered && session && session.served.length > 0) {
+        lowered.memoized = session.served;
       }
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;
@@ -584,18 +707,34 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         if (isExplicitRuleName(nodeRef.name, "Tags")) {
           lowered.uuid = "tags";
         }
-        annotations.push(
-          SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),
-        );
       }
-      // Chunks the lowerer doesn't recognize are silently dropped.
-      // There is no parser fallback for unrecognized chunks (the
-      // grammar+lowerers are the only path); dropping them avoids
-      // re-interpreting Luau-tagged source as legacy ink (e.g. `{ a = 1 }`
-      // table literals look like ink `{interpolation}` blocks) and the
-      // misleading diagnostics that would follow. If a chunk shape needs
-      // handling, add a lowerer for it in `src/compiler/lower/lower.ts`.
+      return lowered;
     }
-    return annotations;
+  }
+
+  /** What the document now answers a `LoweringRead` of the node named
+   *  `name` that starts at `from`, or undefined when none starts there. */
+  protected loweringReadAt(
+    kind: LoweringRead["kind"],
+    name: string,
+    from: number,
+  ): string | undefined {
+    const text = this.text;
+    const tree = this.tree;
+    if (!text || !tree) {
+      return undefined;
+    }
+    const node = nodeStartingAt(tree, from, name);
+    if (!node) {
+      return undefined;
+    }
+    const ctx = {
+      read: (a: number, b: number) => this.read(a, b),
+      lineNumber: (pos: number) => text.lineAt(pos).number - 1,
+      characterNumber: (pos: number) => pos - text.lineAt(pos).from,
+    };
+    return kind === "unreachable"
+      ? unreachableRead(node, ctx)
+      : continuationRoutingRead(node, ctx);
   }
 }

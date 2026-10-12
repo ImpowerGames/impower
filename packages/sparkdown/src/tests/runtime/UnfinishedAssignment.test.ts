@@ -5,14 +5,14 @@
 // every variable holds a value and every save succeeds.
 
 import { describe, expect, test } from "vitest";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import type { TestStory } from "../engineUnderTest";
 
 const TAIL = "Well, then,\nStory follows.\n";
 
 // Runs the story to its end, saving its state after every step as the
 // preview does, and returns what it showed.
-function runSavingEachStep(story: RuntimeStory): string {
+function runSavingEachStep(story: TestStory): string {
   let out = "";
   while (story.canContinue) {
     out += story.Continue();
@@ -22,7 +22,7 @@ function runSavingEachStep(story: RuntimeStory): string {
 }
 
 // The globals a save of the story holds.
-function savedGlobals(story: RuntimeStory): Record<string, unknown> {
+function savedGlobals(story: TestStory): Record<string, unknown> {
   return JSON.parse(story.state.toJson()).variablesState ?? {};
 }
 

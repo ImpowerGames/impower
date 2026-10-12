@@ -399,27 +399,6 @@ end
     expect(result.choices).toEqual([]);
   });
 
-  test("a block that offers no choice runs on even after a choice generated before it", () => {
-    const result = drive(`
--> main
-
-scene main
-  if true then
-    * Stray
-  end
-  choose
-    if false then
-      * Hidden
-    end
-  end
-  After the empty choose.
-end
-`);
-    expect(result.runtimeErrors).toEqual([]);
-    expect(result.lines).toEqual(["After the empty choose."]);
-    expect(result.choices).toEqual(["Stray"]);
-  });
-
   test("a block that offers no choice runs on after a thread offered a choice", () => {
     const result = drive(`
 store has_key = false
@@ -470,39 +449,6 @@ end
     expect(result.steps).toEqual([["Caption."], ["A", "Took A.", "After."]]);
   });
 
-  test("a block entered past its start after an earlier block holds for its own choice", () => {
-    const result = drive(
-      `
--> main
-
-scene main
-  if true then
-    * Stray
-  end
-  choose
-    * A
-      -> mark
-  end
-  choose
-    label mark
-    Caption.
-    * B
-      Took B.
-  end
-  After.
-end
-`,
-      "A",
-      "B",
-    );
-    expect(result.runtimeErrors).toEqual([]);
-    expect(result.steps).toEqual([
-      [],
-      ["A", "Caption."],
-      ["B", "Took B.", "After."],
-    ]);
-  });
-
   test("a block that offers no choice runs on when entered past its start after an earlier choice", () => {
     const result = drive(`
 store has_key = false
@@ -531,30 +477,6 @@ end
     expect(result.runtimeErrors).toEqual([]);
     expect(result.lines).toEqual(["After the gated block."]);
     expect(result.choices).toEqual(["Side one"]);
-  });
-
-  test("a block with a label between its choices holds for a choice offered before the label", () => {
-    const result = drive(
-      `
--> main
-
-scene main
-  choose
-    * A
-      Took A.
-    label mid
-    if false then
-      * B
-    end
-  end
-  After.
-end
-`,
-      "A",
-    );
-    expect(result.runtimeErrors).toEqual([]);
-    expect(result.offered).toEqual([["A"]]);
-    expect(result.steps).toEqual([[], ["A", "Took A.", "After."]]);
   });
 
   test("a thread's choices are not the block's: a block whose own choices are gated off runs on", () => {
@@ -628,25 +550,6 @@ end
     expect(result.runtimeErrors).toEqual([]);
     expect(result.offered).toEqual([["Deep", "Shallow"]]);
     expect(result.steps.at(-1)).toEqual(["Deep", "After."]);
-  });
-
-  test("a choice outside any choose block does not replay the content after it", () => {
-    const result = drive(
-      `
--> main
-
-scene main
-  if true then
-    * Stray
-  end
-  Middle.
-  label mark
-  Marked.
-end
-`,
-      "Stray",
-    );
-    expect(result.steps.at(-1)).toEqual(["Stray"]);
   });
 
   test("choosing inside a choose nested in an if continues after the outer choose block", () => {

@@ -9,7 +9,7 @@ import { scanAssetDirectives } from "../../compiler/utils/scanAssetDirectives";
 
 const scan = (text: string) => {
   const capture = createSceneAssetCapture();
-  const beat = scanAssetDirectives(text, "Scene.0", capture);
+  const beat = scanAssetDirectives(text, 0, capture);
   return { capture, beat };
 };
 
@@ -21,7 +21,7 @@ describe("scanAssetDirectives", () => {
   it("reads image names after the verb and layer, splitting on +", () => {
     const { beat } = scan("[[show portrait bunny~hat+hat with fade over 1s]]");
     expect(beat?.image).toEqual(["bunny~hat", "hat"]);
-    expect(beat?.address).toBe("Scene.0");
+    expect(beat?.address).toBe(0);
   });
 
   it("treats every token as a name when there is no verb", () => {
@@ -91,9 +91,9 @@ describe("scanAssetDirectives", () => {
 
   it("accumulates beats on the capture in call order", () => {
     const capture = createSceneAssetCapture();
-    scanAssetDirectives("[[show backdrop a]]", "S.0", capture);
-    scanAssetDirectives("plain text", "S.1", capture);
-    scanAssetDirectives("((play music b))", "S.2", capture);
-    expect(capture.beats.map((b) => b.address)).toEqual(["S.0", "S.2"]);
+    scanAssetDirectives("[[show backdrop a]]", 0, capture);
+    scanAssetDirectives("plain text", 1, capture);
+    scanAssetDirectives("((play music b))", 2, capture);
+    expect(capture.beats.map((b) => b.address)).toEqual([0, 2]);
   });
 });

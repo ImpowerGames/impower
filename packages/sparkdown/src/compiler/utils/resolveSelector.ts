@@ -1,5 +1,6 @@
 import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
+import { getContextEntry } from "./getContextEntry";
 import { selectProperty } from "./selectProperty";
 
 export const resolveSelector = <T>(
@@ -19,7 +20,7 @@ export const resolveSelector = <T>(
         const selectorPath = `${selectorType}.${selectorName}`;
         // Asset names can contain qualified attributes (mia~look.left). Keep
         // the complete name intact before trying nested selector paths.
-        const exact = program.context?.[selectorType]?.[selectorName];
+        const exact = getContextEntry(program.context, selectorType, selectorName);
         if (exact !== undefined) {
           return [exact as T, selectorPath];
         }

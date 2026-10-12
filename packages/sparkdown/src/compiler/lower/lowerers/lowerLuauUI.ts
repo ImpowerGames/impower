@@ -72,7 +72,7 @@ export function lowerLuauUI(
   // Component parameters (`component card(title, …)`): the header's
   // LuauFunctionParameter names (spec §4.7). Read into ComponentNode.params AND
   // pushed onto ctx.sparkleLoopVars while the body is lowered, so a `{title}`
-  // binding in the body compiles to `__binding_N(title) return title end` — the
+  // binding in the body compiles to `__binding$N(title) return title end` — the
   // runtime passes each call-arg value as the matching arg (same mechanism as
   // `for`-loop vars; see LowerContext.sparkleLoopVars / lowerBinding).
   const params =

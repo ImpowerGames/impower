@@ -1,5 +1,6 @@
-import { Choice } from "@impower/sparkdown/src/inkjs/engine/Choice";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import type { ProgramChoice } from "@impower/sparkdown/src/program/ProgramStoryState";
+import type { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { RecencySet, type RecencyEntry } from "./RecencySet";
 
 export interface SerializableRuntimeState {
@@ -13,7 +14,7 @@ export interface SerializableRuntimeState {
   }[];
 }
 
-/** Per-beat delta of the runtime collections (incremental checkpoints). */
+/** Per-beat delta of the runtime collections (the checkpoints' images). */
 export interface RuntimeDelta {
   // Paths executed this beat, in recency order (delete-then-add semantics).
   pe: RecencyEntry[];
@@ -35,7 +36,7 @@ export class RuntimeState {
     selected: boolean;
   }[] = [];
 
-  // --- Incremental-checkpoint delta tracking ---
+  // --- Checkpoint delta tracking ---
   //
   // `pathsExecutedThisFrame` grows ~1 entry/beat and re-orders on revisit
   // (delete+add), so a full copy per checkpoint is O(n^2). We mirror the
@@ -47,22 +48,23 @@ export class RuntimeState {
   executedSinceCheckpoint: Set<RecencyEntry> = new Set();
   protected _choiceDrainMark = 0;
   protected _conditionDrainMark = 0;
+  // Whether a checkpoint has drained this record. One that has not is a
+  // record the game started again or loaded since the last checkpoint (an
+  // ordinary continue starts a new record every beat), so the changes it
+  // drains do not extend the record the last checkpoint held (#1701).
+  protected _drained = false;
 
-  /** Records the address of a position the story ran: an address of the
-   *  program engine, or a runtime path of the current engine, whose global
-   *  declarations' are none of a beat's. */
-  recordExecution(address: RecencyEntry) {
-    if (typeof address !== "string" || !address.startsWith("global ")) {
-      // Both collections keep the most recently executed address last.
-      // `RecencySet.add` moves an existing entry itself; the plain Set still
-      // needs the delete-then-add spelling.
-      this.pathsExecutedThisFrame.add(address);
-      this.executedSinceCheckpoint.delete(address);
-      this.executedSinceCheckpoint.add(address);
-    }
+  /** Records the address of a position the story ran. */
+  recordExecution(address: ProgramAddress) {
+    // Both collections keep the most recently executed address last.
+    // `RecencySet.add` moves an existing entry itself; the plain Set still
+    // needs the delete-then-add spelling.
+    this.pathsExecutedThisFrame.add(address);
+    this.executedSinceCheckpoint.delete(address);
+    this.executedSinceCheckpoint.add(address);
   }
 
-  recordChoice(story: Story, choice: Choice) {
+  recordChoice(story: ProgramStory, choice: ProgramChoice) {
     this.choicesEncountered.push({
       options: story.currentChoices.map((c) => c.text),
       selected: story.currentChoices.indexOf(choice),
@@ -106,15 +108,21 @@ export class RuntimeState {
     };
   }
 
-  /** The collection changes committed since the last drain, and advance the
-   *  drain marks. Called once per captured beat. */
-  drainDeltas(): RuntimeDelta {
+  /** The collection changes committed since the last drain, or null when
+   *  this record was never drained (it replaced the record the last drain
+   *  read, so it holds no changes to that record), and advance the drain
+   *  marks. Called once per captured beat. */
+  drainDeltas(): RuntimeDelta | null {
     const pe = Array.from(this.executedSinceCheckpoint);
     this.executedSinceCheckpoint.clear();
     const ce = this.choicesEncountered.slice(this._choiceDrainMark);
     this._choiceDrainMark = this.choicesEncountered.length;
     const cde = this.conditionsEncountered.slice(this._conditionDrainMark);
     this._conditionDrainMark = this.conditionsEncountered.length;
+    if (!this._drained) {
+      this._drained = true;
+      return null;
+    }
     return { pe, ce, cde };
   }
 

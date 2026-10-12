@@ -60,7 +60,7 @@ export interface LowerContext {
   characterNumber: (pos: number) => number;
   /**
    * URI of the document being lowered. Stamped onto `DebugMetadata.filePath`
-   * so inkjs's `ExportRuntime` diagnostics route back to the right URI in
+   * so the resolver's diagnostics route back to the right URI in
    * `program.diagnostics`. Optional for snapshot-tool callers that don't
    * surface diagnostics.
    */
@@ -98,7 +98,7 @@ export interface LowerContext {
    * per-iteration loop variables as globals (they aren't declared globals — the
    * engine rejects assigning undeclared globals). So `lowerBinding` emits the
    * enclosing loop vars as the evaluator function's PARAMETERS
-   * (`__binding_N(item, …) return <expr> end`) and records them on the Binding
+   * (`__binding$N(item, …) return <expr> end`) and records them on the Binding
    * (`Binding.params`); the reactive runtime passes each iteration's values as
    * args. `buildForNode` pushes its bindings before lowering its body and pops
    * after (the iterable + `else` are lowered outside this scope).
@@ -116,9 +116,9 @@ export interface LowerContext {
    * span. Enabled only while lowering a Sparkle binding body
    * (`buildSparkleBody`), where bindings are hoisted into synthetic functions
    * with no natural statement-level metadata to inherit, so the reference and
-   * the runtime objects it compiles to get the binding's own position. It stays
-   * scoped to Sparkle because a reference's `DebugMetadata` feeds its runtime
-   * objects and `pathLocations`. Unresolved-name warnings do not depend on it:
+   * the code it compiles to get the binding's own position. It stays scoped to
+   * Sparkle because a reference's `DebugMetadata` feeds the positions its chunk
+   * records. Unresolved-name warnings do not depend on it:
    * `VariableReference` reports them on its positioned `identifier` in every
    * expression.
    */
@@ -194,6 +194,12 @@ export interface LowerContext {
    * `loopStack.scopeDepth`).
    */
   scopeDepth?: number;
+  /**
+   * Number of blocks whose statements are lowering (`lowerStatements`)
+   * around the statement currently being lowered, which Luau's block
+   * recursion limit bounds.
+   */
+  blockDepth?: number;
   /**
    * Names that resolve to globally-addressable callables — top-level
    * function knots, `external NAME(...)` declarations, and `store`
@@ -309,6 +315,13 @@ export interface LowerContext {
    * callers that keep no statement shapes.
    */
   statementStack?: import("./utils/statementShape").StatementShape[];
+  /**
+   * The statement memo of the top-level node being lowered
+   * (`statementMemo.ts`), through which `lowerStatements` lowers each
+   * statement of a body that lowers from its own node, or serves it from its
+   * memo. Given by the compilation annotator when statement chunks are on.
+   */
+  statementMemo?: import("./statementMemo").StatementMemoSession;
 }
 
 /**

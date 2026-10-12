@@ -47,6 +47,10 @@
         ]
       },
       {
+        "matcher": "Bash|PowerShell",
+        "hooks": [{ "type": "command", "onFailure": "block", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/worktree-cleanup.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"cleanup hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'cleanup hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; node \"$f\" || { printf '%s\\n' 'cleanup hook: the check itself failed, so the command is refused' >&2; exit 2; }" }]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {

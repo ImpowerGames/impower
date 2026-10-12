@@ -1,11 +1,14 @@
 import { AuthorWarning } from "./AuthorWarning";
 import { bumpCompileEpoch } from "./CompileEpoch";
-import { carriedRuntime } from "./CarriedRuntime";
-import { activation } from "../../../engine/StoryActivation";
+import {
+  RecordingMap,
+  RecordingSet,
+  recordRead,
+  resolutionTap,
+  tapResolution,
+} from "./ResolutionTap";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
-import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
-import type { ErrorHandler } from "../../../engine/Error";
+import type { ErrorHandler } from "../../../../runtime/Error";
 import { ErrorType } from "../ErrorType";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
 import { FlowBase } from "./Flow/FlowBase";
@@ -15,19 +18,17 @@ import { ListDefinition } from "./List/ListDefinition";
 import { ListElementDefinition } from "./List/ListElementDefinition";
 import { StructDefinition } from "./Struct/StructDefinition";
 import { ParsedObject } from "./Object";
-import { Story as RuntimeStory } from "../../../engine/Story";
 import { SymbolType } from "./SymbolType";
 import { Text } from "./Text";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../engine/VariableAssignment";
-import { ListDefinition as RuntimeListDefinition } from "../../../engine/ListDefinition";
-import { StructDefinition as RuntimeStructDefinition } from "../../../engine/StructDefinition";
+import { ListDefinition as RuntimeListDefinition } from "../../../../runtime/ListDefinition";
+import { StructDefinition as RuntimeStructDefinition } from "../../../../runtime/StructDefinition";
 import { Identifier } from "./Identifier";
-import { asOrNull } from "../../../engine/TypeAssertion";
+import { asOrNull } from "../../../../runtime/TypeAssertion";
 import { ClosestFlowBase } from "./Flow/ClosestFlowBase";
 import { FunctionCall } from "./FunctionCall";
 import { Path } from "./Path";
 import { VariableAssignment } from "./Variable/VariableAssignment";
-import { DebugMetadata } from "../../../engine/DebugMetadata";
+import { DebugMetadata } from "../../../../runtime/DebugMetadata";
 import { Stitch } from "./Stitch";
 import { ObjectExpression } from "./Expression/ObjectExpression";
 import { VariableReference } from "./Variable/VariableReference";
@@ -105,24 +106,13 @@ export class Story extends FlowBase {
   private _errorHandler: ErrorHandler | null = null;
   private _hadError: boolean = false;
   private _hadWarning: boolean = false;
-  private _listDefs: Map<string, ListDefinition> = new Map();
-  private _structDefs: Map<string, StructDefinition> = new Map();
+  private _listDefs: Map<string, ListDefinition> = new RecordingMap(
+    () => "lists",
+  );
+  private _structDefs: Map<string, StructDefinition> = new RecordingMap(
+    () => "structs",
+  );
 
-  // True while `ExportRuntime` is materializing runtime objects (generation),
-  // false during the later `ResolveReferences` pass. Diagnostics raised during
-  // GENERATION are attributed to their enclosing top-level flow below — the
-  // incremental compiler skips generation for unchanged flows, which would
-  // silently drop such a diagnostic on the next compile, so any flow that
-  // produced one is barred from reuse (resolve-time diagnostics re-emit
-  // naturally because resolution always runs over the full tree).
-  private _generationPhase: boolean = false;
-
-  // Top-level flows that raised a diagnostic during generation this export,
-  // plus a flag for diagnostics that couldn't be attributed to one (no parsed
-  // source or no top-level ancestor) — the compiler reacts by disabling flow
-  // reuse entirely for the next compile.
-  public flowsWithGenerationDiagnostics: Set<ParsedObject> = new Set();
-  public hadUnattributableGenerationDiagnostic: boolean = false;
 
   get flowLevel(): FlowLevel {
     return FlowLevel.Story;
@@ -136,8 +126,12 @@ export class Story extends FlowBase {
     return this._hadWarning;
   }
 
-  public constants: Map<string, ConstantDeclaration> = new Map();
-  public externals: Map<string, ExternalDeclaration> = new Map();
+  public constants: Map<string, ConstantDeclaration> = new RecordingMap(
+    () => "consts",
+  );
+  public externals: Map<string, ExternalDeclaration> = new RecordingMap(
+    () => "externals",
+  );
 
   /** Declare the bare globals the builtins prelude creates at runtime (its
    *  type roots), without initializing them here. A compile that does not
@@ -146,10 +140,10 @@ export class Story extends FlowBase {
    *  without these markers a reference such as `game.loading.percent`
    *  reports "Cannot find item or path" in the editor and nowhere else.
    *
-   *  Runs before ExportRuntime, so the markers are always the incumbents when
-   *  the program's own declarations register during generation. An authored
-   *  define of the same name then takes the slot outright and the marker is
-   *  dropped; an authored `store` or `const` of that name is reported as a
+   *  Runs before the program path's resolution, so the markers are always
+   *  the incumbents when the program's own declarations register during
+   *  preparation. An authored define of the same name then takes the slot
+   *  outright and the marker is dropped; an authored `store` or `const` of that name is reported as a
    *  duplicate identifier, as it is in a seeded compile (see
    *  FlowBase.AddNewVariableDeclaration).
    *
@@ -181,7 +175,7 @@ export class Story extends FlowBase {
   /** The names {@link DeclareBuiltinGlobals} declared for this compile. */
   public builtinGlobalNames: ReadonlySet<string> = new Set();
 
-  /** Diverts whose target resolved, during ResolveReferences, to a global
+  /** Diverts whose target resolved, during resolution, to a global
    *  named in {@link builtinGlobalNames}: `-> game` binds to the builtin's
    *  variable (a table at runtime, whether the prelude's own or an authored
    *  override), so it can never reach a scene, branch, or label of that
@@ -211,6 +205,9 @@ export class Story extends FlowBase {
    *  global. Walked once per export, on first use, for
    *  {@link builtinGlobalDiverts}'s severity. */
   public globalAssignmentNames(): ReadonlySet<string> {
+    // Every assignment of the story answers, which a resolution of the
+    // program path cannot name.
+    recordRead("*");
     if (this._globalAssignmentNames) {
       return this._globalAssignmentNames;
     }
@@ -231,36 +228,39 @@ export class Story extends FlowBase {
       return false;
     };
     const names = new Set<string>();
+    const add = (child: ParsedObject): void => {
+      if (
+        child instanceof VariableAssignment &&
+        !child.isDeclaration &&
+        !declaredAround(child, child.variableName)
+      ) {
+        names.add(child.variableName);
+      }
+    };
     const visit = (obj: ParsedObject): void => {
       for (const child of obj.content ?? []) {
-        if (
-          child instanceof VariableAssignment &&
-          !child.isDeclaration &&
-          !declaredAround(child, child.variableName)
-        ) {
-          names.add(child.variableName);
-        }
+        add(child);
         visit(child);
       }
     };
-    visit(this);
+    // The program path's resolver knows each statement's assignments, read
+    // once when the statement is lowered, and visits no statement for them.
+    const known = resolutionTap()?.assignments();
+    if (known) {
+      for (const assignment of known) {
+        add(assignment);
+      }
+    } else {
+      visit(this);
+    }
     this._globalAssignmentNames = names;
     return names;
   }
 
-  // Build setting for exporting:
-  // When true, the visit count for *all* knots, stitches, choices,
-  // and gathers is counted. When false, only those that are direclty
-  // referenced by the ink are recorded. Use this flag to allow game-side
-  // querying of  arbitrary knots/stitches etc.
-  // Storing all counts is more robust and future proof (updates to the story file
-  // that reference previously uncounted visits are possible, but generates a much
-  // larger safe file, with a lot of potentially redundant counts.
-  public countAllVisits: boolean = false;
 
   constructor(toplevelObjects: ParsedObject[], isInclude: boolean = false) {
     // Don't do anything much on construction, leave it lightweight until
-    // the ExportRuntime method is called.
+    // the program path's resolver resolves it.
     super(null, toplevelObjects, null, false, isInclude);
   }
 
@@ -340,39 +340,64 @@ export class Story extends FlowBase {
     topLevelContent.splice(0, 0, ...flowsFromOtherFiles);
   }
 
-  /** Generates the runtime story. `initializeGlobals` false leaves its state
-   *  unreset, with no global initialized: a compile whose program runs from
-   *  statement chunks runs the declarations there, and resets the story only
-   *  when the program falls back. */
-  public readonly ExportRuntime = (
-    errorHandler: ErrorHandler | null = null,
-    initializeGlobals = true,
-    programMode = false,
-  ): RuntimeStory | null => {
+  /** Begins a resolution of the program path, reporting diagnostics to
+   *  `errorHandler`. */
+  public BeginResolution(errorHandler: ErrorHandler | null): void {
     this._errorHandler = errorHandler;
-    this.programMode = programMode;
 
     // Invalidate every node's diagnostic-dedup state from prior exports in
     // O(1) — the incremental pipeline reuses parsed nodes across compiles, and
     // a stale "already had warning" flag would silently drop a diagnostic a
     // cold compile emits (see CompileEpoch.ts).
     bumpCompileEpoch();
+  }
 
-    // Collect constants, list definitions and struct definitions in a single
-    // top-down traversal instead of three separate full-tree `FindAll` passes.
-    // CollectByType preserves FindAll's depth-first pre-order per type, so each
-    // bucket is identical to the corresponding FindAll result.
-    const constDecls: ConstantDeclaration[] = [];
-    const listDecls: ListDefinition[] = [];
-    const structDecls: StructDefinition[] = [];
-    this.CollectByType(
-      [ConstantDeclaration, ListDefinition, StructDefinition],
-      [constDecls, listDecls, structDecls] as ParsedObject[][],
-    );
+  /** Begins preparing the statements (`ProgramResolver`), once the flows'
+   *  labels are named. */
+  public BeginPreparation(): void {
+    this.builtinGlobalDiverts = [];
+    this._globalAssignmentNames = null;
+  }
 
+  /** Ends preparation and begins resolving references, once every global,
+   *  list and struct is declared. */
+  public BeginReferenceResolution(): void {
+    this._collisionIndex = null;
+  }
+
+  /** The names of the constants the story registered as globals: a
+   *  constant that failed validation has no initializer among the globals,
+   *  so it is not a global at all. */
+  public RegisteredConstantNames(): Set<string> {
+    const names = new Set<string>();
+    for (const [name] of this.constants) {
+      if (this.variableDeclarations.get(name)?.isConstantDeclaration) {
+        names.add(name);
+      }
+    }
+    return names;
+  }
+
+  /** Declares what the story declares outside its flows' generation: its
+   *  constants (ahead of every other global), its lists and its structs,
+   *  and each struct property a pure data struct makes a global of; and
+   *  empties its externals, which generation declares. `constDecls`,
+   *  `listDecls` and `structDecls` are the story's declarations of each kind
+   *  in the order the story holds them. `runtimeStructOf` builds a struct's
+   *  runtime definition, which the program path's resolver keeps for a
+   *  struct whose statement it does not resolve again. Returns the structs'
+   *  runtime definitions. */
+  public DeclareStoryTables(
+    constDecls: readonly ConstantDeclaration[],
+    listDecls: readonly ListDefinition[],
+    structDecls: readonly StructDefinition[],
+    runtimeStructOf: (
+      struct: StructDefinition,
+    ) => RuntimeStructDefinition = (struct) => struct.runtimeStructDefinition,
+  ): RuntimeStructDefinition[] {
     // Find all constants before main export begins, so that VariableReferences know
     // whether to generate a runtime variable reference or the literal value
-    this.constants = new Map();
+    this.constants = new RecordingMap(() => "consts");
     for (const constDecl of constDecls) {
       // Check for duplicate definitions
       const existingDefinition = this.constants.get(constDecl.constantName!);
@@ -398,12 +423,12 @@ export class Story extends FlowBase {
     // ordering irrelevant but copied the constant's whole runtime-object
     // graph per reference — and threw outright for any initializer
     // containing an operator, because `NativeFunctionCall` has no `Copy()`.
-    this.unregisterableConstants = new Set<string>();
+    this.unregisterableConstants = new RecordingSet<string>();
     this.RegisterConstantGlobals();
 
     // List definitions are treated like constants too - they should be usable
     // from other variable declarations.
-    this._listDefs = new Map();
+    this._listDefs = new RecordingMap(() => "lists");
     for (const listDef of listDecls) {
       if (listDef.identifier?.name) {
         this._listDefs.set(listDef.identifier?.name, listDef);
@@ -412,12 +437,12 @@ export class Story extends FlowBase {
 
     // Struct definitions are treated like constants too - they should be usable
     // from other variable declarations.
-    this._structDefs = new Map();
+    this._structDefs = new RecordingMap(() => "structs");
     const runtimeStructs: RuntimeStructDefinition[] = [];
     for (const structDef of structDecls) {
       if (structDef.identifier?.name) {
         this._structDefs.set(structDef.identifier?.name, structDef);
-        runtimeStructs.push(structDef.runtimeStructDefinition);
+        runtimeStructs.push(runtimeStructOf(structDef));
         // When the define ALSO carries a runtime table expression (the
         // OOP type/instance path), the live table provides each
         // property — emitting flat `companion.O.name` globals too would
@@ -454,28 +479,17 @@ export class Story extends FlowBase {
       }
     }
 
-    this.externals = new Map();
+    this.externals = new RecordingMap(() => "externals");
 
-    // Resolution of weave point names has to come first, before any runtime code generation
-    // since names have to be ready before diverts start getting created.
-    // (It used to be done in the constructor for a weave, but didn't allow us to generate
-    // errors when name resolution failed.)
-    this.ResolveWeavePointNaming();
+    return runtimeStructs;
+  }
 
-    // Everything from here until `ResolveReferences` is GENERATION — see
-    // `_generationPhase`. Diagnostics raised in this window are attributed to
-    // their top-level flow so the incremental compiler can bar that flow from
-    // reuse (reuse skips generation, which would drop the diagnostic).
-    this._generationPhase = true;
-    this.flowsWithGenerationDiagnostics = new Set();
-    this.hadUnattributableGenerationDiagnostic = false;
-    this.builtinGlobalDiverts = [];
-    this._globalAssignmentNames = null;
-
-    // Get default implementation of runtimeObject, which calls ContainerBase's generation method
-    const rootContainer = this.runtimeObject as RuntimeContainer;
-    this._exportedRoot = rootContainer;
-
+  /** Declares the parent types a `define X as T` names that nothing
+   *  defines, once generation has declared the story's globals, and returns
+   *  their names. `structDecls` are the story's structs in its order. */
+  public DeclareImplicitParents(
+    structDecls: readonly StructDefinition[],
+  ): Set<string> {
     // IMPLICIT parent types — a `define X as T` whose parent `T` is
     // never itself `define`d (e.g. `as character`, a builtin engine
     // type). Register the name as a known global so bare `T` references
@@ -514,12 +528,47 @@ export class Story extends FlowBase {
       });
       this.AddNewVariableDeclaration(va);
     }
+    return implicitParentNames;
+  }
 
-    // Export initialisation of global variables
-    // TODO: We *could* add this as a declarative block to the story itself...
-    const variableInitialization = new RuntimeContainer();
-    variableInitialization.AddContent(RuntimeControlCommand.EvalStart());
+  /** The story's globals in the order the story declared them (#705): each
+   *  list's and struct's runtime definition, each list prepared, and
+   *  `prepare` called for each global with an initializer
+   *  (`ProgramResolver.initialize`). Returns the lists' runtime
+   *  definitions. */
+  public PrepareGlobals(
+    implicitParentNames: ReadonlySet<string>,
+    runtimeStructs: RuntimeStructDefinition[],
+    prepare: (value: VariableAssignment) => void,
+    runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
+  ): RuntimeListDefinition[] {
+    return this.EachGlobal(
+      implicitParentNames,
+      runtimeStructs,
+      runtimeStructOf,
+      (list) => {
+        list.prepare();
+      },
+      (_key, value) => {
+        prepare(value);
+      },
+    );
+  }
 
+  /** The globals the story initializes, in the order the story declared
+   *  them, for `PrepareGlobals`: each list
+   *  registered, its runtime definition listed and then handed to `list`;
+   *  each struct a global carries registered and its runtime definition
+   *  (`runtimeStructOf`) added to `runtimeStructs`; and each global with an
+   *  initializer handed to `initializer`, under its key. Returns the lists'
+   *  runtime definitions. */
+  protected EachGlobal(
+    implicitParentNames: ReadonlySet<string>,
+    runtimeStructs: RuntimeStructDefinition[],
+    runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
+    list: (definition: ListDefinition) => void,
+    initializer: (key: string, value: VariableAssignment) => void,
+  ): RuntimeListDefinition[] {
     // Global variables are those that are local to the story and marked as global
     const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
@@ -541,9 +590,7 @@ export class Story extends FlowBase {
         if (value.listDefinition) {
           this._listDefs.set(key, value.listDefinition);
           runtimeLists.push(value.listDefinition.runtimeListDefinition);
-          variableInitialization.AddContent(
-            value.listDefinition.runtimeObject!,
-          );
+          list(value.listDefinition);
         } else {
           // Struct registration — populates `structDefinitions` for the
           // engine's character / UI / asset spec system. A `define` can
@@ -552,17 +599,14 @@ export class Story extends FlowBase {
           // and is compile-time only.
           if (value.structDefinition) {
             this._structDefs.set(key, value.structDefinition);
-            runtimeStructs.push(value.structDefinition.runtimeStructDefinition);
+            runtimeStructs.push(runtimeStructOf(value.structDefinition));
           }
           // Runtime initialization — for ordinary globals AND for
           // `define` tables (which additionally carry a struct above).
           // A pure struct VA (no expression) is intentionally NOT
           // initialized at runtime, matching the legacy behavior.
           if (value.expression) {
-            value.expression.GenerateIntoContainer(variableInitialization);
-            const runtimeVarAss = new RuntimeVariableAssignment(key, true);
-            runtimeVarAss.isGlobal = true;
-            variableInitialization.AddContent(runtimeVarAss);
+            initializer(key, value);
           } else if (!value.structDefinition) {
             // Non-struct global declaration must have an expression.
             throw new Error();
@@ -570,155 +614,8 @@ export class Story extends FlowBase {
         }
       }
     }
-
-    variableInitialization.AddContent(RuntimeControlCommand.EvalEnd());
-    variableInitialization.AddContent(RuntimeControlCommand.End());
-
-    if (this.variableDeclarations.size > 0) {
-      variableInitialization.name = "global decl";
-      rootContainer.AddToNamedContentOnly(variableInitialization);
-    }
-
-    // Signal that it's safe to exit without error, even if there are no choices generated
-    // (this only happens at the end of top level content that isn't in any particular knot)
-    rootContainer.AddContent(RuntimeControlCommand.Done());
-
-    // Replace runtimeObject with Story object instead of the Runtime.Container generated by Parsed.ContainerBase
-    const runtimeStory = new RuntimeStory(
-      rootContainer,
-      runtimeLists,
-      runtimeStructs,
-    );
-
-    // Publish the constant names so the runtime can keep them read-only and
-    // out of save data while still exposing them as inspectable globals.
-    // Only the ones actually registered: a constant that failed validation
-    // has no initializer in `global decl`, so it is not a global at all.
-    for (const [name] of this.constants) {
-      if (this.variableDeclarations.get(name)?.isConstantDeclaration) {
-        runtimeStory.constantNames.add(name);
-      }
-    }
-
-    this.runtimeObject = runtimeStory;
-
-    // Generation is complete (FlattenContainersIn emits no diagnostics).
-    this._generationPhase = false;
-
-    // Optimisation step - inline containers that can be. A program that runs
-    // from statement chunks runs nothing of this tree, so it is flattened
-    // only when the program falls back (`FinishForCurrentEngine`).
-    if (!programMode) {
-      this.FlattenContainersIn(rootContainer);
-    }
-
-    // Now that the story has been fulled parsed into a hierarchy,
-    // and the derived runtime hierarchy has been built, we can
-    // resolve referenced symbols such as variables and paths.
-    // e.g. for paths " -> knotName --> stitchName" into an INKPath (knotName.stitchName)
-    // We don't make any assumptions that the INKPath follows the same
-    // conventions as the script format, so we resolve to actual objects before
-    // translating into an INKPath. (This also allows us to choose whether
-    // we want the paths to be absolute)
-    // Every list and struct is declared by now.
-    this._collisionIndex = null;
-    // Resolution makes a global of each name a bare assignment assigns as it
-    // reaches the assignment, so what a read resolves to depends on where it
-    // stands; a resolution again for the current engine starts from here.
-    this._declarationsBeforeResolution = programMode
-      ? new Map(this.variableDeclarations)
-      : null;
-    try {
-      this.ResolveReferences(this);
-    } catch (e) {
-      console.error(e);
-    }
-
-    if (initializeGlobals) {
-      runtimeStory.ResetState();
-    }
-
-    return runtimeStory;
-  };
-
-  /** Set while `ExportRuntime` exports for a program that runs from
-   *  statement chunks (`SparkdownCompilerConfig.programChunks`): the runtime
-   *  tree then runs only when the program falls back, so the passes that
-   *  prepare it for the current engine, the flattening of its containers and
-   *  the count flags resolution sets on them, wait until it does
-   *  (`FinishForCurrentEngine`). The program counts every counted symbol
-   *  (docs/engine/binary-program.md, section 5). */
-  public programMode = false;
-
-  // The root container the last `ExportRuntime` generated.
-  protected _exportedRoot: RuntimeContainer | null = null;
-
-  // The story's declarations as `ExportRuntime` began resolving, in
-  // `programMode`, which `FinishForCurrentEngine` resolves again from.
-  protected _declarationsBeforeResolution: Map<
-    string,
-    VariableAssignment
-  > | null = null;
-
-  // Set while `FinishForCurrentEngine` resolves the story a second time,
-  // whose diagnostics the first resolution reported.
-  protected _silenced = false;
-
-  /** Has the current engine count a container's visits or turns, as
-   *  resolution finds that a read count, a divert target or a once-only
-   *  choice needs it; outside `programMode` only. */
-  public readonly MarkCounted = (
-    container: RuntimeContainer,
-    visits: boolean,
-    turns: boolean,
-  ): void => {
-    if (this.programMode) {
-      return;
-    }
-    if (visits) {
-      container.visitsShouldBeCounted = true;
-    }
-    if (turns) {
-      container.turnIndexShouldBeCounted = true;
-    }
-  };
-
-  /** Prepares a runtime story exported in `programMode` for the current
-   *  engine, when the program falls back to it, as `ExportRuntime` prepares
-   *  it outside `programMode`: its containers flattened, with the reconcile
-   *  of reused containers' count flags that flattening makes, and then its
-   *  references resolved again against the flattened tree, which writes the
-   *  runtime paths the current engine jumps by and sets the count flags.
-   *  The second resolution reports nothing: the first one reported what it
-   *  found. */
-  public readonly FinishForCurrentEngine = (): void => {
-    if (!this.programMode) {
-      return;
-    }
-    this.programMode = false;
-    if (this._exportedRoot) {
-      this.FlattenContainersIn(this._exportedRoot);
-    }
-    // The paths the first resolution derived are the unflattened tree's, and
-    // a path is cached until the epoch moves.
-    activation.epoch += 1;
-    // From the declarations the first resolution started from, so that each
-    // read resolves as it did then: the globals the first resolution made
-    // of bare assignments are made again as the resolution reaches them.
-    if (this._declarationsBeforeResolution) {
-      this.variableDeclarations = new Map(this._declarationsBeforeResolution);
-      this._declarationsBeforeResolution = null;
-    }
-    this.builtinGlobalDiverts = [];
-    this._silenced = true;
-    try {
-      this.ResolveReferences(this);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this._silenced = false;
-    }
-  };
+    return runtimeLists;
+  }
 
   /**
    * Register one synthetic global declaration per constant, ordered so that a
@@ -736,26 +633,20 @@ export class Story extends FlowBase {
    * initialized ahead of every mutable global, so reading a `store` here would
    * see nil. Such a constant is neither registered nor initialized (the nil
    * arithmetic would throw out of `ResetState` and cost the whole program its
-   * bytecode), and `ConstantDeclaration.ResolveReferences` reports it.
+   * bytecode), and `ConstantDeclaration.ResolveWith` reports it.
    */
   /**
    * Constants that could NOT be registered as globals — built from a
    * non-constant, part of a dependency cycle, or reading one of those. They
    * emit no initializer, so their references read nil; each is reported by
-   * `ConstantDeclaration.ResolveReferences`.
+   * `ConstantDeclaration.ResolveWith`.
    */
-  public unregisterableConstants: Set<string> = new Set<string>();
+  public unregisterableConstants: Set<string> = new RecordingSet<string>();
 
   public readonly NonConstantInitializerRefs = (
     constDecl: ConstantDeclaration,
   ): string[] =>
-    constDecl.expression
-      .FindAll(VariableReference)()
-      .map((ref) => ref.name)
-      .filter(
-        (name): name is string =>
-          Boolean(name) && !this.constants.has(name!),
-      );
+    constDecl.referencedNames.filter((name) => !this.constants.has(name));
 
   protected readonly RegisterConstantGlobals = (): void => {
     const visited = new Set<string>();
@@ -788,10 +679,10 @@ export class Story extends FlowBase {
       // Emit every constant this one reads first, so its initializer sees a
       // value rather than nil. A self-reference is deliberately NOT filtered
       // out here — walking it is what lets `onStack` detect it.
-      const refs = constDecl.expression.FindAll(VariableReference)();
+      const refs = constDecl.referencedNames;
       for (const ref of refs) {
-        if (ref.name && this.constants.has(ref.name)) {
-          visit(ref.name);
+        if (this.constants.has(ref)) {
+          visit(ref);
         }
       }
       onStack.delete(name);
@@ -801,8 +692,8 @@ export class Story extends FlowBase {
       // member, or reads a constant that itself failed — each case would
       // otherwise emit an initializer reading an uninitialized global.
       // Dependencies are visited above, so their verdicts are already known.
-      const readsUnregisterable = refs.some(
-        (ref) => ref.name && this.unregisterableConstants.has(ref.name),
+      const readsUnregisterable = refs.some((ref) =>
+        this.unregisterableConstants.has(ref),
       );
       if (
         this.unregisterableConstants.has(name) ||
@@ -888,88 +779,6 @@ export class Story extends FlowBase {
     }
   };
 
-  public readonly FlattenContainersIn = (container: RuntimeContainer): void => {
-    // Need to create a collection to hold the inner containers
-    // because otherwise we'd end up modifying during iteration
-    const innerContainers = new Set<RuntimeContainer>();
-    if (container.content) {
-      for (const c of container.content) {
-        const innerContainer = asOrNull(c, RuntimeContainer);
-        if (innerContainer) {
-          innerContainers.add(innerContainer);
-        }
-      }
-    }
-
-    // Can't flatten the named inner containers, but we can at least
-    // iterate through their children
-    if (container.namedContent) {
-      for (const [, value] of container.namedContent) {
-        const namedInnerContainer = asOrNull(value, RuntimeContainer);
-        if (namedInnerContainer) {
-          innerContainers.add(namedInnerContainer);
-        }
-      }
-    }
-
-    for (const innerContainer of innerContainers) {
-      // Count-flag reconcile for incremental container reuse. This walk runs
-      // after ALL generation and before `ResolveReferences`, and visits every
-      // container in the tree exactly once, so it doubles as the reconcile
-      // point: a container seen for the FIRST time (fresh this compile) has
-      // flags that are purely generation-derived — snapshot them as its
-      // intrinsic state. A REUSED container additionally carries last
-      // compile's resolve-time cross-flow sets — restore it to intrinsic so
-      // this compile's resolve pass re-derives exactly the sets that still
-      // exist (a deleted remote read-count decays instead of sticking).
-      if (innerContainer._intrinsicVisits === undefined) {
-        innerContainer._intrinsicVisits = innerContainer.visitsShouldBeCounted;
-        innerContainer._intrinsicTurns = innerContainer.turnIndexShouldBeCounted;
-      } else {
-        carriedRuntime.record?.(innerContainer);
-        innerContainer.visitsShouldBeCounted = innerContainer._intrinsicVisits;
-        innerContainer.turnIndexShouldBeCounted =
-          innerContainer._intrinsicTurns!;
-      }
-      this.TryFlattenContainer(innerContainer);
-      this.FlattenContainersIn(innerContainer);
-    }
-  };
-
-  public readonly TryFlattenContainer = (container: RuntimeContainer): void => {
-    if (
-      (container.namedContent && container.namedContent.size > 0) ||
-      container.hasValidName ||
-      container._dontFlatten
-    ) {
-      return;
-    }
-
-    // Inline all the content in container into the parent
-    const parentContainer = asOrNull(container.parent, RuntimeContainer);
-    if (parentContainer) {
-      let contentIdx = parentContainer.content.indexOf(container);
-      parentContainer.content.splice(contentIdx, 1);
-
-      const dm = container.ownDebugMetadata;
-
-      if (container.content) {
-        for (const innerContent of container.content) {
-          if (activation.reparent !== null && innerContent.parent !== null) {
-            activation.reparent(innerContent);
-          }
-          innerContent.parent = null;
-          if (dm !== null && innerContent.ownDebugMetadata === null) {
-            innerContent.debugMetadata = dm;
-          }
-
-          parentContainer.InsertContent(innerContent, contentIdx);
-          contentIdx += 1;
-        }
-      }
-    }
-  };
-
   public override readonly Error = (
     message: string,
     source: ParsedObject | DebugMetadata | null | undefined,
@@ -978,49 +787,32 @@ export class Story extends FlowBase {
     // `source` for the direct callers that don't bubble through a parent.
     raiser?: ParsedObject,
   ) => {
-    if (this._silenced) {
-      return;
-    }
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
     this._hadError = errorType === ErrorType.Error;
     this._hadWarning = errorType === ErrorType.Warning;
 
-    // Attribute generation-time diagnostics to their top-level flow (see
-    // `_generationPhase`). `source` may be raw DebugMetadata (no parent
-    // chain) — then the diagnostic can't be attributed and the compiler must
-    // assume the worst.
-    if (this._generationPhase) {
-      // Prefer the raiser: `source` is frequently an `Identifier` or raw
-      // `DebugMetadata` (chosen for dedup/reporting), and neither carries a
-      // parent chain to attribute from.
-      let node: ParsedObject | null =
-        raiser ??
-        (source instanceof DebugMetadata ? null : (source ?? null));
-      if (!(node instanceof ParsedObject)) {
-        node = null;
-      }
-      while (node && node.parent && !(node.parent instanceof Story)) {
-        node = node.parent;
-      }
-      if (node && node.parent instanceof Story) {
-        this.flowsWithGenerationDiagnostics.add(node);
-      } else {
-        this.hadUnattributableGenerationDiagnostic = true;
-      }
-    }
-
     if (this._errorHandler !== null) {
-      if (source instanceof ParsedObject && locatedOnlyByEnclosingFlow(source)) {
+      const hidden =
+        source instanceof ParsedObject && locatedOnlyByEnclosingFlow(source);
+      const reportedAt =
+        source instanceof DebugMetadata ? source : source?.debugMetadata;
+      resolutionTap()?.diagnostic(
+        raiser ?? null,
+        message,
+        source,
+        !!isWarning,
+        hidden ? null : (reportedAt ?? null),
+        true,
+      );
+      if (source instanceof ParsedObject && hidden) {
         // The only position this diagnostic has is the declaration of the
         // flow around it, which does not point at what it reports, so it is
         // not passed to the handler. It is logged the way the compiler's
         // `getDiagnostic` logs a diagnostic it drops, with the severity and
         // the 0-based position it would have had, so tests and maintainers
         // can still find it. It also still counts above: it sets `hadError`
-        // or `hadWarning`, and during generation it marks its flow in
-        // `flowsWithGenerationDiagnostics`, which keeps that flow from being
-        // reused.
+        // or `hadWarning`.
         const position = source.debugMetadata;
         console.warn(
           "HIDDEN",
@@ -1034,8 +826,7 @@ export class Story extends FlowBase {
         );
         return;
       }
-      const debugMetadata =
-        source instanceof DebugMetadata ? source : source?.debugMetadata;
+      const debugMetadata = reportedAt;
       const metadata = debugMetadata
         ? {
             fileName: debugMetadata.fileName,
@@ -1096,15 +887,6 @@ export class Story extends FlowBase {
     }
   };
 
-  public readonly DontFlattenContainer = (
-    container: RuntimeContainer,
-  ): void => {
-    // Marked on the container itself (not a per-compile Set on this Story) so
-    // the protection survives container reuse across compiles — a reused
-    // flow's generation is skipped, so it gets no chance to re-register here.
-    container._dontFlatten = true;
-  };
-
   // The list and struct declarations by the names a declaration can collide
   // with them under, built once the export has declared them all.
   protected _collisionIndex: {
@@ -1121,6 +903,21 @@ export class Story extends FlowBase {
    *  the scans they replace reported collisions in. */
   protected collisionIndex(): NonNullable<Story["_collisionIndex"]> {
     if (!this._collisionIndex) {
+      // Built over every list and struct, whichever resolution asks first:
+      // what a resolution reads of it is the name it looks up
+      // (`CheckForNamingCollisions`).
+      const tap = tapResolution(null);
+      try {
+        this._collisionIndex = this.buildCollisionIndex();
+      } finally {
+        tapResolution(tap);
+      }
+    }
+    return this._collisionIndex;
+  }
+
+  protected buildCollisionIndex(): NonNullable<Story["_collisionIndex"]> {
+    {
       const lists = new Map<
         string,
         { list: ListDefinition; item?: ListElementDefinition }[]
@@ -1149,9 +946,8 @@ export class Story extends FlowBase {
           add(structs, key.slice(0, -DEFAULT.length), struct);
         }
       }
-      this._collisionIndex = { lists, structs };
+      return { lists, structs };
     }
-    return this._collisionIndex;
   }
 
   public readonly NameConflictError = (
@@ -1259,6 +1055,7 @@ export class Story extends FlowBase {
     // declarations by name (`collisionIndex`), in the order the lists were
     // declared.
     const index = this.collisionIndex();
+    recordRead(identifier?.name ?? "");
     for (const { list: value, item } of index.lists.get(identifier?.name ?? "") ??
       []) {
       if (!item) {

@@ -7,7 +7,6 @@
 // directly with a stand-in for its link to the worker, which answers each
 // display the test lets it answer and holds the rest.
 
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { afterEach, describe, expect, test } from "vitest";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
 import { programIdentity } from "../utils/programIdentity";
@@ -18,7 +17,6 @@ const program = (version: number) =>
   ({
     uri: URI,
     version,
-    pathLocations: pathLocationTableOf({}),
     scripts: { [URI]: version },
     files: {},
     summary: true,

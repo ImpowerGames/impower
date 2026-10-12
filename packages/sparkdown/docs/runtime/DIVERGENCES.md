@@ -220,7 +220,7 @@ on the alternator block instead.
 
 Only the keyword form is exposed in the grammar; the runtime's
 `NativeFunctionCall` opcodes were renamed to match
-([`NativeFunctionCall.ts:42-54`](src/inkjs/engine/NativeFunctionCall.ts)). Error
+([`NativeFunctionCall.ts:42-54`](src/runtime/NativeFunctionCall.ts)). Error
 messages mention the operator the user actually wrote. Short-circuit semantics
 for `and` / `or` are honored as in Luau.
 
@@ -243,7 +243,7 @@ list-specific arithmetic (`(a, b) + (c)`) is not.
 Sparkdown does not support ink's dedicated membership operators (`?` / `!?`
 and the `has` / `hasnt`).
 Instead use the builtin membership methods (see
-[`MethodDispatch.ts`](src/inkjs/engine/MethodDispatch.ts)):
+[`MethodDispatch.ts`](src/runtime/MethodDispatch.ts)):
 
 | ink            | sparkdown                                        |
 | -------------- | ------------------------------------------------ |
@@ -402,7 +402,7 @@ library names rather than ink's `FLOOR` / `CEILING` / etc. conventions:
 | `SEED_RANDOM(s)` | `math.randomseed(s)` |
 
 The single source of truth is the [`STDLIB`
-table](src/inkjs/engine/StdLib.ts) — a plain `{ namespace: { method: fn } }`
+table](src/runtime/StdLib.ts) — a plain `{ namespace: { method: fn } }`
 object of JS implementations. At engine init, `NativeFunctionCall` walks
 the table and registers each function under its dotted full name (e.g.
 `"math.floor"`), inferring arity from `fn.length` and registering for
@@ -445,7 +445,7 @@ variable named `count`. Syntax highlighting tags the name as stdlib at
 the source level so the reserved status is visible.
 
 The mappings live in `INK_BUILTIN_ALIASES.count` in
-[`StdLib.ts`](src/inkjs/engine/StdLib.ts). Unlike the `STDLIB` table
+[`StdLib.ts`](src/runtime/StdLib.ts). Unlike the `STDLIB` table
 (which holds JS implementations registered with `NativeFunctionCall`),
 these alias entries point at _existing_ ink runtime builtin names —
 `FunctionCall.GenerateIntoContainer` already routes those through
@@ -793,7 +793,7 @@ compiled bytecode or driving the runtime directly.
 
 The JSON wire format distinguishes `7` (int) from `7.0` (float) by emitting
 the latter as the string `"7.0f"` rather than the bare number `7`.
-[`SimpleJson.Writer.WriteFloat`](src/inkjs/engine/SimpleJson.ts) emits the
+[`SimpleJson.Writer.WriteFloat`](src/runtime/SimpleJson.ts) emits the
 marker; `JsonSerialisation.JTokenToRuntimeObject` recognizes it (via
 `/^([0-9]+.[0-9]+f)$/`) on the way back in. Without this, `7 / 3.0`'s `2.333…`
 would round-trip as `2`.

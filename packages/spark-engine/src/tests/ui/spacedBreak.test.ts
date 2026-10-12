@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
-import { findClosestPath } from "../../game/core/utils/findClosestPath";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import {
   compileUI,
   createHarness,
@@ -75,7 +75,7 @@ describe("spaced `>` break", () => {
       story(`  HERO: Hi.\n  >\n  HERO: Bye.`),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(typed(harness.nextBeat())).toBe("Hi.");
 
     const pause = harness.nextBeat();
@@ -93,7 +93,7 @@ describe("spaced `>` break", () => {
   test("a break on a glued continuation keeps the cue of the line it continues", async () => {
     const harness = createHarness(story(`  HERO: Hi. ..\n  .. more > Bye.`));
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const joined = harness.nextBeat();
     expect(typed(joined)).toBe("Hi. more");
     expect(Object.keys(joined?.text ?? {}).sort()).toEqual([
@@ -121,7 +121,7 @@ describe("spaced `>` break", () => {
     await harness.ready;
     // Run the HERO line first, so a beat with another cue is what the
     // interpreter last queued.
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(cue(harness.nextBeat())).toBe("HERO");
 
     // Then jump straight to the last beat of the VILLAIN continuation.
@@ -129,13 +129,11 @@ describe("spaced `>` break", () => {
     const line = source
       .split("\n")
       .findIndex((l) => l.includes("villain joined"));
-    const path = findClosestPath(
-      { file: MAIN_URI, line },
-      program.pathLocations,
-      Object.keys(program.scripts),
-      "last",
-    );
-    expect(path).toBeTruthy();
+    // The line's last beat, by the program's locator.
+    const path = programLocator(program).addressAt(MAIN_URI, line, {
+      beat: "last",
+    });
+    expect(path).toBeDefined();
     harness.jumpTo(path!);
     const beat = harness.nextBeat();
     expect(typed(beat)).toBe("Villain after.");
@@ -151,7 +149,7 @@ describe("spaced `>` break", () => {
       `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  .. C ..\n  .. D > E\nend\n`,
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const joined = harness.nextBeat();
     expect(typed(joined)).toBe("A B C D");
     expect(cue(joined)).toBe("HERO");
@@ -169,7 +167,7 @@ describe("spaced `>` break", () => {
       `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  .. C > D ..\n  .. E > F\nend\n`,
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     const beats = [
       harness.nextBeat(),
       harness.nextBeat(),
@@ -189,7 +187,7 @@ describe("spaced `>` break", () => {
     ]) {
       const harness = createHarness(story(body));
       await harness.ready;
-      harness.jumpTo("start");
+      harness.jumpToFlow("start");
       const joined = harness.nextBeat();
       expect(typed(joined)).toBe("A B");
       const after = harness.nextBeat();
@@ -209,18 +207,15 @@ describe("spaced `>` break", () => {
     const primed = async () => {
       const harness = createHarness(source);
       await harness.ready;
-      harness.jumpTo("start");
+      harness.jumpToFlow("start");
       // The joined beat remembers HERO for the continuation.
       expect(cue(harness.nextBeat())).toBe("HERO");
       return harness;
     };
     const lastBeatOf = (harness: any) =>
-      findClosestPath(
-        { file: MAIN_URI, line },
-        harness.game.program.pathLocations,
-        Object.keys(harness.game.program.scripts),
-        "last",
-      )!;
+      programLocator(harness.game.program).addressAt(MAIN_URI, line, {
+        beat: "last",
+      })!;
 
     // The run is abandoned, which is what every abandoning path does.
     const abandoned = await primed();
@@ -255,17 +250,14 @@ describe("spaced `>` break", () => {
     expect(evil.indexOf("  .. joined")).toBe(main.indexOf("  .. joined"));
     const harness = createHarness(main, 0, { scripts: { [INCLUDE]: evil } });
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
     expect(cue(harness.nextBeat())).toBe("HERO");
 
     const line = evil.split("\n").findIndex((l) => l.includes("joined"));
-    const path = findClosestPath(
-      { file: INCLUDE, line },
-      harness.game.program.pathLocations,
-      Object.keys(harness.game.program.scripts),
-      "last",
-    );
-    expect(path).toBeTruthy();
+    const path = programLocator(harness.game.program).addressAt(INCLUDE, line, {
+      beat: "last",
+    });
+    expect(path).toBeDefined();
     harness.jumpTo(path!);
     const beat = harness.nextBeat();
     expect(typed(beat)).toBe("After.");
@@ -277,7 +269,7 @@ describe("spaced `>` break", () => {
       story(`  [[show backdrop BG]] >\n  Next.`),
     );
     await harness.ready;
-    harness.jumpTo("start");
+    harness.jumpToFlow("start");
 
     const picture = harness.nextBeat();
     expect(picture?.image).toBeDefined();

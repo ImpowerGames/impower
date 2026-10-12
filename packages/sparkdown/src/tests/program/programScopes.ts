@@ -4,12 +4,11 @@
 // against the frame after every step of a play-through. It lives beside
 // `programHarness.ts`, which the engine package's tests import too, so that
 // the harness stays free of the test runner.
-import "../../inkjs/engine/Container";
 import { expect } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
-import { blockScopes } from "../../program/StatementChunk";
+import { blockScopes } from "../../program/ProgramChunk";
 import { compileScript } from "./programHarness";
 
 /** Runs `run` with the console's warnings and errors left out. */
@@ -28,8 +27,8 @@ export const silence = <T>(run: () => T): T => {
  *  must not fall back. */
 export const programStory = (text: string) =>
   silence(() => {
-    const { program } = compileScript(text, { programChunks: true });
-    expect(program.fallback).toBeUndefined();
+    const { program } = compileScript(text);
+    expect(program.chunks).toBeDefined();
     return new ProgramStory(program.chunks!);
   });
 

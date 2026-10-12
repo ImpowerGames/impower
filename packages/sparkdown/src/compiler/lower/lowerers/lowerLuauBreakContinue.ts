@@ -1,4 +1,4 @@
-import { ControlCommand as RuntimeControlCommand } from "../../../inkjs/engine/ControlCommand";
+import { ControlCommand as RuntimeControlCommand } from "../../../runtime/ControlCommand";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";

@@ -20,7 +20,7 @@ import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lineTextSpan, makeSource } from "../utils/validateDefineStructure";
 import { untilReadIntoStatement } from "../utils/validateBlockEnds";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import { syntheticId } from "../utils/documentTag";
 import {
   extendStatement,

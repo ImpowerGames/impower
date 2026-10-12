@@ -5,7 +5,7 @@ import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Di
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
-import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
+import { NativeFunctionCall } from "../../../runtime/NativeFunctionCall";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { AstStatWhile } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";

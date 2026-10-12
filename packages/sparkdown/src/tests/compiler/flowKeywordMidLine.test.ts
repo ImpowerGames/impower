@@ -2,15 +2,13 @@
 // or branch. Only a line that starts with `scene` or `branch` declares one, so
 // a table key, a parameter or a variable with that name leaves the block open
 // and keeps every value where it was written.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const URI = "file:///main.sd";
 
 function compile(text: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -132,7 +130,7 @@ describe("scene and branch as names inside a function", () => {
 });
 
 function run(program: any) {
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.chunks);
   const errors: string[] = [];
   story.onError = (message: string) => {
     errors.push(message);

@@ -1,4 +1,3 @@
-import "../../inkjs/engine/Container";
 import { expect, test, vi } from "vitest";
 import { Text } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";

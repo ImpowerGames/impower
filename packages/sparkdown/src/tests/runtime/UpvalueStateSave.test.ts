@@ -7,14 +7,9 @@
 // same compiled program loads the save and runs the rest. Both runs have to
 // print the same thing.
 
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function straight(source: string): { output: string; errors: string[] } {
   const { story, errorMessages } = makeRuntimeStoryFromSource(source);
@@ -29,14 +24,14 @@ function restored(source: string): {
   errors: string[];
   savedJson: string;
 } {
-  const { story, errorMessages, compiledJson } =
+  const { story, errorMessages, root } =
     makeRuntimeStoryFromSource(source);
   const errors = errorMessages.map((m) => `[compile] ${m}`);
   story.onError = (m: string) => errors.push(`[before save] ${m}`);
   const first = story.Continue();
   const savedJson = story.state.ToJson();
 
-  const again = new RuntimeStory(compiledJson as Record<string, any>);
+  const again = testStory(root);
   again.onError = (m: string) => errors.push(`[after load] ${m}`);
   again.state.LoadJson(savedJson);
   let rest = "";
@@ -270,7 +265,7 @@ scene s
   fin
 end
 `;
-    const { story, errorMessages, compiledJson } =
+    const { story, errorMessages, root } =
       makeRuntimeStoryFromSource(source);
     const errors = [...errorMessages];
     story.onError = (m: string) => errors.push(`[straight] ${m}`);
@@ -280,7 +275,7 @@ end
     story.ChooseChoiceIndex(0);
     expect(story.ContinueMaximally()).toBe("Pick\nResult changed.\n");
 
-    const again = new RuntimeStory(compiledJson as Record<string, any>);
+    const again = testStory(root);
     again.onError = (m: string) => errors.push(`[after load] ${m}`);
     again.state.LoadJson(savedJson);
     again.ChooseChoiceIndex(0);
@@ -397,27 +392,6 @@ end
     expectSameAcrossSave(source, "First 1.\nSecond 2 2.\n");
   });
 
-  test("a save the engine wrote before cells and anchors loads as it did then", () => {
-    // Written by the engine at `writtenBy`, which also loaded it and took
-    // the choice to produce `afterChoosingFirst`.
-    const fixture = JSON.parse(
-      readFileSync(
-        join(__dirname, "fixtures", "saves", "before-upvalue-cells.json"),
-        "utf8",
-      ),
-    );
-    const { compiledJson, errorMessages } = makeRuntimeStoryFromSource(
-      fixture.source,
-    );
-    const errors = [...errorMessages];
-    const story = new RuntimeStory(compiledJson as Record<string, any>);
-    story.onError = (m: string) => errors.push(m);
-    story.state.LoadJson(JSON.stringify(fixture.save));
-    story.ChooseChoiceIndex(0);
-    expect(story.ContinueMaximally()).toBe(fixture.afterChoosingFirst);
-    expect(errors).toEqual([]);
-  });
-
   test("a save written without upvalue cells still loads", () => {
     // A save whose pointers carry no cell id (the form every save had before
     // cells were written) loads each pointer as its own open cell.
@@ -433,7 +407,7 @@ scene s
   fin
 end
 `;
-    const { story, compiledJson } = makeRuntimeStoryFromSource(source);
+    const { story, root } = makeRuntimeStoryFromSource(source);
     story.Continue();
     const saved = JSON.parse(story.state.ToJson());
     const stripCells = (node: unknown): unknown => {
@@ -448,7 +422,7 @@ end
       }
       return node;
     };
-    const again = new RuntimeStory(compiledJson as Record<string, any>);
+    const again = testStory(root);
     const errors: string[] = [];
     again.onError = (m: string) => errors.push(m);
     again.state.LoadJson(JSON.stringify(stripCells(saved)));

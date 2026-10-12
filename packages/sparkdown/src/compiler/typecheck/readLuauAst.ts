@@ -313,8 +313,91 @@ class UnitLineIndex extends LineIndex {
 let lastIndex: LineIndex | undefined;
 
 function lineIndex(text: string): LineIndex {
-  if (lastIndex?.text !== text) lastIndex = new LineIndex(text);
+  const last = lastIndex;
+  if (last?.text === text) return last;
+  const edit = editTo(indexEdit, text);
+  indexEdit = undefined;
+  lastIndex = last && edit ? editedLineIndex(last, text, edit) : new LineIndex(text);
   return lastIndex;
+}
+
+/**
+ * `last`'s line starts carried over to `text` through `edit`: the starts in
+ * the text both begin with are kept, those in the text both end with are
+ * shifted by the length the edit added, and only the text between is
+ * searched for newlines. A new array, since unit indexes share the last one's.
+ */
+function editedLineIndex(last: LineIndex, text: string, edit: DocumentEdit): LineIndex {
+  const old = last.text;
+  const prefix = edit.from;
+  const suffix = edit.suffix;
+  const oldEnd = old.length - suffix;
+  const newEnd = text.length - suffix;
+  const delta = text.length - old.length;
+  const oldStarts = last.starts;
+  // A start follows its newline: one at or before `prefix` follows a newline before it.
+  const kept = last.lineAt(prefix) + 1;
+  const starts = oldStarts.slice(0, kept);
+  for (let i = text.indexOf("\n", prefix); i >= 0 && i < newEnd; i = text.indexOf("\n", i + 1)) starts.push(i + 1);
+  // A start after `oldEnd` follows a newline in the common suffix.
+  let from = kept;
+  while (from < oldStarts.length && oldStarts[from]! <= oldEnd) from++;
+  for (let i = from; i < oldStarts.length; i++) starts.push(oldStarts[i]! + delta);
+  return new LineIndex(text, starts);
+}
+
+// ---------------------------------------------------------------------------
+// Edits
+// ---------------------------------------------------------------------------
+
+/**
+ * The edits made to the document a reader last read, since it read it: the
+ * text they led to, which begins with `from` characters of the text read
+ * and ends with its last `suffix` characters, the two not overlapping in
+ * either text. The reader carries what it read over to `text` outside
+ * those, without comparing the two texts.
+ */
+interface DocumentEdit {
+  readonly text: string;
+  readonly from: number;
+  readonly suffix: number;
+}
+
+// The edits since the line index's and the token lookups' last documents.
+let indexEdit: DocumentEdit | undefined;
+let aheadEdit: DocumentEdit | undefined;
+
+/**
+ * Notes that `after` is `before` with the characters from `from` to `toA`
+ * replaced by those from `from` to `toB` of `after`, as the document
+ * registry knows from each change it applies. A reader whose last document
+ * is `before`, or was edited into it, reads `after` by carrying over what
+ * lies outside the changes; one that reaches a document without the edits
+ * that led to it noted reads it from scratch.
+ */
+export function noteLuauDocumentEdit(before: string, after: string, from: number, toA: number, toB: number): void {
+  const suffix = before.length - toA;
+  const valid = from >= 0 && from <= toA && from <= toB && suffix >= 0 && suffix === after.length - toB;
+  indexEdit = valid ? followEdit(lastIndex?.text, indexEdit, before, after, from, suffix) : undefined;
+  aheadEdit = valid ? followEdit(lastAhead?.text, aheadEdit, before, after, from, suffix) : undefined;
+}
+
+/**
+ * A reader's edits once `before` is edited into `after`: added to those
+ * already noted when they led to `before`. Where two edits leave the texts
+ * the same, so does the two together, within the lesser of their extents.
+ * The strings compared are the registry's one string of each version
+ * (`documentString`), so each comparison is of identity.
+ */
+function followEdit(read: string | undefined, edit: DocumentEdit | undefined, before: string, after: string, from: number, suffix: number): DocumentEdit | undefined {
+  if (edit && edit.text === before) return { text: after, from: Math.min(edit.from, from), suffix: Math.min(edit.suffix, suffix) };
+  if (read !== undefined && read === before) return { text: after, from, suffix };
+  return undefined;
+}
+
+/** A reader's edits, when they lead to `text`. */
+function editTo(edit: DocumentEdit | undefined, text: string): DocumentEdit | undefined {
+  return edit && edit.text === text ? edit : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -764,59 +847,58 @@ class Tokenizer {
 
   /** Splits text into Luau tokens: the text of a leaf, or text between a node's children. */
   lex(from: number, to: number): void {
-    const text = this.text;
     let i = from;
-    while (i < to) {
-      const ch = text[i]!;
-      if (/\s/.test(ch)) {
-        i++;
-        continue;
-      }
-      if (text.startsWith("--", i)) {
-        i = skipComment(text, i, to);
-        continue;
-      }
-      // A string, in text the grammar could not read (`luauThroughout`): a
-      // long string, or a quoted one, whose interpolations are read as text.
-      const long = /^\[(=*)\[/.exec(text.slice(i, i + 64));
-      if (long) {
-        const close = text.indexOf(`]${long[1]}]`, i + long[0].length);
-        const end = close < 0 || close >= to ? to : close + long[1]!.length + 2;
-        this.push("rawstring", i, end);
-        i = end;
-        continue;
-      }
-      if (ch === '"' || ch === "'" || ch === "`") {
-        let end = i + 1;
-        while (end < to && text[end] !== ch && text[end] !== "\n") end += text[end] === "\\" ? 2 : 1;
-        end = Math.min(to, text[end] === ch ? end + 1 : end);
-        this.push("string", i, end);
-        i = end;
-        continue;
-      }
-      const name = /^[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(i, to));
-      if (name) {
-        this.push(KEYWORDS.has(name[0]) ? "keyword" : "name", i, i + name[0].length);
-        i += name[0].length;
-        continue;
-      }
-      const number = /^(?:0[xXbB][0-9A-Za-z_]*|(?:[0-9][0-9_]*\.?[0-9_]*|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]*)?[0-9A-Za-z_]*)/.exec(text.slice(i, to));
-      if (number && /^\.?[0-9]/.test(text.slice(i, i + 2))) {
-        this.push("number", i, i + number[0].length);
-        i += number[0].length;
-        continue;
-      }
-      const symbol = SYMBOLS.find((s) => text.startsWith(s, i) && i + s.length <= to);
-      if (symbol) {
-        this.push("symbol", i, i + symbol.length);
-        i += symbol.length;
-        continue;
-      }
-      const code = text.codePointAt(i)!;
-      const length = code > 0xffff ? 2 : 1;
-      this.push("unknown", i, i + length);
-      i += length;
+    while (i < to) i = this.lexOne(i, to);
+  }
+
+  /**
+   * Reads what begins at `i`, no further than `to`: whitespace, a comment or
+   * one token, pushing the token. Returns where the next one begins.
+   *
+   * What is read depends on the text from `i` to the returned offset, the
+   * character there, and at most the 64 characters from `i` (a long
+   * bracket's opening); a read clipped at `to` depends on `to` as well.
+   */
+  lexOne(i: number, to: number): number {
+    const text = this.text;
+    const ch = text[i]!;
+    if (/\s/.test(ch)) return i + 1;
+    if (text.startsWith("--", i)) return skipComment(text, i, to);
+    // A string, in text the grammar could not read (`luauThroughout`): a
+    // long string, or a quoted one, whose interpolations are read as text.
+    const long = /^\[(=*)\[/.exec(text.slice(i, i + 64));
+    if (long) {
+      const close = text.indexOf(`]${long[1]}]`, i + long[0].length);
+      const end = close < 0 || close >= to ? to : close + long[1]!.length + 2;
+      this.push("rawstring", i, end);
+      return end;
     }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      let end = i + 1;
+      while (end < to && text[end] !== ch && text[end] !== "\n") end += text[end] === "\\" ? 2 : 1;
+      end = Math.min(to, text[end] === ch ? end + 1 : end);
+      this.push("string", i, end);
+      return end;
+    }
+    const name = /^[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(i, to));
+    if (name) {
+      this.push(KEYWORDS.has(name[0]) ? "keyword" : "name", i, i + name[0].length);
+      return i + name[0].length;
+    }
+    const number = /^(?:0[xXbB][0-9A-Za-z_]*|(?:[0-9][0-9_]*\.?[0-9_]*|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]*)?[0-9A-Za-z_]*)/.exec(text.slice(i, to));
+    if (number && /^\.?[0-9]/.test(text.slice(i, i + 2))) {
+      this.push("number", i, i + number[0].length);
+      return i + number[0].length;
+    }
+    const symbol = SYMBOLS.find((s) => text.startsWith(s, i) && i + s.length <= to);
+    if (symbol) {
+      this.push("symbol", i, i + symbol.length);
+      return i + symbol.length;
+    }
+    const code = text.codePointAt(i)!;
+    const length = code > 0xffff ? 2 : 1;
+    this.push("unknown", i, i + length);
+    return i + length;
   }
 }
 
@@ -4067,15 +4149,118 @@ export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], do
 // Missing-value diagnostics need Luau's reading beyond the node the
 // highlighting grammar ended. Share the converter's lexer and parser rather
 // than maintaining a second comment scanner or expression-start table.
-let lastAhead: { text: string; tokenizer: Tokenizer } | undefined;
+//
+// The lookups read the tokens a lex of the whole document gives, but lex
+// only as far as a lookup has needed, and an edit keeps the tokens it cannot
+// have changed and lexes on from the last of them. A lookup after an edit so
+// costs the distance from the edit to the token it looks for, not the
+// document's length, which every keystroke paid for when an edit lexed the
+// whole document again (#1724).
 
-function tokensAhead(from: number, documentText: string): { tokens: Token[]; start: number } {
-  if (lastAhead?.text !== documentText) {
-    const tokenizer = new Tokenizer(documentText, lineIndex(documentText));
-    tokenizer.lex(0, documentText.length);
-    lastAhead = { text: documentText, tokenizer };
+const NO_LOCATION = new Location();
+
+/**
+ * Lexes the tokens the lookups read, without their positions: the lookups
+ * need none, and a document's line index would cost a pass over all of it.
+ * `readLuauExpressionAfter` places the tokens it parses.
+ */
+class AheadTokenizer extends Tokenizer {
+  /** Lexes `text` on after `tokens`, which it takes over. */
+  constructor(text: string, tokens: Token[]) {
+    super(text, new LineIndex("", [0]));
+    (this as { tokens: Token[] }).tokens = tokens;
   }
-  const tokens = lastAhead.tokenizer.tokens;
+
+  override location(): Location {
+    return NO_LOCATION;
+  }
+}
+
+/** The document's tokens before `at`, which is where the lex goes on. */
+interface Ahead {
+  readonly text: string;
+  readonly tokenizer: AheadTokenizer;
+  at: number;
+  /**
+   * Offsets, ascending, that the lex passed between two tokens: where an
+   * edit's lex can go on from when comments or whitespace, which leave no
+   * token, stand between the last token it keeps and the edit.
+   */
+  readonly resumes: number[];
+}
+
+// How far the lex goes past its last token or resume offset, reading only
+// comments and whitespace, before it records another resume offset.
+const RESUME_GAP = 64;
+
+let lastAhead: Ahead | undefined;
+
+// How far past a token's end the lexer can have read to read it: the
+// character after it, or the 64 characters from its start that a long
+// bracket's opening is looked for in (`Tokenizer.lexOne`).
+const LEX_LOOKAHEAD = 64;
+
+/** The lookups' tokens of `documentText`, carried over from the last document's where an edit cannot have changed them. */
+function aheadOf(documentText: string): Ahead {
+  const last = lastAhead;
+  if (last?.text === documentText) return last;
+  let kept: Token[] = [];
+  let resumes: number[] = [];
+  const edit = editTo(aheadEdit, documentText);
+  aheadEdit = undefined;
+  if (last && edit) {
+    // A token whose reading looked only at text before the first character
+    // the edit changed is the whole document's lex's token in both
+    // documents, and so is every token before it; so is a resume offset
+    // the lex reached having read only such text. A token clipped at the
+    // document's end ends there, past the change.
+    const limit = edit.from - LEX_LOOKAHEAD - 1;
+    // The last document's tokens and offsets are not read again: keep them in place.
+    kept = last.tokenizer.tokens;
+    kept.length = countUpTo(kept, (token) => token.to, limit);
+    resumes = last.resumes;
+    resumes.length = countUpTo(resumes, (offset) => offset, limit);
+  }
+  const at = Math.max(kept[kept.length - 1]?.to ?? 0, resumes[resumes.length - 1] ?? 0);
+  const ahead: Ahead = { text: documentText, tokenizer: new AheadTokenizer(documentText, kept), at, resumes };
+  lastAhead = ahead;
+  return ahead;
+}
+
+/** How many of `items`, ascending by `offset`, have an offset no greater than `limit`. */
+function countUpTo<T>(items: readonly T[], offset: (item: T) => number, limit: number): number {
+  let count = 0;
+  let hi = items.length;
+  while (count < hi) {
+    const mid = (count + hi) >> 1;
+    if (offset(items[mid]!) <= limit) count = mid + 1;
+    else hi = mid;
+  }
+  return count;
+}
+
+/** The tokens of `documentText`, lexed at least until one begins at or after `target` or the document ends. */
+function lexAhead(documentText: string, target: number): Token[] {
+  const ahead = aheadOf(documentText);
+  const tokens = ahead.tokenizer.tokens;
+  const resumes = ahead.resumes;
+  const end = documentText.length;
+  while (ahead.at < end) {
+    const last = tokens[tokens.length - 1];
+    if (last && last.from >= target) break;
+    const count = tokens.length;
+    ahead.at = ahead.tokenizer.lexOne(ahead.at, end);
+    // Past only comments and whitespace since the last token or offset
+    // recorded: record where the lex is, which is between two tokens.
+    if (tokens.length === count && ahead.at < end && ahead.at - Math.max(last?.to ?? 0, resumes[resumes.length - 1] ?? 0) >= RESUME_GAP) {
+      resumes.push(ahead.at);
+    }
+  }
+  return tokens;
+}
+
+/** The index of the first of `tokens` that begins at or after `from`. */
+function firstFrom(tokens: readonly Token[], from: number): number {
   let lo = 0;
   let hi = tokens.length;
   while (lo < hi) {
@@ -4083,13 +4268,23 @@ function tokensAhead(from: number, documentText: string): { tokens: Token[]; sta
     if (tokens[mid]!.from < from) lo = mid + 1;
     else hi = mid;
   }
-  return { tokens, start: lo };
+  return lo;
+}
+
+/**
+ * The tokens a lex of the whole document gives, from start to end, with no
+ * cache: what the lookups' tokens must agree with, for their tests.
+ */
+export function lexLuauDocumentForTesting(documentText: string): readonly { kind: string; text: string; from: number; to: number }[] {
+  const tokenizer = new AheadTokenizer(documentText, []);
+  tokenizer.lex(0, documentText.length);
+  return tokenizer.tokens;
 }
 
 /** The next token as Luau reads it, past whitespace and comments. */
 export function nextLuauToken(from: number, documentText: string, to = documentText.length): { text: string; from: number } | null {
-  const { tokens, start } = tokensAhead(from, documentText);
-  const token = tokens[start];
+  const tokens = lexAhead(documentText, from);
+  const token = tokens[firstFrom(tokens, from)];
   if (!token || token.from >= to || token.kind === "eof") return null;
   // Diagnostics historically quote a punctuation token's first character.
   return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0]!, from: token.from };
@@ -4099,15 +4294,19 @@ export function nextLuauToken(from: number, documentText: string, to = documentT
 export function readLuauExpressionAfter(from: number, documentText: string, to?: number): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
-  const { tokens, start } = tokensAhead(from, documentText);
-  if (to === undefined) appendAll(tokenizer.tokens, tokens.slice(start));
-  else {
+  const tokens = lexAhead(documentText, Math.max(from, to ?? Infinity));
+  const start = firstFrom(tokens, from);
+  // The lookups' tokens hold no positions; place the ones parsed.
+  const place = (token: Token): Token => ({ ...token, location: tokenizer.location(token.from, token.to) });
+  if (to === undefined) {
+    for (let at = start; at < tokens.length; at++) tokenizer.tokens.push(place(tokens[at]!));
+  } else {
     // Keep the full-document lexer cache reusable across authored islands.
     // Clip only their token window; an opaque token crossing the boundary
     // must be read with the same bound rather than borrowing its closer.
     for (let at = start; at < tokens.length && tokens[at]!.from < to; at++) {
       const token = tokens[at]!;
-      if (token.to <= to) tokenizer.tokens.push(token);
+      if (token.to <= to) tokenizer.tokens.push(place(token));
       else { tokenizer.lex(token.from, to); break; }
     }
     tokenizer.synthetic("eof", "", to);

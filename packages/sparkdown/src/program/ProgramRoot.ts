@@ -1,9 +1,10 @@
-import type { ProgramTable } from "../binary/ProgramBinaryWriter";
+import type { ProgramTable } from "./ProgramTable";
 import type {
   AddressQuery,
   SourceLocation,
 } from "../compiler/types/ProgramAddress";
-import type { Story } from "../inkjs/engine/Story";
+import type { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
+import type { StructDefinitionTable } from "../runtime/StructDefinition";
 import {
   SymbolKind,
   UNDEFINED_KIND,
@@ -28,8 +29,8 @@ import {
   lineRowAt,
   lineTableStart,
   offsetOfAddress,
-  type StatementChunk,
-} from "./StatementChunk";
+  type ProgramChunk,
+} from "./ProgramChunk";
 
 /**
  * The ordered chunks of one body and each entry's first line relative to the
@@ -38,7 +39,7 @@ import {
  * builds new ones, and a root that does not change it shares them.
  */
 export interface SequenceArrays {
-  readonly chunks: readonly StatementChunk[];
+  readonly chunks: readonly ProgramChunk[];
   readonly lineStarts: readonly number[];
 }
 
@@ -159,7 +160,7 @@ export interface DefinitionArrays {
   /** For a branch, its scene's symbol; -1 otherwise. */
   parent: Int32Array;
   /** For a scene whose content starts with a branch, which it enters when
-   *  it is entered, as the current engine's knot diverts to its first stitch,
+   *  it is entered, as the object engine's knot diverted to its first stitch,
    *  that branch's symbol; -1 otherwise. */
   start: Int32Array;
 }
@@ -190,7 +191,7 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
 /** Whether a sequence's arrays hold `chunk`. */
 export const holdsChunk = (
   arrays: SequenceArrays,
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
 ): boolean => {
   const entry = entryIndex(arrays).get(chunkId(chunk));
   return entry !== undefined && arrays.chunks[entry] === chunk;
@@ -199,11 +200,22 @@ export const holdsChunk = (
 /** Whether `root` holds `chunk`, in the sequence its chunk table names. */
 export const holdsChunkIn = (
   root: ProgramRoot,
-  chunk: StatementChunk,
+  chunk: ProgramChunk,
 ): boolean => {
   const at = root.position(chunkId(chunk));
   return !!at && at.sequence.arrays.chunks[at.entry] === chunk;
 };
+
+/** What the engine of a root reads of the story besides its chunks, which
+ *  the program path's resolver records (`ProgramResolver.resolve`): the
+ *  story's list definitions, its struct definitions by type and name, and
+ *  the names of the constants it registered, which the engine keeps
+ *  read-only and out of its saves. */
+export interface ProgramStoryTables {
+  readonly listDefinitions: ListDefinitionsOrigin | null;
+  readonly structDefinitions: StructDefinitionTable;
+  readonly constantNames: ReadonlySet<string>;
+}
 
 /**
  * One version of the whole program (docs/engine/binary-program.md, sections 1
@@ -231,22 +243,21 @@ export class ProgramRoot {
     protected _chunks: ChunkTable,
     /** The table generation the chunks were minted in. */
     readonly generation: number,
-    /** The current engine's story of the compile that built this root. Each
-     *  engine built from the root runs its own copy of it
-     *  (`Story.CopyWithOwnState`), whose globals and call stack hold the
-     *  engine's variables (see `ProgramStory`). */
-    readonly runtimeStory: Story | null = null,
+    /** What an engine built from the root reads of the story besides its
+     *  chunks: its lists, its structs and the names of its constants
+     *  (`ProgramStoryTables`), from the compile that built the root. */
+    readonly tables: ProgramStoryTables | null = null,
     protected _declarations: ReadonlyMap<string, number> = new Map(),
     /** The declaration chunks in the order `ResetState` runs them, which is
-     *  the order the current engine's `global decl` container initializes
+     *  the order the object engine's `global decl` container initialized
      *  the globals in: constants first, then the others as the story
      *  declares them. */
-    readonly initialization: readonly StatementChunk[] = [],
+    readonly initialization: readonly ProgramChunk[] = [],
     /** Where each symbol is defined, and what as. */
     protected _definitions: DefinitionArrays = emptyDefinitions(),
     /** The name each function is shown by in a stack trace or a printed
      *  value: a function declared at the top level its qualified name, and
-     *  one a statement writes the name the current engine gives its
+     *  one a statement writes the name the object engine gave its
      *  container. */
     protected _labels: ReadonlyMap<number, string> = new Map(),
     /** The symbol remap of each reseed of the table, by the generation it
@@ -310,7 +321,7 @@ export class ProgramRoot {
   }
 
   /** The row of block `block` of the chunk `owner`'s body. */
-  body(owner: StatementChunk, block: number): SequenceRow | undefined {
+  body(owner: ProgramChunk, block: number): SequenceRow | undefined {
     return this._sequences.get(blockField(owner, block, B_SEQUENCE));
   }
 
@@ -321,10 +332,10 @@ export class ProgramRoot {
    *  with. `owners`, when given, receives the owner of each statement of a
    *  body. */
   statementOrder(
-    owners?: Map<StatementChunk, StatementChunk>,
-  ): StatementChunk[] {
-    const out: StatementChunk[] = [];
-    const walk = (row: SequenceRow | undefined, owner?: StatementChunk) => {
+    owners?: Map<ProgramChunk, ProgramChunk>,
+  ): ProgramChunk[] {
+    const out: ProgramChunk[] = [];
+    const walk = (row: SequenceRow | undefined, owner?: ProgramChunk) => {
       for (const chunk of row?.arrays.chunks ?? []) {
         out.push(chunk);
         if (owner) {
@@ -333,7 +344,7 @@ export class ProgramRoot {
         walkBodies(chunk);
       }
     };
-    const walkBodies = (chunk: StatementChunk) => {
+    const walkBodies = (chunk: ProgramChunk) => {
       for (let k = 0; k < blockCount(chunk); k += 1) {
         walk(this.body(chunk, k), chunk);
       }
@@ -354,17 +365,17 @@ export class ProgramRoot {
    *  this root does not hold `after`, or when `limit` statements are listed
    *  without meeting `before`. */
   statementOrderBetween(
-    after: StatementChunk | undefined,
-    before: StatementChunk | undefined,
+    after: ProgramChunk | undefined,
+    before: ProgramChunk | undefined,
     limit: number,
-    owners?: Map<StatementChunk, StatementChunk>,
-  ): StatementChunk[] | undefined {
-    const out: StatementChunk[] = [];
+    owners?: Map<ProgramChunk, ProgramChunk>,
+  ): ProgramChunk[] | undefined {
+    const out: ProgramChunk[] = [];
     let met = false;
     let over = false;
     const walk = (
       row: SequenceRow | undefined,
-      owner: StatementChunk | undefined,
+      owner: ProgramChunk | undefined,
       from: number,
     ) => {
       const chunks = row?.arrays.chunks ?? [];
@@ -385,14 +396,14 @@ export class ProgramRoot {
         walkBodies(chunk, 0);
       }
     };
-    const walkBodies = (chunk: StatementChunk, from: number) => {
+    const walkBodies = (chunk: ProgramChunk, from: number) => {
       for (let k = from; k < blockCount(chunk) && !met && !over; k += 1) {
         walk(this.body(chunk, k), chunk, 0);
       }
     };
     // What `statementOrder` lists in turn: each flow's sequence, then each
     // body of each declaration chunk.
-    const units: { row: SequenceRow | undefined; owner?: StatementChunk }[] =
+    const units: { row: SequenceRow | undefined; owner?: ProgramChunk }[] =
       this.flowSequences().map((row) => ({ row }));
     const flowUnits = units.length;
     for (const chunk of this.initialization) {
@@ -865,8 +876,8 @@ export class ProgramRoot {
 
   /** The address of `line` among the statements of `sequence` that start on
    *  it, of which `last` is the last, or of the statement at `last` when it
-   *  starts above the line. A line can hold several statements (a `..`
-   *  continuation and the tags written after it): the first beat is the
+   *  starts above the line. A line can hold several statements (a label
+   *  and the tags written after it): the first beat is the
    *  first statement's that puts an address on the line, and the last beat
    *  the last one's, at its last beat on the line or at its start, as a
    *  line's beats and statements run in the order they are written. */
@@ -980,7 +991,9 @@ export class ProgramRoot {
   }
 
   /** The name of the top-level flow a sequence of this root stands in, as
-   *  `sceneAt` names it. */
+   *  `sceneAt` names it. An included script's top-level content, a flow of
+   *  the top-level kind that the top level runs (`IncludeEntry`), stands in
+   *  the top level. */
   sceneOf(sequence: SequenceRow): string | undefined {
     let row: SequenceRow | undefined = sequence;
     while (row && row.owner >= 0) {
@@ -988,6 +1001,9 @@ export class ProgramRoot {
     }
     if (!row || row.flow < 0) {
       return undefined;
+    }
+    if (row.kind === SymbolKind.Root) {
+      return "0";
     }
     let symbol = row.flow;
     if (row.kind === SymbolKind.Branch) {
@@ -1003,7 +1019,7 @@ export class ProgramRoot {
 
 /** The offset of the first `LineStart` in the code of `chunk` from `from` up
  *  to `to`, or -1. */
-const lineStartIn = (chunk: StatementChunk, from: number, to: number): number => {
+const lineStartIn = (chunk: ProgramChunk, from: number, to: number): number => {
   for (let offset = from; offset < to; offset += 2) {
     if (opOf(chunk[HEADER_WORDS + offset]!) === Op.LineStart) {
       return offset;

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Pins the story engine measurements of #664, #693 and #694: the benchmark's
-// arguments, the comparisons that make a prototype's or the program engine's
-// timing mean something, the profile arithmetic, and that the prototypes stay
-// out of everything that ships. Run:
+// arguments, the comparisons that make the program engine's timing mean
+// something, the profile arithmetic, that the prototypes stay out of
+// everything that ships, and that no benchmark reaches for the engine #705
+// deleted. Run:
 //   node scripts/bench/engine-bench.test.mjs
 //
 // No dependencies; the end-to-end run needs the workspace install and says so
@@ -14,9 +15,8 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MODES, outputMismatch, parseEngineBenchArgs, programMismatch, protoMismatch } from "./engine-bench.mjs";
+import { MODES, outputMismatch, parseEngineBenchArgs, programMismatch } from "./engine-bench.mjs";
 import { buildBeatsFixture, buildChunksFixture } from "./preview-fixture.mjs";
-import { STEPPING } from "./profile-groups.mjs";
 import { parseShareArgs, profileShares, summarizeShares } from "./profile-shares.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -36,33 +36,28 @@ const check = async (name, fn) => {
 await check("arguments: a project needs a line, modes are checked, all means every mode", () => {
   assert.deepEqual(parseEngineBenchArgs(["--fixture"]), { modes: Object.keys(MODES), samples: 12, warmup: 4, fixture: true });
   assert.deepEqual(parseEngineBenchArgs(["--fixture", "--mode", "all"]).modes, Object.keys(MODES));
-  assert.deepEqual(parseEngineBenchArgs(["--project", "p", "--line", "3515", "--mode", "kinds,ready", "--samples", "10", "--warmup", "0", "--cpu-prof", "out"]), { modes: ["kinds", "ready"], samples: 10, warmup: 0, project: "p", line: 3515, cpuProf: "out" });
+  assert.deepEqual(parseEngineBenchArgs(["--project", "p", "--line", "3515", "--mode", "program,search", "--samples", "10", "--warmup", "0", "--cpu-prof", "out"]), { modes: ["program", "search"], samples: 10, warmup: 0, project: "p", line: 3515, cpuProf: "out" });
   assert.throws(() => parseEngineBenchArgs(["--project", "p"]), /--project needs --line/);
   assert.throws(() => parseEngineBenchArgs(["--fixture", "--mode", "fast"]), /--mode is any of/);
+  // The modes that ran the engine #705 deleted went with it.
+  for (const mode of ["kinds", "step", "proto", "chunks", "emit", "ready"]) assert.throws(() => parseEngineBenchArgs(["--fixture", "--mode", mode]), /--mode is any of/);
   assert.throws(() => parseEngineBenchArgs(["--fixture", "--project", "p", "--line", "1"]), /exclusive/);
   assert.throws(() => parseEngineBenchArgs([]), /--project <dir> or --fixture/);
 });
 
-await check("the prototype comparison fails on a different output, a different step count, or no output", () => {
-  const report = (candidate, outputDigest, steps, lines = 748) => ({ candidate, outputDigest, steps, lines });
-  assert.equal(protoMismatch([report("engine-step", "aa", 100), report("buffer-step", "aa", 100), report("engine-line", "aa"), report("buffer-line", "aa", 100)]), undefined);
-  assert.match(protoMismatch([report("engine-step", "aa", 100), report("buffer-step", "ab", 100)]), /outputs differ: engine-step aa, buffer-step ab/);
-  assert.match(protoMismatch([report("engine-step", "aa", 100), report("buffer-step", "aa", 99)]), /step counts differ: engine-step 100, buffer-step 99/);
-  assert.match(protoMismatch([report("engine-step", "aa", 0, 0), report("buffer-step", "aa", 0, 0)]), /no lines/);
-});
-
 await check("the program engine comparison fails on a different output, or a display beat that ran twice", () => {
   const report = (candidate, outputDigest, steps, instructions, lines = 748) => ({ candidate, outputDigest, steps, instructions, lines });
-  assert.equal(programMismatch([report("engine-step", "aa", 15709), report("program-step", "aa", 5985, 5984), report("engine-line", "aa", 15709), report("program-line", "aa", 5985, 5984)]), undefined);
-  assert.match(programMismatch([report("engine-step", "aa", 15709), report("program-step", "ab", 5985, 5984)]), /outputs differ: engine-step aa, program-step ab/);
-  assert.match(programMismatch([report("engine-step", "aa", 15709), report("program-step", "aa", 5992, 5984)]), /program-step took 5992 steps over 5984 instructions/);
+  assert.equal(programMismatch([report("program-step", "aa", 5985, 5984), report("program-line", "aa", 5985, 5984)]), undefined);
+  assert.match(programMismatch([report("program-step", "aa", 5985, 5984), report("program-line", "ab", 5985, 5984)]), /outputs differ: program-step aa, program-line ab/);
+  assert.match(programMismatch([report("program-step", "aa", 5992, 5984), report("program-line", "aa", 5985, 5984)]), /program-step took 5992 steps over 5984 instructions/);
+  assert.match(programMismatch([report("program-step", "aa", 5985, 5984), report("program-line", "aa", 5986, 5984)]), /program-line took 5986 steps over 5984 instructions/);
 });
 
-await check("the chunk comparison fails on a different output or no output, and lets the step counts differ", () => {
-  const report = (candidate, outputDigest, steps, lines = 674) => ({ candidate, outputDigest, steps, lines });
-  assert.equal(outputMismatch([report("engine-step", "aa", 29517), report("chunk-step", "aa", 6927), report("engine-line", "aa"), report("chunk-line", "aa", 6927)]), undefined);
-  assert.match(outputMismatch([report("engine-step", "aa", 100), report("chunk-step", "ab", 100)]), /outputs differ: engine-step aa, chunk-step ab/);
-  assert.match(outputMismatch([report("engine-step", "aa", 0, 0), report("chunk-step", "aa", 0, 0)]), /no lines/);
+await check("the output comparison fails on a different output or no output", () => {
+  const report = (candidate, outputDigest, lines = 674) => ({ candidate, outputDigest, lines });
+  assert.equal(outputMismatch([report("json", "aa"), report("image", "aa")]), undefined);
+  assert.match(outputMismatch([report("json", "aa"), report("image", "ab")]), /outputs differ: json aa, image ab/);
+  assert.match(outputMismatch([report("json", "aa", 0), report("image", "aa", 0)]), /no lines/);
 });
 
 await check("the chunk scene mixes variables, conditionals, diverts between scenes and one choose into its beats, the same on every call", () => {
@@ -151,19 +146,14 @@ await check("profile shares: only time under the named function counts, and grou
   assert.throws(() => parseShareArgs(["--under", "Step"]), /\.cpuprofile/);
 });
 
-await check("the stepping groups put paths and pointers on one side and output and variables on the other", () => {
-  const groupOf = (name) => STEPPING.find(([, re]) => re.test(name))?.[0];
-  assert.equal(groupOf("Path.ts:get componentsString"), groupOf("Pointer.ts:copy"));
-  assert.equal(groupOf("TypeAssertion.ts:asOrNull"), groupOf("Pointer.ts:copy"));
-  assert.equal(groupOf("Value.ts:StringValue"), groupOf("Pointer.ts:copy"));
-  assert.equal(groupOf("StoryState.ts:PushToOutputStream"), groupOf("VariablesState.ts:set"));
-  assert.notEqual(groupOf("StoryState.ts:PushToOutputStream"), groupOf("Pointer.ts:copy"));
-  assert.notEqual(groupOf("Story.ts:Step"), groupOf("Pointer.ts:copy"));
-  assert.notEqual(groupOf("Story.ts:Step"), groupOf("VariablesState.ts:set"));
-  assert.notEqual(
-    groupOf("Story.ts:ContinueInternal"),
-    groupOf("VariablesState.ts:set"),
-  );
+// The object-hierarchy engine, its compiled JSON and #314's encoding are gone
+// (#705), and no benchmark measures against them. The words are joined here so
+// that this file does not name them itself.
+await check("nothing under scripts/bench reaches for the deleted engine, its compiled JSON or #314's encoding", () => {
+  const pattern = [["inkjs", "engine"].join("/"), ["src", "binary"].join("/"), ["program", "compiled"].join("[.]")].join("|");
+  const run = spawnSync("git", ["grep", "-n", "-E", pattern, "--", "scripts/bench"], { cwd: ROOT, encoding: "utf8", windowsHide: true });
+  assert.ok(run.status === 0 || run.status === 1, run.stderr);
+  assert.equal(run.stdout.trim(), "");
 });
 
 // The prototypes are measured, never shipped. The tooling workflow checks out
@@ -171,7 +161,7 @@ await check("the stepping groups put paths and pointers on one side and output a
 if (!fs.existsSync(path.join(ROOT, "packages", "sparkdown", "src"))) {
   console.log("SKIP: nothing under packages/*/src imports a prototype (this checkout has no packages)");
 } else await check("nothing under packages/*/src imports a prototype or anything else in scripts/bench", () => {
-  const run = spawnSync("git", ["grep", "-l", "-E", "scripts/bench|bufferStepper|chunkStepper|chunkProgram", "--", "packages/*/src"], { cwd: ROOT, encoding: "utf8", windowsHide: true });
+  const run = spawnSync("git", ["grep", "-l", "-E", "scripts/bench|chunkStepper|chunkProgram", "--", "packages/*/src"], { cwd: ROOT, encoding: "utf8", windowsHide: true });
   assert.ok(run.status === 0 || run.status === 1, run.stderr);
   assert.equal(run.stdout.trim(), "");
 });
@@ -187,34 +177,19 @@ const esbuildInstalled = (() => {
 if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
-  await check("the benchmark runs every mode on the fixture, and each prototype's output equals the engine's", () => {
+  await check("the benchmark runs every mode on the fixture, and each mode's candidates agree", () => {
     const run = spawnSync(process.execPath, [path.join(HERE, "engine-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 480_000, windowsHide: true });
     assert.equal(run.status, 0, run.stdout + run.stderr);
-    assert.match(run.stdout, /mode kinds: .* target MAIN\./);
-    assert.match(run.stdout, /command: RunStdLibFunction\s+\d{3,}/);
-    assert.match(run.stdout, /mode step as-planner:[^]*per step \(microseconds\)/);
-    assert.match(run.stdout, /mode step hooked:/);
-    assert.match(run.stdout, /proto: the 4 candidates produced identical lines \(\d{3,} display tables\), and both engines took \d{4,} steps/);
-    assert.match(run.stdout, /program: the 4 candidates produced identical lines \(\d{3,} lines, \d{3,} display tables\); the program engine ran each of the scene's \d{4,} instructions once \(\d{4,} steps\), and the engine took \d{4,}/);
-    assert.match(run.stdout, /candidate tree: \d+ records, of which \d+ in MAIN/);
-    assert.match(run.stdout, /candidate story-buffer:[^]*materialize tree[^]*retained once ready/);
-    assert.match(run.stdout, /candidate buffer:[^]*build index[^]*retained once ready/);
-    assert.match(run.stdout, /chunks: the 4 candidates produced identical lines and choices \([0-9]{3,} lines, [0-9]{3,} display tables, 1 stops at choices\); the engine took [0-9]{4,} steps and the prototype [0-9]{4,}/);
-    assert.match(run.stdout, /candidate chunk-step:[^]*layout: [0-9]+ chunks in [0-9]+ sequences/);
-    assert.match(run.stdout, /a display beat that interpolates nothing: [0-9]+ to [0-9]+ instructions, [0-9]+ to [0-9]+ runtime objects/);
-    // The worked example ran: an edit shared all but one sequence row, and a
-    // story resumed inside a block below the edit ran on through the new root.
-    assert.match(run.stdout, /edit probe: two statements inserted around entry [0-9]+ of a then clause of [0-9]{3,}; the chunk arrays of [0-9]+ of [0-9]+ sequences and all [0-9]+ chunks shared with the previous root; resumed inside the if through the new root, the [0-9]+ lines to the end are equal; a third inserted into the first branch of an if moved its else branch down a line with that branch's row and arrays shared; a fourth inserted into the first scene moved the [0-9]+ scenes below it down a line with their arrays shared; after each edit every statement's line equals a layout from scratch/);
+    assert.match(run.stdout, /program: the 2 candidates produced identical lines \(\d{3,} lines, \d{3,} display tables\); the program engine ran each of the scene's \d{4,} instructions once \(\d{4,} steps\)/);
     // The symbol table is the size the design gives the fixture, its hundreds
     // of globals included, and not the handful of flows the ring is made of.
     assert.match(run.stdout, /candidate symbol: a ring of [0-9]+ flows spread through a symbol table of [0-9]{3,}, /);
     assert.match(run.stdout, /symbols: in a table of [0-9]{3,} symbols, a divert through the symbol table costs /);
-    assert.match(run.stdout, /candidate flat-copy: flow MAIN, [0-9]+ records, [0-9]+ statements in [0-9]+ sequences[^]*insert at the bottom/);
+    assert.match(run.stdout, /candidate flat-copy: flow MAIN, [0-9]+ statements in [0-9]+ sequences[^]*insert at the bottom/);
     assert.match(run.stdout, /candidate tree-copy:[^]*replace at the middle/);
-    assert.match(run.stdout, /candidate records-splice:[^]*copy of the flow's records/);
     assert.match(run.stdout, /images: the 2 candidates produced identical lines \([0-9]{3,} lines\) through [0-9]{3,} search nodes; a node costs [0-9.]+ microseconds on an image against [0-9.]+ on the JSON round trip/);
-    assert.match(run.stdout, /candidate program: a full route search from the top of MAIN to main\.sd line [0-9]+ \(address [0-9]+\)/);
-    assert.match(run.stdout, /search: a full route search to line [0-9]+ costs [0-9.]+ ms on the program engine \([0-9]{3,} steps\) against [0-9.]+ ms on the engine \([0-9]{3,} steps\)/);
+    assert.match(run.stdout, /mode search: a full route search from the top of MAIN to main\.sd line [0-9]+ \(address [0-9]+\)/);
+    assert.match(run.stdout, /search: a full route search to line [0-9]+ costs [0-9.]+ ms on the program engine \([0-9]{3,} steps\)/);
   });
 }
 

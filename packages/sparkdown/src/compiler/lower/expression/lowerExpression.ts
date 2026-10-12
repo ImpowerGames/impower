@@ -41,12 +41,12 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
-import { ErrorType } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../runtime/Error";
 import {
   isBuiltinMethod,
   lookupStdLibConstant,
   METHOD_PREFIX,
-} from "../../../inkjs/engine/StdLib";
+} from "../../../runtime/StdLib";
 import {
   AstExpr,
   AstExprBinary,

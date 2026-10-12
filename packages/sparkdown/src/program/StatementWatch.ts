@@ -6,7 +6,7 @@
  * A chunk records, as the writer emits it, how each name its code reads
  * resolved and each text the compiler names by document order. A statement
  * the incremental parse carried keeps its parsed objects, and the compile
- * resolves them again (`ParsedObject.ResolveReferences`) and names their texts
+ * resolves them again (`ProgramResolver`) and names their texts
  * again (`SparkdownCompiler.canonicalizeSyntheticFlowNames`). The watch is
  * where those passes report what they found: each object whose value a
  * committed chunk recorded is watched with the reader of that value, and an

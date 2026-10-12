@@ -19,6 +19,7 @@ import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGa
 import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
 import { getEditor } from "../utils/getEditor";
 import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
+import { debugPathToUri, debugUriToPath } from "./debugUriMapping";
 
 export const activateDebugger = (
   context: vscode.ExtensionContext,
@@ -36,8 +37,10 @@ export const activateDebugger = (
             type: "game",
             name: "Run File",
             request: "launch",
-            program:
-              SparkdownPreviewGamePanelManager.instance.document.uri.fsPath,
+            program: debugUriToPath(
+              vscode.Uri,
+              SparkdownPreviewGamePanelManager.instance.document.uri.toString(),
+            ),
           },
           { noDebug: true },
         );
@@ -53,8 +56,10 @@ export const activateDebugger = (
           type: "game",
           name: "Debug File",
           request: "launch",
-          program:
-            SparkdownPreviewGamePanelManager.instance.document.uri.fsPath,
+          program: debugUriToPath(
+            vscode.Uri,
+            SparkdownPreviewGamePanelManager.instance.document.uri.toString(),
+          ),
           stopOnEntry: true,
         });
       }
@@ -249,11 +254,15 @@ function pathToUri(path: string): vscode.Uri {
       return docUri;
     }
   }
-  try {
-    return vscode.Uri.file(path);
-  } catch (e) {
-    return vscode.Uri.parse(path);
-  }
+  const knownUris = vscode.workspace.textDocuments.map((d) =>
+    d.uri.toString(),
+  );
+  const rootUris = (vscode.workspace.workspaceFolders ?? []).map((f) =>
+    f.uri.toString(),
+  );
+  return vscode.Uri.parse(
+    debugPathToUri(vscode.Uri, path, knownUris, rootUris),
+  );
 }
 
 class InlineDebugAdapterFactory
@@ -329,13 +338,15 @@ class InlineDebugAdapterFactory
         return pathToUri(path).toString();
       },
       uriToPath(uri: string) {
-        return vscode.Uri.parse(uri).fsPath;
+        return debugUriToPath(vscode.Uri, uri);
       },
       getRootPath(path: string) {
         const uri = pathToUri(path);
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
         if (workspaceFolder) {
-          return workspaceFolder.uri.fsPath;
+          // Spelled like the source paths uriToPath produces, so a source's
+          // name is its path relative to the folder on every scheme.
+          return debugUriToPath(vscode.Uri, workspaceFolder.uri.toString());
         }
         return undefined;
       },

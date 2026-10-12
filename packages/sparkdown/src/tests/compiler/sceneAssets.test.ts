@@ -1,4 +1,3 @@
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -179,7 +178,7 @@ describe("populateSceneAssets", () => {
     const captures: Record<string, SceneAssetCapture> = {
       "0": createSceneAssetCapture(),
       A: {
-        beats: [{ address: "A.0", image: ["a1"], audio: ["m"] }],
+        beats: [{ address: 1, image: ["a1"], audio: ["m"] }],
         edges: [
           { target: "Helper", call: true },
           { target: "B", call: false },
@@ -189,13 +188,13 @@ describe("populateSceneAssets", () => {
         dynamicBases: [],
       },
       Helper: {
-        beats: [{ address: "Helper.0", image: ["h1", "a1"], layouts: ["hud"] }],
+        beats: [{ address: 2, image: ["h1", "a1"], layouts: ["hud"] }],
         edges: [{ target: "Deeper", call: true }],
         dynamic: false,
         dynamicBases: [],
       },
       Deeper: {
-        beats: [{ address: "Deeper.0", image: ["d1"] }],
+        beats: [{ address: 3, image: ["d1"] }],
         edges: [{ target: "Helper", call: true }],
         dynamic: true,
         dynamicBases: ["d"],

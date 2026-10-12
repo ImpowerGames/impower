@@ -1,8 +1,13 @@
-import { Story } from "../../inkjs/engine/Story";
+import type { StructDefinitionTable } from "../../runtime/StructDefinition";
 
 export interface SparkdownCompilerState {
   defaultDefinitions?: { [type: string]: any };
-  story?: Story;
+  /** Whether the last compile produced a program that runs: its statement
+   *  chunks. */
+  produced?: boolean;
+  /** The struct definitions of the last compile that produced a program, by
+   *  type and name: its root's (`ProgramRoot.tables`). */
+  structDefinitions?: StructDefinitionTable;
   /**
    * Shared mutable container holding the URI of the file whose `include`
    * statements are currently being resolved. The `IFileHandler.

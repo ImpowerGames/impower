@@ -3,7 +3,6 @@
 // docs/engine/binary-program.md, section 2): a branch's condition or its
 // `else`, a loop's header, a choice's line, a `then` clause, a function's own
 // source. Never by position.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -12,7 +11,7 @@ import {
   B_SEQUENCE,
   blockCount,
   blockField,
-} from "../../program/StatementChunk";
+} from "../../program/ProgramChunk";
 import { MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 
 const silence = <T>(run: () => T): T => {
@@ -41,11 +40,11 @@ function posAt(text: string, offset: number) {
 /** A compiler over one script that an edit replaces `before` with `after`
  *  in, one occurrence, and compiles again. */
 const session = (text: string) => {
-  const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+  const c = programCompiler({ [MAIN_URI]: text });
   let current = text;
   let version = 1;
   const first = silence(() => c.compile().program);
-  expect(first.fallback).toBeUndefined();
+  expect(first.chunks).toBeDefined();
   return {
     first: first.chunks!,
     store: () => c.compiler.chunkStore!,
@@ -67,7 +66,7 @@ const session = (text: string) => {
       });
       current = current.slice(0, at) + after + current.slice(at + before.length);
       const program = silence(() => c.compile().program);
-      expect(program.fallback).toBeUndefined();
+      expect(program.chunks).toBeDefined();
       return program.chunks!;
     },
   };

@@ -1,8 +1,5 @@
-import { InkList as RuntimeInkList } from "../../../../engine/InkList";
-import { InkListItem as RuntimeInkListItem } from "../../../../engine/InkList";
-import { ListDefinition as RuntimeListDefinition } from "../../../../engine/ListDefinition";
+import { ListDefinition as RuntimeListDefinition } from "../../../../../runtime/ListDefinition";
 import { ListElementDefinition } from "./ListElementDefinition";
-import { ListValue } from "../../../../engine/Value";
 import { ParsedObject } from "../Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
@@ -65,26 +62,13 @@ export class ListDefinition extends ParsedObject {
     this.AddContent(itemDefinitions as any);
   }
 
-  public readonly GenerateRuntimeObject = (): ListValue => {
-    const initialValues = new RuntimeInkList();
-    for (const itemDef of this.itemDefinitions) {
-      if (itemDef.inInitialList) {
-        const item = new RuntimeInkListItem(
-          this.identifier?.name || null,
-          itemDef.name || null,
-        );
-        initialValues.Add(item, itemDef.seriesValue);
-      }
-    }
+  /** Nothing but the list value it builds; sparkdown builds no list definition. */
+  protected override Prepare(): boolean {
+    return true;
+  }
 
-    // Set origin name, so
-    initialValues.SetInitialOriginName(this.identifier?.name || "");
-
-    return new ListValue(initialValues);
-  };
-
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+  public override ResolveWith(context: Story): void {
+    super.ResolveWith(context);
     context.CheckForNamingCollisions(this, this.identifier!, SymbolType.List);
   }
 }

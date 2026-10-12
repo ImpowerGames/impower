@@ -9,7 +9,6 @@
 // implicit definitions over that base copy-on-write, so the shared tables never
 // learn about an entry that belongs to one compile — which is what keeps a
 // preview compile's filtered image out of the canonical compile that follows.
-import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

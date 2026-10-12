@@ -1,24 +1,18 @@
-import type {
-  ProgramAddress,
-  ProgramLocator,
+import {
+  TOP_LEVEL_START,
+  type ProgramAddress,
+  type ProgramLocator,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { pointerPathString } from "@impower/sparkdown/src/compiler/utils/planRoute";
-import {
-  pathTableLocator,
-  rootLocator,
-} from "@impower/sparkdown/src/compiler/utils/programLocator";
-import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
-import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
-import { chunkOfAddress } from "@impower/sparkdown/src/program/StatementChunk";
+import { rootLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import type { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
+import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 
 /**
- * Where a game's story stands, in the addresses of the engine that runs it
+ * Where a game's story stands, in the program engine's addresses
  * (docs/engine/binary-program.md, section 8): the positions a game records,
- * routes to and jumps to, read from either engine, and the accessor that
- * places them in the source. The program engine names a position by a chunk
- * id and an offset; the current engine, until it is deleted, by the runtime
- * path of a pointer, which nothing outside the engine reads.
+ * routes to and jumps to, and the accessor that places them in the source.
+ * The engine names a position by a chunk id and an offset.
  */
 export interface StoryPositions {
   /** The accessor for the program the story runs. */
@@ -32,9 +26,12 @@ export interface StoryPositions {
   /** The addresses the story will come back to: where every open tunnel,
    *  thread and function call returns, with the position. */
   stack(): ProgramAddress[];
-  /** Moves the story to an address, or to the top of a flow named by its
-   *  qualified name (a route's start). */
-  jumpTo(target: ProgramAddress): void;
+  /** Moves the story to an address; `TOP_LEVEL_START` is the top of the
+   *  top-level content. */
+  jumpTo(address: ProgramAddress): void;
+  /** Moves the story to the top of a flow named by its qualified name (a
+   *  route's start), `"0"` for the top-level content. */
+  jumpToFlow(flow: string): void;
   /** Whether the program holds the address. */
   holds(address: ProgramAddress | null | undefined): boolean;
 }
@@ -51,64 +48,21 @@ const programPositions = (story: ProgramStory): StoryPositions => ({
     return address >= 0 ? address : undefined;
   },
   stack: () => story.stackAddresses(),
-  jumpTo: (target) => {
-    if (typeof target === "number") {
-      story.ChooseAddress(target);
+  jumpTo: (address) => {
+    if (address === TOP_LEVEL_START) {
+      story.ChoosePathString("0");
     } else {
-      story.ChoosePathString(target);
+      story.ChooseAddress(address);
     }
   },
+  jumpToFlow: (flow) => story.ChoosePathString(flow),
   holds: (address) =>
-    typeof address === "number" &&
+    address != null &&
     story.root.position(chunkOfAddress(address)) !== undefined,
 });
 
-/** The positions of a story on the current engine, whose addresses are the
- *  runtime paths of its pointers. */
-const pathPositions = (story: Story, program: SparkProgram): StoryPositions => {
-  const scripts = Object.keys(program.scripts ?? {});
-  const locator = pathTableLocator(program.pathLocations, scripts);
-  return {
-    locator,
-    previous: () => pointerPathString(story.state.previousPointer),
-    current: () => story.state.currentPathString ?? undefined,
-    stack: () => {
-      const paths: string[] = [];
-      const callStack = story.state?.callStack as
-        | { _threads?: Array<{ callstack?: Array<{ currentPointer?: { path?: { toString(): string } | null } }> }> }
-        | undefined;
-      for (const thread of callStack?._threads ?? []) {
-        for (const element of thread?.callstack ?? []) {
-          const path = element?.currentPointer?.path?.toString();
-          if (path) {
-            paths.push(path);
-          }
-        }
-      }
-      return paths;
-    },
-    jumpTo: (target) => story.ChoosePathString(String(target)),
-    holds: (address) =>
-      typeof address === "string" &&
-      (locator.locationOf(address) !== undefined ||
-        address === "0" ||
-        Boolean(
-          program.knotLocations?.[address] ||
-            program.stitchLocations?.[address] ||
-            program.functionLocations?.[address] ||
-            program.sceneLocations?.[address] ||
-            program.branchLocations?.[address],
-        )),
-  };
-};
-
 /** The positions of `story`, which runs `program`. */
 export const storyPositions = (
-  story: Story,
-  program: SparkProgram,
-): StoryPositions => {
-  const engine: unknown = story;
-  return engine instanceof ProgramStory
-    ? programPositions(engine)
-    : pathPositions(story, program);
-};
+  story: ProgramStory,
+  _program: SparkProgram,
+): StoryPositions => programPositions(story);
