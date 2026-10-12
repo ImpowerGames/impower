@@ -248,13 +248,13 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   if (rows.some((row) => row.event === "blocked" && /unconfirmed/.test(row.reason ?? ""))) throw refuse("its coordinator reported a child whose exit is unconfirmed; confirm that child's exit by hand");
   const launch = rows.findLast((row) => row.event === "launching");
   if (launch && !Number.isSafeInteger(launch.index)) throw refuse(`its journal ${record.journal} records a launch without a step index`);
-  if (launch && !rows.some((row) => row.event === "exited" && row.index === launch.index)) {
+  const exited = launch && rows.find((row) => row.event === "exited" && row.index === launch.index);
+  // A delegated command may run detached and outlive the coordinator; only an
+  // exit row recording a clean drain of the service shows it has stopped.
+  const service = launch && rows.find((row) => row.event === "execution-service" && row.index === launch.index);
+  if (service && exited?.executionDrained !== true) throw refuse(`step ${launch.step} started a delegated execution service (${service.directory}) ${exited ? "whose shutdown failed or was not recorded" : "and its exit was never journalled"}, so its commands may still run; confirm they have exited by hand`);
+  if (launch && !exited) {
     const ofLaunch = rows.filter((row) => row.index === launch.index);
-    // The coordinator drains its delegated execution service before it
-    // journals the child's exit; without that row a delegated command, which
-    // may run detached, can outlive both.
-    const service = ofLaunch.find((row) => row.event === "execution-service");
-    if (service) throw refuse(`step ${launch.step} started a delegated execution service (${service.directory}) whose commands may still run; confirm they have exited by hand`);
     const running = ofLaunch.find((row) => row.event === "running");
     if (!running) {
       // Waiting for a slot or a probed route precede the reserved row; the
@@ -717,7 +717,9 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         if (!activeChild) discardAuth();
         await drainExecution();
       }
-      try { append({ event: "exited", index, step: current, ...result }); }
+      // executionDrained records whether the delegated service closed cleanly;
+      // lock recovery accepts a service-bearing launch only on true.
+      try { append({ event: "exited", index, step: current, ...result, ...(executionService ? { executionDrained: !executionFailure } : {}) }); }
       catch(error){
         error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;
         if(executionFailure)error.message += `; delegated execution: ${executionFailure.message}`;
