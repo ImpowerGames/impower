@@ -542,9 +542,10 @@ export class ProgramStory implements StoryEngine {
    * `root` runs other declaration chunks than this engine's root, or in
    * another order, or in another table generation, or names other
    * constants, or when the run the globals descend from raised an error or
-   * a warning, or when a table a constant reaches no longer holds what the
-   * declarations built in it or was written while the images kept copies
-   * (`VariablesState.ConstantsAsDeclared`). A caller asks only for a
+   * a warning, or when the story wrote in a table a constant reaches, or
+   * called something that may (`VariablesState.ConstantsAsDeclared`), which
+   * asks a flag the table write barrier keeps, not the tables. A caller
+   * asks only for a
    * root a compile measured against this engine's and found running no
    * other declaration and no other function (`ChunkChanges.initializers`),
    * the compiler's own rule for running the declarations again
@@ -558,11 +559,11 @@ export class ProgramStory implements StoryEngine {
    * resets). What reads those tables as the declarations built them takes a
    * fresh run instead: a load (`ownDeclarations`), and a restore of an image
    * another engine took, which gives each constant its compiled value
-   * (`restoreImage`). A constant's value is the run's own, so a constant
-   * whose table the story wrote in is not handed on: a whole restore puts
-   * contents only into a table the images kept a copy of
-   * (`ProgramImages.writtenTables`), and one that holds what the
-   * declarations built and has no copy is its compiled value.
+   * (`restoreImage`). A constant's value is the run's own, so a run whose
+   * constant table the story wrote in is not handed on; one nothing wrote
+   * in holds what the declarations built, its compiled value, and a restore
+   * puts contents only into a table that was written
+   * (`ProgramImages.writtenTables`).
    */
   declarationsFor(root: ProgramRoot): CarriedDeclarations | null {
     const before = this.root;
@@ -575,13 +576,8 @@ export class ProgramStory implements StoryEngine {
     ) {
       return null;
     }
-    // A constant table the story wrote in, or that an image could restore
-    // other contents into, is not its compiled value.
-    if (
-      !variables.ConstantsAsDeclared(
-        (table) => this.images.pristineTable(table) !== undefined,
-      )
-    ) {
+    // A constant table the story wrote in is not its compiled value.
+    if (!variables.ConstantsAsDeclared) {
       return null;
     }
     // The globals by reference: the engine handed them copies them into its

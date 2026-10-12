@@ -366,7 +366,7 @@ end
       } | null
     )?.value?.get("cap")?.valueObject;
 
-  it("carries the run while the story leaves the table as declared", () => {
+  it("carries the run while the story leaves the table as declared, reading nothing of it", () => {
     const s = session(limits("& visits = 1"));
     const game = makeGame(s.compile());
     const story = game.programStory;
@@ -374,9 +374,43 @@ end
       while (story.canContinue) story.Continue();
       game.checkpoint();
     });
-    expect(update(game, s.edit("After.", "After edited.")).declarations).toBe(
-      0,
-    );
+    // Every read of the constant's table during the update, counted on the
+    // table itself: deciding to carry the run asks nothing of it.
+    const map = (
+      story.variablesState.GetVariableWithName("LIMITS") as unknown as {
+        value: Map<string, unknown>;
+      }
+    ).value as Map<string, unknown> & Record<PropertyKey, unknown>;
+    let reads = 0;
+    for (const name of [
+      "get",
+      "has",
+      "forEach",
+      "entries",
+      "keys",
+      "values",
+      Symbol.iterator,
+    ] as const) {
+      const original = (Map.prototype as any)[name] as Function;
+      map[name] = function (this: unknown, ...args: unknown[]) {
+        reads += 1;
+        return original.apply(this, args);
+      };
+    }
+    const ran = update(game, s.edit("After.", "After edited."));
+    expect(reads).toBe(0);
+    for (const name of [
+      "get",
+      "has",
+      "forEach",
+      "entries",
+      "keys",
+      "values",
+      Symbol.iterator,
+    ] as const) {
+      delete map[name];
+    }
+    expect(ran.declarations).toBe(0);
     expect(
       quiet(() => game.restoreCheckpoint(game.checkpoints.length - 1)),
     ).toBe(true);
