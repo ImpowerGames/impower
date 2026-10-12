@@ -10,7 +10,8 @@
 | `wait-dependency` | The reason names each blocker that is open or closed without its merged deliverable on origin/main. No stacked branches: wait for the merge. |
 | `wait-capacity` | Writers already hold the concurrency limit, or free disk admits no further writer (consider the bounded disk recovery). |
 | `adopt-pr`, `adopt-worktree` | Work for the ticket exists: find its writer and record it with `adopt`. Never start a second writer beside it. Once its writer is known to have ended, `claim --operation continue --evidence` starts a new writer on the route the entry's `continueWith` names, keeping the branch, worktree and the PR's started rounds; `continueBlocked` says why no route can. |
-| `deliver-brief` | The app adopted the writer's session: once its first turn has ended, send it the brief by message and record `delivered`. |
+| `deliver-brief` | The app adopted the writer's session: once its first turn has ended, record `deliver`, send it the brief by message, then record `delivered`. A send whose outcome was not recorded shows as `reconcile-pending` and is settled from the writer's transcript. |
+| `answer-request` | The writer asked for a decision that has no recorded answer: decide or relay it, send the answer and record it with `answer`. |
 | `observe` | The owner is running. |
 | `collect-report` | The owner ended its turn: read its report or question and answer it. |
 | `reconcile-pending` | A recorded start has no confirmed outcome: settle it with `reconcile`, `launched` or `withdraw --evidence` before any retry, as the reason says. |

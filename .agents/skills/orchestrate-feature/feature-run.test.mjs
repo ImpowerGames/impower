@@ -193,9 +193,9 @@ try {
   assert.equal(run.readRecord(record).tickets[101].owner.verified, true);
 
   // The writer's report must carry the full contract.
-  assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("partial.json", { model: "claude-opus-5-5", effort: "medium", pr: 601 }) })), /lacks reviewedHead, rounds, findings, verification, ci/);
-  assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("wrong.json", { model: "claude-opus-5-5", effort: "low", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {} }) })), /started as claude-opus-5-5 at medium/);
-  rev = mutate(rev, (r) => run.result(r, { ticket: 101, report: write("report.json", { model: "claude-opus-5-5", effort: "medium", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: { "hook-tests": "pass" } }) }));
+  assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("partial.json", { model: "claude-opus-5-5", effort: "medium", pr: 601 }) })), /lacks reviewedHead, rounds, findings, verification, ci, next/);
+  assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("wrong.json", { model: "claude-opus-5-5", effort: "low", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, next: "x" }) })), /started as claude-opus-5-5 at medium/);
+  rev = mutate(rev, (r) => run.result(r, { ticket: 101, report: write("report.json", { model: "claude-opus-5-5", effort: "medium", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: { "hook-tests": "pass" }, next: "await review" }) }));
 
   // Observed exit releases the ticket; the next plan offers it again.
   fs.writeFileSync(stop101, "");
@@ -273,7 +273,7 @@ try {
   rev = out.revision;
   assert.deepEqual([ran.model, ran.effort, ran.permissionMode, ran.cwd], ["claude-opus-5-5", "medium", "auto", checkout], "the session is created at the claimed model and effort");
   assert.match(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights }).tickets.find((t) => t.number === 108).reason, new RegExp(`${sessionId} was created; run handoff`));
-  assert.throws(() => mutate(rev, (r) => run.launched(r, { ticket: 108, handleKind: "session", handle: "local_w108" })), /once its handoff was requested/);
+  assert.throws(() => mutate(rev, (r) => run.launched(r, { ticket: 108, handleKind: "session", handle: "local_w108" })), /after its handoff ran/);
   out = run.handoffAdopted(record, { coordinator: "local_a", expectRevision: rev, ticket: 108, executable: exe, runner: (o) => { ran = o; return { requested: true, pid: 4242 }; } });
   rev = out.revision;
   assert.equal(ran.sessionId, sessionId);
@@ -287,8 +287,24 @@ try {
   const briefA = run.brief(run.readRecord(record), write("planA2.json", adoptedPlan()), 108, [], defaults);
   assert.match(briefA, /not linked to the coordinator.*session local_a as a cross-session message/);
   assert.match(briefA, /get_session on self/);
-  rev = mutate(rev, (r) => run.delivered(r, { ticket: 108 }));
-  assert.throws(() => mutate(rev, (r) => run.delivered(r, { ticket: 108 })), /already delivered/);
+  // Delivery records its intent before the message and its outcome after; an
+  // interrupted send is settled from the transcript, never by sending again.
+  assert.throws(() => mutate(rev, (r) => run.delivered(r, { ticket: 108 })), /record deliver before sending it/);
+  rev = mutate(rev, (r) => run.deliver(r, { ticket: 108 }));
+  assert.throws(() => mutate(rev, (r) => run.deliver(r, { ticket: 108 })), /already at intent/);
+  const interrupted = plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: { sessions: { local_w108: { state: "running" } } } }).tickets.find((t) => t.number === 108);
+  assert.deepEqual([interrupted.action, /read the end of its transcript/.test(interrupted.reason)], ["reconcile-pending", true], "a send with no recorded outcome is not offered again");
+  rev = mutate(rev, (r) => run.delivered(r, { ticket: 108, evidence: "the transcript shows the brief" }));
+  assert.throws(() => mutate(rev, (r) => run.delivered(r, { ticket: 108 })), /at delivered/);
+  assert.equal(actions(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }))[108], "collect-report");
+  // A writer's request stays on the plan until its answer is recorded.
+  assert.throws(() => mutate(rev, (r) => run.request(r, { ticket: 108, text: "authorize round 4?" })), /--source/);
+  const asked = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.request(r, { ticket: 108, text: "authorize round 4?", source: "session local_w108 transcript" }));
+  rev = asked.record.revision;
+  const pending108 = plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }).tickets.find((t) => t.number === 108);
+  assert.deepEqual([pending108.action, pending108.requests.map((q) => q.text)], ["answer-request", ["authorize round 4?"]]);
+  rev = mutate(rev, (r) => run.answer(r, { ticket: 108, request: asked.output.id, text: "relayed to the maintainer; wait" }));
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 108, request: asked.output.id, text: "again" })), /already answered/);
   assert.equal(actions(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }))[108], "collect-report");
   assert.doesNotMatch(run.brief(run.readRecord(record), p6File, 101, [], defaults), /cross-session message/, "a linked desktop writer reports by ending its turn");
   // The CLI's answer is accepted only without error, with a session id and
@@ -297,6 +313,7 @@ try {
   assert.match(run.createOutcome({ status: 0, stdout: JSON.stringify({ is_error: false, session_id: sessionId, modelUsage: { "claude-sonnet-5-5": {} } }) }, "claude-opus-5-5").reason, /answered with claude-sonnet-5-5/);
   assert.match(run.createOutcome({ status: 1, stdout: JSON.stringify({ is_error: true, result: "Not logged in" }) }, "claude-opus-5-5").reason, /exited 1: Not logged in/);
   assert.match(run.createOutcome({ error: new Error("ENOENT") }, "claude-opus-5-5").reason, /could not run: ENOENT/);
+  assert.equal(run.createOutcome({ error: Object.assign(new Error("spawnSync ETIMEDOUT"), { code: "ETIMEDOUT" }), signal: "SIGTERM" }, "claude-opus-5-5").uncertain, true, "a timed-out create may have made a session");
 
   // Adopting an existing PR records its writer without starting another and
   // carries the PR's started rounds into the brief.
@@ -526,6 +543,48 @@ try {
     assert.deepEqual([last.container, last.truncated], [true, true]);
     const f = fresh("r6", 700);
     assert.equal(actions(planOf(f, tooDeep))[last.number], "decision-needed");
+  }
+
+  // Round 2, finding 1: continuing existing work obeys dependency and
+  // concurrency admission like a new dispatch.
+  {
+    const f = fresh("r7");
+    const pr = (n) => ({ number: 900 + n, state: "OPEN", isDraft: true, branch: `fix/${n}-thing`, head: "h", rounds: 1 });
+    const pre = [available("claude-cli", "claude-opus-5-5", [701, 702, 703])];
+    const limited = (limit) => ({ ...run.readRecord(f.file), concurrency: { limit, basis: "test" } });
+    const blocked = run.planDispatch({ record: limited(1), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)], blockers: [{ number: 99, state: "open", delivered: false }] }, { ...ticket(702), parent: 300, prs: [pr(702)], blockers: [{ number: 99, state: "open", delivered: false }] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    for (const n of [701, 702]) {
+      const entry = blocked.tickets.find((t) => t.number === n);
+      assert.equal(entry.continueWith, undefined, `#${n} with an undelivered blocker has no continuation`);
+      assert.match(entry.continueBlocked, /waiting for #99 \(open\)/);
+    }
+    const bounded = run.planDispatch({ record: limited(1), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(702), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-702"), branch: "fix/702-thing", head: "h" }] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    const [first, second] = [701, 702].map((n) => bounded.tickets.find((t) => t.number === n));
+    assert.equal(first.continueWith.route, "claude-cli", "the first continuation fits the limit");
+    assert.equal(second.continueWith, undefined);
+    assert.match(second.continueBlocked, /fill the limit of 1/, "a second continuation would exceed the limit");
+    const planFile = write("r7-plan.json", run.planDispatch({ record: run.readRecord(f.file), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(703), parent: 300, prs: [pr(703)] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults }));
+    f.change((r) => run.claim(r, { plan: planFile, ticket: 701, worktree: path.join(f.dir, "wt-701"), branch: "fix/701-thing", artifactParent: f.artifacts, operation: "continue", evidence: "archived" }));
+    const after = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } }, snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(703), parent: 300, prs: [pr(703)] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.match(after.tickets.find((t) => t.number === 703).continueBlocked, /fill the limit of 1/, "a claimed continuation holds its place");
+  }
+
+  // Round 2, finding 2: a handoff whose outcome was lost is settled by
+  // finding the session in the app's list, without running the handoff again.
+  {
+    const f = fresh("r8");
+    const snap = snapshotOf(300, [{ ...ticket(801), parent: 300 }]);
+    const pre = [available("claude-adopted", "claude-opus-5-5", [801])];
+    f.change((r) => run.claim(r, { plan: write("r8-plan.json", planOf(f, snap, { turn: "event", preflights: pre })), ticket: 801, worktree: path.join(f.dir, "wt"), branch: "fix/801-thing", artifactParent: f.artifacts }));
+    const uuid = "1f8c1e7a-2b3d-4c5e-9f60-718293a4b5c6";
+    run.createAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 801, executable: path.join(tmp, "claude.exe"), permissionMode: "auto", runner: () => ({ created: true, sessionId: uuid }) });
+    run.handoffAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 801, executable: path.join(tmp, "claude.exe"), runner: () => { throw new Error("the reply was lost"); } });
+    assert.match(planOf(f, snap, { turn: "event", preflights: pre }).tickets.find((t) => t.number === 801).reason, /never run handoff again/);
+    assert.throws(() => run.handoffAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 801, executable: path.join(tmp, "claude.exe"), runner: () => ({ requested: true, pid: 1 }) }), /not create confirmed/);
+    run.updateRecord(f.file, { expectRevision: run.readRecord(f.file).revision, coordinator: "local_r" }, (r) => run.launched(r, { ticket: 801, handleKind: "session", handle: "local_w801" }));
+    const steps = run.readRecord(f.file).tickets[801].owner.steps;
+    assert.deepEqual(steps.map((s) => `${s.step} ${s.state}`).slice(-2), ["handoff uncertain", "adopt confirmed"]);
+    assert.equal(steps.at(-1).after, "handoff uncertain");
   }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");

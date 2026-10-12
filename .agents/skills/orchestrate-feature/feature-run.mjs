@@ -9,8 +9,8 @@
 //   node .agents/skills/orchestrate-feature/feature-run.mjs <command> --option value ...
 //
 // Commands: init, snapshot, plan, claim, launch, create, handoff, launched,
-// delivered, adopt, reconcile, withdraw, verify, release, result,
-// disk-recovery, brief, recover-lock.
+// deliver, delivered, request, answer, adopt, reconcile, withdraw, verify,
+// release, result, disk-recovery, brief, recover-lock.
 // Every command that changes the record takes --record, --coordinator and
 // --expect-revision, prints the new record revision, and refuses a stale
 // revision or another coordinator's session.
@@ -334,8 +334,8 @@ function adoptedNext(pending) {
     "create uncertain": ["reconcile-pending", `create may have made a session (${last?.reason}); look for it before withdrawing with evidence`],
     "create failed": ["reconcile-pending", `create failed (${last?.reason}); withdraw with that evidence`],
     "create confirmed": ["dispatch-step", `session ${last?.sessionId} was created; run handoff`],
-    "handoff intent": ["reconcile-pending", "handoff has no recorded outcome; look for the session in the app's list and record it with launched, or withdraw with evidence"],
-    "handoff uncertain": ["reconcile-pending", `handoff may have run (${last?.reason}); look for the session in the app's list and record it with launched, or withdraw with evidence`],
+    "handoff intent": ["reconcile-pending", "handoff has no recorded outcome; look for the session in the app's list and record it with launched --handle-kind session if it is there, or withdraw with evidence that it is not; never run handoff again"],
+    "handoff uncertain": ["reconcile-pending", `handoff may have run (${last?.reason}); look for the session in the app's list and record it with launched --handle-kind session if it is there, or withdraw with evidence that it is not; never run handoff again`],
     "handoff failed": ["reconcile-pending", `handoff failed (${last?.reason}); withdraw with that evidence`],
     "handoff requested": ["reconcile-pending", `confirm session ${last?.sessionId} in the app's session list and record it with launched --handle-kind session`],
   }[at];
@@ -354,9 +354,9 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
   if (snapshot.repository !== record.repository || snapshot.feature.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
   const model = record.writer.model;
   const routes = routeOptions(model, turn, defaults);
-  const tickets = [], eligible = [];
+  const tickets = [], eligible = [], existingWork = [];
   let active = 0;
-  const add = (ticket, action, reason, extra = {}) => tickets.push({ number: ticket.number, title: ticket.title, effort: writerEffortOf(ticket.effort), action, reason, ...extra });
+  const add = (ticket, action, reason, extra = {}) => { const entry = { number: ticket.number, title: ticket.title, effort: writerEffortOf(ticket.effort), action, reason, ...extra }; tickets.push(entry); return entry; };
   // The first route that runs the writer model at the ticket's effort, or the
   // one this turn may only propose, with the reasons the others were passed over.
   const chooseRoute = (t) => {
@@ -374,12 +374,8 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     return { effort, chosen: null, proposable, reasons };
   };
   const startWith = (choice) => ({ route: choice.chosen.route, model, effort: choice.effort, ...(choice.chosen.launch && { launch: choice.chosen.launch }), ...(choice.chosen.endsWithCoordinator && { endsWithCoordinator: true }) });
-  // How existing work continues once its writer is known to have ended.
-  const continuation = (t) => {
-    if (!writerEffortOf(t.effort)) return { continueBlocked: "the ticket has no writer effort" };
-    const choice = chooseRoute(t);
-    return choice.chosen ? { continueWith: startWith(choice) } : { continueBlocked: choice.reasons.join("; ") };
-  };
+  const undelivered = (t) => t.blockers.filter((b) => !b.delivered);
+  const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
   for (const t of snapshot.tickets) {
     const own = record.tickets[t.number] ?? {};
     const open = t.prs.filter((p) => p.state === "OPEN");
@@ -408,7 +404,14 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
       const s = ownerStatus(own.owner, observations, { host, identify });
       const extra = { owner: { route: own.owner.route, handle: own.owner.handle, status: s.status }, ...(open.length === 1 && { pr: open[0].number, rounds: open[0].rounds }) };
       if (own.owner.mismatch) { active++; add(t, "stop-writer", `the writer does not run the requested route: ${own.owner.mismatch}; stop it and keep its evidence, never substitute`, extra); continue; }
-      if (own.owner.briefDelivered === null && s.status !== "exited") { active++; add(t, "deliver-brief", `the app adopted session ${own.owner.handle.id}; once its first turn has ended, send it the brief by message and record that with delivered`, extra); continue; }
+      const asked = (own.requests ?? []).filter((r) => !r.answer);
+      if (asked.length && s.status !== "exited") { active++; add(t, "answer-request", `the writer asked: ${asked.map((r) => `${r.id} "${r.text}"`).join("; ")}; decide, send the answer and record it with answer`, { ...extra, requests: asked }); continue; }
+      if (own.owner.route === "claude-adopted" && own.owner.brief?.state !== "delivered" && s.status !== "exited") {
+        active++;
+        if (!own.owner.brief) add(t, "deliver-brief", `the app adopted session ${own.owner.handle.id}; once its first turn has ended, record deliver, send it the brief by message, then record delivered`, extra);
+        else add(t, "reconcile-pending", `the brief to session ${own.owner.handle.id} was being sent at ${own.owner.brief.time} with no recorded outcome; read the end of its transcript: if the brief arrived, record delivered with that evidence, otherwise send it and record delivered`, extra);
+        continue;
+      }
       if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { add(t, "await-maintainer", `PR #${open[0].number} is ready at ${open[0].head}; ${s.reason}`, extra); continue; }
       active++;
       const action = { live: "observe", waiting: "collect-report", unknown: "blocked-owner-unknown", exited: "release" }[s.status];
@@ -421,13 +424,13 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
       const pr = open[0];
       if (!pr.isDraft) { add(t, "await-maintainer", `PR #${pr.number} is ready at ${pr.head} after ${pr.rounds} review rounds; the maintainer merges it`, { pr: pr.number, rounds: pr.rounds }); continue; }
       active++;
-      add(t, "adopt-pr", `draft PR #${pr.number} at ${pr.head} has started ${pr.rounds} review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round ${pr.rounds}`, { pr: pr.number, rounds: pr.rounds, branch: pr.branch, worktrees: t.worktrees, ...continuation(t) });
+      existingWork.push({ t, entry: add(t, "adopt-pr", `draft PR #${pr.number} at ${pr.head} has started ${pr.rounds} review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round ${pr.rounds}`, { pr: pr.number, rounds: pr.rounds, branch: pr.branch, worktrees: t.worktrees }) });
       continue;
     }
-    if (t.worktrees.length) { active++; add(t, "adopt-worktree", `worktree ${t.worktrees.map((w) => w.path).join(", ")} already holds this ticket's work; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue`, { worktrees: t.worktrees, ...continuation(t) }); continue; }
+    if (t.worktrees.length) { active++; existingWork.push({ t, entry: add(t, "adopt-worktree", `worktree ${t.worktrees.map((w) => w.path).join(", ")} already holds this ticket's work; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue`, { worktrees: t.worktrees }) }); continue; }
     if (!writerEffortOf(t.effort)) { add(t, "decision-needed", t.effort ? `Effort ${t.effort} has no writer effort` : "the ticket has no Effort value; assign one through the issue-fields procedure"); continue; }
-    const waiting = t.blockers.filter((b) => !b.delivered);
-    if (waiting.length) { add(t, "wait-dependency", `waiting for ${waiting.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`, { waitingFor: waiting.map((b) => b.number) }); continue; }
+    const waiting = undelivered(t);
+    if (waiting.length) { add(t, "wait-dependency", waitingFor(waiting), { waitingFor: waiting.map((b) => b.number) }); continue; }
     eligible.push(t);
   }
   // A writer the record still holds for a ticket the Feature no longer lists
@@ -439,7 +442,22 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     tickets.push({ number: Number(n), action: "decision-needed", reason: "the record holds a writer or pending start for a ticket that is no longer one of the Feature's sub-issues; settle it before reusing its capacity" });
   }
   const free = freeBytes ?? Infinity;
-  const capacityNow = Math.max(0, Math.min(record.concurrency.limit, Math.floor(free / WRITER_DISK)) - active);
+  const room = Math.min(record.concurrency.limit, Math.floor(free / WRITER_DISK));
+  // Existing work is continued by a new writer only under the same admission
+  // as new work: every blocker delivered, a route available, and room in the
+  // limit beside the writers the record holds. Each piece of existing work
+  // already reserves a place against new dispatch, since its writer may run.
+  let continueRoom = Math.max(0, room - (active - existingWork.length));
+  for (const { t, entry } of existingWork.sort((a, b) => a.t.number - b.t.number)) {
+    const waiting = undelivered(t);
+    if (!writerEffortOf(t.effort)) { entry.continueBlocked = "the ticket has no writer effort"; continue; }
+    if (waiting.length) { entry.continueBlocked = waitingFor(waiting); continue; }
+    const choice = chooseRoute(t);
+    if (!choice.chosen) entry.continueBlocked = choice.reasons.join("; ");
+    else if (continueRoom <= 0) entry.continueBlocked = `the writers the record holds fill the limit of ${record.concurrency.limit}`;
+    else { continueRoom--; entry.continueWith = startWith(choice); }
+  }
+  const capacityNow = Math.max(0, room - active);
   let capacity = capacityNow;
   for (const t of eligible.sort((a, b) => a.number - b.number)) {
     const choice = chooseRoute(t), { effort, chosen, proposable, reasons } = choice;
@@ -516,12 +534,14 @@ export function launched(record, { ticket: number, handleKind, handle, host = os
   if (!["session", "task"].includes(handleKind) || !handle) throw new Error("--handle-kind must be session or task, with --handle naming it");
   const adopted = ticket.pending.route === "claude-adopted";
   if (adopted) {
+    // A handoff whose outcome was lost is settled by finding the session in
+    // the app's list; the handoff itself is never run twice.
     const last = lastStep(ticket.pending);
-    if (handleKind !== "session" || last?.step !== "handoff" || last.state !== "requested") throw new Error(`An adopted writer is confirmed as a session once its handoff was requested; #${number} is at ${last ? `${last.step} ${last.state}` : "no step"}`);
-    step(ticket.pending, "adopt", "confirmed", { handle });
+    if (handleKind !== "session" || last?.step !== "handoff" || !["requested", "intent", "uncertain"].includes(last.state)) throw new Error(`An adopted writer is confirmed as a session found in the app's list after its handoff ran; #${number} is at ${last ? `${last.step} ${last.state}` : "no step"}`);
+    step(ticket.pending, "adopt", "confirmed", { handle, ...(last.state !== "requested" && { after: `handoff ${last.state}` }) });
   }
   ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host });
-  if (adopted) { ticket.owner.steps = ticket.pending.steps; ticket.owner.briefDelivered = null; }
+  if (adopted) { ticket.owner.steps = ticket.pending.steps; ticket.owner.brief = null; }
   log(record, "launched", { ticket: number, launchId: ticket.pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return ticket.owner;
@@ -581,7 +601,27 @@ export function release(record, { ticket: number, observations, evidence, host =
   log(record, "released", { ticket: number, reason: s.reason });
 }
 
-export const REPORT_FIELDS = ["model", "effort", "pr", "reviewedHead", "rounds", "findings", "verification", "ci"];
+export const REPORT_FIELDS = ["model", "effort", "pr", "reviewedHead", "rounds", "findings", "verification", "ci", "next"];
+
+// A writer's request for a decision, and the coordinator's answer, are
+// recorded so a restarted coordinator finds what is still owed.
+export function request(record, { ticket: number, text, source }) {
+  if (!text || !source) throw new Error("--text must quote the writer's request and --source say where it was read");
+  const ticket = ticketOf(record, number);
+  if (!ticket.owner) throw new Error(`#${number} has no writer to have asked`);
+  const id = randomUUID().slice(0, 8);
+  (ticket.requests ??= []).push({ id, time: new Date().toISOString(), text, source, answer: null });
+  log(record, "request", { ticket: number, id });
+  return { id };
+}
+export function answer(record, { ticket: number, request: id, text }) {
+  const open = ticketOf(record, number).requests?.find((r) => r.id === id);
+  if (!open) throw new Error(`#${number} has no request ${id}`);
+  if (open.answer) throw new Error(`Request ${id} was already answered at ${open.answer.time}`);
+  if (!text) throw new Error("--text must give the answer sent to the writer");
+  open.answer = { time: new Date().toISOString(), text };
+  log(record, "answer", { ticket: number, id });
+}
 export function result(record, { ticket: number, report: file }) {
   const report = readJson(file);
   const missing = REPORT_FIELDS.filter((f) => report?.[f] === undefined);
@@ -697,6 +737,8 @@ export function runCreate({ executable, model, effort, permissionMode, cwd }) {
 // The created session's id, provided the CLI answered without error and with
 // the requested model.
 export function createOutcome(result, model) {
+  // A run stopped by the timeout or a signal may already have made a session.
+  if (result.error?.code === "ETIMEDOUT" || result.signal) return { created: false, uncertain: true, reason: `the CLI was stopped (${result.error?.code ?? result.signal}) before it answered` };
   if (result.error) return { created: false, reason: `the CLI could not run: ${result.error.message}` };
   let answer;
   try { answer = JSON.parse(result.stdout); } catch { answer = undefined; }
@@ -750,12 +792,25 @@ export function handoffAdopted(file, { coordinator, expectRevision, ticket: numb
   return { revision: done.record.revision, sessionId, ...outcome };
 }
 
-// The coordinator sends the brief by message; this records that it did.
-export function delivered(record, { ticket: number }) {
+// The coordinator sends the brief by message. `deliver` records the intent
+// before the message is sent and `delivered` its confirmed outcome, so an
+// interrupted send is visible and is settled from the writer's transcript
+// rather than by sending again.
+function adoptedOwner(record, number) {
   const owner = ticketOf(record, number).owner;
   if (!owner || owner.route !== "claude-adopted") throw new Error(`#${number} has no adopted writer to brief`);
-  if (owner.briefDelivered) throw new Error(`#${number}'s brief was already delivered at ${owner.briefDelivered}`);
-  owner.briefDelivered = new Date().toISOString();
+  return owner;
+}
+export function deliver(record, { ticket: number }) {
+  const owner = adoptedOwner(record, number);
+  if (owner.brief) throw new Error(`#${number}'s brief is already at ${owner.brief.state} (${owner.brief.time}); read the writer's transcript to settle it`);
+  owner.brief = { state: "intent", time: new Date().toISOString() };
+  log(record, "brief-intent", { ticket: number, handle: owner.handle });
+}
+export function delivered(record, { ticket: number, evidence }) {
+  const owner = adoptedOwner(record, number);
+  if (owner.brief?.state !== "intent") throw new Error(`#${number}'s brief is at ${owner.brief?.state ?? "no step"}; record deliver before sending it`);
+  owner.brief = { state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
   log(record, "brief-delivered", { ticket: number, handle: owner.handle });
 }
 
@@ -812,7 +867,7 @@ export function brief(record, planFile, number, decisions = [], defaults = readW
     "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. When the loop would ask for a further round or another decision needs the user, end your turn with the request addressed to the coordinator and a checkpoint report: which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
     "Your review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.",
     "Never merge, and never mark the PR ready before the review gates pass.",
-    `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model and effort as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head), plus any changes after the reviewed commit.`,
+    `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model and effort as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.`,
     ...(route.reportsByMessage ? [`This session is not linked to the coordinator, so nothing you end a turn with reaches it. Send every report, blocker and question to coordinator session ${record.coordinator.session} as a cross-session message (SendMessage with to set to that id), then end your turn.`] : []),
   ].join("\n");
 }
@@ -869,7 +924,10 @@ export function main(argv, { defaults = readWriterDefaults() } = {}) {
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt }));
     case "create": return createAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, permissionMode: o.permissionMode });
     case "handoff": return handoffAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable });
-    case "delivered": return mutate((r) => delivered(r, { ticket: number() }));
+    case "deliver": return mutate((r) => deliver(r, { ticket: number() }));
+    case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
+    case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
+    case "answer": return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text }));
     case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle }));
     case "adopt": return mutate((r) => adopt(r, { plan: absolute(o.plan, "plan"), ticket: number(), handleKind: o.handleKind, handle: o.handle, pid: o.pid, route: o.route, model: o.model, effort: o.effort, worktree: o.worktree, branch: o.branch }));
     case "reconcile": return mutate((r) => reconcile(r, { ticket: number() }));
@@ -880,7 +938,7 @@ export function main(argv, { defaults = readWriterDefaults() } = {}) {
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|create|handoff|launched|delivered|adopt|reconcile|withdraw|verify|release|result|disk-recovery|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|create|handoff|launched|deliver|delivered|request|answer|adopt|reconcile|withdraw|verify|release|result|disk-recovery|brief|recover-lock --option value ...");
   }
 }
 
