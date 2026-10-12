@@ -149,6 +149,61 @@ try {
   assert.ok(fullLogs.some((line) => line.includes('worktree ownership could not be inspected') && line.includes(brokenCheckout)));
   assert.ok(isRegistered(brokenCheckout));
   assert.equal(fs.readFileSync(path.join(brokenCheckout, 'ignored.txt'), 'utf8'), 'broken sentinel');
+  // A reviewer's probe clone inside a closed PR's job directory is scratch once
+  // it holds nothing origin/main lacks; a registered worktree beside one still
+  // keeps the directory, and so does a clone with a change or a local commit.
+  const probeClone = (dir, name = 'probe-clone') => {
+    const clone = path.join(dir, 'round-1', 'reviewer-a-1', name);
+    fs.mkdirSync(path.dirname(clone), { recursive: true });
+    const r = spawnSync('git', ['clone', '-q', mainRoot, clone], { windowsHide: true, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    fs.mkdirSync(path.join(clone, 'node_modules'));
+    fs.writeFileSync(path.join(clone, 'ignored.txt'), 'install output the clone ignores');
+    return clone;
+  };
+  const cloneJob = job();
+  const cleanClone = probeClone(cloneJob.dir);
+  fs.writeFileSync(path.join(cloneJob.dir, 'round-1', 'reviewer-a-1', 'report.md'), 'report');
+  const cloneVerdict = classifyJob(cloneJob.name, cloneJob.dir, deps, ctx);
+  assert.equal(cloneVerdict.remove, true, `a clean probe clone kept its closed PR's directory: ${cloneVerdict.reason}`);
+  const cloneRun = cleanJobs(ctx, deps, true, () => {});
+  assert.ok(cloneRun.rows.some((row) => row.name === cloneJob.name && row.decision === 'removed'), JSON.stringify(cloneRun.rows));
+  assert.equal(fs.existsSync(cleanClone), false, 'the clean probe clone survived apply');
+  assert.equal(fs.existsSync(cloneJob.dir), false);
+  const heldJob = job();
+  const heldClone = probeClone(heldJob.dir);
+  const heldCheckout = path.join(heldJob.dir, 'checkout');
+  git('worktree', 'add', '-b', 'held-beside-clone', heldCheckout);
+  fs.writeFileSync(path.join(heldCheckout, 'ignored.txt'), 'held sentinel');
+  const heldVerdict = classifyJob(heldJob.name, heldJob.dir, deps, ctx);
+  assert.equal(heldVerdict.remove, false, 'a registered worktree beside a probe clone was removable');
+  assert.ok(heldVerdict.reason.includes(`protected registered worktree ${heldCheckout}`), heldVerdict.reason);
+  cleanJobs(ctx, deps, true, () => {});
+  assert.equal(fs.readFileSync(path.join(heldCheckout, 'ignored.txt'), 'utf8'), 'held sentinel');
+  assert.ok(fs.existsSync(path.join(heldClone, '.git')));
+  assert.ok(isRegistered(heldCheckout));
+  for (const state of ['untracked', 'committed']) {
+    const fixture = job();
+    const clone = probeClone(fixture.dir);
+    fs.writeFileSync(path.join(clone, 'probe.txt'), state);
+    if (state === 'committed') {
+      for (const args of [['add', 'probe.txt'], ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'commit', '-q', '-m', 'local only']]) {
+        const r = spawnSync('git', args, { cwd: clone, windowsHide: true, encoding: 'utf8' });
+        assert.equal(r.status, 0, r.stderr);
+      }
+    }
+    const verdict = classifyJob(fixture.name, fixture.dir, deps, ctx);
+    assert.equal(verdict.remove, false, `a ${state} probe clone was removable`);
+    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : /is not on origin\/main/);
+    cleanJobs(ctx, deps, true, () => {});
+    assert.equal(fs.readFileSync(path.join(clone, 'probe.txt'), 'utf8'), state);
+  }
+  const openJob = job();
+  const openClone = probeClone(openJob.dir);
+  const openVerdict = classifyJob(openJob.name, openJob.dir, { ...deps, exec: (cmd, args, cwd) => cmd === 'gh' ? { status: 0, out: 'open PR' } : deps.exec(cmd, args, cwd) }, ctx);
+  assert.equal(openVerdict.remove, false);
+  assert.ok(openVerdict.reason.includes(`protected embedded Git repository ${path.dirname(path.join(openClone, '.git'))}`), openVerdict.reason);
+  fs.rmSync(openJob.dir, { recursive: true, force: true });
   const dotted = job();
   const dottedCheckout = path.join(dotted.dir, '..checkout');
   git('worktree', 'add', '-b', 'dotted', dottedCheckout);

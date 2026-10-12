@@ -52,6 +52,6 @@ Run apply only for authorized cleanup after inspecting the dry run. Review remov
 
 Resolve-issue preflight inspects candidates before creating its worktree. Cleanup is never an automatic post-resolution or archive step; unmerged work and other sessions remain protected.
 
-Review jobs containing registered worktrees, embedded Git repositories or uncertain ownership are protected, with inventory refreshed before destructive work; see [ownership protection](references/classification.md#review-job-ownership).
+Review jobs containing registered worktrees, embedded repositories with work or uncertain ownership are protected, with inventory refreshed before removal; see [ownership protection](references/classification.md#review-job-ownership).
 
 When modifying cleanup behavior, run its Node test against printed scratch repositories; retain Windows-only and unavailable-filesystem skips as limitations. Put preventable traps into the script/check rather than warning prose.
