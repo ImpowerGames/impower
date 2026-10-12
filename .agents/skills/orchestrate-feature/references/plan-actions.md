@@ -21,6 +21,6 @@
 | `blocked-route` | No offered route runs the writer model at the ticket's effort: report the preflight reasons to the user. |
 | `decision-needed` | Missing Effort, duplicate open PRs, a closed ticket without its deliverable, a held writer outside the Feature or on a ticket that gained sub-issues, or sub-issues nested past GitHub's limit: report it with a recommendation. |
 | `await-maintainer` | A ready PR waits for the maintainer to merge it. Until the record settles its writer (released, or adopted and released), that writer may still be finishing and keeps its place; the reason says so, and `adopt` records it. |
-| `done`, `container` | Delivered, or planned through its own sub-issues. |
+| `done`, `container` | Delivered, or planned through its own sub-issues. A closed ticket whose worktree remains here and whose writer the record has not settled keeps that writer's place, as the reason says: adopt and release the writer, or remove the merged worktree through clean-worktrees. |
 
 An adopted writer is recorded with the model and effort it actually runs, and verified against the ticket's Effort, so a mismatch plans as `stop-writer`. An owner's state comes from the observation file for sessions and tasks. A detached writer on this host is live while its recorded wrapper runs or while any process names its launch directory, which the writer carries on its own command line; a failed process census, or a process recorded on another host, leaves it unknown.

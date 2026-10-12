@@ -413,7 +413,14 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     }
     if (t.state === "closed") {
       if (own.owner || own.pending) active++;
-      add(t, t.delivered ? "done" : "decision-needed", t.delivered ? "closed with its merged deliverable on origin/main" : "closed without a merged deliverable on origin/main; confirm whether the ticket is complete");
+      // A merge or a closed issue does not show the writer ended: one whose
+      // worktree remains on this host, and whom the record has not settled,
+      // keeps its place until it is adopted and released, or until the merged
+      // worktree is removed through the guarded cleanup.
+      const lingering = !own.owner && !own.pending && t.worktrees.length > 0 && !writerKnownEnded(own);
+      if (lingering) active++;
+      const base = t.delivered ? "closed with its merged deliverable on origin/main" : "closed without a merged deliverable on origin/main; confirm whether the ticket is complete";
+      add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, lingering ? { worktrees: t.worktrees, reserves: true } : {});
       continue;
     }
     if (own.pending) {
@@ -602,11 +609,12 @@ export function launched(record, { ticket: number, handleKind, handle, host = os
 // Existing work found by the plan gets its existing writer as owner; adoption
 // starts nothing, and the PR keeps the rounds it already started.
 export function adopt(record, { plan, ticket: number, handleKind, handle, pid, route, model, effort, worktree, branch, host = os.hostname(), identify = processIdentity }) {
-  const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer"]);
+  const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer", "done", "decision-needed"]);
+  if (["done", "decision-needed"].includes(entry.action) && !entry.reserves) throw new Error(`The plan's action for #${number} is ${entry.action} with no unsettled writer to adopt`);
   if (!Object.hasOwn(writerRoutes, route) || typeof model !== "string" || !writerEfforts(model).includes(effort)) throw new Error("--route, --model and --effort must describe the existing writer");
   if (!path.isAbsolute(worktree ?? "")) throw new Error("--worktree must be the existing writer's absolute worktree path");
   const found = entry.worktrees?.find((w) => path.resolve(w.path) === path.resolve(worktree));
-  if (entry.action === "adopt-worktree" && !found) throw new Error(`--worktree must be one the plan found for #${number}: ${entry.worktrees.map((w) => w.path).join(", ")}`);
+  if ((entry.action === "adopt-worktree" || ["done", "decision-needed"].includes(entry.action)) && !found) throw new Error(`--worktree must be one the plan found for #${number}: ${entry.worktrees.map((w) => w.path).join(", ")}`);
   const ticket = ticketOf(record, number);
   assertFree(ticket, number);
   let h;

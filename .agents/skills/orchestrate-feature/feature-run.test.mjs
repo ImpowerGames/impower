@@ -755,6 +755,33 @@ try {
     assert.match(run.readRecord(f.file).tickets[2203].owner.mismatch, /runs claude-opus-5-5 at low, not claude-opus-5-5 at high/);
   }
 
+  // Round 4: a merged and closed ticket whose worktree remains here and
+  // whose writer the record has not settled keeps that writer's place, and
+  // the writer can be adopted and released; without a worktree here, a
+  // closed ticket reserves nothing.
+  {
+    const f = fresh("r19");
+    const wt = path.join(f.dir, "wt-2401");
+    const merged = { number: 2501, state: "MERGED", isDraft: false, branch: "fix/2401-thing", head: "h", mergeCommit: "m" };
+    const snap = (worktrees) => snapshotOf(300, [{ ...ticket(2401), parent: 300, state: "closed", delivered: true, prs: [merged], worktrees }, { ...ticket(2402), parent: 300 }]);
+    const pre = [available("claude-desktop", "claude-opus-5-5", [2402])];
+    const one = () => ({ ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } });
+    const lingering = run.planDispatch({ record: one(), snapshot: snap([{ path: wt, branch: "fix/2401-thing", head: "h" }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(lingering)[2401], actions(lingering)[2402], lingering.concurrency.active], ["done", "wait-capacity", 1], "a merge does not show the writer ended");
+    assert.match(lingering.tickets.find((t) => t.number === 2401).reason, /its writer is not settled in the record, so it keeps a place/);
+    const planFile = write("r19-plan.json", lingering);
+    assert.throws(() => f.change((r) => run.adopt(r, { plan: planFile, ticket: 2401, handleKind: "session", handle: "local_late", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "elsewhere") })), /one the plan found for #2401/);
+    f.change((r) => run.adopt(r, { plan: planFile, ticket: 2401, handleKind: "session", handle: "local_late", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: wt }));
+    assert.equal(actions(run.planDispatch({ record: one(), snapshot: snap([{ path: wt, branch: "fix/2401-thing", head: "h" }]), turn: "user", preflights: pre, observations: { sessions: { local_late: { state: "running" } } }, freeBytes: 100 * GB, defaults }))[2402], "wait-capacity", "the adopted writer still holds its place while it runs");
+    f.change((r) => run.release(r, { ticket: 2401, observations: { sessions: { local_late: { state: "archived" } } } }));
+    assert.equal(actions(run.planDispatch({ record: one(), snapshot: snap([{ path: wt, branch: "fix/2401-thing", head: "h" }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults }))[2402], "dispatch", "once released, the place is free");
+    const elsewhereRecord = fresh("r19b");
+    const noTree = run.planDispatch({ record: { ...run.readRecord(elsewhereRecord.file), concurrency: { limit: 1, basis: "test" } }, snapshot: snap([]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([noTree.concurrency.active, actions(noTree)[2402]], [0, "dispatch"], "a closed ticket with no worktree here reserves nothing");
+    const doneFile = write("r19-done.json", noTree);
+    assert.throws(() => elsewhereRecord.change((r) => run.adopt(r, { plan: doneFile, ticket: 2401, handleKind: "session", handle: "x", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: wt })), /no unsettled writer to adopt/);
+  }
+
   // Round 3 (corrections), finding 1: two answers in flight each quote the
   // question they answer.
   {
