@@ -98,7 +98,11 @@ try {
   };
   const available = (route, model, numbers, extra = {}) => ({ route, model, verdicts: numbers.map((n) => ({ ticket: n, effort: n === 103 ? "high" : "medium", verdict: "available", ...extra })) });
   const all = [101, 103, 108, 109];
-  const plan = (r, more = {}) => run.planDispatch({ record: run.readRecord(record), snapshot, turn: "user", preflights: [available("claude-desktop", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, ...more, ...r });
+  // #105's ready PR belongs to a writer the fixture treats as already
+  // released, so it holds no place; the review regressions below cover a
+  // ready PR whose writer is not settled.
+  const settled105 = (rec) => ({ ...rec, tickets: { 105: { owner: null, pending: null, history: [{ released: "fixture: the ready PR's writer ended" }], results: [] }, ...rec.tickets } });
+  const plan = (r, more = {}) => run.planDispatch({ record: settled105(run.readRecord(record)), snapshot, turn: "user", preflights: [available("claude-desktop", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, ...more, ...r });
   const actions = (p) => Object.fromEntries(p.tickets.map((t) => [t.number, t.action]));
   const p1 = plan();
   assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "wait-capacity", 104: "adopt-pr", 105: "await-maintainer", 106: "wait-dependency", 107: "decision-needed", 108: "wait-capacity", 109: "wait-capacity", 110: "adopt-worktree", 111: "done", 112: "container" });
@@ -110,7 +114,7 @@ try {
   assert.ok(p1.remaining.some((line) => /maintainer to merge/.test(line)));
   assert.equal(p1.tickets.find((t) => t.number === 101).route, "claude-desktop");
   // More capacity admits the next eligible tickets in number order.
-  const roomy = { ...run.readRecord(record), concurrency: { limit: 4, basis: "test" } };
+  const roomy = { ...settled105(run.readRecord(record)), concurrency: { limit: 4, basis: "test" } };
   assert.deepEqual(Object.entries(actions(plan({ record: roomy }))).filter(([, a]) => a === "dispatch").map(([n]) => Number(n)), [101, 103]);
   // Free disk below one writer's install blocks new dispatch and says so.
   assert.match(plan({ freeBytes: 13 * GB }).tickets.find((t) => t.number === 101).reason, /free disk does not admit another writer/);
@@ -182,7 +186,7 @@ try {
   assert.equal(run.ownerStatus({ handle: { ...owner101.handle, host: "elsewhere" } }).status, "unknown", "a process on another host is never probed locally");
   assert.throws(() => mutate(rev, (r) => run.release(r, { ticket: 101, observations: {} })), /writer is live/, "a live writer is never released");
   const wt103 = path.join(tmp, "wt-103");
-  const widened = (limit) => ({ ...run.readRecord(record), concurrency: { limit, basis: "test" } });
+  const widened = (limit) => ({ ...settled105(run.readRecord(record)), concurrency: { limit, basis: "test" } });
   const p4File = write("plan4.json", plan({ record: widened(4), preflights: cliPreflights }));
   assert.throws(() => mutate(rev, (r) => run.claim(r, { plan: p4File, ticket: 103, worktree: wt101, branch: "fix/103-thing", artifactParent: artifacts })), /assigned to #101/, "one worktree per writer");
 
@@ -712,6 +716,43 @@ try {
     assert.deepEqual([1501, 1502, 1503, 1504].map((n) => actions(p)[n]), ["decision-needed", "wait-dependency", "adopt-pr", "dispatch"]);
     assert.match(p.tickets.find((t) => t.number === 1502).reason, /parent #1501 is still held/);
     assert.match(p.tickets.find((t) => t.number === 1503).continueBlocked, /parent #1501 is still held/);
+  }
+
+  // Round 3 (undirected), findings 2 to 4: existing work found on GitHub but
+  // not settled in the record (a ready PR, or a ticket that became a
+  // container) keeps its place and holds what depends on it until its writer
+  // is adopted and settled; an adopted writer is verified against the
+  // ticket's Effort, not its own.
+  {
+    const f = fresh("r18");
+    const pre = [available("claude-desktop", "claude-opus-5-5", [2201, 2202, 2204]), { route: "claude-desktop", model: "claude-opus-5-5", verdicts: [{ ticket: 2203, effort: "high", verdict: "available" }] }];
+    const snap = snapshotOf(300, [
+      { ...ticket(2201), parent: 300, prs: [{ number: 2301, state: "OPEN", isDraft: false, branch: "fix/2201-thing", head: "h", rounds: 2 }] },
+      { ...ticket(2202), parent: 300 },
+    ]);
+    const one = (rec) => ({ ...rec, concurrency: { limit: 1, basis: "test" } });
+    const p = run.planDispatch({ record: one(run.readRecord(f.file)), snapshot: snap, turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(p)[2201], actions(p)[2202], p.concurrency.active], ["await-maintainer", "wait-capacity", 1], "a ready PR's unsettled writer keeps its place");
+    assert.match(p.tickets.find((t) => t.number === 2201).reason, /may still be running, so find it and record it with adopt/);
+    f.change((r) => run.adopt(r, { plan: write("r18-plan.json", p), ticket: 2201, handleKind: "session", handle: "local_ready", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt-2201") }));
+    f.change((r) => run.release(r, { ticket: 2201, observations: { sessions: { local_ready: { state: "archived" } } } }));
+    const after = run.planDispatch({ record: one(run.readRecord(f.file)), snapshot: snap, turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(after)[2201], actions(after)[2202]], ["await-maintainer", "dispatch"], "once its writer is settled the place is free");
+
+    const nested = snapshotOf(300, [
+      { ...ticket(2203), parent: 300, effort: "High", container: true, prs: [{ number: 2303, state: "OPEN", isDraft: true, branch: "fix/2203-thing", head: "h", rounds: 1 }] },
+      { ...ticket(2204), parent: 2203 },
+    ]);
+    const q = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 3, basis: "test" } }, snapshot: nested, turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(q)[2203], actions(q)[2204]], ["adopt-pr", "wait-dependency"], "a container's unrecorded writer holds its sub-issues");
+    assert.match(q.tickets.find((t) => t.number === 2203).continueBlocked, /now a container/);
+    f.change((r) => run.adopt(r, { plan: write("r18-plan2.json", q), ticket: 2203, handleKind: "session", handle: "local_low", route: "claude-desktop", model: "claude-opus-5-5", effort: "low", worktree: path.join(f.dir, "wt-2203") }));
+    assert.equal(run.readRecord(f.file).tickets[2203].owner.requestedEffort, "high");
+    // The preflight judges the writer's observed Low against the ticket's High.
+    const { preflight } = await import("../../../scripts/writer-route-preflight.mjs");
+    const confirmation = write("r18-confirm.json", preflight({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 2203, effort: "high", observed: { model: "claude-opus-5-5", effort: "low" } }] }));
+    f.change((r) => run.verify(r, { ticket: 2203, preflight: confirmation }));
+    assert.match(run.readRecord(f.file).tickets[2203].owner.mismatch, /runs claude-opus-5-5 at low, not claude-opus-5-5 at high/);
   }
 
   // Round 3 (corrections), finding 1: two answers in flight each quote the

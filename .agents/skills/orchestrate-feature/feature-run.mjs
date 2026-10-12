@@ -400,6 +400,13 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
         active++;
         const held = own.owner ? `writer ${own.owner.handle.id ?? own.owner.handle.pid} (${ownerStatus(own.owner, observations, { host, identify }).status})` : `pending ${own.pending.operation} ${own.pending.launchId}`;
         add(t, "decision-needed", `the ticket gained sub-issues while ${held} holds it; settle that writer before its sub-issues are dispatched`);
+      } else if (open.length || t.worktrees.length) {
+        // Existing work on a ticket that became a container may still have a
+        // writer: it keeps its place and holds the sub-issues until settled.
+        const reserves = !writerKnownEnded(own);
+        if (reserves) { active++; heldContainers.add(t.number); }
+        const action = open.length ? "adopt-pr" : "adopt-worktree";
+        add(t, action, `the ticket gained sub-issues while existing work on it (${[...open.map((p) => `PR #${p.number}`), ...t.worktrees.map((w) => w.path)].join(", ")}) may still have a writer; find that writer and record it with adopt, then settle it before its sub-issues are dispatched`, { ...(open.length && { pr: open[0].number, rounds: open[0].rounds, branch: open[0].branch }), worktrees: t.worktrees, container: true, continueBlocked: "the ticket is now a container; its sub-issues are planned individually" });
       } else if (t.truncated) add(t, "decision-needed", "its sub-issues nest deeper than GitHub's limit, so the snapshot could not read them");
       else add(t, "container", "its own sub-issues are planned individually");
       continue;
@@ -448,7 +455,14 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     if (open.length > 1) { active++; add(t, "decision-needed", `open PRs ${open.map((p) => `#${p.number}`).join(", ")} all belong to this ticket`); continue; }
     if (open.length === 1) {
       const pr = open[0];
-      if (!pr.isDraft) { add(t, "await-maintainer", `PR #${pr.number} is ready at ${pr.head} after ${pr.rounds} review rounds; the maintainer merges it`, { pr: pr.number, rounds: pr.rounds }); continue; }
+      if (!pr.isDraft) {
+        // A ready PR does not show its writer ended; until the record settles
+        // that writer, it keeps its place.
+        const reserves = !writerKnownEnded(own);
+        if (reserves) active++;
+        add(t, "await-maintainer", `PR #${pr.number} is ready at ${pr.head} after ${pr.rounds} review rounds; the maintainer merges it${reserves ? "; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends" : ""}`, { pr: pr.number, rounds: pr.rounds, branch: pr.branch, worktrees: t.worktrees, ...(reserves && { reserves: true }) });
+        continue;
+      }
       const reserves = !writerKnownEnded(own);
       if (reserves) active++;
       existingWork.push({ t, reserves, entry: add(t, "adopt-pr", `draft PR #${pr.number} at ${pr.head} has started ${pr.rounds} review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round ${pr.rounds}`, { pr: pr.number, rounds: pr.rounds, branch: pr.branch, worktrees: t.worktrees }) });
@@ -588,7 +602,7 @@ export function launched(record, { ticket: number, handleKind, handle, host = os
 // Existing work found by the plan gets its existing writer as owner; adoption
 // starts nothing, and the PR keeps the rounds it already started.
 export function adopt(record, { plan, ticket: number, handleKind, handle, pid, route, model, effort, worktree, branch, host = os.hostname(), identify = processIdentity }) {
-  const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree"]);
+  const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer"]);
   if (!Object.hasOwn(writerRoutes, route) || typeof model !== "string" || !writerEfforts(model).includes(effort)) throw new Error("--route, --model and --effort must describe the existing writer");
   if (!path.isAbsolute(worktree ?? "")) throw new Error("--worktree must be the existing writer's absolute worktree path");
   const found = entry.worktrees?.find((w) => path.resolve(w.path) === path.resolve(worktree));
@@ -602,7 +616,9 @@ export function adopt(record, { plan, ticket: number, handleKind, handle, pid, r
     h = { kind: "process", ...identity, host };
   } else if (["session", "task"].includes(handleKind) && handle) h = { kind: handleKind, id: handle, host };
   else throw new Error("--handle-kind must be session, task or process");
-  ticket.owner = { route, model, effort, worktree, branch: branch ?? entry.branch ?? found?.branch ?? null, artifactParent: null, handle: h, verified: false, adopted: { pr: entry.pr ?? null, rounds: entry.rounds ?? 0 }, since: new Date().toISOString() };
+  // The writer's own effort is recorded as found; verification judges it
+  // against the ticket's Effort, so a mismatch stays recordable.
+  ticket.owner = { route, model, effort, ...(entry.effort && { requestedEffort: entry.effort }), worktree, branch: branch ?? entry.branch ?? found?.branch ?? null, artifactParent: null, handle: h, verified: false, adopted: { pr: entry.pr ?? null, rounds: entry.rounds ?? 0 }, since: new Date().toISOString() };
   log(record, "adopted", { ticket: number, handle: h, pr: entry.pr ?? null, rounds: entry.rounds ?? 0 });
   return ticket.owner;
 }
@@ -621,10 +637,11 @@ export function verify(record, { ticket: number, preflight: file }) {
   if (!owner) throw new Error(`#${number} has no owner to verify`);
   const result = readJson(file);
   if (result.route !== owner.route || result.model !== owner.model) throw new Error(`The confirmation is for ${result.route} ${result.model}, not ${owner.route} ${owner.model}`);
-  const verdict = result.verdicts?.find((v) => v.ticket === number && v.effort === owner.effort);
+  const requested = owner.requestedEffort ?? owner.effort;
+  const verdict = result.verdicts?.find((v) => v.ticket === number && v.effort === requested);
   if (verdict?.verdict === "confirmed") { owner.verified = true; delete owner.mismatch; }
-  else if (verdict?.verdict === "blocked") owner.mismatch = verdict.reason;
-  else throw new Error(`The confirmation has no observed verdict for #${number} at ${owner.effort}`);
+  else if (verdict?.verdict === "blocked") { owner.verified = false; owner.mismatch = verdict.reason; }
+  else throw new Error(`The confirmation has no observed verdict for #${number} at the ticket's effort ${requested}`);
   log(record, owner.verified ? "verified" : "mismatch", { ticket: number, ...(owner.mismatch && { reason: owner.mismatch }) });
   return owner;
 }
