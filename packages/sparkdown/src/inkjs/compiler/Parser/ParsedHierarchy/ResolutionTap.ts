@@ -7,7 +7,7 @@ import type { ParsedObject } from "./Object";
  * incremental passes).
  *
  * A statement's resolution reads names out of the story's tables (its
- * declarations, constants, lists, structs, externals, flows and labels) and
+ * declarations, constants, structs, externals, flows and labels) and
  * does a few things the story keeps for the rest of the compile: it declares
  * the globals and locals it writes, adds the externals it declares, makes a
  * global of a bare assignment's name, and notes a divert that a builtin's
@@ -108,7 +108,7 @@ export const recordRead = (key: string): void => {
 /**
  * A table of the story whose lookups the resolution in progress reports:
  * `get` and `has` report the key, and going through the table whole reports
- * `*` and the table's kind (`*lists`, `*flows:<flow>`), which every
+ * `*` and the table's kind (`*structs`, `*flows:<flow>`), which every
  * declaration of that kind changes.
  */
 export class RecordingMap<K, V> extends Map<K, V> {

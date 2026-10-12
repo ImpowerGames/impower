@@ -436,8 +436,8 @@ export class VariablesState extends VariablesStateAccessor<
     let varValue: InkObject | null = null;
 
     // Luau-superset semantics: locals shadow globals. Check the
-    // call-stack temporaries FIRST, then fall back to globals / list
-    // items if nothing's in scope. Ink's original order was
+    // call-stack temporaries FIRST, then fall back to globals if
+    // nothing's in scope. Ink's original order was
     // globals-first (because ink temps were rare `~temp` declarations
     // scoped to knots, never overlapping with global names), but
     // sparkdown's `local x = …` is the common case and must shadow

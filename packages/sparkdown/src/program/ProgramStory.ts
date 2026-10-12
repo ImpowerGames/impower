@@ -379,7 +379,7 @@ export interface CarriedDeclarations {
  * addresses (#700) and the debugger (#702).
  *
  * Each reset gives the engine a call stack of its own (`CallStack.ForProgram`)
- * and a `VariablesState` over it with the story's lists and constants
+ * and a `VariablesState` over it with the story's constants
  * (`ProgramRoot.tables`), as the object engine's state built them: the
  * globals hold this engine's variables, and the call stack this engine's
  * frames, whose scopes hold the temporaries and whose open upvalues close as
