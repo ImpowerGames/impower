@@ -57,6 +57,36 @@ export type VariableBinding =
  *  a global's writes the one global of its name. */
 export type WriteWatch = (binding: VariableBinding, name: string) => void;
 
+/** The tables a constant reaches, and whether anything wrote in one, or may
+ *  have, since the declarations built them (`VariablesState.WriteBarrier`,
+ *  `PrepareTableWrite`), shared by the variables of every engine that took
+ *  over that run. A constant table that closes over an upvalue cell, whose
+ *  writes no table barrier hears, counts as written from the start. */
+export interface ConstantWatch {
+  readonly tables: ReadonlySet<ObjectValue>;
+  written: boolean;
+}
+
+/** What the variables recorded of the globals a run of the declarations
+ *  left (`VariablesState.SnapshotDefaultGlobals`): each default global, and
+ *  the graph of tables and closed upvalue cells init built, with each one's
+ *  anchor, and the tables a constant reaches with the watch on their
+ *  writes. Nothing in it is written after the snapshot but the watch's
+ *  flag, which every engine sharing the run writes. */
+export interface DeclaredGlobals {
+  readonly defaults: ReadonlyMap<string, InkObject>;
+  readonly tablePaths: ReadonlyMap<object, string>;
+  readonly roots: ReadonlyMap<string, ObjectValue>;
+  readonly edges: ReadonlyMap<object, ReadonlyMap<string, ObjectValue>>;
+  readonly constantTables: ReadonlySet<object>;
+  readonly constantWatch: ConstantWatch | null;
+  readonly cellEdges: ReadonlyMap<
+    object,
+    ReadonlyMap<string, VariablePointerValue>
+  >;
+  readonly cellPaths: ReadonlyMap<VariablePointerValue, string>;
+}
+
 export class VariablesState extends VariablesStateAccessor<
   Record<string, any>
 >() {
@@ -660,6 +690,66 @@ export class VariablesState extends VariablesStateAccessor<
     this.SnapshotInitTables();
   }
 
+  /** What `SnapshotDefaultGlobals` recorded of the globals the declarations
+   *  left: the defaults and the graph of tables and cells they built. Read
+   *  only: a snapshot is never written after it is taken, so the variables
+   *  of another engine can take it over (`AdoptDeclared`). */
+  public get Declared(): DeclaredGlobals {
+    return {
+      defaults: this._defaultGlobalVariables,
+      tablePaths: this._initTablePaths,
+      roots: this._initRoots,
+      edges: this._initEdges,
+      constantTables: this._constantInitTables,
+      constantWatch: this._constantWatch,
+      cellEdges: this._initCellEdges,
+      cellPaths: this._initCellPaths,
+    };
+  }
+
+  /** Whether every table a constant reaches still holds what the
+   *  declarations built in it: nothing wrote in one, or called something
+   *  that may, since (`constantWatch`). A constant's value is then its
+   *  compiled value, which a restore of another engine's image gives it
+   *  (#1759). Asks nothing of the tables themselves. */
+  public get ConstantsAsDeclared(): boolean {
+    return !(this._constantWatch?.written ?? false);
+  }
+
+  /** Counts every table a constant reaches as written: a load writes the
+   *  tables it reads saved contents into by paths of its own, not through
+   *  the table barrier (`SetJsonToken`'s merge of a named define's token,
+   *  the load session's redefinitions), and one of them can be a table a
+   *  constant reaches through a `store` that holds it. */
+  public ConstantsMayHaveChanged(): void {
+    if (this._constantWatch !== null) {
+      this._constantWatch.written = true;
+    }
+  }
+
+  /** Takes over what another engine's variables recorded of the same
+   *  declarations' run (`Declared`), in place of running them and taking the
+   *  snapshot again (#1759). The tables it names are that run's, so an
+   *  anchor a save writes or reads names the tables the images of both
+   *  engines hold. The constants it records as kept are those of the same
+   *  constant names, which the caller compares. */
+  public AdoptDeclared(declared: DeclaredGlobals) {
+    this._defaultGlobalVariables = declared.defaults as Map<string, InkObject>;
+    this._initTablePaths = declared.tablePaths as Map<object, string>;
+    this._initRoots = declared.roots as Map<string, ObjectValue>;
+    this._initEdges = declared.edges as Map<object, Map<string, ObjectValue>>;
+    this._constantInitTables = declared.constantTables as Set<object>;
+    this._constantWatch = declared.constantWatch;
+    this._initCellEdges = declared.cellEdges as Map<
+      object,
+      Map<string, VariablePointerValue>
+    >;
+    this._initCellPaths = declared.cellPaths as Map<
+      VariablePointerValue,
+      string
+    >;
+  }
+
   // Records the graph of tables init built, as it stands when the defaults
   // are set: each default global's table, and every edge from a table to
   // another one. An edge is a key (`".key"`), a metatable (`"@mt"`), or a
@@ -726,14 +816,21 @@ export class VariablesState extends VariablesStateAccessor<
     for (const [name, table] of this._initRoots) {
       if (this.constantNames.has(name)) constants.push(table);
     }
+    const watched = new Set<ObjectValue>();
+    let closesOverCells = false;
     for (let i = 0; i < constants.length; i++) {
-      const map = constants[i]!.value!;
+      const table = constants[i]!;
+      const map = table.value!;
       if (this._constantInitTables.has(map)) continue;
       this._constantInitTables.add(map);
+      watched.add(table);
+      closesOverCells ||= this._initCellEdges.has(map);
       for (const child of this._initEdges.get(map)?.values() ?? []) {
         constants.push(child);
       }
     }
+    this._constantWatch =
+      watched.size > 0 ? { tables: watched, written: closesOverCells } : null;
   }
 
   // Each table init built, by its underlying Map, to its anchor: the
@@ -929,6 +1026,8 @@ export class VariablesState extends VariablesStateAccessor<
   private _initRoots: Map<string, ObjectValue> = new Map();
   private _initEdges: Map<object, Map<string, ObjectValue>> = new Map();
   private _constantInitTables: Set<object> = new Set();
+  // The tables a constant reaches, and whether one was written since.
+  private _constantWatch: ConstantWatch | null = null;
   // The closed upvalue cells init built: each table's cells by key, and
   // each cell's anchor.
   private _initCellEdges: Map<object, Map<string, VariablePointerValue>> =
@@ -1035,12 +1134,23 @@ export class VariablesState extends VariablesStateAccessor<
     if (this.trackWrites) {
       this._writtenTables.add(table);
     }
+    this.watchConstantWrite(table);
   }
 
   /** Keeps `table` as it is before a call that may write it, without
    *  marking it. */
   public PrepareTableWrite(table: ObjectValue): void {
     this.imageBarrier?.prepare(table);
+    this.watchConstantWrite(table);
+  }
+
+  // A write in a table a constant reaches leaves the constant no longer
+  // its compiled value (`ConstantsAsDeclared`).
+  private watchConstantWrite(table: ObjectValue): void {
+    const watch = this._constantWatch;
+    if (watch !== null && !watch.written && watch.tables.has(table)) {
+      watch.written = true;
+    }
   }
 
   /** Marks the closed upvalue cell `cell` as written. Called before the

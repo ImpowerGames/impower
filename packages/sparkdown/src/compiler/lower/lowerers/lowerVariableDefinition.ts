@@ -109,8 +109,9 @@ export function lowerVariableDefinition(
   //   handles both multi-RHS positional and single-RHS multi-return.
   //
   //   `store a, b = …`  → synthesize one `VariableAssignment` per
-  //   target with the positionally-corresponding expression (missing
-  //   slots get no expression, which defaults to 0 at story init).
+  //   target with the positionally-corresponding expression (a missing
+  //   slot gets a `NullExpression`, so it starts nil as in Lua; the
+  //   story's global initialization requires every store to have one).
   //   Globals don't emit procedural runtime objects — they register
   //   at the story level and the story evaluates each expression at
   //   init time, so the `MultiVariableAssignment` Pack/Unpack flow
@@ -141,7 +142,7 @@ export function lowerVariableDefinition(
         (identifier, i) =>
           new VariableAssignment({
             variableIdentifier: identifier,
-            assignedExpression: expressions[i] ?? undefined,
+            assignedExpression: expressions[i] ?? new NullExpression(),
             isGlobalDeclaration: true,
           }),
       ),
@@ -151,20 +152,17 @@ export function lowerVariableDefinition(
   // Single target. If there are multiple RHS expressions (`local x = a, b`),
   // Lua truncates to the first value.
   //
-  // A local with no value (`local x`, or `local x =` whose value the
-  // parser could not read, which the type checker reports) gets a
-  // synthesized `NullExpression`, so the runtime gets a `NullValue` pushed
-  // before the `RuntimeVariableAssignment`. Without it, the binding
-  // bytecode would pop whatever happened to be on the eval stack, or
-  // nothing, and the local would hold no value at all. A `store` with no
-  // value is a global declaration, which the story initializes itself.
+  // A declaration with no value (`local x`, `store x`, or either with an
+  // `=` whose value the parser could not read, which the type checker
+  // reports) gets a synthesized `NullExpression`. For a local, the runtime
+  // gets a `NullValue` pushed before the `RuntimeVariableAssignment`;
+  // without it the binding bytecode would pop whatever happened to be on
+  // the eval stack. For a store, the story's global initialization
+  // requires an expression and refuses to build the program without one.
   const isTemp = scope === "local";
-  const expr =
-    expressions[0] ??
-    (isTemp || !hasEquals ? new NullExpression() : null);
   const va = new VariableAssignment({
     variableIdentifier: lastIdentifier,
-    assignedExpression: expr ?? undefined,
+    assignedExpression: expressions[0] ?? new NullExpression(),
     isGlobalDeclaration: scope === "store",
     isTemporaryNewDeclaration: isTemp,
   });

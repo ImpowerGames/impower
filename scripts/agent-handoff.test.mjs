@@ -474,6 +474,71 @@ try {
   fs.writeFileSync(file,JSON.stringify(unplanned)); await assert.rejects(runHandoff(file),/same round requires the recorded reviewed head/);
   assert.equal(fs.readFileSync(unplanned.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="launching").length,2,"a correction after the last planned reviewer cannot launch another in its round");
 
+  // A retried attempt of a planned reviewer replaces that reviewer's place, so
+  // the round's other planned reviewer still launches on the corrected head.
+  const retryChild = path.join(scratch, "retry-lifecycle.mjs");
+  fs.writeFileSync(retryChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"],{windowsHide:true}); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8",windowsHide:true}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:process.argv[2]==="null"?null:process.argv[2],commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
+  const planned = ["ax-1", "undirected-1"];
+  const retryStep = (reviewerId, attempt, next, role="review") => role === "review"
+    ? { ...lifecycle.steps.review, round:1, reviewers:planned, reviewerId, ...(attempt ? { attempt } : {}), args:[retryChild,next,"--model","reviewer-test"], next:[next==="null"?null:next] }
+    : { ...lifecycle.steps.implement, args:[retryChild,next,"--model","writer-test"], next:[next] };
+  const retried = { ...lifecycle, first:"ax", maxSteps:4, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,"retried-planned-reviewer.jsonl"), steps:{
+    ax:retryStep("ax-1",undefined,"ax-retry"),
+    "ax-retry":retryStep("ax-1",2,"fix"),
+    fix:retryStep(null,null,"undirected","implement"),
+    undirected:retryStep("undirected-1",undefined,"null"),
+  }};
+  fs.writeFileSync(file,JSON.stringify(retried)); await runHandoff(file);
+  const retriedRows=fs.readFileSync(retried.journal,"utf8").trim().split("\n").map(JSON.parse);
+  const retriedCompleted=retriedRows.filter(row=>row.event==="completed");
+  assert.deepEqual(retriedCompleted.map(row=>row.completedRoundReviews),[1,1,1,2],"a retry keeps its reviewer's place, leaving the other planned reviewer's place free");
+  assert.deepEqual(retriedCompleted[1].completedRoundReviewers,{"ax-1":2},"the retry records its attempt against the same planned reviewer");
+  assert.deepEqual(retriedCompleted[1].pendingReviewers,["undirected-1"],"the journal names the planned reviewer that has not run");
+  assert.deepEqual(retriedCompleted[3].completedRoundReviewers,{"ax-1":2,"undirected-1":1});
+  assert.deepEqual(retriedCompleted[3].pendingReviewers,[]);
+  assert.ok(retriedCompleted.filter((row,index)=>index!==2).every(row=>row.plannedRoundReviewers.join()===planned.join()),"each review completion records the round's planned reviewers");
+  assert.ok(retriedCompleted.every(row=>row.completedRound===1),"the retry and the correction stay in round 1");
+  assert.deepEqual(retriedRows.filter(row=>row.event==="launching"&&row.role==="review").map(row=>[row.reviewerId,row.attempt]),[["ax-1",1],["ax-1",2],["undirected-1",1]]);
+
+  // Recovery carries the record: a resumed plan continues the same round.
+  const resumeAt = retriedCompleted[1];
+  git("commit","--allow-empty","-m","correction after the retry");
+  const resumed = (overrides, journal) => ({ ...lifecycle, first:"undirected", maxSteps:1, completedReviewRound:1, reviewedHead:resumeAt.reviewedHead, completedRoundReviews:resumeAt.completedRoundReviews, completedRoundReviewers:resumeAt.completedRoundReviewers, plannedRoundReviewers:resumeAt.plannedRoundReviewers, finalCorrections:false, journal:path.join(scratch,journal), steps:{ undirected:retryStep("undirected-1",undefined,"null") }, ...overrides });
+  const resumedPlan = resumed({}, "resumed-round.jsonl");
+  fs.writeFileSync(file,JSON.stringify(resumedPlan)); await runHandoff(file);
+  assert.deepEqual(fs.readFileSync(resumedPlan.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviewers,{"ax-1":2,"undirected-1":1},"a resumed plan completes the round's remaining planned reviewer");
+  const refusedResume = async (overrides, steps, pattern, journal) => {
+    const plan = resumed({ ...overrides, ...(steps ? { steps } : {}) }, journal);
+    fs.writeFileSync(file,JSON.stringify(plan)); await assert.rejects(runHandoff(file),pattern);
+    assert.ok(!fs.existsSync(plan.journal) || !fs.readFileSync(plan.journal,"utf8").includes('"event":"launching"'), `${journal} must refuse before launch`);
+  };
+  await refusedResume({ completedRoundReviewers:undefined }, null, /Supply completedRoundReviewers from the journal as an object/, "resume-without-record.jsonl");
+  await refusedResume({ plannedRoundReviewers:undefined }, null, /Supply plannedRoundReviewers/, "resume-without-planned.jsonl");
+  // Without any of the round's record a named retry cannot be placed, so it
+  // is refused rather than journalled with null accounting.
+  await refusedResume({ completedRoundReviews:undefined, completedRoundReviewers:undefined, plannedRoundReviewers:undefined }, { undirected:retryStep("ax-1",3,"null") }, /needs the round's record/, "resume-without-any-record.jsonl");
+  await refusedResume({ completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, null, /equal to its number of reviewers/, "resume-mismatched-count.jsonl");
+  await refusedResume({}, { undirected:retryStep("ax-1",2,"null") }, /needs a higher attempt/, "resume-stale-attempt.jsonl");
+  await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["blast-1","undirected-1"] } }, /cannot change once it has started/, "resume-replanned-round.jsonl");
+  // A pending planned reviewer cannot be swapped for another, and a completed
+  // round cannot grow a place for a further reviewer on the corrected head.
+  await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["ax-1","blast-1"] } }, /cannot change once it has started/, "resume-replaced-pending.jsonl");
+  await refusedResume({ completedRoundReviews:2, completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, { undirected:{ ...retryStep("third-1",undefined,"null"), reviewers:[...planned,"third-1"] } }, /cannot change once it has started/, "resume-expanded-round.jsonl");
+  await refusedResume({}, { undirected:{ ...retryStep("third-1",undefined,"null") } }, /must be one of its planned reviewers/, "resume-added-reviewer.jsonl");
+  await refusedResume({}, { undirected:{ ...lifecycle.steps.review, round:1, reviewers:2 } }, /later reviewers need reviewerId/, "resume-unnamed-reviewer.jsonl");
+  await refusedResume({}, { undirected:{ ...retryStep("undirected-1",undefined,"null"), reviewerId:undefined } }, /needs reviewerId/, "resume-missing-id.jsonl");
+
+  // A count-form round journals null identity records; a recovery plan that
+  // carries them exactly as emitted resumes its pending reviewer.
+  const countFirst = { ...lifecycle, first:"review", maxSteps:1, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,"count-form-first.jsonl"), steps:{ review:{ ...lifecycle.steps.review, round:1, reviewers:2 } } };
+  fs.writeFileSync(file,JSON.stringify(countFirst)); await runHandoff(file);
+  const countRow = fs.readFileSync(countFirst.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed");
+  assert.equal(countRow.completedRoundReviewers,null); assert.equal(countRow.plannedRoundReviewers,null);
+  const { completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections } = countRow;
+  const countResume = { ...countFirst, completedReviewRound:completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, journal:path.join(scratch,"count-form-resumed.jsonl") };
+  fs.writeFileSync(file,JSON.stringify(countResume)); await runHandoff(file);
+  assert.equal(fs.readFileSync(countResume.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviews,2,"the count-form round's second reviewer completes from the emitted journal state");
+
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
 delete config.finalCorrections;

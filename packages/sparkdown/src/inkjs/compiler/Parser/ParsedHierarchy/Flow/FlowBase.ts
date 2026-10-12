@@ -191,6 +191,16 @@ function definitionSite(
   return { parent: root, end: root.content.length };
 }
 
+// Whether `obj` is `ancestor` or written inside it.
+export function isWithin(obj: ParsedObject, ancestor: ParsedObject): boolean {
+  for (let p: ParsedObject | null = obj; p; p = p.parent) {
+    if (p === ancestor) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Whether `content[0..end)` declares a `local` named `varName` that is still
 // in scope at `end`. The objects are scanned backwards, and everything
 // between an `EndScope` and its `BeginScope` is skipped: that block closed
@@ -478,6 +488,63 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   }
 
   public VariableResolveResult?: VariableResolveResult | null | undefined;
+
+  // Whether a `local` or a parameter certainly binds `varName` where
+  // `fromNode` is written: a `local` declared before it in its own flow,
+  // outside any block that has closed (`declaresLocal`), or a parameter of
+  // that flow. A name a nested function captures is an upvalue parameter,
+  // which the function's sites (`sitesOf`: where its value is made, or
+  // where it is called) fill with a pointer to whatever the name resolves to
+  // there, the global included; it is bound when every site outside the
+  // function itself binds the name. A function with no site found binds
+  // nothing certain. The decision reads only the order of the parsed
+  // content, never source positions, so an incremental compile decides it as
+  // a cold one does.
+  public IsBoundLocallyAt = (
+    varName: string,
+    fromNode: ParsedObject,
+    sitesOf: (flow: FlowBase) => readonly ParsedObject[] = () => [],
+    passing: Set<FlowBase> = new Set(),
+  ): boolean => {
+    let node: ParsedObject | null = fromNode.parent;
+    let end = node ? node.content.indexOf(fromNode) : -1;
+    while (node && !(node instanceof FlowBase)) {
+      if (declaresLocal(node.content, end, varName)) {
+        return true;
+      }
+      const child: ParsedObject = node;
+      node = node.parent;
+      end = node ? node.content.indexOf(child) : -1;
+    }
+    const flow = node as FlowBase | null;
+    if (!flow || flow === this.story) {
+      return false;
+    }
+    const arg = flow.args?.find((a) => a.identifier?.name === varName);
+    if (!arg) {
+      return false;
+    }
+    if (!arg.isUpvalue) {
+      return true;
+    }
+    // A site inside a function that is already being decided passes on the
+    // pointer that function received, which its other sites decide.
+    if (passing.has(flow)) {
+      return true;
+    }
+    const sites = sitesOf(flow).filter((site) => !isWithin(site, flow));
+    if (sites.length === 0) {
+      return false;
+    }
+    passing.add(flow);
+    try {
+      return sites.every((site) =>
+        this.IsBoundLocallyAt(varName, site, sitesOf, passing),
+      );
+    } finally {
+      passing.delete(flow);
+    }
+  };
 
   public ResolveVariableWithName = (
     varName: string,

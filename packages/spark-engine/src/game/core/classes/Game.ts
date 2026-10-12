@@ -8,7 +8,10 @@ import {
   type ProgramLocator,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
+import {
+  type CarriedDeclarations,
+  ProgramStory,
+} from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
 import {
@@ -528,6 +531,11 @@ export class Game<T extends M = {}> {
   // not rebuild them.
   protected _definesContextRevision?: string;
   protected _definesContextBuilds = 0;
+  // Whether the define tables in `_context` have been built: a story that
+  // took over the declarations' run of the engine before it
+  // (`ProgramStory.declarationsCarried`) keeps the tables built from that
+  // run (#1759).
+  protected _definesContextBuilt = false;
   get definesContextBuilds() {
     return this._definesContextBuilds;
   }
@@ -729,6 +737,7 @@ export class Game<T extends M = {}> {
     // A preview waiting for its pictures would display a beat of the old
     // program.
     this.cancelPreview();
+    const before = this._program;
     this._program = program;
     const chunks = program.chunks;
     if (!chunks) {
@@ -743,12 +752,18 @@ export class Game<T extends M = {}> {
     // taken there restores here for every statement this program kept
     // (`restoreCheckpoint`), and it keeps the image of each beat, which a
     // checkpoint and a save at a menu hold.
+    // It also takes over the globals of the engine before, with what that
+    // engine recorded of the declarations' run they descend from, when this
+    // program runs the same declarations (`carriedDeclarations`, #1759): it
+    // runs none and snapshots no table, and the define tables built from
+    // that run stand (`assignRuntimeDefines`).
     const previous = this.programStory;
     const engine = new ProgramStory(chunks, {
       images: previous?.images,
       history: previous?.history,
       saveHistory: this._saveHistory,
       rewindBeats: this._rewindBeats,
+      declarations: this.carriedDeclarations(previous, before, program),
     });
     engine.keepBeatImages = true;
     this._story = engine;
@@ -838,8 +853,23 @@ export class Game<T extends M = {}> {
     // Rebuilding them cost 14 to 20 ms in the worker's game and 12 to 16 ms
     // again on the page, on every keystroke, for a project the size of Raffles
     // and Bunny.
+    //
+    // The revision names more than the define tables read, though: it moves
+    // whenever the compile's own implicit definitions differ (the filtered
+    // image a directive such as `[[hero_concerned:gloves]]` implies), which an
+    // edit of one word of a directive does, and those reach the game through
+    // the assets channel, not the story. The tables are a function of the
+    // declarations' run, so a story that took over the run of the engine
+    // before it (#1759) leaves in place the tables built from that run, or
+    // from the run it descends from, whatever the revision says. Its globals
+    // are those the engine before held, which the story may have written
+    // since, so the tables are never built from them.
     const revision = this._program?.contextRevision;
     if (revision !== undefined && revision === this._definesContextRevision) {
+      return;
+    }
+    if (this._story.declarationsCarried && this._definesContextBuilt) {
+      this._definesContextRevision = revision;
       return;
     }
     const runtime = buildDefinesContext(this._story);
@@ -859,6 +889,38 @@ export class Game<T extends M = {}> {
     }
     this._definesContextRevision = revision;
     this._definesContextBuilds++;
+    this._definesContextBuilt = true;
+  }
+
+  /** What the engine of `before`, the program the game held, hands the
+   *  engine of `program` in place of a run of the declarations (#1759):
+   *  given only when the compile that made `program` was measured against
+   *  `before` and ran no other declaration and no other function
+   *  (`ChunkChanges.initializers`, the compiler's own rule for running the
+   *  declarations again), and when the engine finds `program`'s root runs
+   *  the declarations its own does (`ProgramStory.declarationsFor`). A
+   *  program measured against another one, a program of another compiler,
+   *  and a game's first program run them. */
+  protected carriedDeclarations(
+    previous: ProgramStory | undefined,
+    before: SparkProgram | undefined,
+    program: SparkProgram,
+  ): CarriedDeclarations | undefined {
+    const changes = program.changes;
+    const root = program.chunks;
+    if (
+      !previous ||
+      !before ||
+      !root ||
+      before.chunks !== previous.root ||
+      !changes?.chunks ||
+      changes.chunks.initializers ||
+      changes.since === undefined ||
+      changes.since !== before.changes?.id
+    ) {
+      return undefined;
+    }
+    return previous.declarationsFor(root) ?? undefined;
   }
 
   setupStory(story: ProgramStory) {
