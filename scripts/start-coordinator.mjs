@@ -29,21 +29,28 @@ export async function startCoordinator(plan, jobDir, io = { spawn, platform: pro
   const name = path.basename(plan, path.extname(plan));
   const stdout = path.join(jobDir, `${name}.coordinator.out.log`);
   const stderr = path.join(jobDir, `${name}.coordinator.err.log`);
-  const out = fs.openSync(stdout, "wx");
-  let err, child;
+  const created = [];
+  let out, err, child;
   try {
+    out = fs.openSync(stdout, "wx");
+    created.push(stdout);
     err = fs.openSync(stderr, "wx");
+    created.push(stderr);
     child = spawnDetached(process.execPath, [handoff, plan], { cwd: worktree, stdio: ["ignore", out, err] }, io);
     await new Promise((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });
     child.unref();
     return { pid: child.pid, stdout, stderr };
   } catch (error) {
-    // Nothing started, so the plan may be started again from this directory.
-    if (child?.pid === undefined) for (const file of [stdout, stderr]) fs.rmSync(file, { force: true });
+    // Nothing started, so the logs this attempt created are removed and the
+    // plan may be started again; a log that already existed is kept.
+    if (child?.pid === undefined) {
+      for (const fd of [out, err]) if (fd !== undefined) fs.closeSync(fd);
+      out = err = undefined;
+      for (const file of created) fs.rmSync(file, { force: true });
+    }
     throw error;
   } finally {
-    fs.closeSync(out);
-    if (err !== undefined) fs.closeSync(err);
+    for (const fd of [out, err]) if (fd !== undefined) fs.closeSync(fd);
   }
 }
 

@@ -83,6 +83,19 @@ test("a plan already started from this job directory is refused before anything 
   assert.equal(calls.length, 1);
 });
 
+test("a log left by an earlier launch refuses the start and keeps its contents", async (t) => {
+  for (const kept of ["handoff.coordinator.out.log", "handoff.coordinator.err.log"]) {
+    const { job, plan } = fixture(t);
+    fs.writeFileSync(path.join(job, kept), "earlier diagnostics\n");
+    const { calls, spawn } = fakeSpawn(1);
+    await assert.rejects(startCoordinator(plan, job, { spawn, platform: "win32" }), /EEXIST/);
+    assert.equal(calls.length, 0);
+    assert.deepEqual(fs.readdirSync(job).sort(), [kept, "handoff.json"].sort());
+    assert.equal(fs.readFileSync(path.join(job, kept), "utf8"), "earlier diagnostics\n");
+    await assert.rejects(startCoordinator(plan, job, { spawn, platform: "win32" }), /EEXIST/);
+  }
+});
+
 test("relative paths, a missing job directory and a plan without a worktree are refused", async (t) => {
   const { job, plan } = fixture(t);
   const { calls, spawn } = fakeSpawn(1);
