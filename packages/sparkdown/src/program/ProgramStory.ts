@@ -37,7 +37,10 @@ import {
   VariablePointerValue,
 } from "../runtime/Value";
 import { VariableAssignment } from "../runtime/VariableAssignment";
-import { VariablesState } from "../runtime/VariablesState";
+import {
+  type DeclaredGlobals,
+  VariablesState,
+} from "../runtime/VariablesState";
 import { CallStack } from "../runtime/CallStack";
 import type { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
 import type { StructDefinitionTable } from "../runtime/StructDefinition";
@@ -344,6 +347,16 @@ interface SuspendedStep {
   running: RunningInstruction | null;
 }
 
+/** What the engine of the program before hands the engine of the next one
+ *  of the same game in place of a run of the declarations, when the next
+ *  program runs the same declarations (`ProgramStory.declarationsFor`,
+ *  #1759): what its variables recorded of the run its globals descend from,
+ *  and its globals as they stand. */
+export interface CarriedDeclarations {
+  readonly declared: DeclaredGlobals;
+  readonly globals: ReadonlyMap<string, InkObject>;
+}
+
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
  * (docs/engine/binary-program.md, sections 3, 5, 6, 9 and 10): an eval stack,
@@ -421,6 +434,14 @@ export class ProgramStory implements StoryEngine {
   stepLimit: number | null = null;
   /** How many declaration chunks this story has run. */
   declarationsRun = 0;
+  /** Whether the state's globals descend from a run of the declarations
+   *  another engine made (`CarriedDeclarations`) rather than one of this
+   *  engine's: until the next reset, which runs them. */
+  protected _declarationsCarried = false;
+  /** Whether the run of the declarations the globals descend from ran every
+   *  chunk without an error or a warning, as one handed on to the next
+   *  engine must. */
+  protected _declarationsClean = false;
 
   protected _state!: ProgramStoryState;
   protected _reader: BinaryProgramReader;
@@ -487,6 +508,10 @@ export class ProgramStory implements StoryEngine {
       history?: BeatHistory;
       saveHistory?: number;
       rewindBeats?: number;
+      /** The declarations' run of the engine of the program before, which
+       *  `declarationsFor` gave for this root: the first state takes it over
+       *  in place of running the declarations. */
+      declarations?: CarriedDeclarations;
     } = {},
   ) {
     this._reader = new BinaryProgramReader(root);
@@ -508,7 +533,81 @@ export class ProgramStory implements StoryEngine {
     this._tracker = new ImageTracker(this.images);
     // The first state, which leaves a history handed on by the engine of
     // the program before as it is.
-    this.resetState();
+    this.resetState(options.declarations);
+  }
+
+  /**
+   * What this engine hands the engine of `root` in place of a run of the
+   * declarations (#1759), or nothing when that engine must run them: when
+   * `root` runs other declaration chunks than this engine's root, or in
+   * another order, or in another table generation, or names other
+   * constants, or when the run the globals descend from raised an error or
+   * a warning, or when the story wrote in a table a constant reaches, or
+   * called something that may (`VariablesState.ConstantsAsDeclared`), which
+   * asks a flag the table write barrier keeps, not the tables. A caller
+   * asks only for a
+   * root a compile measured against this engine's and found running no
+   * other declaration and no other function (`ChunkChanges.initializers`),
+   * the compiler's own rule for running the declarations again
+   * (`ProgramBuild.declarationsChanged`): the declarations then compute what
+   * they computed here.
+   *
+   * The globals handed on are the globals as they stand, and the tables the
+   * declarations built are the ones the story may have written in since:
+   * the state a game restores or resets next, which an engine handed this
+   * state does before it continues (`stateIsPristine` is false until it
+   * resets). What reads those tables as the declarations built them takes a
+   * fresh run instead: a load (`ownDeclarations`), and a restore of an image
+   * another engine took, which gives each constant its compiled value
+   * (`restoreImage`). A constant's value is the run's own, so a run whose
+   * constant table the story wrote in is not handed on; one nothing wrote
+   * in holds what the declarations built, its compiled value, and a restore
+   * puts contents only into a table that was written
+   * (`ProgramImages.writtenTables`).
+   */
+  declarationsFor(root: ProgramRoot): CarriedDeclarations | null {
+    const before = this.root;
+    const variables = this._state.variablesState;
+    if (
+      !this._declarationsClean ||
+      root.generation !== before.generation ||
+      !sameChunks(before.initialization, root.initialization) ||
+      !sameNames(before.tables?.constantNames, root.tables?.constantNames)
+    ) {
+      return null;
+    }
+    // A constant table the story wrote in is not its compiled value.
+    if (!variables.ConstantsAsDeclared) {
+      return null;
+    }
+    // The globals by reference: the engine handed them copies them into its
+    // own (`VariablesState.RestoreGlobals`) as it is built.
+    return { declared: variables.Declared, globals: variables.globalEntries };
+  }
+
+  /** Gives a state whose globals descend from a carried run of the
+   *  declarations what a fresh run records (`Declared`), the defaults a load
+   *  puts the save over and the tables its anchors name, leaving the
+   *  globals as they stand: a save holds no property of a named define but
+   *  its `store` ones, and a load into the engine of a fresh run rebuilds
+   *  the rest as the declarations built them, which the carried tables may
+   *  no longer hold (#1759). Called as a load opens (`beginLoad`). */
+  protected ownDeclarations(): void {
+    if (!this._declarationsCarried) {
+      return;
+    }
+    // A run on an engine of its own, which leaves this one's state, images
+    // and history as they are. The carried run was clean on the same
+    // declaration chunks, so this one is too.
+    const run = new ProgramStory(this.root);
+    this._state.variablesState.AdoptDeclared(run.variablesState.Declared);
+    this._declarationsCarried = false;
+  }
+
+  /** Whether the globals descend from a run of the declarations the engine
+   *  of the program before made (`declarationsFor`), with no reset since. */
+  get declarationsCarried(): boolean {
+    return this._declarationsCarried;
   }
 
   // ------------------------------------------------------------------ images
@@ -1135,7 +1234,10 @@ export class ProgramStory implements StoryEngine {
     this.history.replace([], false);
   }
 
-  protected resetState(): void {
+  // A state whose globals are those `carried` hands on, when given: the
+  // first state of an engine of a program that runs the declarations of the
+  // program before (#1759), which runs none and takes no snapshot.
+  protected resetState(carried?: CarriedDeclarations): void {
     this.IfAsyncWeCant("ResetState");
     const reactiveDepsEnabled =
       this._state?.variablesState?.reactiveDepsEnabled ?? false;
@@ -1156,9 +1258,25 @@ export class ProgramStory implements StoryEngine {
     // at no beat this engine took.
     this._state.onBeginLoad = () => {
       this._currentBeat = null;
+      this.ownDeclarations();
+      // The load writes what it reads by paths no table barrier hears, so
+      // a constant's table may no longer be its compiled value
+      // (`declarationsFor`).
+      this._state.variablesState.ConstantsMayHaveChanged();
     };
-    this.runDeclarations();
-    variablesState.SnapshotDefaultGlobals();
+    if (carried) {
+      // The globals as the engine before held them, over its declarations'
+      // run: written with no event and no barrier, as a restore writes them.
+      variablesState.AdoptDeclared(carried.declared);
+      variablesState.RestoreGlobals(carried.globals);
+      this._declarationsCarried = true;
+      // Only a clean run is handed on, so the next engine may take it too.
+      this._declarationsClean = true;
+    } else {
+      this.runDeclarations();
+      variablesState.SnapshotDefaultGlobals();
+      this._declarationsCarried = false;
+    }
     // A global written from outside the story (`variablesState[name] = v`)
     // leaves the state no longer the one this reset built, as the deleted object
     // engine's `VariableStateDidChangeEvent` records (#1692). Registered after
@@ -1175,7 +1293,10 @@ export class ProgramStory implements StoryEngine {
     }
     this._chosenAt = null;
     this._currentBeat = null;
-    this._stateIsPristine = true;
+    // A carried state's tables may hold what the story wrote since the
+    // declarations built them: it is no fresh state, so a caller that needs
+    // one resets (`stateIsPristine`, #1692).
+    this._stateIsPristine = !carried;
   }
 
   ResetErrors(): void {
@@ -3416,6 +3537,8 @@ export class ProgramStory implements StoryEngine {
    *  run: the decisions a route forces are the story's. */
   protected runDeclarations(): void {
     const state = this._state;
+    // Until the run finishes: one that throws hands nothing on.
+    this._declarationsClean = false;
     const pause = this.pauseBeforeEvaluatingConditions;
     this.pauseBeforeEvaluatingConditions = false;
     // The declarations run no story: the game hears none of their
@@ -3485,6 +3608,10 @@ export class ProgramStory implements StoryEngine {
     state.blockStack = [];
     state.previousAddress = -1;
     state.evaluationStack.length = 0;
+    // Read before the report, which clears what it hands a handler. A run
+    // with a warning is not handed on either: the engine that runs the
+    // declarations again for a load (`ownDeclarations`) has no handler.
+    this._declarationsClean = !state.hasError && !state.hasWarning;
     this.reportErrors();
   }
 
@@ -3584,6 +3711,25 @@ const isEmptyChunk = (chunk: ProgramChunk | undefined): boolean =>
 /** Whether two block stack entries name one block of one owner. */
 const sameBlock = (a: BlockEntry, b: BlockEntry): boolean =>
   a.sequence.id === b.sequence.id && a.entry === b.entry && a.block === b.block;
+
+/** Whether two lists hold the same chunks, in the same order. */
+const sameChunks = (
+  a: readonly ProgramChunk[],
+  b: readonly ProgramChunk[],
+): boolean => a.length === b.length && a.every((chunk, i) => chunk === b[i]);
+
+/** Whether two sets of names, either absent for none, hold the same names. */
+const sameNames = (
+  a: ReadonlySet<string> | undefined,
+  b: ReadonlySet<string> | undefined,
+): boolean => {
+  const size = a?.size ?? 0;
+  if (size !== (b?.size ?? 0)) return false;
+  for (const name of a ?? []) {
+    if (!b!.has(name)) return false;
+  }
+  return true;
+};
 
 const constValue = (aux: number): InkObject => {
   switch (aux) {
