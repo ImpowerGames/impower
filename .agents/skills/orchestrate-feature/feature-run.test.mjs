@@ -287,25 +287,53 @@ try {
   const briefA = run.brief(run.readRecord(record), write("planA2.json", adoptedPlan()), 108, [], defaults);
   assert.match(briefA, /not linked to the coordinator.*session local_a as a cross-session message/);
   assert.match(briefA, /get_session on self/);
-  // Delivery records its intent before the message and its outcome after; an
-  // interrupted send is settled from the transcript, never by sending again.
+  // Delivery records its intent before the message and its outcome after. An
+  // unconfirmed send may still be queued, so it is settled from the
+  // transcript or resent only as an identified retry the writer ignores once
+  // a copy has arrived.
   assert.throws(() => mutate(rev, (r) => run.delivered(r, { ticket: 108 })), /record deliver before sending it/);
+  assert.throws(() => mutate(rev, (r) => run.deliver(r, { ticket: 108, retry: true })), /has not been sent/);
   rev = mutate(rev, (r) => run.deliver(r, { ticket: 108 }));
-  assert.throws(() => mutate(rev, (r) => run.deliver(r, { ticket: 108 })), /already at intent/);
+  const firstCopy = run.readRecord(record).tickets[108].owner.brief;
+  const assignment = run.readRecord(record).tickets[108].owner.launchId;
+  const copy1 = run.brief(run.readRecord(record), write("planA3.json", adoptedPlan()), 108, [], defaults);
+  assert.match(copy1, new RegExp(`^Assignment ${assignment} \\(delivery ${firstCopy.deliveryId}\\)\\. If you have already received assignment ${assignment}, ignore this copy`), "each copy names its assignment so the writer acts on the first");
+  assert.throws(() => mutate(rev, (r) => run.deliver(r, { ticket: 108 })), /already at intent .* --retry/);
   const interrupted = plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: { sessions: { local_w108: { state: "running" } } } }).tickets.find((t) => t.number === 108);
-  assert.deepEqual([interrupted.action, /read the end of its transcript/.test(interrupted.reason)], ["reconcile-pending", true], "a send with no recorded outcome is not offered again");
+  assert.equal(interrupted.action, "reconcile-pending");
+  assert.match(interrupted.reason, /may still be queued; .* otherwise wait, or resend with deliver --retry/, "an unconfirmed send is never resent as a fresh assignment");
+  assert.doesNotMatch(interrupted.reason, /send it and record delivered/);
+  rev = mutate(rev, (r) => run.deliver(r, { ticket: 108, retry: true }));
+  const secondCopy = run.readRecord(record).tickets[108].owner.brief;
+  assert.deepEqual([secondCopy.attempts, secondCopy.deliveryId !== firstCopy.deliveryId], [2, true]);
+  assert.match(run.brief(run.readRecord(record), write("planA4.json", adoptedPlan()), 108, [], defaults), new RegExp(`^Assignment ${assignment} \\(delivery ${secondCopy.deliveryId}\\)`), "a retry names the same assignment");
   rev = mutate(rev, (r) => run.delivered(r, { ticket: 108, evidence: "the transcript shows the brief" }));
   assert.throws(() => mutate(rev, (r) => run.delivered(r, { ticket: 108 })), /at delivered/);
   assert.equal(actions(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }))[108], "collect-report");
-  // A writer's request stays on the plan until its answer is recorded.
+  // A writer's request stays on the plan until its answer is delivered. A
+  // relayed request stays open while the maintainer decides; an answer is a
+  // message with the same intent, outcome and identified retry.
   assert.throws(() => mutate(rev, (r) => run.request(r, { ticket: 108, text: "authorize round 4?" })), /--source/);
   const asked = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.request(r, { ticket: 108, text: "authorize round 4?", source: "session local_w108 transcript" }));
   rev = asked.record.revision;
-  const pending108 = plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }).tickets.find((t) => t.number === 108);
-  assert.deepEqual([pending108.action, pending108.requests.map((q) => q.text)], ["answer-request", ["authorize round 4?"]]);
-  rev = mutate(rev, (r) => run.answer(r, { ticket: 108, request: asked.output.id, text: "relayed to the maintainer; wait" }));
-  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 108, request: asked.output.id, text: "again" })), /already answered/);
-  assert.equal(actions(plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }))[108], "collect-report");
+  const requestId = asked.output.id;
+  const plan108 = () => plan({ record: widened(8), turn: "event", preflights: adoptedPreflights, observations: running108 }).tickets.find((t) => t.number === 108);
+  assert.deepEqual([plan108().action, plan108().requests.map((q) => q.text)], ["answer-request", ["authorize round 4?"]]);
+  rev = mutate(rev, (r) => run.relay(r, { ticket: 108, request: requestId, to: "the maintainer" }));
+  assert.match(plan108().reason, /relayed to the maintainer at .*; once they decide, record answer/, "a relayed request stays open");
+  assert.throws(() => mutate(rev, (r) => run.answered(r, { ticket: 108, request: requestId })), /record answer before sending it/);
+  const answering = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.answer(r, { ticket: 108, request: requestId, text: "round 4 is authorized" }));
+  rev = answering.record.revision;
+  assert.match(answering.output.message, new RegExp(`^Answer to your request ${requestId} \\(delivery \\w+\\): round 4 is authorized\\nIf you already received an answer to request ${requestId}, ignore this copy\\.`));
+  assert.equal(plan108().action, "answer-request", "an answer recorded but not confirmed sent keeps the request open");
+  assert.match(plan108().reason, /may still be queued; .* answer --retry/);
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 108, request: requestId, text: "again" })), /--retry/);
+  const resent = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.answer(r, { ticket: 108, request: requestId, retry: true }));
+  rev = resent.record.revision;
+  assert.match(resent.output.message, /round 4 is authorized/, "a retry resends the same answer");
+  rev = mutate(rev, (r) => run.answered(r, { ticket: 108, request: requestId, evidence: "the writer acknowledged it" }));
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 108, request: requestId, text: "again" })), /already answered/);
+  assert.equal(plan108().action, "collect-report");
   assert.doesNotMatch(run.brief(run.readRecord(record), p6File, 101, [], defaults), /cross-session message/, "a linked desktop writer reports by ending its turn");
   // The CLI's answer is accepted only without error, with a session id and
   // from the requested model.
@@ -433,9 +461,10 @@ try {
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "artifacts", "run.json");
     run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", feature, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `Use orchestrate-feature for #${feature}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
-    let revision = 1;
-    const change = (fn) => { const out = run.updateRecord(file, { expectRevision: revision, coordinator: "local_r" }, fn); revision = out.record.revision; return out.output; };
-    return { dir, file, artifacts: path.join(dir, "artifacts"), change, revision: () => revision };
+    // Each change starts from the record's current revision, since create and
+    // handoff change it through their own two writes.
+    const change = (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: "local_r" }, fn).output;
+    return { dir, file, artifacts: path.join(dir, "artifacts"), change };
   };
   const snapshotOf = (feature, tickets) => ({ repository: "acme/widgets", feature: { number: feature, state: "open" }, originMain: "abc", tickets });
   const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, turn: "user", freeBytes: 100 * GB, defaults, ...more });
@@ -559,10 +588,18 @@ try {
       assert.match(entry.continueBlocked, /waiting for #99 \(open\)/);
     }
     const bounded = run.planDispatch({ record: limited(1), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(702), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-702"), branch: "fix/702-thing", head: "h" }] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
-    const [first, second] = [701, 702].map((n) => bounded.tickets.find((t) => t.number === n));
-    assert.equal(first.continueWith.route, "claude-cli", "the first continuation fits the limit");
-    assert.equal(second.continueWith, undefined);
-    assert.match(second.continueBlocked, /fill the limit of 1/, "a second continuation would exceed the limit");
+    for (const entry of [701, 702].map((n) => bounded.tickets.find((t) => t.number === n))) {
+      assert.equal(entry.continueWith, undefined, `#${entry.number}: the other ticket's writer may still run`);
+      assert.match(entry.continueBlocked, /1 other writers, held or possibly running on existing work, fill the limit of 1/);
+    }
+    // Once the record shows #702's writer released after an observed exit,
+    // #702 no longer reserves a place. #701 may then continue, its own claim
+    // standing for its writer's end; #702 may not, since #701's writer may run.
+    const released = { ...limited(1), tickets: { 702: { owner: null, pending: null, history: [{ released: "session archived" }], results: [] } } };
+    const freed = run.planDispatch({ record: released, snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(702), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-702"), branch: "fix/702-thing", head: "h" }] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.equal(freed.concurrency.active, 1, "the released ticket's existing work reserves nothing");
+    assert.equal(freed.tickets.find((t) => t.number === 701).continueWith.route, "claude-cli");
+    assert.match(freed.tickets.find((t) => t.number === 702).continueBlocked, /1 other writers, .* fill the limit of 1/, "the ended writer's ticket waits for the other ticket's possibly running writer");
     const planFile = write("r7-plan.json", run.planDispatch({ record: run.readRecord(f.file), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(703), parent: 300, prs: [pr(703)] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults }));
     f.change((r) => run.claim(r, { plan: planFile, ticket: 701, worktree: path.join(f.dir, "wt-701"), branch: "fix/701-thing", artifactParent: f.artifacts, operation: "continue", evidence: "archived" }));
     const after = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } }, snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(703), parent: 300, prs: [pr(703)] }]), turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
@@ -585,6 +622,52 @@ try {
     const steps = run.readRecord(f.file).tickets[801].owner.steps;
     assert.deepEqual(steps.map((s) => `${s.step} ${s.state}`).slice(-2), ["handoff uncertain", "adopt confirmed"]);
     assert.equal(steps.at(-1).after, "handoff uncertain");
+  }
+
+  // Round 2 (corrections), finding 5: a create whose outcome was lost is
+  // settled by the session found, or by evidence of none, and never rerun.
+  {
+    const f = fresh("r9");
+    const snap = snapshotOf(300, [{ ...ticket(901), parent: 300 }]);
+    const pre = [available("claude-adopted", "claude-opus-5-5", [901])];
+    const claimIt = () => f.change((r) => run.claim(r, { plan: write("r9-plan.json", planOf(f, snap, { turn: "event", preflights: pre })), ticket: 901, worktree: path.join(f.dir, "wt"), branch: "fix/901-thing", artifactParent: f.artifacts }));
+    claimIt();
+    const exe = path.join(tmp, "claude.exe"), uuid = "2f8c1e7a-2b3d-4c5e-9f60-718293a4b5c6";
+    run.createAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 901, executable: exe, permissionMode: "auto", runner: () => ({ created: false, uncertain: true, reason: "the CLI was stopped (ETIMEDOUT) before it answered" }) });
+    assert.match(planOf(f, snap, { turn: "event", preflights: pre }).tickets.find((t) => t.number === 901).reason, /settle-create .* never run create again/);
+    assert.throws(() => f.change((r) => run.settleCreate(r, { ticket: 901, session: uuid })), /--evidence/);
+    assert.throws(() => f.change((r) => run.settleCreate(r, { ticket: 901, session: "not-a-uuid", evidence: "x" })), /--session must be/);
+    f.change((r) => run.settleCreate(r, { ticket: 901, session: uuid, evidence: "the CLI transcript store holds it" }));
+    let handedOver;
+    run.handoffAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 901, executable: exe, runner: (o) => { handedOver = o.sessionId; return { requested: true, pid: 1 }; } });
+    assert.equal(handedOver, uuid, "the found session is the one handed over");
+    // And when no session exists, the evidence closes the step for a withdrawal.
+    f.change((r) => run.withdraw(r, { ticket: 901, evidence: "test reset" }));
+    claimIt();
+    run.createAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 901, executable: exe, permissionMode: "auto", runner: () => { throw new Error("lost"); } });
+    f.change((r) => run.settleCreate(r, { ticket: 901, absent: true, evidence: "no transcript was written after the intent" }));
+    assert.match(planOf(f, snap, { turn: "event", preflights: pre }).tickets.find((t) => t.number === 901).reason, /create failed \(settled: no transcript/);
+    assert.throws(() => f.change((r) => run.settleCreate(r, { ticket: 901, absent: true, evidence: "again" })), /create failed, not create intent or create uncertain/);
+  }
+
+  // Round 2 (corrections), finding 2: an existing adopted-route writer
+  // adopted with its work already has its assignment, so no brief is due.
+  // Requests belong to the writer that asked and close when it is released.
+  {
+    const f = fresh("r10");
+    const snap = snapshotOf(300, [{ ...ticket(1001), parent: 300, prs: [{ number: 1101, state: "OPEN", isDraft: true, branch: "fix/1001-thing", head: "h", rounds: 1 }] }]);
+    const planFile = write("r10-plan.json", planOf(f, snap));
+    f.change((r) => run.adopt(r, { plan: planFile, ticket: 1001, handleKind: "session", handle: "local_old", route: "claude-adopted", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    const idle = { sessions: { local_old: { state: "idle" } } };
+    assert.equal(actions(planOf(f, snap, { observations: idle }))[1001], "collect-report", "an adopted existing writer is not briefed again");
+    assert.throws(() => f.change((r) => run.deliver(r, { ticket: 1001 })), /already has its assignment/);
+    const { id } = f.change((r) => run.request(r, { ticket: 1001, text: "may I widen the PR?", source: "transcript" }));
+    assert.equal(actions(planOf(f, snap, { observations: idle }))[1001], "answer-request");
+    f.change((r) => run.release(r, { ticket: 1001, observations: { sessions: { local_old: { state: "archived" } } } }));
+    assert.match(run.readRecord(f.file).tickets[1001].requests[0].closed.reason, /writer was released/);
+    assert.throws(() => f.change((r) => run.answer(r, { ticket: 1001, request: id, text: "yes" })), /closed: its writer was released/);
+    f.change((r) => run.adopt(r, { plan: write("r10-plan2.json", planOf(f, snap)), ticket: 1001, handleKind: "session", handle: "local_new", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    assert.equal(actions(planOf(f, snap, { observations: { sessions: { local_new: { state: "idle" } } } }))[1001], "collect-report", "a new writer does not inherit its predecessor's question");
   }
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
