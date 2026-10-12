@@ -1354,6 +1354,11 @@ function embeddedCloneReason(clone, deps, ctx) {
   const status = git(["status", "--porcelain", "--untracked-files=all"]);
   if (status.status !== 0) return kept(`git status could not be read${status.err ? `: ${status.err}` : ""}`);
   if (status.out) return kept("it has uncommitted or untracked files");
+  // Status skips a file marked assume-unchanged (a lowercase tag) or
+  // skip-worktree (`S`), so a change to one would not show above.
+  const flagged = git(["ls-files", "-v"]);
+  if (flagged.status !== 0) return kept(`its index could not be read${flagged.err ? `: ${flagged.err}` : ""}`);
+  if (flagged.out.split("\n").some((line) => /^[a-zS] /.test(line))) return kept("it has files marked assume-unchanged or skip-worktree, whose changes status does not show");
   // An unfinished rebase, am, merge, bisect, cherry-pick or revert keeps its
   // pending work in the Git directory, where status does not show it.
   for (const name of [...IN_PROGRESS, "sequencer"]) {

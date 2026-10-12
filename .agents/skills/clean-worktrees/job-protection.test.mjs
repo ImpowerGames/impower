@@ -187,7 +187,7 @@ try {
   // keeps the clone, as do an untracked file, a linked worktree of the clone's
   // own and a paused `git am`. The tag and custom-ref commits are made with
   // commit-tree, so no HEAD or branch reflog reaches them.
-  for (const state of ['untracked', 'committed', 'tagged', 'reflog', 'custom-reflog', 'linked', 'am']) {
+  for (const state of ['untracked', 'committed', 'tagged', 'reflog', 'custom-reflog', 'linked', 'am', 'assume-unchanged']) {
     const fixture = job();
     const clone = probeClone(fixture.dir);
     const inClone = (...args) => { const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', ...args], { cwd: clone, windowsHide: true, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
@@ -212,9 +212,15 @@ try {
       assert.notEqual(r.status, 0, 'the fixture patch applied');
       assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply')), r.stderr);
     }
+    if (state === 'assume-unchanged') {
+      // A change to a file marked assume-unchanged does not show in status.
+      inClone('update-index', '--assume-unchanged', '.gitignore');
+      fs.appendFileSync(path.join(clone, '.gitignore'), 'hidden-unique-work\n');
+      assert.equal(inClone('status', '--porcelain', '--untracked-files=all'), '', 'the fixture change shows in status');
+    }
     const verdict = classifyJob(fixture.name, fixture.dir, deps, ctx);
     assert.equal(verdict.remove, false, `a ${state} probe clone was removable`);
-    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : state === 'linked' ? /has linked worktrees/ : state === 'am' ? /unfinished in it \(rebase-apply\)/ : /is not on origin\/main/);
+    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : state === 'linked' ? /has linked worktrees/ : state === 'am' ? /unfinished in it \(rebase-apply\)/ : state === 'assume-unchanged' ? /assume-unchanged or skip-worktree/ : /is not on origin\/main/);
     cleanJobs(ctx, deps, true, () => {});
     assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
     if (state === 'am') assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply', 'patch')), 'the paused patch survives apply');
