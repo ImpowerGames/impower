@@ -7,10 +7,10 @@
 | `dispatch` | Every blocker's merged deliverable is on origin/main and capacity allows a writer on the named route: claim and start it. |
 | `propose` | Only a route this turn cannot start is available: propose the start to the user and record the proposal with `claim --operation proposed`. |
 | `dispatch-step` | A start that runs in recorded steps is between steps: run the step the reason names. |
-| `wait-dependency` | The reason names each blocker that is open or closed without its merged deliverable on origin/main. No stacked branches: wait for the merge. |
-| `wait-capacity` | Writers already hold the concurrency limit, or free disk admits no further writer (consider the bounded disk recovery). |
+| `wait-dependency` | The reason names each blocker that is open or closed without its merged deliverable on origin/main, or the parent ticket whose own writer is still held. No stacked branches: wait for the merge or for that writer to be settled. |
+| `wait-capacity` | Writers already hold the concurrency limit, or free disk admits no further writer now (consider the bounded disk recovery; the next plan admits writers against the disk it frees). |
 | `adopt-pr`, `adopt-worktree` | Work for the ticket exists: find its writer and record it with `adopt`. Never start a second writer beside it. Once its writer is known to have ended, `claim --operation continue --evidence` starts a new writer on the route the entry's `continueWith` names, keeping the branch, worktree and the PR's started rounds; `continueBlocked` says why no route can. |
-| `deliver-brief` | The app adopted a newly launched writer's session: once its first turn has ended, record `deliver`, send the brief it prints by message, then record `delivered`. A send whose outcome was not recorded shows as `reconcile-pending`: settle it from the writer's transcript, or resend with `deliver --retry`, never as a fresh assignment. |
+| `deliver-brief` | The app adopted a newly launched writer's session: once its first turn has ended, record `deliver`, print the brief with `brief` (it now names the delivery), send that text by message, then record `delivered`. A send whose outcome was not recorded shows as `reconcile-pending`: settle it from the writer's transcript, or record `deliver --retry`, print the brief again and send that copy, never a fresh assignment. |
 | `answer-request` | The writer asked for a decision whose answer has not been delivered: decide or `relay` it, record `answer` and send the message it prints, then record `answered`, as [writer reports](writer-reports.md) describes. |
 | `observe` | The owner is running. |
 | `collect-report` | The owner ended its turn: read its report or question and answer it. |

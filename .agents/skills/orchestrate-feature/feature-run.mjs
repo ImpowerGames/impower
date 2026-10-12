@@ -72,9 +72,12 @@ export const writerEffortOf = (name) => ({ Low: "low", Medium: "medium", High: "
 export const WRITER_DISK = 6 * 2 ** 30;
 export const WRITER_MEMORY = 4 * 2 ** 30;
 export const MAX_WRITERS = 3;
-export function defaultConcurrency({ freeBytes, totalMemory }) {
-  const byDisk = Math.floor(freeBytes / WRITER_DISK), byMemory = Math.floor(totalMemory / WRITER_MEMORY);
-  return { limit: Math.max(0, Math.min(MAX_WRITERS, byDisk, byMemory)), basis: `the smaller of ${MAX_WRITERS} (reviewer slots), ${byDisk} by free disk at 6 GB per writer and ${byMemory} by memory at 4 GB per writer` };
+// The run's bound comes from what does not change during a run: memory and
+// the reviewer slots. Free disk changes, notably with the bounded disk
+// recovery, so each plan admits writers against the disk free at that moment.
+export function defaultConcurrency({ totalMemory }) {
+  const byMemory = Math.floor(totalMemory / WRITER_MEMORY);
+  return { limit: Math.max(0, Math.min(MAX_WRITERS, byMemory)), basis: `the smaller of ${MAX_WRITERS} (reviewer slots) and ${byMemory} by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer` };
 }
 export const freeBytesAt = (dir) => { const s = fs.statfsSync(dir); return s.bavail * s.bsize; };
 
@@ -180,7 +183,8 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   if (!invocation) throw new Error("--invocation must quote the user's request that invoked the skill");
   if (!options.coordinatorModel || !writerEfforts(options.coordinatorModel).includes(options.coordinatorEffort)) throw new Error("--coordinator-model and --coordinator-effort must be the coordinator's own metadata");
   const writer = resolveWriterModel(harness, options.writerModel, defaults);
-  let concurrency = defaultConcurrency({ freeBytes: freeBytes ?? freeBytesAt(checkout), totalMemory });
+  let concurrency = defaultConcurrency({ totalMemory });
+  const diskAdmits = Math.floor((freeBytes ?? freeBytesAt(checkout)) / WRITER_DISK);
   if (options.concurrency !== undefined) {
     if (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 8) throw new Error("--concurrency must be 1 to 8");
     concurrency = { limit: options.concurrency, basis: `invocation override (default would be ${concurrency.limit}: ${concurrency.basis})` };
@@ -188,7 +192,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   const pointer = pointerFile(checkout, repository, feature);
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since: new Date().toISOString() };
   const fresh = (carried = {}) => ({
-    version: RECORD_VERSION, revision: 1, repository, feature, checkout, coordinator: self,
+    version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout, coordinator: self,
     invocation: { text: invocation, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: { reviewRounds: "the default three-round cap; a further round needs the maintainer's decision or delegation", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" },
     writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [],
@@ -205,7 +209,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     if (!existing) {
       writeExclusive(file, fresh());
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
-      return { action: "init", record: readRecord(file), pointer };
+      return { action: "init", record: readRecord(file), pointer, diskAdmits };
     }
     if (existing.coordinator === coordinator && existing.record === file) return { action: "resume", record: readRecord(file), pointer };
     if (!options.takeover) throw new Error(`Feature #${feature} already has coordinator ${existing.coordinator} on ${existing.host} (record ${existing.record}); a second coordinator would duplicate writers. Continue in that session, or confirm it ended and run init --takeover with an observation of it`);
@@ -351,9 +355,9 @@ export const REMAINING = [
   "The Feature's own acceptance criteria are not verified by this plan, so the Feature is never reported complete from it.",
 ];
 
-// The record holds no writer for the ticket and released its last one after
-// observing it end.
-const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released));
+// The record holds no writer for the ticket, and its last one was released
+// after an observed end or settled by a census that found no process.
+const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended));
 
 export function planDispatch({ record, snapshot, observations = {}, turn, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity }) {
   if (snapshot.repository !== record.repository || snapshot.feature.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
@@ -381,11 +385,17 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
   const startWith = (choice) => ({ route: choice.chosen.route, model, effort: choice.effort, ...(choice.chosen.launch && { launch: choice.chosen.launch }), ...(choice.chosen.endsWithCoordinator && { endsWithCoordinator: true }) });
   const undelivered = (t) => t.blockers.filter((b) => !b.delivered);
   const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
+  // Sub-issues of a container whose own writer is still held wait until that
+  // writer is settled; the snapshot lists a container before its sub-issues.
+  const parentOf = new Map(snapshot.tickets.map((t) => [t.number, t.parent]));
+  const heldContainers = new Set();
+  const heldAncestor = (t) => { for (let p = t.parent; p !== undefined && p !== snapshot.feature.number; p = parentOf.get(p)) if (heldContainers.has(p)) return p; return null; };
   for (const t of snapshot.tickets) {
     const own = record.tickets[t.number] ?? {};
     const open = t.prs.filter((p) => p.state === "OPEN");
     if (t.container) {
       if (own.owner || own.pending) {
+        heldContainers.add(t.number);
         active++;
         const held = own.owner ? `writer ${own.owner.handle.id ?? own.owner.handle.pid} (${ownerStatus(own.owner, observations, { host, identify }).status})` : `pending ${own.pending.operation} ${own.pending.launchId}`;
         add(t, "decision-needed", `the ticket gained sub-issues while ${held} holds it; settle that writer before its sub-issues are dispatched`);
@@ -439,6 +449,8 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     if (!writerEffortOf(t.effort)) { add(t, "decision-needed", t.effort ? `Effort ${t.effort} has no writer effort` : "the ticket has no Effort value; assign one through the issue-fields procedure"); continue; }
     const waiting = undelivered(t);
     if (waiting.length) { add(t, "wait-dependency", waitingFor(waiting), { waitingFor: waiting.map((b) => b.number) }); continue; }
+    const held = heldAncestor(t);
+    if (held !== null) { add(t, "wait-dependency", `its parent #${held} is still held by a writer; settle that writer before its sub-issues are dispatched`, { waitingFor: [held] }); continue; }
     eligible.push(t);
   }
   // A writer the record still holds for a ticket the Feature no longer lists
@@ -460,6 +472,7 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     const waiting = undelivered(t);
     if (!writerEffortOf(t.effort)) { entry.continueBlocked = "the ticket has no writer effort"; continue; }
     if (waiting.length) { entry.continueBlocked = waitingFor(waiting); continue; }
+    if (heldAncestor(t) !== null) { entry.continueBlocked = `its parent #${heldAncestor(t)} is still held by a writer`; continue; }
     const choice = chooseRoute(t);
     const others = active - (reserves ? 1 : 0);
     if (!choice.chosen) entry.continueBlocked = choice.reasons.join("; ");
@@ -478,7 +491,7 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
   }
   tickets.sort((a, b) => a.number - b.number);
   return {
-    repository: record.repository, feature: record.feature, revision: record.revision, coordinator: record.coordinator.session, turn,
+    repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session, turn,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow },
     routes, tickets, remaining: REMAINING, complete: false,
   };
@@ -490,7 +503,10 @@ const BRANCH = /^(?:[a-z]+\/)?(?:fix|feat|perf|docs|test|refactor|ci)\/(\d+)-[a-
 
 function planEntry(planFile, record, number, actions) {
   const plan = readJson(planFile);
-  if (plan.revision !== record.revision || plan.feature !== record.feature) throw new Error(`The plan was made at revision ${plan.revision}; plan again from revision ${record.revision}`);
+  // A plan admits work only for the run and revision it was made from; a
+  // takeover starts a new run, so an earlier coordinator's plan never applies.
+  if (plan.runId !== record.runId || plan.repository !== record.repository || plan.feature !== record.feature) throw new Error(`The plan was made for another run (${plan.runId ?? "none"}, coordinator ${plan.coordinator}); plan again from this run's record`);
+  if (plan.revision !== record.revision) throw new Error(`The plan was made at revision ${plan.revision}; plan again from revision ${record.revision}`);
   const entry = plan.tickets.find((t) => t.number === number);
   if (!entry || !actions.includes(entry.action)) throw new Error(`The plan's action for #${number} is ${entry?.action ?? "missing"}, not ${actions.join(" or ")}`);
   return entry;
@@ -906,7 +922,7 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   }
   const output = path.join(launchDir, "out.jsonl");
   const outcome = fs.existsSync(output) && fs.statSync(output).size > 0 ? "started and ended" : "not running";
-  ticket.history.push({ pending, withdrawn: `no process names ${launchDir} (${outcome}); read its output before dispatching again` });
+  ticket.history.push({ pending, withdrawn: `no process names ${launchDir} (${outcome}); read its output before dispatching again`, ended: `the process census found no process naming ${launchDir}` });
   log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome });
   ticket.pending = null;
   return { outcome };
@@ -975,7 +991,7 @@ export function main(argv, { defaults = readWriterDefaults() } = {}) {
   switch (command) {
     case "init": {
       const done = initRecord({ ...o, feature: integer(o.feature, "feature"), repository: o.repo, concurrency: o.concurrency === undefined ? undefined : integer(o.concurrency, "concurrency"), observations: readOptional(o.observations) }, { defaults });
-      return { action: done.action, revision: done.record.revision, pointer: done.pointer, writer: done.record.writer, concurrency: done.record.concurrency };
+      return { action: done.action, revision: done.record.revision, pointer: done.pointer, writer: done.record.writer, concurrency: done.record.concurrency, ...(done.diskAdmits !== undefined && { diskAdmitsNow: done.diskAdmits }) };
     }
     case "snapshot": {
       const record = readRecord(absolute(o.record, "record"));

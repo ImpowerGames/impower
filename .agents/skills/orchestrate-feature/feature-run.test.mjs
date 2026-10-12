@@ -53,11 +53,11 @@ try {
 
   // Concurrency follows host capacity and never exceeds the reviewer-slot bound.
   const GB = 2 ** 30;
-  assert.equal(run.defaultConcurrency({ freeBytes: 50 * GB, totalMemory: 64 * GB }).limit, 3);
-  assert.equal(run.defaultConcurrency({ freeBytes: 13 * GB, totalMemory: 64 * GB }).limit, 2);
-  assert.equal(run.defaultConcurrency({ freeBytes: 50 * GB, totalMemory: 15.8 * GB }).limit, 3);
-  assert.equal(run.defaultConcurrency({ freeBytes: 50 * GB, totalMemory: 7 * GB }).limit, 1);
-  assert.equal(run.defaultConcurrency({ freeBytes: 5 * GB, totalMemory: 64 * GB }).limit, 0);
+  // The run's bound comes from memory and the reviewer slots; free disk is
+  // admitted by each plan, since it changes during a run.
+  assert.equal(run.defaultConcurrency({ totalMemory: 64 * GB }).limit, 3);
+  assert.equal(run.defaultConcurrency({ totalMemory: 15.8 * GB }).limit, 3);
+  assert.equal(run.defaultConcurrency({ totalMemory: 7 * GB }).limit, 1);
 
   // One coordinator per Feature: the pointer refuses a second session, and a
   // takeover needs the first observed to have ended.
@@ -648,6 +648,64 @@ try {
     f.change((r) => run.settleCreate(r, { ticket: 901, absent: true, evidence: "no transcript was written after the intent" }));
     assert.match(planOf(f, snap, { turn: "event", preflights: pre }).tickets.find((t) => t.number === 901).reason, /create failed \(settled: no transcript/);
     assert.throws(() => f.change((r) => run.settleCreate(r, { ticket: 901, absent: true, evidence: "again" })), /create failed, not create intent or create uncertain/);
+  }
+
+  // Round 2 (undirected), finding 1: a plan admits work only for the run it
+  // was made from, so a takeover cannot revive the earlier coordinator's plan.
+  {
+    const f = fresh("r11");
+    const snap = snapshotOf(300, [{ ...ticket(1201), parent: 300 }, { ...ticket(1202), parent: 300 }]);
+    const pre = [available("claude-desktop", "claude-opus-5-5", [1201, 1202])];
+    const oldPlan = write("r11-old.json", planOf(f, snap, { preflights: pre }));
+    const second = path.join(f.artifacts, "b.json");
+    run.initRecord({ record: second, checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: "local_b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #300.", concurrency: 1, takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    assert.equal(run.readRecord(second).revision, 1, "the new run also starts at revision 1");
+    assert.throws(() => run.updateRecord(second, { expectRevision: 1, coordinator: "local_b" }, (r) => run.claim(r, { plan: oldPlan, ticket: 1202, worktree: path.join(f.dir, "wt-1202"), branch: "fix/1202-thing", artifactParent: f.artifacts })), /made for another run/);
+  }
+
+  // Round 2 (undirected), finding 2: a launch settled by a census that found
+  // no process counts as an ended writer, so its work can be continued.
+  {
+    const f = fresh("r12");
+    const pr = { number: 1301, state: "OPEN", isDraft: true, branch: "fix/1301-thing", head: "h", rounds: 1 };
+    const snapNew = snapshotOf(300, [{ ...ticket(1301), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [1301])];
+    f.change((r) => run.claim(r, { plan: write("r12-plan.json", planOf(f, snapNew, { preflights: pre })), ticket: 1301, worktree: path.join(f.dir, "wt-1301"), branch: "fix/1301-thing", artifactParent: f.artifacts }));
+    fs.mkdirSync(run.launchDirOf(run.readRecord(f.file).tickets[1301].pending, 1301), { recursive: true });
+    assert.equal(f.change((r) => run.reconcile(r, { ticket: 1301, census: () => [] })).outcome, "not running");
+    const withPr = snapshotOf(300, [{ ...ticket(1301), parent: 300, prs: [pr] }]);
+    const p = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } }, snapshot: withPr, turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.equal(p.concurrency.active, 0, "a census-settled writer reserves nothing");
+    assert.equal(p.tickets[0].continueWith.route, "claude-cli");
+  }
+
+  // Round 2 (undirected), finding 3: low disk at init does not fix the run at
+  // zero writers; each plan admits writers against the disk free then.
+  {
+    const dir = path.join(tmp, "r13");
+    fs.mkdirSync(path.join(dir, "artifacts"), { recursive: true });
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "artifacts", "run.json");
+    const made = run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", feature: 300, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "x" }, { defaults, freeBytes: 5 * GB, totalMemory: 64 * GB });
+    assert.deepEqual([made.record.concurrency.limit, made.diskAdmits], [3, 0]);
+    const snap = snapshotOf(300, [{ ...ticket(1401), parent: 300 }]);
+    const pre = [available("claude-desktop", "claude-opus-5-5", [1401])];
+    const low = run.planDispatch({ record: run.readRecord(file), snapshot: snap, turn: "user", preflights: pre, freeBytes: 5 * GB, defaults });
+    assert.match(low.tickets[0].reason, /free disk does not admit another writer/);
+    assert.equal(run.planDispatch({ record: run.readRecord(file), snapshot: snap, turn: "user", preflights: pre, freeBytes: 40 * GB, defaults }).tickets[0].action, "dispatch", "after disk recovery the next plan dispatches");
+  }
+
+  // Round 2 (undirected), unverified concern: sub-issues of a container whose
+  // writer is still held wait for it, even with capacity to spare.
+  {
+    const f = fresh("r14");
+    const held = { ...run.readRecord(f.file), concurrency: { limit: 3, basis: "test" }, tickets: { 1501: { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: "w", handle: { kind: "session", id: "local_w1501" } }, pending: null, history: [], results: [] } } };
+    const snap = snapshotOf(300, [{ ...ticket(1501), parent: 300, container: true }, { ...ticket(1502), parent: 1501 }, { ...ticket(1503), parent: 1501, prs: [{ number: 1601, state: "OPEN", isDraft: true, branch: "fix/1503-thing", head: "h", rounds: 0 }] }, { ...ticket(1504), parent: 300 }]);
+    const p = run.planDispatch({ record: held, snapshot: snap, turn: "user", preflights: [available("claude-desktop", "claude-opus-5-5", [1502, 1503, 1504])], observations: { sessions: { local_w1501: { state: "running" } } }, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([1501, 1502, 1503, 1504].map((n) => actions(p)[n]), ["decision-needed", "wait-dependency", "adopt-pr", "dispatch"]);
+    assert.match(p.tickets.find((t) => t.number === 1502).reason, /parent #1501 is still held/);
+    assert.match(p.tickets.find((t) => t.number === 1503).continueBlocked, /parent #1501 is still held/);
   }
 
   // Round 2 (corrections), finding 2: an existing adopted-route writer
