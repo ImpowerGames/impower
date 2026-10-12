@@ -1,8 +1,8 @@
-// A display whose change is confined to the cursor's line puts the page in
-// its frame in place: the worker's game connects no module, enters no scene
-// again and predicts nothing again, and sends the page only what differs, and
-// the page then shows the frame the full display shows. Anything else
-// connects in full (#657).
+// A display whose change is confined to the statement under the cursor puts
+// the page in its frame in place: the worker's game connects no module,
+// enters no scene again and predicts nothing again, and sends the page only
+// what differs, and the page then shows the frame the full display shows.
+// Anything else connects in full (#657).
 //
 // The frame is compared with a twin player that takes the same steps with
 // the display in place refused, so that it displays each one in full over
@@ -51,6 +51,10 @@ scene start
   HERO:
     The third line.
 
+  HERO:
+    The fourth line.
+    And a fifth.
+
   if open then
     choose
       * Go left
@@ -75,6 +79,91 @@ const BACKDROP = lineIn(SOURCE, "The third line.") - 2;
 const PORTRAIT = lineIn(SOURCE, "[[show portrait HAPPY]]");
 const SECOND = lineIn(SOURCE, "The second line.");
 const MENU = lineIn(SOURCE, "if open then");
+const FOURTH = lineIn(SOURCE, "The fourth line.");
+
+/** A main layout of its own whose badge shows the picture a variable names,
+ *  which a mount resolves and no turn refreshes. */
+const BOUND = `define HAPPY as image with
+  src = "https://example.com/happy.png"
+end
+
+define SAD as image with
+  src = "https://example.com/sad.png"
+end
+
+store pic = "HAPPY"
+
+function set_pic(name)
+  pic = name
+  return ""
+end
+
+layout main with
+  stage {
+    badge {
+      image "{pic}"
+    }
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: {set_pic("HAPPY")}First. > Second.
+end
+`;
+/** A line whose first beat sets the picture the badge names, and whose last
+ *  beat the preview shows. */
+const SETS = lineIn(BOUND, "First. > Second.");
+
+/** Counts the overlay's mutations while a step runs: those inside the
+ *  portrait, the character's name and the dialogue, and every element given
+ *  `display: none`. */
+function mutations(p: { h: { overlay: HTMLElement } }) {
+  const win = p.h.overlay.ownerDocument.defaultView as any;
+  const counts = { portrait: 0, name: 0, dialogue: 0, hidden: 0 };
+  const within = (node: Node | null, name: string) => {
+    for (let n = node as HTMLElement | null; n; n = n.parentElement) {
+      if (n.classList?.contains(name)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const count = (records: MutationRecord[]) => {
+    for (const r of records) {
+      const node = r.target.nodeType === 1 ? r.target : r.target.parentElement;
+      if (within(node, "portrait")) counts.portrait += 1;
+      if (within(node, "character_name")) counts.name += 1;
+      if (within(node, "dialogue")) counts.dialogue += 1;
+      if (
+        r.type === "attributes" &&
+        r.attributeName === "style" &&
+        (r.target as HTMLElement).style?.display === "none"
+      ) {
+        counts.hidden += 1;
+      }
+    }
+  };
+  const observer = new win.MutationObserver(count);
+  observer.observe(p.h.overlay, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    characterData: true,
+  });
+  return () => {
+    count(observer.takeRecords());
+    observer.disconnect();
+    return counts;
+  };
+}
 
 const harnesses: { dispose(): void }[] = [];
 afterEach(() => {
@@ -261,7 +350,7 @@ const expectInPlace = (step: ReturnType<typeof after>, displays = 1) => {
   expect(sounds(step.sent)).toEqual([]);
 };
 
-describe("a display confined to the cursor's line", () => {
+describe("a display confined to the statement under the cursor", () => {
   it.each([
     {
       change: "a portrait",
@@ -372,7 +461,64 @@ describe("a display confined to the cursor's line", () => {
   }, 120_000);
 });
 
-describe("a display that is not confined to the cursor's line", () => {
+describe("a display in place, further", () => {
+  it("rewrites only the changed dialogue: the box, the name and the portrait are not cleared", async () => {
+    const { a, full } = await twins(SOURCE, SECOND, async (p) => {
+      const stop = mutations(p);
+      await p.edit("The second line.", "The second line, edited.");
+      return { ...after(p), mutated: stop() };
+    });
+    expectInPlace(a);
+    expect(a.frame).toEqual(full.frame);
+    expect(shows(a.frame, "The second line, edited.")).toBe(true);
+    // Nothing the edit left as it was is touched, nothing is hidden on the
+    // way, and the dialogue's text is replaced in place.
+    expect(a.mutated).toMatchObject({ portrait: 0, name: 0, hidden: 0 });
+    expect(a.mutated.dialogue).toBeGreaterThan(0);
+    // A full display clears them and writes them again.
+    expect(full.mutated.portrait).toBeGreaterThan(0);
+    expect(full.mutated.hidden).toBeGreaterThan(0);
+    const writes = a.sent
+      .filter((m) => m?.method === "ui/write-text" || m?.method === "ui/write-image")
+      .map((m) => [m.method, m.params.target, m.params.instructions.length, m.params.replace ?? false]);
+    expect(writes).toEqual([["ui/write-text", "dialogue", expect.any(Number), true]]);
+  }, 120_000);
+
+  it("shows a layout's bound picture as the loaded state names it", async () => {
+    const { a, full } = await twins(BOUND, SETS, async (p) => {
+      const start = after(p);
+      await p.edit('set_pic("HAPPY")', 'set_pic("SAD")');
+      return { start, edited: after(p) };
+    });
+    expect(a.start.frame).toEqual(full.start.frame);
+    expectInPlace(a.edited);
+    expect(a.edited.frame).not.toEqual(a.start.frame);
+    expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
+  it("shows an edit of another line of the statement under the cursor in place, as a full display shows it", async () => {
+    const { a, full } = await twins(SOURCE, FOURTH, async (p) => {
+      await p.edit("And a fifth.", "And a sixth.");
+      return after(p);
+    });
+    expectInPlace(a);
+    expect(shows(a.frame, "And a sixth.")).toBe(true);
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("shows what a full display shows when a breakpoint stops the beat", async () => {
+    const { a, full } = await twins(SOURCE, SECOND, async (p) => {
+      p.game.setBreakpoints([{ file: MAIN_URI, line: SECOND }]);
+      await p.edit("The second line.", "The second line, edited.");
+      return after(p);
+    });
+    expect(a.kind).toEqual({ inPlace: true });
+    expect(a.seen).toMatchObject({ connects: 0, connected: 0 });
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+});
+
+describe("a display that is not confined to the statement under the cursor", () => {
   it.each([
     {
       change: "another flow changed",

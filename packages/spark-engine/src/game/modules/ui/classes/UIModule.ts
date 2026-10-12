@@ -154,6 +154,19 @@ interface ReactiveText {
   deps: ReactiveDeps;
 }
 
+/** An `image` or `mask` leaf whose content is a `{expr}` binding. It is
+ *  resolved at mount and not per turn; a display in place resolves it again
+ *  against the state it loaded, as the mount of a full display would
+ *  (`refreshAllBindings`, #657). `layer` is the span the leaf's picture is
+ *  mounted as, and `last` the value it was resolved to, written out. */
+interface ReactiveImage {
+  parent: Element;
+  layer: Element;
+  content: ContentPart[];
+  property: string;
+  last: string;
+}
+
 /** A reactive element attribute (an input widget's `value`/`checked`) bound to a
  *  `{expr}` or an interpolated `"…{expr}…"` string — one-way (UI follows state);
  *  user write-back is via `@input`/`@change`. `propValue` is the whole bound
@@ -302,6 +315,7 @@ type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
 interface ReactiveScope {
   env: ReactiveEnv;
   texts: ReactiveText[];
+  images: ReactiveImage[];
   regions: ReactiveRegion[];
   attrs: ReactiveAttr[];
   styles: ReactiveStyle[];
@@ -541,6 +555,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  each connect, which builds the page again. */
   protected _emptyOnPage?: { text: Set<string>; image: Set<string> };
 
+  /** The transient targets the page shows the last display's text or
+   *  pictures on, whose clear a display in place holds back until its beat
+   *  has displayed (`settleInPlace`): a target the beat writes as the page
+   *  shows it is left alone, one it writes otherwise is written in place
+   *  without being cleared first, and only the rest are cleared. So a beat
+   *  whose line changed does not empty its box and its portrait and fill them
+   *  again (#657). */
+  protected _deferredClears?: { text: Set<string>; image: Set<string> };
+
   constructor(game: Game) {
     super(game);
     this.initLayouts();
@@ -677,6 +700,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override async onConnected() {
     this._emptyOnPage = undefined;
+    this._deferredClears = undefined;
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
@@ -825,9 +849,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    * state the module holds, as a connect's construction and restore would
    * leave it, sending only what differs (#657). The layouts stay mounted:
    * every binding re-evaluates, and only a value that differs from the one
-   * on the page is painted. Every transient target the page shows anything
-   * on is cleared, and every transient target's state goes, as the connect
-   * clears them. Each other text and image target whose state differs from
+   * on the page is painted, bound pictures included. Every transient
+   * target's state goes, as the connect clears them; the clear of one the
+   * page shows anything on waits for the beat (`_deferredClears`,
+   * `settleInPlace`). Each other text and image target whose state differs from
    * the one on the page is written again as the restore writes it, its
    * pictures resident first (`AssetModule.holdRestored`), or cleared when
    * the state holds none for it. Every style and attribute target the
@@ -849,23 +874,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       text: new Set(),
       image: new Set(),
     });
+    const deferred = (this._deferredClears = {
+      text: new Set<string>(),
+      image: new Set<string>(),
+    });
     const tasks: Promise<void>[] = [];
     for (const target of transient) {
+      // Shown on the page, its clear waits for the beat; otherwise cleared
+      // on the page by the connect or a beat since, and written by none.
+      delete this._state.text?.[target];
       if (shown.text.has(target)) {
         empty.text.delete(target);
-        tasks.push(this.text.clear(target));
+        deferred.text.add(target);
       } else {
-        // Cleared on the page by the connect or a beat since, and written
-        // by none.
         empty.text.add(target);
-        delete this._state.text?.[target];
       }
+      delete this._state.image?.[target];
       if (shown.image.has(target)) {
         empty.image.delete(target);
-        tasks.push(this.image.clear(target));
+        deferred.image.add(target);
       } else {
         empty.image.add(target);
-        delete this._state.image?.[target];
       }
     }
     const changed = (
@@ -919,6 +948,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       await Promise.all(tasks);
       this._game.module.assets?.releaseRestored();
     }
+  }
+
+  /** Clear the transient targets a display in place held the clear of and
+   *  its beat did not write (`_deferredClears`), once the beat has
+   *  displayed, or displayed nothing (#657). */
+  settleInPlace(): void {
+    const deferred = this._deferredClears;
+    this._deferredClears = undefined;
+    if (!deferred) {
+      return;
+    }
+    for (const target of deferred.text) {
+      void this.text.clear(target);
+    }
+    for (const target of deferred.image) {
+      void this.image.clear(target);
+    }
+    this.flushUIBatch();
+  }
+
+  /** Whether `target`'s state, as the beat of a display in place has just
+   *  written it, is what the page shows (`recordDisplayed`), so the write
+   *  need not reach the page. */
+  protected showsAlready(kind: "text" | "image", target: string): boolean {
+    const state = this._state[kind]?.[target];
+    return (
+      state !== undefined &&
+      JSON.stringify(state) === this._displayed?.[kind].get(target)
+    );
   }
 
   /** Re-evaluate every binding of the mounted layouts against the story's
@@ -1036,17 +1094,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     imageAssets: unknown[],
     property: string,
     state?: ElementState,
+    before?: Element | null,
   ): Element {
     const background = imageAssets
       .map((a) => this.getBackgroundImageFromValue(a))
       .reverse()
       .join(", ");
-    const el = this.createElement(parent, {
-      name: "instance",
-      type: "span",
-      ...state,
-      style: { ...(state?.style || {}), [property]: background },
-    });
+    const el = this.createElement(
+      parent,
+      {
+        name: "instance",
+        type: "span",
+        ...state,
+        style: { ...(state?.style || {}), [property]: background },
+      },
+      before,
+    );
     const src = imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0];
     if (src) {
       this.createElement(el, {
@@ -1758,6 +1821,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return {
       env,
       texts: [],
+      images: [],
       regions: [],
       attrs: [],
       styles: [],
@@ -1936,9 +2000,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       });
       this.mountTextContent(labelEl, node.content, scope);
     } else if (node.tag === "image") {
-      this.mountImageContent(el, node.content, "background_image", scope.env);
+      this.mountImageContent(el, node.content, "background_image", scope);
     } else if (node.tag === "mask") {
-      this.mountImageContent(el, node.content, "mask_image", scope.env);
+      this.mountImageContent(el, node.content, "mask_image", scope);
     } else {
       this.mountTextContent(el, node.content, scope);
     }
@@ -2521,18 +2585,50 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   /** Mount an image/mask leaf's background span. Content (literal or `{expr}`)
    *  is resolved to the asset value at mount; a content-less leaf yields the
    *  empty background constructLayout also produces. (Per-turn re-eval of image
-   *  sources is deferred — image rebuild differs from a content update.) */
+   *  sources is deferred — image rebuild differs from a content update.) A
+   *  bound leaf is registered in `scope`, which a display in place resolves
+   *  again (`refreshImageContent`). */
   protected mountImageContent(
     parent: Element,
     content: ContentPart[] | undefined,
     property: string,
-    env: ReactiveEnv,
+    scope: ReactiveScope,
   ): void {
     const value =
       content && content.length > 0
-        ? this.resolveContent(content, env)
+        ? this.resolveContent(content, scope.env)
         : undefined;
-    this.createImage(parent, [value], property);
+    const layer = this.createImage(parent, [value], property);
+    if (content && this.contentHasBinding(content)) {
+      scope.images.push({
+        parent,
+        layer,
+        content,
+        property,
+        last: JSON.stringify(value ?? null),
+      });
+    }
+  }
+
+  /** Resolve a bound image leaf again and, when its value differs, mount its
+   *  picture in place of the one it shows. */
+  protected refreshImageContent(entry: ReactiveImage, env: ReactiveEnv): void {
+    const value = this.resolveContent(entry.content, env);
+    const next = JSON.stringify(value ?? null);
+    if (next === entry.last) {
+      return;
+    }
+    entry.last = next;
+    const siblings = entry.parent.children;
+    const before = siblings[siblings.indexOf(entry.layer) + 1] ?? null;
+    this.destroyElement(entry.layer);
+    entry.layer = this.createImage(
+      entry.parent,
+      [value],
+      entry.property,
+      undefined,
+      before,
+    );
   }
 
   // --- if / match -----------------------------------------------------------
@@ -3098,6 +3194,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // isn't a tracked global/table — re-evaluate them every turn (equality-
     // gated). Top-level / conditional scopes dep-gate per registration.
     const envScope = this.scopeHasEnv(scope);
+    if (this._reevaluateAll) {
+      // Bound pictures are resolved at mount, not per turn: only a display in
+      // place, which keeps the mount, resolves them again.
+      for (const entry of scope.images) {
+        this.refreshImageContent(entry, scope.env);
+      }
+    }
     for (const entry of scope.texts) {
       if (envScope || this.depsChanged(entry.deps, changes)) {
         const { text, deps } = this.resolveContentTracked(
@@ -4217,6 +4320,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
         shown = 0,
+        replace = false,
       ) {
         // [D14] The engine no longer builds per-glyph spans or per-letter
         // reveal animations. It still owns the structural target element tree
@@ -4267,13 +4371,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             ...(time != null ? { time } : {}),
             ...(shown > 0 ? { shown } : {}),
+            ...(replace ? { replace } : {}),
           }),
         );
       }
 
       async clear(target: string) {
         this.saveState(target, null);
-        if ($._emptyOnPage?.text.has(target)) {
+        if (
+          $._deferredClears?.text.has(target) ||
+          $._emptyOnPage?.text.has(target)
+        ) {
           return;
         }
         if (!$.context?.system?.simulating) {
@@ -4296,9 +4404,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         shown = 0,
       ) {
         this.saveState(target, sequence);
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, shown);
+        if ($.context?.system?.simulating) {
+          return;
         }
+        if ($._deferredClears?.text.delete(target)) {
+          // The page still shows the last display's text here, uncleared
+          // (`_deferredClears`): the same text is left as it is, and other
+          // text takes its place in one write.
+          if (!$.showsAlready("text", target)) {
+            await this.applyChanges(target, sequence, instant, time, shown, true);
+          }
+          return;
+        }
+        await this.applyChanges(target, sequence, instant, time, shown);
       }
     }
     return Text;
@@ -4675,7 +4793,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async clear(target: string) {
         this.saveState(target, null);
-        if ($._emptyOnPage?.image.has(target)) {
+        if (
+          $._deferredClears?.image.has(target) ||
+          $._emptyOnPage?.image.has(target)
+        ) {
           return;
         }
         if (!$.context?.system?.simulating) {
@@ -4696,9 +4817,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
       ) {
         this.saveState(target, sequence);
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time);
+        if ($.context?.system?.simulating) {
+          return;
         }
+        // The page still shows the last display's pictures here, uncleared
+        // (`_deferredClears`): the same pictures are left as they are, and
+        // others replace them as a write replaces a picture in play.
+        if (
+          $._deferredClears?.image.delete(target) &&
+          $.showsAlready("image", target)
+        ) {
+          return;
+        }
+        await this.applyChanges(target, sequence, instant, time);
       }
     }
     return Image;

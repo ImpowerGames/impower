@@ -133,7 +133,7 @@ describe("classifyDisplay", () => {
     });
   });
 
-  it("connects in full when a statement off the cursor's line changed", () => {
+  it("connects in full when a statement that does not span the cursor's line changed", () => {
     const c = compiling();
     const edited = c.edit("The first line.", "The first line, edited.");
     // Where the statement stands decides, whatever symbols it moved.

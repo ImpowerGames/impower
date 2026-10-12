@@ -32,6 +32,7 @@ export interface DisplayingGame {
     ui: {
       forgetDisplayedImages(): void;
       sweepReconcile(): void;
+      settleInPlace(): void;
       recordDisplayed(): void;
     };
   };
@@ -51,11 +52,11 @@ export interface DisplayRequest {
    *  save. */
   checkpoint?: string | StoredCheckpoint;
   simulationFailure?: SimulationFailure;
-  /** The page shows the game's last display, and nothing but the cursor's
-   *  line changed since (`classifyDisplay`): the game returns the page to
-   *  the checkpoint's state where it differs and previews, rather than
-   *  connecting and closing a reconcile pass (#657). Taken only once the
-   *  route's checkpoint value has loaded. */
+  /** The page shows the game's last display, and nothing but the statement
+   *  under the cursor changed since (`classifyDisplay`): the game returns
+   *  the page to the checkpoint's state where it differs and previews,
+   *  rather than connecting and closing a reconcile pass (#657). Taken only
+   *  once the route's checkpoint value has loaded. */
   inPlace?: boolean;
   /** Where the game sends the page what it displays. */
   send: (message: Message, transfer?: ArrayBuffer[]) => void;
@@ -133,7 +134,11 @@ export async function displayPreviewFrom(
   if (superseded()) {
     return false;
   }
-  if (!inPlace) {
+  if (inPlace) {
+    // The transient targets the beat did not write are cleared now, rather
+    // than emptied before it and filled again.
+    game.module.ui.settleInPlace();
+  } else {
     game.module.ui.sweepReconcile();
   }
   // Everything this display shows has been sent: the next display can be

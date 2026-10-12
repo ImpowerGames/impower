@@ -19,6 +19,10 @@ export interface WriteTextParams {
    *  carried on after a click): they appear at once, and only the rest are
    *  revealed from `time`. */
   shown?: number;
+  /** The write replaces the text the target shows, in place, rather than
+   *  adding to it: a display in place rewrites a target whose text changed
+   *  without clearing it first, so the target never shows empty (#657). */
+  replace?: boolean;
 }
 
 export class WriteTextMessage {

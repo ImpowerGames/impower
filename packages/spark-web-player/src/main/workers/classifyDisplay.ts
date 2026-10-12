@@ -32,8 +32,8 @@ export type FullDisplayReason =
   /** A layout, component, screen, style or asset the page's construction
    *  reads changed, or the define tables were built again. */
   | "context"
-  /** A statement the compile emitted or dropped stands off the cursor's
-   *  line: another beat, another flow. */
+  /** A statement the compile emitted or dropped does not span the cursor's
+   *  line: another statement of the scene, another flow. */
   | "statements"
   /** A flow was added or removed, or one changed its kind, its beats'
    *  count, or the flows and layouts it reaches. */
@@ -94,8 +94,9 @@ const sameList = (a: readonly string[], b: readonly string[]) =>
 /** Whether the scene map the scene tracker and the asset module's
  *  prediction read is the same: the flows, their kinds, how many beats
  *  each holds and what each reaches. The pictures and sounds a beat names
- *  may differ: only the cursor's line changed, and the preview waits for
- *  the pictures of its beat whatever the prediction sent. */
+ *  may differ: only the statement under the cursor changed, and the
+ *  preview waits for the pictures of its beat whatever the prediction
+ *  sent. */
 const sameSceneMap = (
   a: Record<string, SceneAssets> | undefined,
   b: Record<string, SceneAssets> | undefined,
@@ -128,17 +129,21 @@ const sameSceneMap = (
 /**
  * Whether a display can put the page in its frame in place
  * (`Game.connectInPlace`) rather than connecting in full (#657): only the
- * cursor's line changed since the display the page shows. That display
- * (`shown`) completed and nothing was sent the page since, the cursor is on
- * the same line, a suggestion's program did not replace the real one or the
- * reverse, the program was measured against the one shown, its compile ran
- * the declarations no more and moved no symbol, every statement it emitted
- * or dropped stands on the cursor's line, what the page's construction
- * reads is what it read, and the scene map is the same. The route's
- * checkpoint itself is not compared: it is taken partway into the beat the
- * cursor's line belongs to, so it moves with every edit of that line, and
- * the display in place puts the page in the checkpoint's state wherever
- * that differs from what the page shows.
+ * statement under the cursor changed since the display the page shows.
+ * That display (`shown`) completed and nothing was sent the page since, the
+ * cursor is on the same line, a suggestion's program did not replace the
+ * real one or the reverse, the program was measured against the one shown,
+ * its compile ran the declarations no more and moved no symbol, every
+ * statement it emitted or dropped spans the cursor's line, what the page's
+ * construction reads is what it read, and the scene map is the same. A
+ * statement is the finest unit a compile reports: the lines of a dialogue
+ * block share one, so an edit of another line of the block under the
+ * cursor is displayed in place too. The frame does not rest on this rule
+ * or on the route's checkpoint, which is not compared either (it is taken
+ * partway into the cursor's beat, so it moves with every edit of it): the
+ * display in place puts the page in the state the game loads wherever
+ * that differs from what the page shows. The rule keeps the display in
+ * place to an edit of the beat under the cursor.
  */
 export function classifyDisplay(
   shown: ShownDisplay | undefined,

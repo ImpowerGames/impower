@@ -43,10 +43,10 @@ export interface DisplayPreviewResult {
  * Display the preview at a point of a program the worker compiled, from the
  * worker's own game: the game declares
  * the preview, loads the route's checkpoint, connects to the page, previews
- * the point and closes the reconcile pass, or, when only the cursor's line
- * changed since the display the page shows, puts the page in the frame in
- * place and previews (#657). Answered once the frame is sent, or once a
- * later display or compile took it over.
+ * the point and closes the reconcile pass, or, when only the statement
+ * under the cursor changed since the display the page shows, puts the page
+ * in the frame in place and previews (#657). Answered once the frame is
+ * sent, or once a later display or compile took it over.
  */
 export class DisplayPreviewMessage {
   static readonly method = "player/displayPreview";

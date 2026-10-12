@@ -551,6 +551,7 @@ export default class UIManager extends Manager {
         params.instant,
         this.getDisplayTime(params.time),
         params.shown,
+        params.replace,
       );
       return WriteTextMessage.type.result(params.target);
     }
@@ -875,6 +876,8 @@ export default class UIManager extends Manager {
    * everything at once, including when it repeats the last write. A played
    * write's first `shown` letters are text already on the page (a box carried
    * on after a click), so they appear at once and the target does not wait.
+   * A `replace` write takes the place of the text the target shows, in the
+   * same task, so the target is never seen empty or hidden in between.
    */
   protected async writeText(
     target: string,
@@ -882,6 +885,7 @@ export default class UIManager extends Manager {
     instant: boolean,
     startTime?: number,
     shown = 0,
+    replace = false,
   ) {
     const targetEls = this.findTargetElements(target);
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
@@ -922,6 +926,11 @@ export default class UIManager extends Manager {
       const textEls = this.getContentElements(targetEl, "text");
       const strokeEls = this.getContentElements(targetEl, "stroke");
       const contentEls = [...textEls, ...strokeEls];
+      if (replace) {
+        for (const contentEl of contentEls) {
+          contentEl.replaceChildren();
+        }
+      }
       // With no text on it yet, the target would show as an empty box until
       // its first letter appears.
       const empty =
