@@ -876,8 +876,9 @@ export default class UIManager extends Manager {
    * everything at once, including when it repeats the last write. A played
    * write's first `shown` letters are text already on the page (a box carried
    * on after a click), so they appear at once and the target does not wait.
-   * A `replace` write takes the place of the text the target shows, in the
-   * same task, so the target is never seen empty or hidden in between.
+   * A `replace` write takes the place of the text earlier writes left on
+   * the target, in the same task, so the target is never seen empty or
+   * hidden in between.
    */
   protected async writeText(
     target: string,
@@ -927,8 +928,15 @@ export default class UIManager extends Manager {
       const strokeEls = this.getContentElements(targetEl, "stroke");
       const contentEls = [...textEls, ...strokeEls];
       if (replace) {
+        // What earlier writes built goes; what the layout mounted in the
+        // target (its own text, carrying a structural id) stays, as a write
+        // adds to it.
         for (const contentEl of contentEls) {
-          contentEl.replaceChildren();
+          for (const child of Array.from(contentEl.children)) {
+            if (!(child as any).__sdId) {
+              child.remove();
+            }
+          }
         }
       }
       // With no text on it yet, the target would show as an empty box until

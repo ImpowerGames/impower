@@ -564,6 +564,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  again (#657). */
   protected _deferredClears?: { text: Set<string>; image: Set<string> };
 
+  /** The elements mounted while it is set (`restoreInPlace`). */
+  protected _created?: Set<Element>;
+
   constructor(game: Game) {
     super(game);
     this.initLayouts();
@@ -867,8 +870,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const epoch = this._game.connection.epoch;
     // The connect's construction takes the reactive changes; here they go
-    // with a refresh that reads every binding against the loaded state.
-    this.refreshAllBindings();
+    // with a refresh that reads every binding against the loaded state. A
+    // region whose branch or items change mounts new elements, which show
+    // nothing whatever the page showed under their target's name.
+    const created = (this._created = new Set<Element>());
+    try {
+      this.refreshAllBindings();
+    } finally {
+      this._created = undefined;
+    }
+    const remounted = (target: string) =>
+      created.size > 0 &&
+      this.findElements(target).some((el) => created.has(el));
     const transient = new Set(this.getTransientTargets());
     const empty = (this._emptyOnPage ??= {
       text: new Set(),
@@ -880,19 +893,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
     const tasks: Promise<void>[] = [];
     for (const target of transient) {
-      // Shown on the page, its clear waits for the beat; otherwise cleared
-      // on the page by the connect or a beat since, and written by none.
+      // Shown on the page, its clear waits for the beat, unless the target
+      // was mounted again, which a beat writes as a target nothing shows
+      // on: it is cleared now. Otherwise cleared on the page by the connect
+      // or a beat since, and written by none.
+      const fresh = remounted(target);
       delete this._state.text?.[target];
       if (shown.text.has(target)) {
         empty.text.delete(target);
-        deferred.text.add(target);
+        if (fresh) {
+          tasks.push(this.text.clear(target));
+        } else {
+          deferred.text.add(target);
+        }
       } else {
         empty.text.add(target);
       }
       delete this._state.image?.[target];
       if (shown.image.has(target)) {
         empty.image.delete(target);
-        deferred.image.add(target);
+        if (fresh) {
+          tasks.push(this.image.clear(target));
+        } else {
+          deferred.image.add(target);
+        }
       } else {
         empty.image.add(target);
       }
@@ -908,8 +932,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const state = states?.[target];
         return (
+          remounted(target) ||
           (state === undefined ? undefined : JSON.stringify(state)) !==
-          onPage.get(target)
+            onPage.get(target)
         );
       });
     };
@@ -924,8 +949,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     for (const target of texts) {
       tasks.push(
+        // The page keeps the target's text: what the state holds replaces
+        // it rather than being added to it.
         this._state.text?.[target]
-          ? this.text.restore(target)
+          ? this.text.restore(target, true)
           : this.text.clear(target),
       );
     }
@@ -1069,6 +1096,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes = state?.attributes;
     const breakpoints = this.context.config?.ui?.breakpoints;
     const el = new Element(parent, id, type, name, before);
+    this._created?.add(el);
     const isRootElement = !parent;
     if (isRootElement) {
       this._root = el;
@@ -4307,10 +4335,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      async restore(target: string) {
+      /** With `replace`, the state's text takes the place of the text the
+       *  page shows rather than being added to it (`restoreInPlace`). */
+      async restore(target: string, replace = false) {
         const state = $._state.text?.[target];
         if (state) {
-          await this.applyChanges(target, state, true);
+          await this.applyChanges(target, state, true, undefined, 0, replace);
         }
       }
 

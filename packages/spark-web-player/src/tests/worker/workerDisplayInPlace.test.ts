@@ -122,6 +122,76 @@ end
  *  beat the preview shows. */
 const SETS = lineIn(BOUND, "First. > Second.");
 
+/** A main layout of its own whose dialogue slot is mounted by one branch of
+ *  an `if` or the other, which the first beat of the cursor's line picks. */
+const BRANCHED = `store mode = false
+
+function set_mode(v)
+  mode = v
+  return ""
+end
+
+layout main with
+  textbox {
+    if mode then
+      dialogue {
+        text
+      }
+    else
+      dialogue {
+        text
+      }
+    end
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: {set_mode(true)}First. > Second.
+end
+`;
+const PICKS = lineIn(BRANCHED, "First. > Second.");
+
+/** A main layout of its own whose dialogue target has text of its own, so
+ *  it is no transient target: a beat adds to it rather than replacing it. */
+const PERSISTENT = `store word = "First."
+
+function set_word(v)
+  word = v
+  return ""
+end
+
+layout main with
+  textbox {
+    dialogue {
+      text "Says:"
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: {set_word("First.")}{word} > Second.
+end
+`;
+const ACTS = lineIn(PERSISTENT, "> Second.");
+
+/** The overlay a full display of `text` at `line` leaves on a page that
+ *  showed nothing before: a player of its own. */
+async function freshFrame(text: string, line: number) {
+  const p = await player(text, line);
+  try {
+    return after(p).frame;
+  } finally {
+    harnesses.splice(harnesses.indexOf(p.h), 1);
+    p.h.dispose();
+  }
+}
+
 /** Counts the overlay's mutations while a step runs: those inside the
  *  portrait, the character's name and the dialogue, and every element given
  *  `display: none`. */
@@ -325,6 +395,11 @@ const after = (p: Player) => ({
   sent: p.sent(),
 });
 
+/** The letters a frame's text targets show, in document order. */
+const letters = (node: any): string =>
+  (node.class === "text_letter" ? (node.text ?? "") : "") +
+  (node.children ?? []).map(letters).join("");
+
 /** Whether a frame shows `text`. */
 const shows = (frame: unknown, text: string) => JSON.stringify(frame).includes(text);
 
@@ -504,6 +579,32 @@ describe("a display in place, further", () => {
     expectInPlace(a);
     expect(shows(a.frame, "And a sixth.")).toBe(true);
     expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("writes a slot the layout mounted again, though the beat writes what the old one showed", async () => {
+    const { a, full } = await twins(BRANCHED, PICKS, async (p) => {
+      const start = after(p);
+      await p.edit("set_mode(true)", "set_mode(false)");
+      return { start, edited: after(p) };
+    });
+    expect(a.start.frame).toEqual(full.start.frame);
+    expect(letters(a.start.frame)).toContain("Second.");
+    expectInPlace(a.edited);
+    expect(letters(a.edited.frame)).toContain("Second.");
+    expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
+  it("replaces a persistent target's text the checkpoint changed, rather than adding to it", async () => {
+    const p = await player(PERSISTENT, ACTS);
+    await p.edit('set_word("First.")', 'set_word("Premier.")');
+    const edited = after(p);
+    harnesses.splice(harnesses.indexOf(p.h), 1);
+    p.h.dispose();
+    expectInPlace(edited);
+    expect(letters(edited.frame)).not.toContain("First.");
+    expect(edited.frame).toEqual(
+      await freshFrame(PERSISTENT.replace('set_word("First.")', 'set_word("Premier.")'), ACTS),
+    );
   }, 120_000);
 
   it("shows what a full display shows when a breakpoint stops the beat", async () => {
