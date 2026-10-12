@@ -122,8 +122,7 @@ const restsAfter = (
 };
 
 /** A value the editor can receive and evaluate an expression against: a
- *  primitive, or plain data made of them, as a list or a divert target
- *  reads. */
+ *  primitive, or plain data made of them. */
 const isEvaluable =(value: unknown, depth = 0): boolean => {
   if (value === undefined || typeof value === "function") {
     return false;
@@ -315,7 +314,7 @@ export class Game<T extends M = {}> {
   // The records `getTableRecord` made of Luau tables, each with its keys in
   // the order the view lists them. A table's keys are all its own entries,
   // so the view reads them without the `$` metadata conventions of the
-  // other records it shows (`$type` of a list).
+  // other records it shows (a define's `$type` and `$name`).
   protected _tableRecords = new WeakMap<object, string[]>();
 
   protected _startFrom?: {

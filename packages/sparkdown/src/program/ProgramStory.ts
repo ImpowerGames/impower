@@ -3080,8 +3080,8 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Pushes a host's arguments (`StoryState.PassArgumentsToEvaluationStack`):
-   *  a runtime value as it is, and a number, string, boolean or list as the
-   *  value it makes. */
+   *  a runtime value as it is, and a number, string or boolean as the value
+   *  it makes. */
   protected passArguments(args: any[] | null): void {
     if (args === null) {
       return;

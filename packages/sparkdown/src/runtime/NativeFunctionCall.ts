@@ -180,7 +180,7 @@ export class NativeFunctionCall extends InkObject {
     // Builtin method dispatch (`obj:method(args)`). The lowerer emits
     // `__method_<name>` function names; we route those through
     // `callBuiltinMethod` for receiver-type-aware dispatch, bypassing
-    // the operator-style numeric/string/list coercion path below. Each
+    // the operator-style numeric/string coercion path below. Each
     // method impl handles its own arity check, so we never consult
     // `this.numberOfParameters` (which is `VARIADIC_ARITY` for these).
     if (this._name !== null && this._name.startsWith(METHOD_PREFIX)) {

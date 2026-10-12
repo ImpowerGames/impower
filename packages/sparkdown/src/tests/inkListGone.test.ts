@@ -4,20 +4,11 @@
 // item, `ListValue`, the runtime and parsed `ListDefinition`,
 // `ListDefinitionsOrigin`, `ListElementDefinition`), in code or in a
 // comment, so the type does not come back piece by piece.
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
+import { scanOf, sourcesUnder } from "./repositoryScan";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
@@ -25,18 +16,6 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..
  *  every name it begins (`InkListItem`), and every name `ListDefinition`
  *  begins (`ListDefinitionsOrigin`). */
 const NAMES = /\b(InkList\w*|ListValue|ListDefinition\w*|ListElementDefinition)\b/g;
-
-/** Every `.ts`, `.mts`, `.js` and `.mjs` file under `dir`, at any depth,
- *  outside `node_modules`. */
-const sourcesUnder = (dir: string): string[] =>
-  existsSync(dir)
-    ? readdirSync(dir).flatMap((name) => {
-        if (name === "node_modules") return [];
-        const path = join(dir, name);
-        if (statSync(path).isDirectory()) return sourcesUnder(path);
-        return /\.(m?ts|m?js)$/.test(name) && !name.endsWith(".d.ts") ? [path] : [];
-      })
-    : [];
 
 /** Each name of the deleted type a file under the `src` of a package of
  *  `repo` holds, as `<file> names <name>` relative to `repo`, this file
@@ -63,18 +42,8 @@ test("no file under packages/*/src names the ink LIST type", () => {
 
 describe("the scan the check is held to", () => {
   // A repository of its own, written to a temporary directory.
-  const withRepo = (files: Record<string, string>): string[] => {
-    const root = mkdtempSync(join(tmpdir(), "ink-list-gone-"));
-    try {
-      for (const [path, text] of Object.entries(files)) {
-        mkdirSync(dirname(join(root, path)), { recursive: true });
-        writeFileSync(join(root, path), text);
-      }
-      return whatRemains(root);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  };
+  const withRepo = (files: Record<string, string>): string[] =>
+    scanOf("ink-list-gone-", files, whatRemains);
 
   test("finds each name, in an import, in code and in a comment, in any package", () => {
     expect(
