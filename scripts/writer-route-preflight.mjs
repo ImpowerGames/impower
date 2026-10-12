@@ -12,16 +12,22 @@ import { efforts, routeVendor, writerEfforts } from "./reviewer-defaults.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const writerRoutes = { "claude-agent": "claude", "claude-desktop": "claude", "codex-cli": "codex", "codex-app": "codex" };
 
-// Each route's check returns null when the host provides the model at that
-// effort, or the reason it does not.
+// Each route's check returns an empty result when the host provides the model
+// at that effort, or the reason it does not.
 const frontmatter = (text) => Object.fromEntries((/^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? "").split(/\r?\n/).map((line) => /^(\w+):\s*(.*?)\s*$/.exec(line)).filter(Boolean).map((m) => [m[1], m[2]]));
 
+// The definition on disk pins the model and effort, but a session discovers
+// definitions only when it starts, so the coordinator also lists the agent
+// types its Agent tool offers now.
 function claudeAgentCheck(model, request, repo) {
+  const offered = request.evidence?.agents;
+  if (!Array.isArray(offered) || !offered.every((name) => typeof name === "string")) throw new Error("claude-agent needs evidence.agents, the agent types the coordinator's Agent tool currently offers");
   const dir = path.join(repo, ".claude", "agents");
   const writers = fs.readdirSync(dir).filter((f) => f.endsWith(".md")).map((f) => frontmatter(fs.readFileSync(path.join(dir, f), "utf8"))).filter((d) => d.name?.startsWith("writer-"));
   return (effort) => {
     const match = writers.find((d) => d.model === model && d.effort === effort);
-    return match ? { launch: { subagent_type: match.name } } : { reason: `no writer definition in .claude/agents pins ${model} at ${effort}; a subagent without one runs at the harness default effort` };
+    if (!match) return { reason: `no writer definition in .claude/agents pins ${model} at ${effort}; a subagent without one runs at the harness default effort` };
+    return offered.includes(match.name) ? { launch: { subagent_type: match.name } } : { reason: `the coordinator's Agent tool does not offer ${match.name}; a definition added after a session starts is discovered only by a new session` };
   };
 }
 
@@ -111,7 +117,9 @@ function observedRoute(observed, number) {
   if (observed === null || typeof observed !== "object" || Array.isArray(observed)) throw new Error(`Ticket ${number} observed must be { model, effort } or { rollout }`);
   if (!Object.hasOwn(observed, "rollout")) return pair(observed, "observed");
   if (typeof observed.rollout !== "string" || !path.isAbsolute(observed.rollout)) throw new Error(`Ticket ${number} observed.rollout must be an absolute path`);
-  const context = fs.readFileSync(observed.rollout, "utf8").split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)).findLast((row) => row.type === "turn_context")?.payload;
+  // A live writer may be mid-append, so only newline-terminated records count.
+  const text = fs.readFileSync(observed.rollout, "utf8");
+  const context = text.slice(0, text.lastIndexOf("\n") + 1).split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)).findLast((row) => row.type === "turn_context")?.payload;
   if (!context) throw new Error(`${observed.rollout} has no turn_context row`);
   return pair(context, "rollout turn_context");
 }
