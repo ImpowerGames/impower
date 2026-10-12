@@ -211,6 +211,16 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(wrap(formatted))).toBe(wrap(formatted));
   });
 
+  // The continued lines are found by reading the rest of the block, however
+  // many lines the list runs over.
+  test("indents a value after more than two hundred comment lines in a continued list", () => {
+    const wrap = (value: string) =>
+      ["function f()", "  local a, g = 0, 0", "  a, g = 1,", ...Array(205).fill("-- note"), value, "  return g", "end", ""].join("\n");
+    const once = formatSource(wrap("2"));
+    expect(once.split("\n").find((line) => line.trim() === "2")).toBe("    2");
+    expect(formatSource(once)).toBe(once);
+  });
+
   test("indents a target list continued after a trailing comma one level past the reassignment", () => {
     const source = ["function f()", "  local a, g = 0, 0", "  a,", "g = 1, 2", "  return g", "end", ""].join("\n");
     expect(formatSource(source)).toBe(

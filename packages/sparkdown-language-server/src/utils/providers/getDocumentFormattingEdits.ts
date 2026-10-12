@@ -356,9 +356,6 @@ interface ListSource {
   lists: Map<number, number>;
 }
 
-// How many lines after a reassignment's first line `listEnd` reads.
-const LIST_READ_LIMIT = 200;
-
 let listParser: TextmateGrammarParser | undefined;
 
 // Whether `node` begins a statement that ends a list rather than continuing
@@ -386,7 +383,9 @@ function listEnd(reassignment: SyntaxNode, source: ListSource): number {
   if (cached !== undefined) return cached;
   let blockEnd = reassignment.to;
   for (let next = reassignment.nextSibling; next; next = next.nextSibling) blockEnd = next.to;
-  const lines = source.text.slice(reassignment.from, blockEnd).split("\n").slice(0, LIST_READ_LIMIT + 1);
+  // The whole rest of the block: a list can run on through any number of
+  // lines (comment lines, values), so no shorter read can say where it ends.
+  const lines = source.text.slice(reassignment.from, blockEnd).split("\n");
   // Each line's start in the source and in the indented text.
   const prefix = "function __list()\n";
   const sourceStarts: number[] = [];
