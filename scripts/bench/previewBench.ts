@@ -24,7 +24,8 @@ import { ParsedObject } from "../../packages/sparkdown/src/inkjs/compiler/Parser
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
-import { searchRouteTo } from "../../packages/spark-web-player/src/main/workers/searchRouteTo";
+import { searchRouteFor } from "../../packages/spark-web-player/src/main/workers/searchRouteTo";
+import type { StoredCheckpoint } from "../../packages/spark-engine/src/game/core/classes/CheckpointStore";
 import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
 import { totalLength, uncovered } from "./phaseGaps.mjs";
 
@@ -183,10 +184,13 @@ class PageSink {
   // Records any key or string in a message that only the program, the
   // checkpoint or the path locations would carry.
   protected inspect(value: any, method: string) {
-    const forbiddenStrings = this.forbiddenStrings();
+    // Asked for only when a message carries a string that long: the
+    // checkpoint's full save is written for the comparison alone, which a
+    // display no longer writes (#1758).
+    let forbiddenStrings: string[] | undefined;
     const walk = (v: any) => {
       if (typeof v === "string") {
-        if (v.length > 1024 && forbiddenStrings.includes(v)) this.forbidden.add(`${method}: checkpoint`);
+        if (v.length > 1024 && (forbiddenStrings ??= this.forbiddenStrings()).includes(v)) this.forbidden.add(`${method}: checkpoint`);
         return;
       }
       if (!v || typeof v !== "object") return;
@@ -343,9 +347,11 @@ async function main() {
     profile("end", PROFILER_ID, "game/setStartFrom");
   };
   // The last route search's target and the checkpoint it produced.
-  let searched: { to: ProgramAddress; checkpoint?: string } | undefined;
+  // The checkpoint is the value the worker's route hands its display
+  // (`searchRouteFor`), which the display loads in place (#1758).
+  let searched: { to: ProgramAddress; checkpoint?: StoredCheckpoint } | undefined;
   const search = (game: Game, to: ProgramAddress, log: RouteSearchLog, remember: boolean) => {
-    const checkpoint = searchRouteTo(game, to, log, { config: (compiler as any).config, profilerId: PROFILER_ID, remember });
+    const checkpoint = searchRouteFor(game, to, log, { config: (compiler as any).config, profilerId: PROFILER_ID, remember });
     routeSteps = (game as any)._plannedRoute?.steps?.length ?? 0;
     searched = { to, checkpoint };
   };
@@ -382,8 +388,8 @@ async function main() {
   // (`displayPreviewFrom`): declare the preview, drop the last preview's
   // images, end the route search's simulation, load the route's checkpoint,
   // connect, preview.
-  let lastCheckpoint = "";
-  const sink = new PageSink(() => [lastCheckpoint]);
+  let lastCheckpoint: (() => string) | undefined;
+  const sink = new PageSink(() => (lastCheckpoint ? [lastCheckpoint()] : []));
   //
   // What the route search leaves on the game, which the display ends through
   // the engine: `system.simulating` stays set, and while it is set the
@@ -391,7 +397,7 @@ async function main() {
   // nothing, the ui module writes instantly). Every entry is a call the
   // engine offers; the benchmark resets no field by hand.
   const CALLS = ["game.endSimulation()"];
-  const prepare = (game: Game, checkpoint: string | undefined) => {
+  const prepare = (game: Game, checkpoint: StoredCheckpoint | undefined) => {
     // What a preview displays is a suggestion, whose report the player takes
     // without what only the editors read.
     game.reportsExecutedLines = config.mode !== "preview";
@@ -399,7 +405,7 @@ async function main() {
     game.module.ui.forgetDisplayedImages();
     game.endSimulation();
     const t0 = performance.now();
-    if (checkpoint) game.load(checkpoint);
+    if (checkpoint) game.loadCheckpoint(checkpoint);
     return performance.now() - t0;
   };
   const display = async (game: Game) => {
@@ -475,7 +481,9 @@ async function main() {
     const resolver = compiler.programResolver?.passesLastResolve;
     const game = workerGame!;
     const before = residueOf(game);
-    lastCheckpoint = searched?.checkpoint ?? "";
+    const checkpoint = searched?.checkpoint;
+    let written: string | undefined;
+    lastCheckpoint = () => (written ??= (checkpoint && workerGame?.checkpointJson(checkpoint)) || "");
     const load = prepare(game, searched?.checkpoint);
     const shown = await display(game);
     const { sums: phases, intervals } = takeMeasures();

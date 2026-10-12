@@ -19,8 +19,10 @@
 // replaces them) start a new chain with a whole copy, as does a keyframe
 // whose live collections differ from that replay (#1701). The module state is the save with the story and the
 // collections left out, in a keyframe as in a delta. A checkpoint's full save
-// is written from its image when a caller asks for it (`getJson`), and a game
-// restores a checkpoint's image in place (`imageAt`).
+// is written from its image when a caller asks for it (`getJson`, `jsonOf`),
+// and a game restores a checkpoint's image in place (`imageAt`,
+// `checkpointAt`): the route's checkpoint reaches the preview's display as a
+// value, which no save is written for or read back from (#1758).
 
 import type { RecencyEntry } from "./RecencySet";
 
@@ -54,6 +56,20 @@ export interface CheckpointHost {
    *  them: each address in its durable form, since the save may load in
    *  another process (#700). */
   durableExecuted(executed: RecencyEntry[]): RecencyEntry[];
+}
+
+/** A checkpoint as the store holds it, taken out as a value of its own: its
+ *  beat's image, its save's module state and its runtime collections
+ *  replayed, each address as the session holds it. A truncate or a capture
+ *  after it leaves it as it is. A game restores it in place
+ *  (`Game.loadCheckpoint`), and its full save is written only when a caller
+ *  asks for the string (`CheckpointStore.jsonOf`) (#1758). */
+export interface StoredCheckpoint {
+  readonly image: unknown;
+  /** SaveData JSON with the story left out and the runtime collections
+   *  emptied. */
+  readonly body: string;
+  readonly runtime: RuntimeCollections;
 }
 
 interface ImageEntry {
@@ -168,6 +184,45 @@ export class CheckpointStore {
     return this.reconstruct(i);
   }
 
+  /** Checkpoint `index` as a value (`StoredCheckpoint`), or null if out of
+   *  range; a negative index counts from the end, as `at`'s does. Its
+   *  collections are replayed, and nothing is written. */
+  checkpointAt(index: number): StoredCheckpoint | null {
+    const n = this._entries.length;
+    const i = index < 0 ? n + index : index;
+    if (!Number.isInteger(i) || i < 0 || i >= n) {
+      return null;
+    }
+    const entry = this._entries[i]!;
+    return { image: entry.image, body: entry.body, runtime: this.runtimeAt(i) };
+  }
+
+  /** Checkpoint `index`'s image alone, or undefined if out of range. */
+  imageOf(index: number): unknown {
+    return this._entries[index]?.image;
+  }
+
+  /** The full save string of a checkpoint value, written by the story as it
+   *  is now, or null when the story cannot write its image. */
+  jsonOf(checkpoint: StoredCheckpoint): string | null {
+    // An image the story can no longer place (a compile emitted again a
+    // statement it names) has no save: the caller replays to it, as it does
+    // when `restoreCheckpoint` reports it unplaced, rather than load its
+    // modules beside a story that stands elsewhere.
+    const story = this._host.storyOfImage(checkpoint.image);
+    if (story === null) {
+      return null;
+    }
+    const save = JSON.parse(checkpoint.body);
+    save["story"] = story;
+    const rt = checkpoint.runtime;
+    save["runtime"] = runtimeJson({
+      ...rt,
+      pe: this._host.durableExecuted(rt.pe),
+    });
+    return JSON.stringify(save);
+  }
+
   /** Checkpoint `index`'s image, with its save's module state and runtime
    *  collections, or null if out of range. */
   imageAt(index: number): { image: unknown; save: Record<string, any> } | null {
@@ -217,23 +272,16 @@ export class CheckpointStore {
 
   protected reconstruct(index: number): string | null {
     const entry = this._entries[index]!;
-    // An image the story can no longer place (a compile emitted again a
-    // statement it names) has no save: the caller replays to it, as it does
-    // when `restoreCheckpoint` reports it unplaced, rather than load its
-    // modules beside a story that stands elsewhere.
-    const story = this._host.storyOfImage(entry.image);
-    if (story === null) {
-      return null;
-    }
-    // The collections are replayed once, since a chain may be long.
-    const save = JSON.parse(entry.body);
-    save["story"] = story;
-    const rt = this.runtimeAt(index);
-    save["runtime"] = runtimeJson({
-      ...rt,
-      pe: this._host.durableExecuted(rt.pe),
+    // The collections are replayed only once the story has written the
+    // image (`jsonOf` reads them after it), since a chain may be long.
+    const replay = () => this.runtimeAt(index);
+    return this.jsonOf({
+      image: entry.image,
+      body: entry.body,
+      get runtime() {
+        return replay();
+      },
     });
-    return JSON.stringify(save);
   }
 }
 

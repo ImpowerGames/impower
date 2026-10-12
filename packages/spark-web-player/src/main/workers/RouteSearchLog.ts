@@ -1,3 +1,4 @@
+import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
@@ -30,8 +31,11 @@ export interface RouteSearchOutcome {
   /** Did the replay actually reach that address? */
   reachedTarget: boolean;
   /** The newest checkpoint the replay produced, if it produced one. Present
-   *  does not imply `reachedTarget`. */
-  checkpoint?: string;
+   *  does not imply `reachedTarget`. The worker's searches record it as the
+   *  value the game holds (`searchRouteFor`), which its display loads in
+   *  place, and whose full save is written only for a reader that needs the
+   *  string (#1758). */
+  checkpoint?: string | StoredCheckpoint;
   /** Why the search did not get there, when it did not. Kept apart from
    *  `reachedTarget` because that answers whether the result is REUSABLE, while
    *  this answers what to tell the author — and the two do not always agree: a
@@ -47,6 +51,11 @@ export interface RouteSearchOutcome {
 /** Params a route-search outcome can be reported on. Structural, so both
  *  `CompiledProgramParams` and `SelectedCompilerDocumentParams` satisfy it. */
 export interface RouteSearchReportTarget {
+  /** The checkpoint, as a full save, when the search recorded one as a
+   *  string. One recorded as a value is not written here: the worker's
+   *  compile, preview compile and selection answers leave the checkpoint
+   *  out of what they send the page (`installSparkdownWorker`), and its
+   *  display and PLAY read the value (`checkpointFor`). */
   checkpoint?: string;
   simulatedAddress?: ProgramAddress | null;
   simulatedProgramId?: string;
@@ -85,6 +94,19 @@ export class RouteSearchLog {
     );
   }
 
+  /** The checkpoint the last search produced for `startAddress`, in the
+   *  form it was recorded in, under the rule `report` passes one on by:
+   *  whenever one was produced for this address. */
+  checkpointFor(
+    startAddress: ProgramAddress | null | undefined,
+  ): string | StoredCheckpoint | undefined {
+    const last = this._last;
+    if (!last || last.address !== startAddress) {
+      return undefined;
+    }
+    return last.checkpoint || undefined;
+  }
+
   /** Tell the client what is known about `startAddress`.
    *
    *  The checkpoint is passed on whenever one was produced for this address — the
@@ -115,7 +137,7 @@ export class RouteSearchLog {
     if (!last || last.address !== startAddress) {
       return;
     }
-    if (last.checkpoint) {
+    if (typeof last.checkpoint === "string" && last.checkpoint) {
       params.checkpoint = last.checkpoint;
     }
     if (last.reachedTarget || !last.checkpoint) {

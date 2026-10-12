@@ -116,8 +116,10 @@ export function planRouteForSelection<G extends RoutableGame>(
     ctx.searchRouteTo,
     ctx.profilerId,
   );
-  // Augment with the simulated checkpoint, and with what the search
-  // established about this start point. Nothing else here may be reported:
+  // Augment with what the search established about this start point, and
+  // with its checkpoint when the log holds it as a full save (the worker's
+  // searches keep it as a value, `RouteSearchLog.report`). Nothing else here
+  // may be reported:
   // the newest checkpoint in the store belongs to the last route that was
   // replayed, which is a different line whenever the search since then found
   // no route.
