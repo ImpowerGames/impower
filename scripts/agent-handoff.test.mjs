@@ -496,13 +496,14 @@ try {
   assert.deepEqual(retriedCompleted[1].pendingReviewers,["undirected-1"],"the journal names the planned reviewer that has not run");
   assert.deepEqual(retriedCompleted[3].completedRoundReviewers,{"ax-1":2,"undirected-1":1});
   assert.deepEqual(retriedCompleted[3].pendingReviewers,[]);
+  assert.ok(retriedCompleted.filter((row,index)=>index!==2).every(row=>row.plannedRoundReviewers.join()===planned.join()),"each review completion records the round's planned reviewers");
   assert.ok(retriedCompleted.every(row=>row.completedRound===1),"the retry and the correction stay in round 1");
   assert.deepEqual(retriedRows.filter(row=>row.event==="launching"&&row.role==="review").map(row=>[row.reviewerId,row.attempt]),[["ax-1",1],["ax-1",2],["undirected-1",1]]);
 
   // Recovery carries the record: a resumed plan continues the same round.
   const resumeAt = retriedCompleted[1];
   git("commit","--allow-empty","-m","correction after the retry");
-  const resumed = (overrides, journal) => ({ ...lifecycle, first:"undirected", maxSteps:1, completedReviewRound:1, reviewedHead:resumeAt.reviewedHead, completedRoundReviews:resumeAt.completedRoundReviews, completedRoundReviewers:resumeAt.completedRoundReviewers, finalCorrections:false, journal:path.join(scratch,journal), steps:{ undirected:retryStep("undirected-1",undefined,"null") }, ...overrides });
+  const resumed = (overrides, journal) => ({ ...lifecycle, first:"undirected", maxSteps:1, completedReviewRound:1, reviewedHead:resumeAt.reviewedHead, completedRoundReviews:resumeAt.completedRoundReviews, completedRoundReviewers:resumeAt.completedRoundReviewers, plannedRoundReviewers:resumeAt.plannedRoundReviewers, finalCorrections:false, journal:path.join(scratch,journal), steps:{ undirected:retryStep("undirected-1",undefined,"null") }, ...overrides });
   const resumedPlan = resumed({}, "resumed-round.jsonl");
   fs.writeFileSync(file,JSON.stringify(resumedPlan)); await runHandoff(file);
   assert.deepEqual(fs.readFileSync(resumedPlan.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviewers,{"ax-1":2,"undirected-1":1},"a resumed plan completes the round's remaining planned reviewer");
@@ -511,10 +512,18 @@ try {
     fs.writeFileSync(file,JSON.stringify(plan)); await assert.rejects(runHandoff(file),pattern);
     assert.ok(!fs.existsSync(plan.journal) || !fs.readFileSync(plan.journal,"utf8").includes('"event":"launching"'), `${journal} must refuse before launch`);
   };
-  await refusedResume({ completedRoundReviewers:undefined }, null, /Supply completedRoundReviewers/, "resume-without-record.jsonl");
+  await refusedResume({ completedRoundReviewers:undefined }, null, /Supply completedRoundReviewers from the journal as an object/, "resume-without-record.jsonl");
+  await refusedResume({ plannedRoundReviewers:undefined }, null, /Supply plannedRoundReviewers/, "resume-without-planned.jsonl");
+  // Without any of the round's record a named retry cannot be placed, so it
+  // is refused rather than journalled with null accounting.
+  await refusedResume({ completedRoundReviews:undefined, completedRoundReviewers:undefined, plannedRoundReviewers:undefined }, { undirected:retryStep("ax-1",3,"null") }, /needs the round's record/, "resume-without-any-record.jsonl");
   await refusedResume({ completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, null, /equal to its number of reviewers/, "resume-mismatched-count.jsonl");
   await refusedResume({}, { undirected:retryStep("ax-1",2,"null") }, /needs a higher attempt/, "resume-stale-attempt.jsonl");
-  await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["blast-1","undirected-1"] } }, /planned reviewers omit/, "resume-replanned-round.jsonl");
+  await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["blast-1","undirected-1"] } }, /cannot change once it has started/, "resume-replanned-round.jsonl");
+  // A pending planned reviewer cannot be swapped for another, and a completed
+  // round cannot grow a place for a further reviewer on the corrected head.
+  await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["ax-1","blast-1"] } }, /cannot change once it has started/, "resume-replaced-pending.jsonl");
+  await refusedResume({ completedRoundReviews:2, completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, { undirected:{ ...retryStep("third-1",undefined,"null"), reviewers:[...planned,"third-1"] } }, /cannot change once it has started/, "resume-expanded-round.jsonl");
   await refusedResume({}, { undirected:{ ...retryStep("third-1",undefined,"null") } }, /must be one of its planned reviewers/, "resume-added-reviewer.jsonl");
   await refusedResume({}, { undirected:{ ...lifecycle.steps.review, round:1, reviewers:2 } }, /later reviewers need reviewerId/, "resume-unnamed-reviewer.jsonl");
   await refusedResume({}, { undirected:{ ...retryStep("undirected-1",undefined,"null"), reviewerId:undefined } }, /needs reviewerId/, "resume-missing-id.jsonl");
