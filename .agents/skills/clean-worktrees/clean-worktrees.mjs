@@ -1335,9 +1335,10 @@ function physicalPath(value, deps) {
 // a probe's install among them, are scratch), and every commit the clone holds
 // outside its remote-tracking refs is an ancestor of the main checkout's
 // origin/main: HEAD, every local branch, stash and other ref, every tag the
-// main checkout does not hold with the same object, and every commit their
-// reflogs reach. A reviewer's probe clone of a merged PR passes; anything git
-// cannot answer for, an unreadable HEAD included, is kept.
+// main checkout does not hold with the same object, and every commit the
+// reflogs of HEAD and every non-remote ref reach. A clone with a linked
+// worktree of its own is kept. A reviewer's probe clone of a merged PR passes;
+// anything git cannot answer for, an unreadable HEAD included, is kept.
 function embeddedCloneReason(clone, deps, ctx) {
   const kept = (why) => `protected embedded Git repository ${clone} (${why})`;
   const git = (args, cwd = clone) => {
@@ -1353,6 +1354,12 @@ function embeddedCloneReason(clone, deps, ctx) {
   const status = git(["status", "--porcelain", "--untracked-files=all"]);
   if (status.status !== 0) return kept(`git status could not be read${status.err ? `: ${status.err}` : ""}`);
   if (status.out) return kept("it has uncommitted or untracked files");
+  // A worktree the clone registered elsewhere shares its object database, so
+  // removing the clone would take that checkout's repository with it.
+  const linked = git(["worktree", "list", "--porcelain"]);
+  if (linked.status !== 0) return kept(`its worktrees could not be listed${linked.err ? `: ${linked.err}` : ""}`);
+  const others = parseWorktreeList(linked.out).filter((entry) => { try { return !samePath(physicalPath(entry.path, deps), physicalPath(clone, deps)); } catch { return true; } });
+  if (others.length) return kept(`it has linked worktrees: ${others.map((entry) => entry.path).join(", ")}`);
   const head = git(["rev-parse", "--verify", "-q", "HEAD^{commit}"]);
   if (head.status !== 0 || !head.out) return kept(`its HEAD could not be read${head.err ? `: ${head.err}` : ""}`);
   const refs = git(["for-each-ref", "--format=%(objectname) %(*objectname) %(refname)"]);
@@ -1366,8 +1373,9 @@ function embeddedCloneReason(clone, deps, ctx) {
     if (name.startsWith("refs/tags/") && git(["rev-parse", "-q", "--verify", name], ctx.mainRoot).out === object) continue;
     tips.add(peeled || object);
   }
-  // Commits only a reflog still reaches, after a reset or a deleted branch.
-  const reflogs = git(["log", "-g", "--format=%H", "HEAD", "--branches", "--tags", "--glob=refs/stash"]);
+  // Commits only a reflog still reaches, after a reset or a deleted branch, in
+  // every local ref namespace.
+  const reflogs = git(["log", "-g", "--format=%H", "--exclude=refs/remotes/*", "--all", "HEAD"]);
   if (reflogs.status !== 0) return kept(`its reflogs could not be read${reflogs.err ? `: ${reflogs.err}` : ""}`);
   for (const commit of reflogs.out.split(/\s+/).filter(Boolean)) tips.add(commit);
   for (const tip of tips) {

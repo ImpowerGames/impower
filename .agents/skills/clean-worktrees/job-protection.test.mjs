@@ -182,22 +182,31 @@ try {
   assert.equal(fs.readFileSync(path.join(heldCheckout, 'ignored.txt'), 'utf8'), 'held sentinel');
   assert.ok(fs.existsSync(path.join(heldClone, '.git')));
   assert.ok(isRegistered(heldCheckout));
-  // A local commit kept by a branch, by a tag alone or by a reflog alone (the
-  // branch reset back to origin/main) keeps the clone, as does an untracked file.
-  for (const state of ['untracked', 'committed', 'tagged', 'reflog']) {
+  // A local commit kept by a branch, by a tag alone, by a branch reflog alone
+  // (the branch reset back to origin/main) or by a custom ref's reflog alone
+  // keeps the clone, as do an untracked file and a linked worktree of the
+  // clone's own. The tag and custom-ref commits are made with commit-tree, so
+  // no HEAD or branch reflog reaches them.
+  for (const state of ['untracked', 'committed', 'tagged', 'reflog', 'custom-reflog', 'linked']) {
     const fixture = job();
     const clone = probeClone(fixture.dir);
-    fs.writeFileSync(path.join(clone, 'probe.txt'), state);
-    const inClone = (...args) => { const r = spawnSync('git', args, { cwd: clone, windowsHide: true, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); };
-    if (state !== 'untracked') {
+    const inClone = (...args) => { const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', ...args], { cwd: clone, windowsHide: true, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+    if (state === 'untracked' || state === 'committed' || state === 'reflog') fs.writeFileSync(path.join(clone, 'probe.txt'), state);
+    if (state === 'committed' || state === 'reflog') {
       inClone('add', 'probe.txt');
-      inClone('-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'commit', '-q', '-m', 'local only');
-      if (state === 'tagged') inClone('tag', 'saved-work');
-      if (state === 'tagged' || state === 'reflog') inClone('reset', '-q', '--hard', 'origin/main');
+      inClone('commit', '-q', '-m', 'local only');
+      if (state === 'reflog') inClone('reset', '-q', '--hard', 'origin/main');
     }
+    if (state === 'tagged' || state === 'custom-reflog') {
+      const local = inClone('commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'local only');
+      if (state === 'tagged') inClone('tag', 'saved-work', local);
+      else { inClone('update-ref', '--create-reflog', 'refs/probe/saved', local); inClone('update-ref', 'refs/probe/saved', 'HEAD'); }
+    }
+    const external = path.join(scratch, `linked-${fixture.name}`);
+    if (state === 'linked') inClone('worktree', 'add', '-q', '--detach', external, 'HEAD');
     const verdict = classifyJob(fixture.name, fixture.dir, deps, ctx);
     assert.equal(verdict.remove, false, `a ${state} probe clone was removable`);
-    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : /is not on origin\/main/);
+    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : state === 'linked' ? /has linked worktrees/ : /is not on origin\/main/);
     cleanJobs(ctx, deps, true, () => {});
     assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
   }
