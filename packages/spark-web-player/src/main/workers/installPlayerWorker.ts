@@ -27,6 +27,11 @@ import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSpa
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import { planPreviewHint, type PreviewHintState } from "../utils/previewHint";
+import {
+  classifyDisplay,
+  type DisplayClass,
+  type ShownDisplay,
+} from "./classifyDisplay";
 import { displayPreviewFrom } from "./displayPreviewFrom";
 import {
   DisplayPreviewMessage,
@@ -82,7 +87,11 @@ export function installPlayerWorker(connection: MessageConnection) {
     /** The identities of the programs the worker keeps to display, which
      *  stay bounded however long the author browses and edits. */
     keptPrograms: (): string[] => [...displayable.keys()],
+    /** How the last display was classified: in place, or in full and why
+     *  (#657). */
+    lastDisplayClass: (): DisplayClass | undefined => lastDisplayClass,
   };
+  let lastDisplayClass: DisplayClass | undefined;
   // The warm-up is planned before the compiler handles the selection, which
   // can recompile the real documents first, so the fetches start as soon as
   // the selection arrives. Registered before the compiler's own listener,
@@ -401,6 +410,12 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   let displays = 0;
 
+  /** The display the page shows, while it shows that alone: set when a
+   *  display completes, and cleared by anything the game sends the page
+   *  that changes what it shows, a later display's stream among it, until
+   *  that display completes in turn (#657). */
+  let shown: ShownDisplay | undefined;
+
   /** What the step the display under way runs raises, which its answer
    *  carries with what the route raised, so the page reports the preview's
    *  run whole rather than hearing part of it before it knows the display is
@@ -424,6 +439,14 @@ export function installPlayerWorker(connection: MessageConnection) {
       const { message: text, type, location } = message.params;
       displayErrors.push({ message: text, type, location });
       return;
+    }
+    // Only the game's reports and the asset cache's traffic leave the
+    // frame as it is.
+    if (
+      !message.method.startsWith("game/") &&
+      !message.method.startsWith("assets/")
+    ) {
+      shown = undefined;
     }
     if (gameState.running) {
       if (isRequest(message)) {
@@ -519,6 +542,18 @@ export function installPlayerWorker(connection: MessageConnection) {
       );
       displayedId = entry.id;
       releaseUnneeded();
+      const showing: ShownDisplay = {
+        program: entry.program,
+        speculative: params.speculative,
+        file: params.file,
+        line: params.line,
+        definesContextBuilds: game.definesContextBuilds,
+      };
+      const kind = classifyDisplay(shown, showing, {
+        fresh,
+        checkpointLoads: typeof route.checkpoint === "object",
+      });
+      lastDisplayClass = kind;
       const stepErrors: SimulationError[] = [];
       displayErrors = stepErrors;
       const displaying = displayPreviewFrom(game, {
@@ -529,6 +564,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
+        inPlace: kind.inPlace,
         send: sendToPage,
         superseded: () =>
           display !== displays ||
@@ -542,6 +578,9 @@ export function installPlayerWorker(connection: MessageConnection) {
         if (displayErrors === stepErrors) {
           displayErrors = undefined;
         }
+      }
+      if (displayed) {
+        shown = showing;
       }
       if (
         !displayed &&
@@ -611,6 +650,8 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  way. */
   const play = (params: PlayParams): PlayResult => {
     displays += 1;
+    // The page shows PLAY's game from now on.
+    shown = undefined;
     routingTo = params.startFrom ?? null;
     pageHolds(params.program);
     const entry = displayable.get(params.program);

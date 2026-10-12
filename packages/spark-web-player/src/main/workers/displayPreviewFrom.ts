@@ -24,8 +24,17 @@ export interface DisplayingGame {
   connect(
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
   ): Promise<void>;
+  connectInPlace(
+    send: (message: Message, transfer?: ArrayBuffer[]) => void,
+  ): Promise<boolean>;
   preview(file: string, line: number): Promise<ProgramAddress | null>;
-  module: { ui: { forgetDisplayedImages(): void; sweepReconcile(): void } };
+  module: {
+    ui: {
+      forgetDisplayedImages(): void;
+      sweepReconcile(): void;
+      recordDisplayed(): void;
+    };
+  };
 }
 
 export interface DisplayRequest {
@@ -42,6 +51,12 @@ export interface DisplayRequest {
    *  save. */
   checkpoint?: string | StoredCheckpoint;
   simulationFailure?: SimulationFailure;
+  /** The page shows the game's last display, and nothing but the cursor's
+   *  line changed since (`classifyDisplay`): the game returns the page to
+   *  the checkpoint's state where it differs and previews, rather than
+   *  connecting and closing a reconcile pass (#657). Taken only once the
+   *  route's checkpoint value has loaded. */
+  inPlace?: boolean;
   /** Where the game sends the page what it displays. */
   send: (message: Message, transfer?: ArrayBuffer[]) => void;
   /** A later display, or a compile, took the game over. */
@@ -89,11 +104,12 @@ export async function displayPreviewFrom(
   // modules restore as a simulation does.
   game.endSimulation();
   const checkpoint = request.checkpoint;
+  let loaded = false;
   if (typeof checkpoint === "string" && checkpoint) {
     game.load(checkpoint);
   } else if (checkpoint && typeof checkpoint === "object") {
     // No save is written of the route's checkpoint and read back (#1758).
-    game.loadCheckpoint(checkpoint);
+    loaded = game.loadCheckpoint(checkpoint) === true;
   } else {
     if (validPreviewAddress != null) {
       game.simulateFlow = game.routeStartOf(validPreviewAddress);
@@ -101,7 +117,13 @@ export async function displayPreviewFrom(
     game.simulation = "fail";
     game.simulationFailure = request.simulationFailure;
   }
-  await game.connect(send);
+  // Without the checkpoint the module state is not the route's, and the
+  // page is put in it by the connect.
+  const inPlace =
+    request.inPlace === true && loaded && (await game.connectInPlace(send));
+  if (!inPlace) {
+    await game.connect(send);
+  }
   if (superseded()) {
     return false;
   }
@@ -111,6 +133,11 @@ export async function displayPreviewFrom(
   if (superseded()) {
     return false;
   }
-  game.module.ui.sweepReconcile();
+  if (!inPlace) {
+    game.module.ui.sweepReconcile();
+  }
+  // Everything this display shows has been sent: the next display can be
+  // one in place.
+  game.module.ui.recordDisplayed();
   return true;
 }

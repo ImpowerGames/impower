@@ -25,6 +25,8 @@ import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
 import { searchRouteFor } from "../../packages/spark-web-player/src/main/workers/searchRouteTo";
+import { classifyDisplay, type ShownDisplay } from "../../packages/spark-web-player/src/main/workers/classifyDisplay";
+import { displayPreviewFrom, type DisplayingGame } from "../../packages/spark-web-player/src/main/workers/displayPreviewFrom";
 import type { StoredCheckpoint } from "../../packages/spark-engine/src/game/core/classes/CheckpointStore";
 import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
 import { totalLength, uncovered } from "./phaseGaps.mjs";
@@ -149,7 +151,12 @@ class PageSink {
   }
 
   connect(game: Game) {
-    return game.connect((sent: any) => {
+    return game.connect(this.sender(game));
+  }
+
+  /** Where `game` sends the page what it displays, connected or in place. */
+  sender(game: Game) {
+    return (sent: any) => {
       if (!this.open) {
         this.outside[sent.method] = (this.outside[sent.method] ?? 0) + 1;
         return;
@@ -178,7 +185,7 @@ class PageSink {
         this.bytesIn += back.length;
         game.connection.receive(received);
       });
-    });
+    };
   }
 
   // Records any key or string in a message that only the program, the
@@ -384,10 +391,13 @@ async function main() {
   configurePlayerCompiler(compiler, files, startFrom);
   compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
 
-  // A preview's display, in the order the worker's display runs it
-  // (`displayPreviewFrom`): declare the preview, drop the last preview's
-  // images, end the route search's simulation, load the route's checkpoint,
-  // connect, preview.
+  // A preview's display, as the worker's display runs it: classified against
+  // the display before it (`classifyDisplay`), then `displayPreviewFrom`,
+  // which declares the preview, drops the last preview's images, ends the
+  // route search's simulation, loads the route's checkpoint, connects or
+  // puts the page in place (#657), and previews. Its steps are timed by
+  // name through a stand-in that hands every other read and write to the
+  // game.
   let lastCheckpoint: (() => string) | undefined;
   const sink = new PageSink(() => (lastCheckpoint ? [lastCheckpoint()] : []));
   //
@@ -397,27 +407,66 @@ async function main() {
   // nothing, the ui module writes instantly). Every entry is a call the
   // engine offers; the benchmark resets no field by hand.
   const CALLS = ["game.endSimulation()"];
-  const prepare = (game: Game, checkpoint: StoredCheckpoint | undefined) => {
-    // What a preview displays is a suggestion, whose report the player takes
-    // without what only the editors read.
-    game.reportsExecutedLines = config.mode !== "preview";
-    game.markPreviewing(searched?.to);
-    game.module.ui.forgetDisplayedImages();
-    game.endSimulation();
-    const t0 = performance.now();
-    if (checkpoint) game.loadCheckpoint(checkpoint);
-    return performance.now() - t0;
-  };
-  const display = async (game: Game) => {
+  const STEPS = ["loadCheckpoint", "connect", "connectInPlace", "preview"];
+  let shown: ShownDisplay | undefined;
+  const display = async (game: Game, checkpoint: StoredCheckpoint | undefined) => {
+    const times: Record<string, number> = Object.fromEntries(STEPS.map((s) => [s, 0]));
+    const timed = new Proxy(game, {
+      get(target, key) {
+        const value = Reflect.get(target, key, target);
+        if (typeof value !== "function") return value;
+        const call = value.bind(target);
+        if (!STEPS.includes(key as string)) return call;
+        return (...args: unknown[]) => {
+          const t0 = performance.now();
+          const result = call(...args);
+          const add = () => (times[key as string]! += performance.now() - t0);
+          if (result instanceof Promise) return result.finally(add);
+          add();
+          return result;
+        };
+      },
+      set: (target, key, value) => Reflect.set(target, key, value, target),
+    });
+    const showing: ShownDisplay = {
+      program: game.program,
+      // What a preview displays is a suggestion, whose report the player
+      // takes without what only the editors read.
+      speculative: config.mode === "preview",
+      file: mainUri,
+      line: line0,
+      definesContextBuilds: game.definesContextBuilds,
+    };
+    const kind = classifyDisplay(shown, showing, {
+      fresh: shown === undefined,
+      checkpointLoads: checkpoint !== undefined,
+    });
     sink.reset();
     sink.open = true;
     const t0 = performance.now();
-    await sink.connect(game);
-    const t1 = performance.now();
-    const previewed = await game.preview(mainUri, line0);
-    const t2 = performance.now();
+    const displayed = await displayPreviewFrom(timed as unknown as DisplayingGame, {
+      program: game.program,
+      programChanged: true,
+      file: mainUri,
+      line: line0,
+      speculative: showing.speculative,
+      checkpoint,
+      inPlace: kind.inPlace,
+      send: sink.sender(game),
+      superseded: () => false,
+    });
+    const total = performance.now() - t0;
     sink.open = false;
-    return { connect: t1 - t0, preview: t2 - t1, previewed };
+    shown = displayed ? showing : undefined;
+    return {
+      load: times["loadCheckpoint"]!,
+      connect: times["connect"]! + times["connectInPlace"]!,
+      preview: times["preview"]!,
+      total,
+      inPlace: kind.inPlace,
+      reason: kind.inPlace ? "in place" : kind.reason,
+      previewed: game.previewedAddress,
+    };
   };
   // What the route search left on the game the display is from, read before
   // the display prepares it.
@@ -484,8 +533,8 @@ async function main() {
     const checkpoint = searched?.checkpoint;
     let written: string | undefined;
     lastCheckpoint = () => (written ??= (checkpoint && workerGame?.checkpointJson(checkpoint)) || "");
-    const load = prepare(game, searched?.checkpoint);
-    const shown = await display(game);
+    const shown = await display(game, checkpoint);
+    const load = shown.load;
     const { sums: phases, intervals } = takeMeasures();
     if (i < config.warmup) continue;
     const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
@@ -500,11 +549,13 @@ async function main() {
         "(of which worker game.updateProgram)": workerGameMs,
         "(of which unattributed)": totalLength(gaps),
         "worker game.load": load,
+        // The connect, or the display in place that stood for it (#657).
         "worker connect": shown.connect,
         "worker preview": shown.preview,
         "(of which message clone)": sink.cloneMs,
         "total without the DOM": t1 - t0 + load + sink.cloneMs,
       },
+      display: shown.reason,
       phases,
       messages: sink.stats(),
       passes,
@@ -571,6 +622,15 @@ function printReport(report: any) {
     `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
+    // How each measured sample's display went (`classifyDisplay`, #657).
+    `displays: ${Object.entries(
+      (report.perSample ?? []).reduce((counts: Record<string, number>, s: any) => {
+        counts[s.display] = (counts[s.display] ?? 0) + 1;
+        return counts;
+      }, {}),
+    )
+      .map(([how, n]) => `${n} ${how}`)
+      .join(", ")}`,
     ...(report.noFlowReuse ? ["parsed-flow reuse refused on every compile (--no-flow-reuse)"] : []),
     ...(report.parsedProbe ? [`parsed objects alive after the last sample: ${report.parsedProbe.parsedObjects}`] : []),
     "",

@@ -906,19 +906,30 @@ export class AssetModule extends Module<
     // portrait, which shows only with the beat that writes it) is not
     // restored, so its picture is not waited for: the beat's own gate asks
     // for the portrait the beat shows.
-    const names: string[] = [];
     const ui = this._game.module.ui;
-    const imageState = ui.state.image;
-    if (imageState) {
-      const cleared = new Set(ui.getTransientTargets());
-      for (const [target, events] of Object.entries(imageState)) {
-        if (cleared.has(target)) {
-          continue;
-        }
-        for (const event of events ?? []) {
-          if (event.control === "show" && event.assets?.length) {
-            names.push(...event.assets);
-          }
+    const cleared = new Set(ui.getTransientTargets());
+    await this.holdRestored(
+      Object.keys(ui.state.image ?? {}).filter((target) => !cleared.has(target)),
+    );
+  }
+
+  /**
+   * The restore gate for the image targets `targets`: the pictures their
+   * state shows are made resident, pinned until `onRestore` lets them go,
+   * so that the restore that writes them does not show a backdrop late. The
+   * connect gates every target it restores; a display in place gates the
+   * targets it writes again (`UIModule.restoreInPlace`, #657).
+   */
+  async holdRestored(targets: string[]): Promise<void> {
+    if (this.silent) {
+      return;
+    }
+    const names: string[] = [];
+    const imageState = this._game.module.ui.state.image;
+    for (const target of targets) {
+      for (const event of imageState?.[target] ?? []) {
+        if (event.control === "show" && event.assets?.length) {
+          names.push(...event.assets);
         }
       }
     }
@@ -937,6 +948,12 @@ export class AssetModule extends Module<
   }
 
   override async onRestore(): Promise<void> {
+    this.releaseRestored();
+  }
+
+  /** Let go of what the restore gate pinned (`holdRestored`), once the
+   *  restore has written it. */
+  releaseRestored(): void {
     if (this._restorePending) {
       this._restorePending = false;
       this.release(["restore"], false);
@@ -1037,7 +1054,10 @@ export class AssetModule extends Module<
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
     this._fontNamesByLayout.clear();
-    this._previewWindow = null;
+    // The preview window stays: the scene the story stands in is entered
+    // again at the next observation, which sends its window whatever was
+    // sent before, unless a display in place keeps the scene, whose map is
+    // then unchanged (`Game.connectInPlace`, #657).
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {

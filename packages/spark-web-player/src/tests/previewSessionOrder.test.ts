@@ -55,6 +55,7 @@ function recordingGame(calls: string[], state = "previewing") {
       ui: {
         forgetDisplayedImages: () => calls.push("forgetDisplayedImages"),
         sweepReconcile: () => calls.push("sweepReconcile"),
+        recordDisplayed: () => {},
       },
     },
     load: () => calls.push("load"),

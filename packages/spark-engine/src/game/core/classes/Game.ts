@@ -291,6 +291,14 @@ export class Game<T extends M = {}> {
     return this._sceneTracker;
   }
 
+  /** A program was given to the game since the scene was last observed, so
+   *  the next observation forgets the scene the tracker holds, enters the
+   *  scene the story stands in and requests what it needs: the scene map may
+   *  have changed with the program. A display in place keeps the scene,
+   *  whose map its classification found unchanged ({@link connectInPlace},
+   *  #657). */
+  protected _sceneTrackingStale = false;
+
   protected _executingLocation: ScriptLocation | null = null;
 
   protected _runtimeErrorsReported = 0;
@@ -792,8 +800,9 @@ export class Game<T extends M = {}> {
       // the preview goes blank until the cursor moves to a different beat.
       this._previewedAddress = undefined;
       // The scene map may have changed with the program; the next observation
-      // re-enters the current scene and re-requests what it needs.
-      this._sceneTracker?.reset();
+      // re-enters the current scene and re-requests what it needs, unless a
+      // display in place keeps the scene first (`_sceneTrackingStale`).
+      this._sceneTrackingStale = true;
     }
     return this._program;
   }
@@ -1076,6 +1085,10 @@ export class Game<T extends M = {}> {
     if (this._destroyed || this._simulation === "simulating") {
       return;
     }
+    if (this._sceneTrackingStale) {
+      this._sceneTrackingStale = false;
+      this._sceneTracker.reset();
+    }
     // This runs on every position change in the step loop; the call stack is
     // walked only when the scene actually changes. A call into a function
     // keeps the scene current, as `SceneTracker.observe` rules with the same
@@ -1135,6 +1148,47 @@ export class Game<T extends M = {}> {
       return;
     }
     await this.restore();
+  }
+
+  /**
+   * The counterpart of {@link connect} for a display whose page already
+   * shows this game's last display, with the same layouts and the same
+   * scene (#657): no module connects, no reconcile pass begins, and the
+   * scene is neither entered again nor predicted around again. The page
+   * goes back to the state the game holds (a checkpoint it has just loaded)
+   * for each target whose state differs from what the page shows
+   * (`UIModule.restoreInPlace`), and the choices the beat on the page
+   * presented stop answering clicks before anything else is sent. Answers
+   * false, having changed nothing, when the page's layouts are not the ones
+   * the state mounts or the UI module holds no record of what the page
+   * shows; the caller then connects.
+   */
+  async connectInPlace(
+    send: (message: Message, transfer?: ArrayBuffer[]) => void,
+  ): Promise<boolean> {
+    const ui = this.module.ui;
+    if (!ui.canRestoreInPlace()) {
+      return false;
+    }
+    // As the connect does: a preview waiting from before it would display
+    // its beat over the restored state.
+    this.cancelPreview();
+    this._connection.connectOutput(send);
+    // A new stream, as the connect's is, so that what an earlier one still
+    // has in flight does not land on it.
+    this._connection.beginEpoch();
+    // The classification found the scene map unchanged.
+    this._sceneTrackingStale = false;
+    // The connect drops every handler the beat registered with the root it
+    // builds again; here the root stays, so the shown choices are observed
+    // no longer, before anything waits.
+    const choices = this._shownChoices;
+    this._shownChoices = [];
+    for (const target of choices) {
+      ui.unobserve("click", target);
+    }
+    await ui.restoreInPlace();
+    return true;
   }
 
   /** Where a run from `startFrom` begins: the address of the beat on the

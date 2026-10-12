@@ -519,6 +519,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   // onStart). Cleared at the end of the next refreshLayouts walk.
   protected _refreshAll = false;
 
+  // While set, every binding re-evaluates, as under `_refreshAll`, but only a
+  // value that differs from the one the page shows (`last`) is painted
+  // (`refreshAllBindings`).
+  protected _reevaluateAll = false;
+
+  /** What the page shows of the targets this module's state holds, as of
+   *  the last display that completed (`recordDisplayed`): each text and
+   *  image target's state, written out, and the layouts the state mounts. */
+  protected _displayed?: {
+    text: Map<string, string>;
+    image: Map<string, string>;
+    layout: string;
+  };
+
+  /** The text and image targets the page shows nothing on, as a display in
+   *  place found them (`restoreInPlace`) and every write and clear sent the
+   *  page since has kept them, so that a clear of one sends nothing: a beat
+   *  clears every transient target, and most show nothing already. None
+   *  are known before the first display in place, nor from the start of
+   *  each connect, which builds the page again. */
+  protected _emptyOnPage?: { text: Set<string>; image: Set<string> };
+
   constructor(game: Game) {
     super(game);
     this.initLayouts();
@@ -654,6 +676,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override async onConnected() {
+    this._emptyOnPage = undefined;
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
@@ -765,6 +788,149 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     await Promise.all(tasks);
+  }
+
+  /** Note what the page now shows of the targets the state holds, once a
+   *  display has sent the page all of it, for the display in place that may
+   *  follow (`restoreInPlace`, #657). */
+  recordDisplayed(): void {
+    const written = (states: Record<string, unknown> | undefined) =>
+      new Map(
+        Object.entries(states ?? {}).map(([target, state]) => [
+          target,
+          JSON.stringify(state),
+        ]),
+      );
+    this._displayed = {
+      text: written(this._state.text),
+      image: written(this._state.image),
+      layout: JSON.stringify(this._state.layout ?? []),
+    };
+  }
+
+  /** Whether `restoreInPlace` can put the page in the state the module
+   *  holds: the page's root is the one this module built, and the layouts
+   *  the state mounts are the ones the page shows. A layout opened or
+   *  closed differently is mounted or destroyed only by a connect. */
+  canRestoreInPlace(): boolean {
+    return (
+      this._displayed !== undefined &&
+      this._root !== undefined &&
+      this._displayed.layout === JSON.stringify(this._state.layout ?? [])
+    );
+  }
+
+  /**
+   * Put the page, which shows the last display (`recordDisplayed`), in the
+   * state the module holds, as a connect's construction and restore would
+   * leave it, sending only what differs (#657). The layouts stay mounted:
+   * every binding re-evaluates, and only a value that differs from the one
+   * on the page is painted. Every transient target the page shows anything
+   * on is cleared, and every transient target's state goes, as the connect
+   * clears them. Each other text and image target whose state differs from
+   * the one on the page is written again as the restore writes it, its
+   * pictures resident first (`AssetModule.holdRestored`), or cleared when
+   * the state holds none for it. Every style and attribute target the
+   * state holds is applied again, as the restore applies them, since what a
+   * beat changes outside the state (a choice's `display`, say) is applied
+   * over them and a connect's restore applies them over it in turn.
+   */
+  async restoreInPlace(): Promise<void> {
+    const shown = this._displayed;
+    if (!shown) {
+      return;
+    }
+    const epoch = this._game.connection.epoch;
+    // The connect's construction takes the reactive changes; here they go
+    // with a refresh that reads every binding against the loaded state.
+    this.refreshAllBindings();
+    const transient = new Set(this.getTransientTargets());
+    const empty = (this._emptyOnPage ??= {
+      text: new Set(),
+      image: new Set(),
+    });
+    const tasks: Promise<void>[] = [];
+    for (const target of transient) {
+      if (shown.text.has(target)) {
+        empty.text.delete(target);
+        tasks.push(this.text.clear(target));
+      } else {
+        // Cleared on the page by the connect or a beat since, and written
+        // by none.
+        empty.text.add(target);
+        delete this._state.text?.[target];
+      }
+      if (shown.image.has(target)) {
+        empty.image.delete(target);
+        tasks.push(this.image.clear(target));
+      } else {
+        empty.image.add(target);
+        delete this._state.image?.[target];
+      }
+    }
+    const changed = (
+      states: Record<string, unknown> | undefined,
+      onPage: Map<string, string>,
+    ) => {
+      const targets = new Set([...onPage.keys(), ...Object.keys(states ?? {})]);
+      return [...targets].filter((target) => {
+        if (transient.has(target)) {
+          return false;
+        }
+        const state = states?.[target];
+        return (
+          (state === undefined ? undefined : JSON.stringify(state)) !==
+          onPage.get(target)
+        );
+      });
+    };
+    const texts = changed(this._state.text, shown.text);
+    const images = changed(this._state.image, shown.image);
+    const restored = images.filter((target) => this._state.image?.[target]);
+    if (restored.length > 0) {
+      await this._game.module.assets?.holdRestored(restored);
+      if (this.superseded(epoch)) {
+        return;
+      }
+    }
+    for (const target of texts) {
+      tasks.push(
+        this._state.text?.[target]
+          ? this.text.restore(target)
+          : this.text.clear(target),
+      );
+    }
+    for (const target of images) {
+      tasks.push(
+        this._state.image?.[target]
+          ? this.image.restore(target)
+          : this.image.clear(target),
+      );
+    }
+    for (const target of Object.keys(this._state.style ?? {})) {
+      tasks.push(this.style.restore(target));
+    }
+    for (const target of Object.keys(this._state.attributes ?? {})) {
+      tasks.push(this.attributes.restore(target));
+    }
+    this.flushUIBatch();
+    if (restored.length > 0) {
+      // As the connect's restore: the pictures are let go once written.
+      await Promise.all(tasks);
+      this._game.module.assets?.releaseRestored();
+    }
+  }
+
+  /** Re-evaluate every binding of the mounted layouts against the story's
+   *  state, painting only what differs from what the page shows: the page
+   *  keeps the layouts while the story's state is replaced under them. */
+  refreshAllBindings(): void {
+    this._reevaluateAll = true;
+    try {
+      this.refreshLayouts();
+    } finally {
+      this._reevaluateAll = false;
+    }
   }
 
   /** Reduce an element's `name`/`type` to a path-segment token: only
@@ -3187,7 +3353,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  also honor `_refreshAll`, because a suppressed-paint mount leaves `last`
    *  matching the new value while the DOM shows the old one). */
   protected depsChanged(deps: ReactiveDeps, changes: ReactiveDeps): boolean {
-    if (this._refreshAll) {
+    if (this._refreshAll || this._reevaluateAll) {
       return true;
     }
     for (const g of deps.globals) {
@@ -4059,6 +4225,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // span/whitespace/text-align decomposition AND the per-char reveal of
         // the `text`/`stroke` content children to the consumer via a single
         // `ui/write-text` message per target.
+        if (sequence) {
+          $._emptyOnPage?.text.delete(target);
+        } else {
+          $._emptyOnPage?.text.add(target);
+        }
         const targetEls = $.findElements(target);
         for (const targetEl of targetEls) {
           if (targetEl) {
@@ -4102,6 +4273,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async clear(target: string) {
         this.saveState(target, null);
+        if ($._emptyOnPage?.text.has(target)) {
+          return;
+        }
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, null, true);
         }
@@ -4460,6 +4634,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // the `backdrop`/`portrait` wrapper) but delegates the image-layer
         // realization + animation lifecycle to the consumer via a single
         // `ui/write-image` carrying a fully-resolved `WriteImageInstruction[]`.
+        if (sequence) {
+          $._emptyOnPage?.image.delete(target);
+        } else {
+          $._emptyOnPage?.image.add(target);
+        }
         const targetEls = $.findElements(target);
         for (const targetEl of targetEls) {
           if (targetEl) {
@@ -4496,6 +4675,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async clear(target: string) {
         this.saveState(target, null);
+        if ($._emptyOnPage?.image.has(target)) {
+          return;
+        }
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, null, true);
         }
