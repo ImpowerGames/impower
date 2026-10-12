@@ -12,7 +12,6 @@ import type { ErrorHandler } from "../../../../runtime/Error";
 import { ErrorType } from "../ErrorType";
 import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
 import { FlowBase } from "./Flow/FlowBase";
-import type { Divert } from "./Divert/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
 import { FlowLevel } from "./Flow/FlowLevel";
 import { IncludedFile } from "./IncludedFile";
@@ -70,6 +69,60 @@ const locatedOnlyByEnclosingFlow = (source: ParsedObject): boolean => {
   }
   return false;
 };
+
+/** The calls under `root`, a call's own arguments included, and the
+ *  function values, by the name each names: the candidate sites of a
+ *  function nested in `root`, where its upvalue parameters are filled
+ *  (`FlowBase.IsBoundLocallyAt`). */
+export function functionSitesUnder(root: ParsedObject): Map<string, ParsedObject[]> {
+  const byName = new Map<string, ParsedObject[]>();
+  const add = (name: string | null | undefined, site: ParsedObject) => {
+    if (name) {
+      const sites = byName.get(name) ?? [];
+      sites.push(site);
+      byName.set(name, sites);
+    }
+  };
+  const seen = new Set<ParsedObject>();
+  const walk = (obj: ParsedObject): void => {
+    const children =
+      obj instanceof FunctionCall
+        ? [...(obj.content ?? []), ...(obj.args ?? [])]
+        : (obj.content ?? []);
+    for (const child of children) {
+      if (seen.has(child)) {
+        continue;
+      }
+      seen.add(child);
+      if (child instanceof DivertTarget && child.isFunctionValue) {
+        add(child.divert.target?.dotSeparatedComponents, child);
+      } else if (child instanceof FunctionCall) {
+        add(child.name, child);
+      }
+      walk(child);
+    }
+  };
+  walk(root);
+  return byName;
+}
+
+/** The sites among `candidates` (calls and function values) whose path
+ *  resolves to `flow` from where each is written (`Path.ResolveFromContext`),
+ *  so that a same-named function nested elsewhere keeps its own sites. */
+export function sitesNaming(
+  flow: FlowBase,
+  candidates: readonly ParsedObject[],
+): ParsedObject[] {
+  return candidates.filter((site) => {
+    const divert =
+      site instanceof DivertTarget
+        ? site.divert
+        : site instanceof FunctionCall
+          ? site.proxyDivert
+          : null;
+    return divert?.target?.ResolveFromContext(divert) === flow;
+  });
+}
 
 export class Story extends FlowBase {
   public static readonly IsReservedKeyword = (name?: string): boolean => {
@@ -197,91 +250,64 @@ export class Story extends FlowBase {
 
   /** The names written to the global scope by a plain assignment
    *  (`game = -> there`) anywhere in the story, callables included: a global
-   *  write is visible from every flow. A plain assignment that a `local` or
-   *  parameter of the name certainly binds writes that binding, not the
-   *  global, and is left out; the parse tree gives both the same node.
-   *  `FlowBase.IsBoundLocallyAt` decides it: a `local` declared later, or in
-   *  a block that has closed, does not bind the assignment, and a write
-   *  through a closure's upvalue parameter lands on whatever the name
-   *  resolves to where the closure is made or called, which may be the
-   *  global. A name this set holds needlessly makes a call of a top-level
-   *  function of that name read the unset global, which leads back to the
-   *  function, but the call is then not held to the function's parameters,
-   *  and a divert to the name is reported as a warning. Walked once per
-   *  export, on first use, for {@link builtinGlobalDiverts}'s severity and
-   *  for which calls of a top-level function read the global that rebinds
-   *  it (`Divert`). */
+   *  write is visible from every flow. An assignment that a `local` or
+   *  parameter of its name certainly binds writes that binding, not the
+   *  global, and is left out (`writesGlobal`). Built once per export, on
+   *  first use, for {@link builtinGlobalDiverts}'s severity, which reads every
+   *  assignment of the story. */
   public globalAssignmentNames(): ReadonlySet<string> {
     // Every assignment of the story answers, which a resolution of the
     // program path cannot name.
     recordRead("*");
+    return this.globalWriteNames(resolutionTap()?.assignments());
+  }
+
+  /** Whether a plain assignment anywhere in the story writes the global
+   *  `name` (`writesGlobal`), for a call of a top-level function of that
+   *  name, which calls what the global holds when it does (`Divert`). Only
+   *  the name is read: every assignment of it declares it, with how
+   *  (`ProgramResolver.shapeOf`, `decideWrites`), so a statement that adds,
+   *  removes or rescopes one declares the name otherwise. */
+  public assignsGlobally(name: string): boolean {
+    recordRead(name);
+    const tap = resolutionTap();
+    return tap
+      ? tap.globalWrite(name)
+      : this.globalWriteNames(undefined).has(name);
+  }
+
+  /** Whether the plain assignment `assignment` writes the global of its
+   *  name: no `local` or parameter certainly binds it where it is written
+   *  (`FlowBase.IsBoundLocallyAt`). The program path's resolver decides it
+   *  as it shapes the statement that holds the assignment, and the
+   *  assignment keeps the answer while the statement is carried
+   *  (`VariableAssignment.boundLocally`); one it has not shaped is decided
+   *  here, from the flow around it, and not kept. */
+  public writesGlobal(assignment: VariableAssignment): boolean {
+    if (assignment.isDeclaration) {
+      return false;
+    }
+    const bound =
+      assignment.boundLocally ??
+      this.IsBoundLocallyAt(assignment.variableName, assignment, (flow) => {
+        const around = asOrNull(ClosestFlowBase(flow), FlowBase) ?? this;
+        return sitesNaming(
+          flow,
+          functionSitesUnder(around).get(flow.identifier?.name ?? "") ?? [],
+        );
+      });
+    return !bound;
+  }
+
+  /** The names `writesGlobal` finds written, of `known` assignments or,
+   *  with none known, of every assignment the story holds. */
+  private globalWriteNames(known: Iterable<ParsedObject> | undefined): ReadonlySet<string> {
     if (this._globalAssignmentNames) {
       return this._globalAssignmentNames;
     }
-    // The candidate sites of each function by name: where a function value
-    // names it, and where a call names it. A candidate is a site of the
-    // function its divert's path resolves to from where it is written
-    // (`Path.ResolveFromContext`), so a same-named function nested elsewhere
-    // keeps its own sites. Only a write through a closure's upvalue
-    // parameter asks for them, so the story is walked for them at most once,
-    // and only then.
-    let sitesByName: Map<string, { site: ParsedObject; divert: Divert }[]> | null =
-      null;
-    const collectSites = () => {
-      const byName = new Map<string, { site: ParsedObject; divert: Divert }[]>();
-      const addSite = (
-        name: string | null | undefined,
-        site: ParsedObject,
-        divert: Divert,
-      ) => {
-        if (name) {
-          const sites = byName.get(name) ?? [];
-          sites.push({ site, divert });
-          byName.set(name, sites);
-        }
-      };
-      const seen = new Set<ParsedObject>();
-      const walk = (obj: ParsedObject): void => {
-        const children =
-          obj instanceof FunctionCall
-            ? [...(obj.content ?? []), ...(obj.args ?? [])]
-            : (obj.content ?? []);
-        for (const child of children) {
-          if (seen.has(child)) {
-            continue;
-          }
-          seen.add(child);
-          if (child instanceof DivertTarget && child.isFunctionValue) {
-            addSite(child.divert.target?.dotSeparatedComponents, child, child.divert);
-          } else if (child instanceof FunctionCall) {
-            addSite(child.name, child, child.proxyDivert);
-          }
-          walk(child);
-        }
-      };
-      walk(this);
-      return byName;
-    };
-    const resolved = new Map<Divert, ParsedObject | null>();
-    const targetOf = (divert: Divert): ParsedObject | null => {
-      if (!resolved.has(divert)) {
-        resolved.set(divert, divert.target?.ResolveFromContext(divert) ?? null);
-      }
-      return resolved.get(divert)!;
-    };
-    const sitesOf = (flow: FlowBase): readonly ParsedObject[] => {
-      sitesByName ??= collectSites();
-      return (sitesByName.get(flow.identifier?.name ?? "") ?? [])
-        .filter(({ divert }) => targetOf(divert) === flow)
-        .map(({ site }) => site);
-    };
     const names = new Set<string>();
     const add = (child: ParsedObject): void => {
-      if (
-        child instanceof VariableAssignment &&
-        !child.isDeclaration &&
-        !this.IsBoundLocallyAt(child.variableName, child, sitesOf)
-      ) {
+      if (child instanceof VariableAssignment && this.writesGlobal(child)) {
         names.add(child.variableName);
       }
     };
@@ -293,7 +319,6 @@ export class Story extends FlowBase {
     };
     // The program path's resolver knows each statement's assignments, read
     // once when the statement is lowered, and visits no statement for them.
-    const known = resolutionTap()?.assignments();
     if (known) {
       for (const assignment of known) {
         add(assignment);

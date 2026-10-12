@@ -562,6 +562,65 @@ describe("a statement resolved anew", () => {
     expect(reports()).toHaveLength(1);
     expect(reports()[0]).not.toEqual(bound);
   });
+
+  // A call of a top-level function calls the global of its name when a plain
+  // assignment anywhere writes that global (#1591,
+  // `Story.assignsGlobally`). Each assignment declares its name with whether
+  // it writes the global, decided when its statement is shaped
+  // (`ProgramResolver.decideWrites`), so the call reads only the name.
+  const rebound = [
+    "scene MAIN",
+    "  Line.",
+    ...filler,
+    "  f is {f()}.",
+    "end",
+    "",
+    "scene OTHER",
+    ...filler,
+    "  & x = 1",
+    "end",
+    "",
+    "function f() return 7 end",
+    "",
+    "function rebind()",
+    "  local f = 1",
+    "  f = function() return 2 end",
+    "end",
+    "",
+  ].join("\n");
+
+  it("finds whether a call's function is rebound from what each statement holds, and reads none of them", () => {
+    const s = session({ [MAIN_URI]: rebound });
+    for (const [find, replace] of [
+      // An unrelated statement of the calling scene.
+      ["  Line.", "  Line. "],
+      // The local closes, so the assignment writes the global.
+      ["  local f = 1\n", ""],
+      // The assignment writes another name.
+      ["  f = function", "  g = function"],
+      ["  g = function", "  f = function"],
+      // The local again.
+      ["function rebind()\n", "function rebind()\n  local f = 1\n"],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      visitedOnlyFresh(s.resolver);
+      const fresh = cold({ [MAIN_URI]: s.text });
+      expect(diagnostics(s.program), find).toEqual(diagnostics(fresh));
+      expect(describeRoot(s.program.chunks!), find).toEqual(describeRoot(fresh.chunks!));
+    }
+  });
+
+  it("does not resolve a call of a top-level function again when an unrelated name is declared otherwise", () => {
+    const s = session({ [MAIN_URI]: rebound });
+    s.edit("  & x = 1", "  & y = 1");
+    expect(s.resolver.changedNamesLastResolve).toEqual(expect.arrayContaining(["x", "y"]));
+    const reasons = s.resolver.freshLastResolve().map((unit) => unit.reason);
+    expect(reasons).not.toContain("name *");
+    expect(reasons).not.toContain("name f");
+    // The statement edited, and nothing that reads every name.
+    expect(reasons.filter((reason) => reason.startsWith("name"))).toEqual([]);
+  });
 });
 
 describe("a naming collision", () => {

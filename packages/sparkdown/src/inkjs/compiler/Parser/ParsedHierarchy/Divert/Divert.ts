@@ -552,8 +552,9 @@ export class Divert extends ParsedObject {
 
   // Whether this is a call of a function written at the top level whose name
   // a plain assignment anywhere in the story writes to the global scope
-  // (`Story.globalAssignmentNames`). A function nested in another is a value
-  // of that function's scope, which its lowering rebinds itself.
+  // (`Story.assignsGlobally`, which reads only the name). A function nested
+  // in another is a value of that function's scope, which its lowering
+  // rebinds itself.
   private callsReboundFunction(story: Story): boolean {
     const name = this.target?.firstComponent;
     if (
@@ -569,7 +570,7 @@ export class Divert extends ParsedObject {
       !!flow &&
       flow.isFunction &&
       ClosestFlowBase(flow) === story &&
-      story.globalAssignmentNames().has(name)
+      story.assignsGlobally(name)
     );
   }
 
