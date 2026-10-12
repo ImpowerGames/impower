@@ -663,6 +663,10 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         if(executionFailure)error.message += `; delegated execution: ${executionFailure.message}`;
         if(stopped){
           activeChild=null;
+          // The observed close is the stopped reviewer's exit evidence, which
+          // the journal cleanup command requires before it removes anything.
+          try { append({ event: "exited", index, step: current, ...stopped, stopped: true }); }
+          catch(journalError){error.message += `; stopped-child exit journal write failed: ${journalError.message}`;}
           pendingProbeCleanup = probeCleanupAfterExit;
           if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
         } else {

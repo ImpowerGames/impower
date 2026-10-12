@@ -24,23 +24,48 @@ const isInside=(parent,child)=>{const relative=path.relative(parent,child);retur
 // Whether two absolute paths are the same or one holds the other.
 const overlaps=(a,b)=>{const x=fold(path.resolve(a)),y=fold(path.resolve(b));return x===y||isInside(x,y)||isInside(y,x);};
 
+// The physical path a named path reaches: the real path of its nearest
+// existing ancestor, through every junction, link and Windows 8.3 alias, with
+// the missing remainder appended. A component that exists but cannot be
+// resolved (a broken link, a denied read) throws, so its owner is kept.
+function physicalPath(value) {
+  const absolute=path.resolve(value);
+  try{return fs.realpathSync.native(absolute);}
+  catch(error){
+    if(error.code!=='ENOENT')throw error;
+    let present=false;
+    try{fs.lstatSync(absolute);present=true;}catch(missing){if(missing.code!=='ENOENT')throw missing;}
+    if(present)throw new Error(`${absolute} exists but does not resolve (${error.code})`);
+    if(path.dirname(absolute)===absolute)throw error;
+    return path.join(physicalPath(path.dirname(absolute)),path.basename(absolute));
+  }
+}
+
 // Removes one entry without following links. A symbolic link or Windows
-// junction is unlinked itself, never entered; a directory is emptied first.
-function removeEntry(target,counts) {
-  const stat=fs.lstatSync(target);
-  if(stat.isSymbolicLink()){
-    // A Windows junction reports as a symbolic link and unlinks as a directory.
-    try{fs.unlinkSync(target);}catch(error){if(process.platform!=='win32'||!['EPERM','EISDIR','EACCES'].includes(error.code))throw error;fs.rmdirSync(target);}
-    counts.links++;
-    return;
-  }
-  if(stat.isDirectory()){
-    for(const name of fs.readdirSync(target))removeEntry(path.join(target,name),counts);
-    fs.rmdirSync(target);
-    return;
-  }
-  fs.rmSync(target,{force:true});
-  counts.files++;
+// junction is unlinked itself, never entered; a directory is emptied first. A
+// file is removed with unlinkSync: on Node 23 for Windows, rmSync returns
+// without error and without deleting a file whose path holds a non-ASCII
+// character. An entry that cannot be removed is recorded in `failures` and the
+// walk continues with its siblings.
+function removeEntry(target,counts,failures) {
+  try{
+    const stat=fs.lstatSync(target);
+    if(stat.isSymbolicLink()){
+      // A Windows junction reports as a symbolic link and unlinks as a directory.
+      try{fs.unlinkSync(target);}catch(error){if(process.platform!=='win32'||!['EPERM','EISDIR','EACCES'].includes(error.code))throw error;fs.rmdirSync(target);}
+      counts.links++;
+      return;
+    }
+    if(stat.isDirectory()){
+      const before=failures.length;
+      for(const name of fs.readdirSync(target))removeEntry(path.join(target,name),counts,failures);
+      // A directory still holding a failed entry stays; that entry is the one reported.
+      if(failures.length===before)fs.rmdirSync(target);
+      return;
+    }
+    fs.unlinkSync(target);
+    counts.files++;
+  }catch(error){failures.push({target,error});}
 }
 
 // Every absolute path a reservation entry names, and those its run journal
@@ -62,6 +87,19 @@ function reservedPaths(file) {
   return found;
 }
 
+// The first reserved path that reaches the reviewer directory, as named or
+// physically, or undefined. One that cannot be resolved throws.
+function reservationNaming(file,directory,root) {
+  for(const value of reservedPaths(file)){
+    if(overlaps(value,directory)||overlaps(value,root))return value;
+    let physical;
+    try{physical=physicalPath(value);}
+    catch(error){throw new Error(`Reservation entry at ${file} names ${value}, which could not be resolved (${error.message}); preserve reviewer scratch`);}
+    if(overlaps(physical,root))return `${value} (${physical})`;
+  }
+  return undefined;
+}
+
 // `preserve` holds the top-level names that existed before the reviewer ran;
 // `keep` the files to keep wherever they are (the final report). A kept file
 // inside the directory must be a regular file, matched by its real path
@@ -72,19 +110,21 @@ function reservedPaths(file) {
 //
 // The machine test reservation is read under its guard. An entry that names
 // this directory, holds it, or lies inside it (a run testing a probe clone, or
-// a run journal kept there) preserves the whole directory, since deleting it
-// would remove that run's ownership evidence, and so does an entry or run
-// journal that cannot be read; an entry naming anything else does not delay
-// the cleanup. Still under the guard, every entry to remove is
-// renamed into one `.probe-cleanup-<id>` directory, so no run can start in a
-// probe clone after the check; the guard is then released and that directory
-// is deleted, so test admission never waits on the deletion.
+// a run journal kept there), as named or through any junction or link,
+// preserves the whole directory, since deleting it would remove that run's
+// ownership evidence; so does an entry or run journal that cannot be read or a
+// named path that cannot be resolved. An entry naming anything else does not
+// delay the cleanup. Still under the guard, every entry to remove is renamed
+// into one `.probe-cleanup-<id>` directory, so no run can start in a probe
+// clone after the check; the guard is then released and that directory is
+// deleted, so test admission never waits on the deletion.
 //
 // Returns the removed file and link counts and the elapsed time, plus
 // `skipped` and `reason` when a reservation preserved the directory. Throws
 // when the directory is not an existing real directory, so a plan pointing the
 // reviewer at a link never makes this walk somewhere else, and when an entry
-// could not be moved aside or deleted, naming what remains.
+// could not be moved aside or deleted, naming what remains; the walk removes
+// everything else first.
 export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reservationRoot}={}) {
   const began=Date.now();
   if(!fs.lstatSync(directory).isDirectory())throw new Error(`Reviewer directory ${directory} is not a directory`);
@@ -118,7 +158,7 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
   const stuck=[];
   const moved=withProbeCleanupGuard((file)=>{
     let named;
-    try{named=reservedPaths(file).find(value=>overlaps(value,root)||overlaps(value,directory));}
+    try{named=reservationNaming(file,directory,root);}
     catch(error){return {skipped:true,reason:error.message};}
     if(named)return {skipped:true,reason:`Reservation entry at ${file} names ${named}, which overlaps this reviewer directory; preserve reviewer scratch`};
     fs.mkdirSync(trash);
@@ -129,33 +169,39 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     return {skipped:false};
   },{root:reservationRoot});
   if(moved.skipped)return {...counts,skipped:true,reason:moved.reason,elapsedMs:Date.now()-began};
-  try{removeEntry(trash,counts);}
-  catch(error){stuck.push(`${trash} (${error.code??error.message})`);}
+  const failures=[];
+  removeEntry(trash,counts,failures);
+  if(failures.length){const [{target,error}]=failures;stuck.push(`${failures.length} entr${failures.length===1?'y':'ies'} in ${trash}, first ${target} (${error.code??error.message})`);}
   if(stuck.length)throw new Error(`Probe cleanup removed ${counts.files} files and ${counts.links} links but could not remove ${stuck.join(', ')}`);
   return {...counts,elapsedMs:Date.now()-began};
 }
 
-// The removal the launcher performs, run again from its journal once the
-// reviewer has exited: for each review launch that recorded its directory and
-// snapshot, it requires the matching `exited` row and keeps the report the
-// launch named. The journal, the plan and the launch directory lie outside the
-// reviewer directory and are never touched; nothing is appended to the journal.
+// The removal the launcher performs, run again from its journal once every
+// reviewer it launched has exited. Every review launch must have recorded its
+// directory and snapshot and have a later `exited` row, or nothing is removed.
+// Launches that shared a directory are cleaned once, against the earliest
+// snapshot, keeping every report those launches named. The journal, the plan
+// and the launch directory lie outside the reviewer directory and are never
+// touched; nothing is appended to the journal.
 export function cleanupFromJournal(journal,{reservationRoot}={}) {
   if(!path.isAbsolute(journal))throw new Error('Name the launch journal by its absolute path');
   const rows=fs.readFileSync(journal,'utf8').split('\n').filter(Boolean).map(line=>JSON.parse(line));
-  const results=[];
+  const directories=new Map();
   rows.forEach((row,at)=>{
     if(row.event!=='launching'||row.role!=='review')return;
     if(typeof row.reviewerDirectory!=='string'||!Array.isArray(row.reviewerHad))throw new Error(`Launch ${row.index} of ${journal} recorded no reviewer directory snapshot, so what the reviewer created cannot be told; nothing was removed`);
-    const exited=rows.slice(at+1).find(later=>later.event==='exited'&&later.index===row.index);
-    if(!exited)throw new Error(`The reviewer of launch ${row.index} has no exited row in ${journal}; wait for it to exit; nothing was removed`);
+    if(!rows.slice(at+1).some(later=>later.event==='exited'&&later.index===row.index))throw new Error(`The reviewer of launch ${row.index} has no exited row in ${journal}; wait for it to exit; nothing was removed`);
     const flag=Array.isArray(row.args)?row.args.findIndex(arg=>['--output-last-message','-o'].includes(arg)):-1;
     const report=row.report??(flag>=0?row.args[flag+1]:undefined);
-    const keep=report&&fs.existsSync(report)?[report]:[];
-    results.push({index:row.index,directory:row.reviewerDirectory,...removeProbeCheckouts(row.reviewerDirectory,{preserve:new Set(row.reviewerHad),keep,reservationRoot})});
+    const key=fold(path.resolve(row.reviewerDirectory));
+    const entry=directories.get(key)??{directory:row.reviewerDirectory,indexes:[],preserve:new Set(row.reviewerHad),keep:[]};
+    entry.indexes.push(row.index);
+    if(report)entry.keep.push(report);
+    directories.set(key,entry);
   });
-  if(!results.length)throw new Error(`${journal} records no review launch with a reviewer directory; nothing was removed`);
-  return results;
+  if(!directories.size)throw new Error(`${journal} records no review launch with a reviewer directory; nothing was removed`);
+  return [...directories.values()].map(({directory,indexes,preserve,keep})=>({indexes,directory,
+    ...removeProbeCheckouts(directory,{preserve,keep:keep.filter(file=>fs.existsSync(file)),reservationRoot})}));
 }
 
 if(process.argv[1]&&fs.realpathSync(process.argv[1])===fileURLToPath(import.meta.url)){

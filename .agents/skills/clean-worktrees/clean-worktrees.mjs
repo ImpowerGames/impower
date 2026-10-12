@@ -1332,10 +1332,12 @@ function physicalPath(value, deps) {
 // Why a non-bare clone at `clone` (one holding a `.git` directory) must be
 // kept, or null when it holds nothing origin/main lacks: it answers as its own
 // repository, `git status` lists no change or untracked file (ignored files,
-// a probe's install among them, are scratch), and HEAD, every local branch and
-// any stash commit is an ancestor of the main checkout's origin/main. A
-// reviewer's probe clone of a merged PR passes; anything git cannot answer for
-// is kept.
+// a probe's install among them, are scratch), and every commit the clone holds
+// outside its remote-tracking refs is an ancestor of the main checkout's
+// origin/main: HEAD, every local branch, stash and other ref, every tag the
+// main checkout does not hold with the same object, and every commit their
+// reflogs reach. A reviewer's probe clone of a merged PR passes; anything git
+// cannot answer for, an unreadable HEAD included, is kept.
 function embeddedCloneReason(clone, deps, ctx) {
   const kept = (why) => `protected embedded Git repository ${clone} (${why})`;
   const git = (args, cwd = clone) => {
@@ -1352,9 +1354,22 @@ function embeddedCloneReason(clone, deps, ctx) {
   if (status.status !== 0) return kept(`git status could not be read${status.err ? `: ${status.err}` : ""}`);
   if (status.out) return kept("it has uncommitted or untracked files");
   const head = git(["rev-parse", "--verify", "-q", "HEAD^{commit}"]);
-  const refs = git(["for-each-ref", "--format=%(objectname)", "refs/heads", "refs/stash"]);
-  if (refs.status !== 0) return kept(`its branches could not be listed${refs.err ? `: ${refs.err}` : ""}`);
-  const tips = new Set([head.status === 0 ? head.out : "", ...refs.out.split(/\s+/)].filter(Boolean));
+  if (head.status !== 0 || !head.out) return kept(`its HEAD could not be read${head.err ? `: ${head.err}` : ""}`);
+  const refs = git(["for-each-ref", "--format=%(objectname) %(*objectname) %(refname)"]);
+  if (refs.status !== 0) return kept(`its refs could not be listed${refs.err ? `: ${refs.err}` : ""}`);
+  const tips = new Set([head.out]);
+  for (const line of refs.out.split("\n").filter(Boolean)) {
+    const [object, peeled, name] = line.split(" ");
+    // Remote-tracking refs record what the clone fetched, not work made in it.
+    if (!name || name.startsWith("refs/remotes/")) continue;
+    // A tag the main checkout holds with the same object was fetched, not made here.
+    if (name.startsWith("refs/tags/") && git(["rev-parse", "-q", "--verify", name], ctx.mainRoot).out === object) continue;
+    tips.add(peeled || object);
+  }
+  // Commits only a reflog still reaches, after a reset or a deleted branch.
+  const reflogs = git(["log", "-g", "--format=%H", "HEAD", "--branches", "--tags", "--glob=refs/stash"]);
+  if (reflogs.status !== 0) return kept(`its reflogs could not be read${reflogs.err ? `: ${reflogs.err}` : ""}`);
+  for (const commit of reflogs.out.split(/\s+/).filter(Boolean)) tips.add(commit);
   for (const tip of tips) {
     // A commit the main checkout has never seen is local to the clone.
     if (git(["cat-file", "-e", `${tip}^{commit}`], ctx.mainRoot).status !== 0) return kept(`commit ${tip.slice(0, 12)} is not on origin/main`);

@@ -182,21 +182,35 @@ try {
   assert.equal(fs.readFileSync(path.join(heldCheckout, 'ignored.txt'), 'utf8'), 'held sentinel');
   assert.ok(fs.existsSync(path.join(heldClone, '.git')));
   assert.ok(isRegistered(heldCheckout));
-  for (const state of ['untracked', 'committed']) {
+  // A local commit kept by a branch, by a tag alone or by a reflog alone (the
+  // branch reset back to origin/main) keeps the clone, as does an untracked file.
+  for (const state of ['untracked', 'committed', 'tagged', 'reflog']) {
     const fixture = job();
     const clone = probeClone(fixture.dir);
     fs.writeFileSync(path.join(clone, 'probe.txt'), state);
-    if (state === 'committed') {
-      for (const args of [['add', 'probe.txt'], ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'commit', '-q', '-m', 'local only']]) {
-        const r = spawnSync('git', args, { cwd: clone, windowsHide: true, encoding: 'utf8' });
-        assert.equal(r.status, 0, r.stderr);
-      }
+    const inClone = (...args) => { const r = spawnSync('git', args, { cwd: clone, windowsHide: true, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); };
+    if (state !== 'untracked') {
+      inClone('add', 'probe.txt');
+      inClone('-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'commit', '-q', '-m', 'local only');
+      if (state === 'tagged') inClone('tag', 'saved-work');
+      if (state === 'tagged' || state === 'reflog') inClone('reset', '-q', '--hard', 'origin/main');
     }
     const verdict = classifyJob(fixture.name, fixture.dir, deps, ctx);
     assert.equal(verdict.remove, false, `a ${state} probe clone was removable`);
     assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : /is not on origin\/main/);
     cleanJobs(ctx, deps, true, () => {});
-    assert.equal(fs.readFileSync(path.join(clone, 'probe.txt'), 'utf8'), state);
+    assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
+  }
+  // A HEAD git cannot read keeps the clone, even when its branches are all merged.
+  {
+    const fixture = job();
+    const clone = probeClone(fixture.dir);
+    const headless = { ...deps, exec: (cmd, args, cwd, timeout) => cmd === 'git' && args[0] === 'rev-parse' && args.includes('HEAD^{commit}') ? { status: 128, out: '', err: 'fixture: HEAD unreadable' } : deps.exec(cmd, args, cwd, timeout) };
+    const verdict = classifyJob(fixture.name, fixture.dir, headless, ctx);
+    assert.equal(verdict.remove, false, 'a clone with an unreadable HEAD was removable');
+    assert.match(verdict.reason, /HEAD could not be read/);
+    cleanJobs(ctx, headless, true, () => {});
+    assert.ok(fs.existsSync(path.join(clone, '.git')));
   }
   const openJob = job();
   const openClone = probeClone(openJob.dir);
