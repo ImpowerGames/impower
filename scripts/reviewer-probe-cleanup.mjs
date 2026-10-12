@@ -17,22 +17,30 @@ export const snapshotReviewerDirectory=(directory)=>new Set(fs.readdirSync(direc
 const isInside=(parent,child)=>{const relative=path.relative(parent,child);return relative!==''&&relative!=='..'&&!relative.startsWith(`..${path.sep}`)&&!path.isAbsolute(relative);};
 
 // Removes one entry without following links. A symbolic link or Windows
-// junction is unlinked itself, never entered; a directory is emptied first.
-function removeEntry(target,counts) {
-  const stat=fs.lstatSync(target);
-  if(stat.isSymbolicLink()){
-    // A Windows junction reports as a symbolic link and unlinks as a directory.
-    try{fs.unlinkSync(target);}catch(error){if(process.platform!=='win32'||!['EPERM','EISDIR','EACCES'].includes(error.code))throw error;fs.rmdirSync(target);}
-    counts.links++;
-    return;
-  }
-  if(stat.isDirectory()){
-    for(const name of fs.readdirSync(target))removeEntry(path.join(target,name),counts);
-    fs.rmdirSync(target);
-    return;
-  }
-  fs.rmSync(target,{force:true});
-  counts.files++;
+// junction is unlinked itself, never entered; a directory is emptied first. A
+// file is removed with unlinkSync: on Node 23 for Windows, rmSync returns
+// without error and without deleting a file whose path holds a non-ASCII
+// character. An entry that cannot be removed is recorded in `failures` and the
+// walk continues with its siblings.
+function removeEntry(target,counts,failures) {
+  try{
+    const stat=fs.lstatSync(target);
+    if(stat.isSymbolicLink()){
+      // A Windows junction reports as a symbolic link and unlinks as a directory.
+      try{fs.unlinkSync(target);}catch(error){if(process.platform!=='win32'||!['EPERM','EISDIR','EACCES'].includes(error.code))throw error;fs.rmdirSync(target);}
+      counts.links++;
+      return;
+    }
+    if(stat.isDirectory()){
+      const before=failures.length;
+      for(const name of fs.readdirSync(target))removeEntry(path.join(target,name),counts,failures);
+      // A directory still holding a failed entry stays; that entry is the one reported.
+      if(failures.length===before)fs.rmdirSync(target);
+      return;
+    }
+    fs.unlinkSync(target);
+    counts.files++;
+  }catch(error){failures.push({target,error});}
 }
 
 // `preserve` holds the top-level names that existed before the reviewer ran;
@@ -58,15 +66,19 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     if(!stat.isFile())throw new Error(`Kept file ${file} is not a regular file; nothing was removed`);
     kept.add(target);
   }
-  const counts={files:0,links:0};
+  const counts={files:0,links:0},failures=[];
   const visit=(current,top)=>{
     for(const name of fs.readdirSync(current)){
       const target=path.join(current,name);
       if(top&&preserve.has(name)||kept.has(target))continue;
       // A directory holding a kept file is walked, not removed.
       if([...kept].some(file=>isInside(target,file))&&fs.lstatSync(target).isDirectory()){visit(target,false);continue;}
-      removeEntry(target,counts);
+      removeEntry(target,counts,failures);
     }
   };
-  return withProbeCleanupGuard(()=>{visit(root,true);return counts;}, {root:reservationRoot});
+  return withProbeCleanupGuard(()=>{
+    visit(root,true);
+    if(failures.length){const [{target,error}]=failures;throw new Error(`${failures.length} probe entr${failures.length===1?'y':'ies'} left behind; first ${target}: ${error.message}`);}
+    return counts;
+  }, {root:reservationRoot});
 }

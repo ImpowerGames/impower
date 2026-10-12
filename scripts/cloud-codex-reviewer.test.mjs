@@ -280,6 +280,23 @@ try {
     console.log('PASS: probe cleanup removes what the reviewer created except the kept report, leaves pre-existing entries, unlinks links without following them and refuses a linked directory');
   }
 
+  // A file under a non-ASCII directory name is removed (npm ships `snow ☃`
+  // fixtures), and an entry that cannot be removed leaves the rest of the walk
+  // running and names its path in the error.
+  {
+    const directory=fs.mkdtempSync(path.join(scratch,'cleanup-unicode-'));
+    fs.mkdirSync(path.join(directory,'probe-repo','snow ☃'),{recursive:true});fs.writeFileSync(path.join(directory,'probe-repo','snow ☃','index.html'),'x');
+    assert.equal(removeProbeCheckouts(directory).files,1);
+    assert.deepEqual(fs.readdirSync(directory),[],'the non-ASCII directory and its file are gone');
+    fs.mkdirSync(path.join(directory,'a-stuck'));fs.writeFileSync(path.join(directory,'a-stuck','f'),'x');fs.writeFileSync(path.join(directory,'b-later'),'x');
+    const unlink=fs.unlinkSync;
+    fs.unlinkSync=function(target,...args){if(target===path.join(directory,'a-stuck','f'))throw Object.assign(new Error('EBUSY: stuck'),{code:'EBUSY'});return unlink(target,...args);};
+    try{assert.throws(()=>removeProbeCheckouts(directory),error=>error.message.includes(path.join(directory,'a-stuck','f')));}finally{fs.unlinkSync=unlink;}
+    assert.deepEqual(fs.readdirSync(directory),['a-stuck'],'the walk continues past a failed entry');
+    fs.rmSync(directory,{recursive:true});
+    console.log('PASS: probe cleanup removes files under non-ASCII names and continues past an entry it cannot remove, naming it');
+  }
+
   {
     const directory=fs.mkdtempSync(path.join(scratch,'cleanup-ownership-'));
     const proof=path.join(directory,'tree-proof.json'),sentinel=path.join(directory,'sentinel');
@@ -295,14 +312,14 @@ try {
     }
     // This synchronous I/O seam attempts admission during the real deletion
     // walk. Only the store is private; identity and guard mechanics are real.
-    const remove=fs.rmSync;let reached=false;
-    fs.rmSync=function(target,...args){
+    const remove=fs.unlinkSync;let reached=false;
+    fs.unlinkSync=function(target,...args){
       if(target===proof){reached=true;assert.throws(()=>acquire('competing cleanup admission',{root:cleanupReservationRoot,census:()=>[],guardWaitMs:0,admitWaitMs:0}),/transaction unavailable/);
         assert.equal(fs.existsSync(file),false,'No reservation can appear while cleanup owns the guard');}
       return remove(target,...args);
     };
     let result;
-    try {result=removeProbeCheckouts(directory);}finally{fs.rmSync=remove;}
+    try {result=removeProbeCheckouts(directory);}finally{fs.unlinkSync=remove;}
     assert.equal(reached,true);assert.equal(result.files,2);assert.equal(fs.existsSync(proof),false);
     assert.equal(fs.existsSync(path.join(cleanupReservationRoot,'guard.json')),false,'Exact cleanup guard was released');
     const lease=acquire('post-cleanup admission',{root:cleanupReservationRoot,census:()=>[]});lease.release();
