@@ -1177,8 +1177,10 @@ export class Game<T extends M = {}> {
     // A new stream, as the connect's is, so that what an earlier one still
     // has in flight does not land on it.
     this._connection.beginEpoch();
-    // The classification found the scene map unchanged.
+    // The classification found the scene map unchanged: the scene stays,
+    // and so does the window predicted around the cursor.
     this._sceneTrackingStale = false;
+    this.module.assets.keepPreviewWindow();
     // The connect drops every handler the beat registered with the root it
     // builds again; here the root stays, so the shown choices are observed
     // no longer, before anything waits.

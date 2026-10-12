@@ -94,6 +94,12 @@ export class AssetModule extends Module<
    *  cursor that stays inside half of it does not either. */
   protected _previewWindow: { flow: string; index: number } | null = null;
 
+  /** The window sent before the program was replaced, which a display in
+   *  place takes back, the scene map being the same (`keepPreviewWindow`,
+   *  #657), and entering a scene drops. */
+  protected _windowBeforeUpdate: { flow: string; index: number } | null =
+    null;
+
   /** Latest progress per pin, as the page reports it. */
   protected _progress = new Map<
     string,
@@ -1033,6 +1039,7 @@ export class AssetModule extends Module<
     if (this.silent) {
       return;
     }
+    this._windowBeforeUpdate = null;
     const keep = new Set([scene, ...stack]);
     const drop = [...this._loadPins].filter((flow) => !keep.has(flow));
     if (drop.length > 0) {
@@ -1054,10 +1061,18 @@ export class AssetModule extends Module<
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
     this._fontNamesByLayout.clear();
-    // The preview window stays: the scene the story stands in is entered
-    // again at the next observation, which sends its window whatever was
-    // sent before, unless a display in place keeps the scene, whose map is
-    // then unchanged (`Game.connectInPlace`, #657).
+    if (this._previewWindow) {
+      this._windowBeforeUpdate = this._previewWindow;
+    }
+    this._previewWindow = null;
+  }
+
+  /** Take back the window sent before the program was replaced: a display
+   *  in place keeps the scene, whose map it found unchanged, and the window
+   *  sent around the cursor still covers it (`Game.connectInPlace`, #657). */
+  keepPreviewWindow(): void {
+    this._previewWindow ??= this._windowBeforeUpdate;
+    this._windowBeforeUpdate = null;
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {
