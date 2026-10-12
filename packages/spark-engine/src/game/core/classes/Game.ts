@@ -33,7 +33,6 @@ import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error"
 import type { CallStack } from "@impower/sparkdown/src/runtime/CallStack";
 import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
-import { InkList } from "@impower/sparkdown/src/runtime/InkList";
 import { StepLimitExceeded } from "@impower/sparkdown/src/runtime/StoryException";
 import {
   ObjectValue,
@@ -3268,7 +3267,7 @@ export class Game<T extends M = {}> {
     const variableState = this._story.state.variablesState;
     for (const name of variableState["_globalVariables"].keys()) {
       const valueObj = variableState.GetVariableWithName(name);
-      const value = this.getRuntimeValue(name, valueObj);
+      const value = this.getRuntimeValue(valueObj);
       if (isEvaluable(value) && !this.isTableRecord(value)) {
         context[name] = value;
       }
@@ -3281,7 +3280,7 @@ export class Game<T extends M = {}> {
         name,
         valueObj,
       ] of contextElement?.temporaryVariables.entries()) {
-        const value = this.getRuntimeValue(name, valueObj);
+        const value = this.getRuntimeValue(valueObj);
         if (isEvaluable(value) && !this.isTableRecord(value)) {
           context[name] = value;
         }
@@ -3302,52 +3301,21 @@ export class Game<T extends M = {}> {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
     for (const name of variableState["_globalVariables"].keys()) {
-      const listDefinition = this._story.listDefinitions?.TryListGetDefinition(
-        name,
-        null,
-      )?.result;
-      if (!listDefinition) {
-        // The global itself: a temporary of the same name shadows it for
-        // the story, and the Temps scope shows that temporary (#1727).
-        const globalObj = variableState.GetGlobalVariableValue(name);
-        const valueObj =
-          globalObj instanceof VariablePointerValue
-            ? variableState.ValueAtVariablePointer(globalObj)
-            : globalObj;
-        const value = this.getRuntimeValue(name, valueObj);
-        if (value !== undefined) {
-          variables.push(
-            this.getVariableInfo(name, value, {
-              kind: "data",
-              visibility: "public",
-            }),
-          );
-        }
-      }
-    }
-    return variables;
-  }
-
-  getListVariables(): Variable[] {
-    const variables: Variable[] = [];
-    if (this._story.listDefinitions) {
-      for (const listDefinition of this._story.listDefinitions.lists) {
-        const value: Record<string, unknown> = { $type: "list.def" };
-        for (const [key, itemValue] of listDefinition.items) {
-          const keyObj = JSON.parse(key) as {
-            originName: string;
-            itemName: string;
-          };
-          value[keyObj.itemName] = itemValue;
-        }
-        if (value !== undefined) {
-          variables.push(
-            this.getVariableInfo(listDefinition.name, value, {
-              kind: "data",
-              visibility: "public",
-            }),
-          );
-        }
+      // The global itself: a temporary of the same name shadows it for the
+      // story, and the Temps scope shows that temporary (#1727).
+      const globalObj = variableState.GetGlobalVariableValue(name);
+      const valueObj =
+        globalObj instanceof VariablePointerValue
+          ? variableState.ValueAtVariablePointer(globalObj)
+          : globalObj;
+      const value = this.getRuntimeValue(valueObj);
+      if (value !== undefined) {
+        variables.push(
+          this.getVariableInfo(name, value, {
+            kind: "data",
+            visibility: "public",
+          }),
+        );
       }
     }
     return variables;
@@ -3411,7 +3379,7 @@ export class Game<T extends M = {}> {
             scoped instanceof VariablePointerValue && thread
               ? this.valueAtPointerInThread(thread, scoped)
               : scoped;
-          const value = this.getRuntimeValue(name, valueObj);
+          const value = this.getRuntimeValue(valueObj);
           const scopePath = programScope;
           if (value !== undefined) {
             variables.push(
@@ -3536,35 +3504,8 @@ export class Game<T extends M = {}> {
     return variables;
   }
 
-  getRuntimeValue(
-    name: string,
-    valueObj: InkObject | null,
-  ): unknown | undefined {
+  getRuntimeValue(valueObj: InkObject | null): unknown | undefined {
     if (valueObj && "value" in valueObj) {
-      if (valueObj.value instanceof InkList) {
-        const listDefinition =
-          this._story.listDefinitions?.TryListGetDefinition(name, null)?.result;
-        if (listDefinition) {
-          const listValue: Record<string, unknown> = { $type: "list.def" };
-          for (const [key, itemValue] of listDefinition.items) {
-            const keyObj = JSON.parse(key) as {
-              originName: string;
-              itemName: string;
-            };
-            listValue[keyObj.itemName] = itemValue;
-          }
-          return listValue;
-        }
-        const listValue: Record<string, unknown> = { $type: "list.var" };
-        for (const [key, value] of valueObj.value.entries()) {
-          const keyObj = JSON.parse(key) as {
-            originName: string;
-            itemName: string;
-          };
-          listValue[keyObj.originName + "." + keyObj.itemName] = value;
-        }
-        return listValue;
-      }
       if (valueObj instanceof ObjectValue) {
         return this.getTableRecord(valueObj);
       }
@@ -3653,14 +3594,8 @@ export class Game<T extends M = {}> {
             ? Array.isArray(value)
               ? `[${value.length}]`
               : Object.keys(value).filter((k) => !k.startsWith("$")).length > 0
-                ? "$type" in value &&
-                  (value.$type === "list.def" || value.$type === "list.var")
-                  ? "(...)"
-                  : "{...}"
-                : "$type" in value &&
-                    (value.$type === "list.def" || value.$type === "list.var")
-                  ? "()"
-                  : "{}"
+                ? "{...}"
+                : "{}"
             : JSON.stringify(value);
     const displayType =
       value === undefined
@@ -3673,9 +3608,7 @@ export class Game<T extends M = {}> {
             ? Array.isArray(value)
               ? `array`
               : "$type" in value && typeof value.$type === "string"
-                ? value.$type === "list.def" || value.$type === "list.var"
-                  ? "list"
-                  : value.$type
+                ? value.$type
                 : "object"
             : typeof value;
     return {

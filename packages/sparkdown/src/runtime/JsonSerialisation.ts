@@ -5,7 +5,6 @@ import {
   StringValue,
   DivertTargetValue,
   VariablePointerValue,
-  ListValue,
   BoolValue,
   MultiValue,
   NullValue,
@@ -21,9 +20,6 @@ import { Void } from "./Void";
 import { Tag } from "./Tag";
 import { Path } from "./Path";
 import { Choice } from "./Choice";
-import { ListDefinition } from "./ListDefinition";
-import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
-import { InkListItem, InkList } from "./InkList";
 import { InkObject } from "./Object";
 import { asOrNull } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
@@ -668,12 +664,6 @@ export class JsonSerialisation {
       return;
     }
 
-    let listVal = asOrNull(obj, ListValue);
-    if (listVal) {
-      this.WriteInkList(writer, listVal);
-      return;
-    }
-
     // Checked after the scalars, which are far more common and never packed.
     let multiVal = asOrNull(obj, MultiValue);
     if (multiVal) {
@@ -1188,30 +1178,6 @@ export class JsonSerialisation {
         return new Tag(propValue.toString());
       }
 
-      // List value
-      if ((propValue = obj["list"])) {
-        // var listContent = (Dictionary<string, object>)propValue;
-        let listContent = propValue as Record<string, any>;
-        let rawList = new InkList();
-        if ((propValue = obj["origins"])) {
-          // var namesAsObjs = (List<object>)propValue;
-          let namesAsObjs = propValue as string[];
-          // rawList.SetInitialOriginNames(namesAsObjs.Cast<string>().ToList());
-          rawList.SetInitialOriginNames(namesAsObjs);
-        }
-
-        for (let key in listContent) {
-          if (listContent.hasOwnProperty(key)) {
-            let nameToVal = listContent[key];
-            let item = new InkListItem(key);
-            let val = parseInt(nameToVal);
-            rawList.Add(item, val);
-          }
-        }
-
-        return new ListValue(rawList);
-      }
-
       // Tuple (see the writer side). The array length is the arity that
       // `select("#", ...)` reports, so an element that does not read back
       // as a value becomes nil rather than being dropped.
@@ -1422,104 +1388,6 @@ export class JsonSerialisation {
       writer.WriteArrayEnd();
       writer.WritePropertyEnd();
     }
-  }
-
-  public static WriteInkList(writer: SimpleJson.Writer, listVal: ListValue) {
-    let rawList = listVal.value;
-    if (rawList === null) {
-      return throwNullException("rawList");
-    }
-
-    writer.WriteObjectStart();
-    writer.WritePropertyStart("list");
-    writer.WriteObjectStart();
-
-    for (let [key, val] of rawList) {
-      let item = InkListItem.fromSerializedKey(key);
-      let itemVal = val;
-
-      if (item.itemName === null) {
-        return throwNullException("item.itemName");
-      }
-
-      writer.WritePropertyNameStart();
-      writer.WritePropertyNameInner(item.originName ? item.originName : "?");
-      writer.WritePropertyNameInner(".");
-      writer.WritePropertyNameInner(item.itemName);
-      writer.WritePropertyNameEnd();
-
-      writer.Write(itemVal);
-
-      writer.WritePropertyEnd();
-    }
-
-    writer.WriteObjectEnd();
-
-    writer.WritePropertyEnd();
-
-    if (
-      rawList.Count == 0 &&
-      rawList.originNames != null &&
-      rawList.originNames.length > 0
-    ) {
-      writer.WritePropertyStart("origins");
-      writer.WriteArrayStart();
-      for (let name of rawList.originNames) writer.Write(name);
-      writer.WriteArrayEnd();
-      writer.WritePropertyEnd();
-    }
-
-    writer.WriteObjectEnd();
-  }
-
-  public static ListDefinitionsToJToken(origin: ListDefinitionsOrigin) {
-    let result: Record<string, any> = {};
-
-    for (let def of origin.lists) {
-      let listDefJson: Record<string, any> = {};
-
-      for (let [key, val] of def.items) {
-        let item = InkListItem.fromSerializedKey(key);
-        if (item.itemName === null) {
-          return throwNullException("item.itemName");
-        }
-        listDefJson[item.itemName] = val;
-      }
-
-      result[def.name] = listDefJson;
-    }
-
-    return result;
-  }
-
-  public static JTokenToListDefinitions(obj: Record<string, any>) {
-    // var defsObj = (Dictionary<string, object>)obj;
-    let defsObj = obj;
-
-    let allDefs: ListDefinition[] = [];
-
-    for (let key in defsObj) {
-      if (defsObj.hasOwnProperty(key)) {
-        let name = key.toString();
-        // var listDefJson = (Dictionary<string, object>)kv.Value;
-        let listDefJson = defsObj[key] as Record<string, any>;
-
-        // Cast (string, object) to (string, int) for items
-        let items: Map<string, number> = new Map();
-
-        for (let nameValueKey in listDefJson) {
-          if (defsObj.hasOwnProperty(key)) {
-            let nameValue = listDefJson[nameValueKey];
-            items.set(nameValueKey, parseInt(nameValue));
-          }
-        }
-
-        let def = new ListDefinition(name, items);
-        allDefs.push(def);
-      }
-    }
-
-    return new ListDefinitionsOrigin(allDefs);
   }
 
   private static _controlCommandNames = (() => {

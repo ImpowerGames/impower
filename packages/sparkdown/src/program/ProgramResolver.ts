@@ -17,7 +17,6 @@ import { FlowLevel } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowLev
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { ListDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/List/ListDefinition";
 import { MultiReturnType } from "../inkjs/compiler/Parser/ParsedHierarchy/MultiReturnType";
 import {
   ParsedObject,
@@ -41,7 +40,6 @@ import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Var
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { DebugMetadata } from "../runtime/DebugMetadata";
 import type { SourceMetadata } from "../runtime/Error";
-import { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
 import { structDefinitionTable } from "../runtime/StructDefinition";
 import type { ProgramStoryTables } from "./ProgramRoot";
 import type { StructDefinition as RuntimeStructDefinition } from "../runtime/StructDefinition";
@@ -173,7 +171,6 @@ interface UnitShape {
   /** Each name the statement declares, with how it declares it. */
   defs: Map<string, string[]>;
   consts: ConstantDeclaration[];
-  lists: ListDefinition[];
   structs: StructDefinition[];
   /** The named gathers, then choices, the statement holds at any depth, for
    *  the weave of the flow it stands in. */
@@ -420,7 +417,7 @@ const parametersOf = (flow: FlowBase) =>
  * A compile resolves its references here, and builds no runtime tree. It
  * makes the passes of a cold `ExportRuntime` in its order, as the deleted object
  * engine ran them before #705: it declares the
- * story's constants, lists and structs, names each flow's labels, generates
+ * story's constants and structs, names each flow's labels, generates
  * the statements (which declares their globals and locals and reports what
  * generation reports), initializes the globals, and resolves every
  * statement's references; and it reports the same diagnostics, in the same
@@ -655,7 +652,7 @@ export class ProgramResolver {
   /**
    * Resolves `story`, reporting its diagnostics to `onDiagnostic`, and
    * returns what the program's engine reads of the story besides its
-   * chunks: its lists, its structs and its constants' names
+   * chunks: its structs and its constants' names
    * (`ProgramRoot.tables`).
    */
   resolve(
@@ -843,19 +840,15 @@ export class ProgramResolver {
         this.reported(message, type, metadata),
       );
 
-      // The story's constants, lists and structs, which it declares ahead of
+      // The story's constants and structs, which it declares ahead of
       // every other global, from each statement's, in the
       // story's order.
       const consts: ConstantDeclaration[] = [];
-      const lists: ListDefinition[] = [];
       const structs: StructDefinition[] = [];
       for (const unit of this._order) {
         const shape = shapes.get(unit) ?? unit.record!.shape;
         for (const c of shape.consts) {
           consts.push(c);
-        }
-        for (const l of shape.lists) {
-          lists.push(l);
         }
         for (const s of shape.structs) {
           structs.push(s);
@@ -863,7 +856,6 @@ export class ProgramResolver {
       }
       const runtimeStructs = story.DeclareStoryTables(
         consts,
-        lists,
         structs,
         this.runtimeStructOf,
       );
@@ -924,14 +916,13 @@ export class ProgramResolver {
       this.generateFlow(root);
 
       const implicitParentNames = story.DeclareImplicitParents(structs);
-      const runtimeLists = story.PrepareGlobals(
+      story.PrepareGlobals(
         implicitParentNames,
         runtimeStructs,
         (value) => this.initialize(value),
         this.runtimeStructOf,
       );
       tables = {
-        listDefinitions: new ListDefinitionsOrigin(runtimeLists),
         structDefinitions: structDefinitionTable(runtimeStructs),
         constantNames: story.RegisteredConstantNames(),
       };
@@ -1329,7 +1320,6 @@ export class ProgramResolver {
     const shape: UnitShape = {
       defs: new Map(),
       consts: [],
-      lists: [],
       structs: [],
       gathers: [],
       choices: [],
@@ -1438,15 +1428,6 @@ export class ProgramResolver {
       } else if (obj instanceof ExternalDeclaration) {
         kinded("externals", obj.name, `external:${obj.argumentNames.length}`);
         declared(obj, obj.identifier);
-      } else if (obj instanceof ListDefinition) {
-        const name = obj.identifier?.name;
-        kinded("lists", name, "list");
-        kinded("vars", name, "list");
-        for (const item of obj.itemDefinitions) {
-          kinded("lists", item.name, `item:${name}`);
-          declared(item, item.identifier);
-        }
-        declared(obj, obj.identifier);
       } else if (obj instanceof StructDefinition) {
         const key = obj.key;
         const how = `struct:${obj.type?.name ?? ""}:${!!obj.variableAssignment?.expression}`;
@@ -1475,8 +1456,6 @@ export class ProgramResolver {
       if (reached) {
         if (obj instanceof ConstantDeclaration) {
           shape.consts.push(obj);
-        } else if (obj instanceof ListDefinition) {
-          shape.lists.push(obj);
         } else if (obj instanceof StructDefinition) {
           shape.structs.push(obj);
         } else if (obj.identifier?.name != null) {
@@ -1907,8 +1886,7 @@ export class ProgramResolver {
    *  assignments it is, which its stand-in declares and makes again
    *  (`repeatMemo`); it read no fact of another statement's that no name
    *  stands for (a function value, the story's assignments) and no name of a
-   *  list or a struct, whose values the story decides from the declarations
-   *  together. A constant's name it may read: a change of whether the story
+   *  struct, whose values the story decides from the declarations together. A constant's name it may read: a change of whether the story
    *  can register the constant declares the name otherwise for its readers
    *  (`notedChanged`), which makes the memo stale. */
   protected memoResolutionOf(tally: MemoTally): MemoResolution | undefined {
@@ -1952,16 +1930,15 @@ export class ProgramResolver {
     // Read without reporting the read (`RecordingMap`). A constant's
     // reader reads it as a global (`GetVar`), and a change of whether the
     // story can register it declares its name otherwise for its readers
-    // (`notedChanged`), which makes the memo stale; a list's or a struct's
-    // values the story decides from the declarations together.
+    // (`notedChanged`), which makes the memo stale; a struct's values the
+    // story decides from the declarations together.
     const tables = this._story as unknown as {
-      _listDefs?: Map<string, unknown>;
       _structDefs?: Map<string, unknown>;
     };
     const has = (table: Map<string, unknown> | undefined, name: string) =>
       !!table && Map.prototype.has.call(table, name);
     for (const name of tally.reads) {
-      if (has(tables._listDefs, name) || has(tables._structDefs, name)) {
+      if (has(tables._structDefs, name)) {
         return undefined;
       }
     }
@@ -2362,7 +2339,6 @@ const holdsWhatTheStoryWalks = (
     obj instanceof VariableAssignment ||
     obj instanceof ConstantDeclaration ||
     obj instanceof ExternalDeclaration ||
-    obj instanceof ListDefinition ||
     obj instanceof StructDefinition ||
     obj instanceof ReturnType ||
     obj instanceof MultiReturnType ||

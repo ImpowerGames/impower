@@ -14,13 +14,10 @@ import { ExternalDeclaration } from "./Declaration/ExternalDeclaration";
 import { FlowBase } from "./Flow/FlowBase";
 import { FlowLevel } from "./Flow/FlowLevel";
 import { IncludedFile } from "./IncludedFile";
-import { ListDefinition } from "./List/ListDefinition";
-import { ListElementDefinition } from "./List/ListElementDefinition";
 import { StructDefinition } from "./Struct/StructDefinition";
 import { ParsedObject } from "./Object";
 import { SymbolType } from "./SymbolType";
 import { Text } from "./Text";
-import { ListDefinition as RuntimeListDefinition } from "../../../../runtime/ListDefinition";
 import { StructDefinition as RuntimeStructDefinition } from "../../../../runtime/StructDefinition";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../../runtime/TypeAssertion";
@@ -106,9 +103,6 @@ export class Story extends FlowBase {
   private _errorHandler: ErrorHandler | null = null;
   private _hadError: boolean = false;
   private _hadWarning: boolean = false;
-  private _listDefs: Map<string, ListDefinition> = new RecordingMap(
-    () => "lists",
-  );
   private _structDefs: Map<string, StructDefinition> = new RecordingMap(
     () => "structs",
   );
@@ -359,8 +353,8 @@ export class Story extends FlowBase {
     this._globalAssignmentNames = null;
   }
 
-  /** Ends preparation and begins resolving references, once every global,
-   *  list and struct is declared. */
+  /** Ends preparation and begins resolving references, once every global
+   *  and struct is declared. */
   public BeginReferenceResolution(): void {
     this._collisionIndex = null;
   }
@@ -379,17 +373,16 @@ export class Story extends FlowBase {
   }
 
   /** Declares what the story declares outside its flows' generation: its
-   *  constants (ahead of every other global), its lists and its structs,
-   *  and each struct property a pure data struct makes a global of; and
-   *  empties its externals, which generation declares. `constDecls`,
-   *  `listDecls` and `structDecls` are the story's declarations of each kind
+   *  constants (ahead of every other global) and its structs, and each
+   *  struct property a pure data struct makes a global of; and empties its
+   *  externals, which generation declares. `constDecls` and `structDecls`
+   *  are the story's declarations of each kind
    *  in the order the story holds them. `runtimeStructOf` builds a struct's
    *  runtime definition, which the program path's resolver keeps for a
    *  struct whose statement it does not resolve again. Returns the structs'
    *  runtime definitions. */
   public DeclareStoryTables(
     constDecls: readonly ConstantDeclaration[],
-    listDecls: readonly ListDefinition[],
     structDecls: readonly StructDefinition[],
     runtimeStructOf: (
       struct: StructDefinition,
@@ -425,15 +418,6 @@ export class Story extends FlowBase {
     // containing an operator, because `NativeFunctionCall` has no `Copy()`.
     this.unregisterableConstants = new RecordingSet<string>();
     this.RegisterConstantGlobals();
-
-    // List definitions are treated like constants too - they should be usable
-    // from other variable declarations.
-    this._listDefs = new RecordingMap(() => "lists");
-    for (const listDef of listDecls) {
-      if (listDef.identifier?.name) {
-        this._listDefs.set(listDef.identifier?.name, listDef);
-      }
-    }
 
     // Struct definitions are treated like constants too - they should be usable
     // from other variable declarations.
@@ -532,23 +516,18 @@ export class Story extends FlowBase {
   }
 
   /** The story's globals in the order the story declared them (#705): each
-   *  list's and struct's runtime definition, each list prepared, and
-   *  `prepare` called for each global with an initializer
-   *  (`ProgramResolver.initialize`). Returns the lists' runtime
-   *  definitions. */
+   *  struct's runtime definition, and `prepare` called for each global with
+   *  an initializer (`ProgramResolver.initialize`). */
   public PrepareGlobals(
     implicitParentNames: ReadonlySet<string>,
     runtimeStructs: RuntimeStructDefinition[],
     prepare: (value: VariableAssignment) => void,
     runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
-  ): RuntimeListDefinition[] {
-    return this.EachGlobal(
+  ): void {
+    this.EachGlobal(
       implicitParentNames,
       runtimeStructs,
       runtimeStructOf,
-      (list) => {
-        list.prepare();
-      },
       (_key, value) => {
         prepare(value);
       },
@@ -556,21 +535,17 @@ export class Story extends FlowBase {
   }
 
   /** The globals the story initializes, in the order the story declared
-   *  them, for `PrepareGlobals`: each list
-   *  registered, its runtime definition listed and then handed to `list`;
-   *  each struct a global carries registered and its runtime definition
-   *  (`runtimeStructOf`) added to `runtimeStructs`; and each global with an
-   *  initializer handed to `initializer`, under its key. Returns the lists'
-   *  runtime definitions. */
+   *  them, for `PrepareGlobals`: each struct a global carries registered and
+   *  its runtime definition (`runtimeStructOf`) added to `runtimeStructs`;
+   *  and each global with an initializer handed to `initializer`, under its
+   *  key. */
   protected EachGlobal(
     implicitParentNames: ReadonlySet<string>,
     runtimeStructs: RuntimeStructDefinition[],
     runtimeStructOf: (struct: StructDefinition) => RuntimeStructDefinition,
-    list: (definition: ListDefinition) => void,
     initializer: (key: string, value: VariableAssignment) => void,
-  ): RuntimeListDefinition[] {
+  ): void {
     // Global variables are those that are local to the story and marked as global
-    const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
       // Implicit parents are declaration-only (lazily minted by a
       // child's `__def` at runtime), as are the builtin markers of an
@@ -581,40 +556,32 @@ export class Story extends FlowBase {
         implicitParentNames.has(key) ||
         (value.isPreludeDeclaration &&
           !value.expression &&
-          !value.structDefinition &&
-          !value.listDefinition)
+          !value.structDefinition)
       ) {
         continue;
       }
       if (value.isGlobalDeclaration) {
-        if (value.listDefinition) {
-          this._listDefs.set(key, value.listDefinition);
-          runtimeLists.push(value.listDefinition.runtimeListDefinition);
-          list(value.listDefinition);
-        } else {
-          // Struct registration — populates `structDefinitions` for the
-          // engine's character / UI / asset spec system. A `define` can
-          // carry this AND a runtime table expression simultaneously
-          // (see VariableAssignment); the struct half never serializes
-          // and is compile-time only.
-          if (value.structDefinition) {
-            this._structDefs.set(key, value.structDefinition);
-            runtimeStructs.push(runtimeStructOf(value.structDefinition));
-          }
-          // Runtime initialization — for ordinary globals AND for
-          // `define` tables (which additionally carry a struct above).
-          // A pure struct VA (no expression) is intentionally NOT
-          // initialized at runtime, matching the legacy behavior.
-          if (value.expression) {
-            initializer(key, value);
-          } else if (!value.structDefinition) {
-            // Non-struct global declaration must have an expression.
-            throw new Error();
-          }
+        // Struct registration — populates `structDefinitions` for the
+        // engine's character / UI / asset spec system. A `define` can
+        // carry this AND a runtime table expression simultaneously
+        // (see VariableAssignment); the struct half never serializes
+        // and is compile-time only.
+        if (value.structDefinition) {
+          this._structDefs.set(key, value.structDefinition);
+          runtimeStructs.push(runtimeStructOf(value.structDefinition));
+        }
+        // Runtime initialization — for ordinary globals AND for
+        // `define` tables (which additionally carry a struct above).
+        // A pure struct VA (no expression) is intentionally NOT
+        // initialized at runtime, matching the legacy behavior.
+        if (value.expression) {
+          initializer(key, value);
+        } else if (!value.structDefinition) {
+          // Non-struct global declaration must have an expression.
+          throw new Error();
         }
       }
     }
-    return runtimeLists;
   }
 
   /**
@@ -728,57 +695,6 @@ export class Story extends FlowBase {
     return struct;
   };
 
-  public readonly ResolveList = (listName: string): ListDefinition | null => {
-    let list: ListDefinition | null | undefined = this._listDefs.get(listName);
-    if (!list) {
-      return null;
-    }
-
-    return list;
-  };
-
-  public readonly ResolveListItem = (
-    listName: string | null,
-    itemName: string,
-    source: ParsedObject | null = null,
-  ): ListElementDefinition | null => {
-    let listDef: ListDefinition | null | undefined = null;
-
-    // Search a specific list if we know its name (i.e. the form listName.itemName)
-    if (listName) {
-      if (!(listDef = this._listDefs.get(listName))) {
-        return null;
-      }
-
-      return listDef.ItemNamed(itemName);
-    } else {
-      // Otherwise, try to search all lists
-
-      let foundItem: ListElementDefinition | null = null;
-      let originalFoundList: ListDefinition | null = null;
-
-      for (const [, value] of this._listDefs.entries()) {
-        const itemInThisList = value.ItemNamed(itemName);
-        if (itemInThisList) {
-          if (foundItem) {
-            this.Error(
-              `Ambiguous item name \`${itemName}\` found in multiple sets, including ${
-                originalFoundList!.identifier
-              } and ${value!.identifier}`,
-              source,
-              false,
-            );
-          } else {
-            foundItem = itemInThisList;
-            originalFoundList = value!;
-          }
-        }
-      }
-
-      return foundItem;
-    }
-  };
-
   public override readonly Error = (
     message: string,
     source: ParsedObject | DebugMetadata | null | undefined,
@@ -887,23 +803,21 @@ export class Story extends FlowBase {
     }
   };
 
-  // The list and struct declarations by the names a declaration can collide
-  // with them under, built once the export has declared them all.
+  // The struct declarations by the names a declaration can collide with
+  // them under, built once the export has declared them all.
   protected _collisionIndex: {
-    lists: Map<string, { list: ListDefinition; item?: ListElementDefinition }[]>;
     structs: Map<string, StructDefinition[]>;
   } | null = null;
 
-  /** The program's lists and structs indexed by name, which the naming
-   *  collision check looks a declaration's name up in instead of scanning
-   *  every list and struct for it: each list under its name and each of its
-   *  items under the item's, and each struct under its key and, for a
-   *  `$default`, under the name it is the default of. Each name's entries
-   *  are in the order the declarations were registered, which is the order
-   *  the scans they replace reported collisions in. */
+  /** The program's structs indexed by name, which the naming collision check
+   *  looks a declaration's name up in instead of scanning every struct for
+   *  it: each struct under its key and, for a `$default`, under the name it
+   *  is the default of. Each name's entries are in the order the
+   *  declarations were registered, which is the order the scans they replace
+   *  reported collisions in. */
   protected collisionIndex(): NonNullable<Story["_collisionIndex"]> {
     if (!this._collisionIndex) {
-      // Built over every list and struct, whichever resolution asks first:
+      // Built over every struct, whichever resolution asks first:
       // what a resolution reads of it is the name it looks up
       // (`CheckForNamingCollisions`).
       const tap = tapResolution(null);
@@ -918,10 +832,6 @@ export class Story extends FlowBase {
 
   protected buildCollisionIndex(): NonNullable<Story["_collisionIndex"]> {
     {
-      const lists = new Map<
-        string,
-        { list: ListDefinition; item?: ListElementDefinition }[]
-      >();
       const structs = new Map<string, StructDefinition[]>();
       const add = <T>(map: Map<string, T[]>, name: string, entry: T) => {
         const entries = map.get(name);
@@ -931,14 +841,6 @@ export class Story extends FlowBase {
           map.set(name, [entry]);
         }
       };
-      for (const [key, list] of this._listDefs) {
-        add(lists, key, { list });
-        for (const item of list.itemDefinitions) {
-          if (item.name != null) {
-            add(lists, item.name, { list, item });
-          }
-        }
-      }
       const DEFAULT = ".$default";
       for (const [key, struct] of this._structDefs) {
         add(structs, key, struct);
@@ -946,7 +848,7 @@ export class Story extends FlowBase {
           add(structs, key.slice(0, -DEFAULT.length), struct);
         }
       }
-      return { lists, structs };
+      return { structs };
     }
   }
 
@@ -1047,33 +949,14 @@ export class Story extends FlowBase {
       return;
     }
 
-    if (symbolType < SymbolType.List) {
+    if (symbolType < SymbolType.Struct) {
       return;
     }
 
-    // Lists, and their items, found by the name through the index of the
-    // declarations by name (`collisionIndex`), in the order the lists were
-    // declared.
+    // Found by the name through the index of the declarations by name
+    // (`collisionIndex`).
     const index = this.collisionIndex();
     recordRead(identifier?.name ?? "");
-    for (const { list: value, item } of index.lists.get(identifier?.name ?? "") ??
-      []) {
-      if (!item) {
-        if (obj !== value && value.variableAssignment !== obj) {
-          this.NameConflictError(obj, identifier, value.identifier || value);
-        }
-        continue;
-      }
-      // We don't check for conflicts between individual elements in
-      // different lists because they are namespaced.
-      if (!(obj instanceof ListElementDefinition)) {
-        this.NameConflictError(obj, identifier, item.indentifier || item);
-      }
-    }
-
-    if (symbolType < SymbolType.List) {
-      return;
-    }
 
     // Structs: those declared under the name, or under the name's default.
     for (const value of index.structs.get(identifier?.name ?? "") ?? []) {
@@ -1146,7 +1029,6 @@ export class Story extends FlowBase {
       varDecl &&
       varDecl !== obj &&
       varDecl.isGlobalDeclaration &&
-      varDecl.listDefinition == null &&
       varDecl.structDefinition == null &&
       // A ROOT define (`define image with …`) declares a type and has no
       // structDefinition, but it is NOT a plain var — a same-named instance of

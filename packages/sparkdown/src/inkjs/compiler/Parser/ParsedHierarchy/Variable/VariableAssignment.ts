@@ -1,7 +1,6 @@
 import { Expression } from "../Expression/Expression";
 import { FlowBase } from "../Flow/FlowBase";
 import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
-import { ListDefinition } from "../List/ListDefinition";
 import { ParsedObject } from "../Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
@@ -28,7 +27,6 @@ export class VariableAssignment extends ParsedObject {
     return this.identifier?.name!;
   }
   public readonly expression: Expression | null = null;
-  public readonly listDefinition: ListDefinition | null = null;
   public readonly structDefinition: StructDefinition | null = null;
   public readonly isGlobalDeclaration: boolean;
   public readonly isNewTemporaryDeclaration: boolean;
@@ -75,8 +73,6 @@ export class VariableAssignment extends ParsedObject {
   override get typeName() {
     if (this.isConstantDeclaration) {
       return "const";
-    } else if (this.listDefinition !== null) {
-      return "list";
     } else if (this.structDefinition !== null) {
       return "define";
     } else if (this.isNewTemporaryDeclaration) {
@@ -106,7 +102,6 @@ export class VariableAssignment extends ParsedObject {
     isTemporaryNewDeclaration,
     isDeclarationInitializer,
     isDefineDeclaration,
-    listDef,
     structDef,
     variableIdentifier,
   }: {
@@ -121,7 +116,6 @@ export class VariableAssignment extends ParsedObject {
     readonly isTemporaryNewDeclaration?: boolean;
     readonly isDeclarationInitializer?: boolean;
     readonly isDefineDeclaration?: boolean;
-    readonly listDef?: ListDefinition;
     readonly structDef?: StructDefinition;
     readonly variableIdentifier: Identifier;
   }) {
@@ -135,12 +129,7 @@ export class VariableAssignment extends ParsedObject {
     this.isDeclarationInitializer = Boolean(isDeclarationInitializer);
 
     // Defensive programming in case parsing of assignedExpression failed
-    if (listDef instanceof ListDefinition) {
-      this.listDefinition = this.AddContent(listDef) as ListDefinition;
-      this.listDefinition.variableAssignment = this;
-      // List definitions are always global
-      this.isGlobalDeclaration = true;
-    } else if (structDef instanceof StructDefinition) {
+    if (structDef instanceof StructDefinition) {
       this.structDefinition = this.AddContent(structDef) as StructDefinition;
       this.structDefinition.variableAssignment = this;
       // Struct definitions are always global
@@ -246,8 +235,6 @@ export class VariableAssignment extends ParsedObject {
     }
     if (this.expression) {
       this.expression.prepare();
-    } else if (this.listDefinition) {
-      this.listDefinition.prepare();
     }
     this._madeAssignment = true;
     return true;
@@ -261,11 +248,10 @@ export class VariableAssignment extends ParsedObject {
       super.ResolveWith(context);
     }
 
-    // List and struct definitions are checked for conflicts separately
+    // Struct definitions are checked for conflicts separately
     if (
       this.isDeclaration &&
       !this.isPropertyDeclaration &&
-      this.listDefinition === null &&
       this.structDefinition === null
     ) {
       context.CheckForNamingCollisions(
@@ -278,11 +264,7 @@ export class VariableAssignment extends ParsedObject {
     // Initial var x = [intialValue] declaration, not re-assignment
     if (this.isGlobalDeclaration) {
       const variableReference = asOrNull(this.expression, VariableReference);
-      if (
-        variableReference &&
-        !variableReference.isConstantReference &&
-        !variableReference.isListItemReference
-      ) {
+      if (variableReference && !variableReference.isConstantReference) {
         this.Error(
           "A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
           variableReference.diagnosticSource,

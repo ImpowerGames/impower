@@ -2,7 +2,6 @@ import {
   AbstractValue,
   Value,
   VariablePointerValue,
-  ListValue,
   IntValue,
   FloatValue,
   BoolValue,
@@ -10,7 +9,6 @@ import {
 } from "./Value";
 import { VariableAssignment } from "./VariableAssignment";
 import { InkObject } from "./Object";
-import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
 import { StoryException } from "./StoryException";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { asOrThrows, asOrNull, isEquatable } from "./TypeAssertion";
@@ -18,7 +16,6 @@ import { tryGetValueFromMap } from "./TryGetResult";
 import { throwNullException } from "./NullException";
 import { CallStack } from "./CallStack";
 import { SimpleJson } from "./SimpleJson";
-import { InkList } from "./InkList";
 import { Path } from "./Path";
 
 // Fake class wrapper around VariableState to have correct typing
@@ -27,7 +24,7 @@ function VariablesStateAccessor<T>(): new () => Pick<T, keyof T> {
   return class {} as any;
 }
 
-type VariableStateValue = boolean | string | number | InkList | Path | null;
+type VariableStateValue = boolean | string | number | Path | null;
 
 /** What the program engine's images hear of the keyed state before it is
  *  written (docs/engine/binary-program.md, section 7, The write barrier): a
@@ -165,14 +162,10 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
-  constructor(
-    callStack: CallStack,
-    listDefsOrigin: ListDefinitionsOrigin | null,
-  ) {
+  constructor(callStack: CallStack) {
     super();
     this._globalVariables = new Map();
     this._callStack = callStack;
-    this._listDefsOrigin = listDefsOrigin;
 
     // if es6 proxies are available, use them.
     try {
@@ -470,11 +463,6 @@ export class VariablesState extends VariablesStateAccessor<
         );
         if (variableValue.exists) return variableValue.result;
       }
-
-      if (this._listDefsOrigin === null)
-        return throwNullException("VariablesState._listDefsOrigin");
-      let listItemValue = this._listDefsOrigin.FindSingleItemListWithName(name);
-      if (listItemValue) return listItemValue;
     }
 
     return null;
@@ -906,26 +894,12 @@ export class VariablesState extends VariablesStateAccessor<
     return table;
   }
 
-  public RetainListOriginsForAssignment(
-    oldValue: InkObject,
-    newValue: InkObject,
-  ) {
-    let oldList = asOrThrows(oldValue, ListValue);
-    let newList = asOrThrows(newValue, ListValue);
-
-    if (oldList.value && newList.value && newList.value.Count == 0) {
-      newList.value.SetInitialOriginNames(oldList.value.originNames);
-    }
-  }
-
   public SetGlobal(variableName: string | null, value: InkObject) {
     let oldValue = tryGetValueFromMap(
       this._globalVariables,
       variableName,
       null,
     );
-
-    ListValue.RetainListOriginsForAssignment(oldValue.result!, value);
 
     if (variableName === null) {
       return throwNullException("variableName");
@@ -1036,7 +1010,6 @@ export class VariablesState extends VariablesStateAccessor<
 
   private _callStack: CallStack;
   private _changedVariablesForBatchObs: Set<string> | null = new Set();
-  private _listDefsOrigin: ListDefinitionsOrigin | null;
 
   private _batchObservingVariableChanges: boolean = false;
 

@@ -1,6 +1,6 @@
 import { PushPopType } from "./PushPop";
 import { JsonSerialisation } from "./JsonSerialisation";
-import { ListValue, VariablePointerValue } from "./Value";
+import { VariablePointerValue } from "./Value";
 import { InkObject } from "./Object";
 import { Debug } from "./Debug";
 import { tryGetValueFromMap } from "./TryGetResult";
@@ -251,7 +251,6 @@ export class CallStack {
       const inner = scopes[scopes.length - 1]!;
       const oldValue = tryGetValueFromMap(inner, name, null);
       if (oldValue.exists) {
-        ListValue.RetainListOriginsForAssignment(oldValue.result, value);
         // Lua timely closing across loop iterations: re-executing a
         // `local x = ...` declaration in the SAME scope frame (loop
         // bodies re-run their declarations every iteration — incl.
@@ -297,7 +296,6 @@ export class CallStack {
     if (frame === null) {
       throw new Error("Could not find temporary variable to set: " + name);
     }
-    ListValue.RetainListOriginsForAssignment(frame.get(name) ?? null, value);
     frame.set(name, value);
     return frame;
   }

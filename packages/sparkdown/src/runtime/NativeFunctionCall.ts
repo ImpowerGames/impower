@@ -3,7 +3,6 @@ import {
   ValueType,
   IntValue,
   FloatValue,
-  ListValue,
   BoolValue,
   MultiValue,
   NullValue,
@@ -12,7 +11,6 @@ import {
 import { StoryException } from "./StoryException";
 import { Void } from "./Void";
 import { Path } from "./Path";
-import { InkList, InkListItem } from "./InkList";
 import { InkObject } from "./Object";
 import {
   getPureStdLibEntries,
@@ -25,7 +23,7 @@ import {
   luauTypeOf,
   parseLuauNumber,
 } from "./StdLib";
-import { asOrNull, asOrThrows, asBooleanOrThrows } from "./TypeAssertion";
+import { asOrThrows } from "./TypeAssertion";
 import { isLuauTruthy } from "./LuauTruthiness";
 import { throwNullException } from "./NullException";
 
@@ -102,14 +100,8 @@ export class NativeFunctionCall extends InkObject {
   // `t:intersection(other)` method. The `^` symbol is now Luau
   // exponentiation (aliased to `POW` in `BinaryExpression.NativeNameForOp`).
   // See docs/runtime/METHODS.md for the full method set.
-  public static readonly ListMin: string = "LIST_MIN";
-  public static readonly ListMax: string = "LIST_MAX";
-  public static readonly All: string = "LIST_ALL";
-  public static readonly Count: string = "LIST_COUNT";
-  public static readonly ValueOfList: string = "LIST_VALUE";
-  public static readonly Invert: string = "LIST_INVERT";
-  // Luau `#x` length operator. Works on strings (chars), lists (count), and
-  // objects (entry count). The runtime dispatches to the registered unary op
+  // Luau `#x` length operator. Works on strings (chars) and objects (entry
+  // count). The runtime dispatches to the registered unary op
   // matching the operand's value type.
   public static readonly Length: string = "LEN";
 
@@ -278,7 +270,6 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
-    let hasList = false;
     for (let i = 0; i < parameters.length; i++) {
       const p = parameters[i];
       if (p instanceof Void) {
@@ -301,7 +292,6 @@ export class NativeFunctionCall extends InkObject {
         parameters[i] = p.values[0] ?? new NullValue();
         continue;
       }
-      if (p instanceof ListValue) hasList = true;
     }
 
     // Luau short-circuit semantics for `and`/`or`. Unlike the other native
@@ -374,10 +364,6 @@ export class NativeFunctionCall extends InkObject {
         );
       }
       return new StringValue(l + r);
-    }
-
-    if (parameters.length == 2 && hasList) {
-      return this.CallBinaryListOperation(parameters);
     }
 
     // First-class `nil` semantics (matches Luau):
@@ -458,8 +444,6 @@ export class NativeFunctionCall extends InkObject {
       return this.CallType<string>(coercedParams);
     } else if (coercedType == ValueType.DivertTarget) {
       return this.CallType<Path>(coercedParams);
-    } else if (coercedType == ValueType.List) {
-      return this.CallType<InkList>(coercedParams);
     } else if (coercedType == ValueType.Object) {
       return this.CallType<Map<string, any>>(coercedParams);
     }
@@ -554,156 +538,22 @@ export class NativeFunctionCall extends InkObject {
     }
   }
 
-  public CallBinaryListOperation(parameters: InkObject[]) {
-    if (
-      (this.name == "+" || this.name == "-") &&
-      parameters[0] instanceof ListValue &&
-      parameters[1] instanceof IntValue
-    )
-      return this.CallListIncrementOperation(parameters);
-
-    let v1 = asOrThrows(parameters[0], Value);
-    let v2 = asOrThrows(parameters[1], Value);
-
-    if (
-      (this.name == NativeFunctionCall.And ||
-        this.name == NativeFunctionCall.Or) &&
-      (v1.valueType != ValueType.List || v2.valueType != ValueType.List)
-    ) {
-      if (this._operationFuncs === null)
-        return throwNullException("NativeFunctionCall._operationFuncs");
-      let op = this._operationFuncs.get(ValueType.Int) as BinaryOp<number>;
-      if (op === null)
-        return throwNullException(
-          "NativeFunctionCall.CallBinaryListOperation op",
-        );
-      let result = asBooleanOrThrows(
-        op(v1.isTruthy ? 1 : 0, v2.isTruthy ? 1 : 0),
-      );
-      return new BoolValue(result);
-    }
-
-    if (v1.valueType == ValueType.List && v2.valueType == ValueType.List)
-      return this.CallType<InkList>([v1, v2]);
-
-    throw new StoryException(
-      "Can not call use " +
-        this.name +
-        " operation on " +
-        ValueType[v1.valueType] +
-        " and " +
-        ValueType[v2.valueType],
-    );
-  }
-
-  public CallListIncrementOperation(listIntParams: InkObject[]) {
-    let listVal = asOrThrows(listIntParams[0], ListValue);
-    let intVal = asOrThrows(listIntParams[1], IntValue);
-
-    let resultInkList = new InkList();
-
-    if (listVal.value === null)
-      return throwNullException(
-        "NativeFunctionCall.CallListIncrementOperation listVal.value",
-      );
-    for (let [listItemKey, listItemValue] of listVal.value) {
-      let listItem = InkListItem.fromSerializedKey(listItemKey);
-
-      if (this._operationFuncs === null)
-        return throwNullException("NativeFunctionCall._operationFuncs");
-      let intOp = this._operationFuncs.get(ValueType.Int) as BinaryOp<number>;
-
-      if (intVal.value === null)
-        return throwNullException(
-          "NativeFunctionCall.CallListIncrementOperation intVal.value",
-        );
-      let targetInt = intOp(listItemValue, intVal.value);
-
-      let itemOrigin = null;
-      if (listVal.value.origins === null)
-        return throwNullException(
-          "NativeFunctionCall.CallListIncrementOperation listVal.value.origins",
-        );
-      for (let origin of listVal.value.origins) {
-        if (origin.name == listItem.originName) {
-          itemOrigin = origin;
-          break;
-        }
-      }
-      if (itemOrigin != null) {
-        let incrementedItem = itemOrigin.TryGetItemWithValue(
-          targetInt,
-          InkListItem.Null,
-        );
-        if (incrementedItem.exists)
-          resultInkList.Add(incrementedItem.result, targetInt);
-      }
-    }
-
-    return new ListValue(resultInkList);
-  }
-
   public CoerceValuesToSingleType(parametersIn: InkObject[]) {
     let valType = ValueType.Int;
-
-    let specialCaseList: null | ListValue = null;
 
     for (let obj of parametersIn) {
       let val = asOrThrows(obj, Value);
       if (val.valueType > valType) {
         valType = val.valueType;
       }
-
-      if (val.valueType == ValueType.List) {
-        specialCaseList = asOrNull(val, ListValue);
-      }
     }
 
     let parametersOut = [];
 
-    if (ValueType[valType] == ValueType[ValueType.List]) {
-      for (let inkObjectVal of parametersIn) {
-        let val = asOrThrows(inkObjectVal, Value);
-        if (val.valueType == ValueType.List) {
-          parametersOut.push(val);
-        } else if (val.valueType == ValueType.Int) {
-          let intVal = parseInt(val.valueObject);
-
-          specialCaseList = asOrThrows(specialCaseList, ListValue);
-          if (specialCaseList.value === null)
-            return throwNullException(
-              "NativeFunctionCall.CoerceValuesToSingleType specialCaseList.value",
-            );
-          let list = specialCaseList.value.originOfMaxItem;
-
-          if (list === null)
-            return throwNullException(
-              "NativeFunctionCall.CoerceValuesToSingleType list",
-            );
-          let item = list.TryGetItemWithValue(intVal, InkListItem.Null);
-          if (item.exists) {
-            let castedValue = new ListValue(item.result, intVal);
-            parametersOut.push(castedValue);
-          } else
-            throw new StoryException(
-              "Could not find List item with the value " +
-                intVal +
-                " in " +
-                list.name,
-            );
-        } else {
-          const key = ValueType[val.valueType];
-          throw new StoryException(
-            "Cannot mix Lists and " + key + " values in this operation",
-          );
-        }
-      }
-    } else {
-      for (let inkObjectVal of parametersIn) {
-        let val = asOrThrows(inkObjectVal, Value);
-        let castedValue = val.Cast(valType);
-        parametersOut.push(castedValue);
-      }
+    for (let inkObjectVal of parametersIn) {
+      let val = asOrThrows(inkObjectVal, Value);
+      let castedValue = val.Cast(valType);
+      parametersOut.push(castedValue);
     }
 
     return parametersOut;
@@ -849,40 +699,9 @@ export class NativeFunctionCall extends InkObject {
       // String containment is now via `s:find(sub)` (returns 1-based
       // position or nil) — no `has`/`hasnt` operator registration.
 
-      this.AddListBinaryOp(this.Add, (x, y) => x.Union(y));
-      this.AddListBinaryOp(this.Subtract, (x, y) => x.Without(y));
-      // List containment / intersection are now method-based — see the
-      // `Intersect` constant's removal comment above and `:union` /
-      // `:intersection` / `:difference` in `MethodDispatch.ts`. The `^`
-      // symbol is reclaimed for Luau exponentiation.
-
-      this.AddListBinaryOp(this.Equal, (x, y) => x.Equals(y));
-      this.AddListBinaryOp(this.Greater, (x, y) => x.GreaterThan(y));
-      this.AddListBinaryOp(this.Less, (x, y) => x.LessThan(y));
-      this.AddListBinaryOp(this.GreaterThanOrEquals, (x, y) =>
-        x.GreaterThanOrEquals(y),
-      );
-      this.AddListBinaryOp(this.LessThanOrEquals, (x, y) =>
-        x.LessThanOrEquals(y),
-      );
-      this.AddListBinaryOp(this.NotEquals, (x, y) => !x.Equals(y));
-
-      this.AddListBinaryOp(this.And, (x, y) => x.Count > 0 && y.Count > 0);
-      this.AddListBinaryOp(this.Or, (x, y) => x.Count > 0 || y.Count > 0);
-
-      this.AddListUnaryOp(this.Not, (x) => (x.Count == 0 ? 1 : 0));
-
-      this.AddListUnaryOp(this.Invert, (x) => x.inverse);
-      this.AddListUnaryOp(this.All, (x) => x.all);
-      this.AddListUnaryOp(this.ListMin, (x) => x.MinAsList());
-      this.AddListUnaryOp(this.ListMax, (x) => x.MaxAsList());
-      this.AddListUnaryOp(this.Count, (x) => x.Count);
-      this.AddListUnaryOp(this.ValueOfList, (x) => x.maxItem.Value);
-
-      // Luau `#` length: number of characters in a string, items in a list,
-      // or entries in an object.
+      // Luau `#` length: number of characters in a string, or entries in an
+      // object.
       this.AddStringUnaryOp(this.Length, (x) => x.length);
-      this.AddListUnaryOp(this.Length, (x) => x.Count);
       // Lua `#t` is a BORDER (t[n] ~= nil and t[n+1] == nil), not the
       // total entry count: `#{1,2}` is 2 but `#{a=1,b=2}` is 0 — and
       // `#_G` is 0 (its marker key is non-numeric). Luau resolves
@@ -990,7 +809,7 @@ export class NativeFunctionCall extends InkObject {
 
   public AddOpFuncForType(
     valType: ValueType,
-    op: UnaryOp<number | InkList> | BinaryOp<number | string | InkList | Path>,
+    op: UnaryOp<number> | BinaryOp<number | string | Path>,
   ): void {
     if (this._operationFuncs == null) {
       this._operationFuncs = new Map();
@@ -1056,12 +875,6 @@ export class NativeFunctionCall extends InkObject {
     this.AddOpToNativeFunc(name, 1, ValueType.String, op);
   }
 
-  public static AddListBinaryOp(name: string, op: BinaryOp<InkList>) {
-    this.AddOpToNativeFunc(name, 2, ValueType.List, op);
-  }
-  public static AddListUnaryOp(name: string, op: UnaryOp<InkList>) {
-    this.AddOpToNativeFunc(name, 1, ValueType.List, op);
-  }
 
   public static AddObjectUnaryOp(
     name: string,

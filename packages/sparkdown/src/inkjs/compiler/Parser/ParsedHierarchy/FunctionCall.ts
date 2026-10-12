@@ -19,6 +19,19 @@ import {
 import { displayLeavesLineOpen } from "../../../../program/displayCallFlags";
 import { resolveChild } from "./Object";
 
+/** ink's LIST builtins other than `LIST_RANGE`, which stay builtin names a
+ *  global cannot take. Sparkdown has no list type (#1752), so a call of any of
+ *  them, or of `LIST_RANGE`, is the unsupported `list` construct. */
+const INK_LIST_BUILTINS: ReadonlySet<string> = new Set([
+  "LIST_ALL",
+  "LIST_COUNT",
+  "LIST_INVERT",
+  "LIST_MAX",
+  "LIST_MIN",
+  "LIST_RANDOM",
+  "LIST_VALUE",
+]);
+
 export class FunctionCall extends Expression {
   public static readonly IsBuiltIn = (name: string): boolean => {
     if (NativeFunctionCall.CallExistsWithName(name)) {
@@ -29,11 +42,10 @@ export class FunctionCall extends Expression {
       // Legacy per-function ControlCommand builtins that still have
       // compile-time setup not yet migrated to the STDLIB
       // dispatcher: TURNS_SINCE / READ_COUNT take their target's
-      // count; LIST_* builtins are list-runtime-native.
+      // count; the LIST_* builtins are reported unsupported.
       name === "TURNS_SINCE" ||
       name === "READ_COUNT" ||
-      name === "LIST_VALUE" ||
-      name === "LIST_RANDOM" ||
+      INK_LIST_BUILTINS.has(name) ||
       // State-aware Luau globals + namespaced state-aware functions
       // (e.g. `plural.category`, `math.random`, `assert`, ...)
       // registered in `STDLIB` in StdLib.ts. Adding a new
@@ -70,6 +82,11 @@ export class FunctionCall extends Expression {
     return this.name === "LIST_RANDOM";
   }
 
+  /** Whether the call is of one of ink's LIST builtins. */
+  get isListBuiltin(): boolean {
+    return this.isListRange || INK_LIST_BUILTINS.has(this.name);
+  }
+
   get isReadCount(): boolean {
     return this.name === "READ_COUNT";
   }
@@ -88,8 +105,7 @@ export class FunctionCall extends Expression {
     return (
       !this.isTurnsSince &&
       !this.isReadCount &&
-      !this.isListRange &&
-      !this.isListRandom &&
+      !this.isListBuiltin &&
       !this.isStateAwareStdLib &&
       !NativeFunctionCall.CallExistsWithName(this.name)
     );
@@ -151,6 +167,10 @@ export class FunctionCall extends Expression {
     } else if (this.isListRandom) {
       this.CheckListFunctionArity();
       this.args[0]!.PrepareIntoContainer();
+    } else if (this.isListBuiltin) {
+      for (const arg of this.args) {
+        arg.PrepareIntoContainer();
+      }
     } else if (this.isStateAwareStdLib) {
       for (const arg of this.args) {
         arg.PrepareIntoContainer();
@@ -261,7 +281,7 @@ export class FunctionCall extends Expression {
       }
       return;
     }
-    if (this.isListRange || this.isListRandom) {
+    if (this.isListBuiltin) {
       emitter.unsupported("list");
     }
     if (this.isStateAwareStdLib) {

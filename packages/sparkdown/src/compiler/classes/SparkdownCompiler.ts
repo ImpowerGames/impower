@@ -28,7 +28,6 @@ import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { ExternalDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
-import { ListDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/List/ListDefinition";
 import { StructDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -2257,15 +2256,7 @@ export class SparkdownCompiler {
       const declaredNames: string[] = [];
       const scan = (nodes: ParsedObject[]) => {
         for (const n of nodes) {
-          if (n instanceof ListDefinition) {
-            // List items are still resolved and inlined at generation time.
-            disqualifies = true;
-            invalidatesGlobals = true;
-            const listName = n.identifier?.name;
-            if (listName) {
-              declaredNames.push(`c:${listName}`);
-            }
-          } else if (n instanceof ConstantDeclaration) {
+          if (n instanceof ConstantDeclaration) {
             // Constants are no longer inlined into referencing flows (#309),
             // so a constant's VALUE changing can't invalidate anyone else's
             // bytecode and `invalidatesGlobals` is not set — editing a
