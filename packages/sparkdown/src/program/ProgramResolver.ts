@@ -29,7 +29,12 @@ import {
 import { ReturnType } from "../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { StructDefinition } from "../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
-import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import {
+  functionSitesUnder,
+  sitesNaming,
+  type Story,
+} from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { ClosestFlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/ClosestFlowBase";
 import {
   memoAssignmentOf,
   memoMultiOf,
@@ -518,6 +523,9 @@ export class ProgramResolver {
   /** The first function value naming each flow this compile, made on first
    *  use (`ResolutionTap.functionValue`). */
   protected _functionValues: Map<string, ParsedObject> | null = null;
+  /** The names a plain assignment of the story writes to the global scope
+   *  this compile, made on first use (`ResolutionTap.globalWrite`). */
+  protected _globalWrites: Set<string> | null = null;
   protected _occurrences = new WeakMap<object, object[]>();
   // Each struct's runtime definition, built when its statement was last
   // generated, with the diagnostics building it reported.
@@ -687,6 +695,7 @@ export class ProgramResolver {
     const root = this.walkFlow(story, "", input);
     this._root = root;
     this._functionValues = null;
+    this._globalWrites = null;
     passes.units = this._order.length;
 
     // Which statements to generate and resolve.
@@ -746,8 +755,14 @@ export class ProgramResolver {
       }
     };
     for (const unit of fresh) {
-      const shape = this.shapeOf(unit);
-      shapes.set(unit, shape);
+      shapes.set(unit, this.shapeOf(unit));
+    }
+    // Whether each plain assignment of a statement lowered anew writes the
+    // global, declared with its name, once every such statement is shaped:
+    // a closure's sites may stand in another of them.
+    this.decideWrites(fresh, shapes);
+    for (const unit of fresh) {
+      const shape = shapes.get(unit)!;
       declare(shape.defs, "+");
       if (unit.record && !cold) {
         declare(unit.record.shape.defs, "-");
@@ -813,6 +828,14 @@ export class ProgramResolver {
         }
       }
       passes.invalidated = fresh.filter((unit) => unit.invalidated).length;
+      // A statement resolved again for a name it reads decides its
+      // assignments' writes again, from the context that name changed; a
+      // change of what they decide comes with a declaration of their name
+      // otherwise, which every reader of the name already reads again.
+      this.decideWrites(
+        fresh.filter((unit) => unit.invalidated),
+        null,
+      );
     } else {
       // Every divert finds its target again.
       bumpResolutionEpoch();
@@ -1030,6 +1053,92 @@ export class ProgramResolver {
         this._unplaced.set(member, unplacedUnder(member));
       } else {
         this._unplaced.delete(member);
+      }
+    }
+  }
+
+  /** Decides, for each plain assignment the statements `units` hold, whether
+   *  a `local` or parameter certainly binds it (`FlowBase.IsBoundLocallyAt`),
+   *  and keeps the answer on it (`VariableAssignment.boundLocally`), which
+   *  `Story.writesGlobal` reads while the statement is carried. With
+   *  `shapes`, each answer is also declared with the assignment's name, so
+   *  that a statement whose answer changes declares the name otherwise and
+   *  the calls that read the name are resolved again (`Story.assignsGlobally`).
+   *
+   *  A name a nested function captures is filled at the function's sites. A
+   *  function nested in another function stands, with its sites, in the
+   *  statement that declares the outer function whole; a closure written at
+   *  the top level is filled where its value is made, which the statements'
+   *  function values hold: those of `units` as lowered, those of every
+   *  other statement as it was last generated. Nothing else is read. */
+  protected decideWrites(
+    units: readonly Unit[],
+    shapes: Map<Unit, UnitShape> | null,
+  ): void {
+    if (units.length === 0) {
+      return;
+    }
+    const deciding = new Set(units);
+    let storyValues: Map<string, ParsedObject[]> | null = null;
+    const topLevelValues = (): Map<string, ParsedObject[]> => {
+      if (!storyValues) {
+        storyValues = new Map();
+        const add = (value: ParsedObject) => {
+          const name =
+            value instanceof DivertTarget
+              ? value.divert.target?.dotSeparatedComponents
+              : null;
+          if (name) {
+            const list = storyValues!.get(name) ?? [];
+            list.push(value);
+            storyValues!.set(name, list);
+          }
+        };
+        for (const unit of this._order) {
+          if (deciding.has(unit)) {
+            for (const member of unit.members) {
+              for (const obj of this.alongContent(member)) {
+                if (obj instanceof DivertTarget && obj.isFunctionValue) {
+                  add(obj);
+                }
+              }
+            }
+          } else {
+            for (const value of unit.record?.shape.functionValues ?? []) {
+              add(value);
+            }
+          }
+        }
+      }
+      return storyValues;
+    };
+    for (const unit of units) {
+      for (const member of unit.members) {
+        for (const obj of this.alongContent(member)) {
+          if (!(obj instanceof VariableAssignment) || obj.isDeclaration) {
+            continue;
+          }
+          const story = obj.story;
+          const bound = story.IsBoundLocallyAt(obj.variableName, obj, (flow) => {
+            const around = flow.parent ? ClosestFlowBase(flow) : null;
+            const name = flowName(flow);
+            const candidates =
+              around instanceof FlowBase && around !== story
+                ? (functionSitesUnder(around).get(name) ?? [])
+                : (topLevelValues().get(name) ?? []);
+            return sitesNaming(flow, candidates);
+          });
+          obj.boundLocally = bound;
+          const shape = shapes?.get(unit);
+          if (shape) {
+            const how = `write:${bound ? "local" : "global"}:${unit.context}@${unit.index}`;
+            for (const key of [obj.variableName, "*vars"]) {
+              const list = shape.defs.get(key) ?? [];
+              list.push(key === "*vars" ? `${obj.variableName}|${how}` : how);
+              shape.defs.set(key, list);
+            }
+          }
+        }
       }
     }
   }
@@ -2228,6 +2337,19 @@ export class ProgramResolver {
     assignments: () => {
       this.refuseRunning("it reads the assignments of other statements");
       return this.storyAssignments();
+    },
+    // The caller reads the name, which every assignment of it declares with
+    // whether it writes the global (`decideWrites`).
+    globalWrite: (name) => {
+      if (!this._globalWrites) {
+        this._globalWrites = new Set();
+        for (const obj of this.storyAssignments()) {
+          if (obj instanceof VariableAssignment && obj.story.writesGlobal(obj)) {
+            this._globalWrites.add(obj.variableName);
+          }
+        }
+      }
+      return this._globalWrites.has(name);
     },
     visited: (obj, generated) => {
       const candidate = this._candidates?.get(obj);

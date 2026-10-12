@@ -36,6 +36,13 @@ export class VariableAssignment extends ParsedObject {
    *  `local function`'s closure, assigned after its name is declared nil so
    *  the body can call it (#1720). Its `SetVar` carries `SET_INITIALIZE`. */
   public readonly isDeclarationInitializer: boolean;
+  /** For a plain assignment, whether a `local` or parameter of its name
+   *  certainly binds it where it is written (`FlowBase.IsBoundLocallyAt`),
+   *  so that it writes that binding and not the global: decided when the
+   *  program path's resolver shapes the statement that holds it
+   *  (`ProgramResolver.decideWrites`), and kept while the statement is
+   *  carried; null until decided (`Story.writesGlobal`). */
+  public boundLocally: boolean | null = null;
   // True for a `define`'s VariableAssignment (a runtime type/instance
   // table). Lets ParsedHierarchy/Story identify the full set of
   // defined type names when computing IMPLICIT parent types

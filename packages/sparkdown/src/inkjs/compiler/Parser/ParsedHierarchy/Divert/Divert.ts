@@ -387,7 +387,12 @@ export class Divert extends ParsedObject {
     }
     this.beginGeneration();
     this.ResolveTargetContent();
-    this.CheckArgumentValidity();
+    // A function call's arguments are checked against the function it calls
+    // as its references resolve, once the story's assignments say whether it
+    // calls the function or a global that rebinds it.
+    if (!this.isFunctionCall) {
+      this.CheckArgumentValidity();
+    }
     let targetArguments: Argument[] | null = null;
     if (this.targetContent) {
       targetArguments = (this.targetContent as FlowBase).args;
@@ -545,6 +550,30 @@ export class Divert extends ParsedObject {
     );
   }
 
+  // Whether this is a call of a function written at the top level whose name
+  // a plain assignment anywhere in the story writes to the global scope
+  // (`Story.assignsGlobally`, which reads only the name). A function nested
+  // in another is a value of that function's scope, which its lowering
+  // rebinds itself.
+  private callsReboundFunction(story: Story): boolean {
+    const name = this.target?.firstComponent;
+    if (
+      !this.isFunctionCall ||
+      this.variableDivertName != null ||
+      this.target?.numberOfComponents !== 1 ||
+      !name
+    ) {
+      return false;
+    }
+    const flow = asOrNull(this.targetContent, FlowBase);
+    return (
+      !!flow &&
+      flow.isFunction &&
+      ClosestFlowBase(flow) === story &&
+      story.assignsGlobally(name)
+    );
+  }
+
   public readonly ResolveTargetContent = (): void => {
     if (this.isEmpty || this.isEnd) {
       return;
@@ -623,7 +652,25 @@ export class Divert extends ParsedObject {
       this.ResolveTargetContent();
     }
 
+    // A call of a top-level function whose name the story also assigns as a
+    // global calls what the global holds when the call runs: Luau's
+    // `function f` is `f = function`, so `f = g` anywhere rebinds `f`. Until
+    // an assignment runs the global is unset, and a call through it reaches
+    // the function of its name (`callVariableTarget`). A story that never
+    // assigns the name keeps the direct call.
+    if (this.callsReboundFunction(context)) {
+      this.setVariableDivertName(this.target!.firstComponent);
+      this._variableDivertEpoch = currentResolutionEpoch();
+    }
+
     // The program jumps to its target's symbol (`EmitJump`).
+
+    // A call through a variable passes whatever function the variable holds
+    // when it runs the arguments that function takes, so only a direct call
+    // is held to its function's parameters.
+    if (this.isFunctionCall && this.variableDivertName == null) {
+      this.CheckArgumentValidity();
+    }
 
     // A divert bound to a builtin global's variable (`-> game`, whether the
     // slot holds the prelude's marker or an authored override) can never

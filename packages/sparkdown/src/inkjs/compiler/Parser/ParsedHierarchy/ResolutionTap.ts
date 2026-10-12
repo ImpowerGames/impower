@@ -63,6 +63,13 @@ export interface ResolutionTap {
   /** Every assignment the story's statements hold, which the resolver
    *  knows from each statement's syntax (`Story.globalAssignmentNames`). */
   assignments(): Iterable<ParsedObject>;
+  /** Whether a plain assignment the story's statements hold writes the
+   *  global \`name\` (\`Story.assignsGlobally\`), from what the resolver
+   *  decided for each as it shaped its statement
+   *  (\`VariableAssignment.boundLocally\`). Every assignment of the name
+   *  declares the name, with whether it writes the global, so the caller's
+   *  read of the name alone decides when its statement reads otherwise. */
+  globalWrite(name: string): boolean;
   /** A diagnostic raised as `raiser.Error(message, source, isWarning)`, or
    *  as the story's own `Error` when `raiser` is null: one the story
    *  reported (`emitted`), at `position`, or one an earlier diagnostic of
