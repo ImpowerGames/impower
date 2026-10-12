@@ -78,7 +78,8 @@ function validateReviewerIdentity(name, step) {
 // each holding the attempt that completed.
 function validateCompletedRoundReviewers(config) {
   const record = config.completedRoundReviewers, planned = config.plannedRoundReviewers;
-  if (record === undefined && planned === undefined) return;
+  // A count-form round journals both as null; null and omission mean the same.
+  if (record == null && planned == null) return;
   if (!Array.isArray(planned) || planned.length < 1 || planned.length > 3 || !planned.every((id) => typeof id === "string" && reviewerIdPattern.test(id)) || new Set(planned).size !== planned.length) throw new Error("Supply plannedRoundReviewers from the journal with completedRoundReviewers: the completed round's 1 to 3 distinct planned reviewer ids");
   if (!record || typeof record !== "object" || Array.isArray(record)) throw new Error("Supply completedRoundReviewers from the journal as an object of planned reviewer ids and their completed attempts");
   const entries = Object.entries(record);
@@ -119,7 +120,7 @@ export function validateReviewRecovery(config) {
   if(!Number.isInteger(config.completedReviewRound)||config.completedReviewRound<0||config.completedReviewRound>limit)throw new Error(`Supply completedReviewRound from 0 through ${limit}, including on recovery`);
   if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply the journal's boolean finalCorrections (valid at round 3 or later); recovery at the configured limit ${limit}, including a pending serial reviewer, requires it. Carry completedReviewRound, reviewedHead and completedRoundReviews forward too; unchanged HEAD does not establish correction state`);
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
-  if(config.completedRoundReviews!==undefined&&(!Number.isInteger(config.completedRoundReviews)||config.completedRoundReviews<1||config.completedReviewRound<1))throw new Error('Supply completedRoundReviews from the journal as a positive integer, and only with a nonzero completedReviewRound');
+  if(config.completedRoundReviews!=null&&(!Number.isInteger(config.completedRoundReviews)||config.completedRoundReviews<1||config.completedReviewRound<1))throw new Error('Supply completedRoundReviews from the journal as a positive integer, and only with a nonzero completedReviewRound');
   validateCompletedRoundReviewers(config);
 }
 

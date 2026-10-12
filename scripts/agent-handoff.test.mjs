@@ -528,6 +528,17 @@ try {
   await refusedResume({}, { undirected:{ ...lifecycle.steps.review, round:1, reviewers:2 } }, /later reviewers need reviewerId/, "resume-unnamed-reviewer.jsonl");
   await refusedResume({}, { undirected:{ ...retryStep("undirected-1",undefined,"null"), reviewerId:undefined } }, /needs reviewerId/, "resume-missing-id.jsonl");
 
+  // A count-form round journals null identity records; a recovery plan that
+  // carries them exactly as emitted resumes its pending reviewer.
+  const countFirst = { ...lifecycle, first:"review", maxSteps:1, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,"count-form-first.jsonl"), steps:{ review:{ ...lifecycle.steps.review, round:1, reviewers:2 } } };
+  fs.writeFileSync(file,JSON.stringify(countFirst)); await runHandoff(file);
+  const countRow = fs.readFileSync(countFirst.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed");
+  assert.equal(countRow.completedRoundReviewers,null); assert.equal(countRow.plannedRoundReviewers,null);
+  const { completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections } = countRow;
+  const countResume = { ...countFirst, completedReviewRound:completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, journal:path.join(scratch,"count-form-resumed.jsonl") };
+  fs.writeFileSync(file,JSON.stringify(countResume)); await runHandoff(file);
+  assert.equal(fs.readFileSync(countResume.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviews,2,"the count-form round's second reviewer completes from the emitted journal state");
+
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
 delete config.finalCorrections;
