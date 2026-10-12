@@ -356,8 +356,9 @@ export const REMAINING = [
 ];
 
 // The record holds no writer for the ticket, and its last one was released
-// after an observed end or settled by a census that found no process.
-const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended));
+// after an observed end, settled by a census that found no process, or was a
+// continuation whose claim recorded the previous writer's end and never ran.
+const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
 
 export function planDispatch({ record, snapshot, observations = {}, turn, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity }) {
   if (snapshot.repository !== record.repository || snapshot.feature.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
@@ -411,7 +412,14 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     if (own.pending) {
       active++;
       const p = own.pending;
-      if (p.route === "claude-adopted" && p.operation === "dispatch") { const [action, reason] = adoptedNext(p); add(t, action, reason, { pending: p }); continue; }
+      const heldParent = heldAncestor(t);
+      if (p.route === "claude-adopted" && p.operation === "dispatch") {
+        const [action, reason] = adoptedNext(p);
+        if (heldParent !== null && action === "dispatch-step") add(t, "wait-dependency", `its parent #${heldParent} is still held by a writer; the pending start stays recorded, but run none of its steps until that writer is settled`, { pending: p, waitingFor: [heldParent] });
+        else add(t, action, reason, { pending: p });
+        continue;
+      }
+      if (heldParent !== null && p.operation === "proposed") { add(t, "wait-dependency", `its parent #${heldParent} is still held by a writer; withdraw the proposal, or record it with launched if it was started anyway`, { pending: p, waitingFor: [heldParent] }); continue; }
       add(t, "reconcile-pending", p.operation === "proposed" ? `a ${p.route} start was proposed and awaits the user; record its start with launched, or withdraw it once declined` : `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : "find the started writer and record it with launched, or withdraw with evidence that none started"} before any retry`, { pending: p });
       continue;
     }
@@ -425,7 +433,8 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
       // existing writer adopted with its work already has its assignment.
       if (own.owner.brief !== undefined && own.owner.brief?.state !== "delivered" && s.status !== "exited") {
         active++;
-        if (!own.owner.brief) add(t, "deliver-brief", `the app adopted session ${own.owner.handle.id}; once its first turn has ended, record deliver, send the brief it prints by message, then record delivered`, extra);
+        if (!own.owner.brief && heldAncestor(t) !== null) add(t, "wait-dependency", `its parent #${heldAncestor(t)} is still held by a writer; do not brief session ${own.owner.handle.id} until that writer is settled`, { ...extra, waitingFor: [heldAncestor(t)] });
+        else if (!own.owner.brief) add(t, "deliver-brief", `the app adopted session ${own.owner.handle.id}; once its first turn has ended, record deliver --plan (it prints the brief), send that text by message, then record delivered`, extra);
         else add(t, "reconcile-pending", `brief delivery ${own.owner.brief.deliveryId} of assignment ${own.owner.launchId} to session ${own.owner.handle.id} has no recorded outcome and may still be queued; if the writer's transcript shows the assignment, record delivered with that evidence; otherwise wait, or resend with deliver --retry, which the brief tells the writer to ignore once a copy has arrived`, extra);
         continue;
       }
@@ -550,6 +559,10 @@ export function claim(record, { plan, ticket: number, worktree, branch, artifact
   return ticket.pending;
 }
 
+// A pending start that ends without a writer keeps what its claim
+// established: a continuation's evidence that the previous writer ended.
+const settledStart = (pending, fields) => ({ pending, ...fields, ...(pending.continues && { priorEnded: pending.continues.evidence }) });
+
 const ownerFrom = (pending, handle) => ({ route: pending.route, model: pending.model, effort: pending.effort, worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
 
 export function launched(record, { ticket: number, handleKind, handle, host = os.hostname() }) {
@@ -599,7 +612,7 @@ export function withdraw(record, { ticket: number, evidence }) {
   if (!ticket.pending) throw new Error(`#${number} has nothing pending`);
   if (!evidence) throw new Error("--evidence must say why no writer started (a declined proposal, or the observation that found none)");
   log(record, "withdrawn", { ticket: number, launchId: ticket.pending.launchId, evidence });
-  ticket.history.push({ pending: ticket.pending, withdrawn: evidence });
+  ticket.history.push(settledStart(ticket.pending, { withdrawn: evidence }));
   ticket.pending = null;
 }
 
@@ -677,7 +690,7 @@ export function answer(record, { ticket: number, request: id, text, retry = fals
   if (!words) throw new Error("--text must give the answer");
   r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString() };
   log(record, "answer-intent", { ticket: number, id, deliveryId: r.answer.deliveryId, attempt: r.answer.attempts });
-  return { message: `Answer to your request ${id} (delivery ${r.answer.deliveryId}): ${words}\nIf you already received an answer to request ${id}, ignore this copy.` };
+  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.` };
 }
 export function answered(record, { ticket: number, request: id, evidence }) {
   const r = findRequest(record, number, id);
@@ -760,7 +773,7 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
   catch (error) { throw new Error(`The outcome of launch ${pending.launchId} is uncertain (${error.message}); it stays pending, and reconcile settles it before any retry`); }
   if (!outcome.started) {
     log(record, "launch-failed", { ticket: number, launchId: pending.launchId, reason: outcome.reason });
-    ticket.history.push({ pending, failed: outcome.reason });
+    ticket.history.push(settledStart(pending, { failed: outcome.reason }));
     ticket.pending = null;
     return { started: false, reason: outcome.reason };
   }
@@ -870,23 +883,28 @@ export function handoffAdopted(file, { coordinator, expectRevision, ticket: numb
   return { revision: done.record.revision, sessionId, ...outcome };
 }
 
-// The coordinator sends the brief by message. `deliver` records the intent
-// before the message is sent and `delivered` its outcome after. A message can
-// arrive late, so an unconfirmed send is settled from the writer's transcript
-// or resent only as an identified retry: every copy names the assignment and
-// tells the writer to act on the first copy it receives.
+// The coordinator sends the brief by message. `deliver` builds the brief,
+// stores its text with the intent and prints it to send; `delivered` records
+// the outcome. A message can arrive late, so an unconfirmed send is settled
+// from the writer's transcript or resent only as an identified retry of the
+// stored text: every copy names the assignment, carries the same
+// instructions, and tells the writer to act on the first copy it receives.
 function briefedOwner(record, number) {
   const owner = ticketOf(record, number).owner;
   if (!owner || owner.brief === undefined) throw new Error(`#${number} has no newly launched adopted writer awaiting a brief; an existing writer adopted with its work already has its assignment`);
   return owner;
 }
-export function deliver(record, { ticket: number, retry = false }) {
+export function deliver(record, { ticket: number, retry = false, plan, decisions = [], defaults = readWriterDefaults() }) {
   const owner = briefedOwner(record, number);
   if (owner.brief?.state === "delivered") throw new Error(`#${number}'s brief was delivered at ${owner.brief.time}`);
   if (owner.brief?.state === "intent" && !retry) throw new Error(`#${number}'s brief ${owner.brief.deliveryId} is already at intent with no recorded outcome; settle it from the writer's transcript, or resend with --retry`);
   if (!owner.brief && retry) throw new Error(`#${number}'s brief has not been sent; record deliver without --retry`);
-  owner.brief = { state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief?.attempts ?? 0) + 1, time: new Date().toISOString() };
+  if (retry && (plan || decisions.length)) throw new Error("A retry resends the stored brief; it takes no plan or decisions");
+  if (!retry && !plan) throw new Error("--plan must name the plan the brief is built from");
+  const text = retry ? owner.brief.text : briefBody(record, plan, number, decisions, defaults);
+  owner.brief = { state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief?.attempts ?? 0) + 1, time: new Date().toISOString(), text };
   log(record, "brief-intent", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId, attempt: owner.brief.attempts });
+  return { message: `${assignmentHeader(owner)}\n${text}` };
 }
 export function delivered(record, { ticket: number, evidence }) {
   const owner = briefedOwner(record, number);
@@ -903,7 +921,7 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   if (pending.route !== "claude-cli") throw new Error(`A ${pending.route} start is confirmed with launched or withdrawn with evidence`);
   const launchDir = launchDirOf(pending, number);
   if (!fs.existsSync(launchDir)) {
-    ticket.history.push({ pending, withdrawn: "no launch directory exists, so nothing was started" });
+    ticket.history.push(settledStart(pending, { withdrawn: "no launch directory exists, so nothing was started", ended: "nothing was started" }));
     log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome: "not started" });
     ticket.pending = null;
     return { outcome: "not started" };
@@ -922,7 +940,7 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   }
   const output = path.join(launchDir, "out.jsonl");
   const outcome = fs.existsSync(output) && fs.statSync(output).size > 0 ? "started and ended" : "not running";
-  ticket.history.push({ pending, withdrawn: `no process names ${launchDir} (${outcome}); read its output before dispatching again`, ended: `the process census found no process naming ${launchDir}` });
+  ticket.history.push(settledStart(pending, { withdrawn: `no process names ${launchDir} (${outcome}); read its output before dispatching again`, ended: `the process census found no process naming ${launchDir}` }));
   log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome });
   ticket.pending = null;
   return { outcome };
@@ -930,18 +948,24 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
 
 // --- Writer brief ---------------------------------------------------------
 
+const assignmentHeader = (owner) => `Assignment ${owner.launchId} (delivery ${owner.brief.deliveryId}). If you have already received assignment ${owner.launchId}, ignore this copy and carry on with the first.`;
+
+// The brief to print for a writer's prompt. A brief that deliver recorded is
+// reproduced exactly, under its current delivery.
 export function brief(record, planFile, number, decisions = [], defaults = readWriterDefaults()) {
+  const owner = record.tickets[number]?.owner;
+  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${owner.brief.text}`;
+  return briefBody(record, planFile, number, decisions, defaults);
+}
+
+function briefBody(record, planFile, number, decisions, defaults) {
   const plan = readJson(planFile), entry = plan.tickets.find((t) => t.number === number);
   const ticket = record.tickets[number], work = ticket?.pending ?? ticket?.owner;
   if (!entry || !work) throw new Error(`#${number} has no claimed or owned work to brief`);
   const route = defaults.routes[routeVendor(work.model)].find((r) => r.route === work.route);
   const adopted = ticket.owner?.adopted ?? work.continues;
   const place = !work.continues || work.continues.worktreeExists ? `in ${work.worktree}` : `on a worktree at ${work.worktree} checked out from the existing origin branch`;
-  // A brief sent by message may arrive more than once; each copy names the
-  // assignment so the writer acts on the first.
-  const delivery = ticket.owner?.brief?.state === "intent" ? ` (delivery ${ticket.owner.brief.deliveryId})` : "";
   return [
-    ...(route.reportsByMessage ? [`Assignment ${work.launchId}${delivery}. If you have already received assignment ${work.launchId}, ignore this copy and carry on with the first.`] : []),
     `You are the writer for ${record.repository} ticket #${number} (${entry.title}), a slice of Feature #${record.feature}. The coordinator is session ${record.coordinator.session} on ${record.coordinator.host}; it answers by message.`,
     `Route: ${work.route}, model ${work.model} at effort ${work.effort}. Before any work and before building any reviewer plan, confirm your own model and effort: ${route.selfCheck}. If either differs, stop and report the mismatch as a blocker; never substitute another model or effort.`,
     `Run the resolve-issue skill for #${number} exactly as written.`,
@@ -1009,7 +1033,7 @@ export function main(argv, { defaults = readWriterDefaults() } = {}) {
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt }));
     case "create": return createAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, permissionMode: o.permissionMode });
     case "handoff": return handoffAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable });
-    case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry) }));
+    case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry), plan: o.plan ? absolute(o.plan, "plan") : undefined, decisions: o.decision ?? [], defaults }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
     case "relay": return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to }));

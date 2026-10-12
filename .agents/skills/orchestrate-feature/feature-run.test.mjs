@@ -293,8 +293,11 @@ try {
   // a copy has arrived.
   assert.throws(() => mutate(rev, (r) => run.delivered(r, { ticket: 108 })), /record deliver before sending it/);
   assert.throws(() => mutate(rev, (r) => run.deliver(r, { ticket: 108, retry: true })), /has not been sent/);
-  rev = mutate(rev, (r) => run.deliver(r, { ticket: 108 }));
+  assert.throws(() => mutate(rev, (r) => run.deliver(r, { ticket: 108 })), /--plan must name/);
+  const sentFirst = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.deliver(r, { ticket: 108, plan: write("planA3b.json", adoptedPlan()), decisions: ["Preserve the public API exactly."], defaults }));
+  rev = sentFirst.record.revision;
   const firstCopy = run.readRecord(record).tickets[108].owner.brief;
+  assert.match(sentFirst.output.message, /- Preserve the public API exactly./, "deliver prints the brief it records");
   const assignment = run.readRecord(record).tickets[108].owner.launchId;
   const copy1 = run.brief(run.readRecord(record), write("planA3.json", adoptedPlan()), 108, [], defaults);
   assert.match(copy1, new RegExp(`^Assignment ${assignment} \\(delivery ${firstCopy.deliveryId}\\)\\. If you have already received assignment ${assignment}, ignore this copy`), "each copy names its assignment so the writer acts on the first");
@@ -303,8 +306,11 @@ try {
   assert.equal(interrupted.action, "reconcile-pending");
   assert.match(interrupted.reason, /may still be queued; .* otherwise wait, or resend with deliver --retry/, "an unconfirmed send is never resent as a fresh assignment");
   assert.doesNotMatch(interrupted.reason, /send it and record delivered/);
-  rev = mutate(rev, (r) => run.deliver(r, { ticket: 108, retry: true }));
+  assert.throws(() => mutate(rev, (r) => run.deliver(r, { ticket: 108, retry: true, decisions: ["something else"] })), /takes no plan or decisions/);
+  const sentAgain = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.deliver(r, { ticket: 108, retry: true }));
+  rev = sentAgain.record.revision;
   const secondCopy = run.readRecord(record).tickets[108].owner.brief;
+  assert.equal(sentAgain.output.message.split("\n").slice(1).join("\n"), sentFirst.output.message.split("\n").slice(1).join("\n"), "a retry carries exactly the first copy's instructions, settled decisions included");
   assert.deepEqual([secondCopy.attempts, secondCopy.deliveryId !== firstCopy.deliveryId], [2, true]);
   assert.match(run.brief(run.readRecord(record), write("planA4.json", adoptedPlan()), 108, [], defaults), new RegExp(`^Assignment ${assignment} \\(delivery ${secondCopy.deliveryId}\\)`), "a retry names the same assignment");
   rev = mutate(rev, (r) => run.delivered(r, { ticket: 108, evidence: "the transcript shows the brief" }));
@@ -324,7 +330,7 @@ try {
   assert.throws(() => mutate(rev, (r) => run.answered(r, { ticket: 108, request: requestId })), /record answer before sending it/);
   const answering = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.answer(r, { ticket: 108, request: requestId, text: "round 4 is authorized" }));
   rev = answering.record.revision;
-  assert.match(answering.output.message, new RegExp(`^Answer to your request ${requestId} \\(delivery \\w+\\): round 4 is authorized\\nIf you already received an answer to request ${requestId}, ignore this copy\\.`));
+  assert.match(answering.output.message, new RegExp(`^Answer to your request ${requestId}, which asked: "authorize round 4\\?" \\(delivery \\w+\\):\\nround 4 is authorized\\nIf you already received an answer to request ${requestId}, ignore this copy\\.`), "the answer quotes the question it answers");
   assert.equal(plan108().action, "answer-request", "an answer recorded but not confirmed sent keeps the request open");
   assert.match(plan108().reason, /may still be queued; .* answer --retry/);
   assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 108, request: requestId, text: "again" })), /--retry/);
@@ -706,6 +712,53 @@ try {
     assert.deepEqual([1501, 1502, 1503, 1504].map((n) => actions(p)[n]), ["decision-needed", "wait-dependency", "adopt-pr", "dispatch"]);
     assert.match(p.tickets.find((t) => t.number === 1502).reason, /parent #1501 is still held/);
     assert.match(p.tickets.find((t) => t.number === 1503).continueBlocked, /parent #1501 is still held/);
+  }
+
+  // Round 3 (corrections), finding 1: two answers in flight each quote the
+  // question they answer.
+  {
+    const f = fresh("r15");
+    const snap = snapshotOf(300, [{ ...ticket(1701), parent: 300, prs: [{ number: 1801, state: "OPEN", isDraft: true, branch: "fix/1701-thing", head: "h", rounds: 3 }] }]);
+    f.change((r) => run.adopt(r, { plan: write("r15-plan.json", planOf(f, snap)), ticket: 1701, handleKind: "session", handle: "local_w", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    const round4 = f.change((r) => run.request(r, { ticket: 1701, text: "May I start review round 4?", source: "transcript" })).id;
+    const scope = f.change((r) => run.request(r, { ticket: 1701, text: "May I expand the implementation scope?", source: "transcript" })).id;
+    const yes = f.change((r) => run.answer(r, { ticket: 1701, request: round4, text: "yes" })).message;
+    const no = f.change((r) => run.answer(r, { ticket: 1701, request: scope, text: "no" })).message;
+    assert.match(yes, /which asked: "May I start review round 4\?"[^\n]*:\nyes/);
+    assert.match(no, /which asked: "May I expand the implementation scope\?"[^\n]*:\nno/);
+  }
+
+  // Round 3 (corrections), finding 3: a start claimed before its ticket was
+  // moved under a held parent runs none of its steps, and its writer is not
+  // briefed, until the parent's writer is settled.
+  {
+    const f = fresh("r16");
+    const flat = snapshotOf(300, [{ ...ticket(1901), parent: 300 }, { ...ticket(1902), parent: 300 }]);
+    const pre = [available("claude-adopted", "claude-opus-5-5", [1902])];
+    f.change((r) => run.claim(r, { plan: write("r16-plan.json", planOf(f, flat, { turn: "event", preflights: pre })), ticket: 1902, worktree: path.join(f.dir, "wt"), branch: "fix/1902-thing", artifactParent: f.artifacts }));
+    const parentHeld = (rec) => ({ ...rec, tickets: { ...rec.tickets, 1901: { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: "w", handle: { kind: "session", id: "local_p" } }, pending: null, history: [], results: [] } } });
+    const nested = snapshotOf(300, [{ ...ticket(1901), parent: 300, container: true }, { ...ticket(1902), parent: 1901 }]);
+    const nestedPlan = () => run.planDispatch({ record: parentHeld(run.readRecord(f.file)), snapshot: nested, turn: "event", preflights: pre, observations: { sessions: { local_p: { state: "running" }, local_c: { state: "idle" } } }, freeBytes: 100 * GB, defaults }).tickets.find((t) => t.number === 1902);
+    assert.deepEqual([nestedPlan().action, nestedPlan().pending.route], ["wait-dependency", "claude-adopted"], "the pending start waits and stays recorded");
+    run.createAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 1902, executable: path.join(tmp, "claude.exe"), permissionMode: "auto", runner: () => ({ created: true, sessionId: "3f8c1e7a-2b3d-4c5e-9f60-718293a4b5c6" }) });
+    run.handoffAdopted(f.file, { coordinator: "local_r", expectRevision: run.readRecord(f.file).revision, ticket: 1902, executable: path.join(tmp, "claude.exe"), runner: () => ({ requested: true, pid: 1 }) });
+    f.change((r) => run.launched(r, { ticket: 1902, handleKind: "session", handle: "local_c" }));
+    assert.match(nestedPlan().reason, /do not brief session local_c until that writer is settled/);
+    assert.equal(nestedPlan().action, "wait-dependency");
+  }
+
+  // Round 3 (corrections), finding 4: a continuation that never started keeps
+  // its claim's evidence that the previous writer ended, so neither holds a place.
+  {
+    const f = fresh("r17");
+    const withPr = snapshotOf(300, [{ ...ticket(2001), parent: 300, prs: [{ number: 2101, state: "OPEN", isDraft: true, branch: "fix/2001-thing", head: "h", rounds: 1 }] }, { ...ticket(2002), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [2001, 2002])];
+    f.change((r) => run.claim(r, { plan: write("r17-plan.json", planOf(f, withPr, { preflights: pre })), ticket: 2001, worktree: path.join(f.dir, "wt-2001"), branch: "fix/2001-thing", artifactParent: f.artifacts, operation: "continue", evidence: "the previous writer's session is archived" }));
+    assert.equal(f.change((r) => run.reconcile(r, { ticket: 2001 })).outcome, "not started");
+    const after = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } }, snapshot: withPr, turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.equal(after.concurrency.active, 0, "neither the never-started continuation nor the ended writer holds a place");
+    assert.equal(actions(after)[2002], "dispatch");
+    assert.equal(run.readRecord(f.file).tickets[2001].history.at(-1).priorEnded, "the previous writer's session is archived");
   }
 
   // Round 2 (corrections), finding 2: an existing adopted-route writer
