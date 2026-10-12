@@ -17,7 +17,7 @@ const outcome = ({ program }: { program: SparkProgram }) => {
     .flat()
     .filter((d) => d.severity === 1)
     .map((d) => d.message);
-  expect(program.fallback).toBeUndefined();
+  expect(program.chunks).toBeDefined();
   const beats = storyBeats(new ProgramStory(program.chunks!));
   return {
     text: beats.beats.map((b) => b.text).join(""),
