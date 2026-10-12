@@ -103,6 +103,11 @@ export function updateRecord(file, { expectRevision, coordinator }, mutate, { id
     const record = readRecord(file);
     if (record.revision !== expectRevision) throw new Error(`The run record is at revision ${record.revision}, not ${expectRevision}; plan again from the current record`);
     if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session} on ${record.coordinator.host}; ${coordinator} may not change its run record`);
+    // After a takeover the pointer names the new record, so the previous
+    // coordinator's record stops accepting changes.
+    let pointer;
+    try { pointer = readJson(pointerFile(record.checkout, record.repository, record.feature)); } catch { pointer = null; }
+    if (!pointer || path.resolve(pointer.record) !== path.resolve(file)) throw new Error(`The coordinator pointer for Feature #${record.feature} ${pointer ? `names ${pointer.record} (coordinator ${pointer.coordinator})` : "is missing or unreadable"}; this record no longer coordinates the Feature`);
     const next = structuredClone(record);
     const output = mutate(next);
     next.revision = record.revision + 1;

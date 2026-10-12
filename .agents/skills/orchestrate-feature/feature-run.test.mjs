@@ -343,6 +343,16 @@ try {
   assert.equal(duplicate.status, 1);
   assert.match(duplicate.stderr, /already has coordinator local_a/);
   assert.equal(cli("plan", "--record", "relative.json").status, 1);
+
+  // Takeover after the first coordinator is observed to have ended carries
+  // ownership and adopted rounds over unchanged, and the first coordinator's
+  // record stops accepting changes.
+  const taken = init({ record: second, coordinator: "local_b", takeover: true, observations: { sessions: { local_a: { state: "archived" } } } });
+  assert.equal(taken.action, "takeover");
+  assert.deepEqual(taken.record.tickets[104].owner.adopted, { pr: 504, rounds: 2 });
+  assert.deepEqual(taken.record.previousCoordinators.map((c) => [c.session, c.record]), [["local_a", record]]);
+  assert.throws(() => mutate(rev, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })), /this record no longer coordinates the Feature/);
+  assert.equal(run.updateRecord(second, { expectRevision: 1, coordinator: "local_b" }, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })).record.revision, 2);
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
   for (const { pid } of started) { try { waitFor(() => !processIdentity(pid), `stand-in ${pid} to exit`, 15000); } catch (error) { console.error(error.message); } }
