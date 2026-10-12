@@ -109,19 +109,25 @@ function findHits(source: string, exempt: (offset: number) => boolean): Hit[] {
     if (tok.text === "[") {
       // A class that names a line break (`[\r\n]`), or, in a lookahead,
       // `\s` (`[\s]`); a negated class is `no-line-crossing-class`'s. A
-      // class with `\s` in a lookbehind is not reported: it reads only the
-      // character before the position, which can be the previous line's
-      // break only at the start of a line (`LuauSparkleEventClosureAttribute`
-      // and `LuauDocParamModifier` use one).
+      // class with `\s` in a lookbehind is reported when it repeats there
+      // (`(?<=[\s]{2})`), which reads past the character before the
+      // position into the line above. Read once, it reads only that
+      // character, which can be the previous line's break only at the start
+      // of a line (`LuauSparkleEventClosureAttribute` and
+      // `LuauDocParamModifier` use one; #1661 tracks them).
       let close = i + 1;
       while (close < tokens.length && !(tokens[close]!.text === "]" && tokens[close]!.inCharClass)) close++;
       const closeToken = tokens[close];
       if (!closeToken) continue;
       const body = tokens.slice(i + 1, close);
+      const end = closeToken.index + 1;
       const namesLineBreak = body.some((t) => isLineBreakEscape(t.text));
-      const holdsSpace = body.some((t) => t.text === "\\s") && !within.some(isLookbehind);
-      if (body[0]?.text !== "^" && (namesLineBreak || holdsSpace)) {
-        const end = closeToken.index + 1;
+      const holdsSpace = body.some((t) => t.text === "\\s");
+      const behind = within.filter(isLookbehind).sort((a, b) => b.start - a.start)[0];
+      const repeatedBehind =
+        behind !== undefined &&
+        (repeats(source, end) || within.some((g) => g.start > behind.start && repeats(source, g.end + 1)));
+      if (body[0]?.text !== "^" && (namesLineBreak || (holdsSpace && (!behind || repeatedBehind)))) {
         lineBreak(tok.index, end, `\`${source.slice(tok.index, end)}\``, within);
       }
       i = close;

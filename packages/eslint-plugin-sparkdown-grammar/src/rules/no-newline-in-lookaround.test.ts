@@ -80,6 +80,18 @@ test("a class holding \\s fails where its lookahead reads on", () => {
   end: (?=[\\s]+x)`), ["Rule.end: `[\\s]` with more of its lookahead after it"]);
 });
 
+test("a class holding \\s repeated in a lookbehind fails, and read once it passes", () => {
+  assert.deepEqual(findings(`Rule:
+  match: (?<=[\\s]{2})y
+Other:
+  match: (?<=(?:[\\s])+)z
+Once:
+  match: (?<=[=\\s])w`), [
+    "Rule.match: `[\\s]` inside a lookbehind",
+    "Other.match: `[\\s]` inside a lookbehind",
+  ]);
+});
+
 test("an exempt variable's line break does not hide a later one in the same lookahead", () => {
   const trivia = `# reads-past-line: skips blank lines to the next token.
 TRIVIA: (?:[\\r\\n]|{{WS}})*
