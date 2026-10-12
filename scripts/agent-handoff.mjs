@@ -195,9 +195,30 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
 // may still run; every other state, including a lock or journal it cannot
 // parse, refuses and leaves the lock in place. A copy of the lock is kept in
 // the job directory beside the journal before the lock is removed. Nothing is
-// signalled and nothing but the verified lock file is deleted.
+// signalled and nothing but the verified lock file is deleted. Recovery holds
+// the exclusive marker `<lock>.recovery` throughout, which excludes a second
+// recovery and makes a coordinator that takes the lock meanwhile give it up.
 export function recoverHandoffLock(worktree, { identifyProcess = processIdentity, host = os.hostname() } = {}) {
   const lock = git(fs.realpathSync.native(worktree), ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"]);
+  const recovery = lockRecoveryMarker(lock);
+  let marker;
+  try { marker = fs.openSync(recovery, "wx"); }
+  catch (error) {
+    if (error.code === "EEXIST") throw new Error(`Recovery marker exists at ${recovery}: another recovery is running or was interrupted; inspect its owner before removing it`);
+    throw error;
+  }
+  try {
+    fs.writeSync(marker, JSON.stringify({ pid: process.pid, processIdentity: identifyProcess(process.pid), host, startedAt: new Date().toISOString(), lock }) + "\n");
+    fs.fsyncSync(marker);
+    return recoverMarkedLock(lock, identifyProcess, host);
+  } finally { fs.closeSync(marker); fs.unlinkSync(recovery); }
+}
+
+// The lock path's recovery marker, which a coordinator checks after it takes the lock.
+export const lockRecoveryMarker = (lock) => lock + ".recovery";
+const validIdentity = (value) => !!value && Number.isSafeInteger(value.pid) && value.pid > 0 && typeof value.start === "string" && value.start.length > 0;
+
+function recoverMarkedLock(lock, identifyProcess, host) {
   let text;
   try { text = fs.readFileSync(lock, "utf8"); }
   catch (error) { if (error.code === "ENOENT") return { alreadyAbsent: lock }; throw error; }
@@ -205,21 +226,23 @@ export function recoverHandoffLock(worktree, { identifyProcess = processIdentity
   let record;
   try { record = JSON.parse(text); } catch { throw refuse("its record is empty or unreadable, so its coordinator may still be starting; inspect it by hand"); }
   const owner = record?.processIdentity;
-  if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid < 1 || typeof owner.start !== "string" || !owner.start || owner.pid !== record.pid) throw refuse("it records no OS start identity for its coordinator");
+  if (!validIdentity(owner) || owner.pid !== record.pid) throw refuse("it records no OS start identity for its coordinator");
   if (typeof record.host !== "string" || !record.host) throw refuse("it records no source host, so a locally absent PID does not show its coordinator is gone");
   if (record.host !== host) throw refuse(`it was written on host ${record.host}, not ${host}; recover it from that host`);
   if (typeof record.journal !== "string" || !path.isAbsolute(record.journal)) throw refuse("it names no absolute journal path");
   if (sameIdentity(owner, identifyProcess(owner.pid))) throw refuse(`its coordinator (PID ${owner.pid}) is still running; await its exit`);
-  let rows = [];
+  let rows = [], journalFound = true;
   try { rows = fs.readFileSync(record.journal, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)); }
   catch (error) {
+    journalFound = false;
     // The coordinator opens its journal before it launches any child.
     if (error.code !== "ENOENT") throw refuse(`its journal ${record.journal} is unreadable (${error.message}); a child it launched may still run`);
   }
   const coordinatorRow = rows.find((row) => row.event === "coordinator");
-  if (rows.length && !sameIdentity(coordinatorRow?.processIdentity, owner)) throw refuse(`its journal ${record.journal} names a different coordinator`);
+  if (journalFound && !sameIdentity(coordinatorRow?.processIdentity, owner)) throw refuse(`its journal ${record.journal} ${rows.length ? "names a different coordinator" : "is empty, so the rows of a child it launched may be lost"}`);
   if (rows.some((row) => row.event === "blocked" && /unconfirmed/.test(row.reason ?? ""))) throw refuse("its coordinator reported a child whose exit is unconfirmed; confirm that child's exit by hand");
   const launch = rows.findLast((row) => row.event === "launching");
+  if (launch && !Number.isSafeInteger(launch.index)) throw refuse(`its journal ${record.journal} records a launch without a step index`);
   if (launch && !rows.some((row) => row.event === "exited" && row.index === launch.index)) {
     const ofLaunch = rows.filter((row) => row.index === launch.index);
     const running = ofLaunch.find((row) => row.event === "running");
@@ -228,7 +251,9 @@ export function recoverHandoffLock(worktree, { identifyProcess = processIdentity
       // child is spawned only after that row.
       if (!["waiting", "route-probed"].includes(ofLaunch.at(-1).event)) throw refuse(`step ${launch.step} may have spawned a child before its running row; confirm no child of the coordinator runs and inspect it by hand`);
     } else if (!ofLaunch.some((row) => row.event === "confirmed-absent")) {
-      const child = ofLaunch.find((row) => row.event === "identified")?.childIdentity;
+      const identified = ofLaunch.find((row) => row.event === "identified");
+      const child = identified?.childIdentity;
+      if (identified && (!validIdentity(child) || child.pid !== running.pid)) throw refuse(`its journal records a malformed OS identity for child PID ${running.pid}; confirm the child's exit by hand`);
       const live = child ? identifyProcess(child.pid) : identifyProcess(running.pid);
       if (child ? sameIdentity(child, live) : live) throw refuse(child ? `its child (PID ${child.pid}) is still running; await its exit` : `PID ${running.pid} of its child is in use and the journal records no OS start identity to tell reuse apart; confirm the child's exit by hand`);
     }
@@ -242,7 +267,7 @@ export function recoverHandoffLock(worktree, { identifyProcess = processIdentity
     catch (error) { return refuse(`${why}; restoring it failed (${error.message}), so the claimed record is at ${claimed}`); }
     return refuse(why);
   };
-  // A new coordinator took the lock after the check.
+  // Under the marker no one else moves the lock; a changed record is put back.
   if (fs.readFileSync(claimed, "utf8") !== text) throw restore("it changed during recovery; inspect it again");
   const copy = path.join(path.dirname(record.journal), `agent-handoff.lock.recovered-${Date.now()}.json`);
   try { fs.mkdirSync(path.dirname(copy), { recursive: true }); fs.copyFileSync(claimed, copy, fs.constants.COPYFILE_EXCL); }
@@ -509,6 +534,12 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     if(error.code==="EEXIST")throw new Error(`EEXIST: a coordinator already owns this worktree; inspect ${lock} and await confirmed exit, or, once its coordinator is gone, run node scripts/agent-handoff.mjs recover-lock ${cwd}`);
     throw error;
   }
+  // A lock taken while a recovery runs is given up, so the recovery never
+  // moves aside a lock that a live coordinator owns.
+  let recovering = true;
+  try { fs.lstatSync(lockRecoveryMarker(lock)); }
+  catch (error) { if (error.code === "ENOENT") recovering = false; else { fs.closeSync(owner); fs.unlinkSync(lock); throw error; } }
+  if (recovering) { fs.closeSync(owner); fs.unlinkSync(lock); throw new Error(`A lock recovery is running for this worktree (${lockRecoveryMarker(lock)}); await it, then launch again`); }
   let fd;
   const append = (row) => { fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n"); fs.fsyncSync(fd); };
   let current = config.first;

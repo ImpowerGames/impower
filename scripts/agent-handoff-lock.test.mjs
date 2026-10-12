@@ -72,13 +72,16 @@ const refused = (label, record, journalRows, live, pattern) => {
   const before = fs.readFileSync(lock, "utf8");
   assert.throws(() => recoverHandoffLock(worktree, { identifyProcess: probe(live), host }), pattern, label);
   assert.equal(fs.readFileSync(lock, "utf8"), before, `${label}: the lock is kept unchanged`);
+  assert.equal(fs.existsSync(marker), false, `${label}: the recovery marker is removed`);
 };
 const accepted = (label, record, journalRows, live) => {
   setup(record, journalRows);
   const result = recoverHandoffLock(worktree, { identifyProcess: probe(live), host });
   assert.ok(result.recovered && !fs.existsSync(lock), `${label}: the lock is removed`);
   assert.ok(fs.existsSync(result.copy), `${label}: its copy is kept`);
+  assert.equal(fs.existsSync(marker), false, `${label}: the recovery marker is removed`);
 };
+const marker = `${lock}.recovery`;
 
 refused("a live coordinator", lockRecord, null, { [coordinator.pid]: coordinator }, /still running/);
 refused("a lock written on another host", { ...lockRecord, host: "elsewhere" }, null, {}, /host elsewhere/);
@@ -89,6 +92,10 @@ refused("a child with its recorded identity still running", lockRecord, [...laun
 refused("a child PID in use with no recorded identity", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }], { [childIdentity.pid]: { pid: childIdentity.pid, start: "999" } }, /no OS start identity to tell reuse apart/);
 refused("a reserved slot without a running row", lockRecord, [...launched, { event: "route-probed", index: 0 }, { event: "reserved", index: 0 }], {}, /may have spawned a child/);
 refused("a child exit the coordinator reported unconfirmed", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "confirmed-absent", index: 0 }, { event: "blocked", reason: "child exit unconfirmed (PID 4343)" }], {}, /unconfirmed/);
+refused("a malformed recorded child identity", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "identified", index: 0, childIdentity: { pid: childIdentity.pid } }], { [childIdentity.pid]: childIdentity }, /malformed OS identity/);
+refused("a recorded child identity naming another PID", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "identified", index: 0, childIdentity: { pid: 4444, start: "200" } }], { [childIdentity.pid]: childIdentity }, /malformed OS identity/);
+refused("an empty journal", lockRecord, [], {}, /is empty/);
+refused("a launch without a step index", lockRecord, [launched[0], { event: "launching", step: "review" }, { event: "exited", code: 0 }], {}, /without a step index/);
 refused("a journal naming another coordinator", lockRecord, [{ ...launched[0], processIdentity: { pid: 1, start: "1" } }], {}, /different coordinator/);
 setup(lockRecord, null); fs.writeFileSync(fixtureJournal, "{\n");
 assert.throws(() => recoverHandoffLock(worktree, { identifyProcess: probe({}), host }), /journal .* is unreadable/, "a truncated journal row leaves a launched child uncertain");
@@ -96,6 +103,18 @@ assert.ok(fs.existsSync(lock), "a truncated journal keeps the lock");
 setup(lockRecord, null);
 assert.throws(() => recoverHandoffLock(worktree, { identifyProcess: () => { throw new Error("Process start identity unavailable"); }, host }), /identity unavailable/, "an inaccessible identity is never read as absence");
 assert.ok(fs.existsSync(lock), "an inaccessible identity keeps the lock");
+// A second recovery, or one interrupted, holds the marker: recovery refuses
+// and leaves both in place, and a coordinator that takes the free lock
+// meanwhile gives it up again before writing a journal.
+setup(lockRecord, null); fs.writeFileSync(marker, "{}");
+assert.throws(() => recoverHandoffLock(worktree, { identifyProcess: probe({}), host }), /Recovery marker exists/, "a held marker refuses recovery");
+assert.ok(fs.existsSync(lock) && fs.existsSync(marker), "a held marker keeps the lock and the marker");
+fs.unlinkSync(lock);
+const blockedJournal = path.join(jobDir, "during-recovery.jsonl");
+const duringRecovery = run(plan(blockedJournal));
+assert.match(duringRecovery.stderr, /lock recovery is running/, "a coordinator refuses a lock taken while a recovery runs");
+assert.ok(!fs.existsSync(lock) && !fs.existsSync(blockedJournal), "the refused coordinator gives the lock up before writing a journal");
+fs.unlinkSync(marker);
 console.log("PASS: recover-lock refuses live, foreign-host, unrecorded, half-written and uncertain-child states and keeps the lock");
 
 accepted("a reused coordinator PID", lockRecord, null, { [coordinator.pid]: { pid: coordinator.pid, start: "101" } });
