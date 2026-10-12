@@ -348,38 +348,57 @@ describe("a save loaded after an update that carried the declarations (#1759)", 
 describe("a game whose constant holds a table (#1759)", () => {
   // A restore of an image another program's engine took gives each
   // constant its compiled value. The story can write in a constant's table,
-  // so only a fresh run holds that value: the declarations run.
-  it("runs the declarations, and a checkpoint restores the constant as compiled", () => {
-    const s = session(`const LIMITS = { cap = 3 }
+  // and then only a fresh run holds that value.
+  const limits = (write: string) => `const LIMITS = { cap = 3 }
+store visits = 0
 
 -> start
 scene start
   Before.
-  & LIMITS.cap = 9
+  ${write}
   After.
 end
-`);
+`;
+  const capOf = (game: Game) =>
+    (
+      game.programStory.variablesState.GetVariableWithName("LIMITS") as {
+        value?: Map<string, { valueObject?: unknown }>;
+      } | null
+    )?.value?.get("cap")?.valueObject;
+
+  it("carries the run while the story leaves the table as declared", () => {
+    const s = session(limits("& visits = 1"));
     const game = makeGame(s.compile());
     const story = game.programStory;
-    const cap = () =>
-      (
-        game.programStory.variablesState.GetVariableWithName("LIMITS") as {
-          value?: Map<string, { valueObject?: unknown }>;
-        } | null
-      )?.value?.get("cap")?.valueObject;
     quiet(() => {
       while (story.canContinue) story.Continue();
       game.checkpoint();
     });
-    expect(cap()).toBe(9);
-
-    const ran = update(game, s.edit("After.", "After edited."));
-    expect(ran.declarations).toBeGreaterThan(0);
-    expect(game.programStory.declarationsCarried === true).toBe(false);
+    expect(update(game, s.edit("After.", "After edited.")).declarations).toBe(
+      0,
+    );
     expect(
       quiet(() => game.restoreCheckpoint(game.checkpoints.length - 1)),
     ).toBe(true);
-    expect(cap()).toBe(3);
+    expect(capOf(game)).toBe(3);
+  });
+
+  it("runs the declarations once the story wrote in it, and a checkpoint restores the constant as compiled", () => {
+    const s = session(limits("& LIMITS.cap = 9"));
+    const game = makeGame(s.compile());
+    const story = game.programStory;
+    quiet(() => {
+      while (story.canContinue) story.Continue();
+      game.checkpoint();
+    });
+    expect(capOf(game)).toBe(9);
+
+    const ran = update(game, s.edit("After.", "After edited."));
+    expect(
+      quiet(() => game.restoreCheckpoint(game.checkpoints.length - 1)),
+    ).toBe(true);
+    expect(capOf(game)).toBe(3);
+    expect(ran.declarations).toBeGreaterThan(0);
   });
 });
 

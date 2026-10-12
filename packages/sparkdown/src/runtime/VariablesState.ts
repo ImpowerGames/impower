@@ -57,16 +57,26 @@ export type VariableBinding =
  *  a global's writes the one global of its name. */
 export type WriteWatch = (binding: VariableBinding, name: string) => void;
 
+/** A table a constant reaches as the declarations left it: its map, the
+ *  map's entries, its metatable and its frozen flag. */
+export interface ConstantTableCopy {
+  readonly map: object;
+  readonly entries: ReadonlyMap<string, InkObject>;
+  readonly metatable: ObjectValue | null;
+  readonly frozen: boolean;
+}
+
 /** What the variables recorded of the globals a run of the declarations
  *  left (`VariablesState.SnapshotDefaultGlobals`): each default global, and
  *  the graph of tables and closed upvalue cells init built, with each one's
- *  anchor and the tables a constant reaches. */
+ *  anchor, and the tables a constant reaches with what each held. */
 export interface DeclaredGlobals {
   readonly defaults: ReadonlyMap<string, InkObject>;
   readonly tablePaths: ReadonlyMap<object, string>;
   readonly roots: ReadonlyMap<string, ObjectValue>;
   readonly edges: ReadonlyMap<object, ReadonlyMap<string, ObjectValue>>;
   readonly constantTables: ReadonlySet<object>;
+  readonly constantCopies: ReadonlyMap<ObjectValue, ConstantTableCopy>;
   readonly cellEdges: ReadonlyMap<
     object,
     ReadonlyMap<string, VariablePointerValue>
@@ -688,9 +698,36 @@ export class VariablesState extends VariablesStateAccessor<
       roots: this._initRoots,
       edges: this._initEdges,
       constantTables: this._constantInitTables,
+      constantCopies: this._constantCopies,
       cellEdges: this._initCellEdges,
       cellPaths: this._initCellPaths,
     };
+  }
+
+  /** Whether every table a constant reaches holds what the declarations
+   *  built in it (`constantCopies`): the same entries, the same metatable,
+   *  the same frozen flag, no closed upvalue cell, and no write the images
+   *  kept a copy before (`written`), so that no image restores other
+   *  contents into it. A constant's value is then its compiled value, which
+   *  a restore of another engine's image gives it (#1759). */
+  public ConstantsAsDeclared(written: (table: ObjectValue) => boolean): boolean {
+    for (const [table, copy] of this._constantCopies) {
+      const map = table.value as Map<string, InkObject> | null;
+      if (
+        map !== copy.map ||
+        written(table) ||
+        this._initCellEdges.has(map) ||
+        table.metatable !== copy.metatable ||
+        table.isFrozen !== copy.frozen ||
+        map.size !== copy.entries.size
+      ) {
+        return false;
+      }
+      for (const [key, value] of copy.entries) {
+        if (map.get(key) !== value) return false;
+      }
+    }
+    return true;
   }
 
   /** Takes over what another engine's variables recorded of the same
@@ -705,6 +742,10 @@ export class VariablesState extends VariablesStateAccessor<
     this._initRoots = declared.roots as Map<string, ObjectValue>;
     this._initEdges = declared.edges as Map<object, Map<string, ObjectValue>>;
     this._constantInitTables = declared.constantTables as Set<object>;
+    this._constantCopies = declared.constantCopies as Map<
+      ObjectValue,
+      ConstantTableCopy
+    >;
     this._initCellEdges = declared.cellEdges as Map<
       object,
       Map<string, VariablePointerValue>
@@ -781,10 +822,18 @@ export class VariablesState extends VariablesStateAccessor<
     for (const [name, table] of this._initRoots) {
       if (this.constantNames.has(name)) constants.push(table);
     }
+    this._constantCopies = new Map();
     for (let i = 0; i < constants.length; i++) {
-      const map = constants[i]!.value!;
+      const table = constants[i]!;
+      const map = table.value!;
       if (this._constantInitTables.has(map)) continue;
       this._constantInitTables.add(map);
+      this._constantCopies.set(table, {
+        map,
+        entries: new Map(map as Map<string, InkObject>),
+        metatable: table.metatable,
+        frozen: table.isFrozen,
+      });
       for (const child of this._initEdges.get(map)?.values() ?? []) {
         constants.push(child);
       }
@@ -984,6 +1033,8 @@ export class VariablesState extends VariablesStateAccessor<
   private _initRoots: Map<string, ObjectValue> = new Map();
   private _initEdges: Map<object, Map<string, ObjectValue>> = new Map();
   private _constantInitTables: Set<object> = new Set();
+  // What each table a constant reaches held as the declarations left it.
+  private _constantCopies: Map<ObjectValue, ConstantTableCopy> = new Map();
   // The closed upvalue cells init built: each table's cells by key, and
   // each cell's anchor.
   private _initCellEdges: Map<object, Map<string, VariablePointerValue>> =

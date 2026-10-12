@@ -542,7 +542,9 @@ export class ProgramStory implements StoryEngine {
    * `root` runs other declaration chunks than this engine's root, or in
    * another order, or in another table generation, or names other
    * constants, or when the run the globals descend from raised an error or
-   * a warning, or when a constant holds a table. A caller asks only for a
+   * a warning, or when a table a constant reaches no longer holds what the
+   * declarations built in it or was written while the images kept copies
+   * (`VariablesState.ConstantsAsDeclared`). A caller asks only for a
    * root a compile measured against this engine's and found running no
    * other declaration and no other function (`ChunkChanges.initializers`),
    * the compiler's own rule for running the declarations again
@@ -557,7 +559,10 @@ export class ProgramStory implements StoryEngine {
    * fresh run instead: a load (`ownDeclarations`), and a restore of an image
    * another engine took, which gives each constant its compiled value
    * (`restoreImage`). A constant's value is the run's own, so a constant
-   * that holds a table, which the story can write in, is never handed on.
+   * whose table the story wrote in is not handed on: a whole restore puts
+   * contents only into a table the images kept a copy of
+   * (`ProgramImages.writtenTables`), and one that holds what the
+   * declarations built and has no copy is its compiled value.
    */
   declarationsFor(root: ProgramRoot): CarriedDeclarations | null {
     const before = this.root;
@@ -570,13 +575,18 @@ export class ProgramStory implements StoryEngine {
     ) {
       return null;
     }
-    const declared = variables.Declared;
-    if (declared.constantTables.size > 0) {
+    // A constant table the story wrote in, or that an image could restore
+    // other contents into, is not its compiled value.
+    if (
+      !variables.ConstantsAsDeclared(
+        (table) => this.images.pristineTable(table) !== undefined,
+      )
+    ) {
       return null;
     }
     // The globals by reference: the engine handed them copies them into its
     // own (`VariablesState.RestoreGlobals`) as it is built.
-    return { declared, globals: variables.globalEntries };
+    return { declared: variables.Declared, globals: variables.globalEntries };
   }
 
   /** Gives a state whose globals descend from a carried run of the
