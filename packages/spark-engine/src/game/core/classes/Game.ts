@@ -65,6 +65,7 @@ import { lineRanges } from "../utils/executedLineRanges";
 import {
   programAssignmentAddresses,
   programBreakpointLines,
+  programEntryCode,
   programFunctionAddress,
   runsAfterReset,
 } from "../utils/programBreakpoints";
@@ -384,6 +385,21 @@ export class Game<T extends M = {}> {
   protected _lineBreakAddresses = new Set<number>();
   protected _functionBreakAddresses = new Set<number>();
   protected _breakAddresses = new Set<number>();
+  /** Whether the step in under way has run an instruction of a function's
+   *  entry code, and stops once that entry code has run. */
+  protected _steppingInThroughEntry = false;
+  /** The entry code a step in runs through (`programEntryCode`), for the
+   *  program root it was read from. */
+  protected _entryCode: { root: unknown; addresses: Set<number> } | null =
+    null;
+
+  protected entryCode(): Set<number> {
+    const root = this.programStory.root;
+    if (this._entryCode?.root !== root) {
+      this._entryCode = { root, addresses: programEntryCode(root) };
+    }
+    return this._entryCode.addresses;
+  }
 
   /** The addresses of the instructions the story's current step ran
    *  (`ProgramStory.executedLog`), reused from step to step. */
@@ -2740,6 +2756,7 @@ export class Game<T extends M = {}> {
       location: this._executingLocation,
     };
     this._announcedStop = false;
+    this._steppingInThroughEntry = false;
     let done = this.stepWithinBudget(traversal, origin);
     while (!done && traversal !== "continue") {
       done = this.stepWithinBudget(traversal, origin);
@@ -2999,6 +3016,23 @@ export class Game<T extends M = {}> {
           if (traversal === "continue") {
             return false;
           }
+          // A step in does not stop inside a function's entry code: it binds
+          // the parameters one instruction at a time, so the stop waits for
+          // the `EnterBlock` after it, where a function breakpoint stops too,
+          // though that runs on the same line (#1743).
+          if (traversal === "in") {
+            const last = this._positions.previous();
+            if (last != null && this.entryCode().has(last)) {
+              this._steppingInThroughEntry = true;
+              continue;
+            }
+            if (this._steppingInThroughEntry) {
+              this._steppingInThroughEntry = false;
+              this.notifyStepped();
+              return true;
+            }
+          }
+
           // Skip duplicate stops (avoid breaking at the same location)
           if (
             sameLocation(prevExecutedLocation, this._executingLocation) ||
