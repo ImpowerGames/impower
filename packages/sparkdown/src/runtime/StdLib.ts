@@ -84,7 +84,7 @@ export interface StdLibEntry {
    * and get auto-registered with `NativeFunctionCall` at engine init
    * — preserving the type-coercion fast path. Non-pure entries
    * (`pure` omitted / false) route through the generic
-   * `RunStdLibFunction` dispatcher in Story.ts.
+   * `CallStd` instruction of the program engine.
    *
    * - `pure: true` is shorthand for `pure: ["number"]` (the classic
    *   numeric fast path used by `math.*`).
@@ -416,7 +416,7 @@ export function isTruthy(v: any): boolean {
 
 /** What `pcall` and `xpcall` return when the call succeeds: `true`, then
  *  the call's returns. The protected callee that did `return 1, 2, 3` left
- *  a single MultiValue on the eval stack (via PackTuple at the return), so
+ *  a single MultiValue on the eval stack (via `Pack` at the return), so
  *  `values` is `[MV([1, 2, 3])]`; its values are spliced in, so the caller
  *  gets `(true, 1, 2, 3)` rather than `(true, MultiValue)`. */
 function protectedSuccess(values: readonly AbstractValue[]): MultiValue {
@@ -1942,8 +1942,8 @@ export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 // ----------------------------------------------------------------
 
 // Sentinel key on a closure-shaped `ObjectValue` marking it as a
-// stdlib iterator. The runtime's `CallValueAsFunction` handler
-// (Story.ts) checks for this BEFORE the closure-path check and
+// stdlib iterator. The runtime's value call (`callValueAsFunction` in
+// evaluation.ts) checks for this BEFORE the closure-path check and
 // dispatches to the registered iterator below instead of trying to
 // divert to a user-defined target.
 export const BUILTIN_ITER_TAG = "__builtin_iter";
@@ -1951,7 +1951,7 @@ export const BUILTIN_ITER_TAG = "__builtin_iter";
 // Sentinel key marking an `ObjectValue` as the `_G` globals-table
 // proxy. A bare `_G` reference resolves to a fresh marker-tagged
 // ObjectValue (identity doesn't matter — only the tag is checked);
-// the runtime's `IndexValue` / `StoreIndex` handlers route reads and
+// the runtime's `Index` / `StoreIndex` instructions route reads and
 // writes through `VariablesState` global storage when they see it,
 // so `_G.foo = 1` / `_G['foo']` behave as Luau's global-environment
 // access without a real backing table.
@@ -2231,7 +2231,7 @@ const UTF8CODES_INPUT = "__utf8codes_input";
 
 /**
  * Build a closure-shaped `ObjectValue` marked as a stdlib iterator.
- * `CallValueAsFunction` (Story.ts) detects the `__builtin_iter` key
+ * `callValueAsFunction` (evaluation.ts) detects the `__builtin_iter` key
  * and dispatches to the matching `BUILTIN_ITERATORS` entry, mutating
  * the cursor on this ObjectValue between invocations.
  */
@@ -2247,7 +2247,7 @@ function makeBuiltinIterator(name: string, table: ObjectValue): ObjectValue {
  * Runtime entry point: advance the iterator one step. Returns the
  * yielded values as a `MultiValue` (or the single value directly when
  * there's only one), or a `NullValue` when iteration ends. Called
- * from `Story.ts`'s `CallValueAsFunction` handler and the
+ * from `callValueAsFunction` (evaluation.ts) and the
  * variable-divert dispatch path.
  *
  * STATELESS mode (Lua's iterator protocol): when the call site passes
@@ -2610,7 +2610,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // its absolute value is `floor(|x|)`. Returning a JS array signals
   // multi-return to the dispatcher, which wraps the elements as a
   // `MultiValue` and pushes one stack slot. Consumers:
-  //   - `local i, f = math.modf(x)` — `UnpackTuple` distributes
+  //   - `local i, f = math.modf(x)` — `Unpack` distributes
   //   - `local x = math.modf(3.7)` — auto-unwrap → first value (3)
   //   - `print(math.modf(x))` — first value only (single-arg context)
   "math.modf": {
@@ -2721,7 +2721,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "math.tanh": { arity: 1, pure: true, fn: (_, [v]) => Math.tanh(v) },
 
   // ============================================================
-  // State-aware entries (route through `RunStdLibFunction`)
+  // State-aware entries (route through the `CallStd` instruction)
   // ============================================================
 
   // `plural.category(n)` — CLDR plural category for `n` in the
@@ -3171,7 +3171,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // to `display({…})` carrying its routing (`target`, `character`) and its
   // body (`text`) as a table literal, whose `{interp}` holes are already
   // evaluated to LIVE values by the time this runs (table literals lower to a
-  // live ObjectValue via EndObject). The live ObjectValue rides the output
+  // live ObjectValue via `MakeTable`). The live ObjectValue rides the output
   // stream directly — `currentText` reads its `text` field in stream order,
   // which is the body the interpreter parses, and the
   // `currentDisplayInstructions` getter collects it. A trailing `\n` closes
@@ -5133,8 +5133,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // entry, return nil — the generic-for loop's nil-check terminates.
   //
   // `pairs(t)` and `ipairs(t)` return a `__builtin_iter`-shaped
-  // ObjectValue that the runtime's CallValueAsFunction handler
-  // recognizes (see `Story.ts`). Each invocation calls the matching
+  // ObjectValue that the runtime's value call recognizes (see
+  // `callValueAsFunction` in evaluation.ts). Each invocation calls the matching
   // iterator implementation with the captured state and advances the
   // internal cursor stored on the ObjectValue itself.
   //
@@ -6153,7 +6153,7 @@ export function lookupStdLibBuiltin(
   // are keyed by dotted full name. The compiler returns the same
   // name as the FunctionCall's; pure entries dispatch through
   // NativeFunctionCall (auto-registered at engine init), state-aware
-  // entries through `RunStdLibFunction`.
+  // entries through the `CallStd` instruction.
   const fullName = `${receiverName}.${methodName}`;
   if (lookupAnyStdLib(fullName) != null) {
     return fullName;
@@ -6213,8 +6213,8 @@ export function lookupStdLibConstant(
 // Direct registry lookup for state-aware builtins. Returns the
 // registered entry (`{arity, fn}`) or `null` if the name isn't a
 // state-aware entry. Pure entries are intentionally excluded — they
-// dispatch through `NativeFunctionCall` and the generic
-// `RunStdLibFunction` runtime handler should never receive them.
+// dispatch through `NativeFunctionCall` and the program engine's
+// `CallStd` instruction should never receive them.
 // Used by `FunctionCall.isStateAwareStdLib` (compile-time) and the
 // generic dispatcher in Story.ts (runtime) to route only the non-pure
 // entries through the generic path.

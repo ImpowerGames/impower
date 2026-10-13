@@ -275,7 +275,7 @@ export class NativeFunctionCall extends InkObject {
       if (p instanceof Void) {
         // Luau-superset semantics: a function with no return values
         // produces `nil` in single-value contexts. The runtime
-        // pushes a `Void` sentinel at PopFunction time so multi-
+        // pushes a `Void` sentinel at `Return` time so multi-
         // return / `select('#', ...)` callers can distinguish
         // "returned no values" from "returned nil"; for ordinary
         // single-value consumers (binary ops, comparisons) we

@@ -400,7 +400,7 @@ export class SymbolRef {
 /** A function or flow of a binary program held as a value, the one form a
  *  function value takes: a named function, a flow or label written as a
  *  value, or the function of a closure. Two compare equal when their symbols
- *  refer to one function, and one prints as `tostring` prints it. */
+ *  refer to one function. */
 export class SymbolValue extends Value<SymbolRef> {
   constructor(ref: SymbolRef) {
     super(ref);
@@ -421,8 +421,12 @@ export class SymbolValue extends Value<SymbolRef> {
 
     throw this.BadCastException(newType);
   }
+  // The text is also the value's key in a table (`luauMapKeyString`), and a
+  // save holds table keys as they are, so it keeps the form the object engine
+  // printed its divert targets in, its class name around the label.
+  // `tostring` prints a function value as `function: <label>` instead.
   public override toString() {
-    return "function: " + this.ref.label;
+    return "DivertTargetValue(" + this.ref.label + ")";
   }
   public override Copy() {
     return new SymbolValue(this.ref);
@@ -534,10 +538,10 @@ export class VariablePointerValue extends Value<string> {
 // inkjs equivalent of a Luau table literal). Values are AbstractValues so
 // nested objects, strings, numbers, etc. all participate in the type system.
 //
-// Constructed at runtime by the BeginObject/EndObject control commands:
-// BeginObject pushes a marker onto the eval stack; each entry pushes a
-// StringValue(key) followed by the evaluated value; EndObject walks back to
-// the marker collecting pairs, builds the ObjectValue, and pushes it.
+// Constructed at runtime by the program engine's `MakeTable` instruction:
+// each entry pushes its key followed by the evaluated value, and
+// `MakeTable` pops the pairs and builds the ObjectValue
+// (`tableFromPairs` in evaluation.ts).
 export class ObjectValue extends Value<Map<string, AbstractValue>> {
   // Luau `table.freeze(t)` marks a table read-only. Stdlib mutation
   // fns (`table.insert`, `table.remove`, `rawset`, ...) check this

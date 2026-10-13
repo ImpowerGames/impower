@@ -209,7 +209,7 @@ export class CallStack {
     // The contextElement can be undefined when the lookup runs against
     // an empty (or freshly-popped) call stack — e.g. during an Assign
     // at top-level scope where there's no active function frame, or
-    // immediately after `CallValueAsFunction` has popped the inner
+    // immediately after a value call (`callValueAsFunction`) has popped the inner
     // frame and the caller's Assign asks "do I have a local with this
     // name?". Treat as "no local exists" so the Assign path falls
     // through to its `SetGlobal` branch (the Luau auto-global rule).

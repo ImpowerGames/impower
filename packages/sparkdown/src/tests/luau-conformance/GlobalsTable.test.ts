@@ -7,12 +7,12 @@ import { runConformanceSource } from "./conformanceTestHarness";
 //   - A bare `_G` reference resolves to an ObjectValue tagged with
 //     `GLOBALS_PROXY_TAG` (`__globals_proxy`) — same marker-keyed
 //     pattern as the `pairs`/`ipairs` builtin iterators.
-//   - The `IndexValue` ControlCommand routes proxy reads to
+//   - The `Index` instruction routes proxy reads to
 //     `VariablesState.GetGlobalVariableValue` (global-ONLY lookup —
 //     never call-stack temporaries, so a shadowing local is
 //     invisible through `_G`). Misses push nil, not the generic
 //     empty-string sentinel.
-//   - The `StoreIndex` ControlCommand routes proxy writes to
+//   - The `StoreIndex` instruction routes proxy writes to
 //     `VariablesState.SetGlobal`, the same write an ordinary global
 //     assignment makes.
 //   - Dotted reads (`_G.foo`) lower to `VariableReference([_G, foo])`;

@@ -2,7 +2,10 @@
 // function value is a `SymbolValue`, so no file under `packages/*/src` names
 // the divert-target value class (`DivertTargetValue`), in code or in a
 // comment, or imports the runtime's `Path` that backed it; and the control
-// commands are the five the program engine and the lowerers make.
+// commands are the five the program engine and the lowerers make. The one
+// exception is the text a function value prints and keys a table under,
+// which a save holds (`SymbolValue.toString`): the string literal that opens
+// it, the class name followed by a parenthesis, is passed over.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +19,11 @@ const PACKAGES = "@impower/";
 
 /** The deleted value class, as a whole word. */
 const NAMES = /\b(DivertTargetValue)\b/g;
+
+/** The saved form of a function value's text, which is not a reference to
+ *  the class: the double-quoted literal of the name and an opening
+ *  parenthesis. */
+const SAVED_TEXT = /"DivertTargetValue\("/g;
 
 /** The deleted module, relative to the repository. */
 const PATH_MODULE = "packages/sparkdown/src/runtime/Path";
@@ -37,7 +45,7 @@ const whatRemains = (repo: string): string[] => {
       if (file === fileURLToPath(import.meta.url)) continue;
       const at = relative(repo, file).split("\\").join("/");
       const text = readFileSync(file, "utf8");
-      for (const match of text.matchAll(NAMES)) {
+      for (const match of text.replace(SAVED_TEXT, "").matchAll(NAMES)) {
         found.add(`${at} names ${match[1]}`);
       }
       for (const spec of specifiersOf(text)) {
@@ -88,10 +96,22 @@ describe("the scan the check is held to", () => {
     ]);
   });
 
-  test("passes over names that only contain it, other Path modules and files outside src", () => {
+  test("finds the name beside the saved text, in a comment or a single-quoted string", () => {
     expect(
       withRepo({
-        "packages/sparkdown/src/A.ts": `const n = "runtimeDivertTargetValue";\nimport { Path } from "./compiler/typecheck/TypePath";\nimport { P } from "./inkjs/compiler/Parser/ParsedHierarchy/Path";\n`,
+        "packages/sparkdown/src/A.ts": `// prints as a DivertTargetValue\nconst s = "DivertTargetValue(" + label + ")";\n`,
+        "packages/sparkdown/src/B.ts": `const s = 'DivertTargetValue(' + label;\n`,
+      }),
+    ).toEqual([
+      "packages/sparkdown/src/A.ts names DivertTargetValue",
+      "packages/sparkdown/src/B.ts names DivertTargetValue",
+    ]);
+  });
+
+  test("passes over names that only contain it, the saved text, other Path modules and files outside src", () => {
+    expect(
+      withRepo({
+        "packages/sparkdown/src/A.ts": `const n = "runtimeDivertTargetValue";\nconst s = "DivertTargetValue(" + label + ")";\nimport { Path } from "./compiler/typecheck/TypePath";\nimport { P } from "./inkjs/compiler/Parser/ParsedHierarchy/Path";\n`,
         "packages/sparkdown/docs/B.ts": `DivertTargetValue\n`,
       }),
     ).toEqual([]);

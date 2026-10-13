@@ -1244,24 +1244,40 @@ describe("a call to a function a top-level assignment names too", () => {
   });
 });
 
-describe("a function value written into a line", () => {
-  // A function value printed by interpolation reads as `tostring` prints it,
-  // `function: <name>`. Before #1753 it printed the name of the class the
-  // object engine held function values in, around the function's name.
-  it("prints as tostring prints it", () => {
-    const { actual } = programBeats(
-      [
-        "function f()",
-        "  return 1",
-        "end",
-        "",
-        "local g = f",
-        "Value {g} and {f}, {tostring(g)}.",
-        "done",
-      ].join("\n"),
+describe("a function value as a table key", () => {
+  // A function value keys a table by its text (`luauMapKeyString` falls
+  // through to `SymbolValue.toString`), and a save holds the key as written,
+  // so the text must not change without migrating saved keys. Round 1 of the
+  // review of #1753 (report 6144987814) caught a change of the text that made
+  // `t[f]` and `t[tostring(f)]` one entry and lost saved function keys.
+  const script = [
+    "store t = nil",
+    "",
+    "-> start",
+    "",
+    "scene start",
+    "  & t = { [f] = 42, [tostring(f)] = 99 }",
+    "  Keys {t[f]} and {t[tostring(f)]}.",
+    "end",
+    "",
+    "function f()",
+    "  return 1",
+    "end",
+    "",
+  ].join("\n");
+
+  it("is a key of its own, apart from the text tostring gives it", () => {
+    const { actual } = programBeats(script);
+    expect(texts(actual.beats)).toEqual(["Keys 42 and 99.\n"]);
+  });
+
+  it("is saved under the text saves have always held it under", () => {
+    const { program } = compileScript(script);
+    const story = new ProgramStory(program.chunks!);
+    expect(story.ContinueMaximally()).toBe("Keys 42 and 99.\n");
+    const table = JSON.parse(story.state.toJson()).variablesState.t.obj;
+    expect(Object.keys(table).sort()).toEqual(
+      ["DivertTargetValue(" + "f)", "function: f"].sort(),
     );
-    expect(texts(actual.beats)).toEqual([
-      "Value function: f and function: f, function: f.\n",
-    ]);
   });
 });
