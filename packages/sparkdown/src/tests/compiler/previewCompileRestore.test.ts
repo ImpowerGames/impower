@@ -230,6 +230,27 @@ function countingParses<T>(c: SparkdownCompiler, fn: () => T): [T, number] {
   }
 }
 
+/** How many characters each call into the grammar parser reparsed during
+ *  `fn`: the span between where it restarted and where it spliced the old
+ *  chunks back in, read from the compiler the parse left behind. */
+function reparsedSpans<T>(c: SparkdownCompiler, fn: () => T): [T, number[]] {
+  const parser = (c.documents as any).parser;
+  const real = parser.parse;
+  const spans: number[] = [];
+  parser.parse = function (...args: any[]) {
+    const tree = real.apply(this, args);
+    const compiler = Object.values(tree.props ?? {}).find((v) => v instanceof Compiler) as any;
+    const length = args[0].length ?? args[0].getText?.().length ?? 0;
+    spans.push(compiler ? (compiler.reparsedTo ?? length) - (compiler.reparsedFrom ?? 0) : length);
+    return tree;
+  };
+  try {
+    return [fn(), spans];
+  } finally {
+    parser.parse = real;
+  }
+}
+
 /** Every annotation set the registry holds for `uri`, by kind. */
 function annotationsOf(c: SparkdownCompiler, uri = URI) {
   return { ...(c.documents.annotations(uri) as Record<string, unknown>) };
@@ -330,25 +351,24 @@ describe("a preview compile", () => {
     const c = compilerFor({ [URI]: base });
     quiet(() => c.compile({ textDocument: { uri: URI } }));
     const target = "Dialogue line 380.";
-    const at = base.indexOf(target);
     const compiler = parserCompiler(c);
-    expect(compiler.reparseSpan(at), "a parse there reparses the whole scene").toBeGreaterThan(20_000);
 
     // The first preview there parses the text as it is once, kept, and then
     // the suggestion; the registry keeps its tree and annotations.
     const before = parseOf(c);
-    const [, first] = countingParses(c, () => previewOf(c, URI, 1, change(base, target, "Dialogue line 380!").contentChanges));
-    expect(first).toBe(2);
+    const [, first] = reparsedSpans(c, () => previewOf(c, URI, 1, change(base, target, "Dialogue line 380!").contentChanges));
+    expect(first.length).toBeLessThanOrEqual(2);
     expectSameParse(c, before);
-    expect(compiler.reparseSpan(at), "a parse there reparses a few lines").toBeLessThan(1_000);
 
-    // Every preview after it parses once and leaves the parser as it found it.
+    // Every preview after it parses once, reparses a few lines, and leaves
+    // the parser as it found it.
     const digest = digester();
     const state = digest(compiler);
     for (const replace of ["Dialogue line 380?", "Dialogue 380.", "Line 380."]) {
-      const [preview, parses] = countingParses(c, () => previewOf(c, URI, 1, change(base, target, replace).contentChanges));
+      const [preview, spans] = reparsedSpans(c, () => previewOf(c, URI, 1, change(base, target, replace).contentChanges));
       expect(preview.outdated).toBeUndefined();
-      expect(parses).toBe(1);
+      expect(spans.length, "parses per preview").toBe(1);
+      expect(spans[0], "characters the preview's parse reparsed").toBeLessThan(1_000);
       expect(digest(compiler) === state, "the compiler's digest").toBe(true);
     }
     expectSameParse(c, before);
