@@ -318,6 +318,27 @@ describe("a save written by another process", () => {
     expect(loaded.state.callStack.elements).toHaveLength(1);
   });
 
+  // #1747: a save written before the vararg local became `__varargs$` holds
+  // the pack under `__varargs__`, and the function's definition, whose code
+  // reads the local by name, had another layout hash. The frame is dropped by
+  // that hash, never kept with `...` reading a slot nothing holds.
+  it("inside a variadic function saved before its hidden varargs local was renamed drops the frame and places the caller after its calling statement", () => {
+    const save = JSON.parse(saves["variadic"]!);
+    const frames = save.beats.at(-1).frames;
+    const vf = frames.find((f: any) => f.temps?.some((s: any) => "__varargs$" in s));
+    expect(vf, "the save holds vf's frame with its pack").toBeDefined();
+    vf.temps = vf.temps.map((s: any) =>
+      Object.fromEntries(Object.entries(s).map(([k, v]) => [k === "__varargs$" ? "__varargs__" : k, v])),
+    );
+    vf.bound = differ(vf.bound);
+    const loaded = engine(program("variadic"));
+    loaded.loadSave(JSON.stringify(save));
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(loaded.loadedSaveReport!.warnings.join(" ")).toMatch(/'vf' is dropped, since it binds its parameters in other code/);
+    expect(play(loaded)).toEqual(["After."]);
+    expect(loaded.state.callStack.elements).toHaveLength(1);
+  });
+
   // Round 1 of the review of #1654 (report 6030606004): a tunnel's frame
   // holds what its scene's entry bound, as a function's does.
   it("inside a tunnel whose scene binds its parameters in other code drops the frame and places the caller after the tunnel", () => {

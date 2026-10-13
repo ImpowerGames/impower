@@ -61,10 +61,6 @@ const RUNTIME_NAMES = new Set([
   "__index",
   "__def",
   "__adjust_iter",
-  // The local a vararg function binds its `...` to. It is not among the
-  // families #1729 names, and its name reaches saves and diagnostics, so
-  // it keeps its name here.
-  "__varargs__",
   // The builtins script's own name, which its uri holds.
   "__builtins__",
 ]);

@@ -7,12 +7,11 @@ import type { LowerContext } from "../context";
 
 // Synthetic local name that holds the variadic-args MultiValue inside
 // a `function f(a, ...) ... end` body. The lowerer emits a read of
-// this name for every `...` expression site. Anchor to a name with
-// double underscores to avoid colliding with user identifiers — the
-// Luau grammar disallows `__` prefixed identifiers in user code by
-// convention, and the runtime VARIADIC_ARITY dispatch uses the same
-// convention for hidden state.
-export const VARARGS_LOCAL_NAME = "__varargs__";
+// this name for every `...` expression site. Like every name the
+// compiler generates (#1729), it holds a `$`, which no identifier can
+// contain, so no local or parameter an author writes can bind it
+// (#1747), and the Variables view leaves it out.
+export const VARARGS_LOCAL_NAME = "__varargs$";
 
 export function lowerArguments(
   parent: SyntaxNode,
