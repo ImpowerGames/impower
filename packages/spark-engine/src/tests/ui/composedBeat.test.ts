@@ -401,6 +401,9 @@ describe("composition, round 1 of PR #1865", () => {
     await play(h);
     await play(h);
 
-    expect((h.game.module.ui as any)._realizationChange).toBeUndefined();
+    const ui: any = h.game.module.ui;
+    // Neither a pending change signal nor a list of listeners is left.
+    expect(ui._realizationChange).toBeUndefined();
+    expect(ui._realizationListeners?.length ?? 0).toBe(0);
   });
 });
