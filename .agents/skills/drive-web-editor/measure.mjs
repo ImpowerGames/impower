@@ -281,7 +281,6 @@ const CLOCKS = ["msFromKey", "debounce", "keyToRequest"];
 export function summarize(samples) {
   const passed = samples.filter((s) => !s.failure);
   const times = passed.map((s) => s.ms).sort((a, b) => a - b);
-  const stats = (list) => (list.length ? { min: list[0], median: list[Math.floor(list.length / 2)], max: list.at(-1) } : null);
   const phaseNames = [...new Set(samples.flatMap((s) => Object.keys(s.phases ?? {})))];
   const clocks = CLOCKS.map((name) => [name, passed.filter((s) => s[name] != null).map((s) => s[name]).sort((a, b) => a - b)]).filter(([, list]) => list.length);
   return {
