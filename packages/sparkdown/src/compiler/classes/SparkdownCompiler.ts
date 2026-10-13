@@ -1306,11 +1306,12 @@ export class SparkdownCompiler {
    *
    * The compile's own caches then describe the edited text, which is sound
    * because every compile compares against the one before it, and the
-   * restored blocks are blocks that compile never placed. What does not
-   * survive is the runtime story the last real compile produced, so until the
-   * next real compile nothing may be routed against it. `selectDocument`
-   * recompiles the real documents first when that is the case, and
-   * `isProgramOutdated` keeps answering for the last real compile throughout.
+   * restored blocks are blocks that compile never placed. The listeners that
+   * route against a compile (the route search in the player's workspace
+   * worker) last heard the preview's program, so until the next real compile
+   * nothing may be routed against them: `selectDocument` recompiles the real
+   * documents first when that is the case, and `isProgramOutdated` keeps
+   * answering for the last real compile throughout.
    */
   previewCompile(
     params: PreviewCompileProgramParams,
