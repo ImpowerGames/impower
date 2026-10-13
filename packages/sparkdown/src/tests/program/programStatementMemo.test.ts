@@ -783,15 +783,28 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("is lowered again when a global of its name is declared above it, and no other statement is", () => {
-    // A global of the local's name, declared above the scene: the local now
-    // shadows it, which its resolution read the name for. The line that
-    // reads the local still reads the local its served declaration declares.
+  it("is served when a global of its name is declared above it, and no other statement is lowered", () => {
+    // A global of the local's name, declared above the scene: the local
+    // shadows it with no diagnostic (#1742), so nothing about the local
+    // changes. The line that reads the local still reads the local its
+    // served declaration declares.
     const s = warmed(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1");
     s.edit("Line last.", "Line last, edited.");
-    expect(loweredOutside(s)).toEqual(["local here = 2"]);
+    expect(loweredOutside(s)).toEqual([]);
     sameAsCold(s);
+  });
+
+  it("collides again when a store of its name is declared in its own scene, and stops when it goes", () => {
+    // A store in the local's own scene shares its scope, so the two collide
+    // (#1742) whichever statement the edit lowers.
+    const s = warmed(localScript());
+    s.edit("Line last.", "store here = 1");
+    sameAsCold(s);
+    expect(diagnostics(s.program).join("\n")).toContain("Duplicate identifier `here`");
+    s.edit("store here = 1", "Line last.");
+    sameAsCold(s);
+    expect(diagnostics(s.program).join("\n")).not.toContain("Duplicate identifier");
   });
 });
 

@@ -694,7 +694,7 @@ function bindingsOf(
 // (`__len = function() return 42 end`, or a function declared with no
 // parameters) left the table stranded, and `#t` "returned" the table
 // itself. Variadic callees bind their fixed params positionally and
-// receive the extras packed into one MultiValue (the `__varargs__`
+// receive the extras packed into one MultiValue (the `__varargs$`
 // slot — same shape a static call site's `Pack` produces). The
 // parameters come from `bindingsOf`: a closure's table, or the
 // function a function value names.
@@ -728,7 +728,7 @@ export function normalizeLuauCallArgs(
 // its inner values onto the eval stack so the callee's parameter
 // binding pops them individually. Skipped for variadic targets —
 // their compile-time `Pack` already handled the spread and the
-// trailing `MultiValue` is the `__varargs__` slot value. Only for a
+// trailing `MultiValue` is the `__varargs$` slot value. Only for a
 // call whose argument count the story does not record; a call that
 // records it adjusts its arguments instead (`adjustCallArgs`).
 export function spreadLastMultiIfNonVariadic(

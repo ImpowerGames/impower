@@ -4,7 +4,7 @@ export class VariableAssignment extends InkObject {
   public readonly variableName: string | null;
   public readonly isNewDeclaration: boolean;
   public isGlobal: boolean;
-  // True for the synthetic `__varargs__` binding emitted at the
+  // True for the synthetic `__varargs$` binding emitted at the
   // entry of a variadic function (`function f(a, ...)`). The runtime
   // skips its normal MultiValue → first-value unwrapping for this
   // assignment, so the local keeps the packed MultiValue intact and

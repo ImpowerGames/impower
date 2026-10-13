@@ -384,7 +384,7 @@ describe("a game that simulates for itself records the same reason", () => {
 
   test("a line after a call to a vararg function that branches still routes", () => {
     // #1051: the search forks at the condition inside `f` by saving the
-    // state, and that save holds `f`'s `__varargs__` pack.
+    // state, and that save holds `f`'s `__varargs$` pack.
     const program = compileSrc(
       `-> start\n\nscene start\n  First {f("marker", 1)}.\n  Second.\nend\n\n` +
         `function f(...)\n  if ... then\n    return 1\n  end\n  return 2\nend\n`,

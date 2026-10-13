@@ -864,18 +864,26 @@ export function checkLaunchArgs(args, pending) {
   if (only("--effort") !== pending.effort) throw new Error(`The launch's --effort must be ${pending.effort}`);
 }
 
+// Creates a process through WMI, outside the caller's process tree, and
+// returns Create's return value and the new pid. The process gets a console of
+// its own; the startup record's ShowWindow 0 keeps that console hidden, so no
+// window opens (Windows Terminal included) and none takes the foreground.
+function createThroughWmi(commandLine, cwd, exec) {
+  const script = `$s = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }; $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $env:LAUNCH_COMMAND; CurrentDirectory = $env:LAUNCH_CWD; ProcessStartupInformation = $s }; "$($r.ReturnValue) $($r.ProcessId)"`;
+  const reply = exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, env: { ...process.env, LAUNCH_COMMAND: commandLine, LAUNCH_CWD: cwd } }).trim();
+  return reply.split(" ").map(Number);
+}
+
 // The writer runs under a wrapper shell that redirects its input and output.
 // On Windows the wrapper is created through WMI, outside the coordinator's
 // process tree, so the writer survives the tool call that started it;
 // elsewhere the repository's detached launcher starts it.
-export function startDetachedWriter({ executable, args, cwd, launchDir }) {
+export function startDetachedWriter({ executable, args, cwd, launchDir }, { exec = execFileSync, platform = process.platform } = {}) {
   const prompt = path.join(launchDir, "prompt.txt"), out = path.join(launchDir, "out.jsonl"), err = path.join(launchDir, "err.log");
-  if (process.platform === "win32") {
+  if (platform === "win32") {
     const quoted = [executable, ...args].map((a) => `"${a}"`).join(" ");
     const commandLine = `cmd.exe /d /s /c "${quoted} < "${prompt}" 1> "${out}" 2> "${err}""`;
-    const script = `$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $env:LAUNCH_COMMAND; CurrentDirectory = $env:LAUNCH_CWD }; "$($r.ReturnValue) $($r.ProcessId)"`;
-    const reply = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, env: { ...process.env, LAUNCH_COMMAND: commandLine, LAUNCH_CWD: cwd } }).trim();
-    const [code, pid] = reply.split(" ").map(Number);
+    const [code, pid] = createThroughWmi(commandLine, cwd, exec);
     if (code !== 0) return { started: false, reason: `Win32_Process.Create returned ${code}` };
     return { started: true, pid };
   }
@@ -1010,13 +1018,11 @@ export function settleCreate(record, { ticket: number, session, absent = false, 
 }
 
 // The app refuses a resume whose output is redirected, so the handoff runs in
-// a console of its own, created outside the coordinator's process tree.
-export function runHandoff({ executable, sessionId, cwd }) {
-  if (process.platform !== "win32") throw new Error(`handing a session to the desktop app is verified only on Windows, not ${process.platform}`);
-  const commandLine = `cmd.exe /d /c start "" cmd.exe /d /c ""${executable}" --desktop --resume ${sessionId}"`;
-  const script = `$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $env:LAUNCH_COMMAND; CurrentDirectory = $env:LAUNCH_CWD }; "$($r.ReturnValue) $($r.ProcessId)"`;
-  const reply = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, env: { ...process.env, LAUNCH_COMMAND: commandLine, LAUNCH_CWD: cwd } }).trim();
-  const [code, pid] = reply.split(" ").map(Number);
+// a hidden console of its own, created outside the coordinator's process tree.
+export function runHandoff({ executable, sessionId, cwd }, { exec = execFileSync, platform = process.platform } = {}) {
+  if (platform !== "win32") throw new Error(`handing a session to the desktop app is verified only on Windows, not ${platform}`);
+  const commandLine = `cmd.exe /d /c ""${executable}" --desktop --resume ${sessionId}"`;
+  const [code, pid] = createThroughWmi(commandLine, cwd, exec);
   return code === 0 ? { requested: true, pid } : { requested: false, reason: `Win32_Process.Create returned ${code}` };
 }
 

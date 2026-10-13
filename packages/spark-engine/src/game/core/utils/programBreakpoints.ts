@@ -148,6 +148,30 @@ const enterBlockOffset = (
   return undefined;
 };
 
+/** The addresses of every function's entry code that runs before the
+ *  `EnterBlock` a function breakpoint stops at (`functionStop`): a step in
+ *  that lands on one runs on to that `EnterBlock`, so its stop shows every
+ *  parameter bound, as the function breakpoint's does (#1743). */
+export const programEntryCode = (root: ProgramRoot): Set<number> => {
+  const addresses = new Set<number>();
+  const symbols = root.table.symbols.length;
+  for (let s = 0; s < symbols; s += 1) {
+    const entry = root.functionEntry(s);
+    const chunk = entry?.sequence.arrays.chunks[entry.entry];
+    if (!entry || !chunk) {
+      continue;
+    }
+    const enter = enterBlockOffset(chunk, entry.offset);
+    if (enter === undefined) {
+      continue;
+    }
+    for (let offset = entry.offset; offset < enter; offset += 2) {
+      addresses.add(addressOf(chunkId(chunk), offset));
+    }
+  }
+  return addresses;
+};
+
 /** The address where a function breakpoint on the function `name` stops,
  *  once the function has bound its parameters (`functionStop`), or nothing
  *  when the program defines no such function. A function declared at the

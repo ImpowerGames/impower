@@ -1,5 +1,5 @@
 // #1051 — a story state saved while a vararg function's frame is on the call
-// stack round-trips its `__varargs__` pack.
+// stack round-trips its `__varargs$` pack.
 //
 // A function declared with `...` keeps its extra arguments as one packed
 // temporary. Saving the state while that frame is live has to write the pack

@@ -1,7 +1,8 @@
 // The Variables view shows the temporaries of the frame selected in the Call
 // Stack (#1727): the debug adapter gives each engine frame an id unique across
 // threads, and a Temps scope it creates for a frame names that thread and
-// frame in the requests it sends the game.
+// frame in the requests it sends the game, as an expression it evaluates for
+// hover or Watch does (#1740).
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/managers/SparkdownDebugManager", () => ({
@@ -68,7 +69,11 @@ const session = () => {
   };
   const variablesSent = () =>
     sent.filter((m) => m.method === "game/variables").map((m) => m.params);
-  return { call, variablesSent };
+  const contextsSent = () =>
+    sent
+      .filter((m) => m.method === "game/evaluationContext")
+      .map((m) => m.params);
+  return { call, variablesSent, contextsSent };
 };
 
 describe("the debug adapter's frames", () => {
@@ -140,6 +145,36 @@ describe("the debug adapter's frames", () => {
       variablesReference: temps.variablesReference,
     });
     expect(s.variablesSent().at(-1)).toEqual({ scope: "temps" });
+  });
+
+  // Hover and Watch evaluate in the frame selected in the Call Stack, as
+  // its Temps scope reads it (#1740).
+  it("evaluates an expression in the frame selected, and in the running frame for one it never gave", async () => {
+    const s = session();
+    const first = await s.call("stackTraceRequest", { threadId: 0 });
+    const second = await s.call("stackTraceRequest", { threadId: 1 });
+    const evaluate = async (frameId?: number) => {
+      await s.call("evaluateRequest", {
+        expression: "x",
+        context: "hover",
+        frameId,
+      });
+      return s.contextsSent().at(-1);
+    };
+    expect(await evaluate(first.stackFrames[1].id)).toEqual({
+      threadId: 0,
+      frameId: 0,
+    });
+    expect(await evaluate(first.stackFrames[0].id)).toEqual({
+      threadId: 0,
+      frameId: 1,
+    });
+    expect(await evaluate(second.stackFrames[0].id)).toEqual({
+      threadId: 1,
+      frameId: 0,
+    });
+    expect(await evaluate(999)).toEqual({});
+    expect(await evaluate(undefined)).toEqual({});
   });
 
   // Sparkdown has no list type (#1752), so the Variables view shows no

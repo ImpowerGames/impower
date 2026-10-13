@@ -12,6 +12,7 @@ import { describe, expect, test } from "vitest";
 import {
   collectDiagnosticsFromFile,
   makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 
 describe("Functions — clean-compile invariants", () => {
@@ -86,26 +87,34 @@ describe("Functions — clean-compile invariants", () => {
     ).toBe(true);
   });
 
-  test("function parameter / global-name collisions surface as compile errors", () => {
-    // Upstream ink test asserts the exact wording `"name has already
-    // been used for a function"` / `"name has already been used for a
-    // var"`. Sparkdown's diagnostic surface differs by wording — it
-    // emits `"Duplicate identifier \`X\`. A function named \`X\`
-    // already exists on null"` instead. We relax the check to "at
-    // least one diagnostic emitted" so the test pins the underlying
-    // detection (function param shadowing a top-level function name
-    // or a global store) without coupling to the exact wording.
-    //
-    // Sparkdown rewrite mirrors the upstream collisions:
-    //   - `function pass_divert(aTarget)` collides with
-    //     `function aTarget()` (file-scope name reuse)
-    //   - `function variable_param_test(global_var)` collides with
-    //     `store global_var = 5` (param shadowing a global)
+  test("function parameters shadow a global function or store of their name", () => {
+    // A port of upstream ink's argument-name-collision test, whose
+    // expectation is dropped for the Luau rule: a parameter shadows any
+    // outer name inside its function (#1177 for a const, #1742 for a
+    // store). Ink reported both of the fixture's parameters:
+    //   - `function pass_divert(aTarget)` beside `function aTarget()`,
+    //     already allowed before #1742 (parameters may shadow callables)
+    //   - `function variable_param_test(global_var)` beside
+    //     `store global_var = 5`, the fixture's only error until #1742
     const ctx = makeRuntimeStoryFromFile(
       "functions",
       "argument-name-collisions",
     );
-    expect(ctx.errorMessages.length).toBeGreaterThan(0);
+    expect(ctx.errorMessages).toEqual([]);
+  });
+
+  test.each([
+    ["a local at the top level beside a store", "store global_var = 5\nlocal global_var = 1\n"],
+    ["two stores of one name", "store global_var = 5\nstore global_var = 1\n"],
+    [
+      "a store declared in the function beside its parameter",
+      "function f(global_var)\n  store global_var = 5\n  return global_var\nend\n",
+    ],
+  ])("%s still collides", (_label, source) => {
+    const ctx = makeRuntimeStoryFromSource(`${source}done\n`);
+    expect(ctx.errorMessages.join("\n")).toContain(
+      "Duplicate identifier `global_var`",
+    );
   });
 });
 

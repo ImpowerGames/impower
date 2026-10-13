@@ -409,7 +409,10 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        return { context: game.getEvaluationContext() };
+        // The frame the debugger selected, or the one that runs when the
+        // request names none.
+        const { threadId, frameId } = message.params;
+        return { context: game.getEvaluationContext(threadId, frameId) };
       });
       return;
     }

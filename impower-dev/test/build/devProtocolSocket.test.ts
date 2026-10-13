@@ -16,9 +16,10 @@ async function host() {
   if (!address || typeof address === "string") throw new Error("No port");
   const origin = `http://127.0.0.1:${address.port}`;
   cleanup.push(() => { dispose(); server.close(); });
-  const connect = async (role: string) => {
+  const connect = async (role: string, received?: any[]) => {
     const socket = new WebSocket(`${origin.replace("http:", "ws:")}/__editor_protocol?role=${role}`, role === "editor" ? { origin } : {});
     cleanup.push(() => socket.terminate());
+    socket.on("message", data => received?.push(JSON.parse(data.toString())));
     await once(socket, "open");
     return socket;
   };
@@ -95,9 +96,74 @@ it("isolates duplicate ids from separate clients and forwards notifications", as
   editor.send(JSON.stringify({ jsonrpc: "2.0", id: requestA.id, result: "A" }));
   expect(await responseA).toEqual({ jsonrpc: "2.0", id: 1, result: "A" });
   expect(await responseB).toEqual({ jsonrpc: "2.0", id: 1, result: "B" });
+  const published = read(editor);
+  a.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: {} }));
+  expect((await published).params.methods).toEqual(["*"]);
   const notification = read(a);
   editor.send(JSON.stringify({ jsonrpc: "2.0", method: "changed", params: { version: 2 } }));
   expect((await notification).params.version).toBe(2);
+});
+it("relays only subscribed notifications and tells the editor the union", async () => {
+  const { connect } = await host();
+  // A subscription sent before any editor connects is published on connect.
+  const early = await connect("client");
+  early.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: { methods: ["editor/didLoad"] } }));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const updates: any[] = [];
+  const editor = await connect("editor", updates);
+  const late = await connect("client"), idle = await connect("client");
+  const idleMessages: any[] = [], earlyMessages: any[] = [], lateMessages: any[] = [];
+  idle.on("message", data => idleMessages.push(JSON.parse(data.toString())));
+  early.on("message", data => earlyMessages.push(JSON.parse(data.toString())));
+  late.on("message", data => lateMessages.push(JSON.parse(data.toString())));
+  const settle = () => new Promise(resolve => setTimeout(resolve, 50));
+  await settle();
+  late.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: { methods: ["preview/didChangeGameState"] } }));
+  await settle();
+  for (const method of ["editor/didLoad", "preview/didChangeGameState", "other"]) {
+    editor.send(JSON.stringify({ jsonrpc: "2.0", method, params: {} }));
+  }
+  await settle();
+  expect(earlyMessages.map(m => m.method)).toEqual(["editor/didLoad"]);
+  expect(lateMessages.map(m => m.method)).toEqual(["preview/didChangeGameState"]);
+  expect(idleMessages).toEqual([]);
+  late.close();
+  await settle();
+  early.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: { methods: [] } }));
+  await settle();
+  expect(updates.map(m => m.params.methods)).toEqual([
+    ["editor/didLoad"],
+    ["editor/didLoad", "preview/didChangeGameState"],
+    ["editor/didLoad"],
+    [],
+  ]);
+  // A subscriber that is replaced by a new editor is republished to it.
+  early.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: { methods: ["x"] } }));
+  await settle();
+  editor.close();
+  await settle();
+  const republished: any[] = [];
+  await connect("editor", republished);
+  await settle();
+  expect(republished.map(m => m.params.methods)).toEqual([["x"]]);
+});
+it("refuses a client that forges the editor's subscription update", async () => {
+  const { connect } = await host();
+  const received: any[] = [];
+  await connect("editor", received);
+  const client = await connect("client");
+  client.send(JSON.stringify({ jsonrpc: "2.0", method: "$/bridgeSubscriptions", params: { methods: ["*"] } }));
+  const [code] = await once(client, "close");
+  expect(code).toBe(1007);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(received).toEqual([]);
+});
+it("rejects a malformed subscription", async () => {
+  const { connect } = await host();
+  const client = await connect("client");
+  client.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: { methods: "editor/didLoad" } }));
+  const [code] = await once(client, "close");
+  expect(code).toBe(1007);
 });
 it("rejects a browser from a different origin", async () => {
   const { origin } = await host();

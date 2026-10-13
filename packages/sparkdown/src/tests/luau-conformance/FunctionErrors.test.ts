@@ -35,7 +35,7 @@ describe.skip("method call with no argument list (diverges: accepted silently)",
 //
 // `...` lowers to a read of the function's hidden varargs variable. In a
 // function with no `...` parameter that variable does not exist, and what
-// surfaces is a warning naming the internal `__varargs__` rather than an
+// surfaces is a warning naming the internal `__varargs$` rather than an
 // error naming the rule.
 describe.skip("varargs outside a vararg function (diverges: warns about the internal variable)", () => {
   test("function add(x, y) return ... end", () => {

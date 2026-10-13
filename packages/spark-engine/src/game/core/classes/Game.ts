@@ -65,6 +65,7 @@ import { lineRanges } from "../utils/executedLineRanges";
 import {
   programAssignmentAddresses,
   programBreakpointLines,
+  programEntryCode,
   programFunctionAddress,
   runsAfterReset,
 } from "../utils/programBreakpoints";
@@ -384,6 +385,21 @@ export class Game<T extends M = {}> {
   protected _lineBreakAddresses = new Set<number>();
   protected _functionBreakAddresses = new Set<number>();
   protected _breakAddresses = new Set<number>();
+  /** Whether the step in under way has run an instruction of a function's
+   *  entry code, and stops once that entry code has run. */
+  protected _steppingInThroughEntry = false;
+  /** The entry code a step in runs through (`programEntryCode`), for the
+   *  program root it was read from. */
+  protected _entryCode: { root: unknown; addresses: Set<number> } | null =
+    null;
+
+  protected entryCode(): Set<number> {
+    const root = this.programStory.root;
+    if (this._entryCode?.root !== root) {
+      this._entryCode = { root, addresses: programEntryCode(root) };
+    }
+    return this._entryCode.addresses;
+  }
 
   /** The addresses of the instructions the story's current step ran
    *  (`ProgramStory.executedLog`), reused from step to step. */
@@ -2740,6 +2756,7 @@ export class Game<T extends M = {}> {
       location: this._executingLocation,
     };
     this._announcedStop = false;
+    this._steppingInThroughEntry = false;
     let done = this.stepWithinBudget(traversal, origin);
     while (!done && traversal !== "continue") {
       done = this.stepWithinBudget(traversal, origin);
@@ -2999,6 +3016,23 @@ export class Game<T extends M = {}> {
           if (traversal === "continue") {
             return false;
           }
+          // A step in does not stop inside a function's entry code: it binds
+          // the parameters one instruction at a time, so the stop waits for
+          // the `EnterBlock` after it, where a function breakpoint stops too,
+          // though that runs on the same line (#1743).
+          if (traversal === "in") {
+            const last = this._positions.previous();
+            if (last != null && this.entryCode().has(last)) {
+              this._steppingInThroughEntry = true;
+              continue;
+            }
+            if (this._steppingInThroughEntry) {
+              this._steppingInThroughEntry = false;
+              this.notifyStepped();
+              return true;
+            }
+          }
+
           // Skip duplicate stops (avoid breaking at the same location)
           if (
             sameLocation(prevExecutedLocation, this._executingLocation) ||
@@ -3282,28 +3316,47 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The story's globals and the current temporaries by name, for the
+  /** The story's globals and the temporaries of a frame by name, for the
    *  editor to evaluate an expression against: each value it can receive
    *  and read into (`isEvaluable`). A table holds the runtime's own objects
-   *  and functions, which no message can carry. */
-  getEvaluationContext() {
+   *  and functions, which no message can carry. The frame is `frameId` of
+   *  thread `threadId`, numbered as `getTempVariables` and `getStackTrace`
+   *  number them (#1740); with neither, or naming a thread or frame the
+   *  call stack no longer has, it is the frame that runs. */
+  getEvaluationContext(threadId?: number, frameId?: number) {
     const context: any = {};
     const variableState = this._story.state.variablesState;
+    const callStack = variableState.callStack;
+    const thread =
+      threadId != null ? callStack.ThreadWithIndex(threadId) : undefined;
+    const selected = thread
+      ? thread.callstack[frameId ?? thread.callstack.length - 1]
+      : undefined;
     for (const name of variableState["_globalVariables"].keys()) {
-      const valueObj = variableState.GetVariableWithName(name);
+      // A global as the frame reads it: `GetVariableWithName` reads the
+      // running frame's temporaries first, so a named frame reads its own,
+      // and the global itself where it has none of that name.
+      const valueObj =
+        selected && thread
+          ? this.valueInFrame(thread, selected, name)
+          : variableState.GetVariableWithName(name);
       const value = this.getRuntimeValue(valueObj);
       if (isEvaluable(value) && !this.isTableRecord(value)) {
         context[name] = value;
       }
     }
-    const contextIndex = variableState.callStack.currentElementIndex + 1;
-    let contextElement =
-      variableState.callStack.currentThread.callstack[contextIndex - 1];
+    const contextThread = selected && thread ? thread : callStack.currentThread;
+    const contextElement =
+      selected ?? callStack.currentThread.callstack[callStack.currentElementIndex];
     if (contextElement?.temporaryVariables) {
-      for (const [
-        name,
-        valueObj,
-      ] of contextElement?.temporaryVariables.entries()) {
+      for (const [name, scoped] of contextElement.temporaryVariables.entries()) {
+        // A temporary bound to a pointer (a variable passed by reference,
+        // or one a closure captured) reads the value it points to, as the
+        // Temps scope shows it, not the pointer's variable name.
+        const valueObj =
+          scoped instanceof VariablePointerValue
+            ? this.valueAtPointerInThread(contextThread, scoped)
+            : scoped;
         const value = this.getRuntimeValue(valueObj);
         if (isEvaluable(value) && !this.isTableRecord(value)) {
           context[name] = value;
@@ -3311,6 +3364,30 @@ export class Game<T extends M = {}> {
       }
     }
     return context;
+  }
+
+  /** The value `name` reads in `element`, a frame of `thread`: its
+   *  temporary of that name in the innermost block scope that has one, or
+   *  else the global. */
+  protected valueInFrame(
+    thread: CallStack.Thread,
+    element: CallStack.Element,
+    name: string,
+  ): InkObject | null {
+    const scopes = element.temporaryScopes;
+    for (let s = scopes.length - 1; s >= 0; s -= 1) {
+      if (scopes[s]!.has(name)) {
+        const scoped = scopes[s]!.get(name) ?? null;
+        return scoped instanceof VariablePointerValue
+          ? this.valueAtPointerInThread(thread, scoped)
+          : scoped;
+      }
+    }
+    const variableState = this._story.state.variablesState;
+    const globalObj = variableState.GetGlobalVariableValue(name);
+    return globalObj instanceof VariablePointerValue
+      ? variableState.ValueAtVariablePointer(globalObj)
+      : globalObj;
   }
 
   /** Whether `value` is the record `getTableRecord` made of a table, which
@@ -3680,8 +3757,12 @@ export class Game<T extends M = {}> {
     if (!frames) {
       return { stackFrames, totalFrames: 0 };
     }
-    const frameCount =
-      levels != null ? Math.min(startFrame + levels, frames.length) : frames.length;
+    // The protocol counts startFrame and levels from the top (running)
+    // frame, the last of frames, and reads a levels of 0 or none as the rest
+    // of the stack. Each frame keeps its index from the outermost end as its
+    // id, which scopes, variables and evaluate look frames up by.
+    const top = frames.length - 1 - Math.max(0, startFrame);
+    const bottom = levels ? Math.max(0, top - levels + 1) : 0;
     // A frame that stands at no address is the one running after a load,
     // which keeps no last instruction: it stands where the game last ran,
     // or where the runtime record the save carried last ran.
@@ -3696,14 +3777,14 @@ export class Game<T extends M = {}> {
       threadId === program.state.callStack.currentThread.threadIndex
         ? this._awaiting
         : null;
-    for (let i = startFrame; i < frameCount; i++) {
+    for (let i = top; i >= bottom; i--) {
       const f = frames[i]!;
       const location =
         (i === frames.length - 1 ? awaiting : null) ??
         this.scriptLocationOf(f.address >= 0 ? f.address : undefined) ??
         ran;
       const isFunction = f.type == PushPopType.Function;
-      stackFrames.unshift({
+      stackFrames.push({
         id: i,
         name: f.name || (isFunction ? "<unknown function>" : "<unknown tunnel>"),
         moduleId: isFunction ? "function" : "tunnel",

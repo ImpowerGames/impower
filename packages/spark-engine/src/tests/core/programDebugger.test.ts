@@ -15,6 +15,7 @@ import {
   VariablePointerValue,
 } from "@impower/sparkdown/src/runtime/Value";
 import { Game } from "../../game/core/classes/Game";
+import type { StackFrame } from "../../game/core/types/StackFrame";
 
 const MAIN = "file:///local/main.sd";
 
@@ -199,6 +200,28 @@ describe("the debugger on the program engine", () => {
     expect(h.game.getThreads()).toEqual([{ id: 0, name: "sub" }]);
   });
 
+  it("pages the stack from the top frame", () => {
+    const h = debugGame(NESTED);
+    h.game.setBreakpoints([{ file: MAIN, line: 15 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    const id = h.game.getThreads()[0]!.id;
+    const page = (s: number, l?: number) => {
+      const trace = h.game.getStackTrace(id, s, l);
+      expect(trace.totalFrames).toBe(2);
+      return trace.stackFrames.map((f) => `${f.id}:${f.name}`);
+    };
+    expect(page(0)).toEqual(["1:sub", "0:main"]);
+    expect(page(0, 1)).toEqual(["1:sub"]);
+    expect(page(1, 1)).toEqual(["0:main"]);
+    // A level count past the stack, or none (0, as the protocol says), is
+    // the rest of the stack.
+    expect(page(0, 20)).toEqual(["1:sub", "0:main"]);
+    expect(page(0, 0)).toEqual(["1:sub", "0:main"]);
+    expect(page(1)).toEqual(["0:main"]);
+    expect(page(2, 1)).toEqual([]);
+  });
+
   /** Stops in `add` on its first line (where a function breakpoint stops),
    *  then steps over each line to `line`. */
   const stopInAdd = (h: ReturnType<typeof debugGame>, line: number) => {
@@ -360,6 +383,125 @@ describe("the debugger on the program engine", () => {
     expect(h.stoppedAt()).toBe(8);
     h.game.step("over");
     expect(h.stoppedAt()).toBe(9);
+  });
+
+  // A step in stops once the function's entry code has bound every
+  // parameter, at the `EnterBlock` a function breakpoint stops at (#1743).
+  it("steps in to a function once it has bound every parameter", () => {
+    const h = debugGame(NESTED);
+    h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(18);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=2", "b=3"]);
+  });
+
+  /** The script of `main` calling `call`, with `functions` after it: the
+   *  call is on line 4 and the first function starts on line 7. */
+  const calling = (call: string, functions: string[]) =>
+    [
+      "store result = 0", //          0
+      "-> main", //                   1
+      "scene main", //                2
+      "  Before.", //                 3
+      `  result = ${call}`, //        4
+      "  done", //                    5
+      "end", //                       6
+      ...functions,
+      "",
+    ].join("\n");
+
+  /** Steps in from the call on line 4, returning where the game stopped and
+   *  the temporaries it shows there. */
+  const stepInFromCall = (script: string) => {
+    const h = debugGame(script);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(4);
+    h.game.step("in");
+    return {
+      h,
+      line: h.stoppedAt(),
+      temps: names(h.game.getTempVariables()).sort(),
+    };
+  };
+
+  it("steps in to a function with no parameters on its first line", () => {
+    const { line, temps } = stepInFromCall(
+      calling("zero()", ["function zero()", "  return 0", "end"]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual([]);
+  });
+
+  it("steps in to a function with one parameter once it is bound", () => {
+    const { line, temps } = stepInFromCall(
+      calling("twice(4)", ["function twice(n)", "  return n * 2", "end"]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual(["n=4"]);
+  });
+
+  it("steps in to a vararg function once its named parameters are bound", () => {
+    const { line, temps } = stepInFromCall(
+      calling("first(7, 8, 9)", ["function first(a, b, ...)", "  return a", "end"]),
+    );
+    expect(line).toBe(7);
+    expect(temps.filter((t) => /^[ab]=/.test(t))).toEqual(["a=7", "b=8"]);
+  });
+
+  it("steps in to the call inside an argument, then to the outer call", () => {
+    const { h, line, temps } = stepInFromCall(
+      calling("add(add(1, 2), 3)", [
+        "function add(a, b)",
+        "  return a + b",
+        "end",
+      ]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual(["a=1", "b=2"]);
+    h.game.step("out");
+    expect(h.stoppedAt()).toBe(4);
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(7);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=3", "b=3"]);
+  });
+
+  it("steps in to each of two calls on one line once each binds its parameters", () => {
+    const { h, line, temps } = stepInFromCall(
+      calling("add(1, 2) + add(3, 4)", [
+        "function add(a, b)",
+        "  return a + b",
+        "end",
+      ]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual(["a=1", "b=2"]);
+    h.game.step("out");
+    expect(h.stoppedAt()).toBe(4);
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(7);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=3", "b=4"]);
+  });
+
+  it("stops once when a step in lands where a function breakpoint stops", () => {
+    const h = debugGame(NESTED);
+    h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
+    h.game.setFunctionBreakpoints([{ name: "add" }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(8);
+    const stops = () =>
+      h.of("game/hitBreakpoint").length + h.of("game/stepped").length;
+    const before = stops();
+    h.game.step("in");
+    expect(stops()).toBe(before + 1);
+    expect(h.stoppedAt()).toBe(18);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=2", "b=3"]);
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(19);
   });
 
   // A temporary named like a global shadows it, for reading and for writing.
@@ -1682,6 +1824,105 @@ describe("the variables of a selected frame", () => {
       "health=100",
     ]);
     expect(names(h.game.getTempVariables())).toEqual(["health=10"]);
+  });
+
+  // Hover and Watch evaluate against the frame selected in the Call Stack,
+  // as the Variables view reads it (#1740).
+  it("evaluates a caller's temporary in the caller's frame while the running frame holds one of its name", () => {
+    const h = debugGame(
+      [
+        "store health = 100", //   0
+        "-> main", //              1
+        "scene main", //           2
+        "  local n = 1", //        3
+        "  Start.", //             4
+        "  local r = twice(3)", // 5
+        "  Done {r}.", //          6
+        "  done", //               7
+        "end", //                  8
+        "function twice(k)", //    9
+        "  local health = 10", //  10
+        "  local n = k * 2", //    11
+        "  return n", //           12
+        "end", //                  13
+        "",
+      ].join("\n"),
+    );
+    h.game.setFunctionBreakpoints([{ name: "twice" }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(9);
+    for (let i = 0; i < 5 && h.stoppedAt() !== 12; i += 1) {
+      h.game.step("over");
+    }
+    expect(h.stoppedAt()).toBe(12);
+    const threadId = h.game.getThreads()[0]!.id;
+    const { stackFrames } = h.frames();
+    expect(stackFrames.map((f) => f.name)).toEqual(["twice", "main"]);
+    const [running, caller] = stackFrames as [StackFrame, StackFrame];
+    expect(names(h.game.getTempVariables(threadId, caller.id))).toContain(
+      "n=1",
+    );
+    expect(names(h.game.getTempVariables(threadId, running.id))).toContain(
+      "n=6",
+    );
+    /** The `n` and the `health` a context gives. */
+    const read = (context: any) => ({ health: context.health, n: context.n });
+    // The caller reads the global `health`, which only the running frame
+    // shadows with a temporary.
+    expect(read(h.game.getEvaluationContext(threadId, caller.id))).toEqual({
+      health: 100,
+      n: 1,
+    });
+    expect(read(h.game.getEvaluationContext(threadId, running.id))).toEqual({
+      health: 10,
+      n: 6,
+    });
+    // With no frame named, or a thread or frame the call stack no longer
+    // has, the frame that runs, as before the frame could be named.
+    const today = h.game.getEvaluationContext();
+    expect(read(today)).toEqual({ health: 10, n: 6 });
+    expect(h.game.getEvaluationContext(threadId)).toEqual(today);
+    expect(h.game.getEvaluationContext(threadId, 99)).toEqual(today);
+    expect(h.game.getEvaluationContext(threadId, -1)).toEqual(today);
+    expect(h.game.getEvaluationContext(99, caller.id)).toEqual(today);
+  });
+
+  // A closure's captured variable is a pointer in its frame; hover and
+  // Watch read the value it points to, as the Temps scope shows it (#1740).
+  it("evaluates a captured variable as the value it points to, in the closure's frame and the frame that declared it", () => {
+    const h = debugGame(
+      [
+        "-> main", //                       0
+        "scene main", //                    1
+        "  Start.", //                      2
+        "  Got {outer()}.", //              3
+        "  done", //                        4
+        "end", //                           5
+        "function outer()", //              6
+        "  local n = 0", //                 7
+        "  local bump = function()", //     8
+        "    n = n + 1", //                 9
+        "    return n", //                  10
+        "  end", //                         11
+        "  return bump()", //               12
+        "end", //                           13
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 10 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(10);
+    const threadId = h.game.getThreads()[0]!.id;
+    const frames = h.frames().stackFrames;
+    const outerFrame = frames.find((f) => f.name === "outer")!;
+    expect(names(h.game.getTempVariables(threadId, frames[0]!.id))).toContain(
+      "n=1",
+    );
+    expect(h.game.getEvaluationContext().n).toBe(1);
+    expect(h.game.getEvaluationContext(threadId, frames[0]!.id).n).toBe(1);
+    expect(h.game.getEvaluationContext(threadId, outerFrame.id).n).toBe(1);
   });
 });
 
