@@ -318,7 +318,13 @@ export default class UIManager extends Manager {
     // dedupe on the signature), so a held clear decides the same, now. An
     // element whose clear of that kind is still held counts as cleared: the
     // clear applied at once would already have signed it.
-    const targetEls = this.findTargetElements(clear.target);
+    // An element inside content another held clear removes, applied at once,
+    // was already detached by that clear, so this clear's empty writes, which
+    // resolve the target among connected elements, neither emptied nor signed
+    // it. Its hiding still came, by id.
+    const targetEls = this.findTargetElements(clear.target).filter(
+      this.connectedAsCleared(),
+    );
     const empty = JSON.stringify([]);
     const shownEmpty = (kind: "text" | "image") =>
       targetEls.length > 0 &&
@@ -359,6 +365,31 @@ export default class UIManager extends Manager {
         }
       }
     }
+  }
+
+  /** Whether an element would still be connected had the held clears been
+   *  applied at once: not inside content one of them removes. Applied at
+   *  once, that clear had detached it, and a later write or clear, which
+   *  resolves its target among connected elements, did not find it. */
+  protected connectedAsCleared(): (el: Node) => boolean {
+    const held = this.heldClears;
+    if (!held || held.size === 0) {
+      return () => true;
+    }
+    const removing = new Set<Node>();
+    for (const entry of held.values()) {
+      for (const node of [...(entry.text ?? []), ...(entry.image ?? [])]) {
+        removing.add(node);
+      }
+    }
+    return (el: Node) => {
+      for (let n: Node | null = el; n; n = n.parentNode) {
+        if (removing.has(n)) {
+          return false;
+        }
+      }
+      return true;
+    };
   }
 
   /** The nodes `el`'s content elements of the given classes hold now. */
@@ -1199,7 +1230,10 @@ export default class UIManager extends Manager {
     startTime?: number,
     shown = 0,
   ) {
-    const targetEls = this.findTargetElements(target);
+    // Not what a held clear removes: applied at once, it had detached it.
+    const targetEls = this.findTargetElements(target).filter(
+      this.connectedAsCleared(),
+    );
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
     // target already shows exactly this write, leave it untouched. Stored on the
@@ -1351,7 +1385,10 @@ export default class UIManager extends Manager {
     instructions: WriteImageInstruction[],
     startTime?: number,
   ) {
-    const targetEls = this.findTargetElements(target);
+    // Not what a held clear removes: applied at once, it had detached it.
+    const targetEls = this.findTargetElements(target).filter(
+      this.connectedAsCleared(),
+    );
     // This target has been written this pass, so the sweep must leave its layers
     // alone. Marked BEFORE the dedup below: re-writing the image already on
     // screen is the commonest case on a re-render (restore replays it), and

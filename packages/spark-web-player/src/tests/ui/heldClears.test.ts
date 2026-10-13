@@ -381,6 +381,121 @@ describe("held clears (#1820)", () => {
     },
   );
 
+  test("a target inside content another clear removes is neither emptied nor signed by its own clear", async () => {
+    // `portrait` sits in `panel`'s text slot. Applied at once, `panel`'s clear
+    // detaches the portrait, and the portrait's clear, which resolves its
+    // target among connected elements, finds nothing. The next display moves
+    // things back, clears only the portrait and writes its picture: its text
+    // was never signed empty, so that clear removes the re-created caption.
+    const build = async (panelStyle: Record<string, string> | undefined) => {
+      await create("e", null, "stage");
+      await create("e-panel-0", "e", "panel", panelStyle ? { style: panelStyle } : {});
+      await create("e-panel-0-stroke-0", "e-panel-0", "stroke");
+      await create("e-panel-0-text-0", "e-panel-0", "text");
+      await create("e-panel-0-text-0-portrait-0", "e-panel-0-text-0", "portrait");
+      await create("e-panel-0-text-0-portrait-0-text-0", "e-panel-0-text-0-portrait-0", "text");
+      await create(
+        "e-panel-0-text-0-portrait-0-text-0-caption-0",
+        "e-panel-0-text-0-portrait-0-text-0",
+        "caption",
+        { content: { text: "Caption" } },
+      );
+      await create("e-panel-0-text-0-portrait-0-image-0", "e-panel-0-text-0-portrait-0", "image");
+    };
+    const PANEL = "e-panel-0";
+    const PORTRAIT = "e-panel-0-text-0-portrait-0";
+    const clear = async (held: boolean, target: string, element: string) => {
+      if (held) {
+        hold(target, [element]);
+        return;
+      }
+      await request("ui/update", { element, style: { display: "none" }, attributes: { text: null } });
+      await request("ui/write-text", { target, instructions: [], instant: true });
+      await request("ui/write-image", { target, instructions: [], instant: true });
+    };
+    const run = async (held: boolean) => {
+      await build(undefined);
+      page.beginReconcilePass();
+      await build(undefined);
+      await clear(held, "panel", PANEL);
+      await clear(held, "portrait", PORTRAIT);
+      // Taken over: the next display restyles the panel, so it shows again,
+      // re-emits the portrait and clears only the portrait.
+      page.beginReconcilePass();
+      await build({ color: "red" });
+      await clear(held, "portrait", PORTRAIT);
+      await request("ui/update", { element: PORTRAIT, style: { display: null } });
+      await show("portrait", "p1");
+      page.sweepReconcile();
+      const portrait = overlay.querySelector(".portrait") as HTMLElement | null;
+      return {
+        caption: portrait?.querySelector(".text > .caption")?.textContent ?? null,
+        pictures: portraits()[0] ?? null,
+        panel: (overlay.querySelector(".panel") as HTMLElement | null)?.style.display ?? null,
+      };
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    // The control: applied at once, the portrait's second clear removes the
+    // caption.
+    expect(immediate.caption).toBeNull();
+    expect(immediate.pictures).toEqual(["p1"]);
+    expect(held).toEqual(immediate);
+  });
+
+  test("a write to a target inside content a held clear removes writes nothing, as after the clear applied at once", async () => {
+    // Applied at once, `panel`'s clear detaches the portrait in its text
+    // slot, and a write to `portrait` then finds no connected target: it
+    // writes nothing and signs nothing, which later writes' dedupe reads.
+    const build = async () => {
+      await create("e", null, "stage");
+      await create("e-panel-0", "e", "panel");
+      await create("e-panel-0-text-0", "e-panel-0", "text");
+      await create("e-panel-0-text-0-portrait-0", "e-panel-0-text-0", "portrait");
+      await create("e-panel-0-text-0-portrait-0-image-0", "e-panel-0-text-0-portrait-0", "image");
+    };
+    const run = async (held: boolean) => {
+      await build();
+      page.beginReconcilePass();
+      await build();
+      // The node itself, which the clear may detach.
+      const portrait = overlay.querySelector(".portrait") as any;
+      expect(portrait).toBeTruthy();
+      if (held) {
+        hold("panel", ["e-panel-0"]);
+      } else {
+        await request("ui/update", { element: "e-panel-0", style: { display: "none" }, attributes: { text: null } });
+        await request("ui/write-text", { target: "panel", instructions: [], instant: true });
+        await request("ui/write-image", { target: "panel", instructions: [], instant: true });
+      }
+      await show("portrait", "p1");
+      page.sweepReconcile();
+      return {
+        connected: overlay.contains(portrait),
+        signed: portrait.__sdImg ?? null,
+        layers: portrait.querySelectorAll(".image > .instance[image]").length,
+      };
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    expect(immediate).toEqual({ connected: false, signed: null, layers: 0 });
+    expect(held).toEqual(immediate);
+  });
+
   test("an update of a content slot alone leaves the picture until the write replaces it", async () => {
     // A saved style restored onto a portrait's image slot during the
     // connect changes the slot, not its picture.
