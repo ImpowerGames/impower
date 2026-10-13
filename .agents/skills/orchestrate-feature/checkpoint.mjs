@@ -530,7 +530,7 @@ export function buildCheckpoint(record, { seq, previous, snapshotParents = [], k
     invocation: record.invocation, authority: record.authority, writer: record.writer, concurrency: record.concurrency,
     checkIn: record.checkIn ?? null,
     tickets: portableTickets(record.tickets, host),
-    operations: record.operations ?? [], decisions: record.decisionRefs ?? [], diskRecoveries: record.diskRecoveries,
+    operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries,
     work: work ?? {}, snapshots,
     handoff: record.handoff ?? null,
     observed: observed ?? null,
@@ -967,6 +967,23 @@ export function reference(record, { pr, url, kind }) {
   if (!Number.isSafeInteger(pr) || !/^https:\/\/github\.com\/\S+$/.test(url ?? "") || !kind) throw new Error("--pr, --url (a GitHub link) and --kind are required");
   (record.decisionRefs ??= []).push({ pr, url, kind, time: new Date().toISOString() });
   record.log.push({ time: new Date().toISOString(), event: "reference", pr, kind });
+}
+
+// The checkpoint's decision links: the references recorded with `reference`,
+// and one for every review checkpoint decision review-checkpoint.mjs has read
+// back as published on its PR, which stays that decision's authority. A
+// decision not yet published has no link, and a link a takeover carries
+// over is never added twice.
+export function decisionLinks(record) {
+  const links = [...(record.decisionRefs ?? [])];
+  for (const [number, ticket] of Object.entries(record.tickets ?? {})) {
+    for (const d of ticket.checkpoints ?? []) {
+      if (d.state !== "published" || !d.published?.comment) continue;
+      const url = `https://github.com/${record.repository}/pull/${d.pr}#issuecomment-${d.published.comment}`;
+      if (!links.some((l) => l.url === url)) links.push({ pr: d.pr, url, kind: `review-checkpoint ${d.kind}`, ticket: Number(number), id: d.id, round: d.round, head: d.head, time: d.published.time });
+    }
+  }
+  return links;
 }
 
 // --- Command line -----------------------------------------------------------

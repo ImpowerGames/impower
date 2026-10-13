@@ -742,6 +742,21 @@ try {
   assertNoCoverage(cp.fetchState(src, "origin", "acme/widgets", 810).checkpoint, "after a soft reset under a snapshot");
   mutate(rec810, "local_src81", (r) => { for (const n of [813, 814]) run.release(r, { ticket: n, observations: { sessions: { [`local_w${n}`]: { state: "archived" } } }, host: SRC, evidence: "its session was archived" }); });
   cp.autoCheckpoint(rec810, { coordinator: "local_src81", transition: "two releases", github, host: SRC });
+  // A review checkpoint decision read back as published on its PR is linked
+  // from the state branch beside a hand-recorded reference; an unpublished
+  // one is not, and a takeover keeps each link once.
+  const pubUrl = "https://github.com/acme/widgets/pull/911#issuecomment-5001";
+  mutate(rec810, "local_src81", (r) => {
+    r.tickets[811].checkpoints = [
+      { id: "d1", kind: "extend", pr: 911, round: 3, head: "a".repeat(40), state: "published", published: { comment: 5001, time: "2026-10-13T00:00:00.000Z" } },
+      { id: "d2", kind: "accept-unreviewed", pr: 911, round: 4, head: "b".repeat(40), state: "intent" },
+    ];
+    cp.reference(r, { pr: 912, url: "https://github.com/acme/widgets/pull/912#issuecomment-6001", kind: "maintainer answer" });
+  });
+  cp.autoCheckpoint(rec810, { coordinator: "local_src81", transition: "a published decision", github, host: SRC });
+  const decisionLinked = (c) => c.decisions.map((l) => `${l.url} ${l.kind}${l.id ? ` ${l.id}` : ""}`).sort();
+  const links810 = [`${pubUrl} review-checkpoint extend d1`, "https://github.com/acme/widgets/pull/912#issuecomment-6001 maintainer answer"].sort();
+  assert.deepEqual(decisionLinked(cp.fetchState(src, "origin", "acme/widgets", 810).checkpoint), links810, "the published decision is linked; the intent is not");
   // Another host takes over, retrieves #813 and adopts its work there.
   const dst7 = clone("dst7"), dst8 = clone("dst8");
   const rec810b = path.join(dstPrivate, "run-810.json");
@@ -753,6 +768,8 @@ try {
   mutate(rec810b, "local_dst81", (r) => run.adopt(r, { plan: planB, ticket: 813, handleKind: "session", handle: "local_b813", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: wt813b, host: DST }));
   assert.equal(cp.autoCheckpoint(rec810b, { coordinator: "local_dst81", transition: "the adoption", github, host: DST }).saved, true);
   const adopted810 = cp.fetchState(dst8, "origin", "acme/widgets", 810).checkpoint;
+  assert.deepEqual(decisionLinked(adopted810), links810, "the takeover keeps each decision link once");
+  assert.equal(adopted810.tickets[811].checkpoints.length, 2, "the decisions themselves stay in the ticket for review-checkpoint.mjs to verify");
   const row811 = github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec810b), "utf8")).summary.commentId).body.split("\n").find((line) => line.startsWith("| #811 "));
   assert.match(row811, new RegExp(`src-host: as of ${at(adopted810, 811).observedAt.replace(/\./g, "\\.")}, `), "the destination's summary shows the source's observation at its own time");
   assert.equal(adopted810.snapshots[813]?.commit, h810.snapshots[813].commit, "the adopted work keeps its snapshot");
