@@ -298,17 +298,27 @@ sparkdown [0..228]
  │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [155..156]
  │   │       └─ RequiredWhitespace [155..156]: " "
  │   ├─ LuauSparkdownExplicitStatement_content [156..169]
- │   │   ├─ LuauRepeatKeyword [156..162]: "repeat"
- │   │   └─ LuauSparkdownExplicitReturnStatement [162..169]
- │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [162..169]
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [162..163]
- │   │       │   │   └─ OptionalWhitespace [162..163]: " "
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [163..169]
- │   │       │   │   └─ LuauControlKeyword [163..169]: "return"
- │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 169
- │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 169
- │   │       │           └─ OptionalWhitespace 169
- │   │       └─ LuauSparkdownExplicitReturnStatement_end 169
+ │   │   └─ LuauSparkdownExplicitRepeatLoop [156..169]
+ │   │       ├─ LuauSparkdownExplicitRepeatLoop_begin [156..163]
+ │   │       │   ├─ LuauSparkdownExplicitRepeatLoop_begin_c1 156
+ │   │       │   │   └─ OptionalWhitespace 156
+ │   │       │   ├─ LuauSparkdownExplicitRepeatLoop_begin_c2 [156..162]
+ │   │       │   │   └─ LuauRepeatKeyword [156..162]: "repeat"
+ │   │       │   └─ LuauSparkdownExplicitRepeatLoop_begin_c3 [162..163]
+ │   │       │       └─ LuauSparkdownExplicitRepeatLoop_begin_c3 [162..163]
+ │   │       │           └─ OptionalWhitespace [162..163]: " "
+ │   │       ├─ LuauSparkdownExplicitRepeatLoop_content [163..169]
+ │   │       │   └─ LuauSparkdownExplicitReturnStatement [163..169]
+ │   │       │       ├─ LuauSparkdownExplicitReturnStatement_begin [163..169]
+ │   │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 163
+ │   │       │       │   │   └─ OptionalWhitespace 163
+ │   │       │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [163..169]
+ │   │       │       │   │   └─ LuauControlKeyword [163..169]: "return"
+ │   │       │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 169
+ │   │       │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 169
+ │   │       │       │           └─ OptionalWhitespace 169
+ │   │       │       └─ LuauSparkdownExplicitReturnStatement_end 169
+ │   │       └─ LuauSparkdownExplicitRepeatLoop_end 169
  │   └─ LuauSparkdownExplicitStatement_end 169
  ├─ Newline [169..170]: "\n"
  ├─ ImplicitAction [170..184]

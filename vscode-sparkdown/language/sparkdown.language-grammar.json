@@ -5398,6 +5398,15 @@
           "include": "#LuauSparkdownExplicitDoBlock"
         },
         {
+          "include": "#LuauSparkdownExplicitIfBlock"
+        },
+        {
+          "include": "#LuauSparkdownExplicitLoop"
+        },
+        {
+          "include": "#LuauSparkdownExplicitRepeatLoop"
+        },
+        {
           "include": "#LuauSparkdownExplicitStoryVariableDefinition"
         },
         {

@@ -4152,6 +4152,11 @@ repository:
     patterns:
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
+      # The bounded control blocks a `& do` island holds also stand on
+      # their own marked line (`& for ... do ... end`, `& if ... end`).
+      - { include: "#LuauSparkdownExplicitIfBlock" }
+      - { include: "#LuauSparkdownExplicitLoop" }
+      - { include: "#LuauSparkdownExplicitRepeatLoop" }
       - { include: "#LuauSparkdownExplicitStoryVariableDefinition" }
       - { include: "#LuauSparkdownExplicitDeclarations" }
       - { include: "#LuauCommaSeparator" }

@@ -96,8 +96,8 @@ text.source.sparkdown [0..228]
  ├─ keyword.other.statement.explicit.luau.mark.sd [154..155]: "&"
  ├─ punctuation.whitespace.required.sd [155..156]: " "
  ├─ keyword.control.repeat.luau [156..162]: "repeat"
- ├─ meta.function.luau [162..169]
- │   ├─ punctuation.whitespace.optional.sd [162..163]: " "
+ ├─ punctuation.whitespace.optional.sd [162..163]: " "
+ ├─ meta.function.luau [163..169]
  │   └─ keyword.control.luau [163..169]: "return"
  ├─ Newline [169..170]: "\n"
  ├─ punctuation.whitespace.optional.sd [170..172]: "  "
