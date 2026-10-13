@@ -19,7 +19,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { spawnDetached as spawnDetachedProcess } from "../../../scripts/detached-launch.mjs";
@@ -365,7 +365,7 @@ export function takeSnapshot({ repository, feature }, client) {
   };
   const issue = client.issue(feature);
   visit(feature, 1);
-  return { repository, feature: { number: feature, state: issue.state, title: issue.title, criteria: parseCriteria(issue.body) }, observedAt: new Date().toISOString(), originMain, tickets };
+  return { repository, feature: { number: feature, state: issue.state, title: issue.title, criteria: parseCriteria(issue.body), acceptanceSha256: acceptanceHash(issue.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
 // --- Admission plan -------------------------------------------------------
@@ -388,18 +388,34 @@ function adoptedNext(pending) {
   return next ?? ["reconcile-pending", `unexpected adopted step ${at}`];
 }
 
-// The checklist under the Feature's "Acceptance criteria" heading.
-export function parseCriteria(body) {
+// The Feature's "Acceptance criteria" section: every line under that heading
+// up to the next heading of the same or a higher level, so nested headings
+// stay inside it. Null when the Feature has no such heading.
+export function acceptanceSection(body) {
   const lines = String(body ?? "").split(/\r?\n/);
   const start = lines.findIndex((l) => /^#{1,6}\s+Acceptance criteria\s*$/i.test(l.trim()));
-  if (start < 0) return [];
-  const out = [];
-  for (const l of lines.slice(start + 1)) {
-    if (/^#{1,6}\s/.test(l)) break;
+  if (start < 0) return null;
+  const level = /^#+/.exec(lines[start].trim())[0].length;
+  const end = lines.findIndex((l, i) => i > start && /^#{1,6}\s/.test(l) && /^#+/.exec(l)[0].length <= level);
+  return lines.slice(start + 1, end < 0 ? undefined : end);
+}
+// The section's text with line endings and trailing spaces normalized; a
+// verification is bound to its hash, so any edit of the section, whether to a
+// checkbox, its continuation or the prose around it, needs a new
+// verification.
+export const acceptanceHash = (body) => { const s = acceptanceSection(body); return s === null ? null : createHash("sha256").update(s.map((l) => l.trimEnd()).join("\n").trim()).digest("hex"); };
+// Each checkbox in the section, with its indented continuation lines joined
+// to it, under any nested heading.
+export function parseCriteria(body) {
+  const items = [];
+  let open = false;
+  for (const l of acceptanceSection(body) ?? []) {
     const m = /^\s*[-*]\s+\[[ xX]\]\s+(.*\S)\s*$/.exec(l);
-    if (m) out.push({ index: out.length + 1, text: m[1] });
+    if (m) { items.push([m[1]]); open = true; continue; }
+    if (open && /^\s+\S/.test(l) && !/^\s*[-*+]\s/.test(l)) { items.at(-1).push(l.trim()); continue; }
+    if (/\S/.test(l)) open = false;
   }
-  return out;
+  return items.map((parts, i) => ({ index: i + 1, text: parts.join(" ") }));
 }
 const sameCriteria = (a, b) => JSON.stringify(a.map((c) => c.text ?? c.criterion)) === JSON.stringify(b.map((c) => c.text ?? c.criterion));
 
@@ -415,7 +431,7 @@ export function verificationGaps(record, snapshot, { running = null } = {}) {
   if (v?.verdict !== "complete") return ["the latest verification is not complete"];
   const gaps = [];
   if (snapshot.originMain !== v.mainSha) gaps.push(`origin/main is ${snapshot.originMain}, not the verified ${v.mainSha}`);
-  if (!Array.isArray(snapshot.feature?.criteria) || !sameCriteria(snapshot.feature.criteria, v.criteria)) gaps.push("the Feature's acceptance criteria changed");
+  if (!Array.isArray(snapshot.feature?.criteria) || !sameCriteria(snapshot.feature.criteria, v.criteria) || snapshot.feature.acceptanceSha256 !== v.acceptanceSha256) gaps.push("the Feature's acceptance criteria changed");
   const slices = (snapshot.tickets ?? []).filter((t) => !t.container);
   const list = (ns) => [...ns].sort((a, b) => a - b).map((n) => `#${n}`).join(", ");
   if (list(slices.map((t) => t.number)) !== list(v.tickets ?? [])) gaps.push(`the Feature's slices are ${list(slices.map((t) => t.number)) || "none"}, not the verified ${list(v.tickets ?? []) || "none"}`);

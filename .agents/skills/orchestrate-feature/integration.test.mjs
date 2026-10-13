@@ -100,7 +100,7 @@ try {
     issue: (n) => structuredClone(gh.issues.get(n)),
     createComment: (n, body) => { gh.onCreateComment?.(); const c = post(n, body); return { id: c.id, body: c.body, url: c.html_url }; },
     getComment: (id) => { const c = allComments().find((x) => x.id === id); if (!c) throw new Error("HTTP 404"); return { id: c.id, body: c.body, url: c.html_url }; },
-    closeIssue: (n) => { gh.closeCalls = (gh.closeCalls ?? 0) + 1; if (gh.closeFail > 0) { gh.closeFail--; throw new Error(gh.closeError); } if (gh.closeSilent > 0) { gh.closeSilent--; return; } gh.issues.get(n).state = "closed"; },
+    closeIssue: (n) => { gh.closeCalls = (gh.closeCalls ?? 0) + 1; gh.beforeClose?.(n); if (gh.closeFail > 0) { gh.closeFail--; throw new Error(gh.closeError); } if (gh.closeSilent > 0) { gh.closeSilent--; return; } gh.issues.get(n).state = "closed"; },
   };
   // The status comment store for checkpoints shares GitHub's comments.
   const statusGithub = {
@@ -519,7 +519,14 @@ try {
 
   // --- The Feature's acceptance on main ---------------------------------------
   assert.deepEqual(ig.parseCriteria(gh.issues.get(FEATURE).body).map((c) => c.text), criteria, "only the checklist under the Acceptance criteria heading");
-  const verify = (evidence, snapshot = snapshotNow(dst)) => change((r) => ig.verifyFeature(r, { snapshot, criteria: ig.parseCriteria(gh.issues.get(FEATURE).body), evidence, mainSha: originMain(dst) }), dstRecord, "local_dst");
+  // A criterion keeps its continuation lines, a nested heading stays inside
+  // the section, and the section's hash changes with any of its text.
+  const nested = "## Acceptance criteria\n\n- [ ] The widget works\n  on Windows and Linux.\n\n### Recovery\n\n- [x] It recovers.\n\n## Additional context\n\n- [ ] not a criterion\n";
+  assert.deepEqual(ig.parseCriteria(nested).map((c) => c.text), ["The widget works on Windows and Linux.", "It recovers."]);
+  assert.notEqual(run.acceptanceHash(nested), run.acceptanceHash(nested.replace("Windows and Linux", "Windows, Linux and macOS")));
+  assert.notEqual(run.acceptanceHash(nested), run.acceptanceHash(nested.replace("### Recovery\n", "### Recovery\n\nAlso on a cold start.\n")));
+  assert.equal(run.acceptanceHash(nested), run.acceptanceHash(nested.replace("## Additional context\n\n- [ ] not a criterion", "## Additional context\n\n- [ ] still not a criterion")), "text after the section is not part of it");
+  const verify = (evidence, snapshot = snapshotNow(dst)) => change((r) => ig.verifyFeature(r, { snapshot, evidence, mainSha: originMain(dst) }), dstRecord, "local_dst");
   const met = (c, evidence) => ({ criterion: c, status: "met", evidence });
   assert.throws(() => verify({ criteria: [met(criteria[0], ["x"])] }), /omits criterion 2/);
   assert.throws(() => verify({ criteria: criteria.map((c, i) => met(c, i === 1 ? [] : ["x"])) }), /Criterion 2 is met only with evidence/);
@@ -563,6 +570,12 @@ try {
   gh.issues.get(FEATURE).body = body.replace("## Additional context", "- [ ] A criterion added after the verification.\n\n## Additional context");
   assert.throws(() => close(done.id), /no longer holds: the Feature's acceptance criteria changed/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "a new criterion");
+  // Prose added inside the section changes no checkbox, but it is still a
+  // change to what the Feature requires.
+  gh.issues.get(FEATURE).body = body.replace("- [ ] Each slice merges", "Every criterion holds on Windows and Linux alike.\n\n- [ ] Each slice merges");
+  assert.deepEqual(ig.parseCriteria(gh.issues.get(FEATURE).body).map((c) => c.text), criteria);
+  assert.throws(() => close(done.id), /no longer holds: the Feature's acceptance criteria changed/);
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "prose added to the acceptance section");
   gh.issues.get(FEATURE).body = body;
   const late = change((r) => cp.intent(r, { kind: "merge", ticket: 43, pr: 143, expectHead: h43c, evidence: "a probe recorded after the verification" }), dstRecord, "local_dst");
   assert.throws(() => close(done.id), new RegExp(`no longer holds: merge ${late.id} of PR #143 is unsettled`));
@@ -612,6 +625,12 @@ try {
   assert.deepEqual([afterReport.closed, afterReport.state, gh.closeCalls ?? 0, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, "open"], afterReport.evidence);
   assert.match(run.readRecord(dstRecord).operations.find((o) => o.id === afterReport.operation).evidence, /not run: after the report was posted in comment [0-9]+, origin\/main is [0-9a-f]{40}, not the verified/);
   final = verify(doneEvidence);
+  // A criterion added while the report posts, with main unchanged: every
+  // premise is checked again as the last step before the close call.
+  const duringReport = close(final.id, { afterIntent: () => { cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); gh.onCreateComment = () => { gh.onCreateComment = null; gh.issues.get(FEATURE).body = body.replace("## Additional context", "- [ ] A criterion added while the report posts.\n\n## Additional context"); }; } });
+  assert.deepEqual([duringReport.closed, duringReport.state, gh.closeCalls ?? 0, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, "open"], duringReport.evidence);
+  assert.match(run.readRecord(dstRecord).operations.find((o) => o.id === duringReport.operation).evidence, /not run: after the report was posted in comment [0-9]+, the Feature's acceptance criteria changed/);
+  gh.issues.get(FEATURE).body = body;
   gh.closeFail = 1;
   gh.closeError = "HTTP 502 while closing";
   const lostClose = close(final.id, { afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }) });
@@ -634,8 +653,13 @@ try {
   assert.match(silentClose.evidence, /the close call returned success; the request may still land/);
   assert.throws(() => close(final.id), /closing Feature #40 (.*) is unsettled; settle it with checkpoint.mjs reconcile-operations/);
   assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst) }), dstRecord, "local_dst").map((s) => [s.kind, s.state]), [["close", "not-applied"]]);
-  const closed = close(final.id);
-  assert.deepEqual([closed.closed, closed.state, closed.comment.reused, gh.issues.get(FEATURE).state], [true, "confirmed", true, "closed"]);
+  // The closure through the public command: its own wiring saves the intent
+  // on the state branch before the close call.
+  gh.beforeClose = () => { gh.closeIntentSeen = cp.fetchState(dst, "origin", REPO, FEATURE).checkpoint.operations.some((o) => o.kind === "close" && o.state === "intent"); };
+  const closed = ig.main(["close-feature", "--record", dstRecord, "--coordinator", "local_dst", "--expect-revision", String(run.readRecord(dstRecord).revision), "--verification", final.id], { clientFor: () => client, gitFor: () => gitOf(dst), github: statusGithub, snapshotFor: () => () => snapshotNow(dst) });
+  gh.beforeClose = null;
+  assert.equal(gh.closeIntentSeen, true, "the public command saved the closure's intent on the state branch before the close call");
+  assert.deepEqual([closed.closed, closed.state, closed.comment.reused, gh.issues.get(FEATURE).state, closed.checkpoint?.saved], [true, "confirmed", true, "closed", true]);
   assert.equal(gh.comments.get(FEATURE).filter((c) => c.body.includes(`final report: verification ${final.id}`)).length, 1, "every retried close reuses the posted report");
   assert.throws(() => close(final.id), /already closed/);
   const status = cp.autoCheckpoint(dstRecord, { coordinator: "local_dst", transition: "the Feature closed", github: statusGithub, host: DST });

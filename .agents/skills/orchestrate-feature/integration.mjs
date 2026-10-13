@@ -336,8 +336,11 @@ export function finalReport(record, snapshot, v) {
 // as it is now. It is complete only when every slice is delivered on main,
 // no operation is unsettled, and every criterion is met with evidence; any
 // other verdict keeps the Feature open with its gaps named.
-export function verifyFeature(record, { snapshot, criteria, evidence, mainSha }) {
+export function verifyFeature(record, { snapshot, evidence, mainSha }) {
   if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
+  // The criteria checked and the section the verification is bound to come
+  // from the same read of the Feature.
+  const criteria = snapshot.feature.criteria ?? [];
   if (!SHA.test(mainSha ?? "")) throw new Error("The verified main commit must be a full SHA");
   if (snapshot.originMain !== mainSha) throw new Error(`The snapshot saw origin/${TARGET} at ${snapshot.originMain}, but it is now ${mainSha}; snapshot again so the tickets and ${TARGET} agree`);
   if (!criteria.length) throw new Error(`Feature #${record.feature} lists no acceptance criteria under an Acceptance criteria heading, so nothing can be verified; ask the maintainer`);
@@ -362,20 +365,20 @@ export function verifyFeature(record, { snapshot, criteria, evidence, mainSha })
   const incomplete = slices(record, snapshot).filter((s) => !s.delivered).map((s) => ({ number: s.number, action: s.state === "closed" ? `closed without a merged deliverable on ${TARGET}` : s.open.length ? `open, PR ${s.open.map((p) => `#${p}`).join(", ")} not merged` : "open with no merged PR" }));
   const unsettled = (record.operations ?? []).filter((o) => OPEN.has(o.state)).map((o) => `${operationText(o)} ${o.id} (${o.state})`);
   const verdict = !incomplete.length && !unsettled.length && rows.every((r) => r.status === "met") ? "complete" : "incomplete";
-  const v = { id: randomUUID().slice(0, 8), time: new Date().toISOString(), coordinator: record.coordinator.session, mainSha, snapshotAt: snapshot.observedAt, verdict, criteria: rows, incomplete, unsettled, tickets: snapshot.tickets.filter((t) => !t.container).map((t) => t.number) };
+  const v = { id: randomUUID().slice(0, 8), time: new Date().toISOString(), coordinator: record.coordinator.session, mainSha, snapshotAt: snapshot.observedAt, verdict, criteria: rows, acceptanceSha256: snapshot.feature.acceptanceSha256 ?? null, incomplete, unsettled, tickets: snapshot.tickets.filter((t) => !t.container).map((t) => t.number) };
   v.report = finalReport(record, snapshot, v);
   (record.verifications ??= []).push(v);
   record.log.push({ time: v.time, event: "feature-verification", id: v.id, verdict, mainSha });
   return { id: v.id, verdict, report: v.report };
 }
 
-// Closes the Feature after a complete verification that still holds in a
-// fresh snapshot, taken before the intent is saved and again after it: main
-// is the commit it verified, the Feature lists the criteria and slices it
-// covered, each slice is still delivered and no operation is unsettled. Main
-// is read once more after the second snapshot's slower reads, and again just
-// before the close call. The final report is posted (or found, if an earlier
-// attempt posted it) and read back, and the issue is closed. The outcome is the issue state GitHub
+// Closes the Feature after a complete verification that still holds: main is
+// the commit it verified, the Feature has the acceptance section and slices
+// it covered, each slice is still delivered and no operation is unsettled.
+// Every premise is read on a fresh snapshot, with main read last, before the
+// intent is saved, after it is saved, and once more as the last step before
+// the close call, after the final report is posted (or found, if an earlier
+// attempt posted it) and read back. The outcome is the issue state GitHub
 // reads back: a close that was called is failed only on GitHub's own refusal,
 // and every other result short of a closed Feature is uncertain until
 // reconciled, since the request may still land.
@@ -417,8 +420,10 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
     comment = { id: back.id, url: back.url, reused: Boolean(existing) };
   } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
   if (comment) {
+    // The last step before the close call: every premise once more, on a
+    // fresh snapshot with main read last, after the report's GitHub requests.
     let last;
-    try { last = mainMoved(); } catch (error) { notRun(`main could not be read again before the close call: ${error.message}`); throw error; }
+    try { last = gapsNow(readRecord(file), op.id); } catch (error) { notRun(`the verification could not be checked again before the close call: ${error.message}`); throw error; }
     if (last.length) {
       notRun(`after the report was posted in comment ${comment.id}, ${last.join("; ")}; that report's verification no longer holds, so verify the Feature again`);
       return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${last.join("; ")}`, comment };
@@ -553,10 +558,11 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
     }
     case "criteria": { const { record, client } = context(); return { feature: record.feature, criteria: parseCriteria(client.issue(record.feature).body) }; }
     case "verify-feature": {
-      const { record, client, git } = context();
+      const { git, snapshotNow } = context();
+      const snapshot = snapshotNow(), evidence = readJson(abs(o.evidence, "evidence"));
       git.fetch();
-      const mainSha = git.main(), criteria = parseCriteria(client.issue(record.feature).body), snapshot = readJson(abs(o.snapshot, "snapshot")), evidence = readJson(abs(o.evidence, "evidence"));
-      const { record: next, output } = updateRecord(file(), { expectRevision: int(o.expectRevision, "expect-revision"), coordinator: o.coordinator }, (r) => verifyFeature(r, { snapshot, criteria, evidence, mainSha }));
+      const mainSha = git.main();
+      const { record: next, output } = updateRecord(file(), { expectRevision: int(o.expectRevision, "expect-revision"), coordinator: o.coordinator }, (r) => verifyFeature(r, { snapshot, evidence, mainSha }));
       if (o.out) fs.writeFileSync(abs(o.out, "out"), `${output.report}\n`);
       return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
     }
