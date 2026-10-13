@@ -32,15 +32,16 @@ import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/u
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
-/** A clear the page holds for one target (`UIManager.heldClears`). */
+/** What the page still holds of the clears of one element
+ *  (`UIManager.heldClears`). */
 interface HeldClear {
-  /** The elements the clear hides. */
-  elements: string[];
-  /** Those not hidden yet. */
-  hide: string[];
-  /** Whether it empties the text content (and the `text` attribute). */
+  /** Whether it is still to be hidden. */
+  hide: boolean;
+  /** Whether hiding it also removes its `text` attribute (a text clear). */
+  textAttr: boolean;
+  /** Whether its text content is still to be emptied. */
   text: boolean;
-  /** Whether it empties the image content. */
+  /** Whether its image content is still to be emptied. */
   image: boolean;
 }
 
@@ -181,19 +182,18 @@ export default class UIManager extends Manager {
 
   /**
    * Clears a preview display sent that the page has not applied yet
-   * (`ui/reconcile-clear`, #1820), by target. A held clear has two parts,
-   * applied as late as the messages after it allow: each element's hiding
-   * (`hide`, the elements still to hide) just before the next message that
-   * updates, animates, moves or destroys that element, and the content the
-   * clear empties just before the next write to the target, so the target
-   * never shows empty between its clear and what replaces it. The sweep
-   * applies what is left. Kept on the overlay, like the write signatures on
-   * its nodes, so a display another one takes over before its sweep leaves
-   * them to the next manager and pass rather than losing them.
+   * (`ui/reconcile-clear`, #1820), by element. A held clear has two parts,
+   * applied as late as the messages after it allow: the element's hiding
+   * just before the next message that updates, animates, moves or destroys
+   * it, and the content the clear empties just before the next write to it,
+   * so it never shows empty between its clear and what replaces it. The
+   * sweep applies what is left. Kept on the overlay, like the write
+   * signatures on its nodes, so a display another one takes over before its
+   * sweep leaves them to the next manager and pass rather than losing them.
    */
-  protected get heldClears(): Map<string, HeldClear> | undefined {
+  protected get heldClears(): Map<HTMLElement, HeldClear> | undefined {
     const overlay = this.app.overlay as
-      | (HTMLElement & { __sdHeldClears?: Map<string, HeldClear> })
+      | (HTMLElement & { __sdHeldClears?: Map<HTMLElement, HeldClear> })
       | undefined;
     if (!overlay) {
       return undefined;
@@ -247,8 +247,8 @@ export default class UIManager extends Manager {
   sweepReconcile() {
     const held = this.heldClears;
     if (held) {
-      for (const target of Array.from(held.keys())) {
-        this.applyHeldClear(target);
+      for (const el of Array.from(held.keys())) {
+        this.applyHeld(el);
       }
     }
     for (const id of this._staleIds) {
@@ -276,127 +276,150 @@ export default class UIManager extends Manager {
     delete (el as any).__sdImg;
   }
 
-  /** Hold a clear until the messages after it touch its target, or the
-   *  sweep. A clear held already for the target takes this one's elements
-   *  and content too. Applied now when this pass built one of the target's
-   *  elements, or the page has none of them. */
+  /** Hold a target's clear, element by element, until the messages after it
+   *  touch each element, or the sweep. The hiding is held for the elements
+   *  the game named and the content for those the target names on the page
+   *  now, exactly the elements the clear applied at once would have touched:
+   *  an element created later is not this clear's to empty. An element this
+   *  pass built is cleared at once, since it has nothing on screen to keep. */
   protected holdClear(clear: {
     target: string;
     elements: string[];
     text?: boolean;
     image?: boolean;
   }) {
-    const held = this.heldClears;
-    const { target } = clear;
-    const entry: HeldClear = held?.get(target) ?? {
-      elements: [],
-      hide: [],
-      text: false,
-      image: false,
+    const text = Boolean(clear.text);
+    const image = Boolean(clear.image);
+    const parts = new Map<HTMLElement, HeldClear>();
+    const part = (el: HTMLElement) => {
+      let entry = parts.get(el);
+      if (!entry) {
+        entry = { hide: false, textAttr: false, text: false, image: false };
+        parts.set(el, entry);
+      }
+      return entry;
     };
     for (const id of clear.elements) {
-      if (!entry.elements.includes(id)) {
-        entry.elements.push(id);
-      }
-      if (!entry.hide.includes(id)) {
-        entry.hide.push(id);
+      const el = this.getElement(id);
+      if (el && el !== this.app.overlay) {
+        const entry = part(el);
+        entry.hide = true;
+        entry.textAttr ||= text;
       }
     }
-    entry.text ||= Boolean(clear.text);
-    entry.image ||= Boolean(clear.image);
-    const targetEls = [
-      ...entry.elements.map((id) => this.getElement(id)),
-      ...this.findTargetElements(target),
-    ];
-    if (
-      !held ||
-      targetEls.length === 0 ||
-      targetEls.some((el) => !el || this._createdThisPass.has(el))
-    ) {
-      held?.delete(target);
-      this.applyClear(target, entry);
-      return;
+    for (const el of this.findTargetElements(clear.target)) {
+      const entry = part(el);
+      entry.text ||= text;
+      entry.image ||= image;
     }
-    held.set(target, entry);
+    const held = this.heldClears;
+    for (const [el, entry] of parts) {
+      if (!held || this._createdThisPass.has(el)) {
+        this.applyClear(el, entry);
+        continue;
+      }
+      const prior = held.get(el);
+      if (prior) {
+        prior.hide ||= entry.hide;
+        prior.textAttr ||= entry.textAttr;
+        prior.text ||= entry.text;
+        prior.image ||= entry.image;
+      } else {
+        held.set(el, entry);
+      }
+    }
   }
 
-  protected applyHeldClear(target: string) {
+  /** Apply what is held for `el`: all of it, or only its hiding. */
+  protected applyHeld(el: HTMLElement, only?: "hide") {
     const held = this.heldClears;
-    const entry = held?.get(target);
+    const entry = held?.get(el);
     if (!held || !entry) {
       return;
     }
-    held.delete(target);
-    this.applyClear(target, entry);
+    if (only === "hide") {
+      if (entry.hide) {
+        this.applyHide(el, entry.textAttr);
+        entry.hide = false;
+        entry.textAttr = false;
+      }
+      if (!entry.text && !entry.image) {
+        held.delete(el);
+      }
+      return;
+    }
+    held.delete(el);
+    this.applyClear(el, entry);
   }
 
-  /** A clear, as the engine's text and image clears send it: each element
-   *  hidden (and its `text` attribute gone, for a text clear), then the
-   *  target's text or image content emptied. */
-  protected applyClear(target: string, entry: HeldClear) {
-    for (const id of [...entry.hide]) {
-      this.applyHide(entry, id);
+  /** A clear of one element, as the engine's text and image clears leave
+   *  it: hidden (and its `text` attribute gone, for a text clear), and the
+   *  content each clear empties emptied, as `writeText` and `writeImage`
+   *  empty it for a clear. */
+  protected applyClear(el: HTMLElement, entry: HeldClear) {
+    if (entry.hide) {
+      this.applyHide(el, entry.textAttr);
     }
     if (entry.text) {
-      void this.writeText(target, [], true);
+      (el as any).__sdWait?.cancel();
+      delete (el as any).__sdWait;
+      this.revealAtOnce(el);
+      (el as any).__sdTxt = JSON.stringify([]);
+      for (const tag of ["text", "stroke"]) {
+        for (const contentEl of this.getContentElements(el, tag)) {
+          contentEl.replaceChildren();
+        }
+      }
     }
     if (entry.image) {
-      void this.writeImage(target, []);
+      this._staleImageTargets.delete(el);
+      (el as any).__sdImg = JSON.stringify([]);
+      for (const tag of ["image", "mask"]) {
+        for (const contentEl of this.getContentElements(el, tag)) {
+          contentEl.replaceChildren();
+        }
+      }
     }
   }
 
-  /** The part of a held clear that hides one of its elements, as the clear's
-   *  update would. Applied to the node directly rather than as an update: an
-   *  update marks its element live in this pass, and a clear held over from
-   *  a display taken over before its sweep can name one this pass dropped. */
-  protected applyHide(entry: HeldClear, id: string) {
-    const at = entry.hide.indexOf(id);
-    if (at < 0) {
-      return;
-    }
-    entry.hide.splice(at, 1);
-    const el = this._elements.get(id);
-    if (!el) {
-      return;
-    }
+  /** The part of a clear that hides an element, as the clear's update
+   *  would. Applied to the node directly rather than as an update: an update
+   *  marks its element live in this pass, and a clear held over from a
+   *  display taken over before its sweep can name one this pass dropped. */
+  protected applyHide(el: HTMLElement, textAttr: boolean) {
     const [prop, value] = getCSSPropertyKeyValue("display", "none");
     for (const [cssProp, cssValue] of getCssEquivalent(prop, value)) {
       el.style.setProperty(cssProp, cssValue);
     }
-    if (entry.text) {
+    if (textAttr) {
       applyAttributes(el, { text: null });
     }
   }
 
   /**
    * Apply what `msg` touches of the held clears, before `msg` is handled, so
-   * each element and each target's content still sees its clear before
-   * anything after it, as if the clear had been applied when it was sent.
+   * each element still sees its clear before anything after it, as if the
+   * clear had been applied when it was sent.
    *
-   * A write to a target applies its whole clear: its content is emptied in the
-   * same task that refills it. An update, an animation, a move or a destroy of
-   * one of a target's elements applies only that element's hiding: the
-   * update that shows a target again (the restore's or the beat's) then lands
-   * on it in the same task, and the target keeps what it shows until its write.
-   * Touching the content itself (`text`, `stroke`, `image`, `mask`) applies the
-   * whole clear. A create touches nothing: what is created inside a target
-   * comes from a connect's create stream, which runs before that connect's
-   * own clear, and the clear held after it still empties what it built, as
-   * applied at once it would have. A clear held over from a display taken
-   * over before its sweep therefore survives the next display's create
-   * stream rather than blanking the screen there.
+   * A write applies the whole clear of each element it writes, and only of
+   * those: its content is emptied in the same task that refills it, and an
+   * element the write does not replace (another instance of the target,
+   * written by an indexed write of its own) keeps what it shows. An update,
+   * an animation, a move or a destroy of an element applies only its hiding:
+   * the update that shows a target again (the restore's or the beat's) then
+   * lands on it in the same task, and the element keeps what it shows until
+   * its write. Touching the content itself (`text`, `stroke`, `image`,
+   * `mask`) applies its element's whole clear. A create touches nothing: a
+   * held clear empties only the elements it addressed when it arrived, so
+   * what is created after it (a layout the beat opens) is not its to empty,
+   * and what a connect's create stream rebuilds inside an element it holds
+   * is emptied by it, as applied at once it would have been.
    */
   protected releaseHeldClears(msg: RequestMessage) {
     const held = this.heldClears;
     if (!held || held.size === 0) {
       return;
     }
-    // The id map, not `getElement`: a held element another message has
-    // destroyed would send every later message on a walk of the overlay.
-    const holding = (el: Element) =>
-      Array.from(held).filter(([, entry]) =>
-        entry.elements.some((id) => this._elements.get(id) === el),
-      );
     const contentOwner = (el: HTMLElement | null | undefined) =>
       el?.parentElement &&
       ["text", "stroke", "image", "mask"].some((tag) =>
@@ -408,11 +431,8 @@ export default class UIManager extends Manager {
       WriteTextMessage.type.isRequest(msg) ||
       WriteImageMessage.type.isRequest(msg)
     ) {
-      this.applyHeldClear(msg.params.target);
       for (const el of this.findTargetElements(msg.params.target)) {
-        for (const [target] of holding(el)) {
-          this.applyHeldClear(target);
-        }
+        this.applyHeld(el);
       }
       return;
     }
@@ -428,18 +448,14 @@ export default class UIManager extends Manager {
     }
     for (const id of ids) {
       const el = id ? this.getElement(id) : undefined;
-      if (!el || !id) {
+      if (!el) {
         continue;
       }
       const owner = contentOwner(el);
       if (owner) {
-        for (const [target] of holding(owner)) {
-          this.applyHeldClear(target);
-        }
-        continue;
-      }
-      for (const [, entry] of holding(el)) {
-        this.applyHide(entry, id);
+        this.applyHeld(owner);
+      } else {
+        this.applyHeld(el, "hide");
       }
     }
   }
