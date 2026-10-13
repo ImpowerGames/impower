@@ -1700,9 +1700,10 @@ describe("the variables of a selected frame", () => {
         "  done", //               7
         "end", //                  8
         "function twice(k)", //    9
-        "  local n = k * 2", //    10
-        "  return n", //           11
-        "end", //                  12
+        "  local health = 10", //  10
+        "  local n = k * 2", //    11
+        "  return n", //           12
+        "end", //                  13
         "",
       ].join("\n"),
     );
@@ -1710,10 +1711,10 @@ describe("the variables of a selected frame", () => {
     h.game.start();
     h.continueToBreakpoint();
     expect(h.stoppedAt()).toBe(9);
-    for (let i = 0; i < 4 && h.stoppedAt() !== 11; i += 1) {
+    for (let i = 0; i < 5 && h.stoppedAt() !== 12; i += 1) {
       h.game.step("over");
     }
-    expect(h.stoppedAt()).toBe(11);
+    expect(h.stoppedAt()).toBe(12);
     const threadId = h.game.getThreads()[0]!.id;
     const { stackFrames } = h.frames();
     expect(stackFrames.map((f) => f.name)).toEqual(["twice", "main"]);
@@ -1724,24 +1725,63 @@ describe("the variables of a selected frame", () => {
     expect(names(h.game.getTempVariables(threadId, running.id))).toContain(
       "n=6",
     );
-    /** The `n` and the global `health` a context gives. */
+    /** The `n` and the `health` a context gives. */
     const read = (context: any) => ({ health: context.health, n: context.n });
+    // The caller reads the global `health`, which only the running frame
+    // shadows with a temporary.
     expect(read(h.game.getEvaluationContext(threadId, caller.id))).toEqual({
       health: 100,
       n: 1,
     });
     expect(read(h.game.getEvaluationContext(threadId, running.id))).toEqual({
-      health: 100,
+      health: 10,
       n: 6,
     });
     // With no frame named, or a thread or frame the call stack no longer
     // has, the frame that runs, as before the frame could be named.
     const today = h.game.getEvaluationContext();
-    expect(read(today)).toEqual({ health: 100, n: 6 });
+    expect(read(today)).toEqual({ health: 10, n: 6 });
     expect(h.game.getEvaluationContext(threadId)).toEqual(today);
     expect(h.game.getEvaluationContext(threadId, 99)).toEqual(today);
     expect(h.game.getEvaluationContext(threadId, -1)).toEqual(today);
     expect(h.game.getEvaluationContext(99, caller.id)).toEqual(today);
+  });
+
+  // A closure's captured variable is a pointer in its frame; hover and
+  // Watch read the value it points to, as the Temps scope shows it (#1740).
+  it("evaluates a captured variable as the value it points to, in the closure's frame and the frame that declared it", () => {
+    const h = debugGame(
+      [
+        "-> main", //                       0
+        "scene main", //                    1
+        "  Start.", //                      2
+        "  Got {outer()}.", //              3
+        "  done", //                        4
+        "end", //                           5
+        "function outer()", //              6
+        "  local n = 0", //                 7
+        "  local bump = function()", //     8
+        "    n = n + 1", //                 9
+        "    return n", //                  10
+        "  end", //                         11
+        "  return bump()", //               12
+        "end", //                           13
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 10 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(10);
+    const threadId = h.game.getThreads()[0]!.id;
+    const frames = h.frames().stackFrames;
+    const outerFrame = frames.find((f) => f.name === "outer")!;
+    expect(names(h.game.getTempVariables(threadId, frames[0]!.id))).toContain(
+      "n=1",
+    );
+    expect(h.game.getEvaluationContext().n).toBe(1);
+    expect(h.game.getEvaluationContext(threadId, frames[0]!.id).n).toBe(1);
+    expect(h.game.getEvaluationContext(threadId, outerFrame.id).n).toBe(1);
   });
 });
 

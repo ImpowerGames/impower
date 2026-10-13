@@ -3292,26 +3292,37 @@ export class Game<T extends M = {}> {
   getEvaluationContext(threadId?: number, frameId?: number) {
     const context: any = {};
     const variableState = this._story.state.variablesState;
-    for (const name of variableState["_globalVariables"].keys()) {
-      const valueObj = variableState.GetVariableWithName(name);
-      const value = this.getRuntimeValue(valueObj);
-      if (isEvaluable(value) && !this.isTableRecord(value)) {
-        context[name] = value;
-      }
-    }
     const callStack = variableState.callStack;
     const thread =
       threadId != null ? callStack.ThreadWithIndex(threadId) : undefined;
     const selected = thread
       ? thread.callstack[frameId ?? thread.callstack.length - 1]
       : undefined;
+    for (const name of variableState["_globalVariables"].keys()) {
+      // A global as the frame reads it: `GetVariableWithName` reads the
+      // running frame's temporaries first, so a named frame reads its own,
+      // and the global itself where it has none of that name.
+      const valueObj =
+        selected && thread
+          ? this.valueInFrame(thread, selected, name)
+          : variableState.GetVariableWithName(name);
+      const value = this.getRuntimeValue(valueObj);
+      if (isEvaluable(value) && !this.isTableRecord(value)) {
+        context[name] = value;
+      }
+    }
+    const contextThread = selected && thread ? thread : callStack.currentThread;
     const contextElement =
       selected ?? callStack.currentThread.callstack[callStack.currentElementIndex];
     if (contextElement?.temporaryVariables) {
-      for (const [
-        name,
-        valueObj,
-      ] of contextElement?.temporaryVariables.entries()) {
+      for (const [name, scoped] of contextElement.temporaryVariables.entries()) {
+        // A temporary bound to a pointer (a variable passed by reference,
+        // or one a closure captured) reads the value it points to, as the
+        // Temps scope shows it, not the pointer's variable name.
+        const valueObj =
+          scoped instanceof VariablePointerValue
+            ? this.valueAtPointerInThread(contextThread, scoped)
+            : scoped;
         const value = this.getRuntimeValue(valueObj);
         if (isEvaluable(value) && !this.isTableRecord(value)) {
           context[name] = value;
@@ -3319,6 +3330,30 @@ export class Game<T extends M = {}> {
       }
     }
     return context;
+  }
+
+  /** The value `name` reads in `element`, a frame of `thread`: its
+   *  temporary of that name in the innermost block scope that has one, or
+   *  else the global. */
+  protected valueInFrame(
+    thread: CallStack.Thread,
+    element: CallStack.Element,
+    name: string,
+  ): InkObject | null {
+    const scopes = element.temporaryScopes;
+    for (let s = scopes.length - 1; s >= 0; s -= 1) {
+      if (scopes[s]!.has(name)) {
+        const scoped = scopes[s]!.get(name) ?? null;
+        return scoped instanceof VariablePointerValue
+          ? this.valueAtPointerInThread(thread, scoped)
+          : scoped;
+      }
+    }
+    const variableState = this._story.state.variablesState;
+    const globalObj = variableState.GetGlobalVariableValue(name);
+    return globalObj instanceof VariablePointerValue
+      ? variableState.ValueAtVariablePointer(globalObj)
+      : globalObj;
   }
 
   /** Whether `value` is the record `getTableRecord` made of a table, which

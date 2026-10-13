@@ -174,6 +174,22 @@ describe("a hover the debug adapter evaluates", () => {
     expect(response.success).toBe(false);
   });
 
+  it("fails for a property every object inherits, which names no variable", async () => {
+    const s = adapter({ n: 1, stats: { health: 2 } });
+    for (const expression of [
+      "__proto__",
+      "constructor",
+      "toString",
+      "stats.constructor",
+      "n.toString",
+    ]) {
+      const response = await s.evaluate(expression, "hover");
+      expect(response.success, expression).toBe(false);
+    }
+    const response = await s.evaluate("stats.health", "hover");
+    expect(response.body.result).toBe("2");
+  });
+
   it("still answers undefined in the Debug Console and Watch", async () => {
     const s = adapter({ n: 1 });
     for (const context of ["repl", "watch"]) {

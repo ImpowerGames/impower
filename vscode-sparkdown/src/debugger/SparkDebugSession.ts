@@ -918,11 +918,17 @@ export class SparkDebugSession extends LoggingDebugSession {
       GetGameEvaluationContextMessage.type.request({ ...frame }),
     );
 
+    // Each segment names a variable or a table's key, never a property an
+    // object inherits (`constructor`, `__proto__`).
     const value = args.expression
       .split(".")
       .reduce(
         (obj, key) =>
-          obj != null && typeof obj === "object" ? obj[key] : undefined,
+          obj != null &&
+          typeof obj === "object" &&
+          Object.prototype.hasOwnProperty.call(obj, key)
+            ? obj[key]
+            : undefined,
         context,
       );
 
