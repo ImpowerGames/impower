@@ -69,7 +69,9 @@ export function readJournals(jobDir) {
       let head;
       try { head = JSON.parse(firstLine(file)); } catch { head = null; }
       if (head?.event === "coordinator") { journalFiles.push(file); continue; }
-      if (!file.endsWith(".json") || fs.statSync(file).size > 4 * 2 ** 20) continue;
+      // The launcher reads a plan from any path, so a plan is recognized by
+      // its content, whatever its name.
+      if (fs.statSync(file).size > 4 * 2 ** 20) continue;
       let plan;
       try { plan = readJson(file); } catch { continue; }
       if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.set(path.resolve(plan.journal), plan);
@@ -182,26 +184,36 @@ export function restore(comments, { trusted = [], record = null, pr = null } = {
       // Without a record a trusted block is in effect; with one, only a
       // predecessor's block the record does not hold is, alongside the
       // record's own decisions below.
-      parsed.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, effective: !untrusted && !verified && !mine, ...(untrusted && { untrusted }) });
+      // A block's own times prove nothing, so a decision outside the record
+      // takes effect, and is published, when its comment was posted.
+      parsed.push({ ...d, comment: c.id, postedAt: c.created_at, decidedAt: c.created_at, publishedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, effective: !untrusted && !verified && !mine, ...(untrusted && { untrusted }) });
     }
   }
-  if (!record) return parsed.sort(byOrder);
+  parsed.sort(byPosted);
+  if (!record) return parsed;
+  // The record's decisions, in the order of the record's own lists (each
+  // ticket's decisions as the record appended them), never re-sorted by a
+  // clock. Each takes effect when the record made it, and is published when
+  // its recorded comment was posted, so a hold recorded before a launch
+  // withdraws from then whatever later happens to its comment.
   const recorded = [];
-  for (const h of held.values()) {
-    if ((h.state !== "published" && h.state !== "intent") || (pr !== null && h.pr !== pr)) continue;
-    const copy = parsed.find((d) => d.id === h.id && d.comment === h.published?.comment && d.verified);
-    if (copy) { copy.effective = true; copy.recordedAt = h.time; recorded.push(copy); continue; }
-    const at = h.published ? comments.find((c) => c.id === h.published.comment) : null;
-    const decision = Object.fromEntries(Object.entries(h).filter(([key]) => !RECORD_ONLY.has(key)));
-    recorded.push({ ...decision, comment: h.published?.comment ?? null, postedAt: at?.created_at ?? h.published?.time ?? h.time, recordedAt: h.time, trusted: false, verified: false, effective: true,
-      untrusted: h.state === "intent" ? `decision ${h.id} is recorded but not read back as published` : `comment ${h.published.comment} ${at ? "no longer carries exactly" : "is gone, with"} published decision ${h.id}` });
+  for (const ticket of Object.values(record.tickets)) {
+    for (const h of ticket.checkpoints ?? []) {
+      if ((h.state !== "published" && h.state !== "intent") || (pr !== null && h.pr !== pr)) continue;
+      const copy = parsed.find((d) => d.id === h.id && d.comment === h.published?.comment && d.verified);
+      const at = h.published ? comments.find((c) => c.id === h.published.comment) : null;
+      const timing = { decidedAt: h.time, publishedAt: h.published ? (at?.created_at ?? h.published.time) : null };
+      if (copy) { Object.assign(copy, timing, { effective: true }); recorded.push(copy); continue; }
+      const decision = Object.fromEntries(Object.entries(h).filter(([key]) => !RECORD_ONLY.has(key)));
+      recorded.push({ ...decision, comment: h.published?.comment ?? null, postedAt: at?.created_at ?? null, ...timing, trusted: false, verified: false, effective: true,
+        untrusted: h.state === "intent" ? `decision ${h.id} is recorded but not read back as published` : `comment ${h.published.comment} ${at ? "no longer carries exactly" : "is gone, with"} published decision ${h.id}` });
+    }
   }
-  // The record's decisions keep the record's order (when each was made); a
-  // predecessor's decision the record does not hold, and every other block,
-  // take their place by when they were posted.
-  return [...parsed.filter((d) => !recorded.includes(d)), ...recorded].sort(byOrder);
+  // A predecessor's decision the record does not hold came before the
+  // record's own, so it, and every other block, precede them by posting.
+  return [...parsed.filter((d) => !recorded.includes(d)), ...recorded];
 }
-const byOrder = (a, b) => Date.parse(a.recordedAt ?? a.postedAt ?? 0) - Date.parse(b.recordedAt ?? b.postedAt ?? 0);
+const byPosted = (a, b) => Date.parse(a.postedAt ?? 0) - Date.parse(b.postedAt ?? 0);
 const inEffect = (decisions) => decisions.filter((d) => d.effective);
 
 // Rounds the journals show against the extensions the PR records. Each round
@@ -215,15 +227,19 @@ export function audit(state, decisions) {
   const effective = inEffect(decisions);
   const extensions = effective.filter((d) => d.trusted && d.kind === "extend");
   // The decision in force when a round after the third first launched is the
-  // latest decision in effect made before that launch; it must be a trusted
-  // extension decided after the round before, so a later question, repair or
-  // stop withdraws an earlier extension.
+  // last decision in effect, in order, made before that launch; it must be a
+  // trusted extension decided after the round before and published before the
+  // launch, so a later question, repair or stop withdraws an earlier
+  // extension from when it was made.
   for (let r = FIRST_CHECKPOINT_ROUND + 1; r <= state.startedRound; r++) {
     const first = state.launches.find((l) => l.round === r);
     if (!first) continue;
     if (r > MAX_REVIEW_ROUNDS) { violations.push(`round ${r} exceeds the ${MAX_REVIEW_ROUNDS}-round ceiling`); continue; }
-    const inForce = effective.filter((d) => Date.parse(d.postedAt ?? d.time) <= Date.parse(first.time)).at(-1);
-    if (!inForce || !inForce.trusted || inForce.kind !== "extend" || inForce.round !== r - 1 || inForce.limit < r) violations.push(`round ${r} launched at ${first.time} with no published extension, decided at the checkpoint after round ${r - 1}, that covers it${inForce && (inForce.kind !== "extend" || !inForce.trusted) ? `; the decision in force then was ${inForce.id} (${inForce.kind} after round ${inForce.round}${inForce.trusted ? "" : `, untrusted: ${inForce.untrusted}`})` : ""}`);
+    const launch = Date.parse(first.time);
+    const inForce = effective.filter((d) => Date.parse(d.decidedAt ?? d.postedAt) <= launch).at(-1);
+    const covers = inForce && inForce.trusted && inForce.kind === "extend" && inForce.round === r - 1 && inForce.limit >= r;
+    if (!covers) violations.push(`round ${r} launched at ${first.time} with no published extension, decided at the checkpoint after round ${r - 1}, that covers it${inForce && (inForce.kind !== "extend" || !inForce.trusted) ? `; the decision in force then was ${inForce.id} (${inForce.kind} after round ${inForce.round}${inForce.trusted ? "" : `, untrusted: ${inForce.untrusted}`})` : ""}`);
+    else if (!(Date.parse(inForce.publishedAt) <= launch)) violations.push(`round ${r} launched at ${first.time}, before extension ${inForce.id} was published at ${inForce.publishedAt}`);
   }
   for (const c of state.changedPlans ?? []) violations.push(`${c.file} declares round ${c.round}'s planned reviewers as ${c.declared}, but the round was planned with ${c.planned}; a round's planned reviewers never change`);
   const events = [...state.completions.map((c) => ({ ...c, kind: "completed" })), ...state.launches.map((l) => ({ ...l, kind: "launching" }))].sort(byTime);
@@ -326,7 +342,7 @@ function checkAssessment(kind, a, evidence) {
   if (open.length && (kind === "finish" || kind === "accept-unreviewed")) throw new Error(`Finding${open.length > 1 ? "s" : ""} ${open.map((f) => `${f.comment} (${line(f.finding)})`).join(", ")} ${open.length > 1 ? "are" : "is"} still open; a known defect is resolved before ${kind}`);
 }
 
-export function decide(record, { ticket: number, kind, assessment: a, inspected, evidence: e }) {
+export function decide(record, { ticket: number, kind, assessment: a, inspected, evidence: e, now = new Date() }) {
   if (!KINDS.includes(kind)) throw new Error(`--kind must be one of ${KINDS.join(", ")}`);
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
@@ -359,7 +375,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
     extra.authority = record.invocation.text;
   }
   const decision = {
-    version: 1, id: randomUUID().slice(0, 8), kind, feature: record.feature, ticket: number, pr: e.pr, coordinator: record.coordinator.session, runId: record.runId, time: new Date().toISOString(),
+    version: 1, id: randomUUID().slice(0, 8), kind, feature: record.feature, ticket: number, pr: e.pr, coordinator: record.coordinator.session, runId: record.runId, time: now.toISOString(),
     round: e.completedRound, limitBefore: e.limit, reviewedHead: e.reviewedHead, head: e.head,
     range: e.range ? { from: e.range.from, to: e.range.to, base: e.range.base, commits: e.range.commits.map((c) => c.sha), diffSha256: e.range.diffSha256 } : null,
     reports: e.reports.map(({ comment, round, reviewerId, adjudication }) => ({ comment, round, reviewerId, adjudication })),

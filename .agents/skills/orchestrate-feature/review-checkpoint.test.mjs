@@ -83,7 +83,7 @@ try {
   const trace = (name, body) => { traces.push(name); if (traceDir) fs.writeFileSync(path.join(traceDir, `${String(traces.length).padStart(2, "0")}-${name}.md`), body + "\n"); };
   // Decides through the helper, posts the comment and records its read-back.
   const decideAndPublish = (name, kind, assessment, extra = {}) => {
-    const out = change((r) => rc.decide(r, { ticket: 42, kind, assessment, evidence: evidence(), ...extra }));
+    const out = change((r) => rc.decide(r, { ticket: 42, kind, assessment, evidence: evidence(), now: new Date(at()), ...extra }));
     const posted = comment(out.body);
     change((r) => rc.published(r, { ticket: 42, id: out.id, comment: posted.id, readBack: out.body, head: pull.head }));
     trace(name, out.body);
@@ -263,7 +263,7 @@ try {
   assert.deepEqual(e.range.commits.map((x) => x.sha), [c.round5, c.final]);
   // Posted but not yet read back, the acceptance applies nowhere: not with
   // the record, and not with that record carried over by a takeover.
-  const accepted = change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }));
+  const accepted = change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", now: new Date(at()), assessment: acceptance, inspected: e.range.diffSha256, evidence: e }));
   const acceptedComment = comment(accepted.body);
   assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: ["local_coord"], record: record() }), c.final).applies, false, "an acceptance posted but never read back does not apply");
   const takenOverMidPublish = { ...structuredClone(record()), coordinator: { session: "local_successor" }, previousCoordinators: [{ session: "local_coord" }] };
@@ -320,14 +320,20 @@ try {
   const withCopy = rc.restore([...comments, copyComment], { trusted: ["local_coord"], record: record(), pr: 500 });
   assert.deepEqual([withCopy.find((d) => d.comment === 9031).trusted, withCopy.find((d) => d.comment === 9031).effective], [false, false]);
   assert.equal(rc.acceptanceApplies(withCopy, c.final).applies, true, "a copied decision id does not withdraw the acceptance");
-  // The record's order wins where it differs from the comments' order: a
-  // decision the record made after the acceptance replaces it even when its
-  // comment was posted earlier.
+  // The record's list order wins over every clock: a decision later in the
+  // record's list replaces the acceptance even though its own timestamp and
+  // its comment are both earlier. Content and comments stay as recorded.
   const reordered = structuredClone(record());
-  const question = reordered.tickets[42].checkpoints.find((x) => x.kind === "maintainer" && x.state === "published");
-  question.time = new Date(Date.parse(reordered.tickets[42].checkpoints.find((x) => x.id === accepted.id).time) + 1000).toISOString();
+  const list = reordered.tickets[42].checkpoints;
+  const question = list.find((x) => x.kind === "maintainer" && x.state === "published");
+  const acceptanceEntry = list.find((x) => x.id === accepted.id);
+  assert.ok(Date.parse(question.time) < Date.parse(acceptanceEntry.time), "the question was decided earlier by the clock");
+  list.splice(list.indexOf(question), 1);
+  list.splice(list.indexOf(acceptanceEntry) + 1, 0, question);
   const byRecord = rc.restore(comments, { trusted: ["local_coord"], record: reordered, pr: 500 });
+  assert.ok(byRecord.filter((d) => d.effective).every((d) => d.verified), "every recorded decision still verifies at its comment");
   assert.match(rc.acceptanceApplies(byRecord, c.final).reason, new RegExp(`${question.id} \\(maintainer\\) .* replaced acceptance`));
+  assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: ["local_coord"], record: record(), pr: 500 }), c.final).applies, true, "in the record's own order the acceptance is last and applies");
   // A withdrawal the record holds is in effect in the record's order: once
   // recorded, before it is read back, and after its comment's block is
   // damaged or removed or the comment deleted, none of which revives the
@@ -514,12 +520,45 @@ try {
   // A later decision withdraws an earlier extension: a round launched after
   // it is unauthorized.
   const withdrawn = { startedRound: 4, launches: [{ file: "j4", round: 4, time: "2026-10-12T12:00:00.000Z", reviewerId: "u" }], completions: [], plans: [], changedPlans: [] };
-  const ext = { id: "e1", kind: "extend", round: 3, limit: 4, trusted: true, effective: true, postedAt: "2026-10-12T10:00:00.000Z" };
+  const ext = { id: "e1", kind: "extend", round: 3, limit: 4, trusted: true, effective: true, postedAt: "2026-10-12T10:00:00.000Z", decidedAt: "2026-10-12T10:00:00.000Z", publishedAt: "2026-10-12T10:00:00.000Z" };
   assert.deepEqual(rc.audit(withdrawn, [ext]), []);
-  assert.ok(rc.audit(withdrawn, [ext, { id: "m1", kind: "maintainer", round: 3, trusted: true, effective: true, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was m1 \(maintainer after round 3\)/.test(v)));
-  assert.ok(rc.audit(withdrawn, [ext, { id: "m2", kind: "maintainer", round: 3, trusted: false, effective: true, untrusted: "comment 1 no longer carries exactly published decision m2", postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /the decision in force then was m2 \(maintainer after round 3, untrusted: comment 1 no longer carries exactly published decision m2\)/.test(v)), "a recorded withdrawal whose comment was damaged still withdraws an extension");
-  assert.deepEqual(rc.audit(withdrawn, [ext, { id: "m3", kind: "maintainer", round: 3, trusted: false, effective: false, untrusted: "comment 2 was edited", postedAt: "2026-10-12T11:00:00.000Z" }]), [], "a block not in effect withdraws nothing");
-  for (const [what, kept] of keptWithdrawals) assert.ok(rc.audit(withdrawn, [ext, { ...kept, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was/.test(v)), `an extension stays withdrawn with the withdrawal's ${what}`);
+  assert.ok(rc.audit(withdrawn, [ext, { id: "m1", kind: "maintainer", round: 3, trusted: true, effective: true, postedAt: "2026-10-12T11:00:00.000Z", decidedAt: "2026-10-12T11:00:00.000Z", publishedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was m1 \(maintainer after round 3\)/.test(v)));
+  assert.ok(rc.audit(withdrawn, [ext, { id: "m2", kind: "maintainer", round: 3, trusted: false, effective: true, untrusted: "comment 1 no longer carries exactly published decision m2", postedAt: "2026-10-12T11:00:00.000Z", decidedAt: "2026-10-12T11:00:00.000Z", publishedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /the decision in force then was m2 \(maintainer after round 3, untrusted: comment 1 no longer carries exactly published decision m2\)/.test(v)), "a recorded withdrawal whose comment was damaged still withdraws an extension");
+  assert.deepEqual(rc.audit(withdrawn, [ext, { id: "m3", kind: "maintainer", round: 3, trusted: false, effective: false, untrusted: "comment 2 was edited", postedAt: "2026-10-12T11:00:00.000Z", decidedAt: "2026-10-12T11:00:00.000Z", publishedAt: "2026-10-12T11:00:00.000Z" }]), [], "a block not in effect withdraws nothing");
+  // Through restoration: a hold the record made before round 4 launched
+  // stays in force whatever happens to its comment, an unpublished hold read
+  // back later stays in force from when it was made, and an extension counts
+  // only once published before the launch.
+  const T = (n) => `2026-10-14T00:00:0${n}.000Z`;
+  const minimal = (decisions) => ({ coordinator: { session: "local_coord" }, previousCoordinators: [], tickets: { 42: { checkpoints: decisions } } });
+  const blockOf = (d) => { const { state, published, blockSha256, ...rest } = d; return rest; };
+  const recorded = (fields, comment, posted) => { const d = { version: 1, coordinator: "local_coord", feature: 40, ticket: 42, pr: 500, reviewedHead: c.round2, head: c.round3, range: null, ...fields }; return { ...d, state: comment ? "published" : "intent", ...(comment && { published: { comment, time: posted } }), blockSha256: rc.blockHash(d) }; };
+  const commentFor = (d, id, posted) => ({ id, created_at: posted, updated_at: posted, body: `### decision\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(blockOf(d))}\n-->` });
+  const launch4 = { startedRound: 4, launches: [{ file: "j4", round: 4, time: T(5), reviewerId: "u" }], completions: [], plans: [], changedPlans: [] };
+  const extension = recorded({ id: "ext00001", kind: "extend", round: 3, limit: 4, authority: invocation, time: T(1) }, 801, T(2));
+  const hold = recorded({ id: "hold0001", kind: "maintainer", round: 3, time: T(3) }, 802, T(4));
+  const both = minimal([extension, hold]);
+  const holdIn = (list, rec) => rc.audit(launch4, rc.restore(list, { trusted: ["local_coord"], record: rec, pr: 500 })).some((v) => /the decision in force then was hold0001/.test(v));
+  assert.ok(holdIn([commentFor(extension, 801, T(2)), commentFor(hold, 802, T(4))], both), "the hold is in force with its comment");
+  assert.ok(holdIn([commentFor(extension, 801, T(2))], both), "and still with its comment deleted");
+  const lateHold = recorded({ id: "hold0001", kind: "maintainer", round: 3, time: T(3) }, 803, T(8));
+  assert.ok(holdIn([commentFor(extension, 801, T(2))], minimal([extension, { ...lateHold, state: "intent", published: undefined }])), "an unpublished hold is in force from when it was made");
+  assert.ok(holdIn([commentFor(extension, 801, T(2)), commentFor(lateHold, 803, T(8))], minimal([extension, lateHold])), "and still once it is read back after the launch");
+  const lateExtension = recorded({ id: "ext00002", kind: "extend", round: 3, limit: 4, authority: invocation, time: T(1) }, 804, T(6));
+  assert.ok(rc.audit(launch4, rc.restore([commentFor(lateExtension, 804, T(6))], { trusted: ["local_coord"], record: minimal([lateExtension]), pr: 500 })).some((v) => /before extension ext00002 was published/.test(v)), "an extension published after the launch authorizes nothing");
+  assert.deepEqual(rc.audit(launch4, rc.restore([commentFor(extension, 801, T(2))], { trusted: ["local_coord"], record: minimal([extension]), pr: 500 })), [], "an extension published before the launch authorizes it");
+
+  // A plan is recognized by its content under any filename the launcher
+  // accepts, so its limit is audited.
+  const namedPlans = path.join(tmp, "alt-jobs", "pr-8", "round-3");
+  fs.mkdirSync(namedPlans, { recursive: true });
+  const namedJournal = path.join(namedPlans, "review.log");
+  fs.writeFileSync(namedJournal, [{ time: at(), event: "coordinator", pid: 1 }, { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3, reviewerId: "a", plannedReviewers: ["a"] }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "exited", index: 0 },
+    { time: at(), event: "completed", index: 0, reviewerId: "a", completedRound: 3, reviewedHead: c.round2, commentIds: [61], plannedRoundReviewers: ["a"], pendingReviewers: [], completedRoundReviews: 1 }, { time: at(), event: "finished" }].map((r) => JSON.stringify(r)).join("\n") + "\n");
+  fs.writeFileSync(path.join(namedPlans, "plan.data"), JSON.stringify({ pr: 8, journal: namedJournal, reviewRoundLimit: 10, extendedReviewAuthorization: "the writer's own words", steps: { a: { role: "review", round: 3, reviewers: ["a"], reviewerId: "a" } } }));
+  const namedState = rc.roundState(rc.readJournals(path.join(tmp, "alt-jobs", "pr-8")));
+  assert.ok(rc.audit(namedState, []).some((v) => /sets reviewRoundLimit 10 without a published extension/.test(v)), "a plan named plan.data is still audited");
+  for (const [what, kept] of keptWithdrawals) assert.ok(rc.audit(withdrawn, [ext, { ...kept, postedAt: "2026-10-12T11:00:00.000Z", decidedAt: "2026-10-12T11:00:00.000Z", publishedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was/.test(v)), `an extension stays withdrawn with the withdrawal's ${what}`);
 
   // Predecessor trust is scoped to its ticket and never trusts that
   // ticket's writers: a writer of #42 trusted as #43's predecessor counts
@@ -732,7 +771,7 @@ try {
       });
     };
     const decideHere = (name, kind, assessment) => {
-      const out = rc.decide(rec, { ticket: number, kind, assessment: { agreedBehavior: "preserved", architecture: "unchanged", findings: [...findings], ...assessment }, evidence: rc.gatherEvidence({ record: rec, ticket: number, pr, client: scClient, git: repo }) });
+      const out = rc.decide(rec, { ticket: number, kind, now: new Date(at()), assessment: { agreedBehavior: "preserved", architecture: "unchanged", findings: [...findings], ...assessment }, evidence: rc.gatherEvidence({ record: rec, ticket: number, pr, client: scClient, git: repo }) });
       const posted = post(out.body);
       rc.published(rec, { ticket: number, id: out.id, comment: posted.id, readBack: out.body, head: head.value });
       trace(name, out.body);
