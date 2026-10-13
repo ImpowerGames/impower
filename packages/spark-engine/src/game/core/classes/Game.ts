@@ -3723,8 +3723,12 @@ export class Game<T extends M = {}> {
     if (!frames) {
       return { stackFrames, totalFrames: 0 };
     }
-    const frameCount =
-      levels != null ? Math.min(startFrame + levels, frames.length) : frames.length;
+    // The protocol counts startFrame and levels from the top (running)
+    // frame, the last of frames, and reads a levels of 0 or none as the rest
+    // of the stack. Each frame keeps its index from the outermost end as its
+    // id, which scopes, variables and evaluate look frames up by.
+    const top = frames.length - 1 - Math.max(0, startFrame);
+    const bottom = levels ? Math.max(0, top - levels + 1) : 0;
     // A frame that stands at no address is the one running after a load,
     // which keeps no last instruction: it stands where the game last ran,
     // or where the runtime record the save carried last ran.
@@ -3739,14 +3743,14 @@ export class Game<T extends M = {}> {
       threadId === program.state.callStack.currentThread.threadIndex
         ? this._awaiting
         : null;
-    for (let i = startFrame; i < frameCount; i++) {
+    for (let i = top; i >= bottom; i--) {
       const f = frames[i]!;
       const location =
         (i === frames.length - 1 ? awaiting : null) ??
         this.scriptLocationOf(f.address >= 0 ? f.address : undefined) ??
         ran;
       const isFunction = f.type == PushPopType.Function;
-      stackFrames.unshift({
+      stackFrames.push({
         id: i,
         name: f.name || (isFunction ? "<unknown function>" : "<unknown tunnel>"),
         moduleId: isFunction ? "function" : "tunnel",
