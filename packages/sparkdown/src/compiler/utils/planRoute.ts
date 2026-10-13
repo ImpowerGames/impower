@@ -155,13 +155,15 @@ export interface RouteResumePoint {
 
 export interface ConditionOverride {
   kind: "condition";
-  path: string;
+  /** The address of the decision the verdict is for. */
+  site: ProgramAddress;
   value: boolean;
 }
 
 export interface ChoiceOverride {
   kind: "choice";
-  path: string;
+  /** The address of the decision the choice is taken at. */
+  site: ProgramAddress;
   value: string;
 }
 
@@ -521,11 +523,11 @@ const pendingOverrideSignature = (
   const skippedPerSite = new Map<string, number>();
   let signature = "";
   for (const override of overrides) {
-    const site = `${override.kind}:${override.path}`;
+    const site = `${override.kind}:${override.site}`;
     const replayed =
       (override.kind === "condition"
-        ? snapshot.conditionPointer[override.path]
-        : snapshot.choicePointer[override.path]) ?? 0;
+        ? snapshot.conditionPointer[override.site]
+        : snapshot.choicePointer[override.site]) ?? 0;
     const skipped = skippedPerSite.get(site) ?? 0;
     if (skipped < replayed) {
       // Consumed on the way to this site, so it is not part of what still
@@ -577,12 +579,12 @@ const pendingOverrideSignature = (
  */
 const claimForkSite = (
   budget: SearchBudget,
-  sitePath: string,
+  site: ProgramAddress,
   stateKey: string,
   overrides: RouteOverride[],
   snapshot: SimulatorSnapshot,
 ): boolean => {
-  const key = `${sitePath}|${stateKey}|${pendingOverrideSignature(
+  const key = `${site}|${stateKey}|${pendingOverrideSignature(
     overrides,
     snapshot,
   )}`;
@@ -899,9 +901,10 @@ const runUntilDecisionOrBranch = (
 
       // B) Story requires choice to advance
       if (!story.canContinue && story.currentChoices.length > 0) {
-        // A decision site is named to the route simulator by its address as
-        // text, as the engine asks for a forced verdict.
-        const site = previous === undefined ? "" : String(previous);
+        // A decision site is named to the route simulator by its address, as
+        // the engine asks for a forced verdict; -1, as the story's
+        // `previousAddress` gives it, when no instruction has run yet.
+        const site = previous ?? -1;
         if (simulator.willForceChoice(site)) {
           const forcedSourcePath = simulator?.forceChoice(site);
           const forced = story.currentChoices.find(
@@ -946,7 +949,7 @@ const runUntilDecisionOrBranch = (
                   stepsEncountered,
                   {
                     kind: "choice",
-                    path: site,
+                    site,
                     value: choice.sourcePath,
                   },
                   {
@@ -972,7 +975,7 @@ const runUntilDecisionOrBranch = (
                 stepsEncountered,
                 {
                   kind: "choice",
-                  path: site,
+                  site,
                   value: choice.sourcePath,
                 },
                 {
@@ -1058,7 +1061,7 @@ const runUntilDecisionOrBranch = (
           branches.push(
             forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
-              path: story.pausedBeforeCondition,
+              site: story.pausedBeforeCondition,
               value: favoredConditionalValue,
             }),
           );
@@ -1066,7 +1069,7 @@ const runUntilDecisionOrBranch = (
           branches.push(
             forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
-              path: story.pausedBeforeCondition,
+              site: story.pausedBeforeCondition,
               value: !favoredConditionalValue,
             }),
           );
@@ -1075,7 +1078,7 @@ const runUntilDecisionOrBranch = (
           branches.push(
             forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
-              path: story.pausedBeforeCondition,
+              site: story.pausedBeforeCondition,
               value: true,
             }),
           );
@@ -1083,7 +1086,7 @@ const runUntilDecisionOrBranch = (
           branches.push(
             forkCondition(forkState, node, stepsEncountered, {
               kind: "condition",
-              path: story.pausedBeforeCondition,
+              site: story.pausedBeforeCondition,
               value: false,
             }),
           );
@@ -1250,10 +1253,10 @@ export const buildRouteSimulator = (
   decisions: RouteOverride[],
   fromDecision = 0,
 ): Simulator => {
-  const condQueues = new Map<string, boolean[]>();
-  const conditionPointers = new Map<string, number>();
-  const choiceQueues = new Map<string, string[]>();
-  const choicePointers = new Map<string, number>();
+  const condQueues = new Map<ProgramAddress, boolean[]>();
+  const conditionPointers = new Map<ProgramAddress, number>();
+  const choiceQueues = new Map<ProgramAddress, string[]>();
+  const choicePointers = new Map<ProgramAddress, number>();
 
   // Only enqueue overrides starting at `fromDecision`
   const pending = fromDecision > 0 ? decisions.slice(fromDecision) : decisions;
@@ -1261,20 +1264,20 @@ export const buildRouteSimulator = (
   // group into queues in-order
   for (const s of pending) {
     if (s.kind === "condition") {
-      const q = condQueues.get(s.path) ?? [];
+      const q = condQueues.get(s.site) ?? [];
       q.push(s.value);
-      condQueues.set(s.path, q);
+      condQueues.set(s.site, q);
     } else {
-      const q = choiceQueues.get(s.path) ?? [];
+      const q = choiceQueues.get(s.site) ?? [];
       q.push(s.value);
-      choiceQueues.set(s.path, q);
+      choiceQueues.set(s.site, q);
     }
   }
 
   const nextFrom = <T>(
-    queues: Map<string, T[]>,
-    pointers: Map<string, number>,
-    key: string,
+    queues: Map<ProgramAddress, T[]>,
+    pointers: Map<ProgramAddress, number>,
+    key: ProgramAddress,
   ): T | null => {
     const q = queues.get(key);
     if (!q || q.length === 0) {
@@ -1294,29 +1297,29 @@ export const buildRouteSimulator = (
     choicePointer: Object.fromEntries(choicePointers),
   });
 
-  const willForceCondition = (sitePath: string) => {
-    const q = condQueues.get(sitePath);
+  const willForceCondition = (site: ProgramAddress) => {
+    const q = condQueues.get(site);
     if (!q) {
       return false;
     }
-    const i = conditionPointers.get(sitePath) ?? 0;
+    const i = conditionPointers.get(site) ?? 0;
     return i < q.length;
   };
 
-  const willForceChoice = (sitePath: string) => {
-    const q = choiceQueues.get(sitePath);
+  const willForceChoice = (site: ProgramAddress) => {
+    const q = choiceQueues.get(site);
     if (!q) {
       return false;
     }
-    const i = choicePointers.get(sitePath) ?? 0;
+    const i = choicePointers.get(site) ?? 0;
     return i < q.length;
   };
 
   return {
-    forceCondition: (sitePath: string): boolean | null =>
-      nextFrom(condQueues, conditionPointers, sitePath),
-    forceChoice: (sitePath: string): string | null =>
-      nextFrom(choiceQueues, choicePointers, sitePath),
+    forceCondition: (site: ProgramAddress): boolean | null =>
+      nextFrom(condQueues, conditionPointers, site),
+    forceChoice: (site: ProgramAddress): string | null =>
+      nextFrom(choiceQueues, choicePointers, site),
     willForceCondition,
     willForceChoice,
     saveSnapshot,

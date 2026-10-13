@@ -11,6 +11,7 @@ import { InkObject } from "../runtime/Object";
 import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
 import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
+import type { ProgramAddress } from "../compiler/types/ProgramAddress";
 import { lookupStateAwareStdLib } from "../runtime/StdLib";
 import { arrangeArgsFor, callNativeFunction, callValueAsFunction, callVariableTarget, captureString, captureTag, extractClosureTarget, indexValue, isFunctionReference, lookupMetamethod, normalizeLuauCallArgs, oneValue, openVariablePointer, packTuple, popLuauCondition, pushStdLibResult, readVariable, sequenceShuffleIndex, shortCircuitDecides, spreadCallArgs, storeIndex, tableFromPairs, tryInvokeStdLibMarkerValue, unpackTuple, type FunctionTarget } from "../runtime/evaluation";
 import {
@@ -423,7 +424,7 @@ export class ProgramStory implements StoryEngine {
   /** When set, a continue stops before it evaluates a decision, and
    *  `pausedBeforeCondition` names the decision's address. */
   pauseBeforeEvaluatingConditions = false;
-  pausedBeforeCondition: string | null = null;
+  pausedBeforeCondition: ProgramAddress | null = null;
 
   /** Every instruction this story has run. */
   stepCount = 0;
@@ -2080,8 +2081,8 @@ export class ProgramStory implements StoryEngine {
 
   /** The address of the instruction at `offset` of the statement `chunk`,
    *  which names a decision to the route simulator. */
-  static addressOf(chunk: ProgramChunk, offset: number): string {
-    return String(addressOf(chunkId(chunk), offset));
+  static addressOf(chunk: ProgramChunk, offset: number): ProgramAddress {
+    return addressOf(chunkId(chunk), offset);
   }
 
   /** The address of the instruction that ran last, which a route step is
@@ -2496,7 +2497,7 @@ export class ProgramStory implements StoryEngine {
       chunk,
       position.sequence.flow,
     );
-    choice.sourcePath = ProgramStory.addressOf(chunk, at);
+    choice.sourcePath = String(addressOf(chunkId(chunk), at));
     choice.isInvisibleDefault = (flags & CHOICE_INVISIBLE_DEFAULT) !== 0;
     choice.threadAtGeneration = state.ForkChoiceThread();
     choice.tags = tags.reverse();
