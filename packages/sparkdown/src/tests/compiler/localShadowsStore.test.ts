@@ -102,13 +102,34 @@ describe("a local or parameter that shares a store's name", () => {
   it("still reports a local at the top level next to it", () => {
     expect(
       errors(["store health = 100", "local health = 10", "Hi."].join("\n")),
-    ).not.toEqual([]);
+    ).toEqual([
+      "L1:6 Duplicate identifier `health`. A var named `health` already exists",
+      "L0:6 Duplicate identifier `health`. A temp named `health` already exists",
+    ]);
+  });
+
+  it("still reports a store declared in the same function as the local", () => {
+    expect(
+      errors(
+        [
+          "function f()",
+          "  local health = 10",
+          "  store health = 100",
+          "  return health",
+          "end",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      "L2:8 Duplicate identifier `health`. A temp named `health` already exists",
+    ]);
   });
 
   it("still reports two stores of one name", () => {
     expect(
       errors(["store health = 100", "store health = 10", "Hi."].join("\n")),
-    ).not.toEqual([]);
+    ).toEqual([
+      "L1:6 Duplicate identifier `health`. A var named `health` already exists",
+    ]);
   });
 
   // Luau lets a second `local` of one name shadow the first in one scope, and

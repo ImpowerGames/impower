@@ -1081,6 +1081,10 @@ export class Story extends FlowBase {
     const shadowsGlobal =
       symbolType === SymbolType.Arg ||
       (symbolType === SymbolType.Temp && ClosestFlowBase(obj) !== this);
+    // The flow a parameter or local is scoped to: a parameter is checked
+    // against the flow that declares it.
+    const shadowingScope =
+      symbolType === SymbolType.Arg ? obj : ClosestFlowBase(obj);
 
     // Global variable collision
     const constDecl =
@@ -1110,8 +1114,14 @@ export class Story extends FlowBase {
       // type-scoped singleton; see FlowBase.AddNewVariableDeclaration). Only a
       // genuine plain-var collision should error here.
       !varDecl.isDefineDeclaration &&
-      // A parameter or a local in a flow may shadow a global (see above).
-      !shadowsGlobal
+      // A parameter or a local in a flow may shadow a global (see above),
+      // but a `store` declared in that same flow shares its scope, so the
+      // two still collide.
+      !(
+        shadowsGlobal &&
+        (varDecl.isConstantDeclaration ||
+          ClosestFlowBase(varDecl) !== shadowingScope)
+      )
     ) {
       this.NameConflictError(obj, identifier, varDecl.identifier!);
     }
