@@ -564,8 +564,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  again (#657). */
   protected _deferredClears?: { text: Set<string>; image: Set<string> };
 
-  /** The elements mounted while it is set (`restoreInPlace`). */
+  /** The elements mounted while it is set (`refreshInPlace`). */
   protected _created?: Set<Element>;
+
+  /** The elements `refreshInPlace` mounted, for the `restoreInPlace` that
+   *  follows it. */
+  protected _refreshed?: Set<Element>;
 
   constructor(game: Game) {
     super(game);
@@ -704,6 +708,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onConnected() {
     this._emptyOnPage = undefined;
     this._deferredClears = undefined;
+    this._refreshed = undefined;
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
@@ -852,12 +857,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       displayed !== undefined &&
       this._root !== undefined &&
       displayed.layout === JSON.stringify(this._state.layout ?? []) &&
-      !this.sharesElement([
-        ...displayed.text.keys(),
+      !this.showsShared()
+    );
+  }
+
+  /** Whether one element is named by two text targets, or two image
+   *  targets, that the page shows or the state holds. */
+  protected showsShared(): boolean {
+    const displayed = this._displayed;
+    return (
+      this.sharesElement([
+        ...(displayed?.text.keys() ?? []),
         ...Object.keys(this._state.text ?? {}),
-      ]) &&
-      !this.sharesElement([
-        ...displayed.image.keys(),
+      ]) ||
+      this.sharesElement([
+        ...(displayed?.image.keys() ?? []),
         ...Object.keys(this._state.image ?? {}),
       ])
     );
@@ -878,11 +892,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /**
+   * The first step of a display in place (#657): every binding of the
+   * mounted layouts re-evaluates against the loaded state, and only a value
+   * that differs from the one on the page is painted, bound pictures
+   * included (`refreshAllBindings`). The connect's construction takes the
+   * reactive changes; here they go with this refresh. A region whose branch
+   * or items change mounts new elements, which show nothing whatever the
+   * page showed under their target's name, whether the region mounts the
+   * target itself or content inside it: they are noted for
+   * `restoreInPlace`. Answers false when the refreshed layouts name one
+   * element by two targets that show something (`showsShared`), which
+   * `restoreInPlace` cannot write one target at a time; the caller then
+   * connects, building the page again.
+   */
+  refreshInPlace(): boolean {
+    const created = (this._created = new Set<Element>());
+    try {
+      this.refreshAllBindings();
+    } finally {
+      this._created = undefined;
+    }
+    this._refreshed = created;
+    return !this.showsShared();
+  }
+
+  /**
    * Put the page, which shows the last display (`recordDisplayed`), in the
    * state the module holds, as a connect's construction and restore would
-   * leave it, sending only what differs (#657). The layouts stay mounted:
-   * every binding re-evaluates, and only a value that differs from the one
-   * on the page is painted, bound pictures included. Every transient
+   * leave it, sending only what differs (#657), once `refreshInPlace` has
+   * re-evaluated the layouts' bindings. Every transient
    * target's state goes, as the connect clears them; the clear of one the
    * page shows anything on waits for the beat (`_deferredClears`,
    * `settleInPlace`). Each other text and image target whose state differs from
@@ -899,17 +937,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const epoch = this._game.connection.epoch;
-    // The connect's construction takes the reactive changes; here they go
-    // with a refresh that reads every binding against the loaded state. A
-    // region whose branch or items change mounts new elements, which show
-    // nothing whatever the page showed under their target's name, whether
-    // the region mounts the target itself or content inside it.
-    const created = (this._created = new Set<Element>());
-    try {
-      this.refreshAllBindings();
-    } finally {
-      this._created = undefined;
-    }
+    const created = this._refreshed ?? new Set<Element>();
+    this._refreshed = undefined;
     const remounted = (target: string) => {
       if (created.size === 0) {
         return false;

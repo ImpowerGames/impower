@@ -1161,7 +1161,10 @@ export class Game<T extends M = {}> {
    * presented stop answering clicks before anything else is sent. Answers
    * false, having changed nothing, when the page's layouts are not the ones
    * the state mounts or the UI module holds no record of what the page
-   * shows; the caller then connects.
+   * shows. Answers false as well, on a stream of its own, when the layouts
+   * refreshed against the loaded state (`UIModule.refreshInPlace`) name one
+   * element by two targets that show something. The caller then connects,
+   * which builds the page again.
    */
   async connectInPlace(
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
@@ -1177,10 +1180,6 @@ export class Game<T extends M = {}> {
     // A new stream, as the connect's is, so that what an earlier one still
     // has in flight does not land on it.
     this._connection.beginEpoch();
-    // The classification found the scene map unchanged: the scene stays,
-    // and so does the window predicted around the cursor.
-    this._sceneTrackingStale = false;
-    this.module.assets.keepPreviewWindow();
     // The connect drops every handler the beat registered with the root it
     // builds again; here the root stays, so the shown choices are observed
     // no longer, before anything waits.
@@ -1189,6 +1188,13 @@ export class Game<T extends M = {}> {
     for (const target of choices) {
       ui.unobserve("click", target);
     }
+    if (!ui.refreshInPlace()) {
+      return false;
+    }
+    // The classification found the scene map unchanged: the scene stays,
+    // and so does the window predicted around the cursor.
+    this._sceneTrackingStale = false;
+    this.module.assets.keepPreviewWindow();
     await ui.restoreInPlace();
     return true;
   }

@@ -411,6 +411,7 @@ async function main() {
   let shown: ShownDisplay | undefined;
   const display = async (game: Game, checkpoint: StoredCheckpoint | undefined) => {
     const times: Record<string, number> = Object.fromEntries(STEPS.map((s) => [s, 0]));
+    const calls: Record<string, number> = Object.fromEntries(STEPS.map((s) => [s, 0]));
     const timed = new Proxy(game, {
       get(target, key) {
         const value = Reflect.get(target, key, target);
@@ -418,6 +419,7 @@ async function main() {
         const call = value.bind(target);
         if (!STEPS.includes(key as string)) return call;
         return (...args: unknown[]) => {
+          calls[key as string]! += 1;
           const t0 = performance.now();
           const result = call(...args);
           const add = () => (times[key as string]! += performance.now() - t0);
@@ -458,13 +460,20 @@ async function main() {
     const total = performance.now() - t0;
     sink.open = false;
     shown = displayed ? showing : undefined;
+    // The path the display took: classified in place, the game can still
+    // decline, and the display then connects.
+    const inPlace = calls["connect"] === 0;
     return {
       load: times["loadCheckpoint"]!,
       connect: times["connect"]! + times["connectInPlace"]!,
       preview: times["preview"]!,
       total,
-      inPlace: kind.inPlace,
-      reason: kind.inPlace ? "in place" : kind.reason,
+      inPlace,
+      reason: inPlace
+        ? "in place"
+        : kind.inPlace
+          ? "in place declined, connected"
+          : `connected (${kind.reason})`,
       previewed: game.previewedAddress,
     };
   };
@@ -622,7 +631,9 @@ function printReport(report: any) {
     `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
-    // How each measured sample's display went (`classifyDisplay`, #657).
+    // The path each measured sample's display took: in place, or connected
+    // after the game declined a display classified in place, or connected
+    // for the classifier's reason (`classifyDisplay`, #657).
     `displays: ${Object.entries(
       (report.perSample ?? []).reduce((counts: Record<string, number>, s: any) => {
         counts[s.display] = (counts[s.display] ?? 0) + 1;

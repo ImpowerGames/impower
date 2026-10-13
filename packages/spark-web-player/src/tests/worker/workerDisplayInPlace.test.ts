@@ -195,6 +195,41 @@ end
 `;
 const SAYS = lineIn(SHARED, "First. > Second.");
 
+/** Two targets with text of their own on elements of their own, which the
+ *  other branch of an `if` merges into one element that both name. */
+const MERGED = `store mode = false
+
+function set_mode(v)
+  mode = v
+  return ""
+end
+
+layout main with
+  textbox {
+    if mode then
+      title.action {
+        text "Slot:"
+      }
+    else
+      title {
+        text "Slot:"
+      }
+      action {
+        text "Slot:"
+      }
+    end
+  }
+end
+
+-> start
+
+scene start
+  ^: Heading.
+  {set_mode(false)}First. > Second.
+end
+`;
+const MERGES = lineIn(MERGED, "First. > Second.");
+
 /** One element that the backdrop and the portrait targets both name, under
  *  a directive an edit moves from one to the other. */
 const SWAPPED = `define HAPPY as image with
@@ -693,6 +728,19 @@ describe("a display in place, further", () => {
     expect(a.edited.frame).toEqual(full.edited.frame);
     // Classified in place, the game declines: what either target wrote is
     // in the other's element, which only a connect clears and writes again.
+    expect(a.edited.kind).toEqual({ inPlace: true });
+    expect(a.edited.seen).toMatchObject({ connects: 1, inPlace: 0 });
+  }, 120_000);
+
+  it("connects in full when the loaded state mounts one element for two targets that show something", async () => {
+    const { a, full } = await twins(MERGED, MERGES, async (p) => {
+      const start = after(p);
+      await p.edit("set_mode(false)", "set_mode(true)");
+      return { start, edited: after(p) };
+    });
+    expect(a.start.frame).toEqual(full.start.frame);
+    expect(letters(full.edited.frame)).toContain("Heading.");
+    expect(a.edited.frame).toEqual(full.edited.frame);
     expect(a.edited.kind).toEqual({ inPlace: true });
     expect(a.edited.seen).toMatchObject({ connects: 1, inPlace: 0 });
   }, 120_000);
