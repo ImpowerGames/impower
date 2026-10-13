@@ -13,13 +13,14 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { normalizeSource } from "../../program/BinaryProgramWriter";
 import { fingerprintOf } from "../../program/ProgramSave";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, programSession } from "./programHarness";
 import { SAVE_SCENARIOS, SCENARIO_MARKER } from "./programSaveScenarios";
+import { CallStack } from "../../runtime/CallStack";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -794,22 +795,35 @@ describe("a save inside a scene entered by a divert", () => {
       }
       return { seen, errors };
     };
-    // Entering again: the new `a` replaces the one the cell captured, which
-    // closes on 15.
-    expect(beats(engine(rootOf(REENTER("a", ""))), 4)).toEqual({
-      seen: ["First 15 15.", "Second 15 15.", "First 25 15.", "Second 25 15."],
-      errors: [],
-    });
-    // A restart from the save at the second line, with the cell still open:
-    // the rebound `a` replaces the one the cell captured, which closes on 15.
-    const save = saveAt(REENTER("a", ""), "Second 15 15.");
-    const loaded = engine(rootOf(REENTER("a, b", ", 0")));
-    loaded.loadSave(save);
-    expect(loaded.loadedSaveReport!.exact).toBe(false);
-    expect(beats(loaded, 4)).toEqual({
-      seen: ["First 20 15.", "Second 20 15.", "First 25 15.", "Second 25 15."],
-      errors: [],
-    });
+    // Both paths retire through the one method: each call's scope and
+    // whether its predicate names `a` and `b`.
+    const retire = vi.spyOn(CallStack.Element.prototype, "RetireBindings");
+    const retired = () =>
+      retire.mock.calls.map(([scope, names]) => [scope, names("a"), names("b")]);
+    try {
+      // Entering again: the new `a` replaces the one the cell captured,
+      // which closes on 15.
+      expect(beats(engine(rootOf(REENTER("a", ""))), 4)).toEqual({
+        seen: ["First 15 15.", "Second 15 15.", "First 25 15.", "Second 25 15."],
+        errors: [],
+      });
+      expect(retired().filter(([, a]) => a).length).toBeGreaterThan(0);
+      // A restart from the save at the second line, with the cell still
+      // open: the rebound `a` replaces the one the cell captured, which
+      // closes on 15.
+      const save = saveAt(REENTER("a", ""), "Second 15 15.");
+      const loaded = engine(rootOf(REENTER("a, b", ", 0")));
+      retire.mockClear();
+      loaded.loadSave(save);
+      expect(loaded.loadedSaveReport!.exact).toBe(false);
+      expect(retired()).toContainEqual([0, true, false]);
+      expect(beats(loaded, 4)).toEqual({
+        seen: ["First 20 15.", "Second 20 15.", "First 25 15.", "Second 25 15."],
+        errors: [],
+      });
+    } finally {
+      retire.mockRestore();
+    }
   });
 
   // #1744: a restart whose frame has no open cell retires its replaced
