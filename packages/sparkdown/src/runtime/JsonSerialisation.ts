@@ -656,7 +656,7 @@ export class JsonSerialisation {
     // Checked after the scalars, which are far more common and never packed.
     let multiVal = asOrNull(obj, MultiValue);
     if (multiVal) {
-      // A tuple — the `__varargs__` pack of a vararg function's frame,
+      // A tuple — the `__varargs$` pack of a vararg function's frame,
       // or a multi-return result on the evaluation stack — writes its
       // inner values in order, so the arity survives a save.
       writer.WriteObjectStart();
@@ -809,7 +809,7 @@ export class JsonSerialisation {
       // Reassignment?
       if (!varAss.isNewDeclaration) writer.WriteProperty("re", true);
       // Varargs slot — runtime skips MultiValue → first-value
-      // unwrapping for this binding so `__varargs__` keeps the
+      // unwrapping for this binding so `__varargs$` keeps the
       // packed tuple intact. Serialized as `va: true` to survive
       // JSON round-trip when running pre-compiled stories.
       if (varAss.isVarargsSlot) writer.WriteProperty("va", true);

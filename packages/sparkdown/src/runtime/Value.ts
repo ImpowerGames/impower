@@ -156,7 +156,7 @@ export class BoolValue extends Value<boolean> {
 //     `local a, b = expr`.
 //
 // Single-target `VariableAssignment` unwraps a `MultiValue` before
-// storage, except for a vararg function's `__varargs__` slot, which
+// storage, except for a vararg function's `__varargs$` slot, which
 // keeps the whole pack. A saved state therefore can hold one (in that
 // slot or on the evaluation stack); it serializes as
 // `{"tuple": [...]}`.

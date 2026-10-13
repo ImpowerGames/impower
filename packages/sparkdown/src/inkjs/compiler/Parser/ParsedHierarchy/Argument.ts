@@ -7,7 +7,7 @@ export class Argument {
     public isDivertTarget: boolean | null = null,
     // Luau `function f(a, ...)` — the trailing `...` parameter
     // captures all extra positional args into a single MultiValue
-    // bound to a synthetic local (`__varargs__`). The body's `...`
+    // bound to a synthetic local (`__varargs$`). The body's `...`
     // expression reads this local. Set on the synthetic Argument
     // emitted by `lowerArguments` when it sees a `LuauVariadicParameter`.
     public isVararg: boolean = false,
