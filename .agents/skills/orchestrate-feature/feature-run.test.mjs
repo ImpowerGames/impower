@@ -79,6 +79,38 @@ try {
     assert.doesNotMatch(calls[1].command, /\bstart\b/i, "the handoff resumes in the hidden console");
   }
 
+  // On Windows, a probe started through each real WMI path reports the console
+  // it runs in: the console must exist (the app refuses a resume whose output
+  // is redirected) and its window must not be visible. A visible console is
+  // what opens a Terminal window and takes the foreground.
+  if (process.platform === "win32") {
+    const probe = write("console-probe.ps1", [
+      "Add-Type -Name Console -Namespace Probe -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern IntPtr GetConsoleWindow(); [DllImport(\"user32.dll\")] public static extern bool IsWindowVisible(IntPtr h);'",
+      "$h = [Probe.Console]::GetConsoleWindow()",
+      "Set-Content -LiteralPath $args[0] -Value \"$h $([Probe.Console]::IsWindowVisible($h))\"",
+    ].join("\n"));
+    const probeArgs = (out) => ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", probe, out];
+    const consoleOf = (file, what) => {
+      waitFor(() => fs.existsSync(file) && fs.readFileSync(file, "utf8").trim() !== "", `the ${what} probe's report`);
+      const [window, visible] = fs.readFileSync(file, "utf8").trim().split(" ");
+      return { window: Number(window), visible };
+    };
+    const launchDir = path.join(tmp, "console-launch");
+    fs.mkdirSync(launchDir);
+    fs.writeFileSync(path.join(launchDir, "prompt.txt"), "");
+    const writerReport = path.join(tmp, "writer-console.txt");
+    assert.equal(run.startDetachedWriter({ executable: "powershell.exe", args: probeArgs(writerReport), cwd: tmp, launchDir }).started, true);
+    const writer = consoleOf(writerReport, "writer");
+    assert.notEqual(writer.window, 0, "the writer runs in a console of its own");
+    assert.equal(writer.visible, "False", "the writer's console is hidden");
+    const handoffReport = path.join(tmp, "handoff-console.txt");
+    const resume = write("stand-in-resume.cmd", `@powershell.exe ${probeArgs(handoffReport).map((a) => `"${a}"`).join(" ")}\r\n`);
+    assert.equal(run.runHandoff({ executable: resume, sessionId: "00000000-0000-0000-0000-000000000000", cwd: tmp }).requested, true);
+    const handoff = consoleOf(handoffReport, "handoff");
+    assert.notEqual(handoff.window, 0, "the resume runs in a console of its own");
+    assert.equal(handoff.visible, "False", "the resume's console is hidden");
+  }
+
   // One coordinator per Feature: the pointer refuses a second session, and a
   // takeover needs the first observed to have ended.
   const record = path.join(artifacts, "run.json");
@@ -871,6 +903,8 @@ try {
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
   for (const { pid } of started) { try { waitFor(() => !processIdentity(pid), `stand-in ${pid} to exit`, 15000); } catch (error) { console.error(error.message); } }
-  fs.rmSync(tmp, { recursive: true, force: true });
+  // A process still holding the scratch directory makes removal fail; report
+  // it rather than let it replace the error that ended the run.
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (error) { console.error(`scratch not removed: ${error.message}`); }
 }
 console.log("PASS: dependency admission, adoption, exclusive ownership, uncertain launches, observed exit, writer routes, brief contract and reviewer-freeze coexistence");
