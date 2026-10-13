@@ -6,14 +6,13 @@ import { Op } from "../../../../program/ProgramInstructions";
 // Lua/Luau multi-return: `return a, b, c`.
 //
 // Emits the bytecode for each sub-expression in order (each pushes
-// one value onto the eval stack), then a `PackTuple(N)` ControlCommand
-// that pops N and pushes one `MultiValue` wrapping them, then
-// `PopFunction` to exit the call frame leaving the MultiValue as the
-// return.
+// one value onto the eval stack), then a `Pack` instruction that pops N
+// and pushes one `MultiValue` wrapping them, then `Return` to exit the
+// call frame leaving the MultiValue as the return.
 //
 // Single-expression returns continue to use `ReturnType` — there's no
 // need to wrap a single value in a MultiValue. Multi-target callers
-// (`local a, b = f()`) use `UnpackTuple` to redistribute; single-target
+// (`local a, b = f()`) use `Unpack` to redistribute; single-target
 // callers (`local x = f()`) auto-unwrap MultiValue → first inner value
 // in the runtime's `VariableAssignment` handler.
 export class MultiReturnType extends ParsedObject {

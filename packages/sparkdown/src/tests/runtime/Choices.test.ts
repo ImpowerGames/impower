@@ -424,9 +424,8 @@ describe("Choices (ported from inkjs)", () => {
   });
 
   test("fallback choices remain hidden after state save/load", () => {
-    // `WriteChoice` now emits `isInvisibleDefault: true` for fallback
-    // choices, and `JObjectToChoice` reads the flag back (defaulting
-    // to false when absent for backward compat). After a `ToJson()` /
+    // The state's save writes `isInvisibleDefault` for each choice
+    // waiting, and its load reads the flag back. After a `ToJson()` /
     // `LoadJson()` round-trip, the fallback that was being held in
     // `state.currentChoices` (but filtered from `Story.currentChoices`)
     // stays hidden — `TryFollowDefaultInvisibleChoice` can still auto-

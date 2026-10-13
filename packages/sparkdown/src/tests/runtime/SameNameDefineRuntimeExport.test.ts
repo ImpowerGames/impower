@@ -11,8 +11,8 @@
 // generated — its `-> __def` divert never got a runtimeDivert, and its
 // `ResolveReferences` threw, ABORTING the whole resolve pass. Anything
 // resolved after it (e.g. a later choice's start-content return target) was
-// left with a null path, so `JsonSerialisation` crashed on a null
-// `DivertTargetValue`, the exception was swallowed, and `program.compiled`
+// left with a null path, so `JsonSerialisation` crashed on a divert
+// target with no path, the exception was swallowed, and `program.compiled`
 // was never set — the engine refused to run the game (black preview) despite
 // 0 errors.
 //
@@ -57,7 +57,7 @@ function compile(src: string) {
 describe("same-name define runtime export", () => {
   test("char+synth same name + later choice still produces a runnable program", () => {
     // The choice has START CONTENT (text before `[...]`), which generates
-    // a return-target DivertTargetValue — the construct that previously
+    // a return-target divert target — the construct that previously
     // serialized null after the resolve pass aborted.
     const r = compile(
       `define raffles as character with

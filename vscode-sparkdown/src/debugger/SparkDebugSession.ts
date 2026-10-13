@@ -103,7 +103,7 @@ export class SparkDebugSession extends LoggingDebugSession {
    *  and the frame, as the engine numbers them, whose temporaries it shows
    *  (#1727). */
   private _variableHandles = new Handles<{
-    scope: "temps" | "vars" | "lists" | "defines";
+    scope: "temps" | "vars" | "defines";
     threadId?: number;
     frameId?: number;
   }>(-3);
@@ -842,11 +842,6 @@ export class SparkDebugSession extends LoggingDebugSession {
         ),
         new Scope("Vars", this._variableHandles.create({ scope: "vars" }), false),
         new Scope(
-          "Lists",
-          this._variableHandles.create({ scope: "lists" }),
-          false,
-        ),
-        new Scope(
           "Defines",
           this._variableHandles.create({ scope: "defines" }),
           true,
@@ -880,14 +875,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       const { variables } = await this._connection.emit(
         GetGameVariablesMessage.type.request({
           scope: "vars",
-        }),
-      );
-      vars = variables;
-    } else if (scope === "lists") {
-      const { variables } = await this._connection.emit(
-        GetGameVariablesMessage.type.request({
-          scope: "lists",
-          variablesReference: args.variablesReference,
         }),
       );
       vars = variables;
