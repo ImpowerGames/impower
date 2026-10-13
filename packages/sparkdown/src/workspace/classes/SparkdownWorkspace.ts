@@ -912,12 +912,19 @@ export abstract class SparkdownWorkspace {
     return this.compile(uri, force);
   }, DEBOUNCE_DELAY);
 
-  // Trailing debounce for keystroke-driven compiles. A full compile costs
-  // hundreds of ms on a large project, and running one per keystroke just
-  // saturates the compiler worker with results that are stale on arrival.
-  // The max-wait keeps diagnostics/preview converging during sustained
-  // typing instead of freezing until the first pause.
-  protected _changeCompileDebounceDelay = 200;
+  // Trailing debounce for keystroke-driven compiles. Running one compile per
+  // keystroke saturates the compiler worker with results that are stale on
+  // arrival; waiting for a pause in typing costs only the delay. The max-wait
+  // keeps diagnostics/preview converging during sustained typing instead of
+  // freezing until the first pause. The default, 50 ms, was chosen by
+  // measurement for the player's preview compiles (#1797): typing at 80 to
+  // 120 ms a key on a long script, it is the shortest delay whose results are
+  // no more often stale on arrival than at 200 ms. A host can override it
+  // (`compileDebounceDelay` on initialize): the language-server hosts keep
+  // 200 ms, since applying each of their results costs the web editor about
+  // 100 ms of main thread. 0 compiles at every keystroke, still one compile
+  // at a time.
+  protected _changeCompileDebounceDelay = 50;
   protected _changeCompileTimer?: ReturnType<typeof setTimeout>;
   protected _changeCompileDeadline?: number;
   // EVERY document with a pending debounced compile. A multi-file change
@@ -926,41 +933,76 @@ export abstract class SparkdownWorkspace {
   // keeping only the latest uri silently dropped the earlier ones' compiles,
   // stranding their piggybacked waiters and leaving their diagnostics stale.
   protected _pendingChangeCompileUris = new Set<string>();
+  // The worker runs one keystroke compile at a time. A delay shorter than a
+  // compile lets the timer fire while the last batch, or any other compile, is
+  // still running; the batch it would start then waits, and runs as soon as
+  // nothing is compiling, with the text as it is by then.
+  protected _changeCompileRunning = false;
+  protected _changeCompileDue = false;
+  protected _compilesInFlight = 0;
 
   protected scheduleChangeCompile(uri: string) {
     const delay = this._changeCompileDebounceDelay;
-    if (delay <= 0) {
-      this.compile(uri, false).catch((e) => {
-        console.error(e);
-      });
+    this._pendingChangeCompileUris.add(uri);
+    if (this._changeCompileDue) {
+      // The debounce already ran out; the batch starts when the compile in
+      // flight returns, and compiles this keystroke's text too.
       return;
     }
-    this._pendingChangeCompileUris.add(uri);
     if (this._changeCompileTimer != null) {
       clearTimeout(this._changeCompileTimer);
+      this._changeCompileTimer = undefined;
+    }
+    if (delay <= 0) {
+      this.runChangeCompiles();
+      return;
     }
     const now = Date.now();
     if (this._changeCompileDeadline == null) {
       this._changeCompileDeadline = now + delay * 4;
     }
     const wait = Math.min(delay, Math.max(0, this._changeCompileDeadline - now));
-    this._changeCompileTimer = setTimeout(async () => {
+    this._changeCompileTimer = setTimeout(() => {
       this._changeCompileTimer = undefined;
-      this._changeCompileDeadline = undefined;
-      const pendingUris = Array.from(this._pendingChangeCompileUris);
-      this._pendingChangeCompileUris.clear();
+      this.runChangeCompiles();
+    }, wait);
+  }
+
+  protected runChangeCompiles() {
+    this._changeCompileDeadline = undefined;
+    if (this._changeCompileRunning || this._compilesInFlight > 0) {
+      this._changeCompileDue = true;
+      return;
+    }
+    this._changeCompileDue = false;
+    if (this._pendingChangeCompileUris.size === 0) {
+      return;
+    }
+    this._changeCompileRunning = true;
+    const pendingUris = Array.from(this._pendingChangeCompileUris);
+    void (async () => {
       // Compile each pending document in order. Documents covered by an
       // earlier compile in this batch hit the no-change early-return (which
       // also flushes their waiters), so same-tree batches still cost one
       // compile; only genuinely separate trees pay for their own.
       for (const pendingUri of pendingUris) {
+        // Taken off the pending set only now: a keystroke to it while an
+        // earlier document of the batch compiled is covered by this compile,
+        // which would otherwise wait on a batch that cannot start until this
+        // one ends.
+        this._pendingChangeCompileUris.delete(pendingUri);
         try {
           await this.compile(pendingUri, false);
         } catch (e) {
           console.error(e);
         }
       }
-    }, wait);
+    })().finally(() => {
+      this._changeCompileRunning = false;
+      if (this._changeCompileDue) {
+        this.runChangeCompiles();
+      }
+    });
   }
 
   async compile(
@@ -1015,6 +1057,7 @@ export abstract class SparkdownWorkspace {
     // actually costs. The `finally` is what the ticket is about: the body
     // below rethrows, and a bare trailing call would drop that measurement.
     profile("start", this._profilerId, "workspace" + " " + "compile", uri);
+    this._compilesInFlight++;
     try {
       state.compilingDocumentVersion = this._documentVersions.get(uri);
       let result: CompileProgramResult | undefined = undefined;
@@ -1126,6 +1169,15 @@ export abstract class SparkdownWorkspace {
       return result?.program;
     } finally {
       profile("end", this._profilerId, "workspace" + " " + "compile", uri);
+      this._compilesInFlight--;
+      if (
+        this._changeCompileDue &&
+        !this._changeCompileRunning &&
+        this._compilesInFlight === 0
+      ) {
+        // A keystroke batch waited for this compile.
+        this.runChangeCompiles();
+      }
     }
   }
 
