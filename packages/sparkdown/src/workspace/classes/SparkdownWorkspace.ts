@@ -243,22 +243,40 @@ export abstract class SparkdownWorkspace {
    * meant semantic tokens / code lenses erroring for as long as initialization
    * took, with no retry. Compiles now wait for this instead.
    *
-   * Deliberately `undefined` until `initialize()` is entered: if initialization
-   * is never going to happen there is nothing to wait for, and waiting forever
-   * would turn a loud error into a silent hang. The one exception is a
-   * restart (`restartCompiler`) before `initialize`, which leaves it pending
-   * until `initialize` configures the new worker; the player restarts only a
-   * worker that was running a story, which a worker never does before it is
-   * configured.
+   * Pending from construction, so a request that arrives before `initialize()`
+   * waits for the configuration `initialize` starts as well. Both hosts send
+   * `initialize` first thing, but the editor forwards file events to the
+   * language server as they happen, and on a large project some arrive before
+   * it (#1817).
    */
   protected _compilerConfigured = false;
   protected _resolveCompilerConfigured?: () => void;
-  protected _compilerConfiguring?: Promise<void>;
-  get whenCompilerConfigured(): Promise<void> | undefined {
+  protected _compilerConfiguring = new Promise<void>((resolve) => {
+    this._resolveCompilerConfigured = resolve;
+  });
+  get whenCompilerConfigured(): Promise<void> {
     if (this._compilerConfigured) {
       return Promise.resolve();
     }
     return this._compilerConfiguring;
+  }
+
+  /**
+   * Whether `initialize()` has registered the project's files. A file event
+   * that arrives before then moves the files revision at once but records
+   * its change only after them (`projectLoaded`), since the files
+   * `initialize` is given would otherwise overwrite it: a file deleted early
+   * would come back. Each event is applied once, in the order it arrived.
+   */
+  protected _projectLoaded = false;
+  protected _resolveProjectLoaded?: () => void;
+  protected _projectLoading = new Promise<void>((resolve) => {
+    this._resolveProjectLoaded = resolve;
+  });
+
+  protected markProjectLoaded() {
+    this._projectLoaded = true;
+    this._resolveProjectLoaded?.();
   }
 
   constructor(compilerInlineWorkerContent: string, profilerId?: string) {
@@ -426,9 +444,18 @@ export abstract class SparkdownWorkspace {
     }[];
   }> {
     this._clientCapabilities = params.capabilities;
-    this._compilerConfiguring ??= new Promise<void>((resolve) => {
-      this._resolveCompilerConfigured = resolve;
-    });
+    try {
+      return await this.loadProject(params);
+    } finally {
+      // Even when loading failed, so the file events waiting for it are not
+      // held forever.
+      this.markProjectLoaded();
+    }
+  }
+
+  protected async loadProject(
+    params: Parameters<SparkdownWorkspace["initialize"]>[0],
+  ): ReturnType<SparkdownWorkspace["initialize"]> {
     if (params.initializationOptions) {
       // (slimProgramNotifications/compileDebounceDelay must be destructured
       // out so they don't fall through into compilerConfig.)
@@ -796,9 +823,14 @@ export abstract class SparkdownWorkspace {
    * be silently clobbered by its files snapshot.
    */
   protected async compilerReady() {
-    const configuring = this.whenCompilerConfigured;
-    if (configuring) {
-      await configuring;
+    await this.whenCompilerConfigured;
+  }
+
+  /** Wait (if necessary) for `initialize()` to register the project's files
+   *  before a file event records its change (`_projectLoaded`). */
+  protected async projectLoaded() {
+    if (!this._projectLoaded) {
+      await this._projectLoading;
     }
   }
 
@@ -1239,10 +1271,7 @@ export abstract class SparkdownWorkspace {
   protected async compileDocument(uri: string) {
     // Wait out initialization rather than throwing "Compiler has not been
     // configured!" at whoever asked first (see `whenCompilerConfigured`).
-    const configuring = this.whenCompilerConfigured;
-    if (configuring) {
-      await configuring;
-    }
+    await this.compilerReady();
     this._lastCompiledUri = uri;
     const result = await this._compilerChannelConnection.sendRequest(
       CompileProgramMessage.type,
@@ -1397,6 +1426,7 @@ export abstract class SparkdownWorkspace {
 
   async createFile(uri: string) {
     const file = await this.trackFileUpdate(async () => {
+      await this.projectLoaded();
       if (this.getFileType(uri) === "script") {
         this._documentVersions.set(uri, 0);
       }
@@ -1422,6 +1452,10 @@ export abstract class SparkdownWorkspace {
   }
 
   async changeFile(uri: string) {
+    if (!this._projectLoaded) {
+      // What kind of file it is depends on the settings `initialize` brings.
+      await this.projectLoaded();
+    }
     const type = this.getFileType(uri);
     if (type && (type !== "script" || !this._openDocuments.has(uri))) {
       // Changed file is an asset or an unopened script
@@ -1455,6 +1489,7 @@ export abstract class SparkdownWorkspace {
 
   async deleteFile(uri: string) {
     const deletedFile = await this.trackFileUpdate(async () => {
+      await this.projectLoaded();
       const deletedFile = this._watchedFiles.get(uri);
       this._imageVocabularyCache.delete(uri);
       this._watchedFiles.delete(uri);

@@ -30,6 +30,7 @@ class TestWorkspace extends SparkdownWorkspace {
   constructor() {
     super("");
     this._compilerConfigured = true;
+    this._projectLoaded = true;
     this._imageFilePattern = /\.png$/;
     this._compilerChannelConnection = {
       sendRequest: (type: { method: string }) =>
