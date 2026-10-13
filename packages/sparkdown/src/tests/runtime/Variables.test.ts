@@ -192,7 +192,7 @@ describe("Variables (ported from inkjs)", () => {
     // A global holds a divert-target value (`-> here`); diverting via
     // `-> x` follows the stored target. Sparkdown's `store x = -> here`
     // lowers the `-> here` expression to a `DivertTarget` Expression,
-    // which the runtime stores as a `DivertTargetValue` — comparable
+    // which the runtime stores as a symbol value — comparable
     // via `==` and divertable via `-> x`. The lowerer for
     // `LuauDivertTargetLiteral` (in `expression/lowerExpression.ts`)
     // already wraps the parsed identifier path into a `DivertTarget`
