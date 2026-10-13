@@ -125,12 +125,13 @@ describe("page messages", () => {
     answer(newerLoad);
     await second;
     await flushMicrotasks(20);
-    // The newer connect built its screen and cleared its transient targets.
+    // The newer connect built its screen and cleared its transient targets
+    // (held for the page, as a preview's connect does, #1820).
     const newer = flattenMessages(
       harness.messages.filter((m) => m.epoch === 2),
     ).map((m) => m.method);
     expect(newer).toContain("ui/create");
-    expect(newer).toContain("ui/write-text");
+    expect(newer).toContain("ui/reconcile-clear");
     // Then the older connect's font arrives.
     const mark = harness.messages.length;
     answer(olderLoad);

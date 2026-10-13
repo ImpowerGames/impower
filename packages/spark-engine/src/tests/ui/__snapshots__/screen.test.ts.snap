@@ -3675,388 +3675,92 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-33",
-          "kind": "request",
-          "method": "ui/update",
+          "kind": "notification",
+          "method": "ui/reconcile-clear",
           "params": {
-            "attributes": {
-              "text": null,
-            },
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-14",
-            "style": {
-              "display": "none",
-            },
+            "targets": [
+              {
+                "elements": [
+                  "e-14",
+                ],
+                "target": "backdrop",
+                "text": true,
+              },
+              {
+                "elements": [
+                  "e-17",
+                ],
+                "target": "portrait",
+                "text": true,
+              },
+              {
+                "elements": [
+                  "e-24",
+                ],
+                "target": "character_name",
+                "text": true,
+              },
+              {
+                "elements": [
+                  "e-26",
+                ],
+                "target": "character_parenthetical",
+                "text": true,
+              },
+              {
+                "elements": [
+                  "e-28",
+                ],
+                "target": "dialogue",
+                "text": true,
+              },
+            ],
           },
         },
-      ],
-    },
-  },
-  {
-    "id": "req-34",
-    "kind": "request",
-    "method": "ui/write-text",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "backdrop",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
         {
-          "id": "req-35",
-          "kind": "request",
-          "method": "ui/update",
+          "kind": "notification",
+          "method": "ui/reconcile-clear",
           "params": {
-            "attributes": {
-              "text": null,
-            },
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-17",
-            "style": {
-              "display": "none",
-            },
+            "targets": [
+              {
+                "elements": [
+                  "e-14",
+                ],
+                "image": true,
+                "target": "backdrop",
+              },
+              {
+                "elements": [
+                  "e-17",
+                ],
+                "image": true,
+                "target": "portrait",
+              },
+              {
+                "elements": [
+                  "e-24",
+                ],
+                "image": true,
+                "target": "character_name",
+              },
+              {
+                "elements": [
+                  "e-26",
+                ],
+                "image": true,
+                "target": "character_parenthetical",
+              },
+              {
+                "elements": [
+                  "e-28",
+                ],
+                "image": true,
+                "target": "dialogue",
+              },
+            ],
           },
         },
       ],
-    },
-  },
-  {
-    "id": "req-36",
-    "kind": "request",
-    "method": "ui/write-text",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "portrait",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-37",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": {
-              "text": null,
-            },
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-24",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-38",
-    "kind": "request",
-    "method": "ui/write-text",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "character_name",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-39",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": {
-              "text": null,
-            },
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-26",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-40",
-    "kind": "request",
-    "method": "ui/write-text",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "character_parenthetical",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-41",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": {
-              "text": null,
-            },
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-28",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-42",
-    "kind": "request",
-    "method": "ui/write-text",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "dialogue",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-43",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": undefined,
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-14",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-44",
-    "kind": "request",
-    "method": "ui/write-image",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "backdrop",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-45",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": undefined,
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-17",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-46",
-    "kind": "request",
-    "method": "ui/write-image",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "portrait",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-47",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": undefined,
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-24",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-48",
-    "kind": "request",
-    "method": "ui/write-image",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "character_name",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-49",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": undefined,
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-26",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-50",
-    "kind": "request",
-    "method": "ui/write-image",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "character_parenthetical",
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/batch",
-    "params": {
-      "messages": [
-        {
-          "id": "req-51",
-          "kind": "request",
-          "method": "ui/update",
-          "params": {
-            "attributes": undefined,
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-28",
-            "style": {
-              "display": "none",
-            },
-          },
-        },
-      ],
-    },
-  },
-  {
-    "id": "req-52",
-    "kind": "request",
-    "method": "ui/write-image",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "dialogue",
     },
   },
 ]

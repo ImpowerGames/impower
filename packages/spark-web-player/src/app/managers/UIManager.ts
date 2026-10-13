@@ -15,6 +15,7 @@ import { BatchElementsMessage } from "../../../../spark-engine/src/game/modules/
 import { BeginReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeginReconcileMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
+import { HoldClearMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/HoldClearMessage";
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
@@ -30,6 +31,18 @@ import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/util
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
+
+/** A clear the page holds for one target (`UIManager.heldClears`). */
+interface HeldClear {
+  /** The elements the clear hides. */
+  elements: string[];
+  /** Those not hidden yet. */
+  hide: string[];
+  /** Whether it empties the text content (and the `text` attribute). */
+  text: boolean;
+  /** Whether it empties the image content. */
+  image: boolean;
+}
 
 /**
  * Apply one engine-sent attribute to a realized element.
@@ -161,6 +174,34 @@ export default class UIManager extends Manager {
    */
   protected _placeCursor = new Map<Element, Element>();
 
+  /** Elements this reconcile pass built rather than reused. A clear the
+   *  connect holds for them applies at once: they have nothing on screen to
+   *  keep, and held, an empty box would paint until the beat. */
+  protected _createdThisPass = new WeakSet<Element>();
+
+  /**
+   * Clears a preview display sent that the page has not applied yet
+   * (`ui/reconcile-clear`, #1820), by target. A held clear has two parts,
+   * applied as late as the messages after it allow: each element's hiding
+   * (`hide`, the elements still to hide) just before the next message that
+   * updates, animates, moves or destroys that element, and the content the
+   * clear empties just before the next write to the target, so the target
+   * never shows empty between its clear and what replaces it. The sweep
+   * applies what is left. Kept on the overlay, like the write signatures on
+   * its nodes, so a display another one takes over before its sweep leaves
+   * them to the next manager and pass rather than losing them.
+   */
+  protected get heldClears(): Map<string, HeldClear> | undefined {
+    const overlay = this.app.overlay as
+      | (HTMLElement & { __sdHeldClears?: Map<string, HeldClear> })
+      | undefined;
+    if (!overlay) {
+      return undefined;
+    }
+    overlay.__sdHeldClears ??= new Map();
+    return overlay.__sdHeldClears;
+  }
+
   override async onInit() {
     await super.onInit();
     // A fresh UIManager built for a re-render inherits the prior render's overlay
@@ -175,6 +216,7 @@ export default class UIManager extends Manager {
     this._staleIds.clear();
     this._staleImageTargets.clear();
     this._placeCursor.clear();
+    this._createdThisPass = new WeakSet();
     const overlay = this.app.overlay;
     if (overlay) {
       // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
@@ -199,9 +241,16 @@ export default class UIManager extends Manager {
     }
   }
 
-  /** End a reconcile pass: remove elements that survived from the previous render
-   *  but weren't re-emitted (touched) this pass — the mark-and-sweep tail. */
+  /** End a reconcile pass: apply the clears still held, then remove elements
+   *  that survived from the previous render but weren't re-emitted (touched)
+   *  this pass — the mark-and-sweep tail. */
   sweepReconcile() {
+    const held = this.heldClears;
+    if (held) {
+      for (const target of Array.from(held.keys())) {
+        this.applyHeldClear(target);
+      }
+    }
     for (const id of this._staleIds) {
       this.removeElementById(id);
     }
@@ -225,6 +274,174 @@ export default class UIManager extends Manager {
       }
     }
     delete (el as any).__sdImg;
+  }
+
+  /** Hold a clear until the messages after it touch its target, or the
+   *  sweep. A clear held already for the target takes this one's elements
+   *  and content too. Applied now when this pass built one of the target's
+   *  elements, or the page has none of them. */
+  protected holdClear(clear: {
+    target: string;
+    elements: string[];
+    text?: boolean;
+    image?: boolean;
+  }) {
+    const held = this.heldClears;
+    const { target } = clear;
+    const entry: HeldClear = held?.get(target) ?? {
+      elements: [],
+      hide: [],
+      text: false,
+      image: false,
+    };
+    for (const id of clear.elements) {
+      if (!entry.elements.includes(id)) {
+        entry.elements.push(id);
+      }
+      if (!entry.hide.includes(id)) {
+        entry.hide.push(id);
+      }
+    }
+    entry.text ||= Boolean(clear.text);
+    entry.image ||= Boolean(clear.image);
+    const targetEls = [
+      ...entry.elements.map((id) => this.getElement(id)),
+      ...this.findTargetElements(target),
+    ];
+    if (
+      !held ||
+      targetEls.length === 0 ||
+      targetEls.some((el) => !el || this._createdThisPass.has(el))
+    ) {
+      held?.delete(target);
+      this.applyClear(target, entry);
+      return;
+    }
+    held.set(target, entry);
+  }
+
+  protected applyHeldClear(target: string) {
+    const held = this.heldClears;
+    const entry = held?.get(target);
+    if (!held || !entry) {
+      return;
+    }
+    held.delete(target);
+    this.applyClear(target, entry);
+  }
+
+  /** A clear, as the engine's text and image clears send it: each element
+   *  hidden (and its `text` attribute gone, for a text clear), then the
+   *  target's text or image content emptied. */
+  protected applyClear(target: string, entry: HeldClear) {
+    for (const id of [...entry.hide]) {
+      this.applyHide(entry, id);
+    }
+    if (entry.text) {
+      void this.writeText(target, [], true);
+    }
+    if (entry.image) {
+      void this.writeImage(target, []);
+    }
+  }
+
+  /** The part of a held clear that hides one of its elements, as the clear's
+   *  update would. Applied to the node directly rather than as an update: an
+   *  update marks its element live in this pass, and a clear held over from
+   *  a display taken over before its sweep can name one this pass dropped. */
+  protected applyHide(entry: HeldClear, id: string) {
+    const at = entry.hide.indexOf(id);
+    if (at < 0) {
+      return;
+    }
+    entry.hide.splice(at, 1);
+    const el = this._elements.get(id);
+    if (!el) {
+      return;
+    }
+    const [prop, value] = getCSSPropertyKeyValue("display", "none");
+    for (const [cssProp, cssValue] of getCssEquivalent(prop, value)) {
+      el.style.setProperty(cssProp, cssValue);
+    }
+    if (entry.text) {
+      applyAttributes(el, { text: null });
+    }
+  }
+
+  /**
+   * Apply what `msg` touches of the held clears, before `msg` is handled, so
+   * each element and each target's content still sees its clear before
+   * anything after it, as if the clear had been applied when it was sent.
+   *
+   * A write to a target applies its whole clear: its content is emptied in the
+   * same task that refills it. An update, an animation, a move or a destroy of
+   * one of a target's elements applies only that element's hiding: the
+   * update that shows a target again (the restore's or the beat's) then lands
+   * on it in the same task, and the target keeps what it shows until its write.
+   * Touching the content itself (`text`, `stroke`, `image`, `mask`) applies the
+   * whole clear. A create touches nothing: what is created inside a target
+   * comes from a connect's create stream, which runs before that connect's
+   * own clear, and the clear held after it still empties what it built, as
+   * applied at once it would have. A clear held over from a display taken
+   * over before its sweep therefore survives the next display's create
+   * stream rather than blanking the screen there.
+   */
+  protected releaseHeldClears(msg: RequestMessage) {
+    const held = this.heldClears;
+    if (!held || held.size === 0) {
+      return;
+    }
+    // The id map, not `getElement`: a held element another message has
+    // destroyed would send every later message on a walk of the overlay.
+    const holding = (el: Element) =>
+      Array.from(held).filter(([, entry]) =>
+        entry.elements.some((id) => this._elements.get(id) === el),
+      );
+    const contentOwner = (el: HTMLElement | null | undefined) =>
+      el?.parentElement &&
+      ["text", "stroke", "image", "mask"].some((tag) =>
+        el.classList.contains(tag),
+      )
+        ? el.parentElement
+        : undefined;
+    if (
+      WriteTextMessage.type.isRequest(msg) ||
+      WriteImageMessage.type.isRequest(msg)
+    ) {
+      this.applyHeldClear(msg.params.target);
+      for (const el of this.findTargetElements(msg.params.target)) {
+        for (const [target] of holding(el)) {
+          this.applyHeldClear(target);
+        }
+      }
+      return;
+    }
+    let ids: (string | null | undefined)[] = [];
+    if (AnimateElementsMessage.type.isRequest(msg)) {
+      ids = msg.params.effects.map((effect) => effect?.element);
+    } else if (
+      UpdateElementMessage.type.isRequest(msg) ||
+      MoveElementMessage.type.isRequest(msg) ||
+      DestroyElementMessage.type.isRequest(msg)
+    ) {
+      ids = [msg.params.element];
+    }
+    for (const id of ids) {
+      const el = id ? this.getElement(id) : undefined;
+      if (!el || !id) {
+        continue;
+      }
+      const owner = contentOwner(el);
+      if (owner) {
+        for (const [target] of holding(owner)) {
+          this.applyHeldClear(target);
+        }
+        continue;
+      }
+      for (const [, entry] of holding(el)) {
+        this.applyHide(entry, id);
+      }
+    }
   }
 
   /** Remove every DOM listener tracked for `id` (used on destroy/sweep, and
@@ -298,6 +515,7 @@ export default class UIManager extends Manager {
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
+    this.releaseHeldClears(msg);
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
@@ -338,6 +556,7 @@ export default class UIManager extends Manager {
       const reused = el != null;
       if (!el) {
         el = document.createElement(params.type);
+        this._createdThisPass.add(el);
       }
       if (id) {
         // The STRUCTURAL id — the reconcile key — is stamped as a JS property,
@@ -598,6 +817,12 @@ export default class UIManager extends Manager {
     }
     if (SweepReconcileMessage.type.isNotification(msg)) {
       this.sweepReconcile();
+      return;
+    }
+    if (HoldClearMessage.type.isNotification(msg)) {
+      for (const clear of msg.params.targets) {
+        this.holdClear(clear);
+      }
       return;
     }
     // A `ui/batch` coalesces a synchronous run of fire-and-forget ops. Dispatch
