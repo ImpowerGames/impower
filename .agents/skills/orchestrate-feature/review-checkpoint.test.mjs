@@ -369,6 +369,36 @@ try {
   assert.ok(countForm(1).blockers.some((b) => /round 3 has 1 of its 2 planned reviewers/.test(b)));
   assert.deepEqual(countForm(2).blockers, []);
 
+  // A report the coordinator posted for a reviewer is named by the journal's
+  // report-posted row, and counts like any other report.
+  const posted = rc.roundState([{ file: "jp", plan: null, rows: [
+    { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3, reviewerId: "a", plannedReviewers: ["a"] }, { time: at(), event: "reserved", index: 0 }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "exited", index: 0 },
+    { time: at(), event: "completed", index: 0, reviewerId: "a", completedRound: 3, reviewedHead: c.round2, commentIds: [], plannedRoundReviewers: ["a"], pendingReviewers: [], completedRoundReviews: 1 },
+    { time: at(), event: "report-awaiting-post", index: 0 }, { time: at(), event: "report-posted", index: 0, commentId: 7777 }, { time: at(), event: "finished" }] }]);
+  assert.deepEqual(posted.reports.map((r) => r.comment), [7777]);
+
+  // A launch that reserved a slot and recorded neither a start nor an exit
+  // may still run.
+  const reservedOnly = rc.roundState([{ file: "jr", plan: null, rows: [{ time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3 }, { time: at(), event: "reserved", index: 0 }, { time: at(), event: "blocked", reason: "running row failed" }] }]);
+  assert.ok(reservedOnly.blockers.some((b) => /reserved a slot but recorded neither its start nor its exit/.test(b)), reservedOnly.blockers.join("; "));
+
+  // A recovery plan that declares fewer planned reviewers neither completes
+  // the round nor goes unnoticed.
+  const reviewerRows = (file, reviewerId, attempt, planned, pending) => ({ file, plan: null, rows: [
+    { time: at(), event: "launching", index: 0, step: reviewerId, role: "review", round: 3, reviewerId, attempt, plannedReviewers: planned }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "exited", index: 0 },
+    { time: at(), event: "completed", index: 0, reviewerId, attempt, completedRound: 3, reviewedHead: c.round2, commentIds: [8000 + attempt], plannedRoundReviewers: planned, pendingReviewers: pending, completedRoundReviews: 1 }, { time: at(), event: "finished" }] });
+  const shrunk = rc.roundState([reviewerRows("j1", "a", 1, ["a", "b"], ["b"]), reviewerRows("j2", "a", 2, ["a"], [])]);
+  assert.ok(shrunk.blockers.some((b) => /round 3 still plans b/.test(b)), shrunk.blockers.join("; "));
+  assert.deepEqual(shrunk.plannedReviewers, ["a", "b"]);
+  assert.ok(rc.audit(shrunk, []).some((v) => /declares round 3's planned reviewers as a, but the round was planned with a, b/.test(v)));
+
+  // A later decision withdraws an earlier extension: a round launched after
+  // it is unauthorized.
+  const withdrawn = { startedRound: 4, launches: [{ file: "j4", round: 4, time: "2026-10-12T12:00:00.000Z", reviewerId: "u" }], completions: [], plans: [], changedPlans: [] };
+  const ext = { id: "e1", kind: "extend", round: 3, limit: 4, trusted: true, postedAt: "2026-10-12T10:00:00.000Z" };
+  assert.deepEqual(rc.audit(withdrawn, [ext]), []);
+  assert.ok(rc.audit(withdrawn, [ext, { id: "m1", kind: "maintainer", round: 3, trusted: true, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was m1 \(maintainer after round 3\)/.test(v)));
+
   // A takeover keeps every decision, and the new coordinator trusts its
   // predecessor's; the round count and limits come back unchanged.
   const takeoverFile = path.join(artifacts, "takeover.json");
@@ -379,6 +409,38 @@ try {
   const resumed = rc.gatherEvidence({ record: next, ticket: 42, pr: 500, client, git: repo });
   assert.deepEqual([resumed.completedRound, resumed.limit, resumed.audit], [5, 5, []]);
   assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: rc.trustedCoordinators(next), record: next }), c.final).applies, true);
+
+  // Every round the PR posts a state for needs its journals here; a missing
+  // earlier round is not silently dropped.
+  const aside = path.join(tmp, "round-1-elsewhere");
+  fs.renameSync(path.join(jobDir, "round-1"), aside);
+  assert.ok(rc.gatherEvidence({ record: next, ticket: 42, pr: 500, client, git: repo }).blockers.some((b) => /posts the state of rounds 1, 6, but no journal here records their completed reviews/.test(b)));
+  fs.renameSync(aside, path.join(jobDir, "round-1"));
+
+  // A successor with none of its predecessor's records imports the
+  // predecessor's decisions from the PR alone, each checked again; forged,
+  // edited and inconsistent blocks are refused, and the writer is never a
+  // trusted predecessor.
+  const fresh = { ...structuredClone(next), coordinator: { ...next.coordinator, session: "local_fresh" }, previousCoordinators: [] };
+  delete fresh.tickets[42].checkpoints;
+  assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: rc.trustedCoordinators(fresh), record: fresh }), c.final).applies, false);
+  assert.throws(() => rc.importDecisions(structuredClone(fresh), { ticket: 42, pr: 500, comments, trust: ["local_writer"], source: "status comment", git: repo }), /#42's writer/);
+  assert.throws(() => rc.importDecisions(structuredClone(fresh), { ticket: 42, pr: 500, comments, trust: ["local_fresh"], source: "status comment", git: repo }), /own decisions/);
+  assert.throws(() => rc.importDecisions(structuredClone(fresh), { ticket: 42, pr: 500, comments, trust: ["local_coord"], git: repo }), /--source/);
+  const importComments = [...comments, forgedComment, writerComment, { ...forgedComment, id: 9010, body: forgedComment.body.replace("forged01", "edited01"), updated_at: at() }];
+  const outcome = rc.importDecisions(fresh, { ticket: 42, pr: 500, comments: importComments, trust: ["local_coord"], source: "Feature #40 status comment naming local_coord", git: repo });
+  assert.deepEqual(outcome.imported.map((d) => d.kind), ["repair", "extend", "extend", "maintainer", "accept-unreviewed"]);
+  assert.deepEqual(outcome.refused.map((d) => d.id), ["forged01", "writer01", "edited01"]);
+  assert.match(outcome.refused[0].reason, /names no exact range/);
+  assert.match(outcome.refused[1].reason, /local_writer is not one this restoration trusts/);
+  assert.match(outcome.refused[2].reason, /was edited/);
+  const resumedFresh = rc.restore(comments, { trusted: rc.trustedCoordinators(fresh), record: fresh });
+  assert.ok(resumedFresh.every((d) => d.verified));
+  assert.equal(rc.acceptanceApplies(resumedFresh, c.final).applies, true);
+  assert.deepEqual(rc.audit(rc.roundState(rc.readJournals(jobDir)), resumedFresh), []);
+  const tampered = { ...structuredClone(fresh), tickets: { 42: { ...structuredClone(fresh.tickets[42]), checkpoints: [] } } };
+  const stretched = comments.map((x) => (x.id === acceptedComment.id ? { ...x, body: x.body.replace(`"diffSha256": "${record().tickets[42].checkpoints.find((d) => d.id === accepted.id).range.diffSha256}"`, `"diffSha256": "${"f".repeat(64)}"`) } : x));
+  assert.match(rc.importDecisions(tampered, { ticket: 42, pr: 500, comments: stretched, trust: ["local_coord"], source: "status", git: repo }).refused.find((d) => d.id === accepted.id).reason, /no longer hashes/);
 
   // The command line runs the same path: evidence writes the diff the
   // acceptance hash binds, and acceptance-check reads the PR alone.
