@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
 
 /** Client to server: `{methods?: string[]}`; omitted means every notification, `[]` none. */
-export const SUBSCRIBE_METHOD = "$/subscribe";
+const SUBSCRIBE_METHOD = "$/subscribe";
 /** Server to editor; keep in step with devProtocolBridge.ts. */
 const BRIDGE_SUBSCRIPTIONS_METHOD = "$/bridgeSubscriptions";
 
