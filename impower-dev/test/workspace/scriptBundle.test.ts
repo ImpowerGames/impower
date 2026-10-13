@@ -1,14 +1,9 @@
 import { FileData } from "@impower/spark-editor-protocol/src/types";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-// The Workspace singleton instantiates Workers at module load and is
-// circular-imported by WorkspaceFileSystem. Stub it so importing the class is
-// side-effect-free; we never construct WorkspaceFileSystem (which would spawn a
-// Worker) — we invoke its methods via prototype.method.call(fakeThis, ...).
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { fs: {}, ls: {}, configuration: { settings: {} } },
-}));
-
+// Importing WorkspaceFileSystem does not load the Workspace singleton (#1794).
+// We never construct WorkspaceFileSystem (which would spawn a Worker) — we
+// invoke its methods via prototype.method.call(fakeThis, ...).
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const PROJECT = "proj1";
