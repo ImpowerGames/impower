@@ -28,6 +28,7 @@ import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 import { routeVendor, writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
 import { liveDeps, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
+import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 export const RECORD_VERSION = 1;
@@ -174,6 +175,10 @@ export function pointerFile(checkout, repository, feature) {
   return path.join(common, "orchestrate-feature", `${repository.replace(/[^A-Za-z0-9.-]+/g, "_")}-${feature}.json`);
 }
 
+// What an invocation authorizes; a takeover starts from it again rather than
+// inheriting the previous coordinator's grant.
+export const AUTHORITY = { reviewRounds: "the default three-round cap; a further round needs the maintainer's decision or delegation", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" };
+
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
   const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
@@ -194,7 +199,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   const fresh = (carried = {}) => ({
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout, coordinator: self,
     invocation: { text: invocation, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
-    authority: { reviewRounds: "the default three-round cap; a further round needs the maintainer's decision or delegation", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" },
+    authority: AUTHORITY,
     writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [],
     log: [{ time: self.since, event: carried.tickets ? "takeover" : "init", coordinator, writer: writer.model, concurrency: concurrency.limit }],
   });
@@ -236,12 +241,22 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
 // is found even after its wrapper ended. Absent evidence, a failed census, a
 // cancellation request or a foreign host leaves the owner unknown, which
 // blocks any replacement.
+//
+// A writer on another host is judged only by an observation that names that
+// host, made there by its coordinator or the maintainer: this host's own view
+// of it (an absent PID, a session its app does not list) proves nothing.
 const EXITED = new Set(["archived", "absent", "completed", "failed", "stopped"]);
 const processCensus = () => { const r = liveDeps.processes(); return r.ok ? r.list : null; };
 export function ownerStatus(owner, observations = {}, { host = os.hostname(), identify = processIdentity, census = processCensus } = {}) {
   const handle = owner.handle;
+  const foreign = Boolean(handle.host) && handle.host !== host;
   if (handle.kind === "process") {
-    if (handle.host !== host) return { status: "unknown", reason: `process ${handle.pid} runs on ${handle.host}; this host cannot observe it` };
+    if (handle.host !== host) {
+      const seen = observations.processes?.[handle.pid];
+      if (seen?.host === handle.host && seen.start === handle.start && (seen.state === "exited" || EXITED.has(seen.state))) return { status: "exited", reason: `process ${handle.pid} on ${handle.host} was observed ${seen.state} there${seen.source ? ` (${seen.source})` : ""}` };
+      if (seen?.host === handle.host && seen.start === handle.start && seen.state === "running") return { status: "live", reason: `process ${handle.pid} on ${handle.host} was observed running there` };
+      return { status: "unknown", reason: `process ${handle.pid} runs on ${handle.host}; this host cannot observe it` };
+    }
     let now;
     try { now = identify(handle.pid); } catch (error) { return { status: "unknown", reason: `process ${handle.pid} could not be probed: ${error.message}` }; }
     if (now && !handle.start) return { status: "unknown", reason: `process ${handle.pid} has no recorded start identity` };
@@ -257,6 +272,7 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
   }
   const seen = (handle.kind === "session" ? observations.sessions : observations.tasks)?.[handle.id];
   if (!seen) return { status: "unknown", reason: `no observation of ${handle.kind} ${handle.id}; read its state before deciding` };
+  if (foreign && seen.host !== handle.host) return { status: "unknown", reason: `${handle.kind} ${handle.id} belongs to ${handle.host}; an observation from ${seen.host ?? "this host"} proves nothing about it, so observe it on ${handle.host}` };
   if (seen.state === "running") return { status: "live", reason: `${handle.kind} ${handle.id} is running` };
   if (seen.state === "idle" && handle.kind === "session") return { status: "waiting", reason: `session ${handle.id} ended its turn; read its report or answer it` };
   if (EXITED.has(seen.state)) return { status: "exited", reason: `${handle.kind} ${handle.id} is ${seen.state}` };
@@ -351,7 +367,7 @@ function adoptedNext(pending) {
 export const REMAINING = [
   "Review rounds beyond the default three need the maintainer's decision or recorded delegation; the coordinator decides each checkpoint by hand.",
   "Ready PRs wait for the maintainer to merge them; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
-  "The run record is local to this coordinator's machine; a handoff to another machine or account needs the portable checkpoint the record does not yet provide.",
+  "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
   "The Feature's own acceptance criteria are not verified by this plan, so the Feature is never reported complete from it.",
 ];
 
@@ -426,6 +442,7 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     if (own.pending) {
       active++;
       const p = own.pending;
+      if (p.host && p.host !== host) { add(t, "blocked-owner-unknown", `${p.operation} ${p.launchId} on ${p.route} was claimed on ${p.host} and has no recorded outcome; settle it on that host (reconcile there, or withdraw --observed-on ${p.host} with what was observed there) before any retry`, { pending: p }); continue; }
       const heldParent = heldAncestor(t);
       if (p.route === "claude-adopted" && p.operation === "dispatch") {
         const [action, reason] = adoptedNext(p);
@@ -519,6 +536,15 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     if (chosen) add(t, "dispatch", `every blocker's deliverable is on origin/main`, startWith(choice));
     else add(t, "propose", `only ${proposable.route} is available and this turn cannot start it; propose it and record the proposal with claim --operation proposed`, { route: proposable.route, model, effort, reasons });
   }
+  // A planned handoff admits no new work: nothing starts, and existing work
+  // is not continued, until the next coordinator plans.
+  if (record.handoff) {
+    const why = `a planned handoff stopped new dispatch at ${record.handoff.since}`;
+    for (const t of tickets) {
+      if (t.action === "dispatch" || t.action === "propose") Object.assign(t, { action: "wait-handoff", reason: why });
+      if (t.continueWith) { delete t.continueWith; t.continueBlocked = why; }
+    }
+  }
   tickets.sort((a, b) => a.number - b.number);
   return {
     repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session, turn,
@@ -552,7 +578,7 @@ function assertFree(ticket, number) {
 // writer once the coordinator has evidence that the previous one ended; it
 // keeps the branch, worktree and the PR's started review rounds.
 const CLAIM_ACTIONS = { dispatch: ["dispatch"], proposed: ["propose"], continue: ["adopt-pr", "adopt-worktree"] };
-export function claim(record, { plan, ticket: number, worktree, branch, artifactParent, operation = "dispatch", evidence }) {
+export function claim(record, { plan, ticket: number, worktree, branch, artifactParent, operation = "dispatch", evidence, host = os.hostname() }) {
   if (!Object.hasOwn(CLAIM_ACTIONS, operation)) throw new Error(`--operation must be ${Object.keys(CLAIM_ACTIONS).join(", ")}`);
   const entry = planEntry(plan, record, number, CLAIM_ACTIONS[operation]);
   if (!path.isAbsolute(worktree ?? "") || !path.isAbsolute(artifactParent ?? "")) throw new Error("--worktree and --artifact-parent must be absolute paths");
@@ -575,7 +601,7 @@ export function claim(record, { plan, ticket: number, worktree, branch, artifact
   if (sameTree) throw new Error(`${worktree} is assigned to #${sameTree[0]}`);
   const ticket = ticketOf(record, number);
   assertFree(ticket, number);
-  ticket.pending = { operation: operation === "proposed" ? "proposed" : "dispatch", launchId: randomUUID(), route: start.route, model: start.model, effort: start.effort, worktree, branch, artifactParent, ...(continues && { continues }), time: new Date().toISOString() };
+  ticket.pending = { operation: operation === "proposed" ? "proposed" : "dispatch", launchId: randomUUID(), route: start.route, model: start.model, effort: start.effort, worktree, branch, artifactParent, host, ...(continues && { continues }), time: new Date().toISOString() };
   log(record, { dispatch: "dispatch-intent", proposed: "proposed", continue: "continue-intent" }[operation], { ticket: number, route: start.route, launchId: ticket.pending.launchId, ...(continues && { continues }) });
   return ticket.pending;
 }
@@ -631,12 +657,16 @@ export function adopt(record, { plan, ticket: number, handleKind, handle, pid, r
   return ticket.owner;
 }
 
-export function withdraw(record, { ticket: number, evidence }) {
+export function withdraw(record, { ticket: number, evidence, observedOn, host = os.hostname() }) {
   const ticket = ticketOf(record, number);
   if (!ticket.pending) throw new Error(`#${number} has nothing pending`);
   if (!evidence) throw new Error("--evidence must say why no writer started (a declined proposal, or the observation that found none)");
-  log(record, "withdrawn", { ticket: number, launchId: ticket.pending.launchId, evidence });
-  ticket.history.push(settledStart(ticket.pending, { withdrawn: evidence }));
+  // A start claimed on another host left its traces there; only an
+  // observation made there can show that nothing started.
+  const claimedOn = ticket.pending.host;
+  if (claimedOn && claimedOn !== host && observedOn !== claimedOn) throw new Error(`#${number}'s start was claimed on ${claimedOn}; withdraw it only with evidence observed there, naming that host with --observed-on ${claimedOn}`);
+  log(record, "withdrawn", { ticket: number, launchId: ticket.pending.launchId, evidence, ...(observedOn && { observedOn }) });
+  ticket.history.push(settledStart(ticket.pending, { withdrawn: evidence, ...(observedOn && { observedOn }) }));
   ticket.pending = null;
 }
 
@@ -944,6 +974,9 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   const ticket = ticketOf(record, number), pending = ticket.pending;
   if (!pending) throw new Error(`#${number} has nothing pending`);
   if (pending.route !== "claude-cli") throw new Error(`A ${pending.route} start is confirmed with launched or withdrawn with evidence`);
+  // The launch directory and the writer's processes are on the host that
+  // claimed the start; their absence here proves nothing.
+  if (pending.host && pending.host !== host) throw new Error(`Launch ${pending.launchId} was claimed on ${pending.host}; reconcile it on that host`);
   const launchDir = launchDirOf(pending, number);
   if (!fs.existsSync(launchDir)) {
     ticket.history.push(settledStart(pending, { withdrawn: "no launch directory exists, so nothing was started", ended: "nothing was started" }));
@@ -1029,12 +1062,20 @@ const integer = (value, name) => { const n = Number(value); if (!Number.isSafeIn
 const absolute = (value, name) => { if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`); return value; };
 const readOptional = (file) => (file ? readJson(absolute(file, "file")) : undefined);
 
-export function main(argv, { defaults = readWriterDefaults() } = {}) {
+// Commands whose side effect starts a writer: with checkpoints enabled, the
+// intent they act on must already be saved remotely, so an interruption
+// leaves a recorded intent rather than an untracked writer.
+const SIDE_EFFECTS = new Set(["launch", "create", "handoff"]);
+
+export function main(argv, { defaults = readWriterDefaults(), github } = {}) {
   const { command, options: o } = parseArgs(argv);
+  const transition = () => `${command}${o.ticket ? ` of #${o.ticket}` : ""}`;
+  if (SIDE_EFFECTS.has(command)) ensureSaved(absolute(o.record, "record"), { coordinator: o.coordinator, github });
+  const checkpointAfter = (file) => { const c = autoCheckpoint(file, { coordinator: o.coordinator, transition: transition(), github }); return c ? { checkpoint: c } : {}; };
   const mutate = (fn) => {
     const file = absolute(o.record, "record");
     const { record, output } = updateRecord(file, { expectRevision: integer(o.expectRevision, "expect-revision"), coordinator: o.coordinator }, (r) => fn(r));
-    return { revision: record.revision, ...(output && typeof output === "object" ? { result: output } : {}) };
+    return { revision: record.revision, ...(output && typeof output === "object" ? { result: output } : {}), ...checkpointAfter(file) };
   };
   const number = () => integer(o.ticket, "ticket");
   switch (command) {
@@ -1056,8 +1097,8 @@ export function main(argv, { defaults = readWriterDefaults() } = {}) {
     }
     case "claim": return mutate((r) => claim(r, { plan: absolute(o.plan, "plan"), ticket: number(), worktree: o.worktree, branch: o.branch, artifactParent: o.artifactParent, operation: o.operation, evidence: o.evidence }));
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt }));
-    case "create": return createAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, permissionMode: o.permissionMode });
-    case "handoff": return handoffAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable });
+    case "create": return { ...createAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, permissionMode: o.permissionMode }), ...checkpointAfter(absolute(o.record, "record")) };
+    case "handoff": return { ...handoffAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable }), ...checkpointAfter(absolute(o.record, "record")) };
     case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry), plan: o.plan ? absolute(o.plan, "plan") : undefined, decisions: o.decision ?? [], defaults }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
@@ -1068,7 +1109,7 @@ export function main(argv, { defaults = readWriterDefaults() } = {}) {
     case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle }));
     case "adopt": return mutate((r) => adopt(r, { plan: absolute(o.plan, "plan"), ticket: number(), handleKind: o.handleKind, handle: o.handle, pid: o.pid, route: o.route, model: o.model, effort: o.effort, worktree: o.worktree, branch: o.branch }));
     case "reconcile": return mutate((r) => reconcile(r, { ticket: number() }));
-    case "withdraw": return mutate((r) => withdraw(r, { ticket: number(), evidence: o.evidence }));
+    case "withdraw": return mutate((r) => withdraw(r, { ticket: number(), evidence: o.evidence, observedOn: o.observedOn }));
     case "verify": return mutate((r) => verify(r, { ticket: number(), preflight: absolute(o.preflight, "preflight") }));
     case "release": return mutate((r) => release(r, { ticket: number(), observations: readOptional(o.observations) ?? {}, evidence: o.evidence }));
     case "result": return mutate((r) => result(r, { ticket: number(), report: absolute(o.report, "report") }));
@@ -1083,5 +1124,7 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
   try {
     const output = main(process.argv.slice(2));
     console.log(typeof output === "string" ? output : JSON.stringify(output, null, 2));
+    // The local change stands, but nothing remote holds it yet.
+    if (output?.checkpoint?.saved === false) { console.error(`The record changed locally, but its checkpoint was not saved: ${output.checkpoint.reason}`); process.exitCode = 3; }
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
