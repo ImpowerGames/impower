@@ -937,15 +937,18 @@ describe("the choose chunk", () => {
     expect(paused.pausedBeforeCondition).toBe(enter);
     paused.pauseBeforeEvaluatingConditions = false;
     while (paused.canContinue) paused.Continue();
-    expect(paused.currentChoices.map((c) => c.sourcePath)).toEqual([enter, wait]);
+    expect(paused.currentChoices.map((c) => c.sourcePath)).toEqual([
+      String(enter),
+      String(wait),
+    ]);
 
     const forced = new ProgramStory(root);
-    const sites: string[] = [];
+    const sites: number[] = [];
     forced.simulator = {
       forceCondition: (site) => (site === enter ? false : null),
       forceChoice: (site) => {
         sites.push(site);
-        return wait!;
+        return String(wait);
       },
       willForceCondition: () => true,
       willForceChoice: () => true,

@@ -2,6 +2,7 @@ import type { CallStack } from "../runtime/CallStack";
 import type { ErrorType, RaisedError } from "../runtime/Error";
 import type { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
+import type { ProgramAddress } from "../compiler/types/ProgramAddress";
 import type { AbstractValue, ObjectValue } from "../runtime/Value";
 import type { VariablesState } from "../runtime/VariablesState";
 import type { ProgramImage, ProgramImages } from "./ProgramImages";
@@ -130,8 +131,8 @@ export interface StoryEngine {
   // The route planner's control (section 9, `planRoute.ts`).
   simulator: Simulator | null;
   pauseBeforeEvaluatingConditions: boolean;
-  /** The address of the decision a continue stopped before, as a string. */
-  pausedBeforeCondition: string | null;
+  /** The address of the decision a continue stopped before. */
+  pausedBeforeCondition: ProgramAddress | null;
 
   // Checkpoints and saves (section 7).
   keepBeatImages: boolean;

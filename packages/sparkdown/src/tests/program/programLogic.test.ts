@@ -7,7 +7,7 @@
 // script shows (literals read from the script), and the constructs a compile
 // builds or reports.
 import { describe, expect, it } from "vitest";
-import { buildRouteSimulator } from "../../compiler/utils/planRoute";
+import { buildRouteSimulator, planRoute } from "../../compiler/utils/planRoute";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { IncDecExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IncDecExpression";
 import { MultipleConditionExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/MultipleConditionExpression";
@@ -28,7 +28,9 @@ import {
   B_BREAK,
   B_RESUME,
   HEADER_WORDS,
+  addressOf,
   blockCount,
+  chunkId,
   blockField,
   blockFlags,
   blockScopes,
@@ -797,7 +799,7 @@ describe("a continue that returns between two lines", () => {
       .map(({ offset }) => ProgramStory.addressOf(conditional, offset));
     expect(decisions).toHaveLength(1);
     const site = decisions[0]!;
-    const simulator = buildRouteSimulator([{ kind: "condition", path: site, value: false }]);
+    const simulator = buildRouteSimulator([{ kind: "condition", site, value: false }]);
     const story = new ProgramStory(root);
     story.simulator = simulator;
     const cursors: (number | undefined)[] = [];
@@ -809,6 +811,49 @@ describe("a continue that returns between two lines", () => {
     // The plan takes the `else` branch although `flag` is true.
     expect(lines).toEqual(["First.\n", "No.\n", "Last.\n", ""]);
     expect(cursors).toEqual([undefined, 1, 1, 1]);
+  });
+
+  it("names a decision site by its numeric address from the story through the plan to the replay (#1739)", () => {
+    const root = chunked(
+      "store flag = true\nFirst.\nif flag then\n  Yes.\nelse\n  No.\nend\nLast.\n",
+    );
+    const reader = new BinaryProgramReader(root);
+    const conditional = root.flowNamed("")!.arrays.chunks[1]!;
+    const decision = [...reader.instructions(conditional)].find(
+      ({ op, offset }) =>
+        op === Op.JumpIfFalse &&
+        (flagsOf(conditional[HEADER_WORDS + offset]!) & JUMP_DECISION) !== 0,
+    )!;
+    const site = addressOf(chunkId(conditional), decision.offset);
+    // The story names the site by the number itself, not its text.
+    expect(ProgramStory.addressOf(conditional, decision.offset)).toBe(site);
+    const paused = new ProgramStory(root);
+    paused.pauseBeforeEvaluatingConditions = true;
+    while (paused.canContinue && paused.pausedBeforeCondition === null) {
+      paused.Continue();
+    }
+    expect(paused.pausedBeforeCondition).toBe(site);
+
+    // A target only the `else` branch runs, so a plan to it must force the
+    // decision false at that site.
+    const run = (simulator: ReturnType<typeof buildRouteSimulator> | null) => {
+      const story = new ProgramStory(root);
+      story.simulator = simulator;
+      story.executedLog = [];
+      const lines: string[] = [];
+      while (story.canContinue) lines.push(story.Continue() ?? "");
+      return { lines, executed: story.executedLog };
+    };
+    const taken = run(null).executed;
+    const forced = run(buildRouteSimulator([{ kind: "condition", site, value: false }]));
+    expect(forced.lines).toEqual(["First.\n", "No.\n", "Last.\n", ""]);
+    const target = forced.executed.find((address) => !taken.includes(address));
+    expect(target).toBeDefined();
+
+    const plan = planRoute(new ProgramStory(root), "", target!);
+    expect(plan?.decisions).toEqual([{ kind: "condition", site, value: false }]);
+    // The plan replays through the simulator the engine asks by the same number.
+    expect(run(buildRouteSimulator(plan!.decisions)).lines).toEqual(forced.lines);
   });
 });
 
