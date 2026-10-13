@@ -282,19 +282,14 @@ export default class WorkspaceLanguageServer {
         // The editor main thread only reads diagnostics + scripts
         // from `compiler/didCompile` (see SparkdownWorkspace.compile), so have
         // the language server relay a slim program instead of the whole ~9MB
-        // per keystroke. The player and vscode keep the full relay.
+        // per keystroke. The VS Code extension asks for the slim relay too; the
+        // player compiles in its own worker and keeps the full one.
         slimProgramNotifications: true,
         // Filtered images resolve through the service worker's on-demand
         // `?filters=` route in this host (#299), so the program doesn't need
         // the inlined SVG source that dominated its payload. LS previews
         // re-source it lazily from watched files.
         stripImageData: true,
-        // Applying each of the language server's compile results (diagnostics
-        // and their refreshes) costs this page about 100 ms of main thread, so
-        // its keystroke compiles wait for a pause of 200 ms (a max-wait of
-        // 800 ms while typing goes on). The player's preview compiles keep the
-        // workspace's shorter default (#1797).
-        compileDebounceDelay: 200,
       },
       workspaceFolders: [
         {

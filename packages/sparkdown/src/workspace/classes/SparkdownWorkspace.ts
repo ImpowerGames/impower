@@ -978,11 +978,10 @@ export abstract class SparkdownWorkspace {
   // freezing until the first pause. The default, 50 ms, was chosen by
   // measurement for the player's preview compiles (#1797): typing at 80 to
   // 120 ms a key on a long script, it is the shortest delay whose results are
-  // no more often stale on arrival than at 200 ms. A host can override it
-  // (`compileDebounceDelay` on initialize): the language-server hosts keep
-  // 200 ms, since applying each of their results costs the web editor about
-  // 100 ms of main thread. 0 compiles at every keystroke, still one compile
-  // at a time.
+  // no more often stale on arrival than at 200 ms. The language-server hosts
+  // use it too since their slim relay stopped carrying the program's files
+  // table (#1815). A host can override it (`compileDebounceDelay` on
+  // initialize); 0 compiles at every keystroke, still one compile at a time.
   protected _changeCompileDebounceDelay = 50;
   protected _changeCompileTimer?: ReturnType<typeof setTimeout>;
   protected _changeCompileDeadline?: number;
@@ -1201,8 +1200,11 @@ export abstract class SparkdownWorkspace {
         // or delivered through a dedicated channel:
         //   - full diagnostics    → textDocument/publishDiagnostics
         //   - prev/next beat      → sparkdown/offsetSourceLocation
-        // uri/scripts/files/version ride along because they're small and
-        // identify the compile. Resist adding heavy fields back here — prefer an
+        // uri/scripts/version ride along because they're small and identify
+        // the compile. `files` is NOT small: it describes every asset of the
+        // project and measured 5.8 MB of JSON on a real one, which cost the
+        // editor a ~40 ms clone per compile result for a field nothing there
+        // reads (#1815). Resist adding heavy fields back here — prefer an
         // on-demand request.
         const notificationParams: CompiledProgramParams = this
           .slimProgramNotifications
@@ -1211,7 +1213,7 @@ export abstract class SparkdownWorkspace {
               program: {
                 uri: result.program.uri,
                 scripts: result.program.scripts,
-                files: result.program.files,
+                files: {},
                 version: result.program.version,
               },
               diagnosticsSummary: summarizeDiagnostics(
