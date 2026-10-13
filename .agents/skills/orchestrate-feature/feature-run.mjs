@@ -390,13 +390,28 @@ function adoptedNext(pending) {
 
 // The Feature's "Acceptance criteria" section: every line under that heading
 // up to the next heading of the same or a higher level, so nested headings
-// stay inside it. Null when the Feature has no such heading.
+// stay inside it. A line inside a fenced code block is never a heading. Null
+// when the Feature has no such heading.
+const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
+// Each line's place relative to fenced code and HTML comments: true for a
+// fence or comment and every line inside one, so neither a heading nor a
+// checkbox there counts.
+function fencedLines(lines) {
+  let fence = null, comment = false;
+  return lines.map((l) => {
+    if (comment) { if (l.includes("-->")) comment = false; return true; }
+    if (!fence && /^\s{0,3}<!--/.test(l)) { comment = !l.slice(l.indexOf("<!--") + 4).includes("-->"); return true; }
+    const f = FENCE.exec(l);
+    if (f) { if (!fence) fence = f[1]; else if (f[1][0] === fence[0] && f[1].length >= fence.length) fence = null; return true; }
+    return fence !== null;
+  });
+}
+const headingLevels = (lines) => { const fenced = fencedLines(lines); return lines.map((l, i) => (fenced[i] ? 0 : /^(#{1,6})\s/.exec(l)?.[1].length ?? 0)); };
 export function acceptanceSection(body) {
-  const lines = String(body ?? "").split(/\r?\n/);
-  const start = lines.findIndex((l) => /^#{1,6}\s+Acceptance criteria\s*$/i.test(l.trim()));
+  const lines = String(body ?? "").split(/\r?\n/), levels = headingLevels(lines);
+  const start = lines.findIndex((l, i) => levels[i] > 0 && /^#{1,6}\s+Acceptance criteria\s*$/i.test(l.trim()));
   if (start < 0) return null;
-  const level = /^#+/.exec(lines[start].trim())[0].length;
-  const end = lines.findIndex((l, i) => i > start && /^#{1,6}\s/.test(l) && /^#+/.exec(l)[0].length <= level);
+  const end = levels.findIndex((level, i) => i > start && level > 0 && level <= levels[start]);
   return lines.slice(start + 1, end < 0 ? undefined : end);
 }
 // The section's text with line endings and trailing spaces normalized; a
@@ -405,11 +420,14 @@ export function acceptanceSection(body) {
 // verification.
 export const acceptanceHash = (body) => { const s = acceptanceSection(body); return s === null ? null : createHash("sha256").update(s.map((l) => l.trimEnd()).join("\n").trim()).digest("hex"); };
 // Each checkbox in the section, with its indented continuation lines joined
-// to it, under any nested heading.
+// to it, under any nested heading; a checkbox inside fenced code is an
+// example, not a criterion.
 export function parseCriteria(body) {
   const items = [];
   let open = false;
-  for (const l of acceptanceSection(body) ?? []) {
+  const section = acceptanceSection(body) ?? [], fenced = fencedLines(section);
+  for (const [i, l] of section.entries()) {
+    if (fenced[i]) { open = false; continue; }
     const m = /^\s*[-*]\s+\[[ xX]\]\s+(.*\S)\s*$/.exec(l);
     if (m) { items.push([m[1]]); open = true; continue; }
     if (open && /^\s+\S/.test(l) && !/^\s*[-*+]\s/.test(l)) { items.at(-1).push(l.trim()); continue; }

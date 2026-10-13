@@ -22,7 +22,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRecord, updateRecord, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, githubClient } from "./feature-run.mjs";
-import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText } from "./checkpoint.mjs";
+import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
 
 export { parseCriteria };
@@ -216,7 +216,18 @@ const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.review
 // is uncertain and is settled by reconcile-operations before any retry. A
 // merge commit whose first parent is not the main the gate admitted landed on
 // code CI never checked, and the outcome says so.
-export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, client, git, afterIntent }) {
+// Whether this record's coordinator still owns the Feature on its state
+// branch, with this operation's intent saved there, read from the remote. A
+// takeover, or an intent that never reached the remote, refuses the call.
+export function remoteOwnership(record, opId) {
+  const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.feature);
+  if (!state) return [`${stateBranch(record.feature)} is missing on ${record.checkpoints.remote}`];
+  if (state.checkpoint.coordinator.session !== record.coordinator.session) return [`Feature #${record.feature} has been taken over: checkpoint ${state.checkpoint.seq} names coordinator ${state.checkpoint.coordinator.session}`];
+  if (!(state.checkpoint.operations ?? []).some((o) => o.id === opId && o.state === "intent")) return [`operation ${opId}'s intent is not on ${stateBranch(record.feature)}`];
+  return [];
+}
+
+export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
   const gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, pr, client, git }), git });
@@ -231,16 +242,19 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
   let again;
+  let owned;
   let lastMain;
   try {
     again = admission(readRecord(file), { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record: readRecord(file), pr, client, git }), git, running: op.id });
-    // The last read before GitHub is called: main once more, after every
+    // Ownership of the Feature and this intent, from the state branch, then
+    // the last read before GitHub is called: main once more, after every
     // slower read of the second gate.
+    owned = ownership(readRecord(file), op.id);
     git.fetch();
     lastMain = git.main();
   } catch (error) { notRun(`the gate could not be checked again after the intent was saved: ${error.message}`); throw error; }
-  if (!again.admitted || again.head !== gate.head || again.originMain !== gate.originMain || lastMain !== gate.originMain) {
-    const why = !again.admitted ? again.blockers.join("; ") : again.head !== gate.head ? `the head moved from ${gate.head} to ${again.head}` : `${TARGET} moved from ${gate.originMain} to ${again.originMain === gate.originMain ? lastMain : again.originMain}`;
+  if (owned.length || !again.admitted || again.head !== gate.head || again.originMain !== gate.originMain || lastMain !== gate.originMain) {
+    const why = owned.length ? owned.join("; ") : !again.admitted ? again.blockers.join("; ") : again.head !== gate.head ? `the head moved from ${gate.head} to ${again.head}` : `${TARGET} moved from ${gate.originMain} to ${again.originMain === gate.originMain ? lastMain : again.originMain}`;
     notRun(`while the intent was saved, ${why}; run the gate again`);
     return { admitted: true, merged: false, operation: op.id, state: "failed", evidence: `not run: ${why}`, gate, recheck: again };
   }
@@ -382,7 +396,7 @@ export function verifyFeature(record, { snapshot, evidence, mainSha }) {
 // reads back: a close that was called is failed only on GitHub's own refusal,
 // and every other result short of a closed Feature is uncertain until
 // reconciled, since the request may still land.
-export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, client, git, afterIntent }) {
+export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
   if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run, so the closure's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
@@ -423,7 +437,7 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
     // The last step before the close call: every premise once more, on a
     // fresh snapshot with main read last, after the report's GitHub requests.
     let last;
-    try { last = gapsNow(readRecord(file), op.id); } catch (error) { notRun(`the verification could not be checked again before the close call: ${error.message}`); throw error; }
+    try { last = [...ownership(readRecord(file), op.id), ...gapsNow(readRecord(file), op.id)]; } catch (error) { notRun(`the verification could not be checked again before the close call: ${error.message}`); throw error; }
     if (last.length) {
       notRun(`after the report was posted in comment ${comment.id}, ${last.join("; ")}; that report's verification no longer holds, so verify the Feature again`);
       return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${last.join("; ")}`, comment };

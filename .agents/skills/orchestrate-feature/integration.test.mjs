@@ -1,5 +1,6 @@
 // agent-tooling-timeout-ms: 900000
-// Measured at 115 s on a loaded Windows machine; like the checkpoint check,
+// Measured at 435 s on a Windows machine running a mutation sweep of this
+// same check beside it; like the checkpoint check,
 // it drives real clones of a scratch remote, so the default five-minute bound
 // leaves too little headroom on a slower runner.
 // Exercises the merge gate, the expected-head merge and the Feature's
@@ -150,7 +151,12 @@ try {
   // Inside every merge call, before GitHub acts, the shared checkpoint must
   // already hold that merge's intent.
   gh.intentsSeen = [];
-  gh.beforeMerge = (pr, head) => gh.intentsSeen.push({ pr, head, saved: cp.fetchState(src, "origin", REPO, FEATURE).checkpoint.operations.some((o) => o.pr === pr && o.expectHead === head && o.state === "intent") });
+  // The operation is the one the record holds for this call, by id, so an
+  // earlier attempt's intent left on the state branch does not count.
+  gh.beforeMerge = (pr, head) => {
+    const op = run.readRecord(recordFile).operations.filter((o) => o.kind === "merge" && o.pr === pr).at(-1);
+    gh.intentsSeen.push({ pr, head, saved: cp.fetchState(src, "origin", REPO, FEATURE).checkpoint.operations.some((o) => o.id === op?.id && o.expectHead === head && o.state === "intent") });
+  };
   const record = () => run.readRecord(recordFile);
   const change = (fn, file = recordFile, coordinator = "local_coord") => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator }, fn).output;
 
@@ -340,6 +346,11 @@ try {
   assert.deepEqual([beforeCall.merged, beforeCall.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], beforeCall.evidence);
   assert.match(beforeCall.evidence, /not run: main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
   catchUp();
+  // Another coordinator takes the Feature over while the intent is saved: the
+  // state branch's owner is read with the last checks, so nothing is called.
+  const disowned = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: () => ["Feature #40 has been taken over: checkpoint 99 names coordinator local_other"] });
+  assert.deepEqual([disowned.merged, disowned.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], disowned.evidence);
+  assert.match(disowned.evidence, /not run: Feature #40 has been taken over/);
 
   // The merge, through the public command: intent saved first by the
   // command's own wiring, an expected-head call with no bypass, and the
@@ -498,6 +509,10 @@ try {
   const taken = cp.resume({ record: dstRecord, checkout: dst, repository: REPO, feature: FEATURE, coordinator: "local_dst", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `Use orchestrate-feature for #${FEATURE}; take over from the exhausted account.`, merging: "coordinator", evidence: "the maintainer reports the source account reached its usage limit" }, { github: statusGithub, host: DST, defaults, totalMemory: 64 * GB });
   assert.equal(taken.action, "takeover");
   assert.equal(run.coordinatorMerges(run.readRecord(dstRecord)), true, "the new coordinator's own invocation grants the merge");
+  // The state branch now names the destination: the source no longer owns
+  // the Feature, and the destination's own intents are read there by id.
+  assert.match(ig.remoteOwnership(run.readRecord(recordFile), lost.operation).join(" "), /Feature #40 has been taken over: checkpoint [0-9]+ names coordinator local_dst/);
+  assert.match(ig.remoteOwnership(run.readRecord(dstRecord), "no-such-op").join(" "), /operation no-such-op's intent is not on orchestrate-state\/feature-40/);
   const overUnsettled = ig.mergeAdmitted(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, ticket: 43, pr: 143, takeSnapshot: () => snapshotNow(dst), client, git: gitOf(dst) });
   blocked(overUnsettled.gate, /is uncertain; settle it with checkpoint\.mjs reconcile-operations before any new merge/, "the destination does not merge over an unsettled operation");
   const settled = change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst), firstParent: (sha) => git(dst, "rev-parse", `${sha}^1`) }), dstRecord, "local_dst");
@@ -526,6 +541,14 @@ try {
   assert.notEqual(run.acceptanceHash(nested), run.acceptanceHash(nested.replace("Windows and Linux", "Windows, Linux and macOS")));
   assert.notEqual(run.acceptanceHash(nested), run.acceptanceHash(nested.replace("### Recovery\n", "### Recovery\n\nAlso on a cold start.\n")));
   assert.equal(run.acceptanceHash(nested), run.acceptanceHash(nested.replace("## Additional context\n\n- [ ] not a criterion", "## Additional context\n\n- [ ] still not a criterion")), "text after the section is not part of it");
+  // A heading or checkbox inside fenced code is part of an example: it neither
+  // ends the section nor counts as a criterion.
+  const fencedBody = "## Acceptance criteria\n\n- [ ] Basic operation works.\n\n```markdown\n## Example output\n- [ ] not a criterion inside the example\n```\n\n- [ ] Recovery after interruption works.\n\n## Additional context\n";
+  assert.deepEqual(ig.parseCriteria(fencedBody).map((c) => c.text), ["Basic operation works.", "Recovery after interruption works."]);
+  assert.notEqual(run.acceptanceHash(fencedBody), run.acceptanceHash(fencedBody.replace("after interruption", "after power loss")), "a criterion after a fenced heading is inside the section's hash");
+  const commentedBody = "## Acceptance criteria\n\n- [ ] Basic operation works.\n\n<!--\n## A heading left in a comment\n- [ ] a commented-out checkbox\n-->\n\n- [ ] Recovery after interruption works.\n\n## Additional context\n";
+  assert.deepEqual(ig.parseCriteria(commentedBody).map((c) => c.text), ["Basic operation works.", "Recovery after interruption works."]);
+  assert.notEqual(run.acceptanceHash(commentedBody), run.acceptanceHash(commentedBody.replace("after interruption", "after power loss")), "a criterion after a commented heading is inside the section's hash");
   const verify = (evidence, snapshot = snapshotNow(dst)) => change((r) => ig.verifyFeature(r, { snapshot, evidence, mainSha: originMain(dst) }), dstRecord, "local_dst");
   const met = (c, evidence) => ({ criterion: c, status: "met", evidence });
   assert.throws(() => verify({ criteria: [met(criteria[0], ["x"])] }), /omits criterion 2/);
@@ -535,7 +558,7 @@ try {
   // Every slice merged, one criterion unmet: the Feature stays open.
   const unmet = verify({ criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission"]), met(criteria[1], ["the final report lists decision on PR #142"]), { criterion: criteria[2], status: "unmet", gap: "the closing run has not been exercised" }] });
   assert.equal(unmet.verdict, "incomplete");
-  const close = (id, extra = {}) => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: id, takeSnapshot: () => snapshotNow(dst), client, git: gitOf(dst), ...extra });
+  const close = (id, extra = {}) => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: id, takeSnapshot: () => snapshotNow(dst), client, git: gitOf(dst), afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }), ...extra });
   assert.throws(() => close(unmet.id), /found the Feature incomplete .*unmet: The Feature closes only/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "merged slices with an unmet criterion are not completion");
   // A slice not delivered keeps it open too, whatever the criteria say.
@@ -600,6 +623,12 @@ try {
   // close whose answer is lost may still land, so it is uncertain and holds
   // the next attempt until reconciled; GitHub's own refusal is a failure.
   assert.throws(() => close(final.id, { takeSnapshot: () => ({ ...snapshotNow(dst), repository: "acme/other" }) }), /another repository or Feature/);
+  // Ownership is read from the state branch as the last step before the close
+  // call; a takeover there stops it.
+  const disownedClose = close(final.id, { afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }), ownership: () => ["Feature #40 has been taken over: checkpoint 99 names coordinator local_other"] });
+  assert.deepEqual([disownedClose.closed, disownedClose.state, gh.closeCalls ?? 0, gh.issues.get(FEATURE).state], [false, "failed", 0, "open"], disownedClose.evidence);
+  assert.match(disownedClose.evidence, /not run: Feature #40 has been taken over/);
+  final = verify(doneEvidence);
   // Main moves while the closure's intent is saved: the verification is
   // checked again after the save, and nothing is posted or closed.
   const closeCallsBefore = gh.closeCalls ?? 0, reportsBefore = gh.comments.get(FEATURE).length;
@@ -655,7 +684,10 @@ try {
   assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst) }), dstRecord, "local_dst").map((s) => [s.kind, s.state]), [["close", "not-applied"]]);
   // The closure through the public command: its own wiring saves the intent
   // on the state branch before the close call.
-  gh.beforeClose = () => { gh.closeIntentSeen = cp.fetchState(dst, "origin", REPO, FEATURE).checkpoint.operations.some((o) => o.kind === "close" && o.state === "intent"); };
+  gh.beforeClose = () => {
+    const op = run.readRecord(dstRecord).operations.filter((o) => o.kind === "close").at(-1);
+    gh.closeIntentSeen = cp.fetchState(dst, "origin", REPO, FEATURE).checkpoint.operations.some((o) => o.id === op?.id && o.expectHead === op?.expectHead && o.state === "intent");
+  };
   const closed = ig.main(["close-feature", "--record", dstRecord, "--coordinator", "local_dst", "--expect-revision", String(run.readRecord(dstRecord).revision), "--verification", final.id], { clientFor: () => client, gitFor: () => gitOf(dst), github: statusGithub, snapshotFor: () => () => snapshotNow(dst) });
   gh.beforeClose = null;
   assert.equal(gh.closeIntentSeen, true, "the public command saved the closure's intent on the state branch before the close call");
