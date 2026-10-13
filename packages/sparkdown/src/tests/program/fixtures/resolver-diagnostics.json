@@ -405,9 +405,7 @@
  },
  "functions/argument-name-collisions.sd": {
   "fallback": null,
-  "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"Duplicate identifier `global_var`. A function named `global_var` already exists on null\"},\"range\":{\"end\":{\"character\":16,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":16,\"line\":0},\"start\":{\"character\":6,\"line\":0}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
-  ]
+  "diagnostics": []
  },
  "functions/argument-shouldnt-conflict-with-gather.sd": {
   "fallback": null,

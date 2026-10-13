@@ -86,26 +86,18 @@ describe("Functions — clean-compile invariants", () => {
     ).toBe(true);
   });
 
-  test("function parameter / global-name collisions surface as compile errors", () => {
-    // Upstream ink test asserts the exact wording `"name has already
-    // been used for a function"` / `"name has already been used for a
-    // var"`. Sparkdown's diagnostic surface differs by wording — it
-    // emits `"Duplicate identifier \`X\`. A function named \`X\`
-    // already exists on null"` instead. We relax the check to "at
-    // least one diagnostic emitted" so the test pins the underlying
-    // detection (function param shadowing a top-level function name
-    // or a global store) without coupling to the exact wording.
-    //
-    // Sparkdown rewrite mirrors the upstream collisions:
-    //   - `function pass_divert(aTarget)` collides with
-    //     `function aTarget()` (file-scope name reuse)
-    //   - `function variable_param_test(global_var)` collides with
-    //     `store global_var = 5` (param shadowing a global)
+  test("function parameters shadow a global function or store of their name", () => {
+    // Upstream ink reports both of these as collisions (`"name has already
+    // been used for a function"` / `"... for a var"`). Sparkdown follows
+    // Luau, where a parameter shadows any outer name inside its function:
+    //   - `function pass_divert(aTarget)` beside `function aTarget()`
+    //   - `function variable_param_test(global_var)` beside
+    //     `store global_var = 5` (#1742)
     const ctx = makeRuntimeStoryFromFile(
       "functions",
       "argument-name-collisions",
     );
-    expect(ctx.errorMessages.length).toBeGreaterThan(0);
+    expect(ctx.errorMessages).toEqual([]);
   });
 });
 
