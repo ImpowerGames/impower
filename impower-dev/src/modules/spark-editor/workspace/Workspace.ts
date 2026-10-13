@@ -10,7 +10,7 @@ export namespace Workspace {
   export const configuration = new WorkspaceConfiguration();
   export const window = new WorkspaceWindow();
   export const ls = new WorkspaceLanguageServer();
-  export const fs = new WorkspaceFileSystem();
+  export const fs = new WorkspaceFileSystem(ls, configuration);
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
 }
