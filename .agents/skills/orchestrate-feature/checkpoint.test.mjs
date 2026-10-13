@@ -11,6 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { reserveFreeze, worktreePaths, assertFrozen } from "../../../scripts/review-job-store.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import * as run from "./feature-run.mjs";
@@ -582,6 +583,83 @@ try {
   assert.equal(taken790.checkpoint.work[791].snapshot?.commit, h790.snapshots[791].commit, "the takeover's own checkpoint names the snapshot");
   assert.match(taken790.brief, /commits made after the snapshot existed only on src-host/);
   assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 790, checkout: dst4, ticket: 791, worktree: path.join(tmp, "dst4-wt-791") }).worktree, "draft.txt"), "utf8"), "kept draft\n");
+
+  // Snapshot coverage at its edges: a staged rename with an edit, a large
+  // binary file and a symbolic link are carried exactly; an unmerged index
+  // and a changed submodule are refused and reported as not snapshotted.
+  // Then the run passes through two takeovers across hosts.
+  const THIRD = "third-host";
+  const rec795 = init(795, "local_src95", { concurrency: 8 });
+  cp.enable(rec795, { coordinator: "local_src95", expectRevision: 1, github, host: SRC });
+  const snap795 = { repository: "acme/widgets", feature: { number: 795, state: "open" }, originMain: "x", tickets: [796, 797, 798, 799, 800].map((n) => ticket(n, { parent: 795 })) };
+  const wtRename = startWriter(rec795, "local_src95", snap795, 796, "rename");
+  fs.writeFileSync(path.join(wtRename, "old.txt"), "old contents\n");
+  git(wtRename, "add", "old.txt");
+  git(wtRename, "commit", "-q", "-m", "old");
+  git(wtRename, "mv", "old.txt", "new.txt");
+  fs.writeFileSync(path.join(wtRename, "new.txt"), "renamed and edited\n");
+  const wtBinary = startWriter(rec795, "local_src95", snap795, 797, "binary");
+  const binary = Buffer.alloc(5 * 2 ** 20, 0);
+  for (let i = 0; i < binary.length; i++) binary[i] = (i * 131 + (i >> 9)) % 256;
+  fs.writeFileSync(path.join(wtBinary, "blob.bin"), binary);
+  const sha = (buffer) => createHash("sha256").update(buffer).digest("hex");
+  const wtLink = startWriter(rec795, "local_src95", snap795, 798, "link");
+  let linked = true;
+  try { fs.symlinkSync("README.md", path.join(wtLink, "link.txt")); } catch (error) { linked = false; console.log(`symbolic links unavailable here (${error.code}); the link case runs where they are`); }
+  fs.writeFileSync(path.join(wtLink, "beside.txt"), "beside the link\n");
+  const wtMerge = startWriter(rec795, "local_src95", snap795, 799, "merge");
+  fs.writeFileSync(path.join(wtMerge, "conflict.txt"), "base\n");
+  git(wtMerge, "add", "conflict.txt");
+  git(wtMerge, "commit", "-q", "-m", "base");
+  git(wtMerge, "branch", "side-799");
+  fs.writeFileSync(path.join(wtMerge, "conflict.txt"), "ours\n");
+  git(wtMerge, "commit", "-q", "-am", "ours");
+  git(wtMerge, "checkout", "-q", "side-799");
+  fs.writeFileSync(path.join(wtMerge, "conflict.txt"), "theirs\n");
+  git(wtMerge, "commit", "-q", "-am", "theirs");
+  git(wtMerge, "checkout", "-q", "feat/799-merge");
+  assert.throws(() => git(wtMerge, "merge", "-q", "side-799"), /conflict|Command failed/i);
+  const subRepo = path.join(tmp, "sub-repo");
+  fs.mkdirSync(subRepo);
+  git(subRepo, "init", "-q", "-b", "main");
+  fs.writeFileSync(path.join(subRepo, "inner.txt"), "inner\n");
+  git(subRepo, "add", "inner.txt");
+  git(subRepo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "inner");
+  const wtSub = startWriter(rec795, "local_src95", snap795, 800, "submodule");
+  git(wtSub, "-c", "protocol.file.allow=always", "submodule", "add", "-q", subRepo.replace(/\\/g, "/"), "sub");
+  cp.prepareHandoff(rec795, { coordinator: "local_src95", expectRevision: rev(rec795), step: "stop", github, host: SRC });
+  const running795 = Object.fromEntries([796, 797, 798, 799, 800].map((n) => [`local_w${n}`, { state: "running" }]));
+  const h795 = cp.prepareHandoff(rec795, { coordinator: "local_src95", expectRevision: rev(rec795), step: "publish", observations: { sessions: running795 }, github, host: SRC });
+  const notSnapshotted = (n) => h795.uncertain.find((u) => u.ticket === n && u.status === "not snapshotted")?.reason ?? "";
+  assert.match(notSnapshotted(799), /unmerged paths \(conflict\.txt\)/, "an unmerged index is refused");
+  assert.match(notSnapshotted(800), /changed submodules \(sub\)/, "a changed submodule is refused");
+  assert.deepEqual([796, 797, 798].map((n) => h795.snapshots[n]?.clean), [false, false, false]);
+  const lim795 = cp.limitations(cp.fetchState(src, "origin", "acme/widgets", 795).checkpoint, { host: DST });
+  assert.ok([799, 800].every((n) => lim795.some((l) => l.ticket === n && l.kind === "unpublished")), "refused work is reported as existing only on its host");
+
+  // Two takeovers: the source to a destination, then to a third host.
+  const dst5 = clone("dst5"), dst6 = clone("dst6");
+  const takeover795 = (checkout, record, coordinator, host) => cp.resume({ record, checkout, repository: "acme/widgets", feature: 795, coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #795.", evidence: `${coordinator}'s predecessor is out of usage` }, { github, host, defaults, totalMemory: 64 * GB });
+  takeover795(dst5, path.join(dstPrivate, "run-795.json"), "local_dst95", DST);
+  fs.mkdirSync(path.join(tmp, "third-private"));
+  const third = takeover795(dst6, path.join(tmp, "third-private", "run-795.json"), "local_third95", THIRD);
+  const chained = cp.fetchState(dst6, "origin", "acme/widgets", 795).checkpoint;
+  assert.deepEqual(chained.previousCoordinators.map((p) => [p.session, p.host]), [["local_src95", SRC], ["local_dst95", DST]], "both earlier coordinators stay in the record");
+  assert.deepEqual([796, 797, 798].map((n) => [chained.work[n].host, chained.work[n].snapshot?.commit]), [796, 797, 798].map((n) => [SRC, h795.snapshots[n].commit]), "the source's snapshots survive two takeovers under their own host");
+  assert.ok([796, 797, 798, 799, 800].every((n) => third.limitations.some((l) => l.ticket === n && l.kind === "owner" && l.status === "unknown")), "the source's writers stay unknown on the third host");
+  assert.ok([799, 800].every((n) => third.limitations.some((l) => l.ticket === n && l.kind === "unpublished")));
+  // The third host retrieves the source's work exactly.
+  const gotRename = cp.retrieve({ repository: "acme/widgets", feature: 795, checkout: dst6, ticket: 796, worktree: path.join(tmp, "dst6-wt-796") });
+  assert.deepEqual([fs.existsSync(path.join(gotRename.worktree, "old.txt")), fs.readFileSync(path.join(gotRename.worktree, "new.txt"), "utf8")], [false, "renamed and edited\n"]);
+  assert.equal(git(gotRename.worktree, "diff", "--cached", "--name-status", "-M"), git(wtRename, "diff", "--cached", "--name-status", "-M"), "the staged rename arrives");
+  const gotBinary = cp.retrieve({ repository: "acme/widgets", feature: 795, checkout: dst6, ticket: 797, worktree: path.join(tmp, "dst6-wt-797") });
+  assert.equal(sha(fs.readFileSync(path.join(gotBinary.worktree, "blob.bin"))), sha(binary), "the binary file arrives byte for byte");
+  const gotLink = cp.retrieve({ repository: "acme/widgets", feature: 795, checkout: dst6, ticket: 798, worktree: path.join(tmp, "dst6-wt-798") });
+  assert.equal(gotLink.verified, true);
+  if (linked) {
+    const there = fs.lstatSync(path.join(gotLink.worktree, "link.txt"));
+    assert.equal(there.isSymbolicLink() ? fs.readlinkSync(path.join(gotLink.worktree, "link.txt")) : fs.readFileSync(path.join(gotLink.worktree, "link.txt"), "utf8"), "README.md", "the link keeps its target");
+  }
 
   // A run whose first checkpoint never saved hands off while offline; the
   // first saved checkpoint then carries the snapshot with no previous one,

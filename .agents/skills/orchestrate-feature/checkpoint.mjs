@@ -198,6 +198,15 @@ const sourceState = (worktree) => ({ head: git(worktree, ["rev-parse", "HEAD"]),
 // progress, never review or completion evidence.
 export function snapshotWorktree(worktree, { ticket, branch, remote = DEFAULT_REMOTE, host = os.hostname() }) {
   const before = sourceState(worktree);
+  // An unmerged index has no single staged state to carry, and a submodule's
+  // own commits and files live in another repository, so neither can be
+  // snapshotted faithfully; the handoff reports the ticket as not snapshotted.
+  const unmerged = [...new Set(git(worktree, ["ls-files", "-u", "-z"]).split("\0").filter(Boolean).map((line) => entryOf(line).path))];
+  if (unmerged.length) throw new Error(`${worktree} has unmerged paths (${unmerged.join(", ")}), as a merge or rebase in progress leaves them; finish or abort it before a snapshot`);
+  const submodules = git(worktree, ["--no-optional-locks", "status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none"]).split("\0").filter((line) => /^[12] \S{2} S/.test(line)).map((line) => line.split(" ").slice(line.startsWith("2 ") ? 9 : 8).join(" "));
+  const gitlinks = git(worktree, ["diff-index", "--cached", "--no-renames", "--raw", "-z", "HEAD"]).split("\0").reduce((out, part, i, all) => (part.startsWith(":") && (part.split(" ")[0] === ":160000" || part.split(" ")[1] === "160000") ? [...out, all[i + 1]] : out), []);
+  const changedSubmodules = [...new Set([...submodules, ...gitlinks])];
+  if (changedSubmodules.length) throw new Error(`${worktree} has changed submodules (${changedSubmodules.join(", ")}); a snapshot cannot carry another repository's work, so commit and push it from the submodule first`);
   const trees = treesOf(worktree);
   const headTree = git(worktree, ["rev-parse", `${before.head}^{tree}`]);
   if (trees.index === headTree && trees.files === headTree) return { clean: true, head: before.head };
@@ -818,6 +827,9 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
     const entry = entries.get(file), target = path.join(worktree, file);
     // A removed file may come back only as a directory the snapshot fills.
     if (!entry) { const there = statOrNull(target); return Boolean(there) && !(there.isDirectory() && [...entries.keys()].some((k) => k.startsWith(`${file}/`))); }
+    // A symbolic link is checked by its target text; a checkout without
+    // symbolic links writes that text as a file.
+    if (entry.mode === "120000") { const there = statOrNull(target); if (!there) return true; const text = gitRaw(worktree, ["cat-file", "blob", entry.sha]).toString(); return there.isSymbolicLink() ? fs.readlinkSync(target) !== text : fs.readFileSync(target, "utf8") !== text; }
     if (!REGULAR.has(entry.mode)) return !statOrNull(target);
     return git(worktree, ["hash-object", "--no-filters", "--", file]) !== entry.sha;
   });
