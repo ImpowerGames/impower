@@ -1847,6 +1847,70 @@ describe("a choose block's caption on the program engine", () => {
     expect(waits.slice(1)).toEqual([{ line: 3, frame: 3 }]);
   });
 
+  // A refused load changes nothing of the game, so the beat still waits.
+  it("keeps the running frame on the caption's line through a refused load", () => {
+    const h = debugGame(CAPTION);
+    h.game.start();
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.game.load("{not json")).toBe(false);
+    expect(h.game.story.currentText).toBe("Pick.\n");
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+  });
+
+  // A host's call into the story, as a layout binding's or an event
+  // handler's, runs instructions of its own and leaves the beat waiting.
+  it("keeps the running frame on the caption's line through a host's call into the story", () => {
+    const h = debugGame(
+      [CAPTION.trimEnd(), "function quiet()", "  return 1", "end", ""].join("\n"),
+    );
+    h.game.start();
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    h.game.story.EvaluateFunction("quiet");
+    expect(h.game.story.currentText).toBe("Pick.\n");
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+  });
+
+  // Both captions' continues run on into the line glued to them and cut at
+  // the same instruction of `aside`, so the story's last address cannot
+  // tell one caption's wait from the other's.
+  it("does not stand a loaded checkpoint's frame on the beat the game waited on before the load", () => {
+    const h = debugGame(
+      [
+        "choose", //                 0
+        "  First.", //               1
+        "  & aside()", //            2
+        "  * One", //                3
+        "end", //                    4
+        "choose", //                 5
+        "  Second.", //              6
+        "  & aside()", //            7
+        "  * Two", //                8
+        "end", //                    9
+        "function aside()", //       10
+        '  print("Aside.")', //      11
+        "end", //                    12
+        "",
+      ].join("\n"),
+    );
+    h.game.start();
+    expect(h.game.story.currentText).toBe("First.\n");
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    const first = h.game.newestCheckpoint();
+    expect(first == null).toBe(false);
+    for (let i = 0; i < 8 && h.game.story.currentText !== "Second.\n"; i += 1) {
+      if (h.game.story.currentChoices.length > 0) {
+        h.game.chosePathToContinue(0);
+      } else {
+        h.game.continue();
+      }
+    }
+    expect(h.game.story.currentText).toBe("Second.\n");
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(6);
+    expect(h.game.loadCheckpoint(first!)).toBe(true);
+    expect(h.game.story.currentText).toBe("First.\n");
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).not.toBe(6);
+  });
+
   it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
     const h = debugGame(CAPTION);
     h.game.setBreakpoints([{ file: MAIN, line: 3 }]);

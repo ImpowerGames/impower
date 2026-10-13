@@ -291,14 +291,15 @@ export class Game<T extends M = {}> {
 
   protected _executingLocation: ScriptLocation | null = null;
 
-  /** Where the beat the game waits on stands, and the story's last address
-   *  when it began to wait: the last line the beat ran, which is not the
-   *  last instruction the story ran when the beat's continue went on to cut
-   *  the next line (#1756). Nothing while the game does not wait. */
-  protected _awaiting: {
-    location: ScriptLocation | null;
-    address: number;
-  } | null = null;
+  /** Where the beat the game waits on stands: the last line the beat ran,
+   *  which is not the last instruction the story ran when the beat's
+   *  continue went on to cut the next line (#1756). Nothing while the game
+   *  does not wait. Kept until the story moves on or its state is replaced
+   *  (a continue, a step, a jump, a rewind, a restore, a load, another
+   *  program), and not by the story's last address, which a host's call
+   *  into the story (`EvaluateFunction`) moves while the beat still waits,
+   *  and which two beats can share. */
+  protected _awaiting: ScriptLocation | null = null;
 
   protected _runtimeErrorsReported = 0;
   /** How many runtime errors (not warnings) the game has reported, so a caller
@@ -744,6 +745,8 @@ export class Game<T extends M = {}> {
     // A preview waiting for its pictures would display a beat of the old
     // program.
     this.cancelPreview();
+    // The beat waited on is a location in the old program.
+    this._awaiting = null;
     const before = this._program;
     this._program = program;
     const chunks = program.chunks;
@@ -2440,6 +2443,9 @@ export class Game<T extends M = {}> {
   /** What a load does once its story has loaded, which cannot fail: a
    *  waiting preview goes, and the modules and the runtime record load. */
   protected finishLoad(saveData: SaveData, runtime: RuntimeState): void {
+    // The game stands where the save was taken, not on the beat it waited
+    // on before.
+    this._awaiting = null;
     // A preview waiting for its pictures would display its beat over the
     // loaded state, and record a checkpoint of it.
     this.cancelPreview();
@@ -2471,7 +2477,6 @@ export class Game<T extends M = {}> {
    * modules and the runtime record load, which cannot fail.
    */
   protected loadProgramSave(program: ProgramStory, saveJSON: string): boolean {
-    this._awaiting = null;
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
@@ -3118,10 +3123,7 @@ export class Game<T extends M = {}> {
   protected notifyAwaitingInteraction() {
     const location =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
-    this._awaiting = {
-      location,
-      address: this._story.previousAddress,
-    };
+    this._awaiting = location;
     this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(location),
@@ -3687,15 +3689,12 @@ export class Game<T extends M = {}> {
       this._executingLocation && this._executingLocation[0] >= 0
         ? this._executingLocation
         : this.lastExecutedScriptLocation();
-    // The frame that runs stands on the beat the game waits on while nothing
-    // has run since, which is not where its last instruction stands when
-    // the beat's continue went on to cut the next line (#1756).
+    // The frame that runs stands on the beat the game waits on, which is
+    // not where its last instruction stands when the beat's continue went
+    // on to cut the next line (#1756).
     const awaiting =
-      this._awaiting &&
-      this._awaiting.location &&
-      this._awaiting.address === program.previousAddress &&
       threadId === program.state.callStack.currentThread.threadIndex
-        ? this._awaiting.location
+        ? this._awaiting
         : null;
     for (let i = startFrame; i < frameCount; i++) {
       const f = frames[i]!;
