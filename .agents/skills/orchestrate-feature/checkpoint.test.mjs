@@ -433,6 +433,37 @@ try {
   assert.equal(state720.checkpoint.work[721].snapshot, undefined);
   assert.ok(cp.limitations(state720.checkpoint, { host: DST }).some((l) => l.ticket === 721 && l.kind === "unpublished"));
 
+  // A handoff whose save failed is saved by a later ordinary publish together
+  // with its snapshot. The writer had replaced a committed directory with a
+  // file and a committed file with a directory; both arrive as they are.
+  const rec730 = init(730, "local_src73");
+  cp.enable(rec730, { coordinator: "local_src73", expectRevision: 1, github, host: SRC });
+  const wt731 = startWriter(rec730, "local_src73", { repository: "acme/widgets", feature: { number: 730, state: "open" }, originMain: "x", tickets: [ticket(731, { parent: 730 })] }, 731, "shapes");
+  fs.mkdirSync(path.join(wt731, "entry"));
+  fs.writeFileSync(path.join(wt731, "entry", "child.txt"), "child\n");
+  fs.writeFileSync(path.join(wt731, "leaf"), "leaf\n");
+  git(wt731, "add", "-A");
+  git(wt731, "commit", "-q", "-m", "shapes");
+  fs.rmSync(path.join(wt731, "entry"), { recursive: true });
+  fs.writeFileSync(path.join(wt731, "entry"), "now a file\n");
+  fs.rmSync(path.join(wt731, "leaf"));
+  fs.mkdirSync(path.join(wt731, "leaf"));
+  fs.writeFileSync(path.join(wt731, "leaf", "inner.txt"), "now a directory\n");
+  cp.prepareHandoff(rec730, { coordinator: "local_src73", expectRevision: rev(rec730), step: "stop", github, host: SRC });
+  const offline730 = path.join(tmp, "remote-offline-730.git");
+  fs.renameSync(remote, offline730);
+  let handed730;
+  try { handed730 = cp.prepareHandoff(rec730, { coordinator: "local_src73", expectRevision: rev(rec730), step: "publish", observations: { sessions: { local_w731: { state: "archived" } } }, github, host: SRC }); }
+  finally { fs.renameSync(offline730, remote); }
+  assert.equal(handed730.checkpoint.saved, false, "an offline handoff is reported unsaved");
+  assert.equal(handed730.snapshots[731]?.clean, false, JSON.stringify(handed730.uncertain));
+  assert.equal(cp.publish(rec730, { coordinator: "local_src73", transition: "the handoff again", github, host: SRC }).saved, true);
+  const dst3 = clone("dst3");
+  const got731 = cp.retrieve({ repository: "acme/widgets", feature: 730, checkout: dst3, ticket: 731, worktree: path.join(tmp, "dst3-wt-731") });
+  assert.equal(got731.verified, true, "the snapshot reached the remote with the retried save");
+  assert.equal(fs.readFileSync(path.join(got731.worktree, "entry"), "utf8"), "now a file\n");
+  assert.equal(fs.readFileSync(path.join(got731.worktree, "leaf", "inner.txt"), "utf8"), "now a directory\n");
+
   // A destination machine retrieves the unfinished work from the snapshot.
   const dst2 = clone("dst2");
   // The destination checks text out with CRLF; the retrieved bytes are still
@@ -499,6 +530,48 @@ try {
   const repaired = cp.ensureSaved(rec800, { coordinator: "local_cli", github });
   assert.equal(repaired.saved, true);
   assert.equal(cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.run.recordRevision, rev(rec800), "the next save carries the change made while offline");
+
+  // A takeover whose push lands but whose read-back fails keeps its record;
+  // resuming again in the same session finds the landed takeover and finishes
+  // it. The remote becomes unreachable when the push updates the tracking ref.
+  const rec740 = init(740, "local_src74");
+  cp.enable(rec740, { coordinator: "local_src74", expectRevision: 1, github, host: SRC });
+  const hooks3 = path.join(tmp, "race-hooks-3"), cut = path.join(tmp, "takeover-cut");
+  fs.mkdirSync(hooks3);
+  const realUrl = git(dst, "config", "remote.origin.url");
+  // A fetch also updates that ref, so the hook acts only when it moves to a
+  // checkpoint naming the destination, which only the takeover's push does.
+  const posix = (p) => p.replace(/\\/g, "/");
+  fs.writeFileSync(path.join(hooks3, "reference-transaction"), `#!/bin/sh\n[ "$1" = committed ] || { cat > /dev/null; exit 0; }\nunset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR\nwhile read old new ref; do\n  [ "$ref" = refs/remotes/origin/orchestrate-state/feature-740 ] || continue\n  [ -e "${posix(cut)}" ] && continue\n  git -C "${posix(dst)}" show "$new:checkpoint.json" 2>/dev/null | grep -q '"session": "local_dst74"' || continue\n  : > "${posix(cut)}"\n  git -C "${posix(dst)}" config remote.origin.url "${posix(path.join(tmp, "unreachable.git"))}"\ndone\nexit 0\n`);
+  fs.chmodSync(path.join(hooks3, "reference-transaction"), 0o755);
+  const rec740d = path.join(dstPrivate, "run-740.json");
+  const takeover740 = { record: rec740d, checkout: dst, repository: "acme/widgets", feature: 740, coordinator: "local_dst74", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #740.", evidence: "the source account is out of usage" };
+  git(dst, "config", "core.hooksPath", hooks3.replace(/\\/g, "/"));
+  try { assert.throws(() => cp.resume(takeover740, { github, host: DST, defaults, totalMemory: 64 * GB }), /outcome is uncertain/); }
+  finally { git(dst, "config", "--unset", "core.hooksPath"); git(dst, "config", "remote.origin.url", realUrl); }
+  assert.ok(fs.existsSync(cut), "the remote became unreachable right after the push");
+  assert.ok(fs.existsSync(rec740d), "the record of a takeover that may have landed is kept");
+  assert.equal(cp.fetchState(dst, "origin", "acme/widgets", 740).checkpoint.coordinator.session, "local_dst74", "the takeover did land");
+  assert.equal(cp.resume(takeover740, { github, host: DST, defaults, totalMemory: 64 * GB }).action, "resume", "resuming again finishes the landed takeover");
+  mutate(rec740d, "local_dst74", (r) => { r.log.push({ time: new Date().toISOString(), event: "note" }); });
+  // The remote becomes unreachable after discovery, before the takeover's
+  // push: the record is kept, and the retry publishes the same takeover.
+  const rec750 = init(750, "local_src75");
+  cp.enable(rec750, { coordinator: "local_src75", expectRevision: 1, github, host: SRC });
+  const hooks4 = path.join(tmp, "race-hooks-4"), cut750 = path.join(tmp, "takeover-cut-750");
+  fs.mkdirSync(hooks4);
+  fs.writeFileSync(path.join(hooks4, "reference-transaction"), `#!/bin/sh\n[ "$1" = committed ] || { cat > /dev/null; exit 0; }\nunset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR\nwhile read old new ref; do\n  [ "$ref" = refs/orchestrate-feature/orchestrate-state/feature-750 ] || continue\n  [ -e "${posix(cut750)}" ] && continue\n  : > "${posix(cut750)}"\n  git -C "${posix(dst)}" config remote.origin.url "${posix(path.join(tmp, "unreachable.git"))}"\ndone\nexit 0\n`);
+  fs.chmodSync(path.join(hooks4, "reference-transaction"), 0o755);
+  const rec750d = path.join(dstPrivate, "run-750.json");
+  const takeover750 = { ...takeover740, record: rec750d, feature: 750, coordinator: "local_dst75", invocation: "Use orchestrate-feature for #750." };
+  git(dst, "config", "core.hooksPath", hooks4.replace(/\\/g, "/"));
+  try { assert.throws(() => cp.resume(takeover750, { github, host: DST, defaults, totalMemory: 64 * GB }), /outcome is uncertain/); }
+  finally { git(dst, "config", "--unset", "core.hooksPath"); git(dst, "config", "remote.origin.url", realUrl); }
+  assert.ok(fs.existsSync(cut750) && fs.existsSync(rec750d), "the record is kept when the push never ran");
+  assert.equal(cp.fetchState(dst, "origin", "acme/widgets", 750).checkpoint.coordinator.session, "local_src75", "nothing landed");
+  const runId750 = run.readRecord(rec750d).runId;
+  assert.equal(cp.resume(takeover750, { github, host: DST, defaults, totalMemory: 64 * GB }).action, "takeover", "the retry publishes the kept takeover");
+  assert.equal(cp.fetchState(dst, "origin", "acme/widgets", 750).checkpoint.run.runId, runId750, "the retry is the same takeover, not a second one");
 
   // An adopted start's create and handoff each have their intent on the
   // remote before they run.

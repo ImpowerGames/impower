@@ -142,7 +142,9 @@ function treesOf(worktree) {
     git(worktree, ["add", "-A", "--", "."], { env });
     const changed = git(worktree, ["diff-index", "--cached", "--no-renames", "--name-only", "-z", "HEAD"], { env }).split("\0").filter(Boolean);
     for (const file of changed) {
-      const line = git(worktree, ["--literal-pathspecs", "ls-files", "-s", "-z", "--", file], { env }).split("\0").find(Boolean);
+      // A pathspec also matches the files under a directory of that name, so
+      // only the entry for exactly this path counts.
+      const line = git(worktree, ["--literal-pathspecs", "ls-files", "-s", "-z", "--", file], { env }).split("\0").filter(Boolean).find((l) => entryOf(l).path === file);
       if (!line) continue;
       const { mode } = entryOf(line);
       if (!REGULAR.has(mode)) continue;
@@ -463,7 +465,11 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
     // The last plan's summary stays until a newer plan replaces it.
     const checkpoint = buildCheckpoint(record, { seq, previous, kind, transition, host, work, observed: observedFrom(plan) ?? (head?.checkpoint.run.runId === record.runId ? head.checkpoint.observed : null) });
     const content = `${JSON.stringify(checkpoint, null, 2)}\n`;
-    const extra = Object.values(fresh).map((s) => s.commit);
+    // Every snapshot the checkpoint names must travel with it: one not yet in
+    // the previous checkpoint's history (its first publication may have
+    // failed) becomes a parent of this one.
+    const named = Object.values({ ...(record.snapshots ?? {}), ...fresh }).map((s) => s.commit);
+    const extra = [...new Set(named)].filter((c) => !previous || !spawnOk(record.checkout, ["merge-base", "--is-ancestor", c, previous]));
     const commit = writeCommit(record.checkout, { "checkpoint.json": content, "brief.md": takeoverBrief(checkpoint) }, [...(previous ? [previous] : []), ...extra], `checkpoint ${seq} of ${record.repository}#${record.feature}: ${transition}\n`);
     side.attempt = { seq, commit, previous, recordRevision: record.revision, runId: record.runId, state: "intent", time: new Date().toISOString() };
     writeSidecar(file, side);
@@ -597,7 +603,16 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     return { action: "resume", seq: prev.seq, commit: found.commit, pointer, limitations: limitations(prev, { host }) };
   }
   if (!evidence) throw new Error(`--evidence must say why ${prev.coordinator.session} on ${prev.coordinator.host} no longer coordinates (for example, the maintainer's statement that its account reached its usage limit)`);
-  if (fs.existsSync(file)) throw new Error(`${file} already exists; take over into a new record file`);
+  // A record this session wrote for a takeover of this same checkpoint, whose
+  // push did not land, is published again rather than replaced.
+  let retry = null;
+  if (fs.existsSync(file)) {
+    let existing = null;
+    try { existing = readRecord(file); } catch { existing = null; }
+    const start = existing?.log?.[0];
+    if (existing && existing.revision === 1 && existing.coordinator.session === coordinator && start?.event === "takeover" && start.checkpoint?.commit === found.commit) retry = existing;
+    else throw new Error(`${file} already exists; take over into a new record file`);
+  }
   // An explicit writer model in an earlier invocation stays in force across
   // takeovers until an invocation names another; a harness default does not.
   const carried = prev.invocation.writerModel;
@@ -620,13 +635,18 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     log: [{ time: since, event: "takeover", coordinator, from: prev.coordinator.session, checkpoint: { seq: prev.seq, commit: found.commit }, evidence, writer: writer.model }],
   };
   if (!options.coordinatorModel || !writerEfforts(options.coordinatorModel).includes(options.coordinatorEffort)) throw new Error("--coordinator-model and --coordinator-effort must be the coordinator's own metadata");
-  writeExclusive(file, record);
+  if (!retry) writeExclusive(file, record);
+  // Only a refusal (another coordinator's checkpoint, or a push Git refused)
+  // sets the record aside. Any other failure may have landed the takeover, so
+  // the record stays for resume to settle from the remote.
+  const setAside = (reason) => { fs.renameSync(file, `${file}.refused-${Date.now()}`); return new Error(`The takeover was refused (${reason}); this session does not coordinate #${feature}. Discover again and take over into a new record if the run is still unowned`); };
+  const uncertain = (reason) => new Error(`The takeover's outcome is uncertain (${reason}); this session may already coordinate #${feature}. Run resume again in this session with the same record once the remote is reachable; it settles the outcome from the state branch`);
   let published;
   try { published = publish(file, { coordinator, kind: "takeover", transition: `the takeover from ${prev.coordinator.session}`, host, github, takeoverFrom: found.commit }); }
-  catch (error) { fs.renameSync(file, `${file}.refused-${Date.now()}`); throw error; }
-  if (!published.saved) { fs.renameSync(file, `${file}.refused-${Date.now()}`); throw new Error(`The takeover checkpoint was not saved (${published.reason}); this session does not coordinate #${feature}. Discover again and retry if the run is still unowned`); }
-  installPointer(checkout, repository, feature, { record: file, coordinator, host, since });
-  return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer, summary: published.summary ?? null, limitations: limitations(found.checkpoint, { host }) };
+  catch (error) { throw error instanceof CoordinatorChanged ? setAside(error.message) : uncertain(error.message); }
+  if (!published.saved) throw published.state === "refused" ? setAside(published.reason) : uncertain(published.reason);
+  installPointer(checkout, repository, feature, { record: file, coordinator, host, since: retry?.coordinator.since ?? since });
+  return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer: retry?.writer ?? writer, summary: published.summary ?? null, limitations: limitations(found.checkpoint, { host }) };
 }
 
 // On this machine the local pointer follows the takeover, so a previous
@@ -645,6 +665,13 @@ function installPointer(checkout, repository, feature, value) {
 
 // --- Planned handoff ----------------------------------------------------------
 
+// The record has already changed when a handoff publishes, so a failed save is
+// reported for a later publish to retry; a takeover still stops the command.
+function savedOrReported(run) {
+  try { return run(); }
+  catch (error) { if (error instanceof CoordinatorChanged) throw error; return { saved: false, state: "failed", reason: error.message }; }
+}
+
 // Stop: admission of new work ends and a checkpoint says so. Publish: after the
 // writers were asked to reach safe boundaries, every owned worktree on this
 // host with unfinished files is snapshotted, the writers' observed states are
@@ -654,7 +681,7 @@ function installPointer(checkout, repository, feature, value) {
 export function prepareHandoff(file, { coordinator, expectRevision, step, observations = {}, host = os.hostname(), github }) {
   if (step === "stop") {
     const { record } = updateRecord(file, { expectRevision, coordinator }, (r) => { r.handoff = { state: "preparing", since: new Date().toISOString(), by: coordinator }; r.log.push({ time: r.handoff.since, event: "handoff-stop" }); });
-    return { revision: record.revision, checkpoint: publish(file, { coordinator, kind: "handoff", transition: "the handoff stopped new dispatch", host, github }) };
+    return { revision: record.revision, checkpoint: savedOrReported(() => publish(file, { coordinator, kind: "handoff", transition: "the handoff stopped new dispatch", host, github })) };
   }
   if (step !== "publish") throw new Error("--step must be stop or publish");
   const current = readRecord(file);
@@ -679,7 +706,7 @@ export function prepareHandoff(file, { coordinator, expectRevision, step, observ
     r.handoff = { ...r.handoff, state: "ready", published: new Date().toISOString(), uncertain };
     r.log.push({ time: r.handoff.published, event: "handoff-publish", snapshots: Object.keys(snapshots).length, uncertain: uncertain.length });
   });
-  const checkpoint = publish(file, { coordinator, kind: "handoff", transition: "the planned handoff", snapshots, host, github });
+  const checkpoint = savedOrReported(() => publish(file, { coordinator, kind: "handoff", transition: "the planned handoff", snapshots, host, github }));
   return { revision: record.revision, checkpoint, snapshots, uncertain: record.handoff.uncertain };
 }
 
@@ -697,9 +724,19 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
   if (local && local !== snap.head) throw new Error(`Local branch ${snap.branch} is at ${local}, not the snapshot's head ${snap.head}; retrieve into a checkout without it, or reconcile the branch first`);
   git(checkout, local ? ["worktree", "add", worktree, snap.branch] : ["worktree", "add", "--no-track", "-b", snap.branch, worktree, snap.head]);
   const entries = new Map(git(worktree, ["ls-tree", "-r", "-z", "--full-tree", snap.commit]).split("\0").filter(Boolean).map((line) => { const e = entryOf(line); return [e.path, e]; }));
-  for (const file of snap.paths) {
+  // Removals come first, deepest first, each pruning the directories it
+  // empties, so a directory the snapshot replaced with a file (or a file it
+  // replaced with a directory) is gone before its replacement is written.
+  const root = path.resolve(worktree);
+  const removed = snap.paths.filter((file) => !entries.has(file)).sort((a, b) => b.split("/").length - a.split("/").length);
+  for (const file of removed) {
+    fs.rmSync(path.join(root, file), { force: true });
+    for (let dir = path.dirname(path.join(root, file)); dir !== root && dir.startsWith(root + path.sep) && fs.existsSync(dir) && fs.readdirSync(dir).length === 0; dir = path.dirname(dir)) fs.rmdirSync(dir);
+  }
+  for (const file of snap.paths.filter((f) => entries.has(f))) {
     const target = path.join(worktree, file), entry = entries.get(file);
-    if (!entry) { fs.rmSync(target, { force: true }); continue; }
+    const there = fs.lstatSync(target, { throwIfNoEntry: false });
+    if (there?.isDirectory()) throw new Error(`${target} is a directory the snapshot does not account for; inspect ${worktree}`);
     if (!REGULAR.has(entry.mode)) { git(worktree, ["--literal-pathspecs", "restore", `--source=${snap.commit}`, "--worktree", "--", file]); continue; }
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.rmSync(target, { force: true });
@@ -709,7 +746,8 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
   git(worktree, ["read-tree", snap.index]);
   const wrong = snap.paths.filter((file) => {
     const entry = entries.get(file), target = path.join(worktree, file);
-    if (!entry) return fs.existsSync(target);
+    // A removed file may come back only as a directory the snapshot fills.
+    if (!entry) { const there = fs.lstatSync(target, { throwIfNoEntry: false }); return Boolean(there) && !(there.isDirectory() && [...entries.keys()].some((k) => k.startsWith(`${file}/`))); }
     if (!REGULAR.has(entry.mode)) return !fs.lstatSync(target, { throwIfNoEntry: false });
     return git(worktree, ["hash-object", "--no-filters", "--", file]) !== entry.sha;
   });
