@@ -81,6 +81,7 @@ import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
+import { DefineScopeRecord, type DefineScopeStats } from "../utils/DefineScopeRecord";
 import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
 import { getPossibleStringIdentifiers } from "../utils/getPossibleStringIdentifiers";
@@ -664,6 +665,18 @@ export class SparkdownCompiler {
    *  served. */
   get referenceValidationStats() {
     return this._referenceValidationStats;
+  }
+  // The user's define declarations per chunk, and the type names each
+  // chunk's were last classified under (#709).
+  protected _defineScope = new DefineScopeRecord();
+  // The chunks of this compile's user scripts, in walk order, whose defines
+  // `_defineScope` scopes.
+  protected _defineScopeBlocks?: object[];
+  // The parsed prelude whose defines were last scoped, and those defines.
+  protected _scopedPrelude?: { story: Story; declarations: Set<ParsedObject> };
+  /** What the last compile's scoping of the user's defines did. */
+  get defineScopeStats(): DefineScopeStats {
+    return this._defineScope.stats;
   }
   // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
   // by top-level flow name plus "0" for root content, read from the program's
@@ -1630,6 +1643,7 @@ export class SparkdownCompiler {
     // Begin a fresh per-compile record of chunk identities. Populated by the
     // recursive `parseIncrementally` chunk walk(s), finalized below.
     this._compilationIds = new Set();
+    this._defineScopeBlocks = [];
     this._chunkStoreChanges = new Map();
     this._statementRecords = new Map();
     this._memoBlocks = new Set();
@@ -1742,17 +1756,26 @@ export class SparkdownCompiler {
         }
         return names;
       };
-      const preludeVAs = new Set<ParsedObject>();
+      let preludeVAs = new Set<ParsedObject>();
       const preludeStory = this._cachedPreludeParsedStory;
       // The names a preview compile's rollback put back were last resolved
       // as the preview named them.
       this._renamedNames = this._namesRolledBack.slice();
       if (preludeStory && this.documents.has(BUILTINS_PRELUDE_URI)) {
-        const preludeTypeNames = collectTypeNamesFor([BUILTINS_PRELUDE_URI]);
-        scopeDefineInstances([preludeStory], preludeTypeNames, {
-          collect: preludeVAs,
-          renamed: this._renamedNames,
-        });
+        // The prelude's story is parsed once and its type names never
+        // change, so its defines are scoped once per parsed prelude. A
+        // preview does not journal these keys: the parsed prelude it may
+        // have made outlives it too.
+        if (this._scopedPrelude?.story === preludeStory) {
+          preludeVAs = this._scopedPrelude.declarations;
+        } else {
+          const preludeTypeNames = collectTypeNamesFor([BUILTINS_PRELUDE_URI]);
+          scopeDefineInstances([preludeStory], preludeTypeNames, {
+            collect: preludeVAs,
+            renamed: this._renamedNames,
+          });
+          this._scopedPrelude = { story: preludeStory, declarations: preludeVAs };
+        }
       }
       // User files: the root + resolved includes (`program.scripts`), excluding
       // the prelude — its defines were just scoped with the prelude's own types.
@@ -1760,14 +1783,23 @@ export class SparkdownCompiler {
       userUris.add(uri);
       userUris.delete(BUILTINS_PRELUDE_URI);
       const userTypeNames = collectTypeNamesFor(userUris);
-      // `collect` hands back exactly the user's define VAs, so the override pass
-      // below needs no walk of its own.
-      const userVAs = new Set<ParsedObject>();
-      scopeDefineInstances([parsedStory], userTypeNames, {
-        skip: preludeVAs,
-        collect: userVAs,
-        renamed: this._renamedNames,
-      });
+      // The user's defines are found per chunk: only a chunk lowered since it
+      // was last seen is walked, and a chunk's defines are classified again
+      // only when the union of type names moved since they last were
+      // (`DefineScopeRecord`). The record hands back exactly the user's define
+      // VAs, so the override pass below needs no walk of its own.
+      const previewUndo = this._previewing ? this._previewUndo : undefined;
+      const userVAs = this._defineScope.scope(
+        this._defineScopeBlocks ?? [],
+        userTypeNames,
+        this._renamedNames,
+        previewUndo
+          ? { undo: previewUndo, rolledBack: () => this._namesRolledBack }
+          : undefined,
+      );
+      if (DefineScopeRecord.verify) {
+        DefineScopeRecord.check(parsedStory, userVAs, preludeVAs, userTypeNames);
+      }
       // Now that both sides carry their final global keys, let an authored
       // define that reuses a builtin name override it rather than collide.
       this.applyBuiltinOverrides(userVAs, preludeVAs);
@@ -2547,6 +2579,12 @@ export class SparkdownCompiler {
       // script's flows.
       const compiledBlock = rec.block as object;
       this._compilationIds?.add(compiledBlock);
+      // The source-injected prelude's defines are scoped by a pass of their
+      // own (`compileStory`). A compile of the prelude as its own root
+      // (`getCompiledPrelude`) injects nothing, and scopes its chunks here.
+      if (!this._injectingPrelude) {
+        this._defineScopeBlocks?.push(compiledBlock);
+      }
       if (
         this._chunkStoreBlocks &&
         !this._chunkStoreBlocks.has(compiledBlock)
@@ -4450,10 +4488,10 @@ export class SparkdownCompiler {
    *  compiles is a no-op. Must run AFTER the scoping passes, which is what makes
    *  the identifier a stable, comparable key on both sides. */
   protected applyBuiltinOverrides(
-    userVAs: ReadonlySet<ParsedObject>,
+    userVAs: readonly ParsedObject[],
     preludeVAs: ReadonlySet<ParsedObject>,
   ): void {
-    if (preludeVAs.size === 0 || userVAs.size === 0) {
+    if (preludeVAs.size === 0 || userVAs.length === 0) {
       return;
     }
     // The prelude's declarations, keyed by their STABLE BARE name — never the
