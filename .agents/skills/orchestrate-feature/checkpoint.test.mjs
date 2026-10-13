@@ -26,6 +26,18 @@ const write = (name, value) => { const file = path.join(tmp, name); fs.writeFile
 const SRC = "src-host", DST = "dst-host";
 // A ticket's first located work entry in a checkpoint.
 const at = (c, n) => cp.workFor(c, n)[0];
+// Nothing is ever reported as covered by a snapshot: no checkpoint holds a
+// coverage judgement, and every location with unfinished files or unpushed
+// commits, as observed or last observed, is reported as possibly holding work
+// only on its host, snapshot or not.
+function assertNoCoverage(checkpoint, why) {
+  assert.ok(!/"(snapshotCurrent|headInSnapshot|comparedWith)"/.test(JSON.stringify(checkpoint)), `${why}: no coverage judgement is recorded`);
+  const reported = cp.limitations(checkpoint, { host: "elsewhere-host" }).filter((l) => l.kind === "unpublished");
+  for (const w of Object.values(checkpoint.work ?? {})) {
+    const state = cp.workState(w);
+    if (state.dirty || state.unpushed) assert.ok(reported.some((l) => l.ticket === w.ticket && l.detail.includes(`${w.host} held`) && l.detail.includes(w.worktree)), `${why}: #${w.ticket} on ${w.host} is reported as possibly holding work only there`);
+  }
+}
 
 // GitHub's issue comments, with injectable failures.
 function fakeGithub() {
@@ -231,7 +243,7 @@ try {
   const kinds = Object.fromEntries(taken.limitations.map((l) => [`${l.ticket}:${l.kind}`, l]));
   assert.ok(kinds["501:pending"], "the uncertain launch is named");
   assert.ok(kinds["502:owner"] && kinds["502:unpublished"], "#502's unfinished work is an explicit limitation, not recovered");
-  assert.match(kinds["502:unpublished"].detail, /existed only on src-host/);
+  assert.match(kinds["502:unpublished"].detail, /src-host held unfinished files and unpushed commits in .* that may exist only there/);
   assert.ok(kinds["503:handoff-lock"]);
   assert.ok(kinds["504:operation"]);
   const d = run.readRecord(rec500d);
@@ -416,14 +428,14 @@ try {
   mutate(rec700, "local_src7", (r) => { r.log.push({ time: new Date().toISOString(), event: "note" }); });
   assert.equal(cp.autoCheckpoint(rec700, { coordinator: "local_src7", transition: "a later note", github, host: SRC }).saved, true);
   assert.equal(latest700().snapshots[702].commit, handed.snapshots[702].commit, "a later checkpoint still names the snapshot");
-  assert.equal(at(latest700(), 702).snapshotCurrent, true);
+  assertNoCoverage(latest700(), "a location whose files match its snapshot");
   fs.appendFileSync(path.join(wt702, "scratch.txt"), "edited after the snapshot\n");
   cp.autoCheckpoint(rec700, { coordinator: "local_src7", transition: "an edit after the snapshot", github, host: SRC });
   const afterEdit = cp.limitations(latest700(), { host: DST }).filter((l) => l.ticket === 702).map((l) => l.kind);
   assert.deepEqual(afterEdit.sort(), ["owner", "snapshot", "unpublished"], "the snapshot stays retrievable and the later edit is named as unrecoverable");
   fs.writeFileSync(path.join(wt702, "scratch.txt"), "untracked\n");
   cp.autoCheckpoint(rec700, { coordinator: "local_src7", transition: "the edit was undone", github, host: SRC });
-  assert.equal(at(latest700(), 702).snapshotCurrent, true);
+  assertNoCoverage(latest700(), "after the edit is undone");
 
   // A snapshot that would publish a credential is refused and stays local;
   // the handoff names the ticket as not snapshotted.
@@ -547,14 +559,15 @@ try {
   const latest780 = cp.fetchState(dst4, "origin", "acme/widgets", 780).checkpoint;
   assert.deepEqual([at(latest780, 782).exists, latest780.snapshots[782]?.commit], [false, h780.snapshots[782].commit], "the snapshot is named beside its missing worktree");
   const lim780 = cp.limitations(latest780, { host: DST });
-  assert.ok(lim780.some((l) => l.ticket === 783 && l.kind === "unpublished" && /changed since snapshot/.test(l.detail)), "the edits after the snapshot are still reported after the release");
+  assert.ok(lim780.some((l) => l.ticket === 783 && l.kind === "unpublished" && /src-host held unfinished files .* may exist only there; snapshot [0-9a-f]+ holds only what was saved/.test(l.detail)), "the edits after the snapshot are still reported after the release");
+  assertNoCoverage(latest780, "after a release and a missing worktree");
   assert.ok(lim780.some((l) => l.ticket === 783 && l.kind === "snapshot"));
   const row783 = github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec780), "utf8")).summary.commentId).body.split("\n").find((line) => line.startsWith("| #783 "));
-  assert.match(row783, /worktree missing, as of [^,]+, unpushed commits, unfinished files, snapshot [0-9a-f]+ \(files changed since\)/, "the summary carries the last observation, never a clean state");
+  assert.match(row783, /src-host: worktree missing, as of [^,]+, unpushed commits, unfinished files; snapshot [0-9a-f]+ from src-host/, "the summary carries the last observation, never a clean state");
   // A worktree never observed renders as unknown, not as clean and pushed.
   const unseen = structuredClone(latest780);
   unseen.work[Object.keys(unseen.work).find((k) => unseen.work[k].ticket === 782)] = { ticket: 782, host: SRC, worktree: moved782, branch: "feat/782-moved", exists: false, observedAt: "now" };
-  assert.match(cp.renderSummary({ commit: "0".repeat(40), checkpoint: unseen }, "acme/widgets").split("\n").find((line) => line.startsWith("| #782 ")), /worktree missing, push state unknown, file state unknown, snapshot/);
+  assert.match(cp.renderSummary({ commit: "0".repeat(40), checkpoint: unseen }, "acme/widgets").split("\n").find((line) => line.startsWith("| #782 ")), /worktree missing, push state unknown, file state unknown; snapshot [0-9a-f]+ from src-host/);
   const got781 = cp.retrieve({ repository: "acme/widgets", feature: 780, checkout: dst4, ticket: 781, worktree: path.join(tmp, "dst4-wt-781") });
   assert.equal(fs.readFileSync(path.join(got781.worktree, "clean.txt")).toString("hex"), Buffer.from("base\r\n").toString("hex"), "the unstaged bytes arrive");
   assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 780, checkout: dst4, ticket: 782, worktree: path.join(tmp, "dst4-wt-782") }).worktree, "draft.txt"), "utf8"), "moved draft\n");
@@ -576,17 +589,18 @@ try {
   git(wt792, "commit", "-q", "-m", "the staged work, committed after the snapshot");
   assert.equal(cp.autoCheckpoint(rec790, { coordinator: "local_src79", transition: "a later milestone", github, host: SRC }).saved, true);
   const after792 = at(cp.fetchState(src, "origin", "acme/widgets", 790).checkpoint, 792);
-  assert.deepEqual([after792.snapshotCurrent, after792.unpushed, after792.head === h790.snapshots[792].head], [true, true, false], "the files match the snapshot but the head moved");
+  assert.deepEqual([after792.unpushed, after792.head === h790.snapshots[792].head], [true, false], "the head moved after the snapshot");
   // The draft changes after the last save; the takeover observes it afresh.
   fs.appendFileSync(path.join(wt791, "draft.txt"), "edited after the last save\n");
   const rec790b = path.join(srcPrivate, "run-790-second-account.json");
   const sameHost = cp.resume({ record: rec790b, checkout: src, repository: "acme/widgets", feature: 790, coordinator: "local_src79b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #790.", evidence: "the first account reached its usage limit" }, { github, host: SRC, defaults, totalMemory: 64 * GB });
-  assert.ok(sameHost.limitations.some((l) => l.ticket === 792 && l.kind === "unpublished" && /commits made after the snapshot/.test(l.detail)), "commits after a matching snapshot are not hidden");
-  assert.ok(sameHost.limitations.some((l) => l.ticket === 791 && l.kind === "unpublished" && /changed since snapshot/.test(l.detail)), "the takeover reports what its own checkpoint observed");
+  assert.ok(sameHost.limitations.some((l) => l.ticket === 792 && l.kind === "unpublished" && /src-host held unpushed commits in .* that may exist only there/.test(l.detail)), "commits after a matching snapshot are not hidden");
+  assert.ok(sameHost.limitations.some((l) => l.ticket === 791 && l.kind === "unpublished" && /src-host held unfinished files/.test(l.detail)), "the takeover reports what its own checkpoint observed");
   const taken790 = cp.fetchState(dst4, "origin", "acme/widgets", 790);
   assert.equal(taken790.checkpoint.coordinator.session, "local_src79b");
   assert.equal(taken790.checkpoint.snapshots[791]?.commit, h790.snapshots[791].commit, "the takeover's own checkpoint names the snapshot");
-  assert.match(taken790.brief, /commits made after the snapshot existed only on src-host/);
+  assert.match(taken790.brief, /src-host held unpushed commits in .* that may exist only there/);
+  assertNoCoverage(taken790.checkpoint, "a same-machine takeover");
   assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 790, checkout: dst4, ticket: 791, worktree: path.join(tmp, "dst4-wt-791") }).worktree, "draft.txt"), "utf8"), "kept draft\n");
 
   // Snapshot coverage at its edges: a staged rename with an edit, a large
@@ -708,10 +722,11 @@ try {
   assert.equal(cp.autoCheckpoint(rec810, { coordinator: "local_src81", transition: "after the handoff", github, host: SRC }).saved, true);
   const lim810 = cp.limitations(cp.fetchState(src, "origin", "acme/widgets", 810).checkpoint, { host: DST });
   const only = (n) => lim810.filter((l) => l.ticket === n && l.kind === "unpublished").map((l) => l.detail).join(" | ");
-  assert.match(only(811), /changed since snapshot [0-9a-f]+ \(unmerged paths \(conflict\.txt\)/, "a conflicting merge after the snapshot is reported");
-  assert.match(only(812), /changed since snapshot [0-9a-f]+ \(changed submodules \(sub\)/, "an edit inside a submodule after the snapshot is reported");
-  assert.match(only(814), /unfinished files existed only on src-host/);
-  assert.equal(only(815), "", "a head the snapshot already reaches needs no recovery from the source");
+  assert.match(only(811), /src-host held unfinished files/, "a conflicting merge after the snapshot is reported");
+  assert.match(only(812), /src-host held unfinished files/, "an edit inside a submodule after the snapshot is reported");
+  assert.match(only(814), /src-host held unfinished files/);
+  assert.match(only(815), /src-host held unfinished files and unpushed commits/, "work a snapshot holds whole is still reported, since nothing is judged covered");
+  assertNoCoverage(cp.fetchState(src, "origin", "acme/widgets", 810).checkpoint, "after a soft reset under a snapshot");
   mutate(rec810, "local_src81", (r) => { for (const n of [813, 814]) run.release(r, { ticket: n, observations: { sessions: { [`local_w${n}`]: { state: "archived" } } }, host: SRC, evidence: "its session was archived" }); });
   cp.autoCheckpoint(rec810, { coordinator: "local_src81", transition: "two releases", github, host: SRC });
   // Another host takes over, retrieves #813 and adopts its work there.
@@ -726,8 +741,9 @@ try {
   assert.equal(cp.autoCheckpoint(rec810b, { coordinator: "local_dst81", transition: "the adoption", github, host: DST }).saved, true);
   const adopted810 = cp.fetchState(dst8, "origin", "acme/widgets", 810).checkpoint;
   assert.equal(adopted810.snapshots[813]?.commit, h810.snapshots[813].commit, "the adopted work keeps its snapshot");
-  assert.deepEqual(cp.workFor(adopted810, 813).map((w) => w.host), [DST], "the adopting host records its own location");
-  assert.ok(!cp.limitations(adopted810, { host: THIRD }).some((l) => l.ticket === 813 && l.kind === "unpublished"), "retrieved and unchanged, the adopted work exists nowhere only");
+  assert.deepEqual(cp.workFor(adopted810, 813).map((w) => w.host).sort(), [DST, SRC], "the adopting host records its own location, and the source's draft stays reported");
+  assert.ok(cp.limitations(adopted810, { host: THIRD }).some((l) => l.ticket === 813 && l.kind === "unpublished" && /dst-host held unfinished files/.test(l.detail)), "the adopted work is reported where it now is, beside its snapshot");
+  assertNoCoverage(adopted810, "after another host adopts retrieved work");
   assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 810, checkout: dst8, ticket: 813, worktree: path.join(tmp, "dst8-wt-813") }).worktree, "draft.txt"), "utf8"), "adopted draft\n");
   // #814's work is committed and pushed on the source, which takes the run back.
   git(wt814, "add", "-A");
@@ -783,11 +799,11 @@ try {
   assert.deepEqual([c820.checkpoint.snapshots[821], Boolean(c820.checkpoint.snapshots[823])], [undefined, true]);
   assert.ok(!git(dst, "rev-list", c820.commit).split(/\r?\n/).includes(git(wt821, "rev-parse", "HEAD~1")), "the credential-bearing commit is not reachable from the state branch");
   const lim820 = (c) => (n, host = DST) => cp.limitations(c, { host }).filter((l) => l.ticket === n && l.kind === "unpublished").map((l) => l.detail).join(" | ");
-  assert.match(lim820(c820.checkpoint)(821), /existed only on src-host/, "the refused snapshot's work is reported as existing only on its host");
-  assert.match(lim820(c820.checkpoint)(822), /unfinished files existed only on src-host/, "a filter-hidden edit is unfinished work");
+  assert.match(lim820(c820.checkpoint)(821), /src-host held/, "the refused snapshot's work is reported as existing only on its host");
+  assert.match(lim820(c820.checkpoint)(822), /src-host held unfinished files/, "a filter-hidden edit is unfinished work");
   mutate(rec820, "local_src82", (r) => run.release(r, { ticket: 822, observations: { sessions: { local_w822: { state: "archived" } } }, host: SRC, evidence: "its session was archived" }));
   cp.autoCheckpoint(rec820, { coordinator: "local_src82", transition: "the release", github, host: SRC });
-  assert.match(lim820(cp.fetchState(dst, "origin", "acme/widgets", 820).checkpoint)(822), /unfinished files existed only on src-host/, "and it survives the release");
+  assert.match(lim820(cp.fetchState(dst, "origin", "acme/widgets", 820).checkpoint)(822), /src-host held unfinished files/, "and it survives the release");
   // Another host adopts #823's work, changes it and snapshots it again.
   const dst9 = clone("dst9");
   const rec820b = path.join(dstPrivate, "run-820.json");
@@ -801,7 +817,8 @@ try {
   cp.prepareHandoff(rec820b, { coordinator: "local_dst82", expectRevision: rev(rec820b), step: "stop", github, host: DST });
   const h820b = cp.prepareHandoff(rec820b, { coordinator: "local_dst82", expectRevision: rev(rec820b), step: "publish", observations: { sessions: { local_b823: { state: "running" } } }, github, host: DST });
   assert.notEqual(h820b.snapshots[823]?.commit, h820.snapshots[823].commit, "the ticket has a new snapshot");
-  assert.match(lim820(cp.fetchState(dst9, "origin", "acme/widgets", 820).checkpoint)(823, THIRD), /files in .*src-wt-823 on src-host had changed since snapshot [0-9a-f]+ \(or could not be compared with it\)/, "the source's comparison with the replaced snapshot no longer counts");
+  assert.match(lim820(cp.fetchState(dst9, "origin", "acme/widgets", 820).checkpoint)(823, THIRD), /src-host held unfinished files.* in .*src-wt-823/, "the source's work is still reported once the snapshot is replaced");
+  assertNoCoverage(cp.fetchState(dst9, "origin", "acme/widgets", 820).checkpoint, "after a snapshot is replaced");
 
   // A run whose first checkpoint never saved hands off while offline; the
   // first saved checkpoint then carries the snapshot with no previous one,
@@ -846,7 +863,7 @@ try {
   assert.match(run.readRecord(rec700d).writer.source, /carried from local_src7/);
   assert.ok(taken700.limitations.some((l) => l.ticket === 702 && l.kind === "snapshot"));
   assert.deepEqual([at(cp.fetchState(dst2, "origin", "acme/widgets", 700).checkpoint, 702).host, at(cp.fetchState(dst2, "origin", "acme/widgets", 700).checkpoint, 702).worktree], [SRC, wt702], "another host's snapshot keeps the entry that describes its host");
-  assert.ok(!taken700.limitations.some((l) => l.ticket === 702 && l.kind === "unpublished"), "snapshotted work is not reported lost");
+  assert.ok(taken700.limitations.some((l) => l.ticket === 702 && l.kind === "unpublished" && /src-host held unfinished files/.test(l.detail)), "snapshotted work is still reported as possibly existing only on its host");
   assert.equal(run.planDispatch({ record: run.readRecord(rec700d), snapshot: snap700, turn: "user", preflights: [astra([703])], freeBytes: 100 * GB, defaults, host: DST }).tickets.find((t) => t.number === 703).action, "dispatch", "the new coordinator admits work again");
 
   // --- Credentials and network failure ------------------------------------

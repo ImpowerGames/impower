@@ -271,11 +271,11 @@ export const workFor = (checkpoint, ticket) => Object.values(checkpoint?.work ??
 // This host's locations: every worktree a ticket held here uses, and every
 // location this host recorded before. Each is observed while it exists:
 // whether its head reached the remote, whether files are unfinished, a stale
-// handoff lock, its PR's review jobs, and, when its ticket has a snapshot,
-// whether the snapshot carries its files (tree equality) and its head
-// (reachability), or why its state cannot be carried. A location that is gone
-// keeps its last observation with its time. A location is retired once nothing
-// holds it and nothing in it exists only here.
+// handoff lock and its PR's review jobs. A location that is gone keeps its
+// last observation with its time. A location is retired once nothing holds it
+// and it holds neither unfinished files nor unpushed commits. The inventory
+// never judges whether a snapshot holds a location's work: unfinished or
+// unpushed work is always reported as possibly existing only on its host.
 export function inventoryWork(record, { host = os.hostname(), remote, snapshots = {}, prs = {}, previousWork = {} } = {}) {
   const locations = new Map();
   for (const [number, ticket] of Object.entries(record.tickets)) {
@@ -304,62 +304,39 @@ export function inventoryWork(record, { host = os.hostname(), remote, snapshots 
         entry.dirty = statusOf(worktree).length > 0 || rawEdits(worktree).length > 0;
         const lock = path.join(git(worktree, ["rev-parse", "--path-format=absolute", "--git-dir"]), "agent-handoff.lock");
         if (fs.existsSync(lock)) { let owner = null; try { owner = readJson(lock); } catch { /* reported as unreadable below */ } entry.handoffLock = owner ? { host: owner.host ?? null, pid: owner.processIdentity?.pid ?? owner.pid ?? null } : { unreadable: true }; }
-        if (snap) {
-          // A comparison holds only for the snapshot it was made against.
-          entry.comparedWith = snap.commit;
-          // The snapshot carries the commits its head reaches, wherever it was made.
-          entry.headInSnapshot = spawnOk(worktree, ["merge-base", "--is-ancestor", entry.head, snap.commit]);
-          const blocked = unrepresentable(worktree);
-          if (blocked) { entry.unrepresentable = blocked; entry.snapshotCurrent = false; }
-          else { try { const t = treesOf(worktree); entry.snapshotCurrent = t.files === snap.files && t.index === snap.index; } catch (error) { entry.snapshotCurrent = null; entry.error = error.message; } }
-        }
       } catch (error) { entry.error = error.message; }
     } else {
       // Nothing can be observed: the last observation stands, with its time.
       if (worktree) entry.exists = false;
-      const last = before ? (before.lastObserved ?? { at: before.observedAt, head: before.head, dirty: before.dirty, unpushed: before.unpushed, snapshotCurrent: before.snapshotCurrent, headInSnapshot: before.headInSnapshot, comparedWith: before.comparedWith, unrepresentable: before.unrepresentable }) : null;
-      if (last && [last.dirty, last.unpushed, last.snapshotCurrent].some((v) => v !== undefined)) entry.lastObserved = last;
+      const last = before ? (before.lastObserved ?? { at: before.observedAt, head: before.head, dirty: before.dirty, unpushed: before.unpushed }) : null;
+      if (last && [last.dirty, last.unpushed].some((v) => v !== undefined)) entry.lastObserved = last;
     }
     const pr = prs[number] ?? ticket.owner?.adopted?.pr ?? ticket.owner?.continues?.pr ?? ticket.results?.at(-1)?.report?.pr ?? before?.pr ?? null;
     if (Number.isSafeInteger(pr)) { entry.pr = pr; entry.reviewJobs = reviewJobs(record.checkout, pr); }
-    const s = workState(entry, snap);
-    if (!held && !s.filesOnlyHere && !s.commitsOnlyHere && !s.unknown && !entry.handoffLock && !entry.error) continue;
+    const s = workState(entry);
+    if (!held && !s.dirty && !s.unpushed && !s.unknown && !entry.handoffLock && !entry.error) continue;
     work[key] = entry;
   }
   return work;
 }
 
-// A location's state as last known, observed now when its worktree exists and
-// otherwise as last observed, and what of it exists only on its host given
-// its ticket's snapshot: files the snapshot does not hold as they are, and
-// commits it does not reach. A state that could not be observed or compared
-// counts as existing only there.
-export const workState = (w, snap) => {
+// A location's state as last known: observed now when its worktree exists,
+// otherwise as last observed, with the time; unknown when it could not be
+// observed.
+export const workState = (w) => {
   const last = w?.lastObserved ?? {};
-  const snapped = Boolean(snap && !snap.clean);
   const dirty = w?.dirty ?? last.dirty, unpushed = w?.unpushed ?? last.unpushed;
-  // Results of a comparison with another snapshot than the ticket's current
-  // one say nothing about it.
-  const compared = snapped && (w?.comparedWith ?? last.comparedWith) === snap.commit;
-  const snapshotCurrent = compared ? w?.snapshotCurrent ?? last.snapshotCurrent : undefined, headInSnapshot = compared ? w?.headInSnapshot ?? last.headInSnapshot : undefined;
-  return {
-    head: w?.head ?? last.head, dirty, unpushed, snapshotCurrent, headInSnapshot, unrepresentable: w?.unrepresentable ?? last.unrepresentable,
-    at: w?.dirty !== undefined ? w.observedAt : last.at,
-    unknown: w?.exists !== false && dirty === undefined && Boolean(w?.error),
-    filesOnlyHere: Boolean(dirty) && !(snapped && snapshotCurrent === true),
-    commitsOnlyHere: Boolean(unpushed) && !(snapped && headInSnapshot === true),
-  };
+  return { head: w?.head ?? last.head, dirty, unpushed, at: w?.dirty !== undefined ? w.observedAt : last.at, unknown: w?.exists !== false && dirty === undefined && Boolean(w?.error) };
 };
-// What of a location exists only on its host, in words a destination acts on.
+// What of a location may exist only on its host, in words a destination acts
+// on. A snapshot never counts as holding it: the destination is told the
+// snapshot exists, and that the source may hold more.
 export function onlyHereDetails(w, snap) {
-  const s = workState(w, snap), gone = w.exists === false ? " (that worktree has since gone from its path)" : "";
+  const s = workState(w), gone = w.exists === false ? " (that worktree has since gone from its path)" : "";
+  const saved = snap && !snap.clean ? `; snapshot ${snap.commit} holds only what was saved at ${snap.time ?? "the handoff"}` : "";
+  const what = [s.dirty && "unfinished files", s.unpushed && "unpushed commits"].filter(Boolean);
   const details = [];
-  if (s.filesOnlyHere) details.push(snap && !snap.clean
-    ? `as of ${s.at}, the files in ${w.worktree} on ${w.host} had changed since snapshot ${snap.commit}${s.unrepresentable ? ` (${s.unrepresentable.split(";")[0]})` : s.snapshotCurrent == null ? " (or could not be compared with it)" : ""}${gone}; only the snapshot's bytes are recoverable from the checkpoint`
-    : `as of ${s.at}, unfinished files existed only on ${w.host} in ${w.worktree}${gone}; they are not recoverable from the checkpoint`);
-  if (s.commitsOnlyHere) details.push(snap && !snap.clean
-    ? `as of ${s.at}, unpushed commits made after the snapshot existed only on ${w.host} in ${w.worktree}${gone} (snapshot ${snap.commit} does not reach them)`
-    : `as of ${s.at}, unpushed commits existed only on ${w.host} in ${w.worktree}${gone}; they are not recoverable from the checkpoint`);
+  if (what.length) details.push(`as of ${s.at}, ${w.host} held ${what.join(" and ")} in ${w.worktree}${gone} that may exist only there${saved}`);
   if (s.unknown) details.push(`the state of ${w.worktree} on ${w.host} could not be observed (${w.error}); treat its work as existing only there`);
   return details;
 }
@@ -444,20 +421,17 @@ const ownerText = (t) => {
   return "none";
 };
 // A flag nobody observed is said to be unknown, never clean or pushed.
-const locationText = (w, snap) => {
-  const s = workState(w, snap);
+const locationText = (w) => {
+  const s = workState(w);
   const flag = (value, yes, no, unknown) => (value === undefined ? unknown : value ? yes : no);
   const parts = [...(w.exists === false ? ["worktree missing"] : []), ...(w.dirty === undefined && s.at ? [`as of ${s.at}`] : []), flag(s.unpushed, "unpushed commits", "head pushed", "push state unknown"), flag(s.dirty, "unfinished files", "clean", "file state unknown")];
-  if (snap && !snap.clean) parts.push(`snapshot ${short(snap.commit)}${s.filesOnlyHere ? " (files changed since)" : ""}${s.commitsOnlyHere ? " (commits beyond it)" : ""}`);
-  if (s.unrepresentable) parts.push(s.unrepresentable.split(";")[0]);
   if (w.handoffLock) parts.push("handoff lock present");
   return parts.join(", ");
 };
-// A ticket's work on every host that holds some, and its snapshot.
+// A ticket's work on every host that holds some, and its snapshot beside it.
 const workText = (c, n) => {
   const snap = c.snapshots?.[n];
-  const located = workFor(c, n).map((w) => `${w.host}: ${locationText(w, snap)}`);
-  return [...located, ...(!located.length && snap && !snap.clean ? [`snapshot ${short(snap.commit)} from ${snap.host}`] : [])].join("; ");
+  return [...workFor(c, n).map((w) => `${w.host}: ${locationText(w)}`), ...(snap && !snap.clean ? [`snapshot ${short(snap.commit)} from ${snap.host ?? "its source"}`] : [])].join("; ");
 };
 
 export function renderSummary(state, repository) {
