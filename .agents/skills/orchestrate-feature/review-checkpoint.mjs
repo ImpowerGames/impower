@@ -173,15 +173,15 @@ function malformed(d) {
   if (d.kind === "accept-unreviewed" && (d.range == null || !present(d.authority))) return "an acceptance without its range or authority";
   return null;
 }
-export function restore(comments, { trusted = [], record = null } = {}) {
+export function restore(comments, { trusted = [], record = null, pr = null } = {}) {
   const held = record ? new Map(Object.values(record.tickets).flatMap((t) => (t.checkpoints ?? []).map((d) => [d.id, d]))) : null;
   const decisions = [];
   for (const c of comments) {
     for (const m of (c.body ?? "").matchAll(BLOCK)) {
       let d;
-      try { d = JSON.parse(m[1]); } catch { decisions.push({ comment: c.id, malformed: "its block is not JSON" }); continue; }
+      try { d = JSON.parse(m[1]); } catch { decisions.push({ comment: c.id, postedAt: c.created_at, malformed: "its block is not JSON" }); continue; }
       const problem = malformed(d);
-      if (problem) { decisions.push({ comment: c.id, malformed: problem }); continue; }
+      if (problem) { decisions.push({ comment: c.id, postedAt: c.created_at, malformed: problem }); continue; }
       const mine = held?.get(d.id);
       const verified = Boolean(mine && mine.state === "published" && mine.published?.comment === c.id && mine.blockSha256 === blockHash(d));
       const edited = Boolean(c.updated_at && c.updated_at !== c.created_at);
@@ -199,7 +199,16 @@ export function restore(comments, { trusted = [], record = null } = {}) {
       decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, supersedes, ...(untrusted && { untrusted }) });
     }
   }
-  return decisions;
+  // A decision the record published supersedes from its recorded comment
+  // whatever that comment now holds: a damaged, removed or deleted block
+  // cannot revive what the decision withdrew.
+  for (const h of held?.values() ?? []) {
+    if (h.state !== "published" || (pr !== null && h.pr !== pr)) continue;
+    if (decisions.some((d) => d.id === h.id && d.comment === h.published.comment)) continue;
+    const at = comments.find((c) => c.id === h.published.comment);
+    decisions.push({ id: h.id, kind: h.kind, round: h.round, head: h.head, coordinator: h.coordinator, comment: h.published.comment, postedAt: at?.created_at ?? h.published.time, trusted: false, verified: false, supersedes: true, untrusted: `comment ${h.published.comment} ${at ? "no longer carries" : "is gone, with"} published decision ${h.id}` });
+  }
+  return decisions.sort((a, b) => Date.parse(a.postedAt ?? 0) - Date.parse(b.postedAt ?? 0));
 }
 
 // Rounds the journals show against the extensions the PR records. Each round
@@ -291,7 +300,7 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
   if (failed.length) blockers.push(`CI failed on ${pull.head}: ${failed.map((c) => `${c.name} ${c.state}`).join(", ")}`);
   const range = state.reviewedHead ? git.range(state.reviewedHead, pull.head) : null;
   if (range && !range.ancestor) blockers.push(`the reviewed head ${state.reviewedHead} is not an ancestor of ${pull.head}; the history was rewritten`);
-  const decisions = restore(comments, { trusted, record });
+  const decisions = restore(comments, { trusted, record, pr });
   const violations = audit(state, decisions);
   const extension = decisions.filter((d) => d.trusted && d.kind === "extend").at(-1);
   return {
@@ -455,9 +464,15 @@ export function trustPredecessor(record, { ticket: number, session, source }) {
   record.log.push({ time: new Date().toISOString(), event: "checkpoint-predecessor", ticket: number, session, source });
 }
 
-// The coordinators a run record trusts: its own, every previous one, and
-// the predecessors it named for its tickets.
-export const trustedCoordinators = (record) => [record.coordinator.session, ...(record.previousCoordinators ?? []).map((c) => c.session), ...Object.values(record.tickets).flatMap((t) => (t.trustedPredecessors ?? []).map((p) => p.session))];
+// The coordinators a run record trusts for a ticket: its own, every
+// previous one, and the predecessors it named for that ticket, never a
+// session that wrote for it. Predecessors named for other tickets are not
+// trusted here.
+export const trustedCoordinators = (record, number = null) => {
+  const ticket = number === null ? null : record.tickets[number];
+  const writers = ticket ? writersOf(ticket) : [];
+  return [record.coordinator.session, ...(record.previousCoordinators ?? []).map((c) => c.session), ...(ticket?.trustedPredecessors ?? []).map((p) => p.session)].filter((s) => !writers.includes(s));
+};
 
 // --- GitHub and Git ---------------------------------------------------------
 
@@ -514,7 +529,7 @@ export function gatherEvidence({ record, ticket, pr, client, git }) {
   if (branchTicket !== ticket) throw new Error(`PR #${pr}'s branch ${pull.branch} is not #${ticket}'s`);
   git.fetch(pr);
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
-  return checkpointEvidence({ pr, state, pull, comments: client.comments(pr), git, trusted: trustedCoordinators(record), record });
+  return checkpointEvidence({ pr, state, pull, comments: client.comments(pr), git, trusted: trustedCoordinators(record, ticket), record });
 }
 
 // --- Command line -----------------------------------------------------------
@@ -565,10 +580,10 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit } =
     case "restore":
     case "acceptance-check": {
       let client, trusted = o.trust, record = null;
-      if (o.record) { const r = withRecord(); client = r.client; record = r.record; trusted = [...trusted, ...trustedCoordinators(record)]; }
+      if (o.record) { const r = withRecord(); client = r.client; record = r.record; trusted = [...trusted, ...trustedCoordinators(record, o.ticket === undefined ? null : int(o.ticket, "ticket"))]; }
       else client = clientFor(o.repo, abs(o.checkout, "checkout"));
       if (!trusted.length) throw new Error("Name the trusted coordinators with --record or --trust <session> (the Feature's status names them)");
-      const pr = int(o.pr, "pr"), decisions = restore(client.comments(pr), { trusted, record });
+      const pr = int(o.pr, "pr"), decisions = restore(client.comments(pr), { trusted, record, pr });
       return command === "restore" ? { pr, decisions } : { pr, ...acceptanceApplies(decisions, client.pull(pr).head) };
     }
     default: throw new Error("Usage: review-checkpoint.mjs evidence|decide|published|abandon|trust-predecessor|restore|acceptance-check --option value ...");
