@@ -295,15 +295,14 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
   });
 
   test("a `..` after an interpolation in the middle of a line is text", () => {
-    for (const [source, rest] of [
-      [`{3} .. and more.\n`, ".. and more.\n"],
-      [`{3}..and more.\n`, "..and more.\n"],
+    for (const [source, shown] of [
+      [`{3} .. and more.\n`, "3 .. and more.\n"],
+      [`{3}..and more.\n`, "3..and more.\n"],
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
-      // The grammar makes the interpolation and the rest of its line two
-      // statements, as it does for `{3} and more.`.
-      expect(texts(ctx.story)).toEqual(["3\n", rest]);
+      // The line is one display line, as `3 .. and more.` would be (#1746).
+      expect(texts(ctx.story)).toEqual([shown]);
     }
   });
 

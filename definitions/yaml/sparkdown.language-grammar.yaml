@@ -3120,8 +3120,9 @@ repository:
     end: (?=^(?!$|//|\1{{WS}}))
   # A `..` right after an interpolation (`{x} .. more`) is text the player
   # shows, so it does not begin an action there. A line that starts with an
-  # interpolation is read whole as a display line (#1746), so this guard is
-  # only a backstop for a `}` that ends some other statement.
+  # interpolation is read whole as a display line (#1746); the guard is still
+  # reached after a declaration that ends in `}` (`store t = {a=1} : more`),
+  # where it leaves the rest of the line to ImplicitAction.
   InlineAction:
     begin: (?<![}])({{WS}}*)(?:({{LEADING_GLUE}})|([:])($|{{WS}}+))
     beginCaptures:
