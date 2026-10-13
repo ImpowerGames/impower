@@ -291,6 +291,15 @@ export class Game<T extends M = {}> {
 
   protected _executingLocation: ScriptLocation | null = null;
 
+  /** Where the beat the game waits on stands, and the story's last address
+   *  when it began to wait: the last line the beat ran, which is not the
+   *  last instruction the story ran when the beat's continue went on to cut
+   *  the next line (#1756). Nothing while the game does not wait. */
+  protected _awaiting: {
+    location: ScriptLocation | null;
+    address: number;
+  } | null = null;
+
   protected _runtimeErrorsReported = 0;
   /** How many runtime errors (not warnings) the game has reported, so a caller
    *  can tell whether a failure it caught was already reported. */
@@ -2462,6 +2471,7 @@ export class Game<T extends M = {}> {
    * modules and the runtime record load, which cannot fail.
    */
   protected loadProgramSave(program: ProgramStory, saveJSON: string): boolean {
+    this._awaiting = null;
     try {
       const saveData: SaveData =
         typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
@@ -2638,6 +2648,9 @@ export class Game<T extends M = {}> {
    *  to get wrong. */
   protected discardOpenStoryLine() {
     this._story.CancelAsyncContinue();
+    // The story is about to stand somewhere else, so it no longer waits on
+    // the beat it waited on.
+    this._awaiting = null;
   }
 
   /** Re-assert reactive dependency tracking after ANY story-state
@@ -2672,6 +2685,7 @@ export class Game<T extends M = {}> {
     if (!preserveExecutionInfo) {
       this._runtimeState = new RuntimeState();
     }
+    this._awaiting = null;
 
     this.resetExecutionBudget();
     this.refreshDataWatches();
@@ -2707,6 +2721,7 @@ export class Game<T extends M = {}> {
     // A step advances the story; a preview waiting to display a beat of it
     // would display over the step's.
     this.cancelPreview();
+    this._awaiting = null;
     this.resetExecutionBudget();
     this.refreshDataWatches();
     // A step in, over or out runs until it stops where it says it stops, or
@@ -3098,10 +3113,18 @@ export class Game<T extends M = {}> {
     );
   }
 
+  /** Announces a wait for the player at the beat just flushed, at the last
+   *  line the beat ran (the record `game/executed` reports, #1686). */
   protected notifyAwaitingInteraction() {
+    const location =
+      this.lastExecutedScriptLocation() ?? this._executingLocation;
+    this._awaiting = {
+      location,
+      address: this._story.previousAddress,
+    };
     this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
-        location: this.getDocumentLocation(this._executingLocation),
+        location: this.getDocumentLocation(location),
       }),
     );
   }
@@ -3664,10 +3687,22 @@ export class Game<T extends M = {}> {
       this._executingLocation && this._executingLocation[0] >= 0
         ? this._executingLocation
         : this.lastExecutedScriptLocation();
+    // The frame that runs stands on the beat the game waits on while nothing
+    // has run since, which is not where its last instruction stands when
+    // the beat's continue went on to cut the next line (#1756).
+    const awaiting =
+      this._awaiting &&
+      this._awaiting.location &&
+      this._awaiting.address === program.previousAddress &&
+      threadId === program.state.callStack.currentThread.threadIndex
+        ? this._awaiting.location
+        : null;
     for (let i = startFrame; i < frameCount; i++) {
       const f = frames[i]!;
       const location =
-        this.scriptLocationOf(f.address >= 0 ? f.address : undefined) ?? ran;
+        (i === frames.length - 1 ? awaiting : null) ??
+        this.scriptLocationOf(f.address >= 0 ? f.address : undefined) ??
+        ran;
       const isFunction = f.type == PushPopType.Function;
       stackFrames.unshift({
         id: i,

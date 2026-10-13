@@ -1824,6 +1824,29 @@ describe("a choose block's caption on the program engine", () => {
     });
   });
 
+  // The caption's continue runs on into the next line's condition and cuts
+  // it, so the last instruction the story ran stands on that line while the
+  // game shows only the caption (#1756).
+  it("waits on the caption's line, and on the carried line with the beat that shows it", () => {
+    const h = debugGame(CAPTION);
+    const waits: { line: unknown; frame: unknown }[] = [];
+    h.game.connection.outgoing.addListener("*", (message) => {
+      const m = message as unknown as Recorded;
+      if (m.method === "game/awaitingInteraction") {
+        waits.push({
+          line: m.params.location?.range?.start?.line,
+          frame: h.frames().stackFrames[0]?.location?.range.start.line,
+        });
+      }
+    });
+    h.game.start();
+    expect(h.game.story.currentText).toBe("Pick.\n");
+    expect(waits).toEqual([{ line: 1, frame: 1 }]);
+    h.game.continue();
+    expect(h.game.story.currentText).toBe("Something shows first.\n");
+    expect(waits.slice(1)).toEqual([{ line: 3, frame: 3 }]);
+  });
+
   it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
     const h = debugGame(CAPTION);
     h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
