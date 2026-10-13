@@ -39,11 +39,17 @@ interface HeldClear {
   hide: boolean;
   /** Whether hiding it also removes its `text` attribute (a text clear). */
   textAttr: boolean;
-  /** Whether its text content is still to be emptied. */
-  text: boolean;
-  /** Whether its image content is still to be emptied. */
-  image: boolean;
+  /** The text content still to be removed: the nodes its `text` and
+   *  `stroke` held when the text clear arrived. Absent when none is held. */
+  text?: Set<Node>;
+  /** The same for the image clear, from its `image` and `mask`. */
+  image?: Set<Node>;
 }
+
+/** The content elements a text clear empties, and those an image clear
+ *  empties. */
+const TEXT_CONTENT = ["text", "stroke"] as const;
+const IMAGE_CONTENT = ["image", "mask"] as const;
 
 /**
  * Apply one engine-sent attribute to a realized element.
@@ -278,23 +284,22 @@ export default class UIManager extends Manager {
 
   /** Hold a target's clear, element by element, until the messages after it
    *  touch each element, or the sweep. The hiding is held for the elements
-   *  the game named and the content for those the target names on the page
-   *  now, exactly the elements the clear applied at once would have touched:
-   *  an element created later is not this clear's to empty. An element this
-   *  pass built is cleared at once, since it has nothing on screen to keep. */
+   *  the game named, and the content for those the target names on the page
+   *  now: the very nodes their content elements hold now, which are what the
+   *  clear applied at once would have removed. An element, a content slot or
+   *  a node created later is not this clear's to empty. An element this pass
+   *  built is cleared at once, since it has nothing on screen to keep. */
   protected holdClear(clear: {
     target: string;
     elements: string[];
     text?: boolean;
     image?: boolean;
   }) {
-    const text = Boolean(clear.text);
-    const image = Boolean(clear.image);
     const parts = new Map<HTMLElement, HeldClear>();
     const part = (el: HTMLElement) => {
       let entry = parts.get(el);
       if (!entry) {
-        entry = { hide: false, textAttr: false, text: false, image: false };
+        entry = { hide: false, textAttr: false };
         parts.set(el, entry);
       }
       return entry;
@@ -304,13 +309,17 @@ export default class UIManager extends Manager {
       if (el && el !== this.app.overlay) {
         const entry = part(el);
         entry.hide = true;
-        entry.textAttr ||= text;
+        entry.textAttr ||= Boolean(clear.text);
       }
     }
     for (const el of this.findTargetElements(clear.target)) {
       const entry = part(el);
-      entry.text ||= text;
-      entry.image ||= image;
+      if (clear.text) {
+        entry.text = this.contentNodes(el, TEXT_CONTENT);
+      }
+      if (clear.image) {
+        entry.image = this.contentNodes(el, IMAGE_CONTENT);
+      }
     }
     const held = this.heldClears;
     for (const [el, entry] of parts) {
@@ -319,43 +328,67 @@ export default class UIManager extends Manager {
         continue;
       }
       const prior = held.get(el);
-      if (prior) {
-        prior.hide ||= entry.hide;
-        prior.textAttr ||= entry.textAttr;
-        prior.text ||= entry.text;
-        prior.image ||= entry.image;
-      } else {
+      if (!prior) {
         held.set(el, entry);
+        continue;
+      }
+      prior.hide ||= entry.hide;
+      prior.textAttr ||= entry.textAttr;
+      for (const kind of ["text", "image"] as const) {
+        const nodes = entry[kind];
+        if (nodes) {
+          prior[kind] = new Set([...(prior[kind] ?? []), ...nodes]);
+        }
       }
     }
   }
 
-  /** Apply what is held for `el`: all of it, or only its hiding. */
-  protected applyHeld(el: HTMLElement, only?: "hide") {
+  /** The nodes `el`'s content elements of the given classes hold now. */
+  protected contentNodes(el: HTMLElement, tags: readonly string[]): Set<Node> {
+    const nodes = new Set<Node>();
+    for (const tag of tags) {
+      for (const contentEl of this.getContentElements(el, tag)) {
+        for (const node of Array.from(contentEl.childNodes)) {
+          nodes.add(node);
+        }
+      }
+    }
+    return nodes;
+  }
+
+  /** Apply what is held for `el`: its hiding (unless `hide` is false), and
+   *  the content of the kinds given (all of them when none are). */
+  protected applyHeld(
+    el: HTMLElement,
+    kinds?: readonly ("text" | "image")[],
+    hide = true,
+  ) {
     const held = this.heldClears;
     const entry = held?.get(el);
     if (!held || !entry) {
       return;
     }
-    if (only === "hide") {
-      if (entry.hide) {
-        this.applyHide(el, entry.textAttr);
-        entry.hide = false;
-        entry.textAttr = false;
-      }
-      if (!entry.text && !entry.image) {
-        held.delete(el);
-      }
-      return;
+    const release: HeldClear = { hide: false, textAttr: false };
+    if (hide) {
+      release.hide = entry.hide;
+      release.textAttr = entry.textAttr;
+      entry.hide = false;
+      entry.textAttr = false;
     }
-    held.delete(el);
-    this.applyClear(el, entry);
+    for (const kind of kinds ?? (["text", "image"] as const)) {
+      release[kind] = entry[kind];
+      delete entry[kind];
+    }
+    if (!entry.hide && !entry.text && !entry.image) {
+      held.delete(el);
+    }
+    this.applyClear(el, release);
   }
 
   /** A clear of one element, as the engine's text and image clears leave
    *  it: hidden (and its `text` attribute gone, for a text clear), and the
-   *  content each clear empties emptied, as `writeText` and `writeImage`
-   *  empty it for a clear. */
+   *  content each clear empties emptied, with the write signature and the
+   *  reveal reset as `writeText` and `writeImage` reset them for a clear. */
   protected applyClear(el: HTMLElement, entry: HeldClear) {
     if (entry.hide) {
       this.applyHide(el, entry.textAttr);
@@ -365,19 +398,15 @@ export default class UIManager extends Manager {
       delete (el as any).__sdWait;
       this.revealAtOnce(el);
       (el as any).__sdTxt = JSON.stringify([]);
-      for (const tag of ["text", "stroke"]) {
-        for (const contentEl of this.getContentElements(el, tag)) {
-          contentEl.replaceChildren();
-        }
+      for (const node of entry.text) {
+        node.parentNode?.removeChild(node);
       }
     }
     if (entry.image) {
       this._staleImageTargets.delete(el);
       (el as any).__sdImg = JSON.stringify([]);
-      for (const tag of ["image", "mask"]) {
-        for (const contentEl of this.getContentElements(el, tag)) {
-          contentEl.replaceChildren();
-        }
+      for (const node of entry.image) {
+        node.parentNode?.removeChild(node);
       }
     }
   }
@@ -401,38 +430,33 @@ export default class UIManager extends Manager {
    * each element still sees its clear before anything after it, as if the
    * clear had been applied when it was sent.
    *
-   * A write applies the whole clear of each element it writes, and only of
-   * those: its content is emptied in the same task that refills it, and an
-   * element the write does not replace (another instance of the target,
-   * written by an indexed write of its own) keeps what it shows. An update,
-   * an animation, a move or a destroy of an element applies only its hiding:
-   * the update that shows a target again (the restore's or the beat's) then
-   * lands on it in the same task, and the element keeps what it shows until
-   * its write. Touching the content itself (`text`, `stroke`, `image`,
-   * `mask`) applies its element's whole clear. A create touches nothing: a
-   * held clear empties only the elements it addressed when it arrived, so
-   * what is created after it (a layout the beat opens) is not its to empty,
-   * and what a connect's create stream rebuilds inside an element it holds
-   * is emptied by it, as applied at once it would have been.
+   * A write applies the clear of each element it writes, and only of those,
+   * and only of its own kind: a text write empties the text it replaces and
+   * leaves the element's pictures until the image write that replaces them,
+   * and an element the write does not replace (another instance of the
+   * target, written by an indexed write of its own) keeps what it shows. An
+   * update, an animation, a move or a destroy of an element applies only its
+   * hiding: the update that shows a target again (the restore's or the
+   * beat's) then lands on it in the same task, and the element keeps what it
+   * shows until its write. Touching a content element applies the clear of
+   * that content's kind. A create touches nothing: a held clear removes only
+   * the nodes it found when it arrived, so what is created after it (a layout
+   * the beat opens, a content slot a branch mounts) is not its to empty.
    */
   protected releaseHeldClears(msg: RequestMessage) {
     const held = this.heldClears;
     if (!held || held.size === 0) {
       return;
     }
-    const contentOwner = (el: HTMLElement | null | undefined) =>
-      el?.parentElement &&
-      ["text", "stroke", "image", "mask"].some((tag) =>
-        el.classList.contains(tag),
-      )
-        ? el.parentElement
-        : undefined;
-    if (
-      WriteTextMessage.type.isRequest(msg) ||
-      WriteImageMessage.type.isRequest(msg)
-    ) {
+    if (WriteTextMessage.type.isRequest(msg)) {
       for (const el of this.findTargetElements(msg.params.target)) {
-        this.applyHeld(el);
+        this.applyHeld(el, ["text"]);
+      }
+      return;
+    }
+    if (WriteImageMessage.type.isRequest(msg)) {
+      for (const el of this.findTargetElements(msg.params.target)) {
+        this.applyHeld(el, ["image"]);
       }
       return;
     }
@@ -451,11 +475,16 @@ export default class UIManager extends Manager {
       if (!el) {
         continue;
       }
-      const owner = contentOwner(el);
-      if (owner) {
-        this.applyHeld(owner);
+      const owner = el.parentElement;
+      const kind = TEXT_CONTENT.some((tag) => el.classList.contains(tag))
+        ? "text"
+        : IMAGE_CONTENT.some((tag) => el.classList.contains(tag))
+          ? "image"
+          : undefined;
+      if (owner && kind) {
+        this.applyHeld(owner, [kind], false);
       } else {
-        this.applyHeld(el, "hide");
+        this.applyHeld(el, []);
       }
     }
   }

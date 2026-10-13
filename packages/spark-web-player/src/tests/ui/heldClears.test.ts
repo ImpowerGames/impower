@@ -165,6 +165,97 @@ describe("held clears (#1820)", () => {
     expect(held).toEqual(immediate);
   });
 
+  test("the sweep leaves a content slot created under a held element after its clear", async () => {
+    // A branch the beat switches mounts a new text slot, with its own
+    // content, under a target whose clear is held. Applied at once, the clear
+    // came before the slot existed.
+    const run = async (held: boolean) => {
+      await twoPortraitsShowing();
+      if (held) {
+        hold("portrait", ["e-portrait-0"]);
+      } else {
+        await request("ui/update", {
+          element: "e-portrait-0",
+          style: { display: "none" },
+          attributes: { text: null },
+        });
+        await request("ui/write-text", { target: "portrait#0", instructions: [], instant: true });
+        await request("ui/write-image", { target: "portrait#0", instructions: [], instant: true });
+      }
+      await request("ui/update", { element: "e-portrait-0", style: { display: null } });
+      await create("e-portrait-0-caption-0", "e-portrait-0", "text caption", {
+        content: { text: "Caption" },
+      });
+      page.sweepReconcile();
+      const portrait = overlay.querySelector(".portrait") as HTMLElement;
+      return {
+        caption: portrait.querySelector(":scope > .caption")?.textContent,
+        display: portrait.style.display,
+        pictures: portraits()[0],
+      };
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    // The control: the clear applied at once leaves the caption.
+    expect(immediate.caption).toBe("Caption");
+    expect(held).toEqual(immediate);
+  });
+
+  test("a text write leaves the picture of a target that shows both until the image write", async () => {
+    // A custom layout's transient target with a text slot and an image
+    // slot: the beat writes its words, then its picture, in separate tasks.
+    await create("e", null, "stage");
+    await create("e-box-0", "e", "box");
+    await create("e-box-0-text-0", "e-box-0", "text");
+    await create("e-box-0-image-0", "e-box-0", "image");
+    await request("ui/write-text", { target: "box", instructions: [{ text: "Old words." }], instant: true });
+    await show("box", "old");
+    await flushMicrotasks();
+    page.beginReconcilePass();
+    await create("e", null, "stage");
+    await create("e-box-0", "e", "box");
+    await create("e-box-0-text-0", "e-box-0", "text");
+    await create("e-box-0-image-0", "e-box-0", "image");
+    const box = () => {
+      const el = overlay.querySelector(".box") as HTMLElement;
+      return el.style.display === "none"
+        ? { words: "", pictures: [] as (string | null)[] }
+        : {
+            words: el.querySelector(":scope > .text")?.textContent ?? "",
+            pictures: Array.from(el.querySelectorAll(":scope > .image > .instance[image]")).map((l) =>
+              l.getAttribute("image"),
+            ),
+          };
+    };
+    expect(box()).toEqual({ words: "Old words.", pictures: ["old"] });
+
+    hold("box", ["e-box-0"]);
+    const frames = [box()];
+    await request("ui/update", { element: "e-box-0", style: { display: null } });
+    frames.push(box());
+    await request("ui/write-text", { target: "box", instructions: [{ text: "New words." }], instant: true });
+    frames.push(box());
+    await show("box", "new");
+    frames.push(box());
+    page.sweepReconcile();
+    frames.push(box());
+
+    for (const [n, frame] of frames.entries()) {
+      expect(["Old words.", "New words."], `frame ${n} words`).toContain(frame.words);
+      expect([["old"], ["new"]], `frame ${n} pictures: ${JSON.stringify(frame.pictures)}`).toContainEqual(
+        frame.pictures,
+      );
+    }
+    expect(frames.at(-1)).toEqual({ words: "New words.", pictures: ["new"] });
+  });
+
   test("an update re-shows the element with what it showed, and the write replaces it in one task", async () => {
     await twoPortraitsShowing();
     hold("portrait", ["e-portrait-0", "e-portrait-1"]);
