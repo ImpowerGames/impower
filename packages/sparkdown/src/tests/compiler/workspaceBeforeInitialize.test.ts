@@ -31,6 +31,9 @@ class TestWorkspace extends SparkdownWorkspace {
   requests: { method: string; params: any }[] = [];
   /** Resolves the configuration request, which is held until then. */
   configure?: () => void;
+  /** File loads held until the test resolves them, by uri. */
+  heldLoads = new Map<string, () => void>();
+  holdLoadsOf = new Set<string>();
 
   constructor() {
     super("");
@@ -49,6 +52,11 @@ class TestWorkspace extends SparkdownWorkspace {
   protected override async connectToWorker() {}
 
   override async loadFile(file: { uri: string }) {
+    if (this.holdLoadsOf.has(file.uri)) {
+      await new Promise<void>((resolve) =>
+        this.heldLoads.set(file.uri, resolve),
+      );
+    }
     return {
       uri: file.uri,
       name: this.getFileName(file.uri),
@@ -152,6 +160,62 @@ describe("a file event that arrives before the workspace is initialized", () => 
     workspace.configure!();
     await Promise.all([deleting, creating]);
     expect(workspace.watched).toEqual([ADDED, MAIN]);
+  });
+
+  it("is applied after an earlier event for the same file, however long that one takes", async () => {
+    const workspace = new TestWorkspace();
+    workspace.holdLoadsOf.add(ADDED);
+    // Created, then deleted, before initialize: the file is gone.
+    const creating = workspace.createFile(ADDED);
+    const deleting = workspace.deleteFile(ADDED);
+    await workspace.initializeWith([MAIN]);
+    workspace.configure!();
+    await settle();
+    // The create's load is still out, and the delete waits behind it.
+    expect(workspace.sent).toEqual([ConfigureCompilerMessage.method]);
+
+    workspace.heldLoads.get(ADDED)!();
+    await Promise.all([creating, deleting]);
+    await settle();
+    expect(workspace.sent).toEqual([
+      ConfigureCompilerMessage.method,
+      AddCompilerFileMessage.method,
+      RemoveCompilerFileMessage.method,
+    ]);
+    expect(workspace.watched).toEqual([MAIN]);
+  });
+
+  it("still reaches the compiler when initialize configures nothing", async () => {
+    const workspace = new TestWorkspace();
+    const deleting = workspace.deleteFile(EXTRA);
+    await workspace.initialize({ rootUri: "file://proj", capabilities: {} });
+    await deleting;
+    // Sent on, so the compiler answers it (with its error), rather than held
+    // for a configuration that will never come.
+    expect(workspace.sent).toEqual([RemoveCompilerFileMessage.method]);
+  });
+});
+
+describe("file events after the workspace is initialized", () => {
+  it("are applied to a file in the order they arrived", async () => {
+    const workspace = new TestWorkspace();
+    await workspace.initializeWith([MAIN]);
+    workspace.configure!();
+    workspace.holdLoadsOf.add(ADDED);
+    const creating = workspace.createFile(ADDED);
+    const deleting = workspace.deleteFile(ADDED);
+    await settle();
+    expect(workspace.sent).toEqual([ConfigureCompilerMessage.method]);
+
+    workspace.heldLoads.get(ADDED)!();
+    await Promise.all([creating, deleting]);
+    await settle();
+    expect(workspace.sent).toEqual([
+      ConfigureCompilerMessage.method,
+      AddCompilerFileMessage.method,
+      RemoveCompilerFileMessage.method,
+    ]);
+    expect(workspace.watched).toEqual([MAIN]);
   });
 });
 
