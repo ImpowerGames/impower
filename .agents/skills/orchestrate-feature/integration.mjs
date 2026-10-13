@@ -1,0 +1,529 @@
+// Integration of an orchestrated Feature. The merge gate decides whether the
+// coordinator may merge one slice's PR now; the merge itself records its
+// intent, calls GitHub with the expected head and reads the result back; and
+// the Feature's own acceptance criteria are verified on main before the
+// coordinator closes the Feature. GitHub stays the authority for PR state,
+// heads, checks and protection: every command reads them afresh, and the run
+// record keeps only the intent, the observed outcome and the evidence.
+//
+// The gate checks what can be checked: authority, scope, review state from
+// the launcher's journals, published decisions, CI, and integration with the
+// current main. Whether a criterion's evidence really shows it is met is the
+// coordinator's judgement; the helper only refuses a criterion without any.
+//
+//   node .agents/skills/orchestrate-feature/integration.mjs <command> --option value ...
+//
+// Commands: gate, merge, criteria, verify-feature, close-feature.
+
+import fs from "node:fs";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { readJson } from "../../../scripts/review-job-store.mjs";
+import { readRecord, updateRecord, coordinatorMerges } from "./feature-run.mjs";
+import { intent, outcome, ensureSaved, autoCheckpoint, operationText } from "./checkpoint.mjs";
+import { roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
+
+// Every slice merges into main, the branch the snapshot measures delivery on.
+export const TARGET = "main";
+// The repository's own required gate: the Test Suite workflow's gate job,
+// which passes whether its package jobs ran or were skipped. Branch
+// protection and rulesets may name more; the gate reads them on every run.
+export const REPOSITORY_GATES = ["test-suite"];
+const MERGEABLE = new Set(["CLEAN", "HAS_HOOKS"]);
+const OPEN = new Set(["intent", "uncertain"]);
+const SHA = /^[0-9a-f]{40}$/;
+const short = (sha) => String(sha ?? "none").slice(0, 9);
+const present = (value) => typeof value === "string" && value.trim().length > 0;
+const norm = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
+const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(branch ?? "")?.[1]) || null;
+const sameCommit = (a, b) => typeof a === "string" && typeof b === "string" && a.length >= 7 && b.length >= 7 && (a.startsWith(b) || b.startsWith(a));
+// A writer's report has nothing outstanding when its findings field says None
+// or lists nothing.
+const noneOutstanding = (findings) => (Array.isArray(findings) ? findings.length === 0 : /^none\.?$/i.test(norm(findings)));
+
+// --- Authority ----------------------------------------------------------------
+
+// The recorded invocation names the skill and the Feature. Whether the user
+// asked for orchestration or only discussed it is read from that quote by the
+// coordinator that recorded it; a quote that names neither grants nothing.
+export const invokes = (record) => /orchestrate-feature/i.test(record.invocation?.text ?? "") && new RegExp(`#${record.feature}(?![0-9])`).test(record.invocation.text);
+
+// --- CI -------------------------------------------------------------------------
+
+const PASSED = new Set(["SUCCESS", "NEUTRAL"]);
+const PENDING = new Set(["", "PENDING", "QUEUED", "IN_PROGRESS", "EXPECTED", "WAITING", "REQUESTED"]);
+// Each check's latest run on the head, as passed, skipped (it did not run),
+// pending or failed. Any other conclusion (cancelled, timed out, stale,
+// action required) is a failure until it is diagnosed and run again.
+export function classifyChecks(checks, required) {
+  const when = (c) => Date.parse(c.startedAt ?? c.completedAt ?? "") || 0;
+  const latest = new Map();
+  for (const c of checks) {
+    const key = `${c.workflow ?? ""}/${c.name}`, seen = latest.get(key);
+    if (!seen || when(c) >= when(seen)) latest.set(key, c);
+  }
+  return [...latest.values()].map((c) => {
+    const s = String(c.state ?? "").toUpperCase();
+    const result = PASSED.has(s) ? "passed" : s === "SKIPPED" ? "skipped" : PENDING.has(s) ? "pending" : "failed";
+    return { name: c.name, workflow: c.workflow ?? null, state: c.state ?? null, result, required: required.includes(c.name) };
+  });
+}
+const label = (c) => (c.workflow ? `${c.workflow} / ${c.name}` : c.name);
+function ciBlockers(checks, required, head) {
+  const out = [];
+  if (!checks.length) out.push(`no CI check has run on ${head}`);
+  for (const c of checks) if (c.result === "failed") out.push(`check ${label(c)} concluded ${c.state} on ${head}`);
+  const pending = checks.filter((c) => c.result === "pending");
+  if (pending.length) out.push(`check${pending.length > 1 ? "s" : ""} ${pending.map(label).join(", ")} still pending on ${head}; readiness may precede CI, but a merge may not`);
+  for (const name of required) {
+    const runs = checks.filter((c) => c.name === name);
+    if (!runs.length) out.push(`required check ${name} has not run on ${head}`);
+    for (const c of runs) if (c.result === "skipped") out.push(`required check ${label(c)} was skipped on ${head}, so it did not run`);
+  }
+  return out;
+}
+
+const MERGE_STATES = {
+  BEHIND: "GitHub reports the branch behind main (BEHIND); merge main into it and let CI run on the new head",
+  BLOCKED: "GitHub reports the merge blocked (BLOCKED): a required review, check or rule of the branch protection is unmet, and it is never bypassed",
+  DIRTY: "GitHub reports merge conflicts with main (DIRTY)",
+  UNSTABLE: "GitHub reports a failing check (UNSTABLE)",
+  DRAFT: "GitHub reports the PR as a draft (DRAFT)",
+};
+const mergeStateBlocker = (s) => MERGE_STATES[s] ?? `GitHub has not settled whether the PR can merge (${s ?? "no merge state"}); read it again shortly`;
+
+// --- Facts and the gate -----------------------------------------------------
+
+// Everything the gate decides on, read afresh: the PR as GitHub shows it,
+// main as the remote holds it, the branch's protection, the PR's comments,
+// the review journals on this machine, and the chain of clean main merges
+// at the head of the branch.
+export function gatherFacts({ record, pr, client, git }) {
+  const pull = client.pull(pr);
+  git.fetch(pr);
+  const originMain = git.main();
+  return {
+    pull, originMain, protection: client.protection(TARGET), comments: client.comments(pr),
+    state: roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`))),
+    chain: git.cleanChain(pull.head, originMain), containsMain: git.isAncestor(originMain, pull.head),
+  };
+}
+
+// An acceptance applies to the head, or to a commit the head reaches through
+// clean merges of main alone.
+function acceptanceOn(decisions, chain) {
+  const direct = acceptanceApplies(decisions, chain[0]);
+  if (direct.applies || !direct.decision || !chain.includes(direct.decision.head)) return direct;
+  const there = acceptanceApplies(decisions, direct.decision.head);
+  return there.applies ? { ...there, reason: `${there.reason}; the head adds only clean merges of ${TARGET} after it` } : direct;
+}
+
+// The merge gate. It admits the PR's current head only when every condition
+// holds, and otherwise names each one that fails; it never changes anything.
+export function admission(record, { ticket: number, pr, snapshot, facts, git }) {
+  const { pull, state, comments, originMain, chain, protection } = facts;
+  const head = pull.head, blockers = [];
+  // Authority: the invocation granted the merge, did not stop at ready, and
+  // the coordinator never wrote for this ticket.
+  if (record.invocation?.stopAtReady) blockers.push("the invocation stops at ready PRs, so the maintainer merges every PR of this run");
+  else if (!coordinatorMerges(record)) blockers.push(`the run's recorded merge authority is "${record.authority?.merge}", which leaves merging to the maintainer`);
+  if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-feature and Feature #${record.feature}; only an explicit invocation grants a merge, and discussing the skill is not one`);
+  const own = record.tickets[number];
+  if (own && writersOf(own).includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
+  // Scope: a sub-issue of this Feature, and its one open PR.
+  const t = snapshot.repository === record.repository && snapshot.feature?.number === record.feature ? snapshot.tickets.find((x) => x.number === number) : undefined;
+  if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) blockers.push("the snapshot is of another repository or Feature");
+  else if (!t) blockers.push(`#${number} is not a sub-issue of Feature #${record.feature} in the snapshot of ${snapshot.observedAt}`);
+  else if (t.container) blockers.push(`#${number} is a container; its sub-issues merge their own PRs`);
+  else if (!t.prs.some((p) => p.number === pr)) blockers.push(`PR #${pr} is not one of #${number}'s PRs in the snapshot of ${snapshot.observedAt}`);
+  else if (t.prs.filter((p) => p.state === "OPEN").length > 1) blockers.push(`#${number} has open PRs ${t.prs.filter((p) => p.state === "OPEN").map((p) => `#${p.number}`).join(", ")}; which one delivers it is the maintainer's decision`);
+  if (branchTicket(pull.branch) !== number) blockers.push(`PR #${pr}'s branch ${pull.branch} is not #${number}'s`);
+  if (!(pull.closes ?? []).includes(number)) blockers.push(`PR #${pr} does not close #${number} (its body has no Closes #${number}), so merging it would leave the ticket open`);
+  // The PR itself.
+  if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
+  if (pull.isDraft) blockers.push(`PR #${pr} is a draft; it merges only once marked ready`);
+  if (pull.base !== TARGET) blockers.push(`PR #${pr} targets ${pull.base}, not ${TARGET}`);
+  for (const op of (record.operations ?? []).filter((o) => o.pr === pr && o.kind !== "close" && OPEN.has(o.state))) blockers.push(`${operationText(op)} ${op.id} at ${op.expectHead} is ${op.state}; settle it with checkpoint.mjs reconcile-operations before any new merge`);
+  // Review: every planned reviewer exited and every report is adjudicated,
+  // read through the same accounting as the review checkpoints; then the
+  // head is the last reviewed one, or a published acceptance covers it.
+  const trusted = trustedCoordinators(record, number);
+  const e = checkpointEvidence({ pr, state, pull: { ...pull, checks: [] }, comments, git, trusted, record, firstRound: 1, ci: false });
+  blockers.push(...e.blockers, ...e.audit.map((a) => `review audit: ${a}`));
+  const decisions = restore(comments, { trusted, record, pr });
+  let disposition = null, covered = null, acceptance = null;
+  if (e.reviewedHead && chain.includes(e.reviewedHead)) { disposition = "reviewed"; covered = e.reviewedHead; }
+  else {
+    const a = acceptanceOn(decisions, chain);
+    if (a.applies) { disposition = "accepted-unreviewed"; covered = a.decision.head; acceptance = { id: a.decision.id, comment: a.decision.comment, head: a.decision.head, range: a.decision.range }; }
+    else {
+      const unreviewed = e.range?.commits?.length ? `; unreviewed after it: ${e.range.commits.map((c) => `${short(c.sha)} ${c.subject}`).join("; ")}` : "";
+      blockers.push(`head ${head} is not the last independently reviewed head ${e.reviewedHead ?? "(none)"} or a clean merge of ${TARGET} on top of it${unreviewed}, and no acceptance covers it (${a.reason}); the writer's next review round, or a checkpoint decision on this head, settles it`);
+    }
+  }
+  // A reviewed completion also needs the writer's final report on that head
+  // with nothing outstanding: an unresolved finding or a material
+  // verification gap keeps the PR from merging.
+  if (disposition === "reviewed") {
+    const report = [...(own?.results ?? [])].reverse().find((r) => Number(r.report?.pr) === pr)?.report;
+    if (!report) blockers.push(`the run record holds no writer report for PR #${pr}; read the writer's final report and record it with feature-run.mjs result`);
+    else {
+      if (!sameCommit(report.reviewedHead, e.reviewedHead)) blockers.push(`the writer's report names ${report.reviewedHead} as its last reviewed commit, not ${e.reviewedHead}`);
+      if (!noneOutstanding(report.findings)) blockers.push(`the writer's report lists outstanding findings or verification gaps: ${typeof report.findings === "string" ? report.findings : JSON.stringify(report.findings)}`);
+    }
+  }
+  // CI on the current head: every check complete, none failed, and each
+  // required gate run and passed.
+  const required = [...new Set([...REPOSITORY_GATES, ...protection.required])];
+  const checks = classifyChecks(pull.checks, required);
+  blockers.push(...ciBlockers(checks, required, head));
+  // Integration: the head contains main as it is now, so CI checked the code
+  // that would land, and GitHub's own merge state agrees.
+  if (!facts.containsMain) blockers.push(`${TARGET} has moved to ${originMain}, which head ${head} does not contain; merge ${TARGET} into the branch and let CI run on the new head, so the merged code is the code that was checked`);
+  if (pull.mergeable === "CONFLICTING") blockers.push(`PR #${pr} conflicts with ${TARGET}`);
+  if (!MERGEABLE.has(pull.mergeState)) blockers.push(mergeStateBlocker(pull.mergeState));
+  if (protection.mergeQueue) blockers.push(`${TARGET} requires a merge queue, which this gate does not drive; the maintainer merges`);
+  const unique = [...new Set(blockers)];
+  return {
+    ticket: number, pr, head, base: pull.base, originMain, admitted: unique.length === 0,
+    disposition, reviewedHead: e.reviewedHead, completedRound: e.completedRound, ...(acceptance && { acceptance }),
+    mergedSince: covered ? chain.slice(0, chain.indexOf(covered)) : [],
+    checks, required, requiredFrom: protection.source, blockers: unique,
+  };
+}
+
+const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.reviewedHead, completedRound: g.completedRound, ...(g.acceptance && { acceptance: g.acceptance }), mergedSince: g.mergedSince, originMain: g.originMain, checks: g.checks.map(({ name, workflow, result }) => ({ name, workflow, result })) });
+
+// --- Merge -------------------------------------------------------------------
+
+// Merges an admitted PR. The gate runs again on fresh facts, the intent is
+// recorded (and, with checkpoints, saved remotely) before GitHub is called,
+// and the call names the head the gate admitted, so a push in between makes
+// GitHub refuse it. The outcome is what GitHub reads back afterwards, never
+// what the call said: an unreadable or contradictory result is uncertain and
+// is settled by reconcile-operations before any retry.
+export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, snapshot, client, git, afterIntent }) {
+  const record = readRecord(file);
+  if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
+  const gate = admission(record, { ticket, pr, snapshot, facts: gatherFacts({ record, pr, client, git }), git });
+  if (!gate.admitted) return { admitted: false, merged: false, gate };
+  const planned = updateRecord(file, { expectRevision, coordinator }, (r) => {
+    const op = intent(r, { kind: "merge", ticket, pr, expectHead: gate.head, evidence: `admitted as ${gate.disposition}` });
+    op.gate = gateSummary(gate);
+    return op;
+  });
+  const op = planned.output;
+  if (afterIntent) {
+    try { afterIntent(); }
+    catch (error) {
+      updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${error.message}` }); });
+      throw error;
+    }
+  }
+  let call;
+  try { call = client.merge(pr, gate.head); }
+  catch (error) { call = { ok: false, interrupted: true, message: error.message }; }
+  let back = null, readError = null;
+  try { back = client.pull(pr); } catch (error) { readError = error.message; }
+  const said = call.ok ? "returned success" : `${call.interrupted ? "was interrupted" : "was refused"} (${call.message})`;
+  let state, evidence, mergeCommit = null, onMain = null;
+  if (!back) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} could not be read back (${readError})`; }
+  else if (back.state === "MERGED" && back.head === gate.head && back.mergeCommit) {
+    mergeCommit = back.mergeCommit;
+    try { git.fetch(); onMain = git.isAncestor(mergeCommit, git.main()); } catch { onMain = null; }
+    state = "confirmed";
+    evidence = `PR #${pr} reads back merged as ${mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : ""}`;
+  } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
+  else if (back.state === "OPEN" && call.ok) { state = "uncertain"; evidence = `the merge call returned success, but PR #${pr} reads back open at ${back.head}`; }
+  else { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
+  const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (mergeCommit) Object.assign(o, { mergeCommit, onMain }); });
+  return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, mergeCommit, onMain, revision: settled.record.revision, gate };
+}
+
+// --- The Feature's acceptance -------------------------------------------------
+
+// The checklist under the Feature's "Acceptance criteria" heading.
+export function parseCriteria(body) {
+  const lines = String(body ?? "").split(/\r?\n/);
+  const start = lines.findIndex((l) => /^#{1,6}\s+Acceptance criteria\s*$/i.test(l.trim()));
+  if (start < 0) return [];
+  const out = [];
+  for (const l of lines.slice(start + 1)) {
+    if (/^#{1,6}\s/.test(l)) break;
+    const m = /^\s*[-*]\s+\[[ xX]\]\s+(.*\S)\s*$/.exec(l);
+    if (m) out.push({ index: out.length + 1, text: m[1] });
+  }
+  return out;
+}
+
+// What the run merged, and how: through this run's gate with its
+// disposition, or outside it.
+function slices(record, snapshot) {
+  return snapshot.tickets.filter((t) => !t.container).map((t) => {
+    const merged = t.prs.find((p) => p.state === "MERGED" && p.mergeCommit);
+    const op = merged && (record.operations ?? []).find((o) => o.kind === "merge" && o.pr === merged.number && o.state === "confirmed");
+    return { number: t.number, title: t.title, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
+  });
+}
+
+// Every acceptance of unreviewed corrections the record published, with
+// whether its head is what merged.
+function acceptances(record, snapshot) {
+  const merged = new Map(snapshot.tickets.flatMap((t) => t.prs.filter((p) => p.state === "MERGED").map((p) => [p.number, p.head])));
+  return Object.entries(record.tickets).flatMap(([n, t]) => (t.checkpoints ?? []).filter((d) => d.kind === "accept-unreviewed" && d.state === "published").map((d) => ({ ticket: Number(n), pr: d.pr, id: d.id, comment: d.published.comment, head: d.head, range: d.range, merged: merged.has(d.pr) ? merged.get(d.pr) : null })));
+}
+
+const REPORT_MARK = (id) => `<!-- orchestrate-feature final report: verification ${id} -->`;
+export function finalReport(record, snapshot, v) {
+  const link = (pr, comment) => `https://github.com/${record.repository}/pull/${pr}#issuecomment-${comment}`;
+  const rows = slices(record, snapshot).map((s) => {
+    const how = !s.mergeCommit ? (s.open.length ? `open: PR ${s.open.map((p) => `#${p}`).join(", ")}` : "no merged PR")
+      : !s.gate ? `merged as \`${short(s.mergeCommit)}\` outside this run's merge gate (by the maintainer or before this run merged)`
+      : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
+      : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
+    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? `#${s.pr}` : ""} | ${how.replace(/\|/g, "/")} |`;
+  });
+  const accepted = acceptances(record, snapshot);
+  const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)];
+  return [
+    REPORT_MARK(v.id),
+    `## Final report: Feature #${record.feature}`,
+    "",
+    `Verdict: ${v.verdict}. Verified on ${TARGET} at \`${v.mainSha}\` at ${v.time} by coordinator \`${v.coordinator}\`, from the snapshot of ${v.snapshotAt}.`,
+    "",
+    "### Slices",
+    "",
+    "| Ticket | State | PR | Integration |",
+    "| --- | --- | --- | --- |",
+    ...rows,
+    "",
+    "### Accepted unreviewed corrections",
+    "",
+    ...(accepted.length ? accepted.map((a) => `- #${a.ticket}, PR #${a.pr}: decision \`${a.id}\` ([comment](${link(a.pr, a.comment)})) accepted \`${short(a.range?.from)}..${short(a.range?.to)}\` (${a.range?.commits?.length ?? 0} commit${a.range?.commits?.length === 1 ? "" : "s"}) unreviewed on head \`${short(a.head)}\`; ${a.merged === null ? "the PR is not merged" : a.merged === a.head ? "that head merged" : `the PR merged at \`${short(a.merged)}\`, another head`}.`) : ["None."]),
+    "",
+    "### Acceptance criteria",
+    "",
+    ...v.criteria.map((c) => (c.status === "met" ? `- [x] ${c.criterion} Evidence: ${c.evidence.map(norm).join("; ")}` : `- [ ] ${c.criterion} Gap: ${norm(c.gap)}`)),
+    "",
+    "### Incomplete work",
+    "",
+    ...(missing.length ? missing : ["None."]),
+    "",
+    "### Next action",
+    "",
+    v.verdict === "complete" ? `None: every slice is delivered on ${TARGET} and every criterion has evidence, so this report accompanies the Feature's closure.` : `The Feature stays open. Resolve the incomplete work and the unmet criteria above, then verify again.`,
+  ].join("\n");
+}
+
+// Records one verification of the Feature's acceptance criteria against main
+// as it is now. It is complete only when every slice is delivered on main,
+// no operation is unsettled, and every criterion is met with evidence; any
+// other verdict keeps the Feature open with its gaps named.
+export function verifyFeature(record, { snapshot, criteria, evidence, mainSha }) {
+  if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
+  if (!SHA.test(mainSha ?? "")) throw new Error("The verified main commit must be a full SHA");
+  if (snapshot.originMain !== mainSha) throw new Error(`The snapshot saw origin/${TARGET} at ${snapshot.originMain}, but it is now ${mainSha}; snapshot again so the tickets and ${TARGET} agree`);
+  if (!criteria.length) throw new Error(`Feature #${record.feature} lists no acceptance criteria under an Acceptance criteria heading, so nothing can be verified; ask the maintainer`);
+  const given = evidence?.criteria;
+  if (!Array.isArray(given)) throw new Error("--evidence must hold { \"criteria\": [ { \"criterion\", \"status\": \"met\" | \"unmet\", \"evidence\": [...], \"gap\" } ] }");
+  const unknown = given.filter((g) => !criteria.some((c) => norm(c.text) === norm(g?.criterion)));
+  if (unknown.length) throw new Error(`The evidence names criteria the Feature does not list: ${unknown.map((g) => JSON.stringify(g?.criterion)).join(", ")}`);
+  const rows = criteria.map((c) => {
+    const matches = given.filter((g) => norm(g.criterion) === norm(c.text));
+    if (matches.length !== 1) throw new Error(`The evidence ${matches.length ? `lists criterion ${c.index} ${matches.length} times` : `omits criterion ${c.index}`}: "${c.text}"`);
+    const g = matches[0];
+    if (g.status === "met") {
+      if (!Array.isArray(g.evidence) || !g.evidence.length || !g.evidence.every(present)) throw new Error(`Criterion ${c.index} is met only with evidence: list what shows it (a test, a check, a live run, a merged commit)`);
+      return { index: c.index, criterion: c.text, status: "met", evidence: g.evidence };
+    }
+    if (g.status === "unmet") {
+      if (!present(g.gap)) throw new Error(`Criterion ${c.index} is unmet; name the gap in gap`);
+      return { index: c.index, criterion: c.text, status: "unmet", gap: g.gap, ...(Array.isArray(g.evidence) && { evidence: g.evidence }) };
+    }
+    throw new Error(`Criterion ${c.index}'s status must be met or unmet`);
+  });
+  const incomplete = slices(record, snapshot).filter((s) => !s.delivered).map((s) => ({ number: s.number, action: s.state === "closed" ? `closed without a merged deliverable on ${TARGET}` : s.open.length ? `open, PR ${s.open.map((p) => `#${p}`).join(", ")} not merged` : "open with no merged PR" }));
+  const unsettled = (record.operations ?? []).filter((o) => OPEN.has(o.state)).map((o) => `${operationText(o)} ${o.id} (${o.state})`);
+  const verdict = !incomplete.length && !unsettled.length && rows.every((r) => r.status === "met") ? "complete" : "incomplete";
+  const v = { id: randomUUID().slice(0, 8), time: new Date().toISOString(), coordinator: record.coordinator.session, mainSha, snapshotAt: snapshot.observedAt, verdict, criteria: rows, incomplete, unsettled, tickets: snapshot.tickets.filter((t) => !t.container).map((t) => t.number) };
+  v.report = finalReport(record, snapshot, v);
+  (record.verifications ??= []).push(v);
+  record.log.push({ time: v.time, event: "feature-verification", id: v.id, verdict, mainSha });
+  return { id: v.id, verdict, report: v.report };
+}
+
+// Closes the Feature after a complete verification: the intent is recorded
+// and saved first, the final report is posted (or found, if an earlier
+// attempt posted it) and read back, and the issue is closed. The outcome is
+// the issue state GitHub reads back.
+export function closeFeature(file, { coordinator, expectRevision, verification: id, client, git, afterIntent }) {
+  const record = readRecord(file);
+  const v = (record.verifications ?? []).at(-1);
+  if (!v || v.id !== id) throw new Error(`Verification ${id} is not the run's latest${v ? ` (${v.id} is)` : ""}; close only on the latest verification`);
+  if (v.verdict !== "complete") throw new Error(`Verification ${id} found the Feature incomplete (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...v.unsettled].join("; ")}); the Feature stays open`);
+  git.fetch();
+  if (!git.isAncestor(v.mainSha, git.main())) throw new Error(`origin/${TARGET} no longer contains the verified commit ${v.mainSha}; verify again`);
+  if (client.issue(record.feature).state === "closed") throw new Error(`Feature #${record.feature} is already closed; nothing was recorded`);
+  const planned = updateRecord(file, { expectRevision, coordinator }, (r) => intent(r, { kind: "close", ticket: r.feature, pr: r.feature, expectHead: v.mainSha, evidence: `verification ${v.id}` }));
+  const op = planned.output;
+  if (afterIntent) {
+    try { afterIntent(); }
+    catch (error) { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${error.message}` }); }); throw error; }
+  }
+  let comment = null, problem = null;
+  try {
+    const existing = client.comments(record.feature).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id)));
+    const posted = existing ?? client.createComment(record.feature, v.report);
+    const back = client.getComment(posted.id);
+    if (norm(back.body) !== norm(v.report)) throw new Error(`comment ${posted.id} does not read back as the report`);
+    comment = { id: back.id, url: back.url, reused: Boolean(existing) };
+  } catch (error) { problem = `the final report was not posted: ${error.message}`; }
+  if (comment) { try { client.closeIssue(record.feature); } catch (error) { problem = `the close call failed: ${error.message}`; } }
+  let issue = null;
+  try { issue = client.issue(record.feature); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the Feature could not be read back: ${error.message}`; }
+  const state = !issue ? "uncertain" : issue.state === "closed" ? "confirmed" : "failed";
+  const evidence = !issue ? problem : issue.state === "closed" ? `Feature #${record.feature} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `Feature #${record.feature} reads back ${issue.state}${problem ? `: ${problem}` : ""}`;
+  const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (comment) o.comment = comment; });
+  return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
+}
+
+// --- GitHub and Git ---------------------------------------------------------
+
+// The merge call: a merge commit, the head the gate admitted, and no flag
+// that bypasses protection or defers the merge.
+export const mergeArgs = (repository, pr, head) => ["pr", "merge", String(pr), "--repo", repository, "--merge", "--match-head-commit", head];
+
+export function integrationClient(repository, checkout) {
+  const run = (args, input) => execFileSync("gh", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input !== undefined && { input }) });
+  const shape = (c) => ({ id: c.id, body: c.body ?? "", url: c.html_url });
+  return {
+    pull: (pr) => {
+      const p = JSON.parse(run(["pr", "view", String(pr), "--repo", repository, "--json", "state,isDraft,headRefOid,headRefName,baseRefName,mergeable,mergeStateStatus,mergeCommit,closingIssuesReferences,statusCheckRollup"]));
+      return {
+        state: p.state, isDraft: p.isDraft, head: p.headRefOid, branch: p.headRefName, base: p.baseRefName, mergeable: p.mergeable, mergeState: p.mergeStateStatus, mergeCommit: p.mergeCommit?.oid ?? null,
+        closes: (p.closingIssuesReferences ?? []).map((r) => r.number),
+        checks: (p.statusCheckRollup ?? []).map((c) => ({ name: c.name ?? c.context, workflow: c.workflowName ?? null, state: c.conclusion || c.state || c.status, startedAt: c.startedAt ?? null, completedAt: c.completedAt ?? null })),
+      };
+    },
+    comments: (n) => JSON.parse(run(["api", "--paginate", "--slurp", `repos/${repository}/issues/${n}/comments`])).flat(),
+    // Required checks from classic branch protection and from rulesets, and
+    // whether a ruleset requires a merge queue. Protection a token cannot read
+    // is noted; GitHub's merge state still reflects it.
+    protection: (branch) => {
+      const required = new Set(), sources = [];
+      try {
+        const p = JSON.parse(run(["api", `repos/${repository}/branches/${branch}/protection/required_status_checks`]));
+        for (const c of p.contexts ?? []) required.add(c);
+        for (const c of p.checks ?? []) required.add(c.context);
+        sources.push("branch protection");
+      } catch (error) {
+        if (/HTTP 404|not enabled|not protected/i.test(`${error.stderr ?? ""} ${error.message}`)) sources.push("branch protection (no required checks)");
+        else sources.push(`branch protection unreadable (${String(error.stderr || error.message).trim().split("\n")[0]}); GitHub's merge state still applies it`);
+      }
+      let mergeQueue = false;
+      for (const rule of JSON.parse(run(["api", "--paginate", "--slurp", `repos/${repository}/rules/branches/${branch}`])).flat()) {
+        if (rule.type === "required_status_checks") for (const c of rule.parameters?.required_status_checks ?? []) required.add(c.context);
+        if (rule.type === "merge_queue") mergeQueue = true;
+      }
+      sources.push("rulesets");
+      return { required: [...required], mergeQueue, source: sources.join("; ") };
+    },
+    merge: (pr, head) => {
+      const r = spawnSync("gh", mergeArgs(repository, pr, head), { cwd: checkout, encoding: "utf8", windowsHide: true, timeout: 120000 });
+      if (r.error) throw r.error;
+      return { ok: r.status === 0, message: (r.stderr || r.stdout || "").trim() || `exit ${r.status}` };
+    },
+    issue: (n) => { const i = JSON.parse(run(["api", `repos/${repository}/issues/${n}`])); return { state: i.state, title: i.title, body: i.body ?? "" }; },
+    createComment: (n, body) => shape(JSON.parse(run(["api", "-X", "POST", `repos/${repository}/issues/${n}/comments`, "--input", "-"], JSON.stringify({ body })))),
+    getComment: (id) => shape(JSON.parse(run(["api", `repos/${repository}/issues/comments/${id}`]))),
+    closeIssue: (n) => { run(["api", "-X", "PATCH", `repos/${repository}/issues/${n}`, "-f", "state=closed", "-f", "state_reason=completed"]); },
+  };
+}
+
+// The review checkpoint's Git reader, plus main, ancestry and the chain of
+// clean main merges at a branch's head.
+export function integrationGit(checkout, { fetch, main } = {}) {
+  const git = (...args) => execFileSync("git", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 }).trim();
+  const isAncestor = (a, b) => spawnSync("git", ["merge-base", "--is-ancestor", a, b], { cwd: checkout, windowsHide: true }).status === 0;
+  fetch ??= (pr) => execFileSync("git", ["fetch", "-q", "origin", ...(pr ? [`refs/pull/${pr}/head`] : []), TARGET], { cwd: checkout, windowsHide: true });
+  main ??= () => git("rev-parse", `origin/${TARGET}`);
+  return {
+    ...localGit(checkout, { fetch, base: main }), fetch, main, isAncestor,
+    // The head, then each first parent reached through a clean merge of the
+    // target: two parents, the second on the target, and an empty remerge
+    // diff, so the merge changed nothing a clean merge would not.
+    cleanChain(head, target) {
+      const chain = [head];
+      for (let at = head; ;) {
+        const parents = git("rev-list", "--parents", "-n", "1", at).split(" ").slice(1);
+        if (parents.length !== 2 || !isAncestor(parents[1], target)) return chain;
+        if (git("show", "--remerge-diff", "--format=", at) !== "") return chain;
+        chain.push(parents[0]);
+        at = parents[0];
+      }
+    },
+  };
+}
+
+// --- Command line -----------------------------------------------------------
+
+function parse(argv) {
+  const [command, ...rest] = argv, o = {};
+  for (let i = 0; i < rest.length; i++) {
+    if (!rest[i].startsWith("--") || i + 1 >= rest.length) throw new Error(`Unexpected argument ${rest[i]}`);
+    const key = rest[i].slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    if (Object.hasOwn(o, key)) throw new Error(`${rest[i]} given twice`);
+    o[key] = rest[++i];
+  }
+  return { command, o };
+}
+const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`); return n; };
+const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
+
+export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github } = {}) {
+  const { command, o } = parse(argv);
+  const file = () => abs(o.record, "record");
+  const context = () => { const record = readRecord(file()); return { record, client: clientFor(record.repository, record.checkout), git: gitFor(record.checkout) }; };
+  const saved = () => ensureSaved(file(), { coordinator: o.coordinator, github });
+  const checkpointAfter = (transition) => { const c = autoCheckpoint(file(), { coordinator: o.coordinator, transition, github }); return c ? { checkpoint: c } : {}; };
+  switch (command) {
+    case "gate": {
+      const { record, client, git } = context(), pr = int(o.pr, "pr");
+      return admission(record, { ticket: int(o.ticket, "ticket"), pr, snapshot: readJson(abs(o.snapshot, "snapshot")), facts: gatherFacts({ record, pr, client, git }), git });
+    }
+    case "merge": {
+      const { client, git } = context(), pr = int(o.pr, "pr");
+      const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, snapshot: readJson(abs(o.snapshot, "snapshot")), client, git, afterIntent: saved });
+      return result.admitted ? { ...result, ...checkpointAfter(`the merge of PR #${pr} (${result.state})`) } : result;
+    }
+    case "criteria": { const { record, client } = context(); return { feature: record.feature, criteria: parseCriteria(client.issue(record.feature).body) }; }
+    case "verify-feature": {
+      const { record, client, git } = context();
+      git.fetch();
+      const mainSha = git.main(), criteria = parseCriteria(client.issue(record.feature).body), snapshot = readJson(abs(o.snapshot, "snapshot")), evidence = readJson(abs(o.evidence, "evidence"));
+      const { record: next, output } = updateRecord(file(), { expectRevision: int(o.expectRevision, "expect-revision"), coordinator: o.coordinator }, (r) => verifyFeature(r, { snapshot, criteria, evidence, mainSha }));
+      if (o.out) fs.writeFileSync(abs(o.out, "out"), `${output.report}\n`);
+      return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
+    }
+    case "close-feature": {
+      const { client, git } = context();
+      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, client, git, afterIntent: saved });
+      return { ...result, ...checkpointAfter(`closing the Feature (${result.state})`) };
+    }
+    default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-feature|close-feature --option value ...");
+  }
+}
+
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    const output = main(process.argv.slice(2));
+    console.log(JSON.stringify(output, null, 2));
+    // Not admitted: nothing was recorded. Not confirmed: the outcome is
+    // recorded as failed or uncertain. Not saved: the change is local only.
+    if (output?.admitted === false) process.exitCode = 2;
+    else if (output?.state && output.state !== "confirmed") process.exitCode = 1;
+    if (output?.checkpoint?.saved === false) { console.error(`The record changed locally, but its checkpoint was not saved: ${output.checkpoint.reason}`); process.exitCode = 3; }
+  } catch (error) { console.error(error.message); process.exitCode = 1; }
+}

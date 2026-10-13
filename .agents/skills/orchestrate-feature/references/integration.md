@@ -1,0 +1,33 @@
+# Integration and the Feature's completion
+
+The commands are `node .agents/skills/orchestrate-feature/integration.mjs <command>`; `merge`, `verify-feature` and `close-feature` take `--record`, `--coordinator` and `--expect-revision` like the run helper's.
+
+## The merge gate
+
+`gate --record <run.json> --ticket N --pr P --snapshot <file>` reads the PR, main, the branch's protection, the PR's comments and the review journals afresh, changes nothing, and admits the PR's current head only when every condition below holds. Otherwise it names each one that fails.
+
+- Authority: the recorded invocation names orchestrate-feature and the Feature, grants the merge and does not stop at ready, and the coordinator never wrote for the ticket. A record made under another grant leaves merging to the maintainer.
+- Scope: the ticket is a sub-issue of the Feature in the snapshot, not a container; the PR is its one open PR, its branch names the ticket, it closes the ticket, targets main, is open and marked ready, and no earlier merge of it is unsettled.
+- Review: every planned reviewer of every round has exited, every launcher finished, every report is on the PR with its adjudication, and the round audit holds, all read through the same accounting as [review checkpoints](review-checkpoints.md). Then the head is either the last independently reviewed commit, with the writer's final report recorded by `feature-run.mjs result` naming that commit and no outstanding finding or verification gap, or the head an acceptance of unreviewed corrections names, which this record published and read back. Either may be followed by clean merges of main: two-parent merges whose other parent is on main and whose remerge diff is empty. Any other commit after it, whether a correction, a non-behavioral tail or a conflict resolution, is unreviewed: the writer's next round within its limit, or a checkpoint decision on that head, settles it. Ordinary review-pr's disclosed non-behavioral exception does not admit a merge here.
+- CI: every check on the head has finished, each check's latest run counts, none failed (a cancelled or timed-out run counts as failed until it is diagnosed and run again), and each required gate ran and passed. The required gates are the Test Suite workflow's `test-suite` job and whatever branch protection and rulesets require. A skipped job is reported as skipped, not as a check that ran, and a skipped required gate refuses the merge.
+- Integration: the head contains main as the remote holds it now, so CI ran on the code that would land, and GitHub reports the PR mergeable (`CLEAN` or `HAS_HOOKS`). When main moves, the branch merges it again and CI runs on the new head; a clean merge keeps the review. A repository that requires a merge queue is left to the maintainer, since the gate does not drive one.
+
+## Merge
+
+`merge --record --coordinator --expect-revision --ticket N --pr P --snapshot <file>` runs the gate again, records the merge intent with the admitted head and how it was admitted, and saves it to the state branch before calling GitHub; exit 3 from a failed save means nothing was called. The call is `gh pr merge P --merge --match-head-commit <head>`, never with `--admin` or `--auto`, so a push after the gate makes GitHub refuse it and branch protection still applies. The outcome is what GitHub reads back: merged at that head is `confirmed`, with its merge commit; still open after a refused call is `failed`; anything else (no read-back, a merge at another head, an open PR after a call that reported success) is `uncertain`. A merge the gate does not admit records nothing and exits 2; a recorded outcome other than `confirmed` exits 1.
+
+An unsettled merge blocks every later merge of that PR, here or after a takeover. Settle it with `checkpoint.mjs reconcile-operations --snapshot <fresh snapshot>`: GitHub's state decides, never what the call reported. A merge the reconciliation finds not applied is retried only through the gate again.
+
+A merged PR's dependents become eligible once its merge commit is on origin/main, which the next snapshot reads; under stop-at-ready they wait for the maintainer's merge. A slice whose PR needs a correction after review goes back to its writer, whose round count continues.
+
+## Verify and close the Feature
+
+Once every slice is delivered, `criteria --record <run.json>` prints the checklist under the Feature's Acceptance criteria heading. Check each criterion against the assembled implementation on main, using the existing regression, tooling and live-verification workflows it calls for, and write the evidence file `{ "criteria": [ { "criterion": "<exact text>", "status": "met|unmet", "evidence": ["<what shows it>"], "gap": "<what is missing>" } ] }` with every criterion exactly once. Then take a fresh snapshot and run `verify-feature --record --coordinator --expect-revision --snapshot <file> --evidence <file> --out <report.md>`.
+
+The verdict is complete only when every slice that is not a container is closed with its merged deliverable on main, no operation is unsettled, and every criterion is met with evidence. Merged PRs with an unmet criterion stay incomplete, with the gap named. The helper refuses a criterion marked met without evidence or unmet without a gap; it cannot judge whether the evidence shows the criterion, which is the coordinator's reading, published in the report.
+
+The report the verification writes is the final report: each slice with how it merged (through this run's gate as reviewed completion or under a named acceptance, or outside the gate), every acceptance of unreviewed corrections the record published with its range and whether that head merged, each criterion with its evidence or gap, the incomplete work, and the next action. `close-feature --record --coordinator --expect-revision --verification <id>` acts only on the latest verification, only when it is complete and main still contains its commit. It saves its intent, posts the report on the Feature (or finds the copy an earlier attempt posted), reads it back, closes the Feature as completed and records the state GitHub reads back. An incomplete verification leaves the Feature open: report its gaps and next action.
+
+## Limits
+
+The gate reads the protection the token can see; GitHub's own merge state still applies the rest. The expected-head guard protects the PR's head, not main, so main can move in the seconds between the gate and the merge call. The gate does not drive a merge queue. Review journals that ran on another machine are not on this one, and their rounds block the gate until they are read where they ran.

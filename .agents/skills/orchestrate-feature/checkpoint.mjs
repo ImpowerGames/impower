@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import { writeExclusive, readJson, currentIdentity, alive } from "../../../scripts/review-job-store.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
-import { RECORD_VERSION, AUTHORITY, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
+import { RECORD_VERSION, authorityFor, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
 
 export const CHECKPOINT_VERSION = 1;
 export const stateBranch = (feature) => `orchestrate-state/feature-${feature}`;
@@ -459,7 +459,8 @@ export function renderSummary(state, repository) {
     "| --- | --- | --- | --- | --- | --- |",
     ...(rows.length ? rows : ["| none | | | | | |"]),
     "",
-    ...(c.operations?.some((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state)) ? ["Unsettled operations: " + c.operations.filter((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state)).map((o) => `${o.kind} of PR #${o.pr} at ${short(o.expectHead)} (${o.state})`).join("; ") + ".", ""] : []),
+    ...(c.operations?.some((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state)) ? ["Unsettled operations: " + c.operations.filter((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state)).map((o) => `${operationText(o)} at ${short(o.expectHead)} (${o.state})`).join("; ") + ".", ""] : []),
+    ...(c.verifications?.length ? [verificationText(c.verifications.at(-1)), ""] : []),
     ...(c.observed?.remaining?.length ? ["Remaining:", ...c.observed.remaining.map((r) => `- ${r}`), ""] : []),
     `To continue in another session, on any machine: use orchestrate-feature for #${c.feature}; it resumes from \`${stateBranch(c.feature)}\` and reconciles every fact with GitHub first.`,
   ].join("\n");
@@ -517,7 +518,8 @@ function takeoverBrief(c, commit) {
     if (notes.length) lines.push(`## #${n}`, "", ...notes.map((x) => `- ${x}`), "");
   }
   const open = (c.operations ?? []).filter((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state));
-  if (open.length) lines.push("## Unsettled operations", "", ...open.map((o) => `- ${o.id}: ${o.kind} of PR #${o.pr} at ${o.expectHead}, ${o.state}; settle it with checkpoint.mjs reconcile-operations before any retry`), "");
+  if (open.length) lines.push("## Unsettled operations", "", ...open.map((o) => `- ${o.id}: ${operationText(o)} at ${o.expectHead}, ${o.state}; settle it with checkpoint.mjs reconcile-operations before any retry`), "");
+  if (c.verifications?.length) lines.push("## Feature verification", "", verificationText(c.verifications.at(-1)), "");
   if (c.handoff?.uncertain?.length) lines.push("## Running or uncertain at handoff", "", ...c.handoff.uncertain.map((u) => `- #${u.ticket}: ${u.status} (${u.reason})`), "");
   return `${lines.join("\n").trim()}\n`;
 }
@@ -530,7 +532,7 @@ export function buildCheckpoint(record, { seq, previous, snapshotParents = [], k
     invocation: record.invocation, authority: record.authority, writer: record.writer, concurrency: record.concurrency,
     checkIn: record.checkIn ?? null,
     tickets: portableTickets(record.tickets, host),
-    operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries,
+    operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries, verifications: record.verifications ?? [],
     work: work ?? {}, snapshots,
     handoff: record.handoff ?? null,
     observed: observed ?? null,
@@ -716,7 +718,7 @@ export function limitations(checkpoint, { host = os.hostname(), observations = {
       if (w.handoffLock) out.push({ ticket: Number(n), kind: "handoff-lock", detail: `a handoff lock remains in ${w.worktree} on ${w.host}; only scripts/agent-handoff.mjs recover-lock on that host may remove it` });
     }
   }
-  for (const o of checkpoint.operations ?? []) if (!["confirmed", "not-applied", "superseded", "failed"].includes(o.state)) out.push({ ticket: o.ticket, kind: "operation", detail: `${o.kind} of PR #${o.pr} at ${o.expectHead} is ${o.state}; reconcile-operations settles it from GitHub before any retry` });
+  for (const o of checkpoint.operations ?? []) if (!["confirmed", "not-applied", "superseded", "failed"].includes(o.state)) out.push({ ticket: o.ticket, kind: "operation", detail: `${operationText(o)} at ${o.expectHead} is ${o.state}; reconcile-operations settles it from GitHub before any retry` });
   return out;
 }
 
@@ -766,9 +768,9 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const record = {
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout,
     coordinator: { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since },
-    invocation: { text: invocation, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
-    authority: AUTHORITY, writer, concurrency,
-    tickets: structuredClone(prev.tickets), diskRecoveries: prev.diskRecoveries, operations: prev.operations ?? [], decisionRefs: prev.decisions ?? [],
+    invocation: { text: invocation, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }), ...(options.stopAtReady && { stopAtReady: true }) },
+    authority: authorityFor({ stopAtReady: options.stopAtReady }), writer, concurrency,
+    tickets: structuredClone(prev.tickets), diskRecoveries: prev.diskRecoveries, operations: prev.operations ?? [], decisionRefs: prev.decisions ?? [], verifications: prev.verifications ?? [],
     // Saved snapshots stay the tickets' retrievable work under the new
     // coordinator. The work inventory needs no copy: every location passes
     // through the takeover checkpoint from the one it is built on.
@@ -910,12 +912,16 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
 
 // --- Intended operations and their outcomes --------------------------------
 
-// An operation on GitHub (a merge, marking a PR ready) is recorded as intent
-// before it runs and as an outcome after. An outcome lost to an interruption is
-// read back from GitHub, never assumed: a merged PR confirms a merge, an open
-// PR still at the intended head means it did not apply and may be retried, and
-// a moved head means the decision no longer applies.
-export const OPERATION_KINDS = ["merge", "ready"];
+// An operation on GitHub (a merge, marking a PR ready, closing the Feature) is
+// recorded as intent before it runs and as an outcome after. An outcome lost
+// to an interruption is read back from GitHub, never assumed: a PR merged at
+// the intended head confirms a merge, an open PR still at the intended head
+// means it did not apply and may be retried, and a moved head means the
+// decision no longer applies. A close names the Feature as its `pr` and the
+// verified main commit as its head; a closed Feature confirms it.
+export const OPERATION_KINDS = ["merge", "ready", "close"];
+export const operationText = (o) => (o.kind === "close" ? `closing Feature #${o.pr}` : `${o.kind} of PR #${o.pr}`);
+export const verificationText = (v) => `Feature verification ${v.id} on main \`${String(v.mainSha).slice(0, 9)}\` at ${v.time}: ${v.verdict}${v.verdict === "complete" ? "" : ` (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...(v.unsettled ?? []).map((o) => `unsettled ${o}`)].join("; ")})`}.`;
 export function intent(record, { kind, ticket, pr, expectHead, evidence }) {
   if (!OPERATION_KINDS.includes(kind)) throw new Error(`--kind must be ${OPERATION_KINDS.join(" or ")}`);
   if (!Number.isSafeInteger(ticket) || !Number.isSafeInteger(pr) || !/^[0-9a-f]{40}$/.test(expectHead ?? "")) throw new Error("--ticket, --pr and the full --expect-head are required");
@@ -943,8 +949,14 @@ export function reconcileOperations(record, { snapshot }) {
     if (!["intent", "uncertain"].includes(op.state)) continue;
     const pr = prs.get(op.pr);
     let state = "uncertain", retry = false, evidence = `PR #${op.pr} is not in the snapshot of ${snapshot.observedAt}`;
-    if (pr && op.kind === "merge") {
-      if (pr.state === "MERGED") { state = "confirmed"; evidence = `PR #${op.pr} is merged as ${pr.mergeCommit}`; }
+    if (op.kind === "close") {
+      const feature = snapshot.feature?.number === op.pr ? snapshot.feature : null;
+      if (!feature) evidence = `Feature #${op.pr} is not the snapshot's Feature`;
+      else if (feature.state === "closed") { state = "confirmed"; evidence = `Feature #${op.pr} is closed`; }
+      else { state = "not-applied"; retry = true; evidence = `Feature #${op.pr} is still ${feature.state}`; }
+    } else if (pr && op.kind === "merge") {
+      if (pr.state === "MERGED" && pr.head === op.expectHead) { state = "confirmed"; evidence = `PR #${op.pr} is merged as ${pr.mergeCommit} at ${pr.head}`; }
+      else if (pr.state === "MERGED") { state = "superseded"; evidence = `PR #${op.pr} was merged as ${pr.mergeCommit} at ${pr.head}, not at ${op.expectHead}; this operation's expected-head merge did not apply`; }
       else if (pr.state === "OPEN" && pr.head === op.expectHead) { state = "not-applied"; retry = true; evidence = `PR #${op.pr} is still open at ${pr.head}`; }
       else if (pr.state === "OPEN") { state = "superseded"; evidence = `PR #${op.pr} moved to ${pr.head}; a decision for ${op.expectHead} does not apply to it`; }
       else { state = "not-applied"; evidence = `PR #${op.pr} is ${pr.state} without a merge`; }
@@ -988,12 +1000,14 @@ export function decisionLinks(record) {
 
 // --- Command line -----------------------------------------------------------
 
+const FLAGS = new Set(["stopAtReady"]);
 function parse(argv) {
   const [command, ...rest] = argv, o = {};
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
-    if (!arg.startsWith("--") || i + 1 >= rest.length) throw new Error(`Unexpected argument ${arg}`);
     const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    if (arg.startsWith("--") && FLAGS.has(key)) { o[key] = true; continue; }
+    if (!arg.startsWith("--") || i + 1 >= rest.length) throw new Error(`Unexpected argument ${arg}`);
     if (Object.hasOwn(o, key)) throw new Error(`${arg} given twice`);
     o[key] = rest[++i];
   }
@@ -1016,7 +1030,7 @@ export function main(argv, { github: injected } = {}) {
     case "publish": { const { file, github } = fromRecord(); return publish(file, { coordinator: o.coordinator, transition: o.transition ?? "an explicit publish", plan: o.plan ? readJson(abs(o.plan, "plan")) : undefined, github }); }
     case "sync-summary": { const checkout = abs(o.checkout, "checkout"), feature = int(o.feature, "feature"); return syncSummary({ repository: o.repo, feature, checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); }
     case "discover": { const checkout = abs(o.checkout, "checkout"); const found = discover({ repository: o.repo, feature: int(o.feature, "feature"), checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); return found.found ? { ...found, limitations: limitations(found.checkpoint) } : found; }
-    case "resume": { const checkout = abs(o.checkout, "checkout"); return resume({ record: o.record, checkout, repository: o.repo, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote: o.remote }, { github: githubFor(o.repo, checkout) }); }
+    case "resume": { const checkout = abs(o.checkout, "checkout"); return resume({ record: o.record, checkout, repository: o.repo, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, stopAtReady: Boolean(o.stopAtReady), concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote: o.remote }, { github: githubFor(o.repo, checkout) }); }
     case "prepare-handoff": { const { file, github } = fromRecord(); return prepareHandoff(file, { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), step: o.step, observations: o.observations ? readJson(abs(o.observations, "observations")) : {}, github }); }
     case "retrieve": return retrieve({ repository: o.repo, feature: int(o.feature, "feature"), checkout: abs(o.checkout, "checkout"), remote: o.remote, ticket: int(o.ticket, "ticket"), worktree: o.worktree });
     case "intent": return mutate((r) => intent(r, { kind: o.kind, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), expectHead: o.expectHead, evidence: o.evidence }), `the intent to ${o.kind} PR #${o.pr}`);

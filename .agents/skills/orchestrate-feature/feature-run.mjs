@@ -176,8 +176,16 @@ export function pointerFile(checkout, repository, feature) {
 }
 
 // What an invocation authorizes; a takeover starts from it again rather than
-// inheriting the previous coordinator's grant.
-export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" };
+// inheriting the previous coordinator's grant. An explicit invocation lets the
+// coordinator merge the Feature's PRs that pass integration.mjs's merge gate;
+// one that stops at ready PRs leaves every merge to the maintainer.
+export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the coordinator merges this Feature's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" };
+export const STOP_AT_READY_MERGE = "the maintainer merges ready PRs: the invocation stops at ready";
+export const authorityFor = ({ stopAtReady = false } = {}) => (stopAtReady ? { ...AUTHORITY, merge: STOP_AT_READY_MERGE } : AUTHORITY);
+// Only a run whose own invocation granted the merge, in this grant's words,
+// merges; a record made under any other grant leaves merging to the
+// maintainer.
+export const coordinatorMerges = (record) => record.invocation?.stopAtReady !== true && record.authority?.merge === AUTHORITY.merge;
 
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
   const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
@@ -198,8 +206,8 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since: new Date().toISOString() };
   const fresh = (carried = {}) => ({
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout, coordinator: self,
-    invocation: { text: invocation, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
-    authority: AUTHORITY,
+    invocation: { text: invocation, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }), ...(options.stopAtReady && { stopAtReady: true }) },
+    authority: authorityFor({ stopAtReady: options.stopAtReady }),
     writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [],
     log: [{ time: self.since, event: carried.tickets ? "takeover" : "init", coordinator, writer: writer.model, concurrency: concurrency.limit }],
   });
@@ -367,13 +375,29 @@ function adoptedNext(pending) {
   return next ?? ["reconcile-pending", `unexpected adopted step ${at}`];
 }
 
-// Remaining work the coordinator reports while those steps are not automated.
-export const REMAINING = [
-  "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
-  "Ready PRs wait for the maintainer to merge them; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
-  "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
-  "The Feature's own acceptance criteria are not verified by this plan, so the Feature is never reported complete from it.",
-];
+// Remaining work the coordinator reports beside every plan.
+export function remainingFor(record, complete) {
+  if (complete) return ["Every slice is merged and the Feature's acceptance criteria were verified on main; close the Feature with integration.mjs close-feature if it is still open, and give the final report."];
+  return [
+    "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
+    coordinatorMerges(record)
+      ? "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main."
+      : "Ready PRs wait for the maintainer to merge them, since the invocation stops at ready; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
+    "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
+    "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone.",
+  ];
+}
+
+// The action for a ready PR: settle an unconfirmed merge or readiness change
+// first, then merge through the gate, or wait for the maintainer when the
+// invocation stops at ready.
+const OPEN_OPERATION = new Set(["intent", "uncertain"]);
+function readyAction(record, pr, why = "") {
+  const op = (record.operations ?? []).find((o) => o.pr === pr.number && o.kind !== "close" && OPEN_OPERATION.has(o.state));
+  if (op) return ["reconcile-pending", `${op.kind} ${op.id} of PR #${pr.number} at ${op.expectHead} is ${op.state}; settle it with checkpoint.mjs reconcile-operations from a fresh snapshot before any retry`];
+  if (coordinatorMerges(record)) return ["merge-gate", `PR #${pr.number} is ready at ${pr.head}${why}; run integration.mjs gate, and merge only when it admits that head`];
+  return ["await-maintainer", `PR #${pr.number} is ready at ${pr.head}${why}; the invocation stops at ready, so the maintainer merges it`];
+}
 
 // The record holds no writer for the ticket, and its last one was released
 // after an observed end, settled by a census that found no process, or was a
@@ -473,7 +497,7 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
         else add(t, "reconcile-pending", `brief delivery ${own.owner.brief.deliveryId} of assignment ${own.owner.launchId} to session ${own.owner.handle.id} has no recorded outcome and may still be queued; if the writer's transcript shows the assignment, record delivered with that evidence; otherwise wait, or resend with deliver --retry, which the brief tells the writer to ignore once a copy has arrived`, extra);
         continue;
       }
-      if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { add(t, "await-maintainer", `PR #${open[0].number} is ready at ${open[0].head}; ${s.reason}`, extra); continue; }
+      if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { const [action, reason] = readyAction(record, open[0], `; ${s.reason}`); add(t, action, reason, extra); continue; }
       active++;
       const action = { live: "observe", waiting: "collect-report", unknown: "blocked-owner-unknown", exited: "release" }[s.status];
       const advice = { live: "", waiting: "", unknown: "; establish its state before any replacement", exited: "; record release with that evidence before a new writer continues" }[s.status];
@@ -488,7 +512,8 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
         // that writer, it keeps its place.
         const reserves = !writerKnownEnded(own);
         if (reserves) active++;
-        add(t, "await-maintainer", `PR #${pr.number} is ready at ${pr.head} after ${pr.rounds} review rounds; the maintainer merges it${reserves ? "; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends" : ""}`, { pr: pr.number, rounds: pr.rounds, branch: pr.branch, worktrees: t.worktrees, ...(reserves && { reserves: true }) });
+        const [action, reason] = readyAction(record, pr, ` after ${pr.rounds} review rounds`);
+        add(t, action, `${reason}${reserves ? "; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends" : ""}`, { pr: pr.number, rounds: pr.rounds, branch: pr.branch, worktrees: t.worktrees, ...(reserves && { reserves: true }) });
         continue;
       }
       const reserves = !writerKnownEnded(own);
@@ -551,10 +576,13 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     }
   }
   tickets.sort((a, b) => a.number - b.number);
+  // The Feature is complete only once its acceptance criteria were verified
+  // on main and every ticket is still delivered.
+  const complete = (record.verifications ?? []).at(-1)?.verdict === "complete" && tickets.every((t) => ["done", "container"].includes(t.action));
   return {
     repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session, turn,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow },
-    routes, tickets, remaining: REMAINING, complete: false,
+    routes, tickets, remaining: remainingFor(record, complete), complete,
   };
 }
 
@@ -656,7 +684,7 @@ export function launched(record, { ticket: number, handleKind, handle, observedO
 // Existing work found by the plan gets its existing writer as owner; adoption
 // starts nothing, and the PR keeps the rounds it already started.
 export function adopt(record, { plan, ticket: number, handleKind, handle, pid, route, model, effort, worktree, branch, host = os.hostname(), identify = processIdentity }) {
-  const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer", "done", "decision-needed"]);
+  const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer", "merge-gate", "done", "decision-needed"]);
   if (["done", "decision-needed"].includes(entry.action) && !entry.reserves) throw new Error(`The plan's action for #${number} is ${entry.action} with no unsettled writer to adopt`);
   if (!Object.hasOwn(writerRoutes, route) || typeof model !== "string" || !writerEfforts(model).includes(effort)) throw new Error("--route, --model and --effort must describe the existing writer");
   if (!path.isAbsolute(worktree ?? "")) throw new Error("--worktree must be the existing writer's absolute worktree path");
@@ -1079,7 +1107,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
 
 // --- Command line ---------------------------------------------------------
 
-const FLAGS = new Set(["takeover", "retry", "absent"]);
+const FLAGS = new Set(["takeover", "retry", "absent", "stopAtReady"]);
 export function parseArgs(argv) {
   const [command, ...rest] = argv, options = {};
   for (let i = 0; i < rest.length; i++) {

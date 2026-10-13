@@ -105,13 +105,18 @@ try {
   const plan = (r, more = {}) => run.planDispatch({ record: settled105(run.readRecord(record)), snapshot, turn: "user", preflights: [available("claude-desktop", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, ...more, ...r });
   const actions = (p) => Object.fromEntries(p.tickets.map((t) => [t.number, t.action]));
   const p1 = plan();
-  assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "wait-capacity", 104: "adopt-pr", 105: "await-maintainer", 106: "wait-dependency", 107: "decision-needed", 108: "wait-capacity", 109: "wait-capacity", 110: "adopt-worktree", 111: "done", 112: "container" });
+  assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "wait-capacity", 104: "adopt-pr", 105: "merge-gate", 106: "wait-dependency", 107: "decision-needed", 108: "wait-capacity", 109: "wait-capacity", 110: "adopt-worktree", 111: "done", 112: "container" });
   assert.equal(p1.concurrency.active, 2, "existing PR and worktree work occupies capacity");
   const adopted = p1.tickets.find((t) => t.number === 104);
   assert.deepEqual([adopted.pr, adopted.rounds], [504, 2], "an adopted PR keeps its started review rounds");
   assert.match(p1.tickets.find((t) => t.number === 106).reason, /#91 \(closed, but no merged deliverable is on origin\/main\)/);
   assert.equal(p1.complete, false);
-  assert.ok(p1.remaining.some((line) => /maintainer to merge/.test(line)));
+  assert.ok(p1.remaining.some((line) => /merges only through integration\.mjs's merge gate/.test(line)));
+  // An invocation that stops at ready PRs leaves the merge to the maintainer.
+  const stopping = { ...settled105(run.readRecord(record)), invocation: { text: "Use orchestrate-feature for #100, stopping at ready PRs.", stopAtReady: true }, authority: run.authorityFor({ stopAtReady: true }) };
+  const atReady = plan({ record: stopping });
+  assert.equal(actions(atReady)[105], "await-maintainer");
+  assert.ok(atReady.remaining.some((line) => /maintainer to merge/.test(line)));
   assert.equal(p1.tickets.find((t) => t.number === 101).route, "claude-desktop");
   // More capacity admits the next eligible tickets in number order.
   const roomy = { ...settled105(run.readRecord(record)), concurrency: { limit: 4, basis: "test" } };
@@ -732,12 +737,12 @@ try {
     ]);
     const one = (rec) => ({ ...rec, concurrency: { limit: 1, basis: "test" } });
     const p = run.planDispatch({ record: one(run.readRecord(f.file)), snapshot: snap, turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
-    assert.deepEqual([actions(p)[2201], actions(p)[2202], p.concurrency.active], ["await-maintainer", "wait-capacity", 1], "a ready PR's unsettled writer keeps its place");
+    assert.deepEqual([actions(p)[2201], actions(p)[2202], p.concurrency.active], ["merge-gate", "wait-capacity", 1], "a ready PR's unsettled writer keeps its place");
     assert.match(p.tickets.find((t) => t.number === 2201).reason, /may still be running, so find it and record it with adopt/);
     f.change((r) => run.adopt(r, { plan: write("r18-plan.json", p), ticket: 2201, handleKind: "session", handle: "local_ready", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt-2201") }));
     f.change((r) => run.release(r, { ticket: 2201, observations: { sessions: { local_ready: { state: "archived" } } } }));
     const after = run.planDispatch({ record: one(run.readRecord(f.file)), snapshot: snap, turn: "user", preflights: pre, freeBytes: 100 * GB, defaults });
-    assert.deepEqual([actions(after)[2201], actions(after)[2202]], ["await-maintainer", "dispatch"], "once its writer is settled the place is free");
+    assert.deepEqual([actions(after)[2201], actions(after)[2202]], ["merge-gate", "dispatch"], "once its writer is settled the place is free");
 
     const nested = snapshotOf(300, [
       { ...ticket(2203), parent: 300, effort: "High", container: true, prs: [{ number: 2303, state: "OPEN", isDraft: true, branch: "fix/2203-thing", head: "h", rounds: 1 }] },

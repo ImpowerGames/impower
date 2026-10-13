@@ -1,5 +1,7 @@
 # Plan actions
 
+The observation file `plan` reads is `{ "sessions": { "<id>": { "state": "running|idle|archived|absent" } }, "tasks": { "<id>": { "state": "running|completed|failed|stopped|<other>" } } }`, written from what your runner reports.
+
 `plan` gives every ticket one action with its reason. Act on each as follows.
 
 | Action | Meaning and next step |
@@ -15,13 +17,14 @@
 | `answer-request` | The writer asked for a decision whose answer has not been delivered: decide or `relay` it, record `answer` and send the message it prints, then record `answered`, as [writer reports](writer-reports.md) describes. |
 | `observe` | The owner is running. |
 | `collect-report` | The owner ended its turn: read its report or question and answer it. |
-| `reconcile-pending` | A recorded start has no confirmed outcome: settle it with `reconcile`, `launched` or `withdraw --evidence` before any retry, as the reason says. |
+| `reconcile-pending` | A recorded start has no confirmed outcome: settle it with `reconcile` (a detached start, found by a process naming its launch directory), `launched` or `withdraw --evidence` before any retry, as the reason says. On a ready PR it is a merge or readiness change with no confirmed outcome: settle it with `checkpoint.mjs reconcile-operations` from a fresh snapshot, never by calling again. |
 | `blocked-owner-unknown` | The owner's state is unknown, or a start was claimed on another host: observe it before anything replaces it. A writer or start on another host is settled only by an observation made on that host. |
 | `release` | The owner was observed to end: release it with that evidence; the ticket becomes eligible again. |
 | `stop-writer` | The writer runs another model or effort than requested: stop it and keep its evidence. It is never relaunched on a substitute. |
 | `blocked-route` | No offered route runs the writer model at the ticket's effort: report the preflight reasons to the user. |
 | `decision-needed` | Missing Effort, duplicate open PRs, a closed ticket without its deliverable, a held writer outside the Feature or on a ticket that gained sub-issues, or sub-issues nested past GitHub's limit: report it with a recommendation. |
-| `await-maintainer` | A ready PR waits for the maintainer to merge it. Until the record settles its writer (released, or adopted and released), that writer may still be finishing and keeps its place; the reason says so, and `adopt` records it. |
-| `done`, `container` | Delivered, or planned through its own sub-issues. A closed ticket whose worktree remains here and whose writer the record has not settled keeps that writer's place, as the reason says: adopt and release the writer, or remove the merged worktree through clean-worktrees. |
+| `merge-gate` | A ready PR under an invocation that grants the merge: run `integration.mjs gate`, and merge with `integration.mjs merge` only when it admits the head, as [integration](integration.md) describes. Each refusal names what to settle first. Until the record settles its writer (released, or adopted and released), that writer may still be finishing and keeps its place; the reason says so, and `adopt` records it. |
+| `await-maintainer` | The invocation stops at ready PRs, so this ready PR waits for the maintainer to merge it, and its dependents keep waiting until its merge commit is on origin/main. Its writer keeps its place as under `merge-gate`. |
+| `done`, `container` | Delivered, or planned through its own sub-issues. Once every ticket is `done` or `container`, verify the Feature as [integration](integration.md) describes. A closed ticket whose worktree remains here and whose writer the record has not settled keeps that writer's place, as the reason says: adopt and release the writer, or remove the merged worktree through clean-worktrees. |
 
 An adopted writer is recorded with the model and effort it actually runs, and verified against the ticket's Effort, so a mismatch plans as `stop-writer`. An owner's state comes from the observation file for sessions and tasks. A detached writer on this host is live while its recorded wrapper runs or while any process names its launch directory, which the writer carries on its own command line; a failed process census, or a process recorded on another host, leaves it unknown.
