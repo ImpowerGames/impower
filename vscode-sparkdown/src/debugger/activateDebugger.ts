@@ -20,6 +20,7 @@ import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
 import { getEditor } from "../utils/getEditor";
 import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
 import { debugPathToUri, debugUriToPath } from "./debugUriMapping";
+import { evaluatableExpressionRange } from "./evaluatableExpressionRange";
 
 export const activateDebugger = (
   context: vscode.ExtensionContext,
@@ -136,31 +137,23 @@ export const activateDebugger = (
     context.subscriptions.push(factory as { dispose: () => any });
   }
 
-  // override VS Code's default implementation of the debug hover
-  // here we match only Mock "variables", that are words starting with an '$'
+  // The debug hover evaluates the variable, or dotted path, under the cursor
+  // (#1845); a name the selected frame does not have falls through to the
+  // language hover (`SparkDebugSession.evaluateRequest`).
   context.subscriptions.push(
     vscode.languages.registerEvaluatableExpressionProvider("sparkdown", {
       provideEvaluatableExpression(
         document: vscode.TextDocument,
         position: vscode.Position,
       ): vscode.ProviderResult<vscode.EvaluatableExpression> {
-        const VARIABLE_REGEXP = /\$[a-z][a-z0-9]*/gi;
         const line = document.lineAt(position.line).text;
-
-        let m: RegExpExecArray | null;
-        while ((m = VARIABLE_REGEXP.exec(line))) {
-          const varRange = new vscode.Range(
-            position.line,
-            m.index,
-            position.line,
-            m.index + m[0].length,
-          );
-
-          if (varRange.contains(position)) {
-            return new vscode.EvaluatableExpression(varRange);
-          }
+        const range = evaluatableExpressionRange(line, position.character);
+        if (!range) {
+          return undefined;
         }
-        return undefined;
+        return new vscode.EvaluatableExpression(
+          new vscode.Range(position.line, range.start, position.line, range.end),
+        );
       },
     }),
   );

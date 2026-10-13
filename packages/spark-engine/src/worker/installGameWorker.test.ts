@@ -6,6 +6,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { CreateGameMessage } from "../game/core/classes/messages/CreateGameMessage";
 import { EnableGameDebugMessage } from "../game/core/classes/messages/EnableGameDebugMessage";
+import { GetGameEvaluationContextMessage } from "../game/core/classes/messages/GetGameEvaluationContextMessage";
 import { GetGameVariablesMessage } from "../game/core/classes/messages/GetGameVariablesMessage";
 import { PageFramedMessage } from "../game/core/classes/messages/PageFramedMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
@@ -71,7 +72,8 @@ describe("a game the worker creates", () => {
 });
 
 // The Variables view shows the temporaries of the frame selected in the Call
-// Stack, which the request names by its thread and frame (#1727).
+// Stack, which the request names by its thread and frame (#1727), and hover
+// and Watch evaluate in it (#1740).
 describe("a request for a game's temporaries", () => {
   test("answers with the frame it names, and with the running frame when it names none", async () => {
     vi.stubGlobal("self", {
@@ -138,6 +140,17 @@ describe("a request for a game's temporaries", () => {
     expect(await temps({ threadId: 0, frameId: 1 })).toEqual(["subLoc=222"]);
     // A request from a client that names no frame reads the running one.
     expect(await temps({})).toEqual(["subLoc=222"]);
+    // Hover and Watch evaluate in the frame the request names too (#1740).
+    const context = async (params: object) =>
+      (await ask(GetGameEvaluationContextMessage.type.request(params))).context;
+    expect(await context({ threadId: 0, frameId: 0 })).toMatchObject({
+      mainLoc: 111,
+    });
+    expect(await context({ threadId: 0, frameId: 0 })).not.toHaveProperty(
+      "subLoc",
+    );
+    expect(await context({})).toMatchObject({ subLoc: 222 });
+    expect(await context({})).not.toHaveProperty("mainLoc");
   });
 });
 

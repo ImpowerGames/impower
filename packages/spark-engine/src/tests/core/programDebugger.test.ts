@@ -15,6 +15,7 @@ import {
   VariablePointerValue,
 } from "@impower/sparkdown/src/runtime/Value";
 import { Game } from "../../game/core/classes/Game";
+import type { StackFrame } from "../../game/core/types/StackFrame";
 
 const MAIN = "file:///local/main.sd";
 
@@ -1682,6 +1683,65 @@ describe("the variables of a selected frame", () => {
       "health=100",
     ]);
     expect(names(h.game.getTempVariables())).toEqual(["health=10"]);
+  });
+
+  // Hover and Watch evaluate against the frame selected in the Call Stack,
+  // as the Variables view reads it (#1740).
+  it("evaluates a caller's temporary in the caller's frame while the running frame holds one of its name", () => {
+    const h = debugGame(
+      [
+        "store health = 100", //   0
+        "-> main", //              1
+        "scene main", //           2
+        "  local n = 1", //        3
+        "  Start.", //             4
+        "  local r = twice(3)", // 5
+        "  Done {r}.", //          6
+        "  done", //               7
+        "end", //                  8
+        "function twice(k)", //    9
+        "  local n = k * 2", //    10
+        "  return n", //           11
+        "end", //                  12
+        "",
+      ].join("\n"),
+    );
+    h.game.setFunctionBreakpoints([{ name: "twice" }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(9);
+    for (let i = 0; i < 4 && h.stoppedAt() !== 11; i += 1) {
+      h.game.step("over");
+    }
+    expect(h.stoppedAt()).toBe(11);
+    const threadId = h.game.getThreads()[0]!.id;
+    const { stackFrames } = h.frames();
+    expect(stackFrames.map((f) => f.name)).toEqual(["twice", "main"]);
+    const [running, caller] = stackFrames as [StackFrame, StackFrame];
+    expect(names(h.game.getTempVariables(threadId, caller.id))).toContain(
+      "n=1",
+    );
+    expect(names(h.game.getTempVariables(threadId, running.id))).toContain(
+      "n=6",
+    );
+    /** The `n` and the global `health` a context gives. */
+    const read = (context: any) => ({ health: context.health, n: context.n });
+    expect(read(h.game.getEvaluationContext(threadId, caller.id))).toEqual({
+      health: 100,
+      n: 1,
+    });
+    expect(read(h.game.getEvaluationContext(threadId, running.id))).toEqual({
+      health: 100,
+      n: 6,
+    });
+    // With no frame named, or a thread or frame the call stack no longer
+    // has, the frame that runs, as before the frame could be named.
+    const today = h.game.getEvaluationContext();
+    expect(read(today)).toEqual({ health: 100, n: 6 });
+    expect(h.game.getEvaluationContext(threadId)).toEqual(today);
+    expect(h.game.getEvaluationContext(threadId, 99)).toEqual(today);
+    expect(h.game.getEvaluationContext(threadId, -1)).toEqual(today);
+    expect(h.game.getEvaluationContext(99, caller.id)).toEqual(today);
   });
 });
 

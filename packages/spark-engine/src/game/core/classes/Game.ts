@@ -3282,11 +3282,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The story's globals and the current temporaries by name, for the
+  /** The story's globals and the temporaries of a frame by name, for the
    *  editor to evaluate an expression against: each value it can receive
    *  and read into (`isEvaluable`). A table holds the runtime's own objects
-   *  and functions, which no message can carry. */
-  getEvaluationContext() {
+   *  and functions, which no message can carry. The frame is `frameId` of
+   *  thread `threadId`, numbered as `getTempVariables` and `getStackTrace`
+   *  number them (#1740); with neither, or naming a thread or frame the
+   *  call stack no longer has, it is the frame that runs. */
+  getEvaluationContext(threadId?: number, frameId?: number) {
     const context: any = {};
     const variableState = this._story.state.variablesState;
     for (const name of variableState["_globalVariables"].keys()) {
@@ -3296,9 +3299,14 @@ export class Game<T extends M = {}> {
         context[name] = value;
       }
     }
-    const contextIndex = variableState.callStack.currentElementIndex + 1;
-    let contextElement =
-      variableState.callStack.currentThread.callstack[contextIndex - 1];
+    const callStack = variableState.callStack;
+    const thread =
+      threadId != null ? callStack.ThreadWithIndex(threadId) : undefined;
+    const selected = thread
+      ? thread.callstack[frameId ?? thread.callstack.length - 1]
+      : undefined;
+    const contextElement =
+      selected ?? callStack.currentThread.callstack[callStack.currentElementIndex];
     if (contextElement?.temporaryVariables) {
       for (const [
         name,
