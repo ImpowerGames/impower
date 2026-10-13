@@ -410,6 +410,28 @@ try {
   assert.ok(carried.blockers.some((b) => /round 3 has 1 of its 2 planned reviewers' completions here \(its journals count 2; the others' journals are elsewhere\)/.test(b)), carried.blockers.join("; "));
   const bothHere = rc.roundState([countJournal("j1", 1, 1), countJournal("j2", 2, 2)]);
   assert.deepEqual([bothHere.blockers, bothHere.reports.map((r) => r.comment)], [[], [1, 2]]);
+  // A count-form round's declared count is its plan: a later launch that
+  // declares more reviewers changes it.
+  const declaring = (file, reviewers, reviews, comment) => ({ file, plan: { steps: { a: { role: "review", round: 3, reviewers } } }, rows: [
+    { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3 }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "exited", index: 0 },
+    { time: at(), event: "completed", index: 0, completedRound: 3, reviewedHead: c.round2, commentIds: [comment], completedRoundReviews: reviews }, { time: at(), event: "finished" }] });
+  const expanded = rc.roundState([declaring("k1", 1, 1, 11), declaring("k2", 2, 2, 12)]);
+  assert.ok(rc.audit(expanded, []).some((v) => /k2 declares round 3's planned reviewers as 2 unnamed, but the round was planned with 1 unnamed/.test(v)), rc.audit(expanded, []).join("; "));
+
+  // A launch with a delegated execution service has ended only once that
+  // service drained.
+  const served = (drained) => rc.roundState([{ file: "js", plan: null, rows: [
+    { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3, reviewerId: "a", plannedReviewers: ["a"] }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "execution-service", index: 0 },
+    { time: at(), event: "exited", index: 0, executionDrained: drained }, { time: at(), event: "completed", index: 0, reviewerId: "a", completedRound: 3, reviewedHead: c.round2, commentIds: [21], plannedRoundReviewers: ["a"], pendingReviewers: [], completedRoundReviews: 1 }, { time: at(), event: "finished" }] }]);
+  assert.ok(served(false).blockers.some((b) => /delegated execution service whose shutdown is not confirmed \(executionDrained false\)/.test(b)), served(false).blockers.join("; "));
+  assert.deepEqual(served(true).blockers, []);
+
+  // A block whose fields are not strings is reported as malformed; it never
+  // throws while it is judged.
+  const objectHead = { id: "obj00001", kind: "finish", coordinator: "local_coord", round: 3, head: { toString: null }, reviewedHead: null, range: null };
+  const judged = rc.restore([{ id: 9060, created_at: at(), body: `<!-- orchestrate-feature-checkpoint\n${JSON.stringify(objectHead)}\n-->` }, ...comments], { trusted: ["local_coord"] });
+  assert.equal(judged.find((d) => d.comment === 9060).malformed, "no head or reviewed head");
+  assert.equal(judged.filter((d) => !d.malformed).length, comments.filter((x) => x.body.includes("orchestrate-feature-checkpoint")).length, "every other decision still restores");
 
   // A report the coordinator posted for a reviewer is named by the journal's
   // report-posted row, and counts like any other report.

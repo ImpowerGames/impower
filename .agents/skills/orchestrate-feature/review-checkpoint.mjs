@@ -91,6 +91,10 @@ export function roundState(journals) {
         const plannedCount = Array.isArray(declared) ? declared.length : Number.isSafeInteger(declared) ? declared : 1;
         const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount, head: at("running")?.head ?? null, exited: Boolean(exited) || neverStarted, exitedAt: exited?.time ?? null };
         if (spawned && !exited) blockers.push(`${file}: reviewer launch ${row.index} of round ${row.round} has no exited row`);
+        // A launch with a delegated execution service has ended only once the
+        // service drained, as the launcher's own lock recovery requires: its
+        // commands can outlive the reviewer.
+        else if (at("execution-service") && exited?.executionDrained !== true) blockers.push(`${file}: reviewer launch ${row.index} of round ${row.round} started a delegated execution service whose shutdown is not confirmed (executionDrained ${exited?.executionDrained ?? "missing"}), so its commands may still run`);
         else if (!spawned && !exited && !neverStarted && terminal) blockers.push(`${file}: reviewer launch ${row.index} of round ${row.round} reserved a slot but recorded neither its start nor its exit, so a reviewer may still run`);
         reviewLaunch.set(row.index, launch);
         launches.push(launch);
@@ -117,10 +121,13 @@ export function roundState(journals) {
   // so a reviewer whose journal is missing leaves its round incomplete.
   const rounds = new Map();
   const declares = (e) => e.plannedRoundReviewers ?? e.plannedReviewers;
+  // A plan is its named reviewers, or the count a step declares; either
+  // changing after the first launch is a changed plan.
+  const planOf = (e) => (declares(e) ? declares(e).join(", ") : `${e.plannedCount} unnamed`);
   for (const e of [...launches.map((l) => ({ ...l, launch: true })), ...completions].sort(byTime)) {
-    const r = rounds.get(e.round) ?? { planned: declares(e) ?? null, plannedCount: e.plannedCount, done: new Set(), counted: 0, seen: 0, complete: false, changed: [] };
+    const r = rounds.get(e.round) ?? { planned: declares(e) ?? null, plannedCount: e.plannedCount, plan: planOf(e), done: new Set(), counted: 0, seen: 0, complete: false, changed: [] };
     rounds.set(e.round, r);
-    if (declares(e) && r.planned && declares(e).join("\n") !== r.planned.join("\n")) r.changed.push({ file: e.file, declared: declares(e) });
+    if (planOf(e) !== r.plan) r.changed.push({ file: e.file, declared: planOf(e) });
     if (e.launch) continue;
     if (e.reviewerId) r.done.add(e.reviewerId);
     // A count-form round's carried count says how many reviewers completed,
@@ -140,7 +147,7 @@ export function roundState(journals) {
   const current = rounds.get(completedRound);
   return {
     completedRound, startedRound, reviewedHead: latest?.reviewedHead ?? null, plannedReviewers: current?.planned ?? (latest ? `${current.plannedCount} unnamed` : null),
-    roundsSeen: [...rounds.keys()].sort((a, b) => a - b), changedPlans: [...rounds.entries()].flatMap(([round, r]) => r.changed.map((c) => ({ round, file: c.file, planned: r.planned, declared: c.declared }))),
+    roundsSeen: [...rounds.keys()].sort((a, b) => a - b), changedPlans: [...rounds.entries()].flatMap(([round, r]) => r.changed.map((c) => ({ round, file: c.file, planned: r.plan, declared: c.declared }))),
     reports: completions.flatMap((c) => c.comments.map((comment) => ({ round: c.round, reviewerId: c.reviewerId, attempt: c.attempt, reviewedHead: c.reviewedHead, comment }))),
     launches, completions, plans, blockers,
   };
@@ -163,12 +170,16 @@ export function roundState(journals) {
 // count for nothing; a malformed block is reported, never thrown.
 export const blockHash = (decision) => sha256(JSON.stringify(decision));
 const HASH = /^[0-9a-f]{64}$/;
+// Fields of an untrusted block are tested only once they are strings, so no
+// value can throw while the block is judged.
+const isSha = (v) => typeof v === "string" && SHA.test(v);
+const isHash = (v) => typeof v === "string" && HASH.test(v);
 function malformed(d) {
   if (!d || typeof d !== "object" || !KINDS.includes(d.kind)) return "unknown kind";
   if (typeof d.id !== "string" || !d.id || typeof d.coordinator !== "string" || !d.coordinator) return "no id or coordinator";
   if (!Number.isSafeInteger(d.round) || d.round < 0) return "no round";
-  if (!SHA.test(d.head ?? "") || (d.reviewedHead !== null && !SHA.test(d.reviewedHead ?? ""))) return "no head or reviewed head";
-  if (d.range != null && (typeof d.range !== "object" || !SHA.test(d.range.from ?? "") || !SHA.test(d.range.to ?? "") || !Array.isArray(d.range.commits) || !d.range.commits.every((s) => SHA.test(s ?? "")) || !HASH.test(d.range.diffSha256 ?? ""))) return "a malformed range";
+  if (!isSha(d.head) || (d.reviewedHead !== null && !isSha(d.reviewedHead))) return "no head or reviewed head";
+  if (d.range != null && (typeof d.range !== "object" || !isSha(d.range.from) || !isSha(d.range.to) || !Array.isArray(d.range.commits) || !d.range.commits.every(isSha) || !isHash(d.range.diffSha256))) return "a malformed range";
   if (d.kind === "extend" && (!Number.isSafeInteger(d.limit) || d.limit <= d.round || d.limit > MAX_REVIEW_ROUNDS || !present(d.authority))) return "an extension outside the ten-round bound or without its authority";
   if (d.kind === "accept-unreviewed" && (d.range == null || !present(d.authority))) return "an acceptance without its range or authority";
   return null;
@@ -233,7 +244,7 @@ export function audit(state, decisions) {
     const inForce = decisions.filter((d) => d.supersedes && Date.parse(d.postedAt ?? d.time) <= Date.parse(first.time)).at(-1);
     if (!inForce || !inForce.trusted || inForce.kind !== "extend" || inForce.round !== r - 1 || inForce.limit < r) violations.push(`round ${r} launched at ${first.time} with no published extension, decided at the checkpoint after round ${r - 1}, that covers it${inForce && (inForce.kind !== "extend" || !inForce.trusted) ? `; the decision in force then was ${inForce.id} (${inForce.kind} after round ${inForce.round}${inForce.trusted ? "" : `, untrusted: ${inForce.untrusted}`})` : ""}`);
   }
-  for (const c of state.changedPlans ?? []) violations.push(`${c.file} declares round ${c.round}'s planned reviewers as ${c.declared.join(", ")}, but the round was planned with ${c.planned.join(", ")}; a round's planned reviewers never change`);
+  for (const c of state.changedPlans ?? []) violations.push(`${c.file} declares round ${c.round}'s planned reviewers as ${c.declared}, but the round was planned with ${c.planned}; a round's planned reviewers never change`);
   const events = [...state.completions.map((c) => ({ ...c, kind: "completed" })), ...state.launches.map((l) => ({ ...l, kind: "launching" }))].sort(byTime);
   // Once a round is complete, a reviewer of that round may launch again only
   // on the head its completion recorded; on a corrected head it is a new
