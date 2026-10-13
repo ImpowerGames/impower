@@ -21,7 +21,7 @@ import {
 } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // An `if` statement: `LuauSparkdownIfBlock` in a scene or at the top level,
 // whose arms also hold display lines, and `LuauIfBlock` in Luau code. The
@@ -37,7 +37,7 @@ export function lowerLuauIfBlock(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, IF_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "if", ctx);
   const prefix = node.name;
   const elseifNodeName = prefix.replace("IfBlock", "ElseifBlock");
   const elseNodeName = prefix.replace("IfBlock", "ElseBlock");

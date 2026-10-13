@@ -20,7 +20,7 @@ import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
 import { openBody, recordLoop } from "../utils/statementShape";
@@ -88,7 +88,7 @@ export function lowerLuauForLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, FOR_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "for", ctx);
   const doBlock = findLoopDoBlock(node, ctx);
   // An EMPTY body (`for i = 1, 3 do end`) has no `_content` child —
   // the loop must still lower: its bounds evaluate (and can raise).

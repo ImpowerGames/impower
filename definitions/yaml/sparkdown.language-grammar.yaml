@@ -4152,6 +4152,11 @@ repository:
     patterns:
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
+      # The bounded control blocks a `& do` island holds also stand on
+      # their own marked line (`& for ... do ... end`, `& if ... end`).
+      - { include: "#LuauSparkdownExplicitIfBlock" }
+      - { include: "#LuauSparkdownExplicitLoop" }
+      - { include: "#LuauSparkdownExplicitRepeatLoop" }
       - { include: "#LuauSparkdownExplicitStoryVariableDefinition" }
       - { include: "#LuauSparkdownExplicitDeclarations" }
       - { include: "#LuauCommaSeparator" }
@@ -8144,8 +8149,9 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # Used only inside a narrative explicit do island. Its branches and nested
-  # blocks end at the same line; the ordinary function rules remain multiline.
+  # Used on a narrative `&` line, standing alone (`& if ... end`) or inside an
+  # explicit do island. Its branches and nested blocks end at the same line;
+  # the ordinary function rules remain multiline.
   LuauSparkdownExplicitIfBlock:
     begin: ({{WS}}*)(if)\b({{WS}}*)
     beginCaptures:

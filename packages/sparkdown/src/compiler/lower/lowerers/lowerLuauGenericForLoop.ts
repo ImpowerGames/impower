@@ -25,7 +25,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
 import { openBody, recordLoop } from "../utils/statementShape";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // `for v1, v2, ... in iter_expr do BODY end` — Luau's generic-for.
 //
@@ -82,7 +82,7 @@ export function lowerLuauGenericForLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, FOR_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "for", ctx);
   const doBlock = findLoopDoBlock(node, ctx);
   // An EMPTY body (`for x in t do end`) has no `_content` child —
   // the loop must still lower (the iterand evaluates, and
