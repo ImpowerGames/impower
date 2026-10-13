@@ -59,8 +59,9 @@ function readCheckpointAt(checkout, commit) {
 }
 
 // The current checkpoint on the remote, or null when the Feature has none. The
-// chain is checked one step back: the commit's first parent is the checkpoint
-// it names as previous, one sequence number earlier.
+// chain is checked one step back: the commit's parents are exactly the
+// checkpoint it names as previous (one sequence number earlier), when there
+// is one, followed by the snapshot commits it names as its other parents.
 export function fetchState(checkout, remote, repository, feature) {
   const branch = stateBranch(feature);
   const head = remoteHeads(checkout, remote, `refs/heads/${branch}`).get(branch);
@@ -70,7 +71,8 @@ export function fetchState(checkout, remote, repository, feature) {
   const checkpoint = readCheckpointAt(checkout, commit);
   if (checkpoint.repository !== repository || checkpoint.feature !== feature) throw new Error(`${branch} holds a checkpoint of ${checkpoint.repository}#${checkpoint.feature}, not ${repository}#${feature}`);
   const parents = git(checkout, ["rev-list", "--parents", "-n", "1", commit]).split(" ").slice(1);
-  if ((parents[0] ?? null) !== checkpoint.previous) throw new Error(`Checkpoint ${commit} names ${checkpoint.previous} as previous, but its first parent is ${parents[0] ?? "none"}; inspect ${branch}`);
+  const expected = [...(checkpoint.previous ? [checkpoint.previous] : []), ...(checkpoint.snapshotParents ?? [])];
+  if (parents.join(" ") !== expected.join(" ")) throw new Error(`Checkpoint ${commit} names parents ${expected.join(", ") || "none"} (previous ${checkpoint.previous}), but its parents are ${parents.join(", ") || "none"}; inspect ${branch}`);
   if (checkpoint.previous && readCheckpointAt(checkout, checkpoint.previous).seq !== checkpoint.seq - 1) throw new Error(`Checkpoint ${commit} (seq ${checkpoint.seq}) does not follow its previous checkpoint; inspect ${branch}`);
   return { commit, checkpoint, brief: git(checkout, ["show", `${commit}:brief.md`]), branch };
 }
@@ -411,9 +413,9 @@ function takeoverBrief(c, commit) {
   return `${lines.join("\n").trim()}\n`;
 }
 
-export function buildCheckpoint(record, { seq, previous, kind, transition, host, work, observed }) {
+export function buildCheckpoint(record, { seq, previous, snapshotParents = [], kind, transition, host, work, observed }) {
   const checkpoint = {
-    version: CHECKPOINT_VERSION, repository: record.repository, feature: record.feature, seq, previous, time: new Date().toISOString(), kind, transition,
+    version: CHECKPOINT_VERSION, repository: record.repository, feature: record.feature, seq, previous, snapshotParents, time: new Date().toISOString(), kind, transition,
     run: { runId: record.runId, recordRevision: record.revision, source: { host, checkout: record.checkout } },
     coordinator: record.coordinator, previousCoordinators: record.previousCoordinators,
     invocation: record.invocation, authority: record.authority, writer: record.writer, concurrency: record.concurrency,
@@ -464,14 +466,14 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
     const seq = (head?.checkpoint.seq ?? 0) + 1;
     const fresh = Object.fromEntries(Object.entries(snapshots).filter(([, s]) => s && !s.clean));
     const work = inventoryWork(record, { host, remote, snapshots: { ...(record.snapshots ?? {}), ...fresh }, prs: Object.fromEntries((plan?.tickets ?? []).filter((t) => t.pr).map((t) => [t.number, t.pr])) });
-    // The last plan's summary stays until a newer plan replaces it.
-    const checkpoint = buildCheckpoint(record, { seq, previous, kind, transition, host, work, observed: observedFrom(plan) ?? (head?.checkpoint.run.runId === record.runId ? head.checkpoint.observed : null) });
-    const content = `${JSON.stringify(checkpoint, null, 2)}\n`;
     // Every snapshot the checkpoint names must travel with it: one not yet in
     // the previous checkpoint's history (its first publication may have
-    // failed) becomes a parent of this one.
+    // failed) becomes a parent of this one, after the previous checkpoint.
     const named = Object.values({ ...(record.snapshots ?? {}), ...fresh }).map((s) => s.commit);
     const extra = [...new Set(named)].filter((c) => !previous || !spawnOk(record.checkout, ["merge-base", "--is-ancestor", c, previous]));
+    // The last plan's summary stays until a newer plan replaces it.
+    const checkpoint = buildCheckpoint(record, { seq, previous, snapshotParents: extra, kind, transition, host, work, observed: observedFrom(plan) ?? (head?.checkpoint.run.runId === record.runId ? head.checkpoint.observed : null) });
+    const content = `${JSON.stringify(checkpoint, null, 2)}\n`;
     const commit = writeCommit(record.checkout, { "checkpoint.json": content, "brief.md": takeoverBrief(checkpoint) }, [...(previous ? [previous] : []), ...extra], `checkpoint ${seq} of ${record.repository}#${record.feature}: ${transition}\n`);
     side.attempt = { seq, commit, previous, recordRevision: record.revision, runId: record.runId, state: "intent", time: new Date().toISOString() };
     writeSidecar(file, side);

@@ -464,6 +464,28 @@ try {
   assert.equal(fs.readFileSync(path.join(got731.worktree, "entry"), "utf8"), "now a file\n");
   assert.equal(fs.readFileSync(path.join(got731.worktree, "leaf", "inner.txt"), "utf8"), "now a directory\n");
 
+  // A run whose first checkpoint never saved hands off while offline; the
+  // first saved checkpoint then carries the snapshot with no previous one,
+  // and a fresh destination still reads it.
+  const rec760 = init(760, "local_src76");
+  mutate(rec760, "local_src76", (r) => { r.checkpoints = { remote: "origin", branch: cp.stateBranch(760) }; });
+  const wt761 = startWriter(rec760, "local_src76", { repository: "acme/widgets", feature: { number: 760, state: "open" }, originMain: "x", tickets: [ticket(761, { parent: 760 })] }, 761, "first");
+  fs.writeFileSync(path.join(wt761, "draft.txt"), "first draft\n");
+  const offline760 = path.join(tmp, "remote-offline-760.git");
+  fs.renameSync(remote, offline760);
+  try {
+    assert.equal(cp.prepareHandoff(rec760, { coordinator: "local_src76", expectRevision: rev(rec760), step: "stop", github, host: SRC }).checkpoint.saved, false);
+    assert.equal(cp.prepareHandoff(rec760, { coordinator: "local_src76", expectRevision: rev(rec760), step: "publish", observations: { sessions: { local_w761: { state: "archived" } } }, github, host: SRC }).checkpoint.saved, false);
+  } finally { fs.renameSync(offline760, remote); }
+  const first760 = cp.publish(rec760, { coordinator: "local_src76", transition: "the first save", github, host: SRC });
+  assert.deepEqual([first760.saved, first760.seq], [true, 1]);
+  const found760 = cp.discover({ repository: "acme/widgets", feature: 760, checkout: dst3, github });
+  assert.deepEqual([found760.found, found760.checkpoint.previous, found760.checkpoint.snapshotParents.length], [true, null, 1], "the first checkpoint names its snapshot parent");
+  assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 760, checkout: dst3, ticket: 761, worktree: path.join(tmp, "dst3-wt-761") }).worktree, "draft.txt"), "utf8"), "first draft\n");
+  mutate(rec760, "local_src76", (r) => { r.log.push({ time: new Date().toISOString(), event: "note" }); });
+  assert.equal(cp.autoCheckpoint(rec760, { coordinator: "local_src76", transition: "a later note", github, host: SRC }).saved, true, "the chain continues after a first checkpoint with a snapshot parent");
+  assert.deepEqual(cp.fetchState(dst3, "origin", "acme/widgets", 760).checkpoint.snapshotParents, [], "a snapshot already in the history is not added again");
+
   // A destination machine retrieves the unfinished work from the snapshot.
   const dst2 = clone("dst2");
   // The destination checks text out with CRLF; the retrieved bytes are still
