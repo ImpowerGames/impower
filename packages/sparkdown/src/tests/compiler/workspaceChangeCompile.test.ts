@@ -62,6 +62,8 @@ class TestWorkspace extends SparkdownWorkspace {
   protected override startCompilerWorker() {
     this.compiles ??= [];
     this.sentVersions ??= new Map();
+    // This worker's compiles, which a restart abandons.
+    const mine: CompileRequest[] = [];
     const connection = {
       sendRequest: (type: { method: string }, params: any) => {
         if (type.method === UpdateCompilerDocumentMessage.method) {
@@ -75,6 +77,13 @@ class TestWorkspace extends SparkdownWorkspace {
         }
         const uri = params.textDocument.uri;
         const version = this._documentVersions.get(uri) ?? 0;
+        // A main script's compile covers every document of its tree.
+        const scripts: Record<string, number> = { [uri]: version };
+        for (const [other, v] of this._documentVersions) {
+          if (other !== uri && this.getMainScriptUri(other) === uri) {
+            scripts[other] = v;
+          }
+        }
         return new Promise((resolve, reject) => {
           const request: CompileRequest = {
             uri,
@@ -85,7 +94,7 @@ class TestWorkspace extends SparkdownWorkspace {
               request.answered = true;
               resolve({
                 textDocument: params.textDocument,
-                program: { summary: true, uri, scripts: { [uri]: version } },
+                program: { summary: true, uri, scripts },
               });
             },
             fail: (e) => {
@@ -94,10 +103,18 @@ class TestWorkspace extends SparkdownWorkspace {
             },
           };
           this.compiles.push(request);
+          mine.push(request);
           if (this.answerCompiles) {
             request.answer();
           }
         });
+      },
+      abandon: (e: Error) => {
+        for (const request of mine) {
+          if (!request.answered) {
+            request.fail(e);
+          }
+        }
       },
       addEventListener() {},
       removeEventListener() {},
@@ -307,6 +324,67 @@ describe("keystroke compiles", () => {
     workspace.compiles[2]!.answer();
     await vi.advanceTimersByTimeAsync(DELAY * 8);
     expect(workspace.compiles).toHaveLength(3);
+  });
+
+  it("wait for a forced compile in flight, then compile the latest text at once", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    type(workspace);
+    await vi.advanceTimersByTimeAsync(0);
+    // A save, say, compiles the document while the debounce runs.
+    const forced = workspace.compile(MAIN, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.compiles).toHaveLength(1);
+    let latest = 0;
+    for (let i = 0; i < 4; i++) {
+      latest = type(workspace);
+      await vi.advanceTimersByTimeAsync(DELAY);
+    }
+    expect(workspace.compiles).toHaveLength(1);
+    workspace.compiles[0]!.answer();
+    await forced;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.compiles).toHaveLength(2);
+    expect(workspace.compiles[1]!.version).toBe(latest);
+  });
+
+  it("compile the latest text on the new worker when it restarts while one waits", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    type(workspace);
+    await vi.advanceTimersByTimeAsync(DELAY);
+    // The worker never answers this compile.
+    expect(workspace.compiles).toHaveLength(1);
+    const latest = type(workspace);
+    await vi.advanceTimersByTimeAsync(DELAY * 8);
+    expect(workspace.compiles).toHaveLength(1);
+
+    const restarting = workspace.restartCompiler();
+    await vi.advanceTimersByTimeAsync(0);
+    // The stuck compile settled, and the waiting keystroke compile ran on
+    // the new worker with the latest text; the restart compiles too.
+    expect(workspace.compiles[0]!.answered).toBe(true);
+    const after = workspace.compiles.slice(1);
+    expect(after.length).toBeGreaterThanOrEqual(1);
+    expect(after.every((c) => c.version === latest)).toBe(true);
+    for (const c of after) c.answer();
+    await restarting;
+    await vi.advanceTimersByTimeAsync(DELAY * 8);
+    expect(workspace.running).toHaveLength(0);
+  });
+
+  it("compile documents of one tree once", async () => {
+    const SCENE = "file://proj/scene.sd";
+    const workspace = new TestWorkspace();
+    await open(workspace, MAIN);
+    await open(workspace, SCENE);
+    type(workspace, SCENE);
+    type(workspace, MAIN);
+    await vi.advanceTimersByTimeAsync(DELAY);
+    expect(workspace.compiles.map((c) => c.uri)).toEqual([MAIN]);
+    workspace.compiles[0]!.answer();
+    await vi.advanceTimersByTimeAsync(DELAY * 8);
+    expect(workspace.compiles).toHaveLength(1);
   });
 
   it("settle a request that piggybacks on a pending keystroke compile", async () => {
