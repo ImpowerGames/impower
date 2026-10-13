@@ -104,6 +104,94 @@ export function checkReviewerPlace(step, completedRound, completedRoundReviewers
   if (previous !== undefined && (step.attempt ?? 1) <= previous) throw new Error(`Reviewer ${step.reviewerId} completed attempt ${previous} in round ${step.round}; a retry needs a higher attempt`);
 }
 
+// --- Reading launch journals ------------------------------------------------
+
+// A journal's rows, one JSON object per line.
+export function readJournalRows(file) {
+  return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line, i) => {
+    try { return JSON.parse(line); } catch { throw new Error(`${file} line ${i + 1} is not JSON`); }
+  });
+}
+
+// What a journal records about one launch: its exit and whether a delegated
+// execution service drained, its running and identified rows, a child
+// confirmed absent, a slot reservation, and the launch's last row. Lock
+// recovery and the round accounting below judge a launch's end from these
+// facts, each with its own policy.
+export function launchEvidence(rows, index) {
+  const of = rows.filter((row) => row.index === index);
+  const find = (event) => of.find((row) => row.event === event) ?? null;
+  return { exited: find("exited"), service: find("execution-service"), running: find("running"), identified: find("identified"), confirmedAbsent: Boolean(find("confirmed-absent")), reserved: Boolean(find("reserved")), last: of.at(-1) ?? null };
+}
+
+const TERMINAL_ROWS = new Set(["finished", "blocked", "report-posted"]);
+
+// Round accounting across the launch journals of one PR's review jobs, by
+// the rules the launcher enforces on a recovery plan. Each review launch
+// carries its round, its reviewer place (reviewerId and attempt), the plan
+// it declared and its evidence; each validated completion its reviewed head
+// and reports, including a report the coordinator posted for it. A round's
+// plan (its named reviewers, or the count its step declares) is fixed at the
+// round's first launch, and a later declaration of another is recorded as a
+// change; the round is complete once each named reviewer has a completion,
+// or once the completions present number the declared count. `recovery`
+// holds the plan fields a recovery plan carries from the latest validated
+// completion: completedReviewRound, reviewedHead, completedRoundReviews,
+// completedRoundReviewers and plannedRoundReviewers.
+export function reviewAccounting(journals) {
+  const launches = [], completions = [], files = [];
+  const byTime = (a, b) => Date.parse(a.time) - Date.parse(b.time);
+  for (const { file, rows, plan } of journals) {
+    const last = rows.at(-1)?.event ?? null;
+    files.push({ file, last, terminal: TERMINAL_ROWS.has(last), unconfirmedChild: rows.some((row) => row.event === "blocked" && /unconfirmed/.test(row.reason ?? "")) });
+    const launchOf = new Map(), completionOf = new Map();
+    for (const row of rows) {
+      if (row.event === "launching" && row.role === "review") {
+        const declared = plan?.steps?.[row.step]?.reviewers;
+        const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount: Array.isArray(declared) ? declared.length : Number.isSafeInteger(declared) ? declared : 1, evidence: launchEvidence(rows, row.index), terminal: TERMINAL_ROWS.has(last) };
+        launch.head = launch.evidence.running?.head ?? null;
+        launchOf.set(row.index, launch);
+        launches.push(launch);
+      }
+      if (row.event === "completed" && launchOf.has(row.index)) {
+        const launch = launchOf.get(row.index);
+        const completion = { file, time: row.time, round: launch.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, reviewedHead: row.reviewedHead, comments: [...(row.commentIds ?? [])], completedRoundReviews: row.completedRoundReviews ?? null, plannedCount: launch.plannedCount, plannedRoundReviewers: row.plannedRoundReviewers ?? null, pendingReviewers: row.pendingReviewers ?? null };
+        completionOf.set(row.index, completion);
+        completions.push(completion);
+      }
+      if (row.event === "report-posted" && completionOf.has(row.index) && Number.isSafeInteger(row.commentId)) completionOf.get(row.index).comments.push(row.commentId);
+    }
+  }
+  launches.sort(byTime);
+  completions.sort(byTime);
+  const declares = (e) => e.plannedRoundReviewers ?? e.plannedReviewers;
+  const planOf = (e) => (declares(e) ? declares(e).join(", ") : `${e.plannedCount} unnamed`);
+  const rounds = new Map();
+  for (const e of [...launches.map((l) => ({ ...l, launch: true })), ...completions].sort(byTime)) {
+    const r = rounds.get(e.round) ?? { round: e.round, planned: declares(e) ?? null, plannedCount: e.plannedCount, plan: planOf(e), completedReviewers: {}, counted: 0, seen: 0, complete: false, changed: [] };
+    rounds.set(e.round, r);
+    if (planOf(e) !== r.plan) r.changed.push({ file: e.file, declared: planOf(e) });
+    if (e.launch) continue;
+    if (e.reviewerId) r.completedReviewers[e.reviewerId] = Math.max(r.completedReviewers[e.reviewerId] ?? 0, e.attempt);
+    r.counted = Math.max(r.counted, e.completedRoundReviews ?? 0);
+    r.seen++;
+    r.complete = r.planned ? r.planned.every((id) => Object.hasOwn(r.completedReviewers, id)) : Math.min(r.counted, r.seen) >= r.plannedCount;
+    e.complete = r.complete;
+  }
+  for (const r of rounds.values()) {
+    r.pending = r.planned ? r.planned.filter((id) => !Object.hasOwn(r.completedReviewers, id)) : null;
+    r.completedCount = r.planned ? Object.keys(r.completedReviewers).length : Math.min(r.counted, r.seen);
+  }
+  const completedRound = Math.max(0, ...completions.map((c) => c.round));
+  const latest = completions.filter((c) => c.round === completedRound).at(-1) ?? null;
+  const current = rounds.get(completedRound);
+  return {
+    files, launches, completions, rounds: [...rounds.values()].sort((a, b) => a.round - b.round),
+    completedRound, startedRound: Math.max(0, ...launches.map((l) => l.round)), reviewedHead: latest?.reviewedHead ?? null,
+    recovery: { completedReviewRound: completedRound, reviewedHead: latest?.reviewedHead ?? null, completedRoundReviews: current ? current.completedCount : null, completedRoundReviewers: current?.planned ? current.completedReviewers : null, plannedRoundReviewers: current?.planned ?? null },
+  };
+}
+
 export function verifyNativeReviewResult(output,format='claude-json') {
   if(format==='codex-jsonl')return verifyCodexReviewResult(output);
   if(format!=='claude-json')throw new Error('Unsupported native reviewer result transport');
@@ -288,7 +376,7 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   if (typeof record.journal !== "string" || !path.isAbsolute(record.journal)) throw refuse("it names no absolute journal path");
   if (sameIdentity(owner, identifyProcess(owner.pid))) throw refuse(`its coordinator (PID ${owner.pid}) is still running; await its exit`);
   let rows = [], journalFound = true;
-  try { rows = fs.readFileSync(record.journal, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)); }
+  try { rows = readJournalRows(record.journal); }
   catch (error) {
     journalFound = false;
     // The coordinator opens its journal before it launches any child.
@@ -299,20 +387,20 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   if (rows.some((row) => row.event === "blocked" && /unconfirmed/.test(row.reason ?? ""))) throw refuse("its coordinator reported a child whose exit is unconfirmed; confirm that child's exit by hand");
   const launch = rows.findLast((row) => row.event === "launching");
   if (launch && !Number.isSafeInteger(launch.index)) throw refuse(`its journal ${record.journal} records a launch without a step index`);
-  const exited = launch && rows.find((row) => row.event === "exited" && row.index === launch.index);
+  const evidence = launch ? launchEvidence(rows, launch.index) : null;
+  const exited = evidence?.exited;
   // A delegated command may run detached and outlive the coordinator; only an
   // exit row recording a clean drain of the service shows it has stopped.
-  const service = launch && rows.find((row) => row.event === "execution-service" && row.index === launch.index);
+  const service = evidence?.service;
   if (service && exited?.executionDrained !== true) throw refuse(`step ${launch.step} started a delegated execution service (${service.directory}) ${exited ? "whose shutdown failed or was not recorded" : "and its exit was never journalled"}, so its commands may still run; confirm they have exited by hand`);
   if (launch && !exited) {
-    const ofLaunch = rows.filter((row) => row.index === launch.index);
-    const running = ofLaunch.find((row) => row.event === "running");
+    const running = evidence.running;
     if (!running) {
       // Waiting for a slot or a probed route precede the reserved row; the
       // child is spawned only after that row.
-      if (!["waiting", "route-probed"].includes(ofLaunch.at(-1).event)) throw refuse(`step ${launch.step} may have spawned a child before its running row; confirm no child of the coordinator runs and inspect it by hand`);
-    } else if (!ofLaunch.some((row) => row.event === "confirmed-absent")) {
-      const identified = ofLaunch.find((row) => row.event === "identified");
+      if (!["waiting", "route-probed"].includes(evidence.last.event)) throw refuse(`step ${launch.step} may have spawned a child before its running row; confirm no child of the coordinator runs and inspect it by hand`);
+    } else if (!evidence.confirmedAbsent) {
+      const identified = evidence.identified;
       const child = identified?.childIdentity;
       if (identified && (!validIdentity(child) || child.pid !== running.pid)) throw refuse(`its journal records a malformed OS identity for child PID ${running.pid}; confirm the child's exit by hand`);
       const live = child ? identifyProcess(child.pid) : identifyProcess(running.pid);

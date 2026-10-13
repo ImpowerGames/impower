@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { checkReviewRound, validateReviewRecovery } from "../../../scripts/agent-handoff.mjs";
+import { checkReviewRound, checkReviewerPlace, plannedReviewerPending, recoverHandoffLock, reviewAccounting, validateReviewRecovery } from "../../../scripts/agent-handoff.mjs";
 import * as run from "./feature-run.mjs";
 import * as rc from "./review-checkpoint.mjs";
 
@@ -538,6 +538,60 @@ try {
   const withMalformed = rc.restore([{ id: 9020, created_at: "2026-10-11T00:00:00.000Z", body: block(noCommits) }, ...comments], { trusted: ["local_coord"] });
   assert.equal(withMalformed[0].malformed, "a malformed range", "the malformed block comes first, and the decisions after it still restore");
   assert.equal(withMalformed.filter((d) => !d.malformed).length, 5);
+
+  // The checkpoint reads its round accounting through the launcher's own
+  // reader, and on the same journals it agrees with the launcher's rules on
+  // planned, completed, retried and reserved reviewers.
+  const launcherRows = (reviewerId, attempt, pending, completedRoundReviewers, { head = c.round2, comment } = {}) => [
+    { time: at(), event: "coordinator", pid: 1 },
+    { time: at(), event: "launching", index: 0, step: reviewerId, role: "review", round: 3, reviewerId, attempt, plannedReviewers: ["a", "b"], completedRound: 2 },
+    { time: at(), event: "reserved", index: 0 }, { time: at(), event: "running", index: 0, pid: 2, head }, { time: at(), event: "identified", index: 0, childIdentity: { pid: 2, start: "1" } },
+    { time: at(), event: "exited", index: 0, code: 0, signal: null },
+    { time: at(), event: "completed", index: 0, reviewerId, attempt, head, commentIds: [comment], completedRound: 3, reviewedHead: head, completedRoundReviews: Object.keys(completedRoundReviewers).length, completedRoundReviewers, plannedRoundReviewers: ["a", "b"], pendingReviewers: pending, finalCorrections: false },
+    { time: at(), event: "finished" }];
+  const firstA = { file: "a1", plan: null, rows: launcherRows("a", 1, ["b"], { a: 1 }, { comment: 31 }) };
+  const retryA = { file: "a2", plan: null, rows: launcherRows("a", 2, ["b"], { a: 2 }, { comment: 32 }) };
+  const pendingB = reviewAccounting([firstA, retryA]);
+  const lastRow = retryA.rows.find((r) => r.event === "completed");
+  assert.deepEqual(pendingB.recovery, { completedReviewRound: 3, reviewedHead: lastRow.reviewedHead, completedRoundReviews: lastRow.completedRoundReviews, completedRoundReviewers: lastRow.completedRoundReviewers, plannedRoundReviewers: lastRow.plannedRoundReviewers }, "the reader derives the recovery fields the launcher journals");
+  assert.doesNotThrow(() => validateReviewRecovery({ ...pendingB.recovery, finalCorrections: false }));
+  assert.equal(plannedReviewerPending(3, 3, pendingB.recovery.completedRoundReviews, ["a", "b"]), true, "the launcher still plans b");
+  assert.ok(rc.roundState([firstA, retryA]).blockers.some((b) => /round 3 still plans b/.test(b)), "and so does the checkpoint");
+  assert.doesNotThrow(() => checkReviewerPlace({ round: 3, reviewerId: "b", attempt: 1, reviewers: ["a", "b"] }, 3, pendingB.recovery.completedRoundReviewers, pendingB.recovery.plannedRoundReviewers));
+  assert.throws(() => checkReviewerPlace({ round: 3, reviewerId: "a", attempt: 2, reviewers: ["a", "b"] }, 3, pendingB.recovery.completedRoundReviewers, pendingB.recovery.plannedRoundReviewers), /higher attempt/, "a retry of a needs attempt 3, as the reader's completed attempt 2 says");
+  assert.throws(() => checkReviewerPlace({ round: 3, reviewerId: "c", attempt: 1, reviewers: ["a", "b", "c"] }, 3, pendingB.recovery.completedRoundReviewers, pendingB.recovery.plannedRoundReviewers), /cannot change/, "the launcher refuses an added reviewer");
+  const doneB = { file: "b1", plan: null, rows: launcherRows("b", 1, [], { a: 2, b: 1 }, { comment: 33 }) };
+  const complete = reviewAccounting([firstA, retryA, doneB]);
+  assert.equal(plannedReviewerPending(3, 3, complete.recovery.completedRoundReviews, ["a", "b"]), false, "the launcher plans no further reviewer");
+  assert.deepEqual(rc.roundState([firstA, retryA, doneB]).blockers, [], "and the checkpoint finds the round complete");
+  const addedC = { file: "c1", plan: null, rows: launcherRows("c", 1, [], { a: 2, b: 1, c: 1 }, { comment: 34 }).map((r) => (r.event === "launching" ? { ...r, plannedReviewers: ["a", "b", "c"] } : r.event === "completed" ? { ...r, plannedRoundReviewers: ["a", "b", "c"] } : r)) };
+  assert.ok(rc.audit(rc.roundState([firstA, retryA, doneB, addedC]), []).some((v) => /declares round 3's planned reviewers as a, b, c, but the round was planned with a, b/.test(v)), "the checkpoint audits the reviewer the launcher refuses");
+  // Lock recovery and the checkpoint judge a launch's end from the same
+  // evidence: a reservation with no start, and an undrained execution
+  // service, keep both from treating the reviewer as gone; a child confirmed
+  // absent lets both.
+  const lockFile = git(checkout, "rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock");
+  const lockJournal = path.join(tmp, "lock-journal.jsonl");
+  const coordinatorIdentity = { pid: 4242, start: "100" };
+  const lockWith = (rows) => {
+    fs.writeFileSync(lockJournal, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+    fs.writeFileSync(lockFile, JSON.stringify({ pid: coordinatorIdentity.pid, processIdentity: coordinatorIdentity, host: os.hostname(), startedAt: at(), journal: lockJournal }));
+    return { file: lockJournal, plan: null, rows };
+  };
+  const gone = () => null;
+  const opening = [{ time: at(), event: "coordinator", pid: coordinatorIdentity.pid, processIdentity: coordinatorIdentity }, { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3, reviewerId: "a", attempt: 1, plannedReviewers: ["a"] }];
+  const reservedNoStart = lockWith([...opening, { time: at(), event: "reserved", index: 0 }]);
+  assert.throws(() => recoverHandoffLock(checkout, { identifyProcess: gone, host: os.hostname() }), /may have spawned a child before its running row/);
+  assert.ok(rc.roundState([{ ...reservedNoStart, rows: [...reservedNoStart.rows, { time: at(), event: "blocked", reason: "x" }] }]).blockers.some((b) => /reserved a slot but recorded neither/.test(b)));
+  const undrained = lockWith([...opening, { time: at(), event: "reserved", index: 0 }, { time: at(), event: "running", index: 0, pid: 4343, head: c.round2 }, { time: at(), event: "execution-service", index: 0, directory: "x" }, { time: at(), event: "exited", index: 0, code: 0, executionDrained: false }]);
+  assert.throws(() => recoverHandoffLock(checkout, { identifyProcess: gone, host: os.hostname() }), /delegated execution service/);
+  assert.ok(rc.roundState([{ ...undrained, rows: [...undrained.rows, { time: at(), event: "blocked", reason: "service" }] }]).blockers.some((b) => /delegated execution service whose shutdown is not confirmed/.test(b)));
+  const unconfirmed = lockWith([...opening, { time: at(), event: "reserved", index: 0 }, { time: at(), event: "running", index: 0, pid: 4343, head: c.round2 }, { time: at(), event: "exited", index: 0, code: 0 }, { time: at(), event: "blocked", reason: "child exit unconfirmed after the termination request" }]);
+  assert.throws(() => recoverHandoffLock(checkout, { identifyProcess: gone, host: os.hostname() }), /child whose exit is unconfirmed/);
+  assert.ok(rc.roundState([unconfirmed]).blockers.some((b) => /reported a child whose exit is unconfirmed/.test(b)), "the checkpoint holds a journal whose launcher reported an unconfirmed child");
+  const absent = lockWith([...opening, { time: at(), event: "reserved", index: 0 }, { time: at(), event: "running", index: 0, pid: 4343, head: c.round2 }, { time: at(), event: "confirmed-absent", index: 0 }]);
+  assert.ok(recoverHandoffLock(checkout, { identifyProcess: gone, host: os.hostname() }).recovered, "lock recovery treats a child confirmed absent as gone");
+  assert.ok(!rc.roundState([{ ...absent, rows: [...absent.rows, { time: at(), event: "blocked", reason: "absent" }] }]).blockers.some((b) => /reviewer launch/.test(b)), "and so does the checkpoint");
 
   // The command line runs the same path: evidence writes the diff the
   // acceptance hash binds, and acceptance-check reads the PR alone.

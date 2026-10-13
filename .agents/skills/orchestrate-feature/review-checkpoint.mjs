@@ -24,6 +24,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
+import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRecord, updateRecord } from "./feature-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
@@ -34,7 +35,6 @@ export const ASSESSMENT_FIELDS = ["mechanisms", "regressions", "repairOptions", 
 export const DISPOSITIONS = ["accepted", "rejected", "covered", "deferred", "none", "open"];
 const PASSED = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
 const PENDING = new Set(["PENDING", "QUEUED", "IN_PROGRESS", "EXPECTED", "WAITING", "REQUESTED"]);
-const TERMINAL = new Set(["finished", "blocked", "report-posted"]);
 const MARK = "orchestrate-feature-checkpoint";
 // GitHub refuses a comment body longer than this.
 const MAX_COMMENT = 65536;
@@ -53,103 +53,49 @@ export function readJournals(jobDir) {
     for (const launch of fs.readdirSync(path.join(jobDir, round), { withFileTypes: true }).filter((d) => d.isDirectory())) {
       const file = path.join(jobDir, round, launch.name, "journal.jsonl");
       if (!fs.existsSync(file)) continue;
-      const rows = fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).map((line, i) => {
-        try { return JSON.parse(line); } catch { throw new Error(`${file} line ${i + 1} is not JSON; the round state cannot be read from it`); }
-      });
       const planFile = path.join(path.dirname(file), "plan.json");
-      journals.push({ file, rows, plan: fs.existsSync(planFile) ? readJson(planFile) : null });
+      journals.push({ file, rows: readJournalRows(file), plan: fs.existsSync(planFile) ? readJson(planFile) : null });
     }
   }
   return journals;
 }
 
-// The review state the journals record: launches with whether each reviewer
-// exited, validated completions, the highest started and completed rounds,
-// the reports, the round limits the plans declared, and what keeps the state
-// from being final. A journal that has not reached a terminal row belongs to
-// a launcher that may still run.
+// The review state the journals record, read through the launcher's own
+// round accounting (reviewAccounting in scripts/agent-handoff.mjs), plus what
+// keeps a checkpoint from being due. A journal that has not reached a
+// terminal row belongs to a launcher that may still run. A launch has ended
+// when its exit is recorded (and, with a delegated execution service, the
+// service drained), when its child was confirmed absent, or when its
+// launcher finished without ever reserving a slot for it; a launch that
+// reserved a slot but recorded no start may have spawned its reviewer.
 export function roundState(journals) {
-  const launches = [], completions = [], plans = [], blockers = [];
-  for (const { file, rows, plan } of journals) {
-    const last = rows.at(-1)?.event;
-    const terminal = TERMINAL.has(last);
-    if (last === "report-awaiting-post") blockers.push(`${file}: its reviewer's report still awaits posting on the PR`);
-    else if (!terminal) blockers.push(`${file}: the launcher has not finished (last row ${last ?? "none"}), so a reviewer may still run`);
-    const reviewLaunch = new Map(), byIndex = new Map();
-    for (const row of rows) {
-      if (row.event === "launching" && row.role === "review") {
-        const at = (...events) => rows.find((r) => events.includes(r.event) && r.index === row.index);
-        const spawned = Boolean(at("running", "identified"));
-        const exited = at("exited");
-        // A launch that reserved a slot may have spawned its reviewer before
-        // a running row was written, so only an unreserved one is known not
-        // to have started.
-        const neverStarted = !spawned && !at("reserved") && terminal;
-        // A round that does not name its reviewers plans the count its step
-        // declares, one when it declares none.
-        const declared = plan?.steps?.[row.step]?.reviewers;
-        const plannedCount = Array.isArray(declared) ? declared.length : Number.isSafeInteger(declared) ? declared : 1;
-        const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount, head: at("running")?.head ?? null, exited: Boolean(exited) || neverStarted, exitedAt: exited?.time ?? null };
-        if (spawned && !exited) blockers.push(`${file}: reviewer launch ${row.index} of round ${row.round} has no exited row`);
-        // A launch with a delegated execution service has ended only once the
-        // service drained, as the launcher's own lock recovery requires: its
-        // commands can outlive the reviewer.
-        else if (at("execution-service") && exited?.executionDrained !== true) blockers.push(`${file}: reviewer launch ${row.index} of round ${row.round} started a delegated execution service whose shutdown is not confirmed (executionDrained ${exited?.executionDrained ?? "missing"}), so its commands may still run`);
-        else if (!spawned && !exited && !neverStarted && terminal) blockers.push(`${file}: reviewer launch ${row.index} of round ${row.round} reserved a slot but recorded neither its start nor its exit, so a reviewer may still run`);
-        reviewLaunch.set(row.index, launch);
-        launches.push(launch);
-      }
-      if (row.event === "completed" && reviewLaunch.has(row.index)) {
-        const launch = reviewLaunch.get(row.index);
-        const completion = { file, time: row.time, round: launch.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, reviewedHead: row.reviewedHead, comments: [...(row.commentIds ?? [])], completedRoundReviews: row.completedRoundReviews ?? null, plannedCount: launch.plannedCount, plannedRoundReviewers: row.plannedRoundReviewers ?? null, pendingReviewers: row.pendingReviewers ?? null };
-        byIndex.set(row.index, completion);
-        completions.push(completion);
-      }
-      // A report the coordinator posted on the reviewer's behalf is named by
-      // its report-posted row, not by the completion.
-      if (row.event === "report-posted" && byIndex.has(row.index) && Number.isSafeInteger(row.commentId)) byIndex.get(row.index).comments.push(row.commentId);
-    }
-    if (plan) plans.push({ file, limit: plan.reviewRoundLimit ?? FIRST_CHECKPOINT_ROUND, authorization: plan.extendedReviewAuthorization ?? null });
+  const accounting = reviewAccounting(journals);
+  const blockers = [];
+  for (const j of accounting.files) {
+    if (j.last === "report-awaiting-post") blockers.push(`${j.file}: its reviewer's report still awaits posting on the PR`);
+    else if (!j.terminal) blockers.push(`${j.file}: the launcher has not finished (last row ${j.last ?? "none"}), so a reviewer may still run`);
+    if (j.unconfirmedChild) blockers.push(`${j.file}: its launcher reported a child whose exit is unconfirmed`);
   }
-  completions.sort(byTime);
-  launches.sort(byTime);
-  // A round's planned reviewers are the ones its first launch named, fixed
-  // before any reviewer ran, and the round is complete once each of them has
-  // a completion, whatever a later launch or plan declares. A round that does
-  // not name them is complete when a completion counts the reviewers its
-  // first launch's step declared. Every round is judged, not only the latest,
-  // so a reviewer whose journal is missing leaves its round incomplete.
-  const rounds = new Map();
-  const declares = (e) => e.plannedRoundReviewers ?? e.plannedReviewers;
-  // A plan is its named reviewers, or the count a step declares; either
-  // changing after the first launch is a changed plan.
-  const planOf = (e) => (declares(e) ? declares(e).join(", ") : `${e.plannedCount} unnamed`);
-  for (const e of [...launches.map((l) => ({ ...l, launch: true })), ...completions].sort(byTime)) {
-    const r = rounds.get(e.round) ?? { planned: declares(e) ?? null, plannedCount: e.plannedCount, plan: planOf(e), done: new Set(), counted: 0, seen: 0, complete: false, changed: [] };
-    rounds.set(e.round, r);
-    if (planOf(e) !== r.plan) r.changed.push({ file: e.file, declared: planOf(e) });
-    if (e.launch) continue;
-    if (e.reviewerId) r.done.add(e.reviewerId);
-    // A count-form round's carried count says how many reviewers completed,
-    // but only the completions here carry their reports, so the round is
-    // complete only once that many are here.
-    r.counted = Math.max(r.counted, e.completedRoundReviews ?? 0);
-    r.seen++;
-    r.complete = r.planned ? r.planned.every((id) => r.done.has(id)) : Math.min(r.counted, r.seen) >= r.plannedCount;
-    e.complete = r.complete;
+  for (const l of accounting.launches) {
+    const { exited, service, running, confirmedAbsent, reserved } = l.evidence;
+    const where = `${l.file}: reviewer launch ${l.index} of round ${l.round}`;
+    if (service && exited?.executionDrained !== true) blockers.push(`${where} started a delegated execution service whose shutdown is not confirmed (executionDrained ${exited?.executionDrained ?? "missing"}), so its commands may still run`);
+    else if (!exited && running && !confirmedAbsent) blockers.push(`${where} has no exited row`);
+    else if (!exited && !running && reserved && l.terminal) blockers.push(`${where} reserved a slot but recorded neither its start nor its exit, so a reviewer may still run`);
+    l.exitedAt = exited?.time ?? null;
   }
-  for (const [n, r] of [...rounds.entries()].sort((a, b) => a[0] - b[0])) {
-    if (!r.complete) blockers.push(r.planned ? `round ${n} still plans ${r.planned.filter((id) => !r.done.has(id)).join(", ")}` : `round ${n} has ${Math.min(r.counted, r.seen)} of its ${r.plannedCount} planned reviewers' completions here${r.counted > r.seen ? ` (its journals count ${r.counted}; the others' journals are elsewhere)` : ""}`);
+  for (const r of accounting.rounds) {
+    if (!r.complete) blockers.push(r.planned ? `round ${r.round} still plans ${r.pending.join(", ")}` : `round ${r.round} has ${r.completedCount} of its ${r.plannedCount} planned reviewers' completions here${r.counted > r.seen ? ` (its journals count ${r.counted}; the others' journals are elsewhere)` : ""}`);
   }
-  const completedRound = Math.max(0, ...completions.map((c) => c.round));
-  const startedRound = Math.max(0, ...launches.map((l) => l.round));
-  const latest = completions.filter((c) => c.round === completedRound).at(-1) ?? null;
-  const current = rounds.get(completedRound);
+  const current = accounting.rounds.find((r) => r.round === accounting.completedRound);
   return {
-    completedRound, startedRound, reviewedHead: latest?.reviewedHead ?? null, plannedReviewers: current?.planned ?? (latest ? `${current.plannedCount} unnamed` : null),
-    roundsSeen: [...rounds.keys()].sort((a, b) => a - b), changedPlans: [...rounds.entries()].flatMap(([round, r]) => r.changed.map((c) => ({ round, file: c.file, planned: r.plan, declared: c.declared }))),
-    reports: completions.flatMap((c) => c.comments.map((comment) => ({ round: c.round, reviewerId: c.reviewerId, attempt: c.attempt, reviewedHead: c.reviewedHead, comment }))),
-    launches, completions, plans, blockers,
+    completedRound: accounting.completedRound, startedRound: accounting.startedRound, reviewedHead: accounting.reviewedHead,
+    plannedReviewers: current ? current.planned ?? `${current.plannedCount} unnamed` : null, recovery: accounting.recovery,
+    roundsSeen: accounting.rounds.map((r) => r.round), changedPlans: accounting.rounds.flatMap((r) => r.changed.map((c) => ({ round: r.round, file: c.file, planned: r.plan, declared: c.declared }))),
+    reports: accounting.completions.flatMap((c) => c.comments.map((comment) => ({ round: c.round, reviewerId: c.reviewerId, attempt: c.attempt, reviewedHead: c.reviewedHead, comment }))),
+    launches: accounting.launches, completions: accounting.completions,
+    plans: journals.filter((j) => j.plan).map(({ file, plan }) => ({ file, limit: plan.reviewRoundLimit ?? FIRST_CHECKPOINT_ROUND, authorization: plan.extendedReviewAuthorization ?? null })),
+    blockers,
   };
 }
 
