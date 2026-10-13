@@ -147,7 +147,7 @@ export function reviewAccounting(journals) {
     const launchOf = new Map(), completionOf = new Map();
     for (const row of rows) {
       if (row.event === "launching" && row.role === "review") {
-        const declared = plan?.steps?.[row.step]?.reviewers;
+        const declared = plan?.steps && Object.hasOwn(plan.steps, row.step) ? plan.steps[row.step]?.reviewers : undefined;
         const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount: Array.isArray(declared) ? declared.length : Number.isSafeInteger(declared) ? declared : 1, evidence: launchEvidence(rows, row.index), terminal: TERMINAL_ROWS.has(last) };
         launch.head = launch.evidence.running?.head ?? null;
         launchOf.set(row.index, launch);
@@ -172,7 +172,10 @@ export function reviewAccounting(journals) {
     rounds.set(e.round, r);
     if (planOf(e) !== r.plan) r.changed.push({ file: e.file, declared: planOf(e) });
     if (e.launch) continue;
-    if (e.reviewerId) r.completedReviewers[e.reviewerId] = Math.max(r.completedReviewers[e.reviewerId] ?? 0, e.attempt);
+    // A reviewer id may name an inherited property (constructor, toString),
+    // so the completed attempt is read as an own property only, as
+    // checkReviewerPlace reads it.
+    if (e.reviewerId) r.completedReviewers[e.reviewerId] = Math.max(Object.hasOwn(r.completedReviewers, e.reviewerId) ? r.completedReviewers[e.reviewerId] : 0, e.attempt);
     r.counted = Math.max(r.counted, e.completedRoundReviews ?? 0);
     r.seen++;
     r.complete = r.planned ? r.planned.every((id) => Object.hasOwn(r.completedReviewers, id)) : Math.min(r.counted, r.seen) >= r.plannedCount;

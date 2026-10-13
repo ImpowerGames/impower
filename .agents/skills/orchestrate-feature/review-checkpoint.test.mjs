@@ -560,6 +560,13 @@ try {
   assert.doesNotThrow(() => checkReviewerPlace({ round: 3, reviewerId: "b", attempt: 1, reviewers: ["a", "b"] }, 3, pendingB.recovery.completedRoundReviewers, pendingB.recovery.plannedRoundReviewers));
   assert.throws(() => checkReviewerPlace({ round: 3, reviewerId: "a", attempt: 2, reviewers: ["a", "b"] }, 3, pendingB.recovery.completedRoundReviewers, pendingB.recovery.plannedRoundReviewers), /higher attempt/, "a retry of a needs attempt 3, as the reader's completed attempt 2 says");
   assert.throws(() => checkReviewerPlace({ round: 3, reviewerId: "c", attempt: 1, reviewers: ["a", "b", "c"] }, 3, pendingB.recovery.completedRoundReviewers, pendingB.recovery.plannedRoundReviewers), /cannot change/, "the launcher refuses an added reviewer");
+  // A reviewer id that names an inherited property is read as the launcher
+  // reads it.
+  const inherited = (attempt, comment) => ({ file: `i${attempt}`, plan: null, rows: launcherRows("constructor", attempt, ["b"], { constructor: attempt }, { comment }).map((r) => (r.event === "launching" ? { ...r, plannedReviewers: ["constructor", "b"] } : r.event === "completed" ? { ...r, plannedRoundReviewers: ["constructor", "b"] } : r)) });
+  const inheritedRecovery = reviewAccounting([inherited(1, 41), inherited(2, 42)]).recovery;
+  assert.deepEqual(inheritedRecovery.completedRoundReviewers, { constructor: 2 });
+  assert.doesNotThrow(() => validateReviewRecovery({ ...inheritedRecovery, finalCorrections: false }));
+  assert.throws(() => checkReviewerPlace({ round: 3, reviewerId: "constructor", attempt: 2, reviewers: ["constructor", "b"] }, 3, inheritedRecovery.completedRoundReviewers, inheritedRecovery.plannedRoundReviewers), /higher attempt/);
   const doneB = { file: "b1", plan: null, rows: launcherRows("b", 1, [], { a: 2, b: 1 }, { comment: 33 }) };
   const complete = reviewAccounting([firstA, retryA, doneB]);
   assert.equal(plannedReviewerPending(3, 3, complete.recovery.completedRoundReviews, ["a", "b"]), false, "the launcher plans no further reviewer");
