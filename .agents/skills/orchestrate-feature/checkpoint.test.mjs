@@ -557,6 +557,32 @@ try {
   assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 780, checkout: dst4, ticket: 782, worktree: path.join(tmp, "dst4-wt-782") }).worktree, "draft.txt"), "utf8"), "moved draft\n");
   fs.renameSync(moved782, wt782);
 
+  // A takeover on the same machine (another account) keeps the snapshots
+  // retrievable, and a commit made after a snapshot whose files still match
+  // is reported as existing only on its host.
+  const rec790 = init(790, "local_src79");
+  cp.enable(rec790, { coordinator: "local_src79", expectRevision: 1, github, host: SRC });
+  const snap790 = { repository: "acme/widgets", feature: { number: 790, state: "open" }, originMain: "x", tickets: [ticket(791, { parent: 790 }), ticket(792, { parent: 790 })] };
+  const wt791 = startWriter(rec790, "local_src79", snap790, 791, "kept");
+  fs.writeFileSync(path.join(wt791, "draft.txt"), "kept draft\n");
+  const wt792 = startWriter(rec790, "local_src79", snap790, 792, "committed");
+  fs.writeFileSync(path.join(wt792, "staged.txt"), "staged\n");
+  git(wt792, "add", "staged.txt");
+  cp.prepareHandoff(rec790, { coordinator: "local_src79", expectRevision: rev(rec790), step: "stop", github, host: SRC });
+  const h790 = cp.prepareHandoff(rec790, { coordinator: "local_src79", expectRevision: rev(rec790), step: "publish", observations: { sessions: { local_w791: { state: "running" }, local_w792: { state: "running" } } }, github, host: SRC });
+  git(wt792, "commit", "-q", "-m", "the staged work, committed after the snapshot");
+  assert.equal(cp.autoCheckpoint(rec790, { coordinator: "local_src79", transition: "a later milestone", github, host: SRC }).saved, true);
+  const after792 = cp.fetchState(src, "origin", "acme/widgets", 790).checkpoint.work[792];
+  assert.deepEqual([after792.snapshotCurrent, after792.unpushed, after792.head === h790.snapshots[792].head], [true, true, false], "the files match the snapshot but the head moved");
+  const rec790b = path.join(srcPrivate, "run-790-second-account.json");
+  const sameHost = cp.resume({ record: rec790b, checkout: src, repository: "acme/widgets", feature: 790, coordinator: "local_src79b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #790.", evidence: "the first account reached its usage limit" }, { github, host: SRC, defaults, totalMemory: 64 * GB });
+  assert.ok(sameHost.limitations.some((l) => l.ticket === 792 && l.kind === "unpublished" && /commits made after the snapshot/.test(l.detail)), "commits after a matching snapshot are not hidden");
+  const taken790 = cp.fetchState(dst4, "origin", "acme/widgets", 790);
+  assert.equal(taken790.checkpoint.coordinator.session, "local_src79b");
+  assert.equal(taken790.checkpoint.work[791].snapshot?.commit, h790.snapshots[791].commit, "the takeover's own checkpoint names the snapshot");
+  assert.match(taken790.brief, /commits made after the snapshot existed only on src-host/);
+  assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 790, checkout: dst4, ticket: 791, worktree: path.join(tmp, "dst4-wt-791") }).worktree, "draft.txt"), "utf8"), "kept draft\n");
+
   // A run whose first checkpoint never saved hands off while offline; the
   // first saved checkpoint then carries the snapshot with no previous one,
   // and a fresh destination still reads it.
@@ -599,6 +625,7 @@ try {
   assert.equal(run.readRecord(rec700d).writer.model, "gpt-6-astra");
   assert.match(run.readRecord(rec700d).writer.source, /carried from local_src7/);
   assert.ok(taken700.limitations.some((l) => l.ticket === 702 && l.kind === "snapshot"));
+  assert.deepEqual([cp.fetchState(dst2, "origin", "acme/widgets", 700).checkpoint.work[702].host, cp.fetchState(dst2, "origin", "acme/widgets", 700).checkpoint.work[702].worktree], [SRC, wt702], "another host's snapshot keeps the entry that describes its host");
   assert.ok(!taken700.limitations.some((l) => l.ticket === 702 && l.kind === "unpublished"), "snapshotted work is not reported lost");
   assert.equal(run.planDispatch({ record: run.readRecord(rec700d), snapshot: snap700, turn: "user", preflights: [astra([703])], freeBytes: 100 * GB, defaults, host: DST }).tickets.find((t) => t.number === 703).action, "dispatch", "the new coordinator admits work again");
 
