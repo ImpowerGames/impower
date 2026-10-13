@@ -120,8 +120,16 @@ export async function displayPreviewFrom(
   }
   // Without the checkpoint the module state is not the route's, and the
   // page is put in it by the connect.
-  const inPlace =
-    request.inPlace === true && loaded && (await game.connectInPlace(send));
+  let inPlace = false;
+  if (request.inPlace === true && loaded) {
+    inPlace = await game.connectInPlace(send);
+    if (!inPlace) {
+      // A display in place the game declined may have evaluated the
+      // layouts' bindings, whose functions can change the story's state:
+      // the connect starts from the checkpoint again.
+      game.loadCheckpoint(checkpoint as StoredCheckpoint);
+    }
+  }
   if (!inPlace) {
     await game.connect(send);
   }

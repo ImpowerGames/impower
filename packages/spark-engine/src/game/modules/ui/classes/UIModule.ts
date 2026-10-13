@@ -912,6 +912,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     } finally {
       this._created = undefined;
     }
+    // What the bindings' own evaluation changed is residue, as construction
+    // discards it after a mount, so the beat's first refresh sees only what
+    // the beat changes.
+    this._game.story.variablesState.takeReactiveChanges();
     this._refreshed = created;
     return !this.showsShared();
   }
