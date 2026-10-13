@@ -426,15 +426,27 @@ describe("ReferenceValidationCache (#411)", () => {
     cache.keep("main", block, entry([]));
     cache.keepReference(annotation, 1, [], {});
     cache.end();
+    // Each case changes exactly one input from the primed ones.
+    const definitions = {};
+    const builtins = {};
+    const primed = () =>
+      inputs({ baseIds: ids, definitions, builtins });
     for (const changed of [
-      inputs({ baseIds: [{}] }),
-      inputs({ declaredParentTypes: "item" }),
-      inputs({ handlerCallables: "go_on" }),
-      inputs({ definitions: {} }),
+      { ...primed(), baseIds: [{}] },
+      { ...primed(), base: "other root" },
+      { ...primed(), declaredParentTypes: "item" },
+      { ...primed(), handlerCallables: "go_on" },
+      { ...primed(), definitions: {} },
+      { ...primed(), builtins: {} },
     ]) {
-      cache.begin(inputs({ baseIds: ids }), "r1", []);
+      cache.begin(primed(), "r1", []);
       cache.keep("main", block, entry([]));
       cache.keepReference(annotation, 1, [], {});
+      cache.end();
+      // Unchanged inputs keep both entries.
+      cache.begin(primed(), "r1", []);
+      expect(cache.take("main", block)).toBeDefined();
+      expect(cache.reference(annotation)).toBeDefined();
       cache.end();
       cache.begin(changed, "r1", []);
       expect(cache.take("main", block)).toBeUndefined();
