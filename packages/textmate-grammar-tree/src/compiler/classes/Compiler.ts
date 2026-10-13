@@ -77,8 +77,11 @@ let lastReuseEpoch = 0;
 class CompilerJournal {
   /** The undo of each change, in the order the changes were made. */
   undo: (() => void)[] = [];
-  /** Whether the compiled buffer is a copy of the one the journal began with. */
-  ownsCompiled = false;
+  /** Where the records of the compiled buffer the journal began with that a
+   *  parse overwrote start, and what they held up to its end
+   *  (`journalCompiled`). */
+  savedFrom = Infinity;
+  saved?: Int32Array;
   /** The chunks whose token stream was saved before a token was added. */
   savedContent = new Set<Chunk>();
 
@@ -204,8 +207,9 @@ export class Compiler {
    * mid-scope splice and restamps the compiler counts of every chunk it
    * steps. Each of those is recorded as it is made, with its undo, so the
    * rollback costs what the parse touched rather than a copy of the whole
-   * packet. The compiled buffer, which the parse overwrites from its restart
-   * point on, is copied once on the parse's first write instead.
+   * packet. Of the compiled buffer, which the parse overwrites from its
+   * restart point on, the records from there to its end are saved on the
+   * parse's first write (`journalCompiled`).
    *
    * Journals do not nest: one begun while another is kept is refused.
    */
@@ -250,6 +254,9 @@ export class Compiler {
     journal.chunks.length = journal.chunkCount;
     journal.packet.restoreScheduledSplits(journal.pendingSplits);
     this.packet = journal.packet;
+    if (journal.saved) {
+      journal.compiled.set(journal.saved, journal.savedFrom);
+    }
     this.compiled = journal.compiled;
     this.nodeCount = journal.nodeCount;
     this.reused = journal.reused;
@@ -267,6 +274,35 @@ export class Compiler {
    *  changed. */
   commitJournal() {
     this._journal = undefined;
+  }
+
+  /**
+   * Save the records of the compiled buffer the journal began with that a
+   * write at `idx` is about to overwrite. A parse writes forward from its
+   * restart point, so what it can overwrite is the buffer's live records from
+   * there to their end, which are saved once; a later parse of the same
+   * journal that restarts further back saves the stretch before them too.
+   * Once a write outgrows the buffer it moves to a new one, and the journal's
+   * buffer takes no more writes.
+   */
+  protected journalCompiled(idx: number) {
+    const journal = this._journal!;
+    if (this.compiled !== journal.compiled || idx >= journal.savedFrom) {
+      return;
+    }
+    const end = Math.min(journal.savedFrom, journal.nodeCount * 4);
+    if (idx < end) {
+      const head = journal.compiled.slice(idx, end);
+      if (journal.saved) {
+        const joined = new Int32Array(head.length + journal.saved.length);
+        joined.set(head);
+        joined.set(journal.saved, head.length);
+        journal.saved = joined;
+      } else {
+        journal.saved = head;
+      }
+    }
+    journal.savedFrom = idx;
   }
 
   /** Record the compiler counts and tree buffer `chunk` holds before a step
@@ -705,11 +741,8 @@ export class Compiler {
   private emitNode(type: number, from: number, to: number, children: number) {
     const idx = this.nodeCount * 4;
 
-    // A journaled parse writes into a copy: the journal holds the buffer as
-    // it began, which the parse overwrites from its restart point on.
-    if (this._journal && !this._journal.ownsCompiled) {
-      this._journal.ownsCompiled = true;
-      this.compiled = this.compiled.slice();
+    if (this._journal) {
+      this.journalCompiled(idx);
     }
 
     // we may need to resize the array

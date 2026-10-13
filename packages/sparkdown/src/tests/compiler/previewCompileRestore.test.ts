@@ -487,6 +487,64 @@ describe("a preview compile", () => {
     expect(diverged(fieldSig(incremental), fieldSig(coldProgram({ ...texts, [URI]: typed.after })))).toEqual([]);
   });
 
+  it("of the root that makes an included script's served memo stale leaves the next compile equal to a cold one", () => {
+    // The included script's function holds statements served from their
+    // memos, whose resolution read `helper`. A preview of the root that
+    // changes `helper`'s parameters makes those memos stale, so the preview's
+    // compile lowers the included script's block again (`relowerMemos`), in
+    // a document the preview's snapshot does not cover.
+    const texts: Record<string, string> = {
+      [URI]: ["include chapter.sd", "", "store gold = 1", "", "function helper(n):", "  return n + gold", "", "scene start", "  Hello.", "  -> chapter_one", "end", ""].join("\n"),
+      [CHAPTER_URI]: [
+        "scene chapter_one",
+        "  Chapter line.",
+        "end",
+        "",
+        "function reckon()",
+        "  local a = helper(1)",
+        ...Array.from({ length: 30 }, (_, i) => `  gold = helper(gold + ${i})`),
+        "  local b = helper(a)",
+        "  gold = a + b",
+        "end",
+        "",
+      ].join("\n"),
+    };
+    const c = compilerFor(texts);
+    quiet(() => c.compile({ textDocument: { uri: URI } }));
+    // Two edits at the function's end: the second lowers only its last
+    // statements and serves the others from their memos.
+    let version = 1;
+    for (const [find, replace] of [["helper(a)", "helper(a + 1)"], ["helper(a + 1)", "helper(a + 2)"]] as const) {
+      const edit = change(texts[CHAPTER_URI]!, find, replace);
+      quiet(() =>
+        c.updateDocument({ textDocument: { uri: CHAPTER_URI, version: ++version }, contentChanges: edit.contentChanges } as never),
+      );
+      texts[CHAPTER_URI] = edit.after;
+      quiet(() => c.compile({ textDocument: { uri: URI } }));
+    }
+    expect(c.memoStats(CHAPTER_URI)?.served, "statements served from their memos").toBeGreaterThan(0);
+
+    const relowered: string[] = [];
+    const registry = c.documents as any;
+    const relower = registry.relowerCompilations;
+    registry.relowerCompilations = function (uri: string, ranges: unknown) {
+      relowered.push(uri);
+      return relower.call(this, uri, ranges);
+    };
+    try {
+      const preview = previewOf(c, URI, 1, change(texts[URI]!, "function helper(n):", "function helper(n, m):").contentChanges);
+      expect(preview.outdated).toBeUndefined();
+    } finally {
+      registry.relowerCompilations = relower;
+    }
+    expect(relowered, "the preview lowered the included script again").toContain(CHAPTER_URI);
+
+    const typed = change(texts[URI]!, "  Hello.", "  Hello there.");
+    quiet(() => c.updateDocument({ textDocument: { uri: URI, version: 2 }, contentChanges: typed.contentChanges } as never));
+    const incremental = quiet(() => c.compile({ textDocument: { uri: URI } })).program;
+    expect(diverged(fieldSig(incremental), fieldSig(coldProgram({ ...texts, [URI]: typed.after })))).toEqual([]);
+  });
+
   it("interleaved with random edits never changes the cumulative program", () => {
     quiet(() => {
       let text = cumulativeScreenplay();

@@ -482,15 +482,7 @@ export class SparkdownDocumentRegistry {
     if (editedFrom !== undefined) {
       this.mintSplitPoints(uri, document, editedFrom);
     }
-    this._syncedDocuments.set(
-      uri,
-      new SparkdownDocument(
-        document.uri,
-        document.languageId,
-        document.version,
-        document.getText(),
-      ),
-    );
+    this._syncedDocuments.set(uri, document.clone());
     const state = this.getDocumentState(uri);
     const compiler = state.tree?.prop(cachedCompilerProp);
     const snapshot: SparkdownDocumentSnapshot = {
