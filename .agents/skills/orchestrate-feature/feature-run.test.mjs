@@ -59,6 +59,26 @@ try {
   assert.equal(run.defaultConcurrency({ totalMemory: 15.8 * GB }).limit, 3);
   assert.equal(run.defaultConcurrency({ totalMemory: 7 * GB }).limit, 1);
 
+  // Both WMI creates pass a startup record that hides the new process's
+  // console, so no window opens and none takes the foreground.
+  {
+    const calls = [];
+    const exec = (file, args, options) => { calls.push({ file, script: args.at(-1), command: options.env.LAUNCH_COMMAND }); return "0 4242\r\n"; };
+    const absent = path.join(tmp, "absent-writer.exe");
+    assert.deepEqual(run.startDetachedWriter({ executable: absent, args: ["-p"], cwd: tmp, launchDir: path.join(tmp, "hidden-launch") }, { exec, platform: "win32" }), { started: true, pid: 4242 });
+    assert.deepEqual(run.runHandoff({ executable: absent, sessionId: "00000000-0000-0000-0000-000000000000", cwd: tmp }, { exec, platform: "win32" }), { requested: true, pid: 4242 });
+    assert.equal(calls.length, 2, "both paths create through the PowerShell runner they are given");
+    for (const { file, script, command } of calls) {
+      assert.equal(file, "powershell.exe");
+      assert.match(script, /\$s = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @\{ ShowWindow = \[uint16\]0 \};/);
+      assert.match(script, /Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @\{ [^}]*ProcessStartupInformation = \$s \}/);
+      assert.match(command, /^cmd\.exe \/d /);
+    }
+    // `start` would give the resume a new console of its own, outside the
+    // hidden one, and that console is visible.
+    assert.doesNotMatch(calls[1].command, /\bstart\b/i, "the handoff resumes in the hidden console");
+  }
+
   // One coordinator per Feature: the pointer refuses a second session, and a
   // takeover needs the first observed to have ended.
   const record = path.join(artifacts, "run.json");
