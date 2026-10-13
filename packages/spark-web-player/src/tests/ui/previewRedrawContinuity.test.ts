@@ -16,7 +16,7 @@
 import { type Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { describe, expect, test } from "vitest";
-import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
+import { createDOMHarness, flushMicrotasks, untilShown } from "./domTestHarness";
 
 const SCREEN = `define a as image with
   src = "https://example.com/a.png"
@@ -308,6 +308,7 @@ describe("playing the next beat keeps the screen whole (#1820)", () => {
         coordinator.onUpdate(tick());
       }
       await flushMicrotasks(10);
+      await untilShown(h.overlay);
     };
     await play();
     const before = frame(h.overlay);

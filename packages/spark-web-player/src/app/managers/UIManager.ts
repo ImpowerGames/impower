@@ -44,13 +44,71 @@ interface HeldScreen {
   frames: number;
   queue: HeldMessage[];
   timer?: ReturnType<typeof setTimeout>;
-  /** Puts up what is held through the manager now showing the overlay. */
-  release?: () => void;
+  /** Waits for the start of the played beat that is held. */
+  showTimer?: ReturnType<typeof setTimeout>;
+  /** Puts up what is held through the manager now showing the overlay;
+   *  `due` once the held beat's start has come. */
+  release?: (due?: boolean) => void;
 }
 
 /** How long a preview pass may hold the screen before what it holds goes up
  *  anyway: longer than any display waits for its pictures. */
 const HOLD_LIMIT_MS = 10_000;
+
+/** The longest a held beat waits for the start its writes are stamped with.
+ *  A beat starts a little ahead of its writes (the beat lead plus the audio
+ *  output latency); a stamp further off is a clock out of step, not a wait. */
+const SHOW_WAIT_LIMIT_MS = 1_000;
+
+/** What a create sets on its node, by which a reused node already showing it
+ *  is left untouched. */
+function createSignature(params: {
+  type: string;
+  name?: string;
+  content?: unknown;
+  style?: unknown;
+  attributes?: unknown;
+}): string {
+  return JSON.stringify([
+    params.type,
+    params.name ?? null,
+    params.content ?? null,
+    params.style ?? null,
+    params.attributes ?? null,
+  ]);
+}
+
+/** Every src the image writes held on `overlay` will paint once they go up
+ *  (#1820). Until then the page shows the old screen, so what they paint is
+ *  in no image layer yet, and the asset cache must keep it resident anyway
+ *  (`AssetManager.derivedPins`). */
+export function heldImageSrcs(overlay: HTMLElement | null | undefined): string[] {
+  const hold = (overlay as { __sdHold?: HeldScreen } | null | undefined)?.__sdHold;
+  if (!hold) {
+    return [];
+  }
+  return flattenHeld(hold.queue).flatMap((message) =>
+    WriteImageMessage.type.isRequest(message as RequestMessage)
+      ? ((message.params as any).instructions ?? []).flatMap(
+          (i: { content?: { srcs?: unknown } }) =>
+            Array.isArray(i.content?.srcs)
+              ? i.content.srcs.filter(
+                  (src): src is string => typeof src === "string" && !!src,
+                )
+              : [],
+        )
+      : [],
+  );
+}
+
+/** The messages held, with each batch's own messages in its place. */
+function flattenHeld(queue: HeldMessage[]): (RequestMessage | NotificationMessage)[] {
+  return queue.flatMap(({ message }) =>
+    BatchElementsMessage.type.isNotification(message as NotificationMessage)
+      ? ((message.params as any)?.messages ?? [])
+      : [message],
+  );
+}
 
 /**
  * Apply one engine-sent attribute to a realized element.
@@ -188,6 +246,8 @@ export default class UIManager extends Manager {
     // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
     // the incoming create stream reuses them instead of duplicating.
     this.beginReconcilePass();
+    // What the last manager still holds goes up through this one (#1820).
+    void this.hold;
   }
 
   /** Start a reconcile pass: adopt every currently-rendered element as a
@@ -308,14 +368,16 @@ export default class UIManager extends Manager {
       return undefined;
     }
     overlay.__sdHold ??= { pass: false, frames: 0, queue: [] };
-    overlay.__sdHold.release = () => this.releaseIfIdle();
+    overlay.__sdHold.release = (due) => this.releaseIfIdle(due);
     return overlay.__sdHold;
   }
 
   /** Whether screen messages are being held. */
   protected get holding(): boolean {
     const hold = this.hold;
-    return hold != null && (hold.pass || hold.frames > 0);
+    return (
+      hold != null && (hold.pass || hold.frames > 0 || hold.showTimer != null)
+    );
   }
 
   /** Open a preview pass's hold, or keep holding for a display that took
@@ -351,74 +413,171 @@ export default class UIManager extends Manager {
     hold.timer = undefined;
   }
 
-  /** Apply what is held once no pass or frame holds it any more. */
-  protected releaseIfIdle() {
+  /**
+   * Apply what is held once no pass or frame holds it any more. A played
+   * beat's writes carry the time the beat starts on the shared clock, and its
+   * text and pictures show from then (`getDisplayTime`): what the beat clears
+   * waits for that time too, so the old beat gives way in the frame the new
+   * one starts. `due` is set by the timer that waits for it.
+   */
+  protected releaseIfIdle(due = false) {
     const hold = this.hold;
     if (!hold || hold.pass || hold.frames > 0 || hold.queue.length === 0) {
       return;
     }
+    if (hold.showTimer != null && !due) {
+      return;
+    }
+    hold.showTimer = undefined;
+    if (!due) {
+      const wait = this.waitToShow(hold.queue);
+      if (wait > 0) {
+        hold.showTimer = setTimeout(() => hold.release?.(true), wait);
+        return;
+      }
+    }
     const queue = hold.queue.splice(0);
-    const skipped = this.skippedClears(queue);
-    for (const item of queue) {
-      if (skipped.has(item)) {
+    const changes = this.contentChanges(queue);
+    queue.forEach((item, i) => {
+      if (this.clearIsNoOp(queue, i, changes)) {
         item.answer?.(this.answerAtOnce(item.message as RequestMessage));
-        continue;
+        return;
       }
       if ("id" in item.message) {
-        const done = this.applyRequest(item.message as RequestMessage);
-        item.answer?.(done);
+        const msg = item.message as RequestMessage;
+        const done = this.applyRequest(msg);
+        if (item.answer) {
+          item.answer(done);
+        } else {
+          // Answered when it was held: a failure now has no answer to
+          // carry it, so it is reported here.
+          done.catch((error) => {
+            console.error(`${msg.method} (${msg.id}) failed once applied`, error);
+          });
+        }
       } else {
         this.applyNotification(item.message as NotificationMessage);
       }
-    }
+    });
   }
 
-  /**
-   * The empty writes in `queue` that a later write in it makes a no-op: a
-   * clear whose target the queue writes next with exactly what it shows now.
-   * Applied in one task, that clear and that rewrite would empty and rebuild
-   * the same content for nothing (and replay its reveal); skipping the clear
-   * lets the rewrite's signature check leave the target as it is.
-   */
-  protected skippedClears(queue: HeldMessage[]): Set<HeldMessage> {
-    const skipped = new Set<HeldMessage>();
-    const kinds = [
-      { type: WriteTextMessage.type, signature: "__sdTxt" },
-      { type: WriteImageMessage.type, signature: "__sdImg" },
-    ] as const;
-    for (const { type, signature } of kinds) {
-      for (let i = 0; i < queue.length; i += 1) {
-        const clear = queue[i]!.message as RequestMessage;
-        if (!type.isRequest(clear) || clear.params.instructions.length > 0) {
-          continue;
-        }
-        const target = clear.params.target;
-        // A beat can clear a target more than once before it writes it (the
-        // transient clear, then the beat's own): the clears all go together,
-        // so each is judged by the write that follows them.
-        const next = queue
-          .slice(i + 1)
-          .map((item) => item.message as RequestMessage)
-          .find(
-            (m) =>
-              type.isRequest(m) &&
-              m.params.target === target &&
-              m.params.instructions.length > 0,
-          );
-        if (!next || !type.isRequest(next)) {
-          continue;
-        }
-        const sig = JSON.stringify(next.params.instructions);
-        const els = this.findTargetElements(target);
-        if (
-          els.length > 0 &&
-          els.every((el) => (el as any)[signature] === sig)
-        ) {
-          skipped.add(queue[i]!);
+  /** How long the held beat waits for its start, in milliseconds: until the
+   *  latest display time its writes carry, if that is soon. A stamp far from
+   *  the page's clock (a clock that has not synced) is not waited for. */
+  protected waitToShow(queue: HeldMessage[]): number {
+    const doc = this.app.overlay?.ownerDocument;
+    const now = Number(doc?.timeline?.currentTime);
+    if (!Number.isFinite(now)) {
+      return 0;
+    }
+    let at: number | undefined;
+    for (const message of flattenHeld(queue)) {
+      const time = (message.params as { time?: unknown } | undefined)?.time;
+      if (
+        typeof time === "number" &&
+        (WriteTextMessage.type.isRequest(message as RequestMessage) ||
+          WriteImageMessage.type.isRequest(message as RequestMessage) ||
+          AnimateElementsMessage.type.isRequest(message as RequestMessage))
+      ) {
+        const shown = this.getDisplayTime(time);
+        if (shown != null && (at == null || shown > at)) {
+          at = shown;
         }
       }
     }
-    return skipped;
+    if (at == null) {
+      return 0;
+    }
+    const wait = at - now;
+    return wait >= 1 && wait <= SHOW_WAIT_LIMIT_MS ? wait : 0;
+  }
+
+  /**
+   * Where each op in `queue` changes what an element holds, read before any
+   * of it is applied: a create that builds a node or changes a reused one
+   * (its parent, for a new node), an update that sets content, a destroy or a
+   * move. A clear and the rewrite it is skipped for must be the only things
+   * in the transaction that touch their target's content.
+   */
+  protected contentChanges(queue: HeldMessage[]): { index: number; node: Element }[] {
+    const changes: { index: number; node: Element }[] = [];
+    queue.forEach((item, index) => {
+      for (const m of flattenHeld([item])) {
+        const msg = m as RequestMessage;
+        const params = msg.params as any;
+        let node: Element | null | undefined;
+        if (CreateElementMessage.type.isRequest(msg)) {
+          const existing = params.element ? this.getElement(params.element) : undefined;
+          if (!existing || existing === this.app.overlay) {
+            node = this.getElement(params.parent);
+          } else if ((existing as any).__sdCreate !== createSignature(params)) {
+            node = existing;
+          }
+        } else if (UpdateElementMessage.type.isRequest(msg)) {
+          if (params.content != null) {
+            node = this.getElement(params.element);
+          }
+        } else if (
+          DestroyElementMessage.type.isRequest(msg) ||
+          MoveElementMessage.type.isRequest(msg)
+        ) {
+          node = this.getElement(params.element);
+        }
+        if (node) {
+          changes.push({ index, node });
+        }
+      }
+    });
+    return changes;
+  }
+
+  /**
+   * Whether the clear at `i` is a no-op, judged as the queue reaches it: the
+   * target's next write in the queue is exactly what the target shows now,
+   * and nothing else in the transaction changes the target's content before
+   * that write. Applied in one task, that clear and that rewrite would empty
+   * and rebuild the same content for nothing (and replay its reveal);
+   * skipping the clear lets the rewrite's signature check leave the target as
+   * it is. A beat can clear a target more than once before it writes it (the
+   * transient clear, then the beat's own): each is judged by the write that
+   * follows them.
+   */
+  protected clearIsNoOp(
+    queue: HeldMessage[],
+    i: number,
+    changes: { index: number; node: Element }[],
+  ): boolean {
+    const clear = queue[i]!.message as RequestMessage;
+    const kind = WriteTextMessage.type.isRequest(clear)
+      ? { type: WriteTextMessage.type, signature: "__sdTxt" }
+      : WriteImageMessage.type.isRequest(clear)
+        ? { type: WriteImageMessage.type, signature: "__sdImg" }
+        : undefined;
+    if (!kind || (clear.params as any).instructions.length > 0) {
+      return false;
+    }
+    const target = (clear.params as any).target;
+    const k = queue.findIndex(
+      (item, j) =>
+        j > i &&
+        kind.type.isRequest(item.message as RequestMessage) &&
+        (item.message.params as any).target === target &&
+        (item.message.params as any).instructions.length > 0,
+    );
+    if (k < 0) {
+      return false;
+    }
+    const sig = JSON.stringify((queue[k]!.message.params as any).instructions);
+    const els = this.findTargetElements(target);
+    if (els.length === 0 || !els.every((el) => (el as any)[kind.signature] === sig)) {
+      return false;
+    }
+    return !changes.some(
+      (c) =>
+        c.index < k &&
+        c.index !== i &&
+        els.some((el) => el === c.node || el.contains(c.node)),
+    );
   }
 
   /** What a held request answers before it is applied: its element or
@@ -632,13 +791,7 @@ export default class UIManager extends Manager {
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
-      const sig = JSON.stringify([
-        params.type,
-        params.name ?? null,
-        params.content ?? null,
-        params.style ?? null,
-        params.attributes ?? null,
-      ]);
+      const sig = createSignature(params);
       // Apply class/content/style/attrs only when this is a fresh node or its
       // create-params actually changed — an unchanged reused node is left
       // untouched (no restyle / recalc / devtools flash). The signature lives ON

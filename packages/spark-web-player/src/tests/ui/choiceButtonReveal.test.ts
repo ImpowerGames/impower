@@ -22,6 +22,7 @@ import {
   compile,
   createDOMHarness,
   flushMicrotasks,
+  untilShown,
   type DOMHarness,
 } from "./domTestHarness";
 
@@ -187,6 +188,8 @@ const play = async (h: DOMHarness, beat: Instructions) => {
   }
   expect(started()).toBe(true);
   await flushMicrotasks(20);
+  // The page puts a played beat up at the start its writes are stamped with.
+  await untilShown(h.overlay);
 };
 
 /** When the played beat starts on the document timeline: the start time the

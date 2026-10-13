@@ -3,6 +3,7 @@
 // beat's clears and rewrites up together, and a preview's reconcile pass asks
 // the page to hold the whole display until its sweep.
 
+import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, test } from "vitest";
 import { type Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
@@ -148,5 +149,95 @@ describe("a beat goes up in one frame (#1820)", () => {
     };
     expect((await begin())?.params).toEqual({ hold: true });
     expect((await begin(playing))?.params ?? {}).toEqual({});
+  });
+});
+
+const FONTS: File[] = [
+  {
+    uri: "file://proj/fancy.ttf",
+    type: "font",
+    name: "Fancy",
+    ext: "ttf",
+    src: "/file:/proj/fancy.ttf?v=1",
+  } as File,
+];
+
+const HUD_STORY = `style hud with
+  font_family = "Fancy"
+end
+
+layout hud with
+  stats {
+    text
+  }
+end
+
+${STORY.replace("  HERO: The first line.", "  [[open hud]]\n  HERO: The first line.")}`;
+
+/** Answer the held font loads until none is left. */
+async function releaseFonts(h: ReturnType<typeof createHarness>) {
+  for (let i = 0; i < 5; i += 1) {
+    h.releaseAssets();
+    await flushMicrotasks(20);
+  }
+}
+
+describe("a beat that opens a layout whose font is loading (#1820)", () => {
+  test("puts the layout up in the same frame as the rest of the beat", async () => {
+    const h = createHarness(HUD_STORY, 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.jumpToFlow("start");
+    h.reset();
+    const beat = h.nextBeat();
+    expect(beat?.layout).toBeTruthy();
+    const coordinator = new Coordinator(h.game, beat!);
+    for (let i = 0; i < 10; i += 1) {
+      await releaseFonts(h);
+      coordinator.onUpdate(tick());
+    }
+    await releaseFonts(h);
+
+    const { flat, opens, closes } = framesOf(h.messages);
+    const hud = flat.findIndex(
+      (m) => m.method === "ui/create" && m.params.name === "hud",
+    );
+    expect(hud).toBeGreaterThan(-1);
+    expect(opens).toHaveLength(1);
+    expect(closes).toHaveLength(1);
+    expect(hud).toBeGreaterThan(opens[0]!);
+    expect(hud).toBeLessThan(closes[0]!);
+  });
+
+  test("closes no frame of a newer connect once the font arrives", async () => {
+    const h = createHarness(HUD_STORY, 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.jumpToFlow("start");
+    const beat = h.nextBeat();
+    const coordinator = new Coordinator(h.game, beat!);
+    for (let i = 0; i < 10 && !framesOf(h.messages).opens.length; i += 1) {
+      await flushMicrotasks(20);
+      coordinator.onUpdate(tick());
+    }
+    expect(framesOf(h.messages).opens.length).toBeGreaterThan(0);
+    // A newer connect begins while the beat's layout waits for its font.
+    void h.reconnect();
+    await flushMicrotasks(20);
+    const mark = h.messages.length;
+    await releaseFonts(h);
+
+    const after = flattenMessages(h.messages.slice(mark));
+    expect(
+      after.filter((m) => m.method === "ui/frame" && m.params.open === false),
+    ).toEqual([]);
   });
 });

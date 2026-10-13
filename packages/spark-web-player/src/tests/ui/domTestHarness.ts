@@ -486,6 +486,15 @@ export function createDOMHarness(
   };
 }
 
+/** Wait until the page has put up a played beat it holds for the start its
+ *  writes are stamped with (#1820): a real timer, a few milliseconds here. */
+export async function untilShown(overlay: HTMLElement): Promise<void> {
+  for (let i = 0; i < 200 && (overlay as any).__sdHold?.showTimer != null; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  await flushMicrotasks(10);
+}
+
 export async function flushMicrotasks(rounds = 5): Promise<void> {
   for (let i = 0; i < rounds; i++) {
     await Promise.resolve();

@@ -659,22 +659,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /** Open a frame: what the screen changes until {@link closeFrame} reaches
-   *  it in one task (#1820). A beat brackets its own writes this way. A route
-   *  replay or a simulation shows nothing, so it brackets nothing. */
-  openFrame() {
+   *  it in one task (#1820). A beat brackets its own writes this way. Returns
+   *  the stream the frame belongs to, for its close. A route replay or a
+   *  simulation shows nothing, so it brackets nothing. */
+  openFrame(): number | undefined {
     if (this._game.replaying || this.context?.system?.simulating) {
-      return false;
+      return undefined;
     }
     this.flushUIBatch();
     this.emit(FrameMessage.type.notification({ open: true }));
-    return true;
+    return this._game.connection.epoch;
   }
 
   /** Close the frame {@link openFrame} opened, after every op still
-   *  buffered. */
-  closeFrame() {
+   *  buffered. A frame of a stream a newer connect superseded is not closed:
+   *  the newer connect's begin already ended it on the page, and a close
+   *  stamped with the newer stream would end that stream's own frame early. */
+  closeFrame(epoch: number) {
+    if (epoch !== this._game.connection.epoch) {
+      return;
+    }
     this.flushUIBatch();
     this.emit(FrameMessage.type.notification({ open: false }));
+  }
+
+  /** Settles once every layout mount waiting on its fonts has been made, or
+   *  undefined when none is waiting. */
+  mounting(): Promise<void> | undefined {
+    if (this._mounting.size === 0) {
+      return undefined;
+    }
+    return Promise.allSettled([...this._mounting]).then(() => {});
   }
 
   override async onConnected() {
@@ -1539,6 +1554,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     string,
     { element: Element; scope: ReactiveScope; screen?: string }
   > = new Map();
+
+  /** The mounts {@link openLayout} is waiting to make, for a layout whose
+   *  fonts are still loading. */
+  protected _mounting = new Set<Promise<void>>();
 
   /** Test/preview convenience: when set, {@link constructLayoutsFromAst} mounts
    *  EVERY layout at connect (instant, no transition) instead of just `main`.
@@ -3420,25 +3439,45 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // resident. The mount check repeats after a wait because another open of
     // the same layout may have landed meanwhile, and the loading layout stays
     // unmounted when the load it was opened for ended during the wait.
+    // While it waits, the mount is recorded (`mounting`), so the beat that
+    // opened the layout puts it up in the same frame as the rest (#1820).
     const fonts = this._game.module.assets?.prepareLayout(name);
+    let mounted: (() => void) | undefined;
     if (fonts) {
-      await fonts;
+      const mount = new Promise<void>((resolve) => {
+        mounted = resolve;
+      });
+      this._mounting.add(mount);
+      void mount.then(() => this._mounting.delete(mount));
+      try {
+        await fonts;
+      } catch (error) {
+        mounted?.();
+        throw error;
+      }
       if (this._mountedLayouts.has(name)) {
+        mounted?.();
         return;
       }
       if (name === "loading" && !this._loading) {
+        mounted?.();
         return;
       }
     }
-    const vs = this._game.story.variablesState;
-    const pending = vs.takeReactiveChanges();
-    const element = this.constructLayoutFromAst(layout);
-    vs.takeReactiveChanges();
-    vs.restoreReactiveChanges(pending);
-    this.notifyMounted(name);
-    // The layouts layer's root opacity is revealed on the first beat anyway, but
-    // open it here too so a layout opened before any dialogue is visible.
-    this.reveal();
+    let element: Element;
+    try {
+      const vs = this._game.story.variablesState;
+      const pending = vs.takeReactiveChanges();
+      element = this.constructLayoutFromAst(layout);
+      vs.takeReactiveChanges();
+      vs.restoreReactiveChanges(pending);
+      this.notifyMounted(name);
+      // The layouts layer's root opacity is revealed on the first beat anyway,
+      // but open it here too so a layout opened before any dialogue is visible.
+      this.reveal();
+    } finally {
+      mounted?.();
+    }
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
       await this.animateElements([{ element, animations: [enter] }]);

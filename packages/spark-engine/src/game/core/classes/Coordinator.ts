@@ -206,12 +206,21 @@ export class Coordinator<G extends Game> {
       // The beat changes the screen in one frame: its clears, its rewrites
       // and the targets it leaves empty reach the page together, so no frame
       // shows a target empty between them or part of the old beat (#1820).
-      const framed = game.module.ui.openFrame();
+      // A layout the beat opens whose fonts are still loading mounts once
+      // they are in; the frame stays open until it has, so it goes up with
+      // the rest of the beat.
+      const frame = game.module.ui.openFrame();
+      let mounting: Promise<void> | undefined;
       try {
         writeUI(time);
+        mounting = frame != null ? game.module.ui.mounting() : undefined;
       } finally {
-        if (framed) {
-          game.module.ui.closeFrame();
+        if (frame != null) {
+          if (mounting) {
+            void mounting.then(() => game.module.ui.closeFrame(frame));
+          } else {
+            game.module.ui.closeFrame(frame);
+          }
         }
       }
     };
