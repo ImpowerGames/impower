@@ -15,7 +15,8 @@
 //
 //   node .agents/skills/orchestrate-feature/review-checkpoint.mjs <command> --option value ...
 //
-// Commands: evidence, decide, published, abandon, import, restore, acceptance-check.
+// Commands: evidence, decide, published, abandon, trust-predecessor, restore,
+// acceptance-check.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -108,28 +109,34 @@ export function roundState(journals) {
   }
   completions.sort(byTime);
   launches.sort(byTime);
-  // A round's planned reviewers are the ones its first named completion
-  // recorded, and the round is complete once each of them has a completion,
-  // whatever a later plan declares. A round that does not name them is
-  // complete when a completion counts the reviewers its step declared.
+  // A round's planned reviewers are the ones its first launch named, fixed
+  // before any reviewer ran, and the round is complete once each of them has
+  // a completion, whatever a later launch or plan declares. A round that does
+  // not name them is complete when a completion counts the reviewers its
+  // first launch's step declared. Every round is judged, not only the latest,
+  // so a reviewer whose journal is missing leaves its round incomplete.
   const rounds = new Map();
-  for (const c of completions) {
-    const r = rounds.get(c.round) ?? { planned: c.plannedRoundReviewers, done: new Set(), complete: false, changed: [] };
-    rounds.set(c.round, r);
-    if (c.plannedRoundReviewers && r.planned && c.plannedRoundReviewers.join("\n") !== r.planned.join("\n")) r.changed.push(c);
-    if (c.reviewerId) r.done.add(c.reviewerId);
-    r.complete = r.planned ? r.planned.every((id) => r.done.has(id)) : c.completedRoundReviews >= c.plannedCount;
-    c.complete = r.complete;
+  const declares = (e) => e.plannedRoundReviewers ?? e.plannedReviewers;
+  for (const e of [...launches.map((l) => ({ ...l, launch: true })), ...completions].sort(byTime)) {
+    const r = rounds.get(e.round) ?? { planned: declares(e) ?? null, plannedCount: e.plannedCount, done: new Set(), counted: 0, complete: false, changed: [] };
+    rounds.set(e.round, r);
+    if (declares(e) && r.planned && declares(e).join("\n") !== r.planned.join("\n")) r.changed.push({ file: e.file, declared: declares(e) });
+    if (e.launch) continue;
+    if (e.reviewerId) r.done.add(e.reviewerId);
+    r.counted = Math.max(r.counted, e.completedRoundReviews ?? 0);
+    r.complete = r.planned ? r.planned.every((id) => r.done.has(id)) : r.counted >= r.plannedCount;
+    e.complete = r.complete;
+  }
+  for (const [n, r] of [...rounds.entries()].sort((a, b) => a[0] - b[0])) {
+    if (!r.complete) blockers.push(r.planned ? `round ${n} still plans ${r.planned.filter((id) => !r.done.has(id)).join(", ")}` : `round ${n} has ${r.counted} of its ${r.plannedCount} planned reviewers' completions`);
   }
   const completedRound = Math.max(0, ...completions.map((c) => c.round));
   const startedRound = Math.max(0, ...launches.map((l) => l.round));
   const latest = completions.filter((c) => c.round === completedRound).at(-1) ?? null;
   const current = rounds.get(completedRound);
-  if (current && !current.complete) blockers.push(current.planned ? `round ${completedRound} still plans ${current.planned.filter((id) => !current.done.has(id)).join(", ")}` : `round ${completedRound} has ${latest.completedRoundReviews ?? "an unknown number of"} of its ${latest.plannedCount} planned reviewers' completions`);
-  if (startedRound > completedRound) blockers.push(`round ${startedRound} has started and has no validated completion`);
   return {
-    completedRound, startedRound, reviewedHead: latest?.reviewedHead ?? null, plannedReviewers: current?.planned ?? (latest ? `${latest.plannedCount} unnamed` : null),
-    completedRounds: [...rounds.keys()].sort((a, b) => a - b), changedPlans: [...rounds.entries()].flatMap(([round, r]) => r.changed.map((c) => ({ round, file: c.file, planned: r.planned, declared: c.plannedRoundReviewers }))),
+    completedRound, startedRound, reviewedHead: latest?.reviewedHead ?? null, plannedReviewers: current?.planned ?? (latest ? `${current.plannedCount} unnamed` : null),
+    roundsSeen: [...rounds.keys()].sort((a, b) => a - b), changedPlans: [...rounds.entries()].flatMap(([round, r]) => r.changed.map((c) => ({ round, file: c.file, planned: r.planned, declared: c.declared }))),
     reports: completions.flatMap((c) => c.comments.map((comment) => ({ round: c.round, reviewerId: c.reviewerId, attempt: c.attempt, reviewedHead: c.reviewedHead, comment }))),
     launches, completions, plans, blockers,
   };
@@ -139,32 +146,45 @@ export function roundState(journals) {
 
 // Every checkpoint block in the PR's comments, in comment order, each with
 // its exact head and range. Writers and coordinators post under the same
-// GitHub account, so a comment's author proves nothing, and a decision
-// counts (trusted) only when it names a coordinator the caller trusts and
-// its comment was never edited. With a run record (its own, carried over by
-// a takeover, or restored from the shared record), a decision counts only if
-// the record published it, after read-back, as that comment with exactly
-// that content (verified); a block that copies a coordinator's name, a
-// decision posted but never read back, and a retargeted comment all count
-// for nothing. Without a record the decisions are restored but unverified:
-// they still count rounds, but they never make an acceptance apply.
+// GitHub account, so neither a comment's author nor the name in a block
+// proves who decided. A decision is verified only when a run record published
+// it, after read-back, as that comment with exactly that content: the
+// record's own decisions, and those of the coordinators it took over from.
+// Only a verified acceptance ever applies. A decision is trusted, and counts
+// for round accounting, when it is verified, or when it names a coordinator
+// the caller trusts (with a record, a predecessor the record names) and the
+// record holds no other version of it. An edited comment, a block naming the
+// record's own coordinator that the record never published, a decision the
+// record holds unpublished or with other content, and a malformed block all
+// count for nothing; a malformed block is reported, never thrown.
 export const blockHash = (decision) => sha256(JSON.stringify(decision));
+const HASH = /^[0-9a-f]{64}$/;
+function malformed(d) {
+  if (!d || typeof d !== "object" || !KINDS.includes(d.kind)) return "unknown kind";
+  if (typeof d.id !== "string" || !d.id || typeof d.coordinator !== "string" || !d.coordinator) return "no id or coordinator";
+  if (!Number.isSafeInteger(d.round) || d.round < 0) return "no round";
+  if (!SHA.test(d.head ?? "") || (d.reviewedHead !== null && !SHA.test(d.reviewedHead ?? ""))) return "no head or reviewed head";
+  if (d.range != null && (typeof d.range !== "object" || !SHA.test(d.range.from ?? "") || !SHA.test(d.range.to ?? "") || !Array.isArray(d.range.commits) || !d.range.commits.every((s) => SHA.test(s ?? "")) || !HASH.test(d.range.diffSha256 ?? ""))) return "a malformed range";
+  if (d.kind === "extend" && (!Number.isSafeInteger(d.limit) || d.limit <= d.round || d.limit > MAX_REVIEW_ROUNDS || !present(d.authority))) return "an extension outside the ten-round bound or without its authority";
+  if (d.kind === "accept-unreviewed" && (d.range == null || !present(d.authority))) return "an acceptance without its range or authority";
+  return null;
+}
 export function restore(comments, { trusted = [], record = null } = {}) {
-  const published = record ? new Map(Object.values(record.tickets).flatMap((t) => (t.checkpoints ?? []).filter((d) => d.state === "published").map((d) => [d.id, d]))) : null;
+  const held = record ? new Map(Object.values(record.tickets).flatMap((t) => (t.checkpoints ?? []).map((d) => [d.id, d]))) : null;
   const decisions = [];
   for (const c of comments) {
     for (const m of (c.body ?? "").matchAll(BLOCK)) {
       let d;
       try { d = JSON.parse(m[1]); } catch { decisions.push({ comment: c.id, malformed: "its block is not JSON" }); continue; }
-      const problem = !KINDS.includes(d?.kind) ? "unknown kind" : !Number.isSafeInteger(d.round) ? "no round" : !SHA.test(d.head ?? "") ? "no head" : (d.reviewedHead !== null && !SHA.test(d.reviewedHead ?? "")) ? "no reviewed head" : typeof d.coordinator !== "string" ? "no coordinator" : (d.kind === "extend" && (!Number.isSafeInteger(d.limit) || !d.authority)) ? "an extension without its limit and authority" : null;
+      const problem = malformed(d);
       if (problem) { decisions.push({ comment: c.id, malformed: problem }); continue; }
-      const mine = published?.get(d.id);
-      const verified = Boolean(mine && mine.published.comment === c.id && mine.blockSha256 === blockHash(d));
+      const mine = held?.get(d.id);
+      const verified = Boolean(mine && mine.state === "published" && mine.published?.comment === c.id && mine.blockSha256 === blockHash(d));
       const edited = Boolean(c.updated_at && c.updated_at !== c.created_at);
-      // With a record, only its own publication (or its checked import)
-      // grants trust; without one, the caller's named coordinators do.
       const untrusted = edited ? `comment ${c.id} was edited at ${c.updated_at}, after it was posted`
-        : record ? (verified ? null : `the run record did not publish decision ${d.id}, after read-back or a checked import, as comment ${c.id} with this content`)
+        : verified ? null
+        : mine ? `the run record holds decision ${d.id} ${mine.state === "published" ? "as another comment or with other content" : `${mine.state}, never read back as published`}`
+        : record && d.coordinator === record.coordinator.session ? `the run record never published decision ${d.id}, which names its own coordinator`
         : !trusted.includes(d.coordinator) ? `coordinator ${d.coordinator} is not one this restoration trusts`
         : null;
       decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, ...(untrusted && { untrusted }) });
@@ -226,7 +246,7 @@ export function acceptanceApplies(decisions, head) {
   if (at < 0) return { applies: false, reason: "the PR records no trusted acceptance of unreviewed corrections" };
   const d = trusted[at], later = trusted.slice(at + 1);
   if (later.length) return { applies: false, decision: d, reason: `decision ${later.at(-1).id} (${later.at(-1).kind}) after round ${later.at(-1).round} replaced acceptance ${d.id}` };
-  if (!d.verified) return { applies: false, decision: d, reason: `acceptance ${d.id} is restored from the PR but not verified against the run record that published it; restore that record, or decide again` };
+  if (!d.verified) return { applies: false, decision: d, reason: `acceptance ${d.id} is restored from the PR but not verified by a run record that published it; restore that record, or decide and publish again after reading the PR` };
   if (d.head !== head) return { applies: false, decision: d, reason: `acceptance ${d.id} applies to ${d.head}, but the PR's head is ${head}; a new push needs a new checkpoint` };
   return { applies: true, decision: d, reason: `acceptance ${d.id} applies to head ${head}, with ${d.range.from}..${d.range.to} unreviewed` };
 }
@@ -244,8 +264,8 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
   // Every round the PR posts a round state for needs its journals here: a
   // missing one would drop that round's reports and findings unseen.
   const posted = new Set(comments.flatMap((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))));
-  const missing = [...posted].filter((r) => !state.completedRounds.includes(r) && r !== state.startedRound).sort((a, b) => a - b);
-  if (missing.length) blockers.push(`the PR posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} completed reviews; read those journals where they ran`);
+  const missing = [...posted].filter((r) => !state.roundsSeen.includes(r)).sort((a, b) => a - b);
+  if (missing.length) blockers.push(`the PR posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} reviews; read those journals where they ran`);
   if (state.completedRound < FIRST_CHECKPOINT_ROUND) blockers.push(`round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes`);
   const reports = state.reports.map((r) => {
     const report = comments.find((c) => c.id === r.comment);
@@ -404,59 +424,28 @@ export function abandon(record, { ticket: number, id, evidence }) {
   record.log.push({ time: d.abandoned.time, event: "checkpoint-abandoned", ticket: number, id });
 }
 
-// A coordinator resuming without its predecessor's run record takes over the
-// predecessor's published decisions from the PR alone. It names each
-// predecessor coordinator with the place the Feature names it (its status
-// comment), never its own session or the ticket's writer. Each unedited
-// decision of those coordinators is checked again before it is recorded: it
-// belongs to this Feature and ticket, it was made at a formal checkpoint, an
-// extension stays within the ceiling and quotes an authority, and an
-// acceptance's range still hashes to the diff it names on the head it names,
-// with every check passed, no open finding and its verification listed. Each
-// recorded decision keeps its comment and the source of the trust, and from
-// then on counts as verified by this record. Anything refused is reported
-// and stays unverified.
-function recheck(d, number, record, git) {
-  if (d.feature !== record.feature || d.ticket !== number) return `it is a decision for Feature #${d.feature} ticket #${d.ticket}`;
-  if (d.round < FIRST_CHECKPOINT_ROUND) return `it was made after round ${d.round}, before the first formal checkpoint`;
-  if (!d.assessment || ASSESSMENT_FIELDS.some((f) => !present(d.assessment[f]))) return "its assessment is incomplete";
-  if (d.kind === "extend" && (d.limit <= d.round || d.limit > MAX_REVIEW_ROUNDS || d.round >= MAX_REVIEW_ROUNDS || !present(d.authority))) return "its extension is outside the ten-round bound or quotes no authority";
-  if (d.kind === "accept-unreviewed") {
-    if (!present(d.authority) || !d.range || d.range.to !== d.head || d.range.from !== d.reviewedHead) return "its acceptance quotes no authority or names no exact range";
-    if (!d.checks?.length || d.checks.some((c) => c.result !== "passed")) return "its acceptance records a check that had not passed";
-    if (!Array.isArray(d.assessment.findings) || d.assessment.findings.some((f) => f.disposition === "open") || !Array.isArray(d.assessment.verification) || !d.assessment.verification.length) return "its acceptance records an open finding or no verification";
-    let range;
-    try { range = git.range(d.range.from, d.range.to); } catch (error) { return `its range cannot be read: ${error.message}`; }
-    if (range.diffSha256 !== d.range.diffSha256 || range.commits.map((c) => c.sha).join() !== d.range.commits.join()) return "its range no longer hashes to the diff it names";
-  }
-  return null;
-}
-
-export function importDecisions(record, { ticket: number, pr, comments, trust = [], source, git }) {
-  if (!trust.length || !present(source)) throw new Error("--trust must name each predecessor coordinator, and --source where the Feature names it (its status comment)");
+// A coordinator resuming without its predecessor's run record names that
+// predecessor for a ticket, with the place the Feature names it (its status
+// comment). The predecessor's published decisions then count for the
+// ticket's round accounting, trusted but never verified: a block copied
+// from GitHub proves nothing about who decided, so none of them makes an
+// acceptance apply, and the successor decides and publishes its own after
+// reading the PR. Neither this coordinator's own session nor any session
+// that wrote for the ticket is ever a trusted predecessor.
+export function trustPredecessor(record, { ticket: number, session, source }) {
+  if (!present(session) || !present(source)) throw new Error("--session must name the predecessor coordinator, and --source where the Feature names it (its status comment)");
   const ticket = (record.tickets[number] ??= { owner: null, pending: null, history: [], results: [] });
-  if (trust.includes(record.coordinator.session)) throw new Error("--trust names predecessors; this coordinator's own decisions are already in its record");
-  const writer = ticket.owner?.handle?.id;
-  if (writer && trust.includes(writer)) throw new Error(`--trust names ${writer}, #${number}'s writer; a writer never decides its own review checkpoint`);
-  const known = new Set((ticket.checkpoints ?? []).map((d) => d.id));
-  const imported = [], refused = [];
-  let lastRound = Math.max(0, ...(ticket.checkpoints ?? []).filter((d) => d.state !== "abandoned").map((d) => d.round));
-  for (const d of restore(comments, { trusted: trust })) {
-    if (d.malformed || known.has(d.id)) continue;
-    if (d.pr !== pr) continue;
-    const problem = !d.trusted ? d.untrusted : d.round < lastRound ? `it was made after round ${d.round}, below an earlier decision's round ${lastRound}` : recheck(d, number, record, git);
-    if (problem) { refused.push({ id: d.id, comment: d.comment, reason: problem }); continue; }
-    const { comment, postedAt, trusted, verified, untrusted, ...decision } = d;
-    ticket.checkpoints = [...(ticket.checkpoints ?? []), { ...decision, state: "published", blockSha256: blockHash(decision), published: { comment, time: postedAt, imported: { source, trust, time: new Date().toISOString() } } }];
-    lastRound = d.round;
-    imported.push({ id: d.id, kind: d.kind, round: d.round, comment });
-  }
-  record.log.push({ time: new Date().toISOString(), event: "checkpoint-import", ticket: number, pr, source, imported: imported.map((d) => d.id), refused: refused.map((d) => d.id) });
-  return { imported, refused };
+  if (session === record.coordinator.session) throw new Error(`${session} is this coordinator; its own decisions are verified by its record`);
+  const writers = [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].map((o) => o?.handle?.id).filter(Boolean);
+  if (writers.includes(session)) throw new Error(`${session} wrote for #${number}; a writer never decides its own review checkpoint`);
+  if ((ticket.trustedPredecessors ?? []).some((p) => p.session === session)) throw new Error(`${session} is already a trusted predecessor for #${number}`);
+  ticket.trustedPredecessors = [...(ticket.trustedPredecessors ?? []), { session, source, time: new Date().toISOString() }];
+  record.log.push({ time: new Date().toISOString(), event: "checkpoint-predecessor", ticket: number, session, source });
 }
 
-// The coordinators a run record trusts: its own and every previous one.
-export const trustedCoordinators = (record) => [record.coordinator.session, ...(record.previousCoordinators ?? []).map((c) => c.session)];
+// The coordinators a run record trusts: its own, every previous one, and
+// the predecessors it named for its tickets.
+export const trustedCoordinators = (record) => [record.coordinator.session, ...(record.previousCoordinators ?? []).map((c) => c.session), ...Object.values(record.tickets).flatMap((t) => (t.trustedPredecessors ?? []).map((p) => p.session))];
 
 // --- GitHub and Git ---------------------------------------------------------
 
@@ -557,12 +546,7 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit } =
       const head = client.pull(d.pr).head;
       return mutate(file, (r) => published(r, { ticket, id: o.id, comment: int(o.comment, "comment"), readBack: fs.readFileSync(abs(o.readBack, "read-back"), "utf8"), head }));
     }
-    case "import": {
-      const { file, record, client, git } = withRecord();
-      const pr = int(o.pr, "pr");
-      git.fetch(pr);
-      return mutate(file, (r) => importDecisions(r, { ticket: int(o.ticket, "ticket"), pr, comments: client.comments(pr), trust: o.trust, source: o.source, git }));
-    }
+    case "trust-predecessor": return mutate(abs(o.record, "record"), (r) => trustPredecessor(r, { ticket: int(o.ticket, "ticket"), session: o.session, source: o.source }));
     case "abandon": return mutate(abs(o.record, "record"), (r) => abandon(r, { ticket: int(o.ticket, "ticket"), id: o.id, evidence: o.evidence }));
     case "restore":
     case "acceptance-check": {
@@ -573,7 +557,7 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit } =
       const pr = int(o.pr, "pr"), decisions = restore(client.comments(pr), { trusted, record });
       return command === "restore" ? { pr, decisions } : { pr, ...acceptanceApplies(decisions, client.pull(pr).head) };
     }
-    default: throw new Error("Usage: review-checkpoint.mjs evidence|decide|published|abandon|import|restore|acceptance-check --option value ...");
+    default: throw new Error("Usage: review-checkpoint.mjs evidence|decide|published|abandon|trust-predecessor|restore|acceptance-check --option value ...");
   }
 }
 
