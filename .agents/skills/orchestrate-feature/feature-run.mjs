@@ -407,9 +407,10 @@ const sameCriteria = (a, b) => JSON.stringify(a.map((c) => c.text ?? c.criterion
 // every premise it was made on holds in a fresh snapshot: main is the commit
 // it verified, the Feature lists the criteria it checked and the slices it
 // covered, each of those slices is still closed with its deliverable on main,
-// and no operation is unsettled. Each premise that changed is named; any
-// change needs a new verification.
-export function verificationGaps(record, snapshot) {
+// and no operation is unsettled, a Feature closure included. Each premise
+// that changed is named; any change needs a new verification. `running` is
+// the one operation being carried out, whose own intent is not a gap.
+export function verificationGaps(record, snapshot, { running = null } = {}) {
   const v = (record.verifications ?? []).at(-1);
   if (v?.verdict !== "complete") return ["the latest verification is not complete"];
   const gaps = [];
@@ -419,8 +420,8 @@ export function verificationGaps(record, snapshot) {
   const list = (ns) => [...ns].sort((a, b) => a - b).map((n) => `#${n}`).join(", ");
   if (list(slices.map((t) => t.number)) !== list(v.tickets ?? [])) gaps.push(`the Feature's slices are ${list(slices.map((t) => t.number)) || "none"}, not the verified ${list(v.tickets ?? []) || "none"}`);
   for (const t of slices) if (!(t.state === "closed" && t.delivered)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
-  const open = (record.operations ?? []).filter((o) => o.kind !== "close" && OPEN_OPERATION.has(o.state));
-  if (open.length) gaps.push(`${open.map((o) => `${o.kind} ${o.id} of PR #${o.pr}`).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled`);
+  const open = (record.operations ?? []).filter((o) => o.id !== running && OPEN_OPERATION.has(o.state));
+  if (open.length) gaps.push(`${open.map((o) => (o.kind === "close" ? `closing Feature #${o.pr} (${o.id})` : `${o.kind} ${o.id} of PR #${o.pr}`)).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled; settle it with checkpoint.mjs reconcile-operations`);
   return gaps;
 }
 export const verificationHolds = (record, snapshot) => verificationGaps(record, snapshot).length === 0;
@@ -435,6 +436,7 @@ export function remainingFor(record, complete) {
       : "Ready PRs wait for the maintainer to merge them, since the invocation stops at ready; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
     "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
     "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone.",
+    ...(record.operations ?? []).filter((o) => o.kind === "close" && OPEN_OPERATION.has(o.state)).map((o) => `Closing Feature #${o.pr} (${o.id}) is ${o.state}: settle it with checkpoint.mjs reconcile-operations from a fresh snapshot before any other attempt.`),
   ];
 }
 

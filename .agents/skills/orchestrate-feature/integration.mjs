@@ -372,23 +372,26 @@ export function verifyFeature(record, { snapshot, criteria, evidence, mainSha })
 // Closes the Feature after a complete verification that still holds in a
 // fresh snapshot, taken before the intent is saved and again after it: main
 // is the commit it verified, the Feature lists the criteria and slices it
-// covered, each slice is still delivered and no operation is unsettled. The
-// final report is then posted (or found, if an earlier attempt posted it) and
-// read back, and the issue is closed. The outcome is the issue state GitHub
+// covered, each slice is still delivered and no operation is unsettled. Main
+// is read once more after the second snapshot's slower reads, and again just
+// before the close call. The final report is posted (or found, if an earlier
+// attempt posted it) and read back, and the issue is closed. The outcome is the issue state GitHub
 // reads back: a close that was called is failed only on GitHub's own refusal,
 // and every other result short of a closed Feature is uncertain until
 // reconciled, since the request may still land.
-export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, client, afterIntent }) {
+export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, client, git, afterIntent }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
   if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run, so the closure's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
   const v = (record.verifications ?? []).at(-1);
   if (!v || v.id !== id) throw new Error(`Verification ${id} is not the run's latest${v ? ` (${v.id} is)` : ""}; close only on the latest verification`);
   if (v.verdict !== "complete") throw new Error(`Verification ${id} found the Feature incomplete (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...v.unsettled].join("; ")}); the Feature stays open`);
-  const gapsNow = (rec) => {
+  const mainMoved = () => { git.fetch(); const now = git.main(); return now === v.mainSha ? [] : [`origin/${TARGET} is ${now}, not the verified ${v.mainSha}`]; };
+  const gapsNow = (rec, running = null) => {
     const snapshot = takeSnapshot();
     if (snapshot.repository !== rec.repository || snapshot.feature?.number !== rec.feature) throw new Error("The snapshot is of another repository or Feature");
-    return verificationGaps(rec, snapshot);
+    const gaps = verificationGaps(rec, snapshot, { running });
+    return gaps.length ? gaps : mainMoved();
   };
   const before = gapsNow(record);
   if (before.length) throw new Error(`Verification ${id} no longer holds: ${before.join("; ")}; verify the Feature again`);
@@ -399,7 +402,7 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
   let after;
-  try { after = gapsNow(readRecord(file)); }
+  try { after = gapsNow(readRecord(file), op.id); }
   catch (error) { notRun(`the verification could not be checked again after the intent was saved: ${error.message}`); throw error; }
   if (after.length) {
     notRun(`while the intent was saved, ${after.join("; ")}; verify the Feature again`);
@@ -414,6 +417,12 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
     comment = { id: back.id, url: back.url, reused: Boolean(existing) };
   } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
   if (comment) {
+    let last;
+    try { last = mainMoved(); } catch (error) { notRun(`main could not be read again before the close call: ${error.message}`); throw error; }
+    if (last.length) {
+      notRun(`after the report was posted in comment ${comment.id}, ${last.join("; ")}; that report's verification no longer holds, so verify the Feature again`);
+      return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${last.join("; ")}`, comment };
+    }
     called = true;
     try { client.closeIssue(record.feature); }
     catch (error) { refused = GITHUB_REFUSAL.test(`${error.stderr ?? ""} ${error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${error.message}`; }
@@ -552,8 +561,8 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
     }
     case "close-feature": {
-      const { client, snapshotNow } = context();
-      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, client, afterIntent: saved });
+      const { client, git, snapshotNow } = context();
+      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, client, git, afterIntent: saved });
       return { ...result, ...checkpointAfter(`closing the Feature (${result.state})`) };
     }
     default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-feature|close-feature --option value ...");
