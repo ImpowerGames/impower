@@ -263,6 +263,8 @@ export function inventoryWork(record, { host = os.hostname(), remote, snapshots 
   }
   return work;
 }
+// A path below a file is absent too; POSIX reports it as ENOTDIR.
+const statOrNull = (file) => { try { return fs.lstatSync(file); } catch (error) { if (error.code === "ENOENT" || error.code === "ENOTDIR") return null; throw error; } };
 const spawnOk = (cwd, args) => { try { git(cwd, args); return true; } catch { return false; } };
 
 // --- Publication state ------------------------------------------------------
@@ -735,7 +737,7 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
   }
   for (const file of snap.paths.filter((f) => entries.has(f))) {
     const target = path.join(worktree, file), entry = entries.get(file);
-    const there = fs.lstatSync(target, { throwIfNoEntry: false });
+    const there = statOrNull(target);
     if (there?.isDirectory()) throw new Error(`${target} is a directory the snapshot does not account for; inspect ${worktree}`);
     if (!REGULAR.has(entry.mode)) { git(worktree, ["--literal-pathspecs", "restore", `--source=${snap.commit}`, "--worktree", "--", file]); continue; }
     fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -747,8 +749,8 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
   const wrong = snap.paths.filter((file) => {
     const entry = entries.get(file), target = path.join(worktree, file);
     // A removed file may come back only as a directory the snapshot fills.
-    if (!entry) { const there = fs.lstatSync(target, { throwIfNoEntry: false }); return Boolean(there) && !(there.isDirectory() && [...entries.keys()].some((k) => k.startsWith(`${file}/`))); }
-    if (!REGULAR.has(entry.mode)) return !fs.lstatSync(target, { throwIfNoEntry: false });
+    if (!entry) { const there = statOrNull(target); return Boolean(there) && !(there.isDirectory() && [...entries.keys()].some((k) => k.startsWith(`${file}/`))); }
+    if (!REGULAR.has(entry.mode)) return !statOrNull(target);
     return git(worktree, ["hash-object", "--no-filters", "--", file]) !== entry.sha;
   });
   const trees = treesOf(worktree);
