@@ -140,6 +140,18 @@ try {
   // The writer's report, with its reviewed head and rounds, is in the record.
   const report = write("report-503.json", { model: "claude-opus-5-5", effort: "medium", pr: 603, reviewedHead: "a".repeat(40), rounds: { "gpt-6.1-sol": 1 }, findings: "two blocking, awaiting adjudication", verification: "red/green", ci: "pending", next: "adjudicate round 1" });
   mutate(rec500, "local_src", (r) => run.result(r, { ticket: 503, report }));
+  // A later round's reviewer attempt was launched and blocked before it
+  // completed; its round, reviewer, attempt and planned reviewers are known
+  // only from its launching row.
+  const blockedDir = path.join(jobRootOf(src), "pr-603", "round-2", "launch-ax-2");
+  fs.mkdirSync(blockedDir, { recursive: true });
+  fs.writeFileSync(path.join(blockedDir, "journal.jsonl"), [
+    { event: "coordinator", processIdentity: { pid: 2, start: "2" } },
+    { event: "launching", step: "ax", round: 2, reviewerId: "ax", attempt: 2, plannedReviewers: ["ax", "undirected"], completedRoundReviewers: null },
+    { event: "blocked", reason: "route unavailable" },
+  ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+  // #502's writer has a brief whose delivery is unconfirmed.
+  mutate(rec500, "local_src", (r) => { r.tickets[502].owner.brief = { state: "intent", deliveryId: "d1", attempts: 1, time: new Date().toISOString(), text: "the stored brief for #502" }; });
   // The source recorded its intent to merge another PR and stopped before the
   // outcome.
   const mergeHead = "b".repeat(40);
@@ -152,6 +164,8 @@ try {
   assert.equal(saved.work[503].reviewJobs[0].pendingReviewers.length, 0);
   assert.deepEqual(saved.work[503].reviewJobs[0].completedRoundReviewers, { undirected: 1 }, "the planned-reviewer accounting of the round is carried");
   assert.equal(saved.work[503].handoffLock.host, SRC);
+  const blockedJob = saved.work[503].reviewJobs.find((j) => j.job.endsWith("launch-ax-2"));
+  assert.deepEqual([blockedJob.lastEvent, blockedJob.attempted.round, blockedJob.attempted.reviewerId, blockedJob.attempted.attempt, blockedJob.attempted.plannedReviewers], ["blocked", 2, "ax", 2, ["ax", "undirected"]], "an attempt that never completed keeps its round, reviewer, attempt and fixed plan");
   assert.equal(saved.operations[0].state, "intent");
   assert.ok(!JSON.stringify(saved).includes("ignored\\n"), "file contents are never copied into the record");
 
@@ -221,6 +235,7 @@ try {
   assert.equal(d.previousCoordinators.at(-1).authority.merge, srcRecordCopy.authority.merge, "the previous grant stays as evidence");
   assert.deepEqual(d.authority, run.AUTHORITY, "the new coordinator's authority comes from its own invocation");
   assert.notEqual(d.runId, srcRecordCopy.runId);
+  assert.match(run.deliver(structuredClone(d), { ticket: 502, retry: true }).message, /the stored brief for #502/, "an unconfirmed brief can still be resent exactly after a takeover");
   // Resuming again in the same session is idempotent.
   assert.equal(cp.resume({ ...resumeArgs, evidence: "x" }, { github, host: DST, defaults, totalMemory: 64 * GB }).action, "resume");
 
@@ -229,7 +244,9 @@ try {
   const snapAfter = { ...snap500, tickets: snap500.tickets.map((t) => (t.number === 502 ? { ...t, prs: [{ number: 602, state: "OPEN", isDraft: true, branch: "feat/502-beta", head: "c".repeat(40), rounds: 0 }] } : t)) };
   const dplan = run.planDispatch({ record: run.readRecord(rec500d), snapshot: snapAfter, turn: "user", preflights: [{ route: "codex-cli", model: "gpt-6.1-sol", verdicts: [501, 502, 503, 504].map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, host: DST });
   const act = Object.fromEntries(dplan.tickets.map((t) => [t.number, t.action]));
-  assert.deepEqual([act[501], act[502], act[503]], ["blocked-owner-unknown", "blocked-owner-unknown", "blocked-owner-unknown"]);
+  // #502's writer still has an unconfirmed brief, which is settled from its
+  // transcript before anything else.
+  assert.deepEqual([act[501], act[502], act[503]], ["blocked-owner-unknown", "reconcile-pending", "blocked-owner-unknown"]);
   assert.match(dplan.tickets.find((t) => t.number === 501).reason, /claimed on src-host/);
   assert.equal(act[504], "dispatch", "unrelated eligible work continues while the affected tickets are settled");
   assert.equal(dplan.tickets.find((t) => t.number === 504).route, "codex-cli");
@@ -240,6 +257,14 @@ try {
   const plainWithdraw = (observedOn) => mutate(rec500d, "local_dst", (r) => run.withdraw(r, { ticket: 501, evidence: "the source coordinator's census found no writer", host: DST, ...(observedOn && { observedOn }) }));
   assert.throws(() => plainWithdraw(), /withdraw it only with evidence observed there/);
   assert.throws(() => plainWithdraw(DST), /withdraw it only with evidence observed there/);
+  // No start entrypoint runs another host's pending start, whatever the plan.
+  assert.throws(() => run.launch(structuredClone(run.readRecord(rec500d)), { ticket: 501, executable: process.execPath, prompt: plan501, host: DST, spawner: () => { throw new Error("must not spawn"); } }), /claimed on src-host; it runs, or is settled, only on that host/);
+  mutate(rec500d, "local_dst", (r) => { r.tickets[509] = { owner: null, history: [], results: [], pending: { operation: "dispatch", launchId: "foreign-509", route: "claude-adopted", model: "claude-opus-5-5", effort: "medium", worktree: path.join(tmp, "src-wt-509"), branch: "feat/509-delta", artifactParent: srcPrivate, host: SRC, time: new Date().toISOString() } }; });
+  let ranCreate = false;
+  assert.throws(() => run.createAdopted(rec500d, { coordinator: "local_dst", expectRevision: rev(rec500d), ticket: 509, executable: process.execPath, permissionMode: "bypassPermissions", host: DST, runner: () => { ranCreate = true; return { created: true, sessionId: "00000000-0000-4000-8000-000000000509" }; } }), /claimed on src-host/);
+  assert.equal(ranCreate, false, "another host's create never runs here");
+  assert.throws(() => run.launched(structuredClone(run.readRecord(rec500d)), { ticket: 509, handleKind: "session", handle: "local_x", host: DST }), /confirm it only with evidence observed there/);
+  mutate(rec500d, "local_dst", (r) => { delete r.tickets[509]; });
   // A release of the foreign writer needs an observation made on its host.
   assert.throws(() => mutate(rec500d, "local_dst", (r) => run.release(r, { ticket: 503, observations: { sessions: { local_w503: { state: "absent" } } }, host: DST })), /unknown/);
   // With the maintainer's observation on the source, #503 is released and a
@@ -295,6 +320,27 @@ try {
   assert.equal(git(src, "ls-remote", "origin", "refs/heads/orchestrate-state/feature-900").split("\t")[0], rivalCommit, "the winner's checkpoint stands");
   assert.equal(JSON.parse(fs.readFileSync(cp.sidecarOf(rec900), "utf8")).attempt.state, "refused", "the refused attempt is recorded as refused, not saved");
 
+  // The remote moves after the checkpoint was read but before the push sees
+  // it: the push advertises the newer head, and only the no-force push keeps
+  // it. A reference-transaction hook lands the rival when the read's fetch
+  // updates the local state ref.
+  const rec910 = init(910, "local_src91");
+  cp.enable(rec910, { coordinator: "local_src91", expectRevision: 1, github, host: SRC });
+  const head910 = cp.fetchState(dst, "origin", "acme/widgets", 910);
+  const rival910 = { ...run.readRecord(rec910), coordinator: { ...run.readRecord(rec910).coordinator, session: "local_rival91", host: DST } };
+  const rival910Commit = cp.writeCommit(dst, { "checkpoint.json": `${JSON.stringify(cp.buildCheckpoint(rival910, { seq: head910.checkpoint.seq + 1, previous: head910.commit, kind: "takeover", transition: "a racing takeover", host: DST, work: {} }), null, 2)}\n`, "brief.md": "race\n" }, [head910.commit], "race\n");
+  git(src, "update-ref", "-d", "refs/orchestrate-feature/orchestrate-state/feature-910");
+  const hooks2 = path.join(tmp, "race-hooks-2"), marker = path.join(tmp, "race-2-fired");
+  fs.mkdirSync(hooks2);
+  fs.writeFileSync(path.join(hooks2, "reference-transaction"), `#!/bin/sh\n[ "$1" = committed ] || { cat > /dev/null; exit 0; }\ngrep -q "refs/orchestrate-feature/orchestrate-state/feature-910" || exit 0\n[ -e "${marker.replace(/\\/g, "/")}" ] && exit 0\n: > "${marker.replace(/\\/g, "/")}"\nunset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR\ngit -C "${dst.replace(/\\/g, "/")}" push -q origin ${rival910Commit}:refs/heads/orchestrate-state/feature-910\nexit 0\n`);
+  fs.chmodSync(path.join(hooks2, "reference-transaction"), 0o755);
+  git(src, "config", "core.hooksPath", hooks2.replace(/\\/g, "/"));
+  mutate(rec910, "local_src91", (r) => { r.log.push({ time: new Date().toISOString(), event: "note" }); });
+  try { assert.throws(() => cp.publish(rec910, { coordinator: "local_src91", transition: "raced late", github, host: SRC }), (e) => e instanceof cp.CoordinatorChanged); }
+  finally { git(src, "config", "--unset", "core.hooksPath"); }
+  assert.ok(fs.existsSync(marker), "the rival landed between the read and the push");
+  assert.equal(git(src, "ls-remote", "origin", "refs/heads/orchestrate-state/feature-910").split("\t")[0], rival910Commit, "a push built on an outdated read never replaces the newer checkpoint");
+
   // --- Feature 700: planned handoff ---------------------------------------
 
   const rec700 = init(700, "local_src7", { writerModel: "gpt-6-astra" });
@@ -326,10 +372,13 @@ try {
   git(wt702, "add", "part.txt");
   fs.writeFileSync(path.join(wt702, "part.txt"), "staged part\nand an unstaged line\n");
   fs.writeFileSync(path.join(wt702, "scratch.txt"), "untracked\n");
+  // A CRLF file the worktree's attributes would normalize to LF on add.
+  fs.writeFileSync(path.join(wt702, ".gitattributes"), "crlf.txt text eol=lf\n");
+  fs.writeFileSync(path.join(wt702, "crlf.txt"), "first\r\nsecond\r\n");
   fs.writeFileSync(path.join(wt702, "trace.log"), "ignored\n");
   git(wt702, "add", "README.md");
   const sourceBefore = { status: git(wt702, "--no-optional-locks", "status", "--porcelain"), head: git(wt702, "rev-parse", "HEAD"), index: fs.readFileSync(path.join(git(wt702, "rev-parse", "--path-format=absolute", "--git-dir"), "index")) };
-  const bytes = (dir) => Object.fromEntries(["README.md", "part.txt", "scratch.txt"].map((f) => [f, fs.readFileSync(path.join(dir, f), "utf8")]));
+  const bytes = (dir) => Object.fromEntries(["README.md", "part.txt", "scratch.txt", "crlf.txt", ".gitattributes"].map((f) => [f, fs.readFileSync(path.join(dir, f)).toString("hex")]));
   const sourceBytes = bytes(wt702);
   const staged = git(wt702, "diff", "--cached", "--name-only");
 
@@ -353,8 +402,42 @@ try {
   assert.match(cp.fetchState(src, "origin", "acme/widgets", 700).brief, /Running or uncertain at handoff[\s\S]*#701: live/);
   assert.equal(git(src, "rev-parse", "feat/702-unfinished"), sourceBefore.head, "the snapshot is not on the writer's branch");
 
+  // Later checkpoints keep naming the snapshot; an edit made after it is
+  // reported as existing only on the source.
+  const latest700 = () => cp.fetchState(src, "origin", "acme/widgets", 700).checkpoint;
+  mutate(rec700, "local_src7", (r) => { r.log.push({ time: new Date().toISOString(), event: "note" }); });
+  assert.equal(cp.autoCheckpoint(rec700, { coordinator: "local_src7", transition: "a later note", github, host: SRC }).saved, true);
+  assert.equal(latest700().work[702].snapshot.commit, handed.snapshots[702].commit, "a later checkpoint still names the snapshot");
+  assert.equal(latest700().work[702].snapshotCurrent, true);
+  fs.appendFileSync(path.join(wt702, "scratch.txt"), "edited after the snapshot\n");
+  cp.autoCheckpoint(rec700, { coordinator: "local_src7", transition: "an edit after the snapshot", github, host: SRC });
+  const afterEdit = cp.limitations(latest700(), { host: DST }).filter((l) => l.ticket === 702).map((l) => l.kind);
+  assert.deepEqual(afterEdit.sort(), ["owner", "snapshot", "unpublished"], "the snapshot stays retrievable and the later edit is named as unrecoverable");
+  fs.writeFileSync(path.join(wt702, "scratch.txt"), "untracked\n");
+  cp.autoCheckpoint(rec700, { coordinator: "local_src7", transition: "the edit was undone", github, host: SRC });
+  assert.equal(latest700().work[702].snapshotCurrent, true);
+
+  // A snapshot that would publish a credential is refused and stays local;
+  // the handoff names the ticket as not snapshotted.
+  const fakeToken = ["gh", "p_", "A1b2C3d4".repeat(5)].join("");
+  const rec720 = init(720, "local_src72");
+  cp.enable(rec720, { coordinator: "local_src72", expectRevision: 1, github, host: SRC });
+  const wt721 = startWriter(rec720, "local_src72", { repository: "acme/widgets", feature: { number: 720, state: "open" }, originMain: "x", tickets: [ticket(721, { parent: 720 })] }, 721, "secret");
+  fs.writeFileSync(path.join(wt721, "notes.txt"), `token ${fakeToken}\n`);
+  cp.prepareHandoff(rec720, { coordinator: "local_src72", expectRevision: rev(rec720), step: "stop", github, host: SRC });
+  const handed720 = cp.prepareHandoff(rec720, { coordinator: "local_src72", expectRevision: rev(rec720), step: "publish", observations: { sessions: { local_w721: { state: "archived" } } }, github, host: SRC });
+  assert.equal(handed720.snapshots[721], undefined);
+  assert.match(handed720.uncertain.find((u) => u.ticket === 721 && u.status === "not snapshotted").reason, /would publish credentials: notes\.txt holds a GitHub token/);
+  const state720 = cp.fetchState(src, "origin", "acme/widgets", 720);
+  assert.equal(git(src, "rev-list", "--parents", "-n", "1", state720.commit).split(" ").length, 2, "no snapshot commit was attached");
+  assert.equal(state720.checkpoint.work[721].snapshot, undefined);
+  assert.ok(cp.limitations(state720.checkpoint, { host: DST }).some((l) => l.ticket === 721 && l.kind === "unpublished"));
+
   // A destination machine retrieves the unfinished work from the snapshot.
   const dst2 = clone("dst2");
+  // The destination checks text out with CRLF; the retrieved bytes are still
+  // the source's.
+  git(dst2, "config", "core.autocrlf", "true");
   const retrieved = cp.retrieve({ repository: "acme/widgets", feature: 700, checkout: dst2, ticket: 702, worktree: path.join(tmp, "dst2-wt-702") });
   assert.equal(retrieved.verified, true);
   assert.deepEqual(bytes(retrieved.worktree), sourceBytes, "the unfinished file bytes arrive");
@@ -375,12 +458,25 @@ try {
 
   // --- Credentials and network failure ------------------------------------
 
-  const token = ["gh", "p_", "A1b2C3d4".repeat(5)].join("");
-  mutate(rec700d, "local_dst7", (r) => { r.log.push({ time: new Date().toISOString(), event: "note", text: `pasted ${token}` }); });
+  mutate(rec700d, "local_dst7", (r) => { r.log.push({ time: new Date().toISOString(), event: "note", text: `pasted ${fakeToken}` }); });
   const before700 = git(dst2, "ls-remote", "origin", "refs/heads/orchestrate-state/feature-700");
   assert.throws(() => cp.publish(rec700d, { coordinator: "local_dst7", github, host: DST }), /would publish credentials: \$\.log\[\d+\]\.text holds a GitHub token/);
   assert.equal(git(dst2, "ls-remote", "origin", "refs/heads/orchestrate-state/feature-700"), before700, "nothing was pushed");
   assert.deepEqual(cp.credentialFindings({ url: "https://user:secret@example.com/x", q: "https://h/x?token=abc" }).length, 2);
+
+  // A takeover interrupted after its push, before the local pointer was
+  // written, is repaired by resuming again in the same session.
+  const pointer700 = run.pointerFile(dst2, "acme/widgets", 700);
+  fs.unlinkSync(pointer700);
+  assert.throws(() => mutate(rec700d, "local_dst7", () => {}), /no longer coordinates the Feature/);
+  const repairedTakeover = cp.resume({ record: rec700d, checkout: dst2, repository: "acme/widgets", feature: 700, coordinator: "local_dst7", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #700.", evidence: "planned handoff" }, { github, host: DST, defaults, totalMemory: 64 * GB });
+  assert.equal(repairedTakeover.action, "resume");
+  mutate(rec700d, "local_dst7", (r) => { r.log.pop(); });
+  // A second takeover still carries the first invocation's explicit override.
+  const rec700e = path.join(tmp, "dst2-private", "run-700-second.json");
+  cp.resume({ record: rec700e, checkout: dst2, repository: "acme/widgets", feature: 700, coordinator: "local_dst7b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #700.", evidence: "the second account is out of usage" }, { github, host: DST, defaults, totalMemory: 64 * GB });
+  assert.deepEqual([run.readRecord(rec700e).writer.model, run.readRecord(rec700e).invocation.writerModel], ["gpt-6-astra", "gpt-6-astra"], "an explicit writer override survives every takeover");
+  assert.match(run.readRecord(rec700e).writer.source, /carried from local_src7/);
 
   // The command line: an automatic checkpoint follows each transition, and an
   // unreachable remote leaves the change local, reported as unsaved, and
@@ -403,6 +499,55 @@ try {
   const repaired = cp.ensureSaved(rec800, { coordinator: "local_cli", github });
   assert.equal(repaired.saved, true);
   assert.equal(cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.run.recordRevision, rev(rec800), "the next save carries the change made while offline");
+
+  // An adopted start's create and handoff each have their intent on the
+  // remote before they run.
+  const snap800b = { ...snap800, tickets: [ticket(802, { parent: 800 }), ticket(803, { parent: 800 })] };
+  const adoptedPlan = () => write(`plan-800-${rev(rec800)}.json`, run.planDispatch({ record: run.readRecord(rec800), snapshot: snap800b, turn: "event", preflights: [available("claude-adopted", [802, 803])], freeBytes: 100 * GB, defaults }));
+  const cli = (...args) => run.main([args[0], "--record", rec800, "--coordinator", "local_cli", "--expect-revision", String(rev(rec800)), ...args.slice(1)], { defaults, github, runners });
+  const remoteStep = (n) => cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.tickets[n].pending.steps.at(-1);
+  let seenAtCreate = null, seenAtHandoff = null;
+  const runners = {
+    create: () => { seenAtCreate = remoteStep(802); return { created: true, sessionId: "00000000-0000-4000-8000-000000000802" }; },
+    handoff: () => { seenAtHandoff = remoteStep(802); return { requested: true, pid: 1 }; },
+  };
+  cli("claim", "--plan", adoptedPlan(), "--ticket", "802", "--worktree", path.join(tmp, "dst-wt-802"), "--branch", "feat/802-adopted", "--artifact-parent", dstPrivate);
+  assert.equal(cli("create", "--ticket", "802", "--executable", process.execPath, "--permission-mode", "bypassPermissions").checkpoint.saved, true);
+  assert.deepEqual([seenAtCreate.step, seenAtCreate.state], ["create", "intent"], "the create intent is saved remotely before the create runs");
+  cli("handoff", "--ticket", "802", "--executable", process.execPath);
+  assert.deepEqual([seenAtHandoff.step, seenAtHandoff.state], ["handoff", "intent"], "the handoff intent is saved remotely before the handoff runs");
+  cli("launched", "--ticket", "802", "--handle-kind", "session", "--handle", "local_w802");
+  // When the intent cannot be saved, the step is recorded as not run.
+  cli("claim", "--plan", adoptedPlan(), "--ticket", "803", "--worktree", path.join(tmp, "dst-wt-803"), "--branch", "feat/803-adopted", "--artifact-parent", dstPrivate);
+  let ran803 = false;
+  assert.throws(() => run.createAdopted(rec800, { coordinator: "local_cli", expectRevision: rev(rec800), ticket: 803, executable: process.execPath, permissionMode: "bypassPermissions", runner: () => { ran803 = true; return { created: true, sessionId: "x" }; }, afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
+  assert.equal(ran803, false);
+  assert.deepEqual([run.readRecord(rec800).tickets[803].pending.steps.at(-1).state, run.readRecord(rec800).tickets[803].pending.steps.at(-1).reason], ["failed", "not run: the remote is unreachable"]);
+  mutate(rec800, "local_cli", (r) => run.withdraw(r, { ticket: 803, evidence: "its create never ran" }));
+  cli("claim", "--plan", adoptedPlan(), "--ticket", "803", "--worktree", path.join(tmp, "dst-wt-803b"), "--branch", "feat/803-adopted", "--artifact-parent", dstPrivate);
+
+  // The last plan's summary stays in later checkpoints made without a plan.
+  cp.publish(rec800, { coordinator: "local_cli", github, transition: "a plan", plan: JSON.parse(fs.readFileSync(adoptedPlan(), "utf8")) });
+  mutate(rec800, "local_cli", (r) => { r.log.push({ time: new Date().toISOString(), event: "note" }); });
+  cp.autoCheckpoint(rec800, { coordinator: "local_cli", transition: "a note", github });
+  assert.ok(cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.observed?.tickets.some((t) => t.number === 803), "the summary keeps the last plan");
+  assert.match(github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec800), "utf8")).summary.commentId).body, /\| #803 \| dispatch-step \|/);
+
+  // An outdated copy of the record never publishes over newer state.
+  const staleCopy = path.join(dstPrivate, "run-800-stale.json");
+  fs.copyFileSync(rec800, staleCopy);
+  fs.copyFileSync(cp.sidecarOf(rec800), cp.sidecarOf(staleCopy));
+  mutate(rec800, "local_cli", (r) => cp.intent(r, { kind: "merge", ticket: 802, pr: 882, expectHead: "f".repeat(40) }));
+  assert.equal(cp.autoCheckpoint(rec800, { coordinator: "local_cli", transition: "intent to merge PR #882", github }).saved, true);
+  assert.throws(() => cp.publish(staleCopy, { coordinator: "local_cli", github }), /outdated|another copy/);
+  assert.equal(cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.operations.at(-1).pr, 882, "the newer intent stays on the state branch");
+
+  // A planned handoff stops claimed starts and briefs as well as new work.
+  cp.prepareHandoff(rec800, { coordinator: "local_cli", expectRevision: rev(rec800), step: "stop", github });
+  const stopped = Object.fromEntries(run.planDispatch({ record: run.readRecord(rec800), snapshot: snap800b, turn: "event", preflights: [available("claude-adopted", [802, 803])], freeBytes: 100 * GB, defaults, observations: { sessions: { local_w802: { state: "idle" } } } }).tickets.map((t) => [t.number, t.action]));
+  assert.deepEqual([stopped[802], stopped[803]], ["wait-handoff", "wait-handoff"], "neither the claimed create nor the pending brief proceeds");
+  assert.throws(() => cli("create", "--ticket", "803", "--executable", process.execPath, "--permission-mode", "bypassPermissions"), /planned handoff stopped new starts/);
+  assert.throws(() => run.deliver(structuredClone(run.readRecord(rec800)), { ticket: 802, plan: adoptedPlan() }), /planned handoff stopped new starts/);
 
   console.log("PASS: discovery from the Feature number, takeover with fresh authority, stale and competing updates, interrupted summary repair, uncertain launch and merge outcomes, foreign-host evidence, planned handoff snapshot beside a review freeze, abrupt loss of unpublished work, credential refusal and automatic checkpoints");
 } finally {

@@ -104,13 +104,12 @@ export function credentialFindings(value, at = "$") {
   return [];
 }
 
-// Ticket state as the takeover needs it. A stored writer brief is dropped (its
-// text stays with the coordinator that sent it; a new writer gets a new one),
-// and every place a path or handle refers to is tagged with the host it is on.
+// Ticket state as the takeover needs it, with every handle and pending start
+// tagged with the host it is on. A stored brief keeps its text, so an
+// unconfirmed delivery can still be resent exactly.
 function portableTickets(tickets, host) {
   const out = structuredClone(tickets);
   for (const ticket of Object.values(out)) {
-    if (ticket.owner?.brief?.text) delete ticket.owner.brief.text;
     if (ticket.owner?.handle && !ticket.owner.handle.host) ticket.owner.handle.host = host;
     if (ticket.pending && !ticket.pending.host) ticket.pending.host = host;
   }
@@ -123,9 +122,16 @@ const statusOf = (worktree) => git(worktree, ["--no-optional-locks", "status", "
 const indexFile = (worktree) => path.resolve(worktree, git(worktree, ["rev-parse", "--git-path", "index"]));
 const hashFile = (file) => (fs.existsSync(file) ? createHash("sha256").update(fs.readFileSync(file)).digest("hex") : null);
 
+const gitRaw = (cwd, args) => execFileSync("git", args, { cwd, env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith("GIT_"))), windowsHide: true, maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+const REGULAR = new Set(["100644", "100755"]);
+// One `<mode> <type or stage...> <sha>\t<path>` entry of ls-files -s or ls-tree.
+const entryOf = (line) => { const tab = line.indexOf("\t"); const meta = line.slice(0, tab).split(" "); return { mode: meta[0], sha: meta[1].length === 40 ? meta[1] : meta[2], path: line.slice(tab + 1) }; };
+
 // The trees of a worktree's index and of its files (tracked and non-ignored
 // untracked), computed in a copy of its index so neither the worktree nor its
-// real index changes.
+// real index changes. Every regular file that differs from HEAD is stored
+// byte for byte, past Git's line-ending and filter conversions, so the files
+// tree holds exactly what is on disk.
 function treesOf(worktree) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-index-"));
   try {
@@ -134,8 +140,37 @@ function treesOf(worktree) {
     const env = { GIT_INDEX_FILE: temp };
     const index = git(worktree, ["write-tree"], { env });
     git(worktree, ["add", "-A", "--", "."], { env });
+    const changed = git(worktree, ["diff-index", "--cached", "--no-renames", "--name-only", "-z", "HEAD"], { env }).split("\0").filter(Boolean);
+    for (const file of changed) {
+      const line = git(worktree, ["--literal-pathspecs", "ls-files", "-s", "-z", "--", file], { env }).split("\0").find(Boolean);
+      if (!line) continue;
+      const { mode } = entryOf(line);
+      if (!REGULAR.has(mode)) continue;
+      const raw = git(worktree, ["hash-object", "-w", "--no-filters", "--", file]);
+      git(worktree, ["update-index", "--cacheinfo", `${mode},${raw},${file}`], { env });
+    }
     return { index, files: git(worktree, ["write-tree"], { env }) };
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
+// Everything a snapshot would publish that is not already on the remote: the
+// snapshot and index commits' changes from HEAD, and the changes of every
+// commit of HEAD's history that no remote-tracking ref holds. Any of it that
+// looks like a credential refuses the snapshot; only paths are named.
+function snapshotCredentials(worktree, head, commits) {
+  const unpushed = git(worktree, ["rev-list", head, "--not", "--remotes"]).split(/\r?\n/).filter(Boolean);
+  const blobs = new Map();
+  const collect = (args) => { for (const line of git(worktree, ["diff-tree", "-r", "--no-renames", "--no-commit-id", "--root", "-z", ...args]).split("\0").reduce((out, part, i, all) => (part.startsWith(":") ? [...out, `${part}\t${all[i + 1]}`] : out), [])) { const [meta, file] = line.split("\t"); const sha = meta.split(" ")[3]; if (!/^0+$/.test(sha)) blobs.set(sha, file); } };
+  for (const c of commits) collect([head, c]);
+  for (const c of unpushed) collect(["-m", "--first-parent", c]);
+  const findings = [];
+  for (const [sha, file] of blobs) {
+    let text;
+    try { text = gitRaw(worktree, ["cat-file", "blob", sha]).toString("latin1"); }
+    catch (error) { findings.push(`${file} could not be read for the credential check (${error.message})`); continue; }
+    for (const finding of credentialFindings(text, file)) findings.push(finding);
+  }
+  return findings;
 }
 
 const sourceState = (worktree) => ({ head: git(worktree, ["rev-parse", "HEAD"]), status: statusOf(worktree), index: hashFile(indexFile(worktree)) });
@@ -157,13 +192,16 @@ export function snapshotWorktree(worktree, { ticket, branch }) {
   // Computing the trees again proves the snapshot holds the files as they are.
   const again = treesOf(worktree);
   if (again.files !== trees.files || again.index !== trees.index) throw new Error(`${worktree} changed after it was snapshotted; snapshot again`);
-  const paths = git(worktree, ["diff-tree", "-r", "--name-only", "--no-renames", before.head, commit]).split(/\r?\n/).filter(Boolean);
-  return { clean: false, commit, indexCommit, head: before.head, branch, files: trees.files, index: trees.index, paths, sourceUnchanged: true };
+  const findings = snapshotCredentials(worktree, before.head, [commit, indexCommit]);
+  if (findings.length) throw new Error(`The snapshot of #${ticket} would publish credentials: ${findings.join("; ")}; it stays on this host only`);
+  const paths = git(worktree, ["diff-tree", "-r", "--name-only", "-z", "--no-renames", before.head, commit]).split("\0").filter(Boolean);
+  return { clean: false, commit, indexCommit, head: before.head, branch, files: trees.files, index: trees.index, paths, time: new Date().toISOString(), sourceUnchanged: true };
 }
 
-// The review jobs a PR's rounds ran on this host, as their journals' latest
-// rows record them: the planned reviewers, which completed and which are
-// pending, the reviewed head and the posted report comments.
+// The review jobs a PR's rounds ran on this host, as their journals record
+// them: the latest completed accounting (the planned reviewers, which
+// completed and which are pending, the reviewed head and the posted report
+// comments) and the latest attempt launched, which may not have completed.
 export function reviewJobs(checkout, pr) {
   const root = path.join(jobRootOf(fs.realpathSync.native(checkout)), `pr-${pr}`);
   if (!fs.existsSync(root)) return [];
@@ -176,8 +214,10 @@ export function reviewJobs(checkout, pr) {
       try { rows = fs.readFileSync(journal, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)); }
       catch (error) { jobs.push({ job: `pr-${pr}/${round}/${launch}`, unreadable: error.message }); continue; }
       const completed = rows.filter((r) => r.event === "completed").at(-1);
+      const attempted = rows.filter((r) => r.event === "launching").at(-1);
       jobs.push({
         job: `pr-${pr}/${round}/${launch}`, lastEvent: rows.at(-1)?.event ?? null,
+        ...(attempted && { attempted: { round: attempted.round ?? null, step: attempted.step ?? null, reviewerId: attempted.reviewerId ?? null, attempt: attempted.attempt ?? null, plannedReviewers: attempted.plannedReviewers ?? null, head: attempted.head ?? null, completedRoundReviewers: attempted.completedRoundReviewers ?? null, time: attempted.time ?? null } }),
         ...(completed && { round: completed.completedRound, reviewerId: completed.reviewerId ?? null, attempt: completed.attempt ?? null, reviewedHead: completed.reviewedHead, completedRoundReviews: completed.completedRoundReviews, completedRoundReviewers: completed.completedRoundReviewers ?? null, plannedRoundReviewers: completed.plannedRoundReviewers ?? null, pendingReviewers: completed.pendingReviewers ?? null, finalCorrections: completed.finalCorrections ?? null, commentIds: completed.commentIds ?? [] }),
       });
     }
@@ -210,7 +250,13 @@ export function inventoryWork(record, { host = os.hostname(), remote, snapshots 
     } catch (error) { entry.error = error.message; }
     const pr = prs[number] ?? ticket.owner?.adopted?.pr ?? ticket.owner?.continues?.pr ?? ticket.results?.at(-1)?.report?.pr ?? null;
     if (Number.isSafeInteger(pr)) { entry.pr = pr; entry.reviewJobs = reviewJobs(record.checkout, pr); }
-    if (snapshots[number]) entry.snapshot = snapshots[number];
+    // A saved snapshot stays the ticket's retrievable work until a later one
+    // replaces it; whether the files have changed since is observed afresh.
+    const snap = snapshots[number];
+    if (snap && !snap.clean) {
+      entry.snapshot = snap;
+      try { const now = treesOf(held.worktree); entry.snapshotCurrent = now.files === snap.files && now.index === snap.index; } catch (error) { entry.snapshotCurrent = null; entry.error ??= error.message; }
+    }
     work[number] = entry;
   }
   return work;
@@ -345,9 +391,14 @@ function takeoverBrief(c, commit) {
     const w = c.work?.[n];
     const notes = [];
     if (t.owner || t.pending) notes.push(ownerText(t));
-    if (w?.unpushed || w?.dirty) notes.push(w.snapshot && !w.snapshot.clean ? `unfinished work is in snapshot ${w.snapshot.commit}; retrieve it with checkpoint.mjs retrieve --ticket ${n}` : `as of ${w.observedAt}, ${[w.unpushed && "commits", w.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}; recover those bytes there before restarting or overwriting this work`);
+    if (w?.snapshot && !w.snapshot.clean) notes.push(`unfinished work is in snapshot ${w.snapshot.commit}; retrieve it with checkpoint.mjs retrieve --ticket ${n}${w.snapshotCurrent === false ? `; the files changed after it, and those later edits exist only on ${w.host} in ${w.worktree}` : ""}`);
+    else if (w?.unpushed || w?.dirty) notes.push(`as of ${w.observedAt}, ${[w.unpushed && "commits", w.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}; recover those bytes there before restarting or overwriting this work`);
     if (w?.handoffLock) notes.push(`a handoff lock (host ${w.handoffLock.host ?? "unknown"}) remains in ${w.worktree}; on ${w.host}, node scripts/agent-handoff.mjs recover-lock ${w.worktree} removes it once its coordinator and child are confirmed gone`);
-    for (const j of w?.reviewJobs ?? []) if (j.round) notes.push(`review job ${j.job} on ${w.host}: round ${j.round} reviewed ${short(j.reviewedHead)}, completed ${JSON.stringify(j.completedRoundReviewers)} of planned ${JSON.stringify(j.plannedRoundReviewers)}, last event ${j.lastEvent}`);
+    for (const j of w?.reviewJobs ?? []) {
+      const done = j.round ? `round ${j.round} reviewed ${short(j.reviewedHead)}, completed ${JSON.stringify(j.completedRoundReviewers)} of planned ${JSON.stringify(j.plannedRoundReviewers)}` : "no completed review";
+      const tried = j.attempted ? `; last launched reviewer ${j.attempted.reviewerId ?? j.attempted.step} attempt ${j.attempted.attempt ?? "?"} of round ${j.attempted.round ?? "?"} (planned ${JSON.stringify(j.attempted.plannedReviewers)})` : "";
+      notes.push(`review job ${j.job} on ${w.host}: ${done}${tried}, last event ${j.lastEvent}`);
+    }
     if (notes.length) lines.push(`## #${n}`, "", ...notes.map((x) => `- ${x}`), "");
   }
   const open = (c.operations ?? []).filter((o) => !["confirmed", "not-applied", "superseded", "failed"].includes(o.state));
@@ -394,16 +445,25 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
     let previous = head?.commit ?? null;
     if (head && head.checkpoint.coordinator.session !== coordinator && head.commit !== takeoverFrom) throw new CoordinatorChanged(`Feature #${record.feature} has been taken over: checkpoint ${head.checkpoint.seq} (${head.commit}) names coordinator ${head.checkpoint.coordinator.session} on ${head.checkpoint.coordinator.host}. This coordinator must stop; nothing was published`);
     if (!head && side.saved) throw new Error(`${stateBranch(record.feature)} is missing although checkpoint ${side.saved.seq} (${side.saved.commit}) was saved; inspect the remote before publishing again`);
-    if (head && side.saved && head.commit !== side.saved.commit && head.checkpoint.coordinator.session === coordinator) {
-      // Our own earlier attempt that landed after its outcome was lost.
-      if (side.attempt?.commit === head.commit || head.checkpoint.run.runId === record.runId) side.saved = { seq: head.checkpoint.seq, commit: head.commit, recordRevision: head.checkpoint.run.recordRevision, runId: head.checkpoint.run.runId, time: head.checkpoint.time, recovered: true };
-      else throw new Error(`Checkpoint ${head.checkpoint.seq} (${head.commit}) names this coordinator but another run ${head.checkpoint.run.runId}; inspect it before publishing`);
+    if (head && head.checkpoint.coordinator.session === coordinator) {
+      // A checkpoint of this run made from a later record revision means this
+      // record is an outdated copy; publishing it would undo newer state.
+      if (head.checkpoint.run.runId === record.runId && head.checkpoint.run.recordRevision > record.revision) throw new Error(`Checkpoint ${head.checkpoint.seq} (${head.commit}) holds record revision ${head.checkpoint.run.recordRevision}, newer than this record's revision ${record.revision}; this copy of the record is outdated, so nothing was published`);
+      if (head.checkpoint.run.runId !== record.runId) throw new Error(`Checkpoint ${head.checkpoint.seq} (${head.commit}) names this coordinator but another run ${head.checkpoint.run.runId}; inspect it before publishing`);
+      if (side.saved && head.commit !== side.saved.commit) {
+        // Only this record's own attempt, landed after its outcome was lost,
+        // explains a remote head it did not save.
+        if (side.attempt?.commit !== head.commit) throw new Error(`Checkpoint ${head.checkpoint.seq} (${head.commit}) is neither the checkpoint this record last saved (${side.saved.commit}) nor its pending attempt; another copy of this record published it, so nothing was published`);
+        side.saved = { seq: head.checkpoint.seq, commit: head.commit, recordRevision: head.checkpoint.run.recordRevision, runId: head.checkpoint.run.runId, time: head.checkpoint.time, recovered: true };
+      }
     }
     const seq = (head?.checkpoint.seq ?? 0) + 1;
-    const work = inventoryWork(record, { host, remote, snapshots, prs: Object.fromEntries((plan?.tickets ?? []).filter((t) => t.pr).map((t) => [t.number, t.pr])) });
-    const checkpoint = buildCheckpoint(record, { seq, previous, kind, transition, host, work, observed: observedFrom(plan) });
+    const fresh = Object.fromEntries(Object.entries(snapshots).filter(([, s]) => s && !s.clean));
+    const work = inventoryWork(record, { host, remote, snapshots: { ...(record.snapshots ?? {}), ...fresh }, prs: Object.fromEntries((plan?.tickets ?? []).filter((t) => t.pr).map((t) => [t.number, t.pr])) });
+    // The last plan's summary stays until a newer plan replaces it.
+    const checkpoint = buildCheckpoint(record, { seq, previous, kind, transition, host, work, observed: observedFrom(plan) ?? (head?.checkpoint.run.runId === record.runId ? head.checkpoint.observed : null) });
     const content = `${JSON.stringify(checkpoint, null, 2)}\n`;
-    const extra = Object.values(snapshots).filter((s) => s && !s.clean).map((s) => s.commit);
+    const extra = Object.values(fresh).map((s) => s.commit);
     const commit = writeCommit(record.checkout, { "checkpoint.json": content, "brief.md": takeoverBrief(checkpoint) }, [...(previous ? [previous] : []), ...extra], `checkpoint ${seq} of ${record.repository}#${record.feature}: ${transition}\n`);
     side.attempt = { seq, commit, previous, recordRevision: record.revision, runId: record.runId, state: "intent", time: new Date().toISOString() };
     writeSidecar(file, side);
@@ -504,8 +564,10 @@ export function limitations(checkpoint, { host = os.hostname(), observations = {
     }
     if (t.pending) out.push({ ticket: Number(n), kind: "pending", detail: `${t.pending.operation} ${t.pending.launchId} on ${t.pending.route} was claimed on ${t.pending.host} with no recorded outcome; settle it from that host before any retry` });
     const w = checkpoint.work?.[n];
-    if (w && (w.unpushed || w.dirty) && !(w.snapshot && !w.snapshot.clean)) out.push({ ticket: Number(n), kind: "unpublished", detail: `as of ${w.observedAt}, ${[w.unpushed && "unpushed commits", w.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}; they are not recoverable from the checkpoint` });
-    if (w?.snapshot && !w.snapshot.clean) out.push({ ticket: Number(n), kind: "snapshot", detail: `unfinished work is retrievable from snapshot ${w.snapshot.commit} (work in progress, not reviewed)` });
+    const snapped = Boolean(w?.snapshot && !w.snapshot.clean);
+    if (w && (w.unpushed || w.dirty) && !snapped) out.push({ ticket: Number(n), kind: "unpublished", detail: `as of ${w.observedAt}, ${[w.unpushed && "unpushed commits", w.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}; they are not recoverable from the checkpoint` });
+    if (snapped) out.push({ ticket: Number(n), kind: "snapshot", detail: `unfinished work as of ${w.snapshot.time ?? "the handoff"} is retrievable from snapshot ${w.snapshot.commit} (work in progress, not reviewed)` });
+    if (snapped && w.snapshotCurrent === false) out.push({ ticket: Number(n), kind: "unpublished", detail: `as of ${w.observedAt}, the files in ${w.worktree} on ${w.host} had changed since snapshot ${w.snapshot.commit}; only the snapshot's bytes are recoverable from the checkpoint, so recover the later edits there` });
     if (w?.handoffLock) out.push({ ticket: Number(n), kind: "handoff-lock", detail: `a handoff lock remains in ${w.worktree} on ${w.host}; only scripts/agent-handoff.mjs recover-lock on that host may remove it` });
   }
   for (const o of checkpoint.operations ?? []) if (!["confirmed", "not-applied", "superseded", "failed"].includes(o.state)) out.push({ ticket: o.ticket, kind: "operation", detail: `${o.kind} of PR #${o.pr} at ${o.expectHead} is ${o.state}; reconcile-operations settles it from GitHub before any retry` });
@@ -526,20 +588,29 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const prev = found.checkpoint;
   if (prev.coordinator.session === coordinator) {
     if (!fs.existsSync(file)) throw new Error(`Checkpoint ${prev.seq} already names ${coordinator}, but its record ${file} is not here; this session's record lives where it was created`);
-    return { action: "resume", seq: prev.seq, commit: found.commit, limitations: limitations(prev, { host }) };
+    // A takeover interrupted after its push leaves the record saved but the
+    // local pointer missing or stale; the record that checkpoint was made from
+    // installs it again.
+    const own = readRecord(file);
+    if (own.runId !== prev.run.runId || own.coordinator.session !== coordinator) throw new Error(`Checkpoint ${prev.seq} names run ${prev.run.runId}, but ${file} holds run ${own.runId}; inspect both before continuing`);
+    const pointer = installPointer(checkout, repository, feature, { record: file, coordinator, host, since: own.coordinator.since });
+    return { action: "resume", seq: prev.seq, commit: found.commit, pointer, limitations: limitations(prev, { host }) };
   }
   if (!evidence) throw new Error(`--evidence must say why ${prev.coordinator.session} on ${prev.coordinator.host} no longer coordinates (for example, the maintainer's statement that its account reached its usage limit)`);
   if (fs.existsSync(file)) throw new Error(`${file} already exists; take over into a new record file`);
-  const carried = prev.writer.source.startsWith("invocation") ? prev.invocation.writerModel ?? prev.writer.model : undefined;
-  const writer = resolveWriterModel(harness, options.writerModel ?? carried, defaults);
-  if (options.writerModel === undefined && carried !== undefined) writer.source = `explicit override carried from ${prev.coordinator.session}'s invocation`;
+  // An explicit writer model in an earlier invocation stays in force across
+  // takeovers until an invocation names another; a harness default does not.
+  const carried = prev.invocation.writerModel;
+  const writerModel = options.writerModel ?? carried;
+  const writer = resolveWriterModel(harness, writerModel, defaults);
+  if (options.writerModel === undefined && carried !== undefined) writer.source = `explicit override carried from ${prev.invocation.writerModelFrom ?? prev.coordinator.session}'s invocation`;
   let concurrency = defaultConcurrency({ totalMemory });
   if (options.concurrency !== undefined) concurrency = { limit: options.concurrency, basis: `invocation override (default would be ${concurrency.limit})` };
   const since = new Date().toISOString();
   const record = {
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout,
     coordinator: { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since },
-    invocation: { text: invocation, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
+    invocation: { text: invocation, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: AUTHORITY, writer, concurrency,
     tickets: structuredClone(prev.tickets), diskRecoveries: prev.diskRecoveries, operations: prev.operations ?? [], decisionRefs: prev.decisions ?? [],
     inheritedWork: prev.work ?? {},
@@ -554,14 +625,22 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   try { published = publish(file, { coordinator, kind: "takeover", transition: `the takeover from ${prev.coordinator.session}`, host, github, takeoverFrom: found.commit }); }
   catch (error) { fs.renameSync(file, `${file}.refused-${Date.now()}`); throw error; }
   if (!published.saved) { fs.renameSync(file, `${file}.refused-${Date.now()}`); throw new Error(`The takeover checkpoint was not saved (${published.reason}); this session does not coordinate #${feature}. Discover again and retry if the run is still unowned`); }
-  // On this machine the local pointer follows the takeover, so a previous
-  // coordinator's record here stops accepting changes.
+  installPointer(checkout, repository, feature, { record: file, coordinator, host, since });
+  return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer, summary: published.summary ?? null, limitations: limitations(found.checkpoint, { host }) };
+}
+
+// On this machine the local pointer follows the takeover, so a previous
+// coordinator's record here stops accepting changes.
+function installPointer(checkout, repository, feature, value) {
   const pointer = pointerFile(checkout, repository, feature);
   fs.mkdirSync(path.dirname(pointer), { recursive: true });
+  let current = null;
+  try { current = readJson(pointer); } catch { current = null; }
+  if (current && path.resolve(current.record) === path.resolve(value.record) && current.coordinator === value.coordinator) return pointer;
   const temp = `${pointer}.${randomUUID()}.tmp`;
-  writeExclusive(temp, { record: file, coordinator, host, since });
+  writeExclusive(temp, value);
   fs.renameSync(temp, pointer);
-  return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer, summary: published.summary ?? null, limitations: limitations(found.checkpoint, { host }) };
+  return pointer;
 }
 
 // --- Planned handoff ----------------------------------------------------------
@@ -594,6 +673,9 @@ export function prepareHandoff(file, { coordinator, expectRevision, step, observ
       if (t.pending) uncertain.push({ ticket: Number(n), status: "pending", reason: `${t.pending.operation} ${t.pending.launchId} has no recorded outcome` });
     }
     for (const x of refused) uncertain.push({ ticket: x.ticket, status: "not snapshotted", reason: x.reason });
+    // Each snapshot stays the ticket's retrievable work in every later
+    // checkpoint until another snapshot of that ticket replaces it.
+    for (const [n, s] of Object.entries(snapshots)) if (!s.clean) (r.snapshots ??= {})[n] = s;
     r.handoff = { ...r.handoff, state: "ready", published: new Date().toISOString(), uncertain };
     r.log.push({ time: r.handoff.published, event: "handoff-publish", snapshots: Object.keys(snapshots).length, uncertain: uncertain.length });
   });
@@ -601,8 +683,10 @@ export function prepareHandoff(file, { coordinator, expectRevision, step, observ
   return { revision: record.revision, checkpoint, snapshots, uncertain: record.handoff.uncertain };
 }
 
-// Recreates a ticket's unfinished work from its snapshot in a new worktree,
-// with the snapshot's index and files, and checks both against it.
+// Recreates a ticket's unfinished work from its snapshot in a new worktree:
+// each changed file is written with the snapshot's exact bytes, past this
+// checkout's conversions, and the index takes the snapshot's staged state.
+// Both are checked against the snapshot.
 export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOTE, ticket, worktree }) {
   if (!path.isAbsolute(worktree ?? "")) throw new Error("--worktree must be an absolute path");
   if (fs.existsSync(worktree)) throw new Error(`${worktree} already exists`);
@@ -612,10 +696,25 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
   const local = spawnOk(checkout, ["rev-parse", "--verify", "--quiet", `refs/heads/${snap.branch}`]) ? git(checkout, ["rev-parse", `refs/heads/${snap.branch}`]) : null;
   if (local && local !== snap.head) throw new Error(`Local branch ${snap.branch} is at ${local}, not the snapshot's head ${snap.head}; retrieve into a checkout without it, or reconcile the branch first`);
   git(checkout, local ? ["worktree", "add", worktree, snap.branch] : ["worktree", "add", "--no-track", "-b", snap.branch, worktree, snap.head]);
-  git(worktree, ["restore", `--source=${snap.commit}`, "--staged", "--worktree", "--", "."]);
+  const entries = new Map(git(worktree, ["ls-tree", "-r", "-z", "--full-tree", snap.commit]).split("\0").filter(Boolean).map((line) => { const e = entryOf(line); return [e.path, e]; }));
+  for (const file of snap.paths) {
+    const target = path.join(worktree, file), entry = entries.get(file);
+    if (!entry) { fs.rmSync(target, { force: true }); continue; }
+    if (!REGULAR.has(entry.mode)) { git(worktree, ["--literal-pathspecs", "restore", `--source=${snap.commit}`, "--worktree", "--", file]); continue; }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.rmSync(target, { force: true });
+    fs.writeFileSync(target, gitRaw(worktree, ["cat-file", "blob", entry.sha]));
+    if (entry.mode === "100755") fs.chmodSync(target, 0o755);
+  }
   git(worktree, ["read-tree", snap.index]);
+  const wrong = snap.paths.filter((file) => {
+    const entry = entries.get(file), target = path.join(worktree, file);
+    if (!entry) return fs.existsSync(target);
+    if (!REGULAR.has(entry.mode)) return !fs.lstatSync(target, { throwIfNoEntry: false });
+    return git(worktree, ["hash-object", "--no-filters", "--", file]) !== entry.sha;
+  });
   const trees = treesOf(worktree);
-  if (trees.files !== snap.files || trees.index !== snap.index) throw new Error(`${worktree} does not match snapshot ${snap.commit}; inspect it before use`);
+  if (wrong.length || trees.index !== snap.index) throw new Error(`${worktree} does not match snapshot ${snap.commit} (${wrong.length ? `files ${wrong.join(", ")}` : "the staged state"}); inspect it before use`);
   return { worktree, branch: snap.branch, head: snap.head, snapshot: snap.commit, paths: snap.paths, verified: true };
 }
 

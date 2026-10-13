@@ -536,12 +536,13 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     if (chosen) add(t, "dispatch", `every blocker's deliverable is on origin/main`, startWith(choice));
     else add(t, "propose", `only ${proposable.route} is available and this turn cannot start it; propose it and record the proposal with claim --operation proposed`, { route: proposable.route, model, effort, reasons });
   }
-  // A planned handoff admits no new work: nothing starts, and existing work
-  // is not continued, until the next coordinator plans.
+  // A planned handoff admits no new work: nothing starts, no claimed start
+  // takes its next step, no new writer is briefed, and existing work is not
+  // continued, until the next coordinator plans.
   if (record.handoff) {
     const why = `a planned handoff stopped new dispatch at ${record.handoff.since}`;
     for (const t of tickets) {
-      if (t.action === "dispatch" || t.action === "propose") Object.assign(t, { action: "wait-handoff", reason: why });
+      if (["dispatch", "propose", "dispatch-step", "deliver-brief"].includes(t.action)) Object.assign(t, { action: "wait-handoff", reason: why });
       if (t.continueWith) { delete t.continueWith; t.continueBlocked = why; }
     }
   }
@@ -612,9 +613,24 @@ const settledStart = (pending, fields) => ({ pending, ...fields, ...(pending.con
 
 const ownerFrom = (pending, handle) => ({ route: pending.route, model: pending.model, effort: pending.effort, worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
 
-export function launched(record, { ticket: number, handleKind, handle, host = os.hostname() }) {
+// A start runs only on the host that claimed it, and only while the run admits
+// work: another host's start is run or settled there, and a planned handoff
+// starts nothing.
+function assertStartable(record, pending, host) {
+  if (record.handoff) throw new Error(`A planned handoff stopped new starts at ${record.handoff.since}; nothing was started`);
+  if (pending.host && pending.host !== host) throw new Error(`This start was claimed on ${pending.host}; it runs, or is settled, only on that host`);
+}
+// Evidence that settles a start claimed on another host must have been
+// observed there.
+function assertObservedOn(pending, number, host, observedOn, action) {
+  const claimedOn = pending.host;
+  if (claimedOn && claimedOn !== host && observedOn !== claimedOn) throw new Error(`#${number}'s start was claimed on ${claimedOn}; ${action} it only with evidence observed there, naming that host with --observed-on ${claimedOn}`);
+}
+
+export function launched(record, { ticket: number, handleKind, handle, observedOn, host = os.hostname() }) {
   const ticket = ticketOf(record, number);
   if (!ticket.pending) throw new Error(`#${number} has no pending start to confirm`);
+  assertObservedOn(ticket.pending, number, host, observedOn, "confirm");
   if (ticket.pending.route === "claude-cli") throw new Error("A detached CLI writer is started with launch and confirmed with reconcile");
   if (!["session", "task"].includes(handleKind) || !handle) throw new Error("--handle-kind must be session or task, with --handle naming it");
   const adopted = ticket.pending.route === "claude-adopted";
@@ -625,7 +641,8 @@ export function launched(record, { ticket: number, handleKind, handle, host = os
     if (handleKind !== "session" || last?.step !== "handoff" || !["requested", "intent", "uncertain"].includes(last.state)) throw new Error(`An adopted writer is confirmed as a session found in the app's list after its handoff ran; #${number} is at ${last ? `${last.step} ${last.state}` : "no step"}`);
     step(ticket.pending, "adopt", "confirmed", { handle, ...(last.state !== "requested" && { after: `handoff ${last.state}` }) });
   }
-  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host });
+  // The writer runs where its start was claimed.
+  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host });
   if (adopted) { ticket.owner.steps = ticket.pending.steps; ticket.owner.brief = null; }
   log(record, "launched", { ticket: number, launchId: ticket.pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
@@ -663,8 +680,7 @@ export function withdraw(record, { ticket: number, evidence, observedOn, host = 
   if (!evidence) throw new Error("--evidence must say why no writer started (a declined proposal, or the observation that found none)");
   // A start claimed on another host left its traces there; only an
   // observation made there can show that nothing started.
-  const claimedOn = ticket.pending.host;
-  if (claimedOn && claimedOn !== host && observedOn !== claimedOn) throw new Error(`#${number}'s start was claimed on ${claimedOn}; withdraw it only with evidence observed there, naming that host with --observed-on ${claimedOn}`);
+  assertObservedOn(ticket.pending, number, host, observedOn, "withdraw");
   log(record, "withdrawn", { ticket: number, launchId: ticket.pending.launchId, evidence, ...(observedOn && { observedOn }) });
   ticket.history.push(settledStart(ticket.pending, { withdrawn: evidence, ...(observedOn && { observedOn }) }));
   ticket.pending = null;
@@ -813,6 +829,7 @@ export const launchDirOf = (pending, number) => path.join(pending.artifactParent
 export function launch(record, { ticket: number, executable, args = [], prompt, host = os.hostname(), identify = processIdentity, spawner = startDetachedWriter }) {
   const ticket = ticketOf(record, number), pending = ticket.pending;
   if (!pending || pending.operation !== "dispatch" || pending.route !== "claude-cli") throw new Error(`#${number} has no pending claude-cli dispatch to launch`);
+  assertStartable(record, pending, host);
   if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable) || !path.isAbsolute(prompt ?? "")) throw new Error("--executable and --prompt must be absolute paths");
   checkLaunchArgs(args, pending);
   const launchDir = launchDirOf(pending, number);
@@ -880,10 +897,23 @@ export function createOutcome(result, model) {
 }
 
 const PERMISSION_MODES = ["default", "acceptEdits", "plan", "auto", "bypassPermissions"];
-export function createAdopted(file, { coordinator, expectRevision, ticket: number, executable, permissionMode, runner = runCreate }) {
+// An adopted step's intent is recorded, then `afterIntent` (the checkpoint
+// save) runs before the side effect. If it fails, the step is recorded as not
+// run, so a recovered record never shows the step as untried or uncertain.
+function savedIntent(file, coordinator, intent, number, name, afterIntent) {
+  if (!afterIntent) return;
+  try { afterIntent(); }
+  catch (error) {
+    updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => { step(adoptedPending(r, number, `${name} intent`), name, "failed", { reason: `not run: ${error.message}` }); });
+    throw error;
+  }
+}
+
+export function createAdopted(file, { coordinator, expectRevision, ticket: number, executable, permissionMode, runner = runCreate, host = os.hostname(), afterIntent }) {
   if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable)) throw new Error("--executable must be the absolute Claude CLI path");
   if (!PERMISSION_MODES.includes(permissionMode)) throw new Error(`--permission-mode must be the coordinator's own mode: ${PERMISSION_MODES.join(", ")}`);
-  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => { step(adoptedPending(r, number, "none"), "create", "intent", { permissionMode }); });
+  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => { const p = adoptedPending(r, number, "none"); assertStartable(r, p, host); step(p, "create", "intent", { permissionMode }); });
+  savedIntent(file, coordinator, intent, number, "create", afterIntent);
   const pending = intent.record.tickets[number].pending;
   let outcome;
   try { outcome = runner({ executable, model: pending.model, effort: pending.effort, permissionMode, cwd: intent.record.checkout }); }
@@ -900,9 +930,10 @@ export function createAdopted(file, { coordinator, expectRevision, ticket: numbe
 // A create whose outcome was lost or stopped is settled by evidence, never by
 // running it again: the session the coordinator found, or what shows that
 // none was made.
-export function settleCreate(record, { ticket: number, session, absent = false, evidence }) {
+export function settleCreate(record, { ticket: number, session, absent = false, evidence, observedOn, host = os.hostname() }) {
   if (!evidence) throw new Error("--evidence must say where the session was found, or how its absence was established");
   const pending = adoptedPending(record, number, ["create intent", "create uncertain"]);
+  assertObservedOn(pending, number, host, observedOn, "settle");
   if (absent) step(pending, "create", "failed", { reason: `settled: ${evidence}` });
   else {
     if (!/^[0-9a-f-]{36}$/i.test(session ?? "")) throw new Error("--session must be the found session's id, or pass --absent");
@@ -922,9 +953,10 @@ export function runHandoff({ executable, sessionId, cwd }) {
   return code === 0 ? { requested: true, pid } : { requested: false, reason: `Win32_Process.Create returned ${code}` };
 }
 
-export function handoffAdopted(file, { coordinator, expectRevision, ticket: number, executable, runner = runHandoff }) {
+export function handoffAdopted(file, { coordinator, expectRevision, ticket: number, executable, runner = runHandoff, host = os.hostname(), afterIntent }) {
   if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable)) throw new Error("--executable must be the absolute Claude CLI path");
-  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => { step(adoptedPending(r, number, "create confirmed"), "handoff", "intent"); });
+  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => { const p = adoptedPending(r, number, "create confirmed"); assertStartable(r, p, host); step(p, "handoff", "intent"); });
+  savedIntent(file, coordinator, intent, number, "handoff", afterIntent);
   const sessionId = intent.record.tickets[number].pending.steps.find((s) => s.step === "create" && s.state === "confirmed").sessionId;
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error(`Session id ${sessionId} is not a UUID`);
   let outcome;
@@ -951,6 +983,7 @@ function briefedOwner(record, number) {
 }
 export function deliver(record, { ticket: number, retry = false, plan, decisions = [], defaults = readWriterDefaults() }) {
   const owner = briefedOwner(record, number);
+  if (record.handoff) throw new Error(`A planned handoff stopped new starts at ${record.handoff.since}; the brief that starts #${number}'s writer waits for the next coordinator`);
   if (owner.brief?.state === "delivered") throw new Error(`#${number}'s brief was delivered at ${owner.brief.time}`);
   if (owner.brief?.state === "intent" && !retry) throw new Error(`#${number}'s brief ${owner.brief.deliveryId} is already at intent with no recorded outcome; settle it from the writer's transcript, or resend with --retry`);
   if (!owner.brief && retry) throw new Error(`#${number}'s brief has not been sent; record deliver without --retry`);
@@ -1067,10 +1100,11 @@ const readOptional = (file) => (file ? readJson(absolute(file, "file")) : undefi
 // leaves a recorded intent rather than an untracked writer.
 const SIDE_EFFECTS = new Set(["launch", "create", "handoff"]);
 
-export function main(argv, { defaults = readWriterDefaults(), github } = {}) {
+export function main(argv, { defaults = readWriterDefaults(), github, runners = {} } = {}) {
   const { command, options: o } = parseArgs(argv);
   const transition = () => `${command}${o.ticket ? ` of #${o.ticket}` : ""}`;
   if (SIDE_EFFECTS.has(command)) ensureSaved(absolute(o.record, "record"), { coordinator: o.coordinator, github });
+  const saveIntent = () => ensureSaved(absolute(o.record, "record"), { coordinator: o.coordinator, github });
   const checkpointAfter = (file) => { const c = autoCheckpoint(file, { coordinator: o.coordinator, transition: transition(), github }); return c ? { checkpoint: c } : {}; };
   const mutate = (fn) => {
     const file = absolute(o.record, "record");
@@ -1097,16 +1131,16 @@ export function main(argv, { defaults = readWriterDefaults(), github } = {}) {
     }
     case "claim": return mutate((r) => claim(r, { plan: absolute(o.plan, "plan"), ticket: number(), worktree: o.worktree, branch: o.branch, artifactParent: o.artifactParent, operation: o.operation, evidence: o.evidence }));
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt }));
-    case "create": return { ...createAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, permissionMode: o.permissionMode }), ...checkpointAfter(absolute(o.record, "record")) };
-    case "handoff": return { ...handoffAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable }), ...checkpointAfter(absolute(o.record, "record")) };
+    case "create": return { ...createAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, permissionMode: o.permissionMode, afterIntent: saveIntent, runner: runners.create }), ...checkpointAfter(absolute(o.record, "record")) };
+    case "handoff": return { ...handoffAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, afterIntent: saveIntent, runner: runners.handoff }), ...checkpointAfter(absolute(o.record, "record")) };
     case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry), plan: o.plan ? absolute(o.plan, "plan") : undefined, decisions: o.decision ?? [], defaults }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
     case "relay": return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to }));
     case "answer": return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text, retry: Boolean(o.retry) }));
     case "answered": return mutate((r) => answered(r, { ticket: number(), request: o.request, evidence: o.evidence }));
-    case "settle-create": return mutate((r) => settleCreate(r, { ticket: number(), session: o.session, absent: Boolean(o.absent), evidence: o.evidence }));
-    case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle }));
+    case "settle-create": return mutate((r) => settleCreate(r, { ticket: number(), session: o.session, absent: Boolean(o.absent), evidence: o.evidence, observedOn: o.observedOn }));
+    case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle, observedOn: o.observedOn }));
     case "adopt": return mutate((r) => adopt(r, { plan: absolute(o.plan, "plan"), ticket: number(), handleKind: o.handleKind, handle: o.handle, pid: o.pid, route: o.route, model: o.model, effort: o.effort, worktree: o.worktree, branch: o.branch }));
     case "reconcile": return mutate((r) => reconcile(r, { ticket: number() }));
     case "withdraw": return mutate((r) => withdraw(r, { ticket: number(), evidence: o.evidence, observedOn: o.observedOn }));
