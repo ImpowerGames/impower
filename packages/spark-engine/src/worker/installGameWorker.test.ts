@@ -141,6 +141,43 @@ describe("a request for a game's temporaries", () => {
   });
 });
 
+// Sparkdown has no list type (#1752), so the protocol names no Lists scope
+// (#1805); an extension built before that still asks for one.
+describe("a request for the Lists scope", () => {
+  test("answers with no variables rather than an error", async () => {
+    vi.stubGlobal("self", {
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+    });
+    const program = compileProgram(SOURCE);
+    const listeners: ((e: MessageEvent) => void)[] = [];
+    const answers: unknown[] = [];
+    installGameWorker({
+      addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+      sendResponse: async (_message: unknown, result: unknown) => {
+        answers.push(typeof result === "function" ? await result() : result);
+      },
+      sendNotification() {},
+      postMessage() {},
+    } as any);
+    const ask = async (message: unknown) => {
+      for (const listener of listeners) {
+        listener({ data: message } as MessageEvent);
+      }
+      await Promise.resolve();
+      return answers.at(-1);
+    };
+    await ask(CreateGameMessage.type.request({ program }));
+    expect(
+      await ask(
+        GetGameVariablesMessage.type.request({ scope: "lists" } as never),
+      ),
+    ).toEqual({ variables: [] });
+  });
+});
+
 describe("the configuration a worker gives its game", () => {
   test("runs the timer and frame functions on the worker's global", () => {
     const calls: string[] = [];
