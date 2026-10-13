@@ -22,7 +22,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRecord, updateRecord, coordinatorMerges, parseCriteria, verificationHolds } from "./feature-run.mjs";
-import { intent, outcome, ensureSaved, autoCheckpoint, operationText } from "./checkpoint.mjs";
+import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
 
 export { parseCriteria };
@@ -251,11 +251,11 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, s
   let state, evidence, merged = null;
   if (!back) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} could not be read back (${readError})`; }
   else if (back.state === "MERGED" && back.head === gate.head && back.mergeCommit) {
-    merged = { mergeCommit: back.mergeCommit, mergedOnto: null, onMain: null };
-    try { git.fetch(); merged.onMain = git.isAncestor(back.mergeCommit, git.main()); merged.mergedOnto = git.firstParent(back.mergeCommit); } catch { /* the merge stands; where it landed is reported as unknown */ }
-    merged.baseMoved = merged.mergedOnto !== null && merged.mergedOnto !== gate.originMain;
+    let onMain = null;
+    try { git.fetch(); onMain = git.isAncestor(back.mergeCommit, git.main()); } catch (error) { onMain = null; readError = error.message; }
+    merged = { ...landing({ gate: gateSummary(gate) }, back.mergeCommit, git.firstParent), onMain };
     state = "confirmed";
-    evidence = `PR #${pr} reads back merged as ${back.mergeCommit} at ${gate.head}${merged.onMain ? `; the merge commit is on origin/${TARGET}` : merged.onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : ""}${merged.baseMoved ? `; it landed on ${merged.mergedOnto}, not the admitted ${gate.originMain}, so CI never ran on that combination` : merged.mergedOnto === null ? "; where it landed could not be read" : ""}`;
+    evidence = `PR #${pr} reads back merged as ${back.mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : `; whether it is on origin/${TARGET} could not be read (${readError})`}${landingText(merged, gate.originMain)}`;
   } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
   else if (back.state === "OPEN" && !refused && back.head === gate.head) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} reads back open at ${back.head}; the request may still land, so reconcile-operations settles it`; }
   else { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
@@ -271,7 +271,7 @@ function slices(record, snapshot) {
   return snapshot.tickets.filter((t) => !t.container).map((t) => {
     const merged = t.prs.find((p) => p.state === "MERGED" && p.mergeCommit);
     const op = merged && (record.operations ?? []).find((o) => o.kind === "merge" && o.pr === merged.number && o.state === "confirmed");
-    return { number: t.number, title: t.title, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: Boolean(op?.baseMoved), mergedOnto: op?.mergedOnto ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
+    return { number: t.number, title: t.title, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
   });
 }
 
@@ -290,7 +290,7 @@ export function finalReport(record, snapshot, v) {
       : !s.gate ? `merged as \`${short(s.mergeCommit)}\` outside this run's merge gate (by the maintainer or before this run merged)`
       : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
-    const landed = s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, not the admitted \`${short(s.gate.originMain)}\`, so CI never ran on that combination` : "";
+    const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, not the admitted \`${short(s.gate.originMain)}\`, so CI never ran on that combination` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
     return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? `#${s.pr}` : ""} | ${(how + landed).replace(/\|/g, "/")} |`;
   });
   const accepted = acceptances(record, snapshot);
@@ -391,8 +391,21 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   if (client.issue(record.feature).state === "closed") throw new Error(`Feature #${record.feature} is already closed; nothing was recorded`);
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => intent(r, { kind: "close", ticket: r.feature, pr: r.feature, expectHead: v.mainSha, evidence: `verification ${v.id}` }));
   const op = planned.output;
+  const notRun = (reason) => { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); }); };
   try { afterIntent?.(); }
-  catch (error) { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${error.message}` }); }); throw error; }
+  catch (error) { notRun(error.message); throw error; }
+  // The verification is checked once more after the intent was saved: main,
+  // the Feature's criteria and the run's operations, read afresh.
+  let moved;
+  try {
+    git.fetch();
+    const mainNow = git.main();
+    moved = mainNow !== v.mainSha ? `origin/${TARGET} moved to ${mainNow}` : !verificationHolds(readRecord(file), { originMain: mainNow, feature: { criteria: parseCriteria(client.issue(record.feature).body) } }) ? "the Feature's criteria or the run's operations changed" : null;
+  } catch (error) { notRun(`the verification could not be checked again after the intent was saved: ${error.message}`); throw error; }
+  if (moved) {
+    notRun(`while the intent was saved, ${moved}; verify the Feature again`);
+    return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${moved}`, comment: null };
+  }
   let comment = null, problem = null, called = false, refused = false;
   try {
     const existing = client.comments(record.feature).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id)));

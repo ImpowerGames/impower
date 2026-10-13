@@ -85,6 +85,7 @@ try {
       const p = gh.pulls.get(pr);
       // Another PR's merge lands on main just before this one does.
       if (gh.mode === "main-moves") { gh.mode = "ok"; advanceMain("racing.txt", "a racing PR\n", "feat: a racing PR"); }
+      if (gh.mode === "main-moves-then-throw") { gh.mode = "merge-then-throw"; advanceMain("racing2.txt", "another racing PR\n", "feat: another racing PR"); }
       if (gh.mode === "refuse") return { ok: false, message: "GraphQL: Pull request is not mergeable: the base branch policy prohibits the merge" };
       if (gh.mode === "throw") throw new Error("connection reset before GitHub answered");
       if (gh.mode === "no-answer") return { ok: false, message: "unexpected EOF" };
@@ -97,7 +98,7 @@ try {
     issue: (n) => structuredClone(gh.issues.get(n)),
     createComment: (n, body) => { const c = post(n, body); return { id: c.id, body: c.body, url: c.html_url }; },
     getComment: (id) => { const c = allComments().find((x) => x.id === id); if (!c) throw new Error("HTTP 404"); return { id: c.id, body: c.body, url: c.html_url }; },
-    closeIssue: (n) => { if (gh.closeFail > 0) { gh.closeFail--; throw new Error(gh.closeError); } gh.issues.get(n).state = "closed"; },
+    closeIssue: (n) => { gh.closeCalls = (gh.closeCalls ?? 0) + 1; if (gh.closeFail > 0) { gh.closeFail--; throw new Error(gh.closeError); } gh.issues.get(n).state = "closed"; },
   };
   // The status comment store for checkpoints shares GitHub's comments.
   const statusGithub = {
@@ -435,9 +436,10 @@ try {
     assert.equal(gh.mergeCalls.length, calls, "no blind retry");
     assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow() })).map((s) => [s.id, s.state, s.retry]), [[unsure.operation, "not-applied", true]], "GitHub shows it did not apply, so the gate may run again");
   }
-  // The merge lands but the answer and the read-back are lost: uncertain,
-  // and no further merge until it is settled from GitHub.
-  gh.mode = "merge-then-throw";
+  // Another PR lands on main, this merge lands on top of it, and the answer
+  // and the read-back are lost: uncertain, and no further merge until it is
+  // settled from GitHub.
+  gh.mode = "main-moves-then-throw";
   const lost = merge(43);
   trace("merge-43-interrupted", lost);
   assert.deepEqual([lost.merged, lost.state], [false, "uncertain"]);
@@ -465,9 +467,15 @@ try {
   assert.equal(run.coordinatorMerges(run.readRecord(dstRecord)), true, "the new coordinator's own invocation grants the merge");
   const overUnsettled = ig.mergeAdmitted(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, ticket: 43, pr: 143, snapshot: snapshotNow(dst), client, git: gitOf(dst) });
   blocked(overUnsettled.gate, /is uncertain; settle it with checkpoint\.mjs reconcile-operations before any new merge/, "the destination does not merge over an unsettled operation");
-  const settled = change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst) }), dstRecord, "local_dst");
+  const settled = change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst), firstParent: (sha) => git(dst, "rev-parse", `${sha}^1`) }), dstRecord, "local_dst");
   trace("reconcile-43", settled);
   assert.deepEqual(settled.filter((s) => s.pr === 143).map((s) => s.state), ["confirmed"], "GitHub's merged state confirms the merge, with no second call");
+  assert.match(settled.find((s) => s.pr === 143).evidence, /it landed on [0-9a-f]{40}, not the admitted [0-9a-f]{40}, so CI never ran on that combination/, "the recovery keeps where the merge landed");
+  assert.equal(run.readRecord(dstRecord).operations.find((o) => o.id === lost.operation).baseMoved, true);
+  // Without the merge's first parent, the recovery says where it landed is unknown.
+  const unread = structuredClone(run.readRecord(dstRecord));
+  Object.assign(unread.operations.find((o) => o.id === lost.operation), { state: "uncertain" });
+  assert.match(cp.reconcileOperations(unread, { snapshot: snapshotNow(dst) }).find((s) => s.id === lost.operation).evidence, /where it landed could not be read/);
   assert.equal(gh.mergeCalls.length, callsBefore);
   assert.equal(actions(plan(run.readRecord(dstRecord), snapshotNow(dst)))[43], "done");
   // A PR merged at a head other than the one an operation expected was not
@@ -516,13 +524,13 @@ try {
   advanceMain("revert.txt", "a later change on main\n", "revert: a later change on main");
   assert.throws(() => close(done.id), /no longer holds: origin\/main is [0-9a-f]{40}, not the verified/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "main moved on");
-  const final = verify(doneEvidence);
+  let final = verify(doneEvidence);
   trace("final-report", final.report);
   assert.equal(final.verdict, "complete");
   assert.match(final.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 2 clean merges of main \|/);
   assert.match(final.report, /\| #42 \| delivered \| #142 \| .*; it landed on main `[0-9a-f]{9}`, not the admitted `[0-9a-f]{9}`, so CI never ran on that combination \|/, "a merge that landed on a main CI never checked is named");
   assert.match(final.report, new RegExp(`#42, PR #142: decision \`${decided.id}\` .* accepted \`${h42[3].slice(0, 9)}\\.\\.${correction.slice(0, 9)}\` \\(1 commit\\) unreviewed on head \`${correction.slice(0, 9)}\`; that head merged`));
-  assert.match(final.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\` \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover");
+  assert.match(final.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\`; it landed on main \`[0-9a-f]{9}\`, not the admitted \`[0-9a-f]{9}\`, so CI never ran on that combination \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover with where it landed");
   // A slice merged without this run's gate (by the maintainer) is reported
   // as such, never as reviewed or accepted by the gate.
   const withoutGate = { ...run.readRecord(dstRecord), operations: [] };
@@ -532,6 +540,13 @@ try {
   // close whose answer is lost may still land, so it is uncertain and holds
   // the next attempt until reconciled; GitHub's own refusal is a failure.
   assert.throws(() => close(final.id, { snapshot: { ...snapshotNow(dst), repository: "acme/other" } }), /another repository or Feature/);
+  // Main moves while the closure's intent is saved: the verification is
+  // checked again after the save, and nothing is posted or closed.
+  const closeCallsBefore = gh.closeCalls ?? 0, reportsBefore = gh.comments.get(FEATURE).length;
+  const racing = close(final.id, { afterIntent: () => { advanceMain("late.txt", "lands during the closure\n", "feat: a PR merged during the closure"); cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); } });
+  assert.deepEqual([racing.closed, racing.state, gh.closeCalls ?? 0, gh.comments.get(FEATURE).length, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, reportsBefore, "open"], racing.evidence);
+  assert.match(racing.evidence, /not run: origin\/main moved to [0-9a-f]{40}/);
+  final = verify(doneEvidence);
   gh.closeFail = 1;
   gh.closeError = "HTTP 502 while closing";
   const lostClose = close(final.id, { afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }) });

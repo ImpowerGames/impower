@@ -944,20 +944,31 @@ export function outcome(record, { id, state, evidence }) {
   record.log.push({ time: op.settled, event: "operation-outcome", id, state });
   return op;
 }
-export function reconcileOperations(record, { snapshot }) {
+// Where a confirmed merge landed: the merge commit's first parent, against
+// the main commit its gate admitted. A merge that landed elsewhere put code
+// on main that CI never ran; one whose first parent could not be read says
+// so, rather than passing for one that landed where it was admitted.
+export function landing(op, mergeCommit, firstParent) {
+  let mergedOnto = null;
+  try { mergedOnto = firstParent ? firstParent(mergeCommit) : null; } catch { mergedOnto = null; }
+  return { mergeCommit, mergedOnto, baseMoved: mergedOnto === null || !op.gate?.originMain ? null : mergedOnto !== op.gate.originMain };
+}
+export const landingText = (l, admitted) => (l.baseMoved ? `; it landed on ${l.mergedOnto}, not the admitted ${admitted}, so CI never ran on that combination` : l.baseMoved === null ? "; where it landed could not be read" : "");
+
+export function reconcileOperations(record, { snapshot, firstParent }) {
   const prs = new Map(snapshot.tickets.flatMap((t) => t.prs.map((p) => [p.number, p])));
   const results = [];
   for (const op of record.operations ?? []) {
     if (!["intent", "uncertain"].includes(op.state)) continue;
     const pr = prs.get(op.pr);
-    let state = "uncertain", retry = false, evidence = `PR #${op.pr} is not in the snapshot of ${snapshot.observedAt}`;
+    let state = "uncertain", retry = false, evidence = `PR #${op.pr} is not in the snapshot of ${snapshot.observedAt}`, landed = {};
     if (op.kind === "close") {
       const feature = snapshot.feature?.number === op.pr ? snapshot.feature : null;
       if (!feature) evidence = `Feature #${op.pr} is not the snapshot's Feature`;
       else if (feature.state === "closed") { state = "confirmed"; evidence = `Feature #${op.pr} is closed`; }
       else { state = "not-applied"; retry = true; evidence = `Feature #${op.pr} is still ${feature.state}`; }
     } else if (pr && op.kind === "merge") {
-      if (pr.state === "MERGED" && pr.head === op.expectHead) { state = "confirmed"; evidence = `PR #${op.pr} is merged as ${pr.mergeCommit} at ${pr.head}`; }
+      if (pr.state === "MERGED" && pr.head === op.expectHead) { state = "confirmed"; landed = landing(op, pr.mergeCommit, firstParent); evidence = `PR #${op.pr} is merged as ${pr.mergeCommit} at ${pr.head}${landingText(landed, op.gate?.originMain)}`; }
       else if (pr.state === "MERGED") { state = "superseded"; evidence = `PR #${op.pr} was merged as ${pr.mergeCommit} at ${pr.head}, not at ${op.expectHead}; this operation's expected-head merge did not apply`; }
       else if (pr.state === "OPEN" && pr.head === op.expectHead) { state = "not-applied"; retry = true; evidence = `PR #${op.pr} is still open at ${pr.head}`; }
       else if (pr.state === "OPEN") { state = "superseded"; evidence = `PR #${op.pr} moved to ${pr.head}; a decision for ${op.expectHead} does not apply to it`; }
@@ -967,7 +978,7 @@ export function reconcileOperations(record, { snapshot }) {
       else if (pr.state === "OPEN" && pr.isDraft && pr.head === op.expectHead) { state = "not-applied"; retry = true; evidence = `PR #${op.pr} is still a draft at ${pr.head}`; }
       else { state = "superseded"; evidence = `PR #${op.pr} is ${pr.state}${pr.isDraft ? " (draft)" : ""} at ${pr.head}`; }
     }
-    if (state !== "uncertain") Object.assign(op, { state, evidence, settled: new Date().toISOString(), retry });
+    if (state !== "uncertain") Object.assign(op, { state, evidence, settled: new Date().toISOString(), retry, ...landed });
     else op.lastCheck = { time: new Date().toISOString(), evidence };
     record.log.push({ time: new Date().toISOString(), event: "operation-reconciled", id: op.id, state });
     results.push({ id: op.id, kind: op.kind, pr: op.pr, state, retry, evidence });
@@ -1035,7 +1046,12 @@ export function main(argv, { github: injected } = {}) {
     case "retrieve": return retrieve({ repository: o.repo, feature: int(o.feature, "feature"), checkout: abs(o.checkout, "checkout"), remote: o.remote, ticket: int(o.ticket, "ticket"), worktree: o.worktree });
     case "intent": return mutate((r) => intent(r, { kind: o.kind, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), expectHead: o.expectHead, evidence: o.evidence }), `the intent to ${o.kind} PR #${o.pr}`);
     case "outcome": return mutate((r) => outcome(r, { id: o.id, state: o.state, evidence: o.evidence }), `the outcome of operation ${o.id}`);
-    case "reconcile-operations": return mutate((r) => reconcileOperations(r, { snapshot: readJson(abs(o.snapshot, "snapshot")) }), "operations reconciled with GitHub");
+    case "reconcile-operations": {
+      // A confirmed merge's first parent is read from the remote's main.
+      const { r } = fromRecord();
+      const firstParent = (sha) => { git(r.checkout, ["fetch", "-q", "origin", "main"]); return git(r.checkout, ["rev-parse", `${sha}^1`]); };
+      return mutate((rec) => reconcileOperations(rec, { snapshot: readJson(abs(o.snapshot, "snapshot")), firstParent }), "operations reconciled with GitHub");
+    }
     case "reference": return mutate((r) => reference(r, { pr: int(o.pr, "pr"), url: o.url, kind: o.kind }), `a reference to a ${o.kind} on PR #${o.pr}`);
     case "recover-lock": return { result: recoverLock(sidecarOf(abs(o.record, "record"))) };
     default: throw new Error("Usage: checkpoint.mjs enable|publish|sync-summary|discover|resume|prepare-handoff|retrieve|intent|outcome|reconcile-operations|reference|recover-lock --option value ...");
