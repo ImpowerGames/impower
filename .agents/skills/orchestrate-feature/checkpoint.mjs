@@ -131,10 +131,10 @@ const entryOf = (line) => { const tab = line.indexOf("\t"); const meta = line.sl
 
 // The trees of a worktree's index and of its files (tracked and non-ignored
 // untracked), computed in a copy of its index so neither the worktree nor its
-// real index changes. Every regular file that is staged, edited or new is
-// stored byte for byte, past Git's line-ending and filter conversions, so the
-// files tree holds exactly what is on disk, including an edit whose clean
-// conversion happens to equal HEAD.
+// real index changes. Every regular file that is staged, touched since it was
+// indexed, or new is stored byte for byte, past Git's line-ending and filter
+// conversions, so the files tree holds exactly what is on disk, including an
+// edit whose clean conversion happens to equal HEAD.
 function treesOf(worktree) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "checkpoint-index-"));
   const names = (args, env) => git(worktree, [...args, "--no-renames", "--name-only", "-z"], { env }).split("\0").filter(Boolean);
@@ -143,18 +143,18 @@ function treesOf(worktree) {
     if (fs.existsSync(real)) fs.copyFileSync(real, temp);
     const env = { GIT_INDEX_FILE: temp };
     const index = git(worktree, ["write-tree"], { env });
-    const touched = [...names(["diff-index", "--cached", "HEAD"], env), ...names(["diff"], env)];
+    // Candidates: staged paths, and every working file whose stat differs
+    // from its index entry. diff-files compares stat, not converted content,
+    // so an edit whose clean conversion equals HEAD is still listed.
+    const touched = [...names(["diff-index", "--cached", "HEAD"], env), ...names(["diff-files"], env)];
     git(worktree, ["add", "-A", "--", "."], { env });
     const changed = new Set([...touched, ...names(["diff-index", "--cached", "HEAD"], env)]);
-    for (const file of changed) {
-      // A pathspec also matches the files under a directory of that name, so
-      // only the entry for exactly this path counts.
-      const line = git(worktree, ["--literal-pathspecs", "ls-files", "-s", "-z", "--", file], { env }).split("\0").filter(Boolean).find((l) => entryOf(l).path === file);
-      if (!line) continue;
-      const { mode } = entryOf(line);
-      if (!REGULAR.has(mode)) continue;
-      const raw = git(worktree, ["hash-object", "-w", "--no-filters", "--", file]);
-      git(worktree, ["update-index", "--cacheinfo", `${mode},${raw},${file}`], { env });
+    const entries = new Map(git(worktree, ["ls-files", "-s", "-z"], { env }).split("\0").filter(Boolean).map((line) => { const e = entryOf(line); return [e.path, e]; }));
+    const files = [...changed].filter((file) => REGULAR.has(entries.get(file)?.mode));
+    if (files.length) {
+      const shas = git(worktree, ["hash-object", "-w", "--no-filters", "--stdin-paths"], { input: `${files.join("\n")}\n` }).split(/\r?\n/);
+      if (shas.length !== files.length) throw new Error(`hashing ${files.length} files in ${worktree} returned ${shas.length} objects`);
+      git(worktree, ["update-index", "-z", "--index-info"], { env, input: files.map((file, i) => `${entries.get(file).mode} ${shas[i]}\t${file}\0`).join("") });
     }
     return { index, files: git(worktree, ["write-tree"], { env }) };
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
@@ -242,47 +242,59 @@ export function reviewJobs(checkout, pr) {
 }
 
 // What exists of each ticket's work on this host: whether its head reached the
-// remote, whether files are unfinished, a stale handoff lock, and its PR's
-// review jobs. A destination reads this to know which bytes exist only here.
-export function inventoryWork(record, { host = os.hostname(), remote, snapshots = {}, prs = {} } = {}) {
+// remote, whether files are unfinished, a stale handoff lock, its PR's review
+// jobs and its saved snapshot. A destination reads this to know which bytes
+// exist only here. Work stays in the inventory whether or not a writer still
+// holds the ticket: a held ticket, a ticket with a snapshot, and a ticket whose
+// last entry showed unpushed or unfinished work are observed again while their
+// worktree exists. When it no longer does, the last observation is carried,
+// marked as such, rather than read as clean.
+export function inventoryWork(record, { host = os.hostname(), remote, snapshots = {}, prs = {}, previousWork = {} } = {}) {
   const work = {};
   let heads = null;
-  for (const [number, ticket] of Object.entries(record.tickets)) {
+  const now = new Date().toISOString();
+  const numbers = new Set([...Object.keys(record.tickets), ...Object.keys(snapshots), ...Object.keys(previousWork)]);
+  for (const number of [...numbers].sort((a, b) => a - b)) {
+    const ticket = record.tickets[number] ?? {};
     const held = ticket.owner ?? ticket.pending;
-    if (!held?.worktree) continue;
-    const onHost = (ticket.owner?.handle?.host ?? ticket.pending?.host ?? host) === host;
-    if (!onHost) continue;
-    const entry = { host, worktree: held.worktree, branch: held.branch, observedAt: new Date().toISOString() };
-    if (!fs.existsSync(held.worktree)) { work[number] = { ...entry, exists: false }; continue; }
-    try {
-      heads ??= remoteHeads(record.checkout, remote, "refs/heads/*");
-      entry.head = git(held.worktree, ["rev-parse", "HEAD"]);
-      const pushed = heads.get(held.branch) ?? null;
-      entry.remoteHead = pushed;
-      entry.unpushed = pushed === entry.head ? false : pushed && spawnOk(held.worktree, ["merge-base", "--is-ancestor", entry.head, pushed]) ? false : true;
-      entry.dirty = statusOf(held.worktree).length > 0;
-      const lock = path.join(git(held.worktree, ["rev-parse", "--path-format=absolute", "--git-dir"]), "agent-handoff.lock");
-      if (fs.existsSync(lock)) { let owner = null; try { owner = readJson(lock); } catch { /* reported as unreadable below */ } entry.handoffLock = owner ? { host: owner.host ?? null, pid: owner.processIdentity?.pid ?? owner.pid ?? null } : { unreadable: true }; }
-    } catch (error) { entry.error = error.message; }
-    const pr = prs[number] ?? ticket.owner?.adopted?.pr ?? ticket.owner?.continues?.pr ?? ticket.results?.at(-1)?.report?.pr ?? null;
+    const heldHere = Boolean(held?.worktree) && (ticket.owner?.handle?.host ?? ticket.pending?.host ?? host) === host;
+    const before = previousWork[number]?.host === host ? previousWork[number] : null;
+    const snap = snapshots[number] && !snapshots[number].clean ? snapshots[number] : null;
+    const pendingHere = Boolean(before) && [before.dirty, before.unpushed, before.lastObserved?.dirty, before.lastObserved?.unpushed].some(Boolean);
+    if (!heldHere && !snap && !pendingHere) continue;
+    const worktree = heldHere ? held.worktree : before?.worktree ?? null;
+    const entry = { host, worktree, branch: (heldHere ? held.branch : before?.branch) ?? snap?.branch ?? null, observedAt: now, ...(!heldHere && { heldBy: null }) };
+    if (worktree && fs.existsSync(worktree)) {
+      try {
+        heads ??= remoteHeads(record.checkout, remote, "refs/heads/*");
+        entry.head = git(worktree, ["rev-parse", "HEAD"]);
+        const pushed = heads.get(entry.branch) ?? null;
+        entry.remoteHead = pushed;
+        entry.unpushed = pushed === entry.head ? false : pushed && spawnOk(worktree, ["merge-base", "--is-ancestor", entry.head, pushed]) ? false : true;
+        entry.dirty = statusOf(worktree).length > 0;
+        const lock = path.join(git(worktree, ["rev-parse", "--path-format=absolute", "--git-dir"]), "agent-handoff.lock");
+        if (fs.existsSync(lock)) { let owner = null; try { owner = readJson(lock); } catch { /* reported as unreadable below */ } entry.handoffLock = owner ? { host: owner.host ?? null, pid: owner.processIdentity?.pid ?? owner.pid ?? null } : { unreadable: true }; }
+        if (snap) entry.snapshotCurrent = (() => { const t = treesOf(worktree); return t.files === snap.files && t.index === snap.index; })();
+      } catch (error) { entry.error = error.message; }
+    } else {
+      // Nothing can be observed: the last observation stands, with its time.
+      if (worktree) entry.exists = false;
+      const last = before ? (before.lastObserved ?? { at: before.observedAt, dirty: before.dirty, unpushed: before.unpushed, snapshotCurrent: before.snapshotCurrent }) : null;
+      if (last && [last.dirty, last.unpushed, last.snapshotCurrent].some((v) => v !== undefined)) entry.lastObserved = last;
+    }
+    const pr = prs[number] ?? ticket.owner?.adopted?.pr ?? ticket.owner?.continues?.pr ?? ticket.results?.at(-1)?.report?.pr ?? before?.pr ?? null;
     if (Number.isSafeInteger(pr)) { entry.pr = pr; entry.reviewJobs = reviewJobs(record.checkout, pr); }
     // A saved snapshot stays the ticket's retrievable work until a later one
-    // replaces it; whether the files have changed since is observed afresh.
-    const snap = snapshots[number];
-    if (snap && !snap.clean) {
-      entry.snapshot = snap;
-      try { const now = treesOf(held.worktree); entry.snapshotCurrent = now.files === snap.files && now.index === snap.index; } catch (error) { entry.snapshotCurrent = null; entry.error ??= error.message; }
-    }
+    // replaces it.
+    if (snap) entry.snapshot = snap;
     work[number] = entry;
-  }
-  // A snapshot outlives its writer: after a release, or once nothing holds
-  // the ticket, the latest checkpoint still names it for retrieval.
-  for (const [number, snap] of Object.entries(snapshots)) {
-    if (work[number] || !snap || snap.clean) continue;
-    work[number] = { host, branch: snap.branch, snapshot: snap, observedAt: new Date().toISOString(), heldBy: null };
   }
   return work;
 }
+
+// A work entry's state as last known: observed now when its worktree exists,
+// otherwise as last observed; undefined when never observed.
+export const workState = (w) => ({ dirty: w?.dirty ?? w?.lastObserved?.dirty, unpushed: w?.unpushed ?? w?.lastObserved?.unpushed, snapshotCurrent: w?.snapshotCurrent ?? w?.lastObserved?.snapshotCurrent, at: w?.dirty !== undefined ? w.observedAt : w?.lastObserved?.at });
 // A path below a file is absent too; POSIX reports it as ENOTDIR.
 const statOrNull = (file) => { try { return fs.lstatSync(file); } catch (error) { if (error.code === "ENOENT" || error.code === "ENOTDIR") return null; throw error; } };
 const spawnOk = (cwd, args) => { try { git(cwd, args); return true; } catch { return false; } };
@@ -340,11 +352,13 @@ const ownerText = (t) => {
   if (t.pending) return `pending ${t.pending.operation} on ${t.pending.route} (claimed on ${t.pending.host})`;
   return "none";
 };
+// A flag nobody observed is said to be unknown, never clean or pushed.
 const workText = (w) => {
   if (!w) return "";
-  if (w.exists === false) return "worktree missing";
-  const parts = [w.unpushed ? "unpushed commits" : "head pushed", w.dirty ? "unfinished files" : "clean"];
-  if (w.snapshot && !w.snapshot.clean) parts.push(`snapshot ${short(w.snapshot.commit)}`);
+  const s = workState(w);
+  const flag = (value, yes, no, unknown) => (value === undefined ? unknown : value ? yes : no);
+  const parts = [...(w.exists === false ? ["worktree missing"] : []), ...(w.dirty === undefined && s.at ? [`as of ${s.at}`] : []), flag(s.unpushed, "unpushed commits", "head pushed", "push state unknown"), flag(s.dirty, "unfinished files", "clean", "file state unknown")];
+  if (w.snapshot && !w.snapshot.clean) parts.push(`snapshot ${short(w.snapshot.commit)}${s.snapshotCurrent === false ? " (files changed since)" : ""}`);
   if (w.handoffLock) parts.push("handoff lock present");
   return parts.join(", ");
 };
@@ -415,8 +429,9 @@ function takeoverBrief(c, commit) {
     const w = c.work?.[n];
     const notes = [];
     if (t.owner || t.pending) notes.push(ownerText(t));
-    if (w?.snapshot && !w.snapshot.clean) notes.push(`unfinished work is in snapshot ${w.snapshot.commit}; retrieve it with checkpoint.mjs retrieve --ticket ${n}${w.snapshotCurrent === false ? `; the files changed after it, and those later edits exist only on ${w.host} in ${w.worktree}` : ""}`);
-    else if (w?.unpushed || w?.dirty) notes.push(`as of ${w.observedAt}, ${[w.unpushed && "commits", w.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}; recover those bytes there before restarting or overwriting this work`);
+    const s = workState(w);
+    if (w?.snapshot && !w.snapshot.clean) notes.push(`unfinished work is in snapshot ${w.snapshot.commit}; retrieve it with checkpoint.mjs retrieve --ticket ${n}${s.snapshotCurrent === false ? `; as of ${s.at}, the files had changed after it, and those later edits exist only on ${w.host} in ${w.worktree}` : ""}`);
+    else if (s.unpushed || s.dirty) notes.push(`as of ${s.at}, ${[s.unpushed && "commits", s.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}${w.exists === false ? " (that worktree has since gone from its path)" : ""}; recover those bytes there before restarting or overwriting this work`);
     if (w?.handoffLock) notes.push(`a handoff lock (host ${w.handoffLock.host ?? "unknown"}) remains in ${w.worktree}; on ${w.host}, node scripts/agent-handoff.mjs recover-lock ${w.worktree} removes it once its coordinator and child are confirmed gone`);
     for (const j of w?.reviewJobs ?? []) {
       const done = j.round ? `round ${j.round} reviewed ${short(j.reviewedHead)}, completed ${JSON.stringify(j.completedRoundReviewers)} of planned ${JSON.stringify(j.plannedRoundReviewers)}` : "no completed review";
@@ -490,7 +505,7 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
     if (onlyIfChanged && head && head.checkpoint.run.runId === record.runId && head.checkpoint.run.recordRevision === record.revision && sameObservation(observed, head.checkpoint.observed)) return { saved: true, unchanged: true, seq: head.checkpoint.seq, commit: head.commit };
     const seq = (head?.checkpoint.seq ?? 0) + 1;
     const fresh = Object.fromEntries(Object.entries(snapshots).filter(([, s]) => s && !s.clean));
-    const work = inventoryWork(record, { host, remote, snapshots: { ...(record.snapshots ?? {}), ...fresh }, prs: Object.fromEntries((plan?.tickets ?? []).filter((t) => t.pr).map((t) => [t.number, t.pr])) });
+    const work = inventoryWork(record, { host, remote, snapshots: { ...(record.snapshots ?? {}), ...fresh }, previousWork: head?.checkpoint.work ?? {}, prs: Object.fromEntries((plan?.tickets ?? []).filter((t) => t.pr).map((t) => [t.number, t.pr])) });
     // Every snapshot the checkpoint names must travel with it: one not yet in
     // the previous checkpoint's history (its first publication may have
     // failed) becomes a parent of this one, after the previous checkpoint.
@@ -593,17 +608,21 @@ export function discover({ repository, feature, checkout, remote = DEFAULT_REMOT
 // Limitations a destination must act on before anything replaces the work.
 export function limitations(checkpoint, { host = os.hostname(), observations = {} } = {}) {
   const out = [];
-  for (const [n, t] of Object.entries(checkpoint.tickets)) {
+  const numbers = new Set([...Object.keys(checkpoint.tickets), ...Object.keys(checkpoint.work ?? {})]);
+  for (const n of [...numbers].sort((a, b) => a - b)) {
+    const t = checkpoint.tickets[n] ?? {};
     if (t.owner) {
       const s = ownerStatus(t.owner, observations, { host });
       if (s.status !== "exited") out.push({ ticket: Number(n), kind: "owner", status: s.status, detail: s.reason });
     }
     if (t.pending) out.push({ ticket: Number(n), kind: "pending", detail: `${t.pending.operation} ${t.pending.launchId} on ${t.pending.route} was claimed on ${t.pending.host} with no recorded outcome; settle it from that host before any retry` });
     const w = checkpoint.work?.[n];
+    const s = workState(w);
+    const gone = w?.exists === false ? " (that worktree has since gone from its path)" : "";
     const snapped = Boolean(w?.snapshot && !w.snapshot.clean);
-    if (w && (w.unpushed || w.dirty) && !snapped) out.push({ ticket: Number(n), kind: "unpublished", detail: `as of ${w.observedAt}, ${[w.unpushed && "unpushed commits", w.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}; they are not recoverable from the checkpoint` });
+    if (w && (s.unpushed || s.dirty) && !snapped) out.push({ ticket: Number(n), kind: "unpublished", detail: `as of ${s.at}, ${[s.unpushed && "unpushed commits", s.dirty && "unfinished files"].filter(Boolean).join(" and ")} existed only on ${w.host} in ${w.worktree}${gone}; they are not recoverable from the checkpoint` });
     if (snapped) out.push({ ticket: Number(n), kind: "snapshot", detail: `unfinished work as of ${w.snapshot.time ?? "the handoff"} is retrievable from snapshot ${w.snapshot.commit} (work in progress, not reviewed)` });
-    if (snapped && w.snapshotCurrent === false) out.push({ ticket: Number(n), kind: "unpublished", detail: `as of ${w.observedAt}, the files in ${w.worktree} on ${w.host} had changed since snapshot ${w.snapshot.commit}; only the snapshot's bytes are recoverable from the checkpoint, so recover the later edits there` });
+    if (snapped && s.snapshotCurrent === false) out.push({ ticket: Number(n), kind: "unpublished", detail: `as of ${s.at}, the files in ${w.worktree} on ${w.host} had changed since snapshot ${w.snapshot.commit}${gone}; only the snapshot's bytes are recoverable from the checkpoint, so recover the later edits there` });
     if (w?.handoffLock) out.push({ ticket: Number(n), kind: "handoff-lock", detail: `a handoff lock remains in ${w.worktree} on ${w.host}; only scripts/agent-handoff.mjs recover-lock on that host may remove it` });
   }
   for (const o of checkpoint.operations ?? []) if (!["confirmed", "not-applied", "superseded", "failed"].includes(o.state)) out.push({ ticket: o.ticket, kind: "operation", detail: `${o.kind} of PR #${o.pr} at ${o.expectHead} is ${o.state}; reconcile-operations settles it from GitHub before any retry` });

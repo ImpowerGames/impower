@@ -513,6 +513,50 @@ try {
   const dst4 = clone("dst4");
   assert.equal(cp.retrieve({ repository: "acme/widgets", feature: 730, checkout: dst4, ticket: 731, worktree: path.join(tmp, "dst4-wt-731") }).verified, true);
 
+  // An unstaged edit whose conversion equals HEAD keeps its bytes; a snapshot
+  // stays retrievable beside a worktree that has gone; and edits made after a
+  // snapshot are still reported once their writer is released.
+  const rec780 = init(780, "local_src78");
+  cp.enable(rec780, { coordinator: "local_src78", expectRevision: 1, github, host: SRC });
+  const snap780 = { repository: "acme/widgets", feature: { number: 780, state: "open" }, originMain: "x", tickets: [ticket(781, { parent: 780 }), ticket(782, { parent: 780 }), ticket(783, { parent: 780 })] };
+  const wt781 = startWriter(rec780, "local_src78", snap780, 781, "unstaged");
+  fs.writeFileSync(path.join(wt781, ".gitattributes"), "clean.txt text eol=lf\n");
+  fs.writeFileSync(path.join(wt781, "clean.txt"), "base\n");
+  git(wt781, "add", "-A");
+  git(wt781, "commit", "-q", "-m", "clean");
+  fs.writeFileSync(path.join(wt781, "clean.txt"), "base\r\n");
+  fs.writeFileSync(path.join(wt781, "draft.txt"), "draft\n");
+  assert.equal(git(wt781, "diff", "--name-only", "--", "clean.txt"), "", "a converted diff does not see the edit");
+  const wt782 = startWriter(rec780, "local_src78", snap780, 782, "moved");
+  fs.writeFileSync(path.join(wt782, "draft.txt"), "moved draft\n");
+  const wt783 = startWriter(rec780, "local_src78", snap780, 783, "edited");
+  fs.writeFileSync(path.join(wt783, "draft.txt"), "first\n");
+  cp.prepareHandoff(rec780, { coordinator: "local_src78", expectRevision: rev(rec780), step: "stop", github, host: SRC });
+  const h780 = cp.prepareHandoff(rec780, { coordinator: "local_src78", expectRevision: rev(rec780), step: "publish", observations: { sessions: { local_w781: { state: "running" }, local_w782: { state: "running" }, local_w783: { state: "running" } } }, github, host: SRC });
+  assert.ok(h780.snapshots[781].paths.includes("clean.txt"), "the unstaged edit is in the snapshot");
+  const moved782 = `${wt782}-moved`;
+  fs.renameSync(wt782, moved782);
+  fs.appendFileSync(path.join(wt783, "draft.txt"), "second\n");
+  assert.equal(cp.autoCheckpoint(rec780, { coordinator: "local_src78", transition: "after the handoff", github, host: SRC }).saved, true);
+  mutate(rec780, "local_src78", (r) => run.release(r, { ticket: 783, observations: { sessions: { local_w783: { state: "archived" } } }, host: SRC, evidence: "its session was archived" }));
+  fs.renameSync(wt783, `${wt783}-gone`);
+  assert.equal(cp.autoCheckpoint(rec780, { coordinator: "local_src78", transition: "the release", github, host: SRC }).saved, true);
+  const latest780 = cp.fetchState(dst4, "origin", "acme/widgets", 780).checkpoint;
+  assert.deepEqual([latest780.work[782].exists, latest780.work[782].snapshot?.commit], [false, h780.snapshots[782].commit], "the snapshot is named beside its missing worktree");
+  const lim780 = cp.limitations(latest780, { host: DST });
+  assert.ok(lim780.some((l) => l.ticket === 783 && l.kind === "unpublished" && /changed since snapshot/.test(l.detail)), "the edits after the snapshot are still reported after the release");
+  assert.ok(lim780.some((l) => l.ticket === 783 && l.kind === "snapshot"));
+  const row783 = github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec780), "utf8")).summary.commentId).body.split("\n").find((line) => line.startsWith("| #783 "));
+  assert.match(row783, /worktree missing, as of [^,]+, unpushed commits, unfinished files, snapshot [0-9a-f]+ \(files changed since\)/, "the summary carries the last observation, never a clean state");
+  // A worktree never observed renders as unknown, not as clean and pushed.
+  const unseen = structuredClone(latest780);
+  unseen.work[782] = { host: SRC, worktree: moved782, branch: "feat/782-moved", exists: false, observedAt: "now", snapshot: unseen.work[782].snapshot };
+  assert.match(cp.renderSummary({ commit: "0".repeat(40), checkpoint: unseen }, "acme/widgets").split("\n").find((line) => line.startsWith("| #782 ")), /worktree missing, push state unknown, file state unknown, snapshot/);
+  const got781 = cp.retrieve({ repository: "acme/widgets", feature: 780, checkout: dst4, ticket: 781, worktree: path.join(tmp, "dst4-wt-781") });
+  assert.equal(fs.readFileSync(path.join(got781.worktree, "clean.txt")).toString("hex"), Buffer.from("base\r\n").toString("hex"), "the unstaged bytes arrive");
+  assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 780, checkout: dst4, ticket: 782, worktree: path.join(tmp, "dst4-wt-782") }).worktree, "draft.txt"), "utf8"), "moved draft\n");
+  fs.renameSync(moved782, wt782);
+
   // A run whose first checkpoint never saved hands off while offline; the
   // first saved checkpoint then carries the snapshot with no previous one,
   // and a fresh destination still reads it.
