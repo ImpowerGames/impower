@@ -118,17 +118,21 @@ export function roundState(journals) {
   const rounds = new Map();
   const declares = (e) => e.plannedRoundReviewers ?? e.plannedReviewers;
   for (const e of [...launches.map((l) => ({ ...l, launch: true })), ...completions].sort(byTime)) {
-    const r = rounds.get(e.round) ?? { planned: declares(e) ?? null, plannedCount: e.plannedCount, done: new Set(), counted: 0, complete: false, changed: [] };
+    const r = rounds.get(e.round) ?? { planned: declares(e) ?? null, plannedCount: e.plannedCount, done: new Set(), counted: 0, seen: 0, complete: false, changed: [] };
     rounds.set(e.round, r);
     if (declares(e) && r.planned && declares(e).join("\n") !== r.planned.join("\n")) r.changed.push({ file: e.file, declared: declares(e) });
     if (e.launch) continue;
     if (e.reviewerId) r.done.add(e.reviewerId);
+    // A count-form round's carried count says how many reviewers completed,
+    // but only the completions here carry their reports, so the round is
+    // complete only once that many are here.
     r.counted = Math.max(r.counted, e.completedRoundReviews ?? 0);
-    r.complete = r.planned ? r.planned.every((id) => r.done.has(id)) : r.counted >= r.plannedCount;
+    r.seen++;
+    r.complete = r.planned ? r.planned.every((id) => r.done.has(id)) : Math.min(r.counted, r.seen) >= r.plannedCount;
     e.complete = r.complete;
   }
   for (const [n, r] of [...rounds.entries()].sort((a, b) => a[0] - b[0])) {
-    if (!r.complete) blockers.push(r.planned ? `round ${n} still plans ${r.planned.filter((id) => !r.done.has(id)).join(", ")}` : `round ${n} has ${r.counted} of its ${r.plannedCount} planned reviewers' completions`);
+    if (!r.complete) blockers.push(r.planned ? `round ${n} still plans ${r.planned.filter((id) => !r.done.has(id)).join(", ")}` : `round ${n} has ${Math.min(r.counted, r.seen)} of its ${r.plannedCount} planned reviewers' completions here${r.counted > r.seen ? ` (its journals count ${r.counted}; the others' journals are elsewhere)` : ""}`);
   }
   const completedRound = Math.max(0, ...completions.map((c) => c.round));
   const startedRound = Math.max(0, ...launches.map((l) => l.round));
@@ -187,7 +191,12 @@ export function restore(comments, { trusted = [], record = null } = {}) {
         : record && d.coordinator === record.coordinator.session ? `the run record never published decision ${d.id}, which names its own coordinator`
         : !trusted.includes(d.coordinator) ? `coordinator ${d.coordinator} is not one this restoration trusts`
         : null;
-      decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, ...(untrusted && { untrusted }) });
+      // A decision that withdrew an earlier one keeps withdrawing it when it
+      // can no longer be trusted itself: an edited comment of a trusted
+      // coordinator, or a decision the record holds in any state, still
+      // supersedes what came before it.
+      const supersedes = !untrusted || Boolean(mine) || (edited && trusted.includes(d.coordinator));
+      decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, supersedes, ...(untrusted && { untrusted }) });
     }
   }
   return decisions;
@@ -204,15 +213,16 @@ export function audit(state, decisions) {
   const trusted = decisions.filter((d) => d.trusted);
   const extensions = trusted.filter((d) => d.kind === "extend");
   // The decision in force when a round after the third first launched is the
-  // latest trusted one posted before that launch; it must be an extension
-  // decided after the round before, so a later question, repair or stop
-  // withdraws an earlier extension.
+  // latest superseding one posted before that launch; it must be a trusted
+  // extension decided after the round before, so a later question, repair or
+  // stop withdraws an earlier extension, even once that later comment is
+  // edited.
   for (let r = FIRST_CHECKPOINT_ROUND + 1; r <= state.startedRound; r++) {
     const first = state.launches.find((l) => l.round === r);
     if (!first) continue;
     if (r > MAX_REVIEW_ROUNDS) { violations.push(`round ${r} exceeds the ${MAX_REVIEW_ROUNDS}-round ceiling`); continue; }
-    const inForce = trusted.filter((d) => Date.parse(d.postedAt ?? d.time) <= Date.parse(first.time)).at(-1);
-    if (!inForce || inForce.kind !== "extend" || inForce.round !== r - 1 || inForce.limit < r) violations.push(`round ${r} launched at ${first.time} with no published extension, decided at the checkpoint after round ${r - 1}, that covers it${inForce && inForce.kind !== "extend" ? `; the decision in force then was ${inForce.id} (${inForce.kind} after round ${inForce.round})` : ""}`);
+    const inForce = decisions.filter((d) => d.supersedes && Date.parse(d.postedAt ?? d.time) <= Date.parse(first.time)).at(-1);
+    if (!inForce || !inForce.trusted || inForce.kind !== "extend" || inForce.round !== r - 1 || inForce.limit < r) violations.push(`round ${r} launched at ${first.time} with no published extension, decided at the checkpoint after round ${r - 1}, that covers it${inForce && (inForce.kind !== "extend" || !inForce.trusted) ? `; the decision in force then was ${inForce.id} (${inForce.kind} after round ${inForce.round}${inForce.trusted ? "" : `, untrusted: ${inForce.untrusted}`})` : ""}`);
   }
   for (const c of state.changedPlans ?? []) violations.push(`${c.file} declares round ${c.round}'s planned reviewers as ${c.declared.join(", ")}, but the round was planned with ${c.planned.join(", ")}; a round's planned reviewers never change`);
   const events = [...state.completions.map((c) => ({ ...c, kind: "completed" })), ...state.launches.map((l) => ({ ...l, kind: "launching" }))].sort(byTime);
@@ -238,13 +248,12 @@ export function audit(state, decisions) {
 }
 
 // The latest trusted acceptance applies only when a run record verified it,
-// only to the head it names, and only while no later trusted decision
-// replaced it.
+// only to the head it names, and only while no later superseding decision
+// replaced it, trusted or not.
 export function acceptanceApplies(decisions, head) {
-  const trusted = decisions.filter((d) => d.trusted);
-  const at = trusted.findLastIndex((d) => d.kind === "accept-unreviewed");
+  const at = decisions.findLastIndex((d) => d.trusted && d.kind === "accept-unreviewed");
   if (at < 0) return { applies: false, reason: "the PR records no trusted acceptance of unreviewed corrections" };
-  const d = trusted[at], later = trusted.slice(at + 1);
+  const d = decisions[at], later = decisions.slice(at + 1).filter((x) => x.supersedes);
   if (later.length) return { applies: false, decision: d, reason: `decision ${later.at(-1).id} (${later.at(-1).kind}) after round ${later.at(-1).round} replaced acceptance ${d.id}` };
   if (!d.verified) return { applies: false, decision: d, reason: `acceptance ${d.id} is restored from the PR but not verified by a run record that published it; restore that record, or decide and publish again after reading the PR` };
   if (d.head !== head) return { applies: false, decision: d, reason: `acceptance ${d.id} applies to ${d.head}, but the PR's head is ${head}; a new push needs a new checkpoint` };
@@ -319,7 +328,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   if (!KINDS.includes(kind)) throw new Error(`--kind must be one of ${KINDS.join(", ")}`);
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
-  if (ticket.owner?.handle?.id && ticket.owner.handle.id === record.coordinator.session) throw new Error(`#${number}'s writer is ${record.coordinator.session}, the coordinator itself; a writer never decides its own review checkpoint`);
+  if (writersOf(ticket).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
   if (e.completedRound < FIRST_CHECKPOINT_ROUND) throw new Error(`No formal checkpoint before round ${FIRST_CHECKPOINT_ROUND}: round ${e.completedRound} is the last complete round, and the writer's ordinary review continues`);
   if (kind !== "maintainer" && !e.due) throw new Error(`No checkpoint is due on PR #${e.pr}: ${[...e.blockers, ...e.audit].join("; ")}`);
   const earlier = ticket.checkpoints ?? [];
@@ -432,12 +441,15 @@ export function abandon(record, { ticket: number, id, evidence }) {
 // acceptance apply, and the successor decides and publishes its own after
 // reading the PR. Neither this coordinator's own session nor any session
 // that wrote for the ticket is ever a trusted predecessor.
+// Every session that wrote for a ticket: its owner, its released or ended
+// writers, and a pending start.
+const writersOf = (ticket) => [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].map((o) => o?.handle?.id).filter(Boolean);
+
 export function trustPredecessor(record, { ticket: number, session, source }) {
   if (!present(session) || !present(source)) throw new Error("--session must name the predecessor coordinator, and --source where the Feature names it (its status comment)");
   const ticket = (record.tickets[number] ??= { owner: null, pending: null, history: [], results: [] });
   if (session === record.coordinator.session) throw new Error(`${session} is this coordinator; its own decisions are verified by its record`);
-  const writers = [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].map((o) => o?.handle?.id).filter(Boolean);
-  if (writers.includes(session)) throw new Error(`${session} wrote for #${number}; a writer never decides its own review checkpoint`);
+  if (writersOf(ticket).includes(session)) throw new Error(`${session} wrote for #${number}; a writer never decides its own review checkpoint`);
   if ((ticket.trustedPredecessors ?? []).some((p) => p.session === session)) throw new Error(`${session} is already a trusted predecessor for #${number}`);
   ticket.trustedPredecessors = [...(ticket.trustedPredecessors ?? []), { session, source, time: new Date().toISOString() }];
   record.log.push({ time: new Date().toISOString(), event: "checkpoint-predecessor", ticket: number, session, source });
@@ -481,7 +493,9 @@ export function localGit(checkout, { fetch = defaultFetch(checkout), base = () =
       const commits = [], parts = [];
       for (const c of log("--first-parent", `${from}..${to}`)) {
         const merge = c.parents.length > 1;
-        const baseMerge = merge && c.parents.slice(1).every((p) => isAncestor(p, baseSha));
+        // Git gives no remerge diff for a merge of more than two parents, so
+        // only a two-parent merge of the base is shown that way.
+        const baseMerge = c.parents.length === 2 && isAncestor(c.parents[1], baseSha);
         commits.push({ sha: c.sha, subject: c.subject, ...(merge && { merge: baseMerge ? "base" : "other" }) });
         if (merge && !baseMerge) {
           for (const m of log(`${c.parents[0]}..${c.sha}`, "--not", baseSha).filter((m) => m.sha !== c.sha)) commits.push({ sha: m.sha, subject: m.subject, via: c.sha });

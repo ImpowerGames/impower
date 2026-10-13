@@ -253,6 +253,13 @@ try {
   const selfRecord = structuredClone(record());
   selfRecord.tickets[42].owner.handle.id = "local_coord";
   assert.throws(() => rc.decide(selfRecord, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /a writer never decides its own review checkpoint/);
+  // A released writer that later coordinates the Feature is still the
+  // ticket's writer.
+  const formerWriter = structuredClone(record());
+  formerWriter.tickets[42].history.push({ owner: formerWriter.tickets[42].owner, released: "session archived" });
+  formerWriter.tickets[42].owner = null;
+  formerWriter.coordinator.session = "local_writer";
+  assert.throws(() => rc.decide(formerWriter, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /local_writer wrote for #42, and is now its coordinator/);
   assert.deepEqual(e.range.commits.map((x) => x.sha), [c.round5, c.final]);
   // Posted but not yet read back, the acceptance applies nowhere: not with
   // the record, and not with that record carried over by a takeover.
@@ -293,6 +300,14 @@ try {
   const replaced = rc.acceptanceApplies([...restored, laterQuestion], c.final);
   assert.equal(replaced.applies, false);
   assert.match(replaced.reason, /later001 \(maintainer\) .* replaced acceptance/);
+  // A later withdrawal still withdraws once its comment is edited, though
+  // the edit makes it untrusted.
+  const withdrawal = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((x) => x.id === accepted.id))), id: "withdr01", kind: "maintainer" };
+  for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete withdrawal[key];
+  const editedWithdrawal = { id: 9030, created_at: at(), updated_at: at(), body: `typo fixed\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(withdrawal)}\n-->` };
+  const afterEdit = rc.restore([...comments, editedWithdrawal], { trusted: ["local_coord"], record: record() });
+  assert.deepEqual([afterEdit.at(-1).trusted, afterEdit.at(-1).supersedes], [false, true]);
+  assert.match(rc.acceptanceApplies(afterEdit, c.final).reason, /withdr01 \(maintainer\) .* replaced acceptance/);
 
   // A block that copies the coordinator's name is not its decision: with the
   // record it is untrusted, and from GitHub alone it is at most unverified,
@@ -361,13 +376,17 @@ try {
   // lower the count.
   assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "finish", assessment: acceptance, evidence: { ...ceiling, completedRound: 4 } }), /was made after round 5, but the journals now show round 4; a count never goes back/);
 
-  // A count-form round is complete when its latest completion counts the
-  // reviewers its step declared.
-  const countForm = (reviews) => rc.roundState([{ file: "j", plan: { steps: { a: { role: "review", round: 3, reviewers: 2 } } }, rows: [
+  // A count-form round is complete when the completions here number the
+  // reviewers its step declared; a carried count alone does not stand in for
+  // a reviewer whose journal, and so whose report, is elsewhere.
+  const countJournal = (file, reviews, comment) => ({ file, plan: { steps: { a: { role: "review", round: 3, reviewers: 2 } } }, rows: [
     { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3 }, { time: at(), event: "running", index: 0 }, { time: at(), event: "exited", index: 0 },
-    { time: at(), event: "completed", index: 0, completedRound: 3, reviewedHead: c.round2, commentIds: [1], completedRoundReviews: reviews }, { time: at(), event: "finished" }] }]);
-  assert.ok(countForm(1).blockers.some((b) => /round 3 has 1 of its 2 planned reviewers/.test(b)));
-  assert.deepEqual(countForm(2).blockers, []);
+    { time: at(), event: "completed", index: 0, completedRound: 3, reviewedHead: c.round2, commentIds: [comment], completedRoundReviews: reviews }, { time: at(), event: "finished" }] });
+  assert.ok(rc.roundState([countJournal("j", 1, 1)]).blockers.some((b) => /round 3 has 1 of its 2 planned reviewers/.test(b)));
+  const carried = rc.roundState([countJournal("j2", 2, 2)]);
+  assert.ok(carried.blockers.some((b) => /round 3 has 1 of its 2 planned reviewers' completions here \(its journals count 2; the others' journals are elsewhere\)/.test(b)), carried.blockers.join("; "));
+  const bothHere = rc.roundState([countJournal("j1", 1, 1), countJournal("j2", 2, 2)]);
+  assert.deepEqual([bothHere.blockers, bothHere.reports.map((r) => r.comment)], [[], [1, 2]]);
 
   // A report the coordinator posted for a reviewer is named by the journal's
   // report-posted row, and counts like any other report.
@@ -403,9 +422,10 @@ try {
   // A later decision withdraws an earlier extension: a round launched after
   // it is unauthorized.
   const withdrawn = { startedRound: 4, launches: [{ file: "j4", round: 4, time: "2026-10-12T12:00:00.000Z", reviewerId: "u" }], completions: [], plans: [], changedPlans: [] };
-  const ext = { id: "e1", kind: "extend", round: 3, limit: 4, trusted: true, postedAt: "2026-10-12T10:00:00.000Z" };
+  const ext = { id: "e1", kind: "extend", round: 3, limit: 4, trusted: true, supersedes: true, postedAt: "2026-10-12T10:00:00.000Z" };
   assert.deepEqual(rc.audit(withdrawn, [ext]), []);
-  assert.ok(rc.audit(withdrawn, [ext, { id: "m1", kind: "maintainer", round: 3, trusted: true, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was m1 \(maintainer after round 3\)/.test(v)));
+  assert.ok(rc.audit(withdrawn, [ext, { id: "m1", kind: "maintainer", round: 3, trusted: true, supersedes: true, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was m1 \(maintainer after round 3\)/.test(v)));
+  assert.ok(rc.audit(withdrawn, [ext, { id: "m2", kind: "maintainer", round: 3, trusted: false, supersedes: true, untrusted: "comment 1 was edited", postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /the decision in force then was m2 \(maintainer after round 3, untrusted: comment 1 was edited\)/.test(v)), "an edited withdrawal still withdraws an extension");
 
   // A takeover keeps every decision, and the new coordinator trusts its
   // predecessor's; the round count and limits come back unchanged.
@@ -490,6 +510,24 @@ try {
   assert.deepEqual(merged.commits.map((x) => [x.sha, x.merge ?? null, x.via ?? null]), [[baseMerge, "base", null], [topicMerge, "other", null], [topic, null, topicMerge]]);
   assert.ok(merged.diff.includes("+topic change"), "a merged topic's change is in the inspected diff");
   assert.ok(!merged.diff.includes("+upstream change"), "a clean base merge shows only its remerge diff");
+  // Git gives no remerge diff for a merge of three or more parents, so an
+  // octopus merge of base branches is shown in full, correction included.
+  gitc("checkout", "-q", "-b", "side-x", c.initial);
+  commit("x side", "x.txt");
+  gitc("checkout", "-q", "-b", "side-y", c.initial);
+  commit("y side", "y.txt");
+  gitc("checkout", "-q", "side-x");
+  gitc("merge", "-q", "--no-ff", "-m", "base of both sides", "side-y");
+  const bothSides = git(checkout, "rev-parse", "HEAD");
+  gitc("checkout", "-q", "main");
+  gitc("merge", "-q", "--no-ff", "--no-commit", "side-x~1", "side-y");
+  fs.appendFileSync(path.join(checkout, "change.txt"), "unreviewed surprise\n");
+  gitc("add", "change.txt");
+  gitc("commit", "-q", "-m", "octopus with a correction");
+  const octopus = git(checkout, "rev-parse", "HEAD");
+  const octo = rc.localGit(checkout, { fetch: () => {}, base: () => bothSides }).range(topicMerge, octopus);
+  assert.deepEqual(octo.commits.map((x) => [x.sha, x.merge ?? null]), [[octopus, "other"]]);
+  assert.ok(octo.diff.includes("+unreviewed surprise"), "an octopus merge's correction is in the inspected diff");
 
   // Ordinary review keeps its rules: no extension without recorded user
   // authorization, no automatic review of corrections after the cap, and the
