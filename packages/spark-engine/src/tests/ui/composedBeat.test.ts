@@ -148,7 +148,7 @@ describe("a composed display (#1820)", () => {
     const [beat, ...more] = beats(h.messages);
     expect(more).toEqual([]);
     expect(typeof beat.time).toBe("number");
-    const byTarget = Object.fromEntries(beat.text.map((e: any) => [e.target, e]));
+    const byTarget: any = Object.fromEntries(beat.text.map((e: any) => [e.target, e]));
     expect(byTarget.dialogue.replace).toBe(true);
     expect(byTarget.dialogue.writes).toHaveLength(1);
     expect(byTarget.character_name.replace).toBe(true);
