@@ -45,19 +45,38 @@ const byTime = (a, b) => Date.parse(a.time) - Date.parse(b.time);
 
 // --- Round state from the launcher's journals -------------------------------
 
-// Every launch journal of the PR's review jobs, with the plan beside it.
+// Every launch journal of the PR's review jobs, whatever its name or place
+// in the job directory (the launcher accepts any journal and plan path
+// inside it), each with the plan that names it as its journal. A journal is
+// a file whose first row is the launcher's coordinator row; a plan is a JSON
+// file naming its journal and steps. A journal no plan names keeps a null
+// plan, and its count-form rounds stay unknown. Git directories and
+// installs under reviewer directories are skipped.
+const SKIP = new Set([".git", "node_modules"]);
+function firstLine(file) {
+  const fd = fs.openSync(file, "r");
+  try { const buffer = Buffer.alloc(4096); const n = fs.readSync(fd, buffer, 0, buffer.length, 0); return buffer.subarray(0, n).toString("utf8").split("\n")[0]; }
+  finally { fs.closeSync(fd); }
+}
 export function readJournals(jobDir) {
   if (!fs.existsSync(jobDir)) return [];
-  const journals = [];
-  for (const round of fs.readdirSync(jobDir).filter((d) => /^round-\d+$/.test(d)).sort()) {
-    for (const launch of fs.readdirSync(path.join(jobDir, round), { withFileTypes: true }).filter((d) => d.isDirectory())) {
-      const file = path.join(jobDir, round, launch.name, "journal.jsonl");
-      if (!fs.existsSync(file)) continue;
-      const planFile = path.join(path.dirname(file), "plan.json");
-      journals.push({ file, rows: readJournalRows(file), plan: fs.existsSync(planFile) ? readJson(planFile) : null });
+  const journalFiles = [], plans = new Map();
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const file = path.join(dir, entry.name);
+      if (entry.isDirectory()) { if (!SKIP.has(entry.name)) walk(file); continue; }
+      if (!entry.isFile() || fs.statSync(file).size === 0) continue;
+      let head;
+      try { head = JSON.parse(firstLine(file)); } catch { head = null; }
+      if (head?.event === "coordinator") { journalFiles.push(file); continue; }
+      if (!file.endsWith(".json") || fs.statSync(file).size > 4 * 2 ** 20) continue;
+      let plan;
+      try { plan = readJson(file); } catch { continue; }
+      if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.set(path.resolve(plan.journal), plan);
     }
-  }
-  return journals;
+  };
+  walk(jobDir);
+  return journalFiles.sort().map((file) => ({ file, rows: readJournalRows(file), plan: plans.get(path.resolve(file)) ?? null }));
 }
 
 // The review state the journals record, read through the launcher's own
@@ -85,7 +104,8 @@ export function roundState(journals) {
     l.exitedAt = exited?.time ?? null;
   }
   for (const r of accounting.rounds) {
-    if (!r.complete) blockers.push(r.planned ? `round ${r.round} still plans ${r.pending.join(", ")}` : `round ${r.round} has ${r.completedCount} of its ${r.plannedCount} planned reviewers' completions here${r.counted > r.seen ? ` (its journals count ${r.counted}; the others' journals are elsewhere)` : ""}`);
+    if (r.unknownPlans?.length) blockers.push(`round ${r.round}'s planned reviewer count is unknown: no launcher plan here names ${r.unknownPlans.join(", ")} as its journal`);
+    else if (!r.complete) blockers.push(r.planned ? `round ${r.round} still plans ${r.pending.join(", ")}` : `round ${r.round} has ${r.completedCount} of its ${r.plannedCount} planned reviewers' completions here${r.counted > r.seen ? ` (its journals count ${r.counted}; the others' journals are elsewhere)` : ""}`);
   }
   const current = accounting.rounds.find((r) => r.round === accounting.completedRound);
   return {
@@ -148,19 +168,26 @@ export function restore(comments, { trusted = [], record = null, pr = null } = {
         : record && d.coordinator === record.coordinator.session ? `the run record never published decision ${d.id}, which names its own coordinator`
         : !trusted.includes(d.coordinator) ? `coordinator ${d.coordinator} is not one this restoration trusts`
         : null;
-      // A decision that withdrew an earlier one keeps withdrawing it when it
-      // can no longer be trusted itself: an edited comment of a trusted
-      // coordinator, or a decision the record holds in any state, still
-      // supersedes what came before it.
-      const supersedes = !untrusted || Boolean(mine) || (edited && trusted.includes(d.coordinator));
+      // A decision withdraws what came before it while it is trusted. With a
+      // record, an untrusted one still does only at the comment the record
+      // published it as (its block since edited); a block elsewhere that
+      // copies a recorded id gains nothing from the copy. Without a record,
+      // an edited comment of a trusted coordinator still withdraws.
+      const supersedes = !untrusted || (record ? Boolean(mine && mine.state === "published" && mine.published?.comment === c.id) : edited && trusted.includes(d.coordinator));
       decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, supersedes, ...(untrusted && { untrusted }) });
     }
   }
-  // A decision the record published supersedes from its recorded comment
-  // whatever that comment now holds: a damaged, removed or deleted block
-  // cannot revive what the decision withdrew.
+  // The record's own decisions for this PR withdraw from their record
+  // identity, whatever the comments now hold: a published one from its
+  // recorded comment when that comment's block is damaged, removed or the
+  // comment deleted, and one recorded but not yet read back from the time it
+  // was decided.
   for (const h of held?.values() ?? []) {
-    if (h.state !== "published" || (pr !== null && h.pr !== pr)) continue;
+    if ((h.state !== "published" && h.state !== "intent") || (pr !== null && h.pr !== pr)) continue;
+    if (h.state === "intent") {
+      decisions.push({ id: h.id, kind: h.kind, round: h.round, head: h.head, coordinator: h.coordinator, comment: null, postedAt: h.time, trusted: false, verified: false, supersedes: true, untrusted: `decision ${h.id} is recorded but not read back as published` });
+      continue;
+    }
     if (decisions.some((d) => d.id === h.id && d.comment === h.published.comment)) continue;
     const at = comments.find((c) => c.id === h.published.comment);
     decisions.push({ id: h.id, kind: h.kind, round: h.round, head: h.head, coordinator: h.coordinator, comment: h.published.comment, postedAt: at?.created_at ?? h.published.time, trusted: false, verified: false, supersedes: true, untrusted: `comment ${h.published.comment} ${at ? "no longer carries" : "is gone, with"} published decision ${h.id}` });

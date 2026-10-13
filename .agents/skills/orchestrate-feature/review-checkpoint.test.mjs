@@ -74,7 +74,7 @@ try {
       ...(finished ? [{ time: at(), event: "finished" }] : []),
     ];
     fs.writeFileSync(path.join(dir, "journal.jsonl"), rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
-    fs.writeFileSync(path.join(dir, "plan.json"), JSON.stringify({ pr: 500, steps: { [reviewerId]: { role: "review", round, reviewers: planned, reviewerId } }, ...plan }));
+    fs.writeFileSync(path.join(dir, "plan.json"), JSON.stringify({ pr: 500, journal: path.join(dir, "journal.jsonl"), steps: { [reviewerId]: { role: "review", round, reviewers: planned, reviewerId } }, ...plan }));
     return { dir, report };
   };
   const adjudicate = (report, text = "accepted and fixed") => comment(`### Adjudication of review ${report.id}\n\n${text}`);
@@ -300,20 +300,35 @@ try {
   const replaced = rc.acceptanceApplies([...restored, laterQuestion], c.final);
   assert.equal(replaced.applies, false);
   assert.match(replaced.reason, /later001 \(maintainer\) .* replaced acceptance/);
-  // A later withdrawal still withdraws once its comment is edited, though
-  // the edit makes it untrusted.
+  // Without a record, a later withdrawal of a trusted coordinator still
+  // withdraws once its comment is edited, though the edit makes it
+  // untrusted. With a record, a block the record never published withdraws
+  // nothing: the record's own withdrawals are kept by their record identity
+  // below.
   const withdrawal = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((x) => x.id === accepted.id))), id: "withdr01", kind: "maintainer" };
   for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete withdrawal[key];
   const editedWithdrawal = { id: 9030, created_at: at(), updated_at: at(), body: `typo fixed\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(withdrawal)}\n-->` };
+  const afterEditAlone = rc.restore([...comments, editedWithdrawal], { trusted: ["local_coord"] });
+  assert.deepEqual([afterEditAlone.at(-1).trusted, afterEditAlone.at(-1).supersedes], [false, true]);
+  assert.match(rc.acceptanceApplies(afterEditAlone, c.final).reason, /withdr01 \(maintainer\) .* replaced acceptance/);
   const afterEdit = rc.restore([...comments, editedWithdrawal], { trusted: ["local_coord"], record: record() });
-  assert.deepEqual([afterEdit.at(-1).trusted, afterEdit.at(-1).supersedes], [false, true]);
-  assert.match(rc.acceptanceApplies(afterEdit, c.final).reason, /withdr01 \(maintainer\) .* replaced acceptance/);
+  assert.deepEqual([afterEdit.at(-1).trusted, afterEdit.at(-1).supersedes], [false, false]);
+  assert.equal(rc.acceptanceApplies(afterEdit, c.final).applies, true, "with a record, an unrecorded block withdraws nothing");
+  // A block elsewhere that copies a recorded decision's id gains no
+  // withdrawal authority from the copy.
+  const copiedId = { ...withdrawal, id: accepted.id, kind: "maintainer" };
+  const copyComment = { id: 9031, created_at: at(), updated_at: undefined, body: `writer\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(copiedId)}\n-->` };
+  copyComment.updated_at = copyComment.created_at;
+  const withCopy = rc.restore([...comments, copyComment], { trusted: ["local_coord"], record: record(), pr: 500 });
+  assert.deepEqual([withCopy.find((d) => d.comment === 9031).trusted, withCopy.find((d) => d.comment === 9031).supersedes], [false, false]);
+  assert.equal(rc.acceptanceApplies(withCopy, c.final).applies, true, "a copied decision id does not withdraw the acceptance");
   // A withdrawal the record published keeps withdrawing from its recorded
   // comment when that comment's block is later damaged or removed, or the
   // comment is deleted.
   const keptWithdrawals = [];
   const withdrawRecord = structuredClone(record());
   const w = rc.decide(withdrawRecord, { ticket: 42, kind: "maintainer", assessment: assess({ question: "Hold the acceptance while the maintainer looks?" }), evidence: evidence() });
+  assert.match(rc.acceptanceApplies(rc.restore(comments, { trusted: ["local_coord"], record: withdrawRecord, pr: 500 }), c.final).reason, new RegExp(`${w.id} \\(maintainer\\) .* replaced acceptance`), "a withdrawal recorded but not yet read back already withdraws, by its record identity");
   const wTime = at();
   const wComment = { id: 9040, created_at: wTime, updated_at: wTime, body: w.body };
   rc.published(withdrawRecord, { ticket: 42, id: w.id, comment: 9040, readBack: w.body, head: pull.head });
@@ -417,6 +432,28 @@ try {
     { time: at(), event: "completed", index: 0, completedRound: 3, reviewedHead: c.round2, commentIds: [comment], completedRoundReviews: reviews }, { time: at(), event: "finished" }] });
   const expanded = rc.roundState([declaring("k1", 1, 1, 11), declaring("k2", 2, 2, 12)]);
   assert.ok(rc.audit(expanded, []).some((v) => /k2 declares round 3's planned reviewers as 2 unnamed, but the round was planned with 1 unnamed/.test(v)), rc.audit(expanded, []).join("; "));
+
+  // Journals and plans are found by what they hold, under any name the
+  // launcher accepted: a count-form plan named review-plan.json still holds
+  // its round to two reviewers, a live journal named review-log.jsonl still
+  // holds the checkpoint, and a count-form journal no plan names leaves its
+  // round's count unknown.
+  const altJobs = path.join(tmp, "alt-jobs", "pr-7", "round-3");
+  fs.mkdirSync(path.join(altJobs, "state"), { recursive: true });
+  const altJournal = path.join(altJobs, "state", "review-log.jsonl");
+  const altRows = [{ time: at(), event: "coordinator", pid: 1 }, { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3 }, { time: at(), event: "running", index: 0, head: c.round2 }, { time: at(), event: "exited", index: 0 },
+    { time: at(), event: "completed", index: 0, completedRound: 3, reviewedHead: c.round2, commentIds: [51], completedRoundReviews: 1 }, { time: at(), event: "finished" }];
+  fs.writeFileSync(altJournal, altRows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  fs.writeFileSync(path.join(altJobs, "review-plan.json"), JSON.stringify({ pr: 7, journal: altJournal, steps: { a: { role: "review", round: 3, reviewers: 2 } } }));
+  const live = path.join(altJobs, "retry.log");
+  fs.writeFileSync(live, [{ time: at(), event: "coordinator", pid: 3 }, { time: at(), event: "launching", index: 0, step: "a", role: "review", round: 3 }, { time: at(), event: "reserved", index: 0 }, { time: at(), event: "running", index: 0, head: c.round2 }].map((r) => JSON.stringify(r)).join("\n") + "\n");
+  const found = rc.readJournals(path.join(tmp, "alt-jobs", "pr-7"));
+  assert.deepEqual(found.map((j) => [path.basename(j.file), Boolean(j.plan)]).sort(), [["retry.log", false], ["review-log.jsonl", true]]);
+  const altState = rc.roundState(found);
+  assert.ok(altState.blockers.some((b) => /retry\.log: the launcher has not finished/.test(b)), altState.blockers.join("; "));
+  assert.ok(altState.blockers.some((b) => /round 3's planned reviewer count is unknown: no launcher plan here names .*retry\.log/.test(b)), altState.blockers.join("; "));
+  fs.rmSync(live);
+  assert.ok(rc.roundState(rc.readJournals(path.join(tmp, "alt-jobs", "pr-7"))).blockers.some((b) => /round 3 has 1 of its 2 planned reviewers' completions here/.test(b)), "a plan under another name still holds its round to its declared count");
 
   // A launch with a delegated execution service has ended only once that
   // service drained.
@@ -650,6 +687,130 @@ try {
   assert.deepEqual(octo.commits.map((x) => [x.sha, x.merge ?? null]), [[octopus, "other"]]);
   assert.ok(octo.diff.includes("+unreviewed surprise"), "an octopus merge's correction is in the inspected diff");
 
+  // Two recorded workflow scenarios from this Feature's own run, with the
+  // evidence the coordinator had at each checkpoint. In both, one mechanism
+  // kept producing findings, and the recorded choice is a root-cause repair
+  // or a simplification, then one bounded round, rather than another round
+  // reviewing instances or an acceptance. The check records the decisions;
+  // the traces carry the reasoning to be judged.
+  const scenario = (number, pr) => {
+    const rec = structuredClone(record());
+    rec.tickets[number] = { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "high", worktree: path.join(tmp, `wt-${number}`), branch: `feat/${number}-thing`, handle: { kind: "session", id: `local_writer_${number}`, host: os.hostname() }, verified: true }, pending: null, history: [], results: [] };
+    const dir = path.join(`${checkout}.review-jobs`, `pr-${pr}`);
+    const posts = [];
+    const post = (body) => { const time = at(); const posted = { id: nextId++, created_at: time, updated_at: time, body }; posts.push(posted); return posted; };
+    const head = { value: c.round3 };
+    const scClient = { pull: () => ({ state: "OPEN", head: head.value, branch: `feat/${number}-thing`, checks: [{ name: "test-suite", state: "SUCCESS" }] }), comments: () => structuredClone(posts) };
+    const findings = [];
+    const round = (n, reviewedHead, counts, plan = {}) => {
+      post(`### Review round ${n} state\n\nplanned: corrections, undirected`);
+      const planned = ["corrections", "undirected"];
+      planned.forEach((id, i) => {
+        const launchDir = path.join(dir, `round-${n}`, `launch-${id}-1`);
+        fs.mkdirSync(launchDir, { recursive: true });
+        const report = post(`### Adversarial review — ${id}\n\nRound ${n} on ${reviewedHead}: ${counts[i]} findings.`);
+        const completed = Object.fromEntries(planned.slice(0, i + 1).map((p) => [p, 1]));
+        const rows = [{ time: at(), event: "coordinator", pid: 1 }, { time: at(), event: "launching", index: 0, step: id, role: "review", round: n, reviewerId: id, attempt: 1, plannedReviewers: planned },
+          { time: at(), event: "reserved", index: 0 }, { time: at(), event: "running", index: 0, head: reviewedHead }, { time: at(), event: "exited", index: 0, code: 0 },
+          { time: at(), event: "completed", index: 0, reviewerId: id, attempt: 1, head: reviewedHead, commentIds: [report.id], completedRound: n, reviewedHead, completedRoundReviews: i + 1, completedRoundReviewers: completed, plannedRoundReviewers: planned, pendingReviewers: planned.slice(i + 1) }, { time: at(), event: "finished" }];
+        fs.writeFileSync(path.join(launchDir, "journal.jsonl"), rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+        fs.writeFileSync(path.join(launchDir, "plan.json"), JSON.stringify({ pr, journal: path.join(launchDir, "journal.jsonl"), steps: { [id]: { role: "review", round: n, reviewers: planned, reviewerId: id } }, ...plan }));
+        post(`### Adjudication of comment ${report.id}\n\nall ${counts[i]} accepted and fixed`);
+        for (let k = 0; k < counts[i]; k++) findings.push({ comment: report.id, finding: `round ${n} ${id} finding ${k + 1}`, disposition: "accepted" });
+        if (!counts[i]) findings.push({ comment: report.id, disposition: "none" });
+      });
+    };
+    const decideHere = (name, kind, assessment) => {
+      const out = rc.decide(rec, { ticket: number, kind, assessment: { agreedBehavior: "preserved", architecture: "unchanged", findings: [...findings], ...assessment }, evidence: rc.gatherEvidence({ record: rec, ticket: number, pr, client: scClient, git: repo }) });
+      const posted = post(out.body);
+      rc.published(rec, { ticket: number, id: out.id, comment: posted.id, readBack: out.body, head: head.value });
+      trace(name, out.body);
+      return out;
+    };
+    return { rec, round, decideHere, head, evidence: () => rc.gatherEvidence({ record: rec, ticket: number, pr, client: scClient, git: repo }) };
+  };
+
+  // PR #1819's own shape, at round 3. Rounds 1 to 3 found 10, 10 and 5
+  // blocking defects. About eight came from re-deriving the launcher's round
+  // accounting from its journals, and round 3 still found three of them.
+  const shared = scenario(44, 601);
+  shared.round(1, c.initial, [5, 5]);
+  shared.round(2, c.round1, [6, 4]);
+  shared.round(3, c.round2, [2, 3]);
+  assert.equal(shared.evidence().due, true);
+  shared.decideHere("pr-1819-shape-round-3-root-cause-repair", "repair", {
+    mechanisms: "Of 25 blocking findings in rounds 1 to 3, about 15 were in deciding which PR-published decisions count when writers and coordinators post under one account, and about 8 in re-deriving the launcher's round accounting from its journals: planned reviewer sets, count-form rounds, missing journals, coordinator-posted reports, reserved launches and execution drain. The journal class produced findings in every round (3, 3, 2), each fixed where it was reported.",
+    regressions: "Round 1's import command introduced four of round 2's findings; round 2's supersession fix left a damaged-block instance found in round 3. Round 3's journal findings were not regressions but further instances of the same class.",
+    repairOptions: "Export the launcher's own reader (launch evidence and round accounting) from scripts/agent-handoff.mjs, make lock recovery and the checkpoint both read through it, and delete the checkpoint's reimplementation. One implementation ends the class; it widens the PR into scripts/ without changing the launcher's behavior or the Feature's.",
+    residualRisk: "The repair touches the launcher; a behavior change there would affect every review. Three rules from round 3's corrections are still unreviewed.",
+    coverage: "Every existing launcher test stays green, and a new regression shows the checkpoint and the launcher agree on planned, completed, retried and reserved reviewers for the same journals.",
+    nextRoundValue: "Another round on the current code would most likely find the next journal-reading instance, as round 3 found three, without showing convergence; a round after the repair can establish whether the shared reader holds.",
+    rationale: "Reviewing more instances of a class still producing defects is not converging; a single shared reader removes the class, so the repair comes before the next round.",
+    next: "The writer implements the shared reader and its agreement regression, verifies, and reports; then round 4 reviews the repair and the unreviewed rules.",
+    scope: "scripts/agent-handoff.mjs gains the exported reader; review-checkpoint.mjs consumes it and deletes its own; lock recovery reads its launch facts through it unchanged.",
+    verificationChange: "All launcher tests, plus an agreement regression between the checkpoint and the launcher on the same journal sets.",
+  });
+  shared.head.value = c.repair;
+  shared.decideHere("pr-1819-shape-round-3-extend-after-repair", "extend", {
+    mechanisms: "The repair gave the checkpoint and the launcher one journal reader; the class that produced about eight findings has one implementation.",
+    regressions: "Every launcher test passes on the repair; the agreement regression is red on the reimplementation's known divergences and green on the shared reader.",
+    repairOptions: "None further: the trust class was already reduced in round 2 by never verifying from GitHub alone.",
+    residualRisk: "The repair and round 3's three rules are unreviewed.",
+    coverage: "Launcher tests, the agreement regression, the checkpoint's own check and its mutation sweep.",
+    nextRoundValue: "One round can establish that the shared reader preserves the launcher's behavior and gives the checkpoint the same view.",
+    rationale: "A broad repair in shared tooling deserves one independent round; the defect class itself no longer has a second implementation.",
+    next: "Round 4 with a corrections reviewer on the repair and the undirected reviewer last; the count continues at 4.",
+    limit: 4, limitReason: "One round reviews the repair and the unreviewed rules; a further round needs its own checkpoint.",
+  });
+  assert.deepEqual(shared.rec.tickets[44].checkpoints.map((d) => [d.kind, d.round, d.state]), [["repair", 3, "published"], ["extend", 3, "published"]]);
+
+  // PR #1818's shape, at round 4. Rounds 1 to 4 found 15, 7, 5 and 8
+  // findings, nearly all in one coverage inference (whether handed-off work
+  // is fully pushed), whose failure mode is false assurance.
+  const inferred = scenario(45, 602);
+  inferred.round(1, c.initial, [9, 6]);
+  inferred.round(2, c.round1, [4, 3]);
+  inferred.round(3, c.round2, [3, 2]);
+  inferred.head.value = c.round3;
+  inferred.decideHere("pr-1818-shape-round-3-extend", "extend", {
+    mechanisms: "Findings fell from 15 to 7 to 5; most sit in the inference that decides whether a source machine's work is all pushed before a handoff.",
+    regressions: "None of round 3's findings was introduced by round 2's corrections.",
+    repairOptions: "A simpler design that drops the inference was considered; with the count still falling, one more round on the corrections looked worth more first.",
+    residualRisk: "The inference may still claim a recovery it cannot prove.",
+    coverage: "Scratch-remote checks for stale updates, interrupted summaries and pending outcomes.",
+    nextRoundValue: "Whether the falling count reaches the inference's remaining cases.",
+    rationale: "Converging counts justify one bounded round before a redesign.",
+    next: "Round 4 with corrections and undirected reviewers.",
+    limit: 4, limitReason: "One round to see whether the inference converges.",
+  });
+  inferred.round(4, c.round3, [5, 3], { reviewRoundLimit: 4, extendedReviewAuthorization: invocation });
+  inferred.head.value = c.repair;
+  assert.deepEqual(inferred.evidence().audit, [], "round 4 ran under the extension decided after round 3");
+  inferred.decideHere("pr-1818-shape-round-4-simplification", "repair", {
+    mechanisms: "Across four rounds the findings went 15, 7, 5 and 8, and nearly all sit in one coverage inference: deciding that every unfinished change on a source machine is pushed and retrievable. The count rose again in round 4, so the inference is not converging.",
+    regressions: "Round 4's findings include cases introduced by round 3's corrections to the same inference, each narrowing it further.",
+    repairOptions: "Remove the inference instead of narrowing it again: report every dirty or unpushed location as possibly holding work only there. This is simpler, matches the Feature's design, which prefers an honest limitation to a recovery claim, and keeps the agreed behavior (a handoff never claims to have recovered what it cannot prove).",
+    residualRisk: "A handoff may list locations that hold nothing unique; that costs the receiving coordinator a check, not lost work.",
+    coverage: "The scratch-remote checks change to assert the reported limitation for each dirty or unpushed location.",
+    nextRoundValue: "Another round on the inference would find its next case, as each of the last three did; acceptance would ship a mechanism whose failure mode is false assurance.",
+    rationale: "When one mechanism keeps producing findings and failing it means claiming a recovery that did not happen, a simplification that removes the claim is the root-cause repair.",
+    next: "The writer removes the inference, reports the limitation, updates the checks and reports; then one round at limit 5 reviews the simplification.",
+    scope: "The coverage inference in the handoff inventory and its checks.",
+    verificationChange: "Checks assert that every dirty or unpushed location is reported as possibly holding work only there.",
+  });
+  inferred.decideHere("pr-1818-shape-round-4-extend-after-simplification", "extend", {
+    mechanisms: "The simplification removed the inference that produced nearly all findings; the inventory now reports every dirty or unpushed location.",
+    regressions: "The simplification deletes code rather than adding cases; the checks pass on it.",
+    repairOptions: "None further.",
+    residualRisk: "The simplification is unreviewed.",
+    coverage: "Updated scratch-remote checks.",
+    nextRoundValue: "One round can establish that the reported limitation is complete and that nothing still claims recovery.",
+    rationale: "A behavior-changing simplification gets one independent round; the count continues at 5.",
+    next: "Round 5 with corrections and undirected reviewers.",
+    limit: 5, limitReason: "One round reviews the simplification.",
+  });
+  assert.deepEqual(inferred.rec.tickets[45].checkpoints.map((d) => [d.kind, d.round, d.limit ?? null]), [["extend", 3, 4], ["repair", 4, null], ["extend", 4, 5]]);
+
   // Ordinary review keeps its rules: no extension without recorded user
   // authorization, no automatic review of corrections after the cap, and the
   // brief still gives the writer the default three-round cap.
@@ -657,7 +818,7 @@ try {
   assert.throws(() => checkReviewRound(4, 3, false), /1..3/);
   assert.throws(() => checkReviewRound(3, 3, true), /require explicit user direction/);
   assert.match(fs.readFileSync(new URL("./feature-run.mjs", import.meta.url), "utf8"), /default three-round cap/);
-  assert.equal(traces.length, 5);
+  assert.equal(traces.length, 10);
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

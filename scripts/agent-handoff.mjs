@@ -148,7 +148,7 @@ export function reviewAccounting(journals) {
     for (const row of rows) {
       if (row.event === "launching" && row.role === "review") {
         const declared = plan?.steps && Object.hasOwn(plan.steps, row.step) ? plan.steps[row.step]?.reviewers : undefined;
-        const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount: Array.isArray(declared) ? declared.length : Number.isSafeInteger(declared) ? declared : 1, evidence: launchEvidence(rows, row.index), terminal: TERMINAL_ROWS.has(last) };
+        const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount: !plan ? null : Array.isArray(declared) ? declared.length : Number.isSafeInteger(declared) ? declared : 1, evidence: launchEvidence(rows, row.index), terminal: TERMINAL_ROWS.has(last) };
         launch.head = launch.evidence.running?.head ?? null;
         launchOf.set(row.index, launch);
         launches.push(launch);
@@ -165,12 +165,16 @@ export function reviewAccounting(journals) {
   launches.sort(byTime);
   completions.sort(byTime);
   const declares = (e) => e.plannedRoundReviewers ?? e.plannedReviewers;
-  const planOf = (e) => (declares(e) ? declares(e).join(", ") : `${e.plannedCount} unnamed`);
+  // A count-form launch whose plan is not here has an unknown count, which
+  // neither fixes nor changes the round's plan, and leaves it incomplete.
+  const planOf = (e) => (declares(e) ? declares(e).join(", ") : e.plannedCount === null ? null : `${e.plannedCount} unnamed`);
   const rounds = new Map();
   for (const e of [...launches.map((l) => ({ ...l, launch: true })), ...completions].sort(byTime)) {
     const r = rounds.get(e.round) ?? { round: e.round, planned: declares(e) ?? null, plannedCount: e.plannedCount, plan: planOf(e), completedReviewers: {}, counted: 0, seen: 0, complete: false, changed: [] };
     rounds.set(e.round, r);
-    if (planOf(e) !== r.plan) r.changed.push({ file: e.file, declared: planOf(e) });
+    if (r.plan === null && planOf(e) !== null) { r.plan = planOf(e); r.plannedCount = e.plannedCount; }
+    else if (planOf(e) !== null && planOf(e) !== r.plan) r.changed.push({ file: e.file, declared: planOf(e) });
+    if (e.plannedCount === null && !declares(e)) r.unknownPlans = [...new Set([...(r.unknownPlans ?? []), e.file])];
     if (e.launch) continue;
     // A reviewer id may name an inherited property (constructor, toString),
     // so the completed attempt is read as an own property only, as
@@ -178,7 +182,7 @@ export function reviewAccounting(journals) {
     if (e.reviewerId) r.completedReviewers[e.reviewerId] = Math.max(Object.hasOwn(r.completedReviewers, e.reviewerId) ? r.completedReviewers[e.reviewerId] : 0, e.attempt);
     r.counted = Math.max(r.counted, e.completedRoundReviews ?? 0);
     r.seen++;
-    r.complete = r.planned ? r.planned.every((id) => Object.hasOwn(r.completedReviewers, id)) : Math.min(r.counted, r.seen) >= r.plannedCount;
+    r.complete = r.planned ? r.planned.every((id) => Object.hasOwn(r.completedReviewers, id)) : r.plannedCount !== null && Math.min(r.counted, r.seen) >= r.plannedCount;
     e.complete = r.complete;
   }
   for (const r of rounds.values()) {
