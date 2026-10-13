@@ -1905,7 +1905,8 @@ export class ProgramStoryState {
    * for it binds (an empty `...` for a variadic flow's). Every binding the
    * restart replaces, each saved parameter's and any the frame held under a
    * new parameter's name, is replaced as a declaration in the same scope
-   * replaces it (`CallStack.SetTemporaryVariable`): a captured cell closes on
+   * replaces it (`CallStack.Element.RetireBindings`, which
+   * `CallStack.SetTemporaryVariable` shares): a captured cell closes on
    * its value, and a parameter the flow no longer has is unbound.
    */
   protected rebindParameters(
@@ -1931,21 +1932,7 @@ export class ProgramStoryState {
       [...saved, ...params.map((param) => param.name)].filter((name) => scope.has(name)),
     );
     if (unbound.size > 0) {
-      const stillOpen: VariablePointerValue[] = [];
-      for (const cell of element.openUpvalues) {
-        if (
-          !cell.isClosed &&
-          unbound.has(cell.variableName) &&
-          element.ScopeIndexOf(cell) === 0
-        ) {
-          this.callStack.cellBarrier?.(cell);
-          cell.closedValue = scope.get(cell.variableName) ?? null;
-          continue;
-        }
-        if (!cell.isClosed) stillOpen.push(cell);
-      }
-      element.openUpvalues = stillOpen;
-      element.ReleaseBorrowedUpvalues(0, (name) => unbound.has(name));
+      element.RetireBindings(0, (name) => unbound.has(name), this.callStack.cellBarrier);
       for (const name of unbound) {
         scope.delete(name);
       }

@@ -762,6 +762,94 @@ describe("a save inside a scene entered by a divert", () => {
     expect(play(loaded)).toEqual(["First 10 30.", "Second 10 30."]);
   });
 
+  // #1744: a restart replaces a scene's parameter bindings as entering the
+  // scene again does, so a closure over a parameter keeps the value its cell
+  // closed on either way while the parameter moves on.
+  it("closes a closure's captured parameter on a restart as entering the scene again closes it", () => {
+    // `extra` is the argument the release that adds `b` passes for it.
+    const REENTER = (params: string, extra: string) =>
+      [
+        "store keep = nil",
+        "",
+        `-> s(10${extra})`,
+        "",
+        `scene s(${params})`,
+        "  & keep = keep or function() return a end",
+        "  & a = a + 5",
+        "  First {a} {keep()}.",
+        "  Second {a} {keep()}.",
+        `  -> s(20${extra})`,
+        "end",
+        "",
+      ].join("\n");
+    // The scene enters itself again without end, so take a bounded count,
+    // and every error it raised.
+    const beats = (story: ProgramStory, count: number) => {
+      const seen: string[] = [];
+      const errors: string[] = [];
+      story.onError = (message: string) => errors.push(message);
+      while (story.canContinue && seen.length < count) {
+        story.Continue();
+        if (shown(story)) seen.push(shown(story));
+      }
+      return { seen, errors };
+    };
+    // Entering again: the new `a` replaces the one the cell captured, which
+    // closes on 15.
+    expect(beats(engine(rootOf(REENTER("a", ""))), 4)).toEqual({
+      seen: ["First 15 15.", "Second 15 15.", "First 25 15.", "Second 25 15."],
+      errors: [],
+    });
+    // A restart from the save at the second line, with the cell still open:
+    // the rebound `a` replaces the one the cell captured, which closes on 15.
+    const save = saveAt(REENTER("a", ""), "Second 15 15.");
+    const loaded = engine(rootOf(REENTER("a, b", ", 0")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    expect(beats(loaded, 4)).toEqual({
+      seen: ["First 20 15.", "Second 20 15.", "First 25 15.", "Second 25 15."],
+      errors: [],
+    });
+  });
+
+  // #1744: a restart whose frame has no open cell retires its replaced
+  // bindings with nothing to close, and still binds by name.
+  it("restarts a scene whose frame holds no open cell with its parameters bound by name", () => {
+    const save = saveIn("a, b", "{a} {b}");
+    const loaded = engine(rootOf(SCENE("b, a, c", "{a} {b} {c}")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(false);
+    const element = loaded.state.callStack.currentThread.callstack[0]!;
+    expect(element.openUpvalues).toEqual([]);
+    expect(element.borrowedUpvalues).toEqual([]);
+    expect(bindings(loaded)).toEqual({ a: 10, b: 20, c: null });
+    expect(play(loaded)).toEqual(["First 10 20 nil.", "Second 10 20 nil."]);
+  });
+
+  // #1744: declaring a local again in the scope that binds it closes the
+  // cell a closure captured on the value the old binding held.
+  it("closes a captured local on its old value when its scope declares it again", () => {
+    const story = engine(
+      rootOf(
+        [
+          "store keep = nil",
+          "",
+          "-> start",
+          "",
+          "scene start",
+          "  & local c = 30",
+          "  & keep = function() return c end",
+          "  & c = 35",
+          "  & local c = 40",
+          "  First {c} {keep()}.",
+          "end",
+          "",
+        ].join("\n"),
+      ),
+    );
+    expect(play(story)).toEqual(["First 40 35."]);
+  });
+
   // A scene whose content starts with a branch, entered by a divert.
   const STARTS = (header: string, divert: string) =>
     [
