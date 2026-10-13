@@ -5,6 +5,7 @@ import {
   foldService,
 } from "@codemirror/language";
 import {
+  ChangeDesc,
   EditorState,
   StateEffect,
   StateField,
@@ -145,6 +146,22 @@ const sortFoldingRanges = (
   return ranges;
 };
 
+/** Maps folds through an edit, dropping any the edit erased: a fold whose
+ * whole range was deleted maps to an empty range, which would otherwise be
+ * the first range on its line and shadow the fold that now starts there. */
+const mapFoldingRanges = (
+  ranges: readonly DocumentFoldingRange[],
+  changes: ChangeDesc,
+): DocumentFoldingRange[] => {
+  const mapped: DocumentFoldingRange[] = [];
+  for (const range of ranges) {
+    const from = changes.mapPos(range.from);
+    const to = changes.mapPos(range.to);
+    if (from < to) mapped.push({ ...range, from, to });
+  }
+  return mapped;
+};
+
 /** The first range (in order) whose `from` lies in `[lineFrom, lineTo]`. */
 const findFoldingRange = (
   ranges: readonly DocumentFoldingRange[],
@@ -172,12 +189,7 @@ const foldingRangeField = StateField.define<FoldingRangeSet>({
     }
 
     if (tr.docChanged && value.ranges.length > 0) {
-      const mapped = value.ranges.map((range) => ({
-        ...range,
-        from: tr.changes.mapPos(range.from),
-        to: tr.changes.mapPos(range.to),
-      }));
-      return { ranges: mapped };
+      return { ranges: mapFoldingRanges(value.ranges, tr.changes) };
     }
 
     return value;
@@ -279,11 +291,7 @@ export async function updateDocumentFoldingRanges(
     if (!unsynced.empty) {
       // Edits made since the last sync: carry the folds into the editor's
       // document, as diagnostics are.
-      foldables = foldables.map((range) => ({
-        ...range,
-        from: unsynced.mapPos(range.from),
-        to: unsynced.mapPos(range.to),
-      }));
+      foldables = mapFoldingRanges(foldables, unsynced);
     }
     // Most pulls while typing return the folds the editor already holds,
     // mapped through the edit; dispatching those again would only redraw.

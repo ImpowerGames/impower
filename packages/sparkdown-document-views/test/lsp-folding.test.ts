@@ -80,9 +80,11 @@ function folds(state: EditorState) {
   return result;
 }
 
-function connect(server: StandInServer) {
+/** `syncDelay` holds edits back from the server that long, so a result can
+ *  arrive while the editor has changes the server has not seen. */
+function connect(server: StandInServer, syncDelay = 0) {
   return new LSPClient({
-    extensions: [serverFolding(), serverAutoSync({ delay: 0 })],
+    extensions: [serverFolding(), serverAutoSync({ delay: syncDelay })],
   }).connect(server, undefined, {
     capabilities: { textDocumentSync: 2, foldingRangeProvider: true },
   });
@@ -215,10 +217,49 @@ describe("server folding ranges", () => {
     expect(folds(view.state).map((f) => f.line)).toEqual([3, 6, 10]);
 
     // The pull the second edit asked for then runs, and its result applies.
+    expect(server.pending()).toHaveLength(1);
     for (const request of server.pending()) {
       server.answer(request, serverFolds(view.state.doc.toString()));
       await settle();
     }
+    expect(folds(view.state)).toEqual(
+      await fullPull(view.state.doc.toString()),
+    );
+  });
+
+  it("drop a fold an edit erased, so the fold now starting on its line answers", async () => {
+    const { server, view } = await mount(DOC);
+    server.answer(server.pending()[0]!, serverFolds(DOC));
+    await settle();
+    // Delete the whole of fold One, heading and body; Two's heading moves up
+    // to line 1. The pull this edit causes has not been answered yet.
+    type(view, 0, "", view.state.doc.line(4).from);
+    await settle();
+    expect(server.pending()).toHaveLength(1);
+    const two = view.state.doc.line(1);
+    expect(foldable(view.state, two.from, two.to)).toEqual({
+      from: two.to,
+      to: view.state.doc.line(4).to,
+    });
+    expect(folds(view.state)).toEqual(
+      await fullPull(view.state.doc.toString()),
+    );
+  });
+
+  it("carry a result through edits made before the editor synced them", async () => {
+    const server = new StandInServer();
+    const { view } = await mount(DOC, {
+      server,
+      client: connect(server, 60_000),
+    });
+    const [request] = server.pending();
+    // Fold One is deleted while the server is answering for the document it
+    // was sent, and the edit has not been synced yet.
+    type(view, 0, "", view.state.doc.line(4).from);
+    await settle();
+    server.answer(request!, serverFolds(DOC));
+    await settle();
+    expect(folds(view.state).map((f) => f.line)).toEqual([1, 5]);
     expect(folds(view.state)).toEqual(
       await fullPull(view.state.doc.toString()),
     );
