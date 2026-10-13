@@ -60,14 +60,15 @@ describe("formatting a leading `..`", () => {
   }
 
   // After an interpolation on its line the mark is text the player sees, and
-  // so are the spaces after it. The space before it separates two statements
-  // and shows nothing.
-  test("keeps the spaces after a `..` that follows an interpolation", () => {
-    for (const [source, formatted] of [
-      [`{3} ..   and more.\n`, `{3}..   and more.\n`],
-      [`{3} .. and more.\n`, `{3}.. and more.\n`],
-    ] as const) {
-      expect(formatSource(source)).toBe(formatted);
+  // so are the spaces on either side of it: the line is one display line
+  // (#1746).
+  test("keeps the spaces around a `..` that follows an interpolation", () => {
+    for (const source of [
+      `{3} ..   and more.\n`,
+      `{3} .. and more.\n`,
+      `{3}..   and more.\n`,
+    ]) {
+      expect(formatSource(source)).toBe(source);
     }
   });
 });

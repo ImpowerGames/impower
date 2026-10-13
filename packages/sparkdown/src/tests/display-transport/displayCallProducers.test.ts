@@ -236,9 +236,11 @@ describe("producers outside display statements", () => {
     expect(step!.tables).toEqual([{ text: "A", tags: ["t"] }]);
   });
 
+  // A line that starts with an interpolation is an action line like any other
+  // (#1746), so its table names the action target, as `Here.` above does.
   test("a bare {expr} line", () => {
     const [step] = displayCallSteps(`{1 + 2}\ndone\n`, [["3\n", []]]);
-    expect(step!.tables).toEqual([{ text: "3" }]);
+    expect(step!.tables).toEqual([{ target: "action", text: "3" }]);
   });
 
   test("a {x}{y} chain is one call", () => {
@@ -246,7 +248,7 @@ describe("producers outside display statements", () => {
       `store x = 5\nstore y = 4\n{x}{y}\ndone\n`,
       [["54\n", []]],
     );
-    expect(step!.tables).toEqual([{ text: "54" }]);
+    expect(step!.tables).toEqual([{ target: "action", text: "54" }]);
   });
 
   test("print() pushes a table on the default target", () => {
