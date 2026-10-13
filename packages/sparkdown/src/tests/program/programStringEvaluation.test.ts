@@ -83,7 +83,7 @@ describe("a string evaluation in the program engine's output", () => {
     expect(state.inStringEvaluation).toBe(true);
 
     // A command other than `BeginString` where one was found is not one.
-    state.outputStream = [ControlCommand.EndString(), new StringValue("z")];
+    state.outputStream = [ControlCommand.BeginTag(), new StringValue("z")];
     expect(state.inStringEvaluation).toBe(false);
   });
 });

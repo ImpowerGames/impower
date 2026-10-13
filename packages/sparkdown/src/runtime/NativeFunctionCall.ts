@@ -7,10 +7,10 @@ import {
   MultiValue,
   NullValue,
   StringValue,
+  SymbolRef,
 } from "./Value";
 import { StoryException } from "./StoryException";
 import { Void } from "./Void";
-import { Path } from "./Path";
 import { InkObject } from "./Object";
 import {
   getPureStdLibEntries,
@@ -443,7 +443,7 @@ export class NativeFunctionCall extends InkObject {
     } else if (coercedType == ValueType.String) {
       return this.CallType<string>(coercedParams);
     } else if (coercedType == ValueType.DivertTarget) {
-      return this.CallType<Path>(coercedParams);
+      return this.CallType<SymbolRef>(coercedParams);
     } else if (coercedType == ValueType.Object) {
       return this.CallType<Map<string, any>>(coercedParams);
     }
@@ -732,8 +732,9 @@ export class NativeFunctionCall extends InkObject {
         return b;
       });
 
-      let divertTargetsEqual = (d1: Path, d2: Path) => d1.Equals(d2);
-      let divertTargetsNotEqual = (d1: Path, d2: Path) => !d1.Equals(d2);
+      let divertTargetsEqual = (d1: SymbolRef, d2: SymbolRef) => d1.Equals(d2);
+      let divertTargetsNotEqual = (d1: SymbolRef, d2: SymbolRef) =>
+        !d1.Equals(d2);
       this.AddOpToNativeFunc(
         this.Equal,
         2,
@@ -809,7 +810,7 @@ export class NativeFunctionCall extends InkObject {
 
   public AddOpFuncForType(
     valType: ValueType,
-    op: UnaryOp<number> | BinaryOp<number | string | Path>,
+    op: UnaryOp<number> | BinaryOp<number | string | SymbolRef>,
   ): void {
     if (this._operationFuncs == null) {
       this._operationFuncs = new Map();

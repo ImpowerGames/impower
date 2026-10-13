@@ -11,7 +11,6 @@ import {
   IntValue,
   FloatValue,
   BoolValue,
-  DivertTargetValue,
   VariablePointerValue,
   ObjectValue,
   AbstractValue,
@@ -123,7 +122,7 @@ export function extractClosureTarget(
 // Lua's index-type rule: only tables (and strings, via their library
 // metatable) are indexable. Returns the "attempt to index a X value"
 // message for non-indexable values, or `null` when `v` may be indexed.
-// Function values include bare DivertTargets, closure-shaped
+// Function values include symbol values, closure-shaped
 // ObjectValues, and `__stdlib_fn` markers (`math.pow.a` indexes a
 // builtin).
 function luauIndexTargetError(v: unknown): string | null {
@@ -229,7 +228,7 @@ function indexThroughMetatable(
     }
     return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
   }
-  // DivertTargetValue / bare-knot — function form. An index is one value:
+  // A function held by reference — function form. An index is one value:
   // the handler's first, or nil when it returns none.
   if (isFunctionReference(indexFn)) {
     const results = story.CallLuauFunction(indexFn, [
@@ -241,10 +240,9 @@ function indexThroughMetatable(
   return null;
 }
 
-/** Whether `v` is a function held by reference: a symbol value, or a divert
- *  target. */
+/** Whether `v` is a function held by reference: a symbol value. */
 export function isFunctionReference(v: unknown): boolean {
-  return v instanceof DivertTargetValue || v instanceof SymbolValue;
+  return v instanceof SymbolValue;
 }
 
 /**
@@ -340,17 +338,14 @@ const UNOP_TO_METAMETHOD: Record<string, string> = {
 //     comparison if no metamethod fired).
 // rawequal for function-shaped values, used by the `__eq` same-handler
 // rule. Closure ObjectValues compare by underlying-Map identity (same
-// notion as table `==`); bare DivertTargetValues compare by target
-// path, so the same named function referenced twice matches even if
-// the wrapper instances differ.
+// notion as table `==`); symbol values compare by the function their
+// symbols refer to, so the same named function referenced twice matches
+// even if the wrapper instances differ.
 function sameLuauFunctionValue(a: any, b: any): boolean {
   if (a == null || b == null) return false;
   if (a === b) return true;
   if (a instanceof ObjectValue && b instanceof ObjectValue) {
     return a.value === b.value;
-  }
-  if (a instanceof DivertTargetValue && b instanceof DivertTargetValue) {
-    return a.value?.toString() === b.value?.toString();
   }
   if (a instanceof SymbolValue && b instanceof SymbolValue) {
     return a.ref.Equals(b.ref);
@@ -1087,10 +1082,9 @@ export function callValueAsFunction(
   story: any,
   callSiteArgCount: number,
 ): void {
-  // Pops a `DivertTargetValue` (regular fn) OR a closure
-  // `ObjectValue` off the eval stack and diverts to the
-  // corresponding path, pushing a Function call-stack frame
-  // so a later `~ret` / `PopFunction` returns control to the
+  // Pops a symbol value (regular fn) OR a closure `ObjectValue` off
+  // the eval stack and calls the function it refers to, pushing a
+  // Function call-stack frame so the function's return resumes the
   // instruction after this one.
   //
   // Arguments must already be on the eval stack *below* the target —
@@ -1103,9 +1097,8 @@ export function callValueAsFunction(
   // (`foo(1, 2, 3)` against `function foo(a, b)` would bind a=2, b=3), or
   // dig into the caller's eval context for missing ones. The call-site
   // arg count is
-  // encoded on the ControlCommand via CallValueExpression's
-  // `CallValueAsFunction(this.args.length)`; -1 means "untracked"
-  // (legacy bytecode).
+  // the `CallValue` instruction's, which CallValueExpression emits with
+  // `this.args.length`; -1 means "untracked".
   //
   // Closure dispatch: when the target is a closure-shaped
   // `ObjectValue` (has `__closure_fn` / `__closure_upvals`
@@ -1230,7 +1223,7 @@ export function callValueAsFunction(
     );
   }
   // The arguments arranged for the function: a variadic function reached
-  // as a bare DivertTargetValue (e.g. a sibling variadic subflow passed
+  // as a bare symbol value (e.g. a sibling variadic subflow passed
   // first-class) gets its extras packed here. A call that did not say how
   // many args it pushed spreads a last multi-return instead.
   if (callSiteArgCount >= 0) {
@@ -1644,7 +1637,7 @@ export function readVariable(story: any, name: string | null): InkObject {
         // the metatable lookup so `t.x` resolves to either
         // `rawget(t, "x")` (when present) or
         // `__index(t, "x")` / chained-table lookup. Matches
-        // the IndexValue ControlCommand's metamethod behavior.
+        // the `Index` instruction's metamethod behavior.
         if (cur instanceof ObjectValue) {
           // Reactive dep tracking: this dotted read walked through `cur` —
           // record its identity so an in-place mutation re-runs the binding.
@@ -1697,8 +1690,7 @@ export function readVariable(story: any, name: string | null): InkObject {
 
   // Lua-style first-class fn fallback: if no variable named
   // `<name>` exists but a knot/function `<name>` IS defined,
-  // resolve to its value: a `DivertTargetValue` pointing at the
-  // knot, or on the binary program's engine a symbol value.
+  // resolve to its value: the symbol value of that function or flow.
   // This makes `local f = double` work as if the user had
   // written `local f = -> double`. Common authoring pattern.
   if (foundValue == null && name) {

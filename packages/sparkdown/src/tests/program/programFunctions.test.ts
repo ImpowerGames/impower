@@ -4,13 +4,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CallStack } from "../../runtime/CallStack";
 import type { InkObject } from "../../runtime/Object";
-import { Path } from "../../runtime/Path";
 import { VariablesState } from "../../runtime/VariablesState";
 import {
-  DivertTargetValue,
   MultiValue,
   ObjectValue,
   SymbolValue,
+  Value,
+  ValueType,
   VariablePointerValue,
 } from "../../runtime/Value";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -318,7 +318,7 @@ const heldValues = (story: ProgramStory): unknown[] => {
       visit(value.closedValue);
     } else if (value instanceof MultiValue) {
       value.values.forEach(visit);
-    } else if (value instanceof DivertTargetValue || value instanceof SymbolValue) {
+    } else if (value instanceof SymbolValue) {
       visit(value.value);
     }
   };
@@ -380,7 +380,7 @@ describe("a function value", () => {
     "end",
   ].join("\n");
 
-  it("is a symbol value wherever a divert target is held, and no value holds a path", () => {
+  it("is a symbol value wherever a function value is held", () => {
     const { actual } = programBeats(text);
     expect(texts(actual.beats)).toEqual(["Values 4 4 3,2,1 hi! false:no 5.\n"]);
 
@@ -395,10 +395,13 @@ describe("a function value", () => {
     };
     storyBeats(story);
     const values = [...pushed, ...heldValues(story)];
-    const paths = values.filter(
-      (value) => value instanceof DivertTargetValue || value instanceof Path,
+    // Every function value is a symbol value (the runtime has no other
+    // function-value class since #1753; `inkWireObjectsGone.test.ts`).
+    const functionValues = values.filter(
+      (value) =>
+        value instanceof Value && value.valueType === ValueType.DivertTarget,
     );
-    expect(paths).toEqual([]);
+    expect(functionValues.filter((value) => !(value instanceof SymbolValue))).toEqual([]);
     // The flow-name fallback of a read, and a closure's function.
     expect(story.variablesState.GetVariableWithName("byName")).toBeInstanceOf(
       SymbolValue,
@@ -1238,5 +1241,27 @@ describe("a call to a function a top-level assignment names too", () => {
     expect(describeRoot(s.root)).toEqual(describeRoot(cold(s.text)));
     const root = s.edit("The room is quiet.", "The room is quiet!");
     expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
+  });
+});
+
+describe("a function value written into a line", () => {
+  // A function value printed by interpolation reads as `tostring` prints it,
+  // `function: <name>`. Before #1753 it printed the name of the class the
+  // object engine held function values in, around the function's name.
+  it("prints as tostring prints it", () => {
+    const { actual } = programBeats(
+      [
+        "function f()",
+        "  return 1",
+        "end",
+        "",
+        "local g = f",
+        "Value {g} and {f}, {tostring(g)}.",
+        "done",
+      ].join("\n"),
+    );
+    expect(texts(actual.beats)).toEqual([
+      "Value function: f and function: f, function: f.\n",
+    ]);
   });
 });

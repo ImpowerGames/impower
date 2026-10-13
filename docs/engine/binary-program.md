@@ -246,7 +246,7 @@ Everything `Story.Step` and `Story.PerformLogicAndFlowControl` dispatch today:
 | `VariableAssignment`, `VariableReference` | `SetVar`; `GetVar`, `GetCount` |
 | `NativeFunctionCall` | `Native` |
 | `StringValue`, `IntValue`, `FloatValue`, `BoolValue`, `NullValue`, `Void` | `Text` or `Str`; `Int`; `Num`; `Const` |
-| `DivertTargetValue`, `VariablePointerValue` | `Sym`; `VarPtr` |
+| `DivertTargetValue`, `VariablePointerValue` | `Sym`; `VarPtr` (`DivertTargetValue` and the runtime's `Path` deleted in #1753) |
 | `ListValue` | deleted with the list type (#1752) |
 | `Tag` | the tag markers |
 | `EvalStart`, `EvalEnd` | not carried: an instruction names its destination |
@@ -552,7 +552,7 @@ External function bindings and variable observers are not presented, and neither
 
 ## 10. Function values
 
-A function value is a symbol value: the class that replaces `DivertTargetValue` (`packages/sparkdown/src/runtime/Value.ts:373`) holds a symbol id, the table generation and, when the symbol has one, the qualified name, in place of a `Path`. It is what `Sym` pushes, what a scene or label held in a variable is, what `CountOf` and `TunnelReturn` pop, and what `GetVar` produces for a flow's name. Truthiness, equality and printing follow the name, as they follow the path today.
+A function value is a symbol value: `SymbolValue` (`packages/sparkdown/src/runtime/Value.ts:404`), which replaced the object engine's `DivertTargetValue` (deleted with the runtime's `Path` in #1753), holds a symbol id, the table generation and, when the symbol has one, the qualified name, in place of a path. It is what `Sym` pushes, what a scene or label held in a variable is, what `CountOf` and `TunnelReturn` pop, and what `GetVar` produces for a flow's name. Truthiness and equality follow the name, and it prints as `tostring` prints it, `function: <name>`.
 
 A closure stays the table it is (`__closure_fn`, `__closure_upvals`, `__closure_user_arity`), with a symbol value in `__closure_fn`. Its code is a function-body block of the statement that wrote it, exported under an anonymous symbol that belongs to the function as a part of that statement (section 2), so an edit elsewhere renames no function, a function written above it in the same statement takes nothing from it, and a preview rewrites none. A call resolves the symbol in the root the engine holds. A closure made before an edit to its own statement runs the statement's new code the next time it is called, which is what hot reload means for every other statement.
 

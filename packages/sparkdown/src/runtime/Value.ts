@@ -1,5 +1,4 @@
 import { InkObject } from "./Object";
-import { Path } from "./Path";
 import { StoryException } from "./StoryException";
 import { asOrThrows } from "./TypeAssertion";
 import { tryParseInt, tryParseFloat } from "./TryGetResult";
@@ -64,8 +63,6 @@ export abstract class AbstractValue extends InkObject {
       return new IntValue(Number(val));
     } else if (!isNaN(val)) {
       return new FloatValue(Number(val));
-    } else if (val instanceof Path) {
-      return new DivertTargetValue(asOrThrows(val, Path));
     }
 
     return null;
@@ -152,9 +149,9 @@ export class BoolValue extends Value<boolean> {
 // Three call sites participate:
 //   - Stdlib fns returning a JS array (e.g. `math.modf` → `[i, f]`)
 //     — wrapped here by the dispatcher and pushed as a single slot.
-//   - `PackTuple(N)` ControlCommand — pops N values, pushes one
+//   - the `Pack` instruction — pops N values, pushes one
 //     MultiValue. Emitted by `return a, b, c`.
-//   - `UnpackTuple(N)` ControlCommand — pops one (MultiValue or
+//   - the `Unpack` instruction — pops one (MultiValue or
 //     plain), pushes N values padded with nil. Emitted by
 //     `local a, b = expr`.
 //
@@ -366,34 +363,6 @@ export class StringValue extends Value<string> {
   }
 }
 
-export class DivertTargetValue extends Value<Path> {
-  constructor(targetPath: Path | null = null) {
-    super(targetPath);
-  }
-  public get valueType() {
-    return ValueType.DivertTarget;
-  }
-  public get targetPath() {
-    if (this.value === null) return throwNullException("Value.value");
-    return this.value;
-  }
-  public set targetPath(value: Path) {
-    this.value = value;
-  }
-  public get isTruthy(): never {
-    throw new Error("Shouldn't be checking the truthiness of a divert target");
-  }
-
-  public Cast(newType: ValueType): Value<any> {
-    if (newType == this.valueType) return this;
-
-    throw this.BadCastException(newType);
-  }
-  public override toString() {
-    return "DivertTargetValue(" + this.targetPath + ")";
-  }
-}
-
 /**
  * The symbol a binary program's function value names
  * (docs/engine/binary-program.md, section 10): the symbol's id, the table
@@ -428,10 +397,10 @@ export class SymbolRef {
   }
 }
 
-/** A function or flow of a binary program held as a value: what the program
- *  engine holds where the deleted object engine held a `DivertTargetValue`,
- *  with a symbol in place of a path. It compares and prints as a divert target
- *  does. */
+/** A function or flow of a binary program held as a value, the one form a
+ *  function value takes: a named function, a flow or label written as a
+ *  value, or the function of a closure. Two compare equal when their symbols
+ *  refer to one function, and one prints as `tostring` prints it. */
 export class SymbolValue extends Value<SymbolRef> {
   constructor(ref: SymbolRef) {
     super(ref);
@@ -453,7 +422,7 @@ export class SymbolValue extends Value<SymbolRef> {
     throw this.BadCastException(newType);
   }
   public override toString() {
-    return "DivertTargetValue(" + this.ref.label + ")";
+    return "function: " + this.ref.label;
   }
   public override Copy() {
     return new SymbolValue(this.ref);

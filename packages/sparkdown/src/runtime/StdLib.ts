@@ -30,8 +30,7 @@ import {
 //     entries (`pure: true`) are auto-registered with
 //     `NativeFunctionCall` at engine init and benefit from the
 //     type-coercion fast path; state-aware entries route through the
-//     generic `RunStdLibFunction` ControlCommand dispatcher in
-//     Story.ts. Adding a new function — pure or state-aware — is one
+//     program engine's `CallStd` instruction. Adding a new function — pure or state-aware — is one
 //     entry here.
 //
 //   - `INK_BUILTIN_ALIASES` — legacy per-function ControlCommand
@@ -347,16 +346,12 @@ export function luauTypeOf(v: any): string {
     // Callable values get reported as "function" before the generic
     // object-as-table fallback below. Closure-shaped ObjectValues
     // (anonymous fn with upvalues) carry a `__closure_fn` key in
-    // their .value Map; DivertTargetValue (bare knot reference, no
+    // their .value Map; SymbolValue (a named function or one with no
     // upvalues) and VariablePointerValue (function held by a local)
     // are detected via constructor name to avoid the import cycle
     // these runtime files have with Value.ts.
     const ctorName = v?.constructor?.name;
-    if (
-      ctorName === "DivertTargetValue" ||
-      ctorName === "SymbolValue" ||
-      ctorName === "VariablePointerValue"
-    ) {
+    if (ctorName === "SymbolValue" || ctorName === "VariablePointerValue") {
       return "function";
     }
     const raw = (v as any).value;
@@ -1384,15 +1379,11 @@ function classifyGsubRepl(
     return "table";
   }
   // Anonymous functions without upvalues / bare knot names lower to
-  // a DivertTargetValue (not closure-wrapped); var-pointers to
+  // a SymbolValue (not closure-wrapped); var-pointers to
   // function-typed locals arrive as VariablePointerValue. Both route
   // through `story.CallLuauFunction`.
   const ctorName = repl?.constructor?.name;
-  if (
-    ctorName === "DivertTargetValue" ||
-    ctorName === "SymbolValue" ||
-    ctorName === "VariablePointerValue"
-  ) {
+  if (ctorName === "SymbolValue" || ctorName === "VariablePointerValue") {
     return "function";
   }
   story.Error(
@@ -1932,8 +1923,8 @@ export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 //   for `math.*` numeric helpers.
 //
 // - `pure` omitted — `fn` is state-aware `(story, args) => result`
-//   and routes through the generic `RunStdLibFunction` ControlCommand
-//   dispatcher. Used for `assert`, `plural.category`, `math.random`,
+//   and routes through the program engine's `CallStd` instruction.
+//   Used for `assert`, `plural.category`, `math.random`,
 //   `count.*`, and (future) `error`, `tostring`, etc.
 //
 // Adding a new entry — pure or state-aware — is one line:
@@ -3009,14 +3000,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // Function values stringify as Lua's `function: <id>` form,
       // not as the underlying JS class name. Sparkdown represents
       // functions as either:
-      //   - `DivertTargetValue` (bare knot references / function
+      //   - `SymbolValue` (named functions, flows and function
       //     literals without captured upvalues)
       //   - `ObjectValue` with `__closure_fn` (closures that captured
       //     upvalues)
       // Both should serialize to a stable opaque token so authors
       // can use tostring(fn) in interpolations without leaking
       // internal representation.
-      if (ctorName === "DivertTargetValue" || ctorName === "SymbolValue") {
+      if (ctorName === "SymbolValue") {
         const path = (v as any).value;
         return `function: ${path?.toString?.() ?? "<unknown>"}`;
       }
@@ -4775,7 +4766,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   // `table.sort(t [, comp])` — in-place sort of the array portion.
   // Default comparator is `<`. A user-supplied `comp` is a sparkdown
-  // function value (closure ObjectValue or DivertTargetValue) that
+  // function value (closure ObjectValue or SymbolValue) that
   // receives two elements and returns truthy iff the first should
   // sort before the second — same semantics as Lua's `comp(a, b)`.
   //

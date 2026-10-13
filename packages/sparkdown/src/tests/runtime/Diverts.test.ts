@@ -345,7 +345,7 @@ describe("Diverts — ported from ink fixture rewrites", () => {
     //     deep-searches via `FlowBase.ContentWithNameAtLevel`)
     //   - alternator-arm diverts now route through a statement-form
     //     `Divert` (see `lowerArms` in `alternatorArms.ts`) instead of
-    //     being emitted as `DivertTargetValue` expressions
+    //     being emitted as function-value expressions
     const ctx = makeRuntimeStoryFromFile(
       "diverts",
       "divert-to-weave-points",
