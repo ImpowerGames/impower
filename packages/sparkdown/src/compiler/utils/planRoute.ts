@@ -5,7 +5,7 @@ import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest, type ProgramImage } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { chunkOfAddress } from "../../program/ProgramChunk";
-import type { ProgramAddress } from "../types/ProgramAddress";
+import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 
 export interface RoutePlan {
   /** The flow the route starts at the top of: a scene's name, or `"0"` for
@@ -902,9 +902,9 @@ const runUntilDecisionOrBranch = (
       // B) Story requires choice to advance
       if (!story.canContinue && story.currentChoices.length > 0) {
         // A decision site is named to the route simulator by its address, as
-        // the engine asks for a forced verdict; -1, as the story's
-        // `previousAddress` gives it, when no instruction has run yet.
-        const site = previous ?? -1;
+        // the engine asks for a forced verdict; the top-level start, as the
+        // story's `previousAddress` gives it, when no instruction has run yet.
+        const site = previous ?? TOP_LEVEL_START;
         if (simulator.willForceChoice(site)) {
           const forcedSourcePath = simulator?.forceChoice(site);
           const forced = story.currentChoices.find(
@@ -1030,7 +1030,7 @@ const runUntilDecisionOrBranch = (
         break;
       }
 
-      if (story.pausedBeforeCondition) {
+      if (story.pausedBeforeCondition !== null) {
         // Pop the last encountered step,
         // because we're going to encounter it again on the next run
         stepsEncountered.pop();
