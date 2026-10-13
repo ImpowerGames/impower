@@ -1,5 +1,5 @@
 // Regression tests for Lua short-circuit `and`/`or` evaluation
-// (the `ShortCircuit` ControlCommand emitted by BinaryExpression).
+// (the `JumpIfKeep` instruction BinaryExpression emits).
 // Previously both operands were evaluated eagerly with operand-
 // returning semantics applied afterwards — correct results for pure
 // scalar operands, but the untaken branch's side effects ran (and

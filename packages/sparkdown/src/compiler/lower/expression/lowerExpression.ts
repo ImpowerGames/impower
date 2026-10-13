@@ -1033,9 +1033,9 @@ function lowerInterpolatedString(
   return new StringExpression(parts);
 }
 
-// `-> name(.path)*` as a value: a `DivertTarget` whose runtime
-// `DivertTargetValue` can be stored, compared with `==`, or diverted to
-// with `-> x`.
+// `-> name(.path)*` as a value: a `DivertTarget`, which runs as the symbol
+// value of the function, flow or label it names, and can be stored, compared
+// with `==`, or diverted to with `-> x`.
 function lowerDivertTargetLiteral(
   node: SyntaxNode,
   ctx: LowerContext,

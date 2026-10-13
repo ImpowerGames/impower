@@ -117,7 +117,7 @@ const debugSession = async () => {
         ),
       );
       const variables: any = {};
-      for (const scope of ["vars", "temps", "lists", "defines"] as const) {
+      for (const scope of ["vars", "temps", "defines"] as const) {
         variables[scope] = answer(
           await c.handleGetGameVariables(GetGameVariablesMessage.type.request({ scope })),
         );

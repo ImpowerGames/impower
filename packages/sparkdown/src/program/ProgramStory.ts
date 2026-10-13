@@ -23,7 +23,6 @@ import { asOrThrows } from "../runtime/TypeAssertion";
 import {
   AbstractValue,
   BoolValue,
-  DivertTargetValue,
   FloatValue,
   IntValue,
   NullValue,
@@ -2849,12 +2848,10 @@ export class ProgramStory implements StoryEngine {
    *  engine names its divert target. */
   protected isTruthy(obj: InkObject): boolean {
     if (obj instanceof Value) {
-      if (obj instanceof DivertTargetValue || obj instanceof SymbolValue) {
-        const target =
-          obj instanceof SymbolValue ? obj.ref.label : obj.targetPath;
+      if (obj instanceof SymbolValue) {
         this.Error(
           "Shouldn't use a divert target (to " +
-            target +
+            obj.ref.label +
             ") as a conditional value. Did you intend a function call 'likeThis()' or a read count check 'likeThis'? (no arrows)",
         );
       }

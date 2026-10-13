@@ -3,7 +3,6 @@ import {
   IntValue,
   FloatValue,
   StringValue,
-  DivertTargetValue,
   VariablePointerValue,
   BoolValue,
   MultiValue,
@@ -18,8 +17,6 @@ import { VariableAssignment } from "./VariableAssignment";
 import { NativeFunctionCall } from "./NativeFunctionCall";
 import { Void } from "./Void";
 import { Tag } from "./Tag";
-import { Path } from "./Path";
-import { Choice } from "./Choice";
 import { InkObject } from "./Object";
 import { asOrNull } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
@@ -434,7 +431,10 @@ export class JsonSerialisation {
     }
   }
 
-  static registerPendingDefineRef(obj: ObjectValue, className: string): void {
+  private static registerPendingDefineRef(
+    obj: ObjectValue,
+    className: string,
+  ): void {
     this._pendingDefineRefs.push({ obj, className });
   }
 
@@ -534,7 +534,7 @@ export class JsonSerialisation {
   // Collect every `store`-marked prop name reachable from a define table
   // (its own `__storeProps` list plus every ancestor's, walked through
   // the metatable `__index` chain).
-  static collectDefineStoreNames(objVal: ObjectValue): Set<string> {
+  private static collectDefineStoreNames(objVal: ObjectValue): Set<string> {
     const names = new Set<string>();
     let cur: ObjectValue | null = objVal;
     let guard = 0;
@@ -599,17 +599,6 @@ export class JsonSerialisation {
       this.WriteRuntimeObject(writer, value);
     }
     writer.WriteArrayEnd();
-  }
-
-  public static WriteIntDictionary(
-    writer: SimpleJson.Writer,
-    dict: Map<string, number>,
-  ) {
-    writer.WriteObjectStart();
-    for (let [key, value] of dict) {
-      writer.WriteIntProperty(key, value);
-    }
-    writer.WriteObjectEnd();
   }
 
   public static WriteRuntimeObject(
@@ -714,18 +703,6 @@ export class JsonSerialisation {
       return;
     }
 
-    let divTargetVal = asOrNull(obj, DivertTargetValue);
-    if (divTargetVal) {
-      writer.WriteObjectStart();
-      if (divTargetVal.value === null) {
-        return throwNullException("divTargetVal.value");
-      }
-      writer.WriteProperty("^->", divTargetVal.value.componentsString);
-      writer.WriteObjectEnd();
-
-      return;
-    }
-
     // A binary program's function value, which holds its symbol within a
     // session: its id, the table generation of the id, its name (empty for
     // an anonymous symbol) and how it prints.
@@ -796,62 +773,6 @@ export class JsonSerialisation {
 
     let controlCmd = asOrNull(obj, ControlCommand);
     if (controlCmd) {
-      // Data-carrying generic dispatcher: encode the function name
-      // and arity into the token so the deserializer can reconstruct
-      // the call site. Format: `stdlib:<name>:<arity>`. Function
-      // names are alphanumeric + dot (e.g. `assert`, `plural.category`)
-      // so a colon separator is unambiguous.
-      if (
-        controlCmd.commandType ===
-        ControlCommand.CommandType.RunStdLibFunction
-      ) {
-        writer.Write(
-          `stdlib:${controlCmd._stdLibName}:${controlCmd._stdLibArity}`,
-        );
-        return;
-      }
-      // Multi-return tuple pack/unpack. Encode the arity into the
-      // token so the deserializer can reconstruct it.
-      if (
-        controlCmd.commandType === ControlCommand.CommandType.PackTuple
-      ) {
-        writer.Write(`pack:${controlCmd._tupleArity}`);
-        return;
-      }
-      if (
-        controlCmd.commandType === ControlCommand.CommandType.UnpackTuple
-      ) {
-        writer.Write(`unpack:${controlCmd._tupleArity}`);
-        return;
-      }
-      // A `choose` block's hold: `hold:<levels>`.
-      if (
-        controlCmd.commandType === ControlCommand.CommandType.HoldForChoices
-      ) {
-        writer.Write(`hold:${controlCmd._holdLevels}`);
-        return;
-      }
-      // Lua `and`/`or` short-circuit jump: `sc:<op>:<skipCount>`.
-      if (
-        controlCmd.commandType === ControlCommand.CommandType.ShortCircuit
-      ) {
-        writer.Write(
-          `sc:${controlCmd._shortCircuitOp}:${controlCmd._shortCircuitSkipCount}`,
-        );
-        return;
-      }
-      // `CallValueAsFunction(n)` — encode the call-site arg count so
-      // the runtime closure dispatch can pad missing args with nil.
-      // Untracked sites encode plainly as `func()` (preserves legacy
-      // serialization) and the runtime falls back to its old behaviour.
-      if (
-        controlCmd.commandType ===
-          ControlCommand.CommandType.CallValueAsFunction &&
-        controlCmd._callValueArgCount >= 0
-      ) {
-        writer.Write(`func(${controlCmd._callValueArgCount})`);
-        return;
-      }
       writer.Write(
         JsonSerialisation._controlCommandNames[controlCmd.commandType]!,
       );
@@ -912,12 +833,6 @@ export class JsonSerialisation {
       return;
     }
 
-    let choice = asOrNull(obj, Choice);
-    if (choice) {
-      this.WriteChoice(writer, choice);
-      return;
-    }
-
     throw new Error("Failed to convert runtime object to Json token: " + obj);
   }
 
@@ -934,16 +849,6 @@ export class JsonSerialisation {
       }
     }
 
-    return dict;
-  }
-
-  public static JObjectToIntDictionary(jObject: Record<string, any>) {
-    let dict: Map<string, number> = new Map();
-    for (let key in jObject) {
-      if (jObject.hasOwnProperty(key)) {
-        dict.set(key, parseInt(jObject[key]));
-      }
-    }
     return dict;
   }
 
@@ -984,68 +889,6 @@ export class JsonSerialisation {
       else if (firstChar == "\n" && str.length == 1)
         return new StringValue("\n");
 
-      // Generic stdlib dispatcher: encoded as `stdlib:<name>:<arity>`.
-      // Mirror of the writer above. Function names may contain dots
-      // (e.g. `plural.category`), so split on the LAST colon to pull
-      // arity off the end and treat everything before as the name.
-      if (str.startsWith("stdlib:")) {
-        const lastColon = str.lastIndexOf(":");
-        if (lastColon > "stdlib:".length - 1) {
-          const arityRaw = str.slice(lastColon + 1);
-          const arity = parseInt(arityRaw, 10);
-          if (Number.isFinite(arity)) {
-            const name = str.slice("stdlib:".length, lastColon);
-            return ControlCommand.RunStdLib(name, arity);
-          }
-        }
-      }
-
-      // Multi-return tuple pack/unpack: `pack:<n>` / `unpack:<n>`.
-      if (str.startsWith("pack:")) {
-        const arity = parseInt(str.slice("pack:".length), 10);
-        if (Number.isFinite(arity)) return ControlCommand.PackTuple(arity);
-      }
-      if (str.startsWith("unpack:")) {
-        const arity = parseInt(str.slice("unpack:".length), 10);
-        if (Number.isFinite(arity)) return ControlCommand.UnpackTuple(arity);
-      }
-
-      // A `choose` block's hold: `hold:<levels>`.
-      if (str.startsWith("hold:")) {
-        const levels = parseInt(str.slice("hold:".length), 10);
-        if (Number.isFinite(levels) && levels >= 0) {
-          return ControlCommand.HoldForChoices(levels);
-        }
-      }
-
-      // Conditional content-pointer jump: `sc:<op>:<skipCount>`.
-      // Ops: `and`/`or` (Lua short-circuit), `if`/`jump` (ternary
-      // if-then-else expression arms).
-      if (str.startsWith("sc:")) {
-        const lastColon = str.lastIndexOf(":");
-        if (lastColon > "sc:".length - 1) {
-          const skip = parseInt(str.slice(lastColon + 1), 10);
-          const op = str.slice("sc:".length, lastColon);
-          if (
-            Number.isFinite(skip) &&
-            (op === "and" || op === "or" || op === "if" || op === "jump")
-          ) {
-            return ControlCommand.ShortCircuit(op, skip);
-          }
-        }
-      }
-
-      // `func(N)` — CallValueAsFunction with explicit call-site arg
-      // count. Round-trip of `CallValueAsFunction(N)` (see serializer).
-      // Bare `CallValueAsFunction` (no count) falls through to the
-      // generic control-command-names match below.
-      if (str.startsWith("func(") && str.endsWith(")")) {
-        const arity = parseInt(str.slice("func(".length, str.length - 1), 10);
-        if (Number.isFinite(arity)) {
-          return ControlCommand.CallValueAsFunction(arity);
-        }
-      }
-
       // Control commands (would looking up in a hash set be faster?)
       for (let i = 0; i < JsonSerialisation._controlCommandNames.length; ++i) {
         let cmdName = JsonSerialisation._controlCommandNames[i];
@@ -1070,10 +913,6 @@ export class JsonSerialisation {
       if (NativeFunctionCall.CallExistsWithName(str))
         return NativeFunctionCall.CallWithName(str);
 
-      // Pop
-      if (str == "->->") return ControlCommand.PopTunnel();
-      else if (str == "~ret") return ControlCommand.PopFunction();
-
       // Void
       if (str == "void") return new Void();
 
@@ -1084,12 +923,6 @@ export class JsonSerialisation {
     if (typeof token === "object" && !Array.isArray(token)) {
       let obj = token as Record<string, any>;
       let propValue;
-
-      // Divert target value to path
-      if (obj["^->"]) {
-        propValue = obj["^->"];
-        return new DivertTargetValue(new Path(propValue.toString()));
-      }
 
       // A binary program's function value, as a durable save names it.
       if (typeof obj["^symsave"] === "string") {
@@ -1308,142 +1141,23 @@ export class JsonSerialisation {
         }
         return result;
       }
-
-      if (obj["originalChoicePath"] != null) return this.JObjectToChoice(obj);
     }
 
-    if (token === null || token === undefined) return null;
-
-    // MADE JSON SERIALIZATION MORE ERROR TOLERANT
-    // throw new Error(
-    //   "Failed to convert token to runtime object: " +
-    //     this.toJson(token, ["parent"])
-    // );
+    // A token this reader does not know reads as nothing.
     return null;
   }
 
-  public static toJson<T>(
-    me: T,
-    removes?: (keyof T)[],
-    space?: number,
-  ): string {
-    return JSON.stringify(
-      me,
-      (k, v) => (removes?.some((r) => r === k) ? undefined : v),
-      space,
-    );
-  }
-
-  public static JObjectToChoice(jObj: Record<string, any>) {
-    let choice = new Choice();
-    choice.text = jObj["text"].toString();
-    choice.index = parseInt(jObj["index"]);
-    choice.sourcePath = jObj["originalChoicePath"].toString();
-    choice.originalThreadIndex = parseInt(jObj["originalThreadIndex"]);
-    choice.pathStringOnChoice = jObj["targetPath"].toString();
-    choice.tags = this.JArrayToTags(jObj);
-    // `isInvisibleDefault` is the runtime flag that marks a fallback
-    // choice (`* -> target` with no choice text — picked automatically
-    // when no other choices match). Without round-tripping it, loaded
-    // states see the fallback in `currentChoices` instead of having it
-    // auto-followed by `TryFollowDefaultInvisibleChoice`. Default to
-    // `false` for backward-compat with saves that predate this field.
-    choice.isInvisibleDefault = jObj["isInvisibleDefault"] === true;
-    return choice;
-  }
-
-  public static JArrayToTags(jObj: Record<string, any>) {
-    if (jObj["tags"]) {
-      return jObj["tags"];
-    } else {
-      return null;
-    }
-  }
-
-  public static WriteChoice(writer: SimpleJson.Writer, choice: Choice) {
-    writer.WriteObjectStart();
-    writer.WriteProperty("text", choice.text);
-    writer.WriteIntProperty("index", choice.index);
-    writer.WriteProperty("originalChoicePath", choice.sourcePath);
-    writer.WriteIntProperty("originalThreadIndex", choice.originalThreadIndex);
-    writer.WriteProperty("targetPath", choice.pathStringOnChoice);
-    // Only emit the flag when it's `true` — keeps the wire format
-    // unchanged for the common case (regular choices) so saves stay
-    // compact and existing readers don't see an unexpected new field.
-    // `JObjectToChoice` defaults the field to `false` when absent.
-    if (choice.isInvisibleDefault) {
-      writer.WriteProperty("isInvisibleDefault", choice.isInvisibleDefault);
-    }
-    this.WriteChoiceTags(writer, choice);
-    writer.WriteObjectEnd();
-  }
-
-  public static WriteChoiceTags(writer: SimpleJson.Writer, choice: Choice) {
-    if (choice.tags && choice.tags.length > 0) {
-      writer.WritePropertyStart("tags");
-      writer.WriteArrayStart();
-      for (const tag of choice.tags!) {
-        writer.Write(tag);
-      }
-      writer.WriteArrayEnd();
-      writer.WritePropertyEnd();
-    }
-  }
-
+  // Each control command's token in a save. Of the control commands, a save
+  // writes only those on the output stream: a string evaluation's opening and
+  // a tag's brackets.
   private static _controlCommandNames = (() => {
     let _controlCommandNames: string[] = [];
 
-    _controlCommandNames[ControlCommand.CommandType.EvalStart] = "ev";
-    _controlCommandNames[ControlCommand.CommandType.EvalOutput] = "out";
-    _controlCommandNames[ControlCommand.CommandType.EvalEnd] = "/ev";
-    _controlCommandNames[ControlCommand.CommandType.Duplicate] = "du";
-    _controlCommandNames[ControlCommand.CommandType.PopEvaluatedValue] = "pop";
-    _controlCommandNames[ControlCommand.CommandType.PopFunction] = "~ret";
-    _controlCommandNames[ControlCommand.CommandType.PopTunnel] = "->->";
     _controlCommandNames[ControlCommand.CommandType.BeginString] = "str";
-    _controlCommandNames[ControlCommand.CommandType.EndString] = "/str";
-    _controlCommandNames[ControlCommand.CommandType.NoOp] = "nop";
-    _controlCommandNames[ControlCommand.CommandType.TurnsSince] = "turns";
-    _controlCommandNames[ControlCommand.CommandType.ReadCount] = "readc";
-    _controlCommandNames[ControlCommand.CommandType.VisitIndex] = "visit";
-    _controlCommandNames[ControlCommand.CommandType.SequenceShuffleIndex] =
-      "seq";
-    _controlCommandNames[ControlCommand.CommandType.StartThread] = "thread";
-    _controlCommandNames[ControlCommand.CommandType.Done] = "done";
-    _controlCommandNames[ControlCommand.CommandType.End] = "end";
-    _controlCommandNames[ControlCommand.CommandType.ListFromInt] = "listInt";
-    _controlCommandNames[ControlCommand.CommandType.ListRange] = "range";
-    _controlCommandNames[ControlCommand.CommandType.ListRandom] = "lrnd";
     _controlCommandNames[ControlCommand.CommandType.BeginTag] = "#";
     _controlCommandNames[ControlCommand.CommandType.EndTag] = "/#";
-    _controlCommandNames[ControlCommand.CommandType.BeginObject] = "obj{";
-    _controlCommandNames[ControlCommand.CommandType.EndObject] = "}obj";
-    _controlCommandNames[ControlCommand.CommandType.IndexValue] = "idx";
-    _controlCommandNames[ControlCommand.CommandType.StoreIndex] = "idx=";
-    _controlCommandNames[ControlCommand.CommandType.CallValueAsFunction] =
-      "call";
     _controlCommandNames[ControlCommand.CommandType.BeginScope] = "scope{";
     _controlCommandNames[ControlCommand.CommandType.EndScope] = "}scope";
-    // Placeholder — actual serialization uses the dynamic
-    // `stdlib:<name>:<arity>` form (see WriteRuntimeObject's special
-    // case for RunStdLibFunction). The placeholder satisfies the
-    // validation loop at the bottom of this builder that every enum
-    // value has a name.
-    _controlCommandNames[ControlCommand.CommandType.RunStdLibFunction] =
-      "stdlib:?";
-    // Placeholders — actual serialization uses the dynamic
-    // `pack:<n>` / `unpack:<n>` forms (see WriteRuntimeObject's
-    // special cases for PackTuple/UnpackTuple). These satisfy the
-    // "no missing names" validation loop below.
-    _controlCommandNames[ControlCommand.CommandType.PackTuple] = "pack:?";
-    _controlCommandNames[ControlCommand.CommandType.UnpackTuple] = "unpack:?";
-    // Placeholder — actual serialization uses the dynamic
-    // `sc:<op>:<skipCount>` form (see WriteRuntimeObject's special
-    // case for ShortCircuit).
-    _controlCommandNames[ControlCommand.CommandType.ShortCircuit] = "sc:?";
-    // Placeholder — actual serialization uses the dynamic `hold:<levels>`
-    // form (see WriteRuntimeObject's special case for HoldForChoices).
-    _controlCommandNames[ControlCommand.CommandType.HoldForChoices] = "hold:?";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

@@ -137,25 +137,37 @@ sparkdown [0..84]
  │   │       └─ LineEnd_end 73
  │   └─ InlineDialogue_end 73
  ├─ Newline [73..74]: "\n"
- ├─ LuauFunctionCallShorthand [74..83]
- │   ├─ LuauFunctionCallShorthand_begin [74..76]
- │   │   ├─ LuauFunctionCallShorthand_begin_c1 [74..75]
- │   │   │   └─ PunctuationBraceOpen [74..75]: "{"
- │   │   └─ LuauFunctionCallShorthand_begin_c2 [75..76]
- │   │       └─ PunctuationBraceOpen [75..76]: "{"
- │   ├─ LuauFunctionCallShorthand_content [76..81]
- │   │   └─ LuauAccessPath [76..81]
- │   │       ├─ LuauAccessPath_begin 76
- │   │       ├─ LuauAccessPath_content [76..81]
- │   │       │   └─ LuauAccessPart [76..81]
- │   │       │       └─ LuauVariable [76..81]
- │   │       │           └─ LuauVariable_c1 [76..81]
- │   │       │               └─ LuauVariableName [76..81]: "shout"
- │   │       └─ LuauAccessPath_end 81
- │   │           └─ LuauAccessPath_end_c1 81
- │   └─ LuauFunctionCallShorthand_end [81..83]
- │       ├─ LuauFunctionCallShorthand_end_c1 [81..82]
- │       │   └─ PunctuationBraceClose [81..82]: "}"
- │       └─ LuauFunctionCallShorthand_end_c2 [82..83]
- │           └─ PunctuationBraceClose [82..83]: "}"
+ ├─ ImplicitAction [74..83]
+ │   ├─ ImplicitAction_begin 74
+ │   │   └─ ImplicitAction_begin_c1 74
+ │   │       └─ OptionalWhitespace 74
+ │   ├─ ImplicitAction_content [74..83]
+ │   │   └─ ActionLineEnd [74..83]
+ │   │       ├─ ActionLineEnd_begin 74
+ │   │       │   └─ ActionLineEnd_begin_c1 74
+ │   │       │       └─ OptionalWhitespace 74
+ │   │       ├─ ActionLineEnd_content [74..83]
+ │   │       │   └─ LuauFunctionCallShorthand [74..83]
+ │   │       │       ├─ LuauFunctionCallShorthand_begin [74..76]
+ │   │       │       │   ├─ LuauFunctionCallShorthand_begin_c1 [74..75]
+ │   │       │       │   │   └─ PunctuationBraceOpen [74..75]: "{"
+ │   │       │       │   └─ LuauFunctionCallShorthand_begin_c2 [75..76]
+ │   │       │       │       └─ PunctuationBraceOpen [75..76]: "{"
+ │   │       │       ├─ LuauFunctionCallShorthand_content [76..81]
+ │   │       │       │   └─ LuauAccessPath [76..81]
+ │   │       │       │       ├─ LuauAccessPath_begin 76
+ │   │       │       │       ├─ LuauAccessPath_content [76..81]
+ │   │       │       │       │   └─ LuauAccessPart [76..81]
+ │   │       │       │       │       └─ LuauVariable [76..81]
+ │   │       │       │       │           └─ LuauVariable_c1 [76..81]
+ │   │       │       │       │               └─ LuauVariableName [76..81]: "shout"
+ │   │       │       │       └─ LuauAccessPath_end 81
+ │   │       │       │           └─ LuauAccessPath_end_c1 81
+ │   │       │       └─ LuauFunctionCallShorthand_end [81..83]
+ │   │       │           ├─ LuauFunctionCallShorthand_end_c1 [81..82]
+ │   │       │           │   └─ PunctuationBraceClose [81..82]: "}"
+ │   │       │           └─ LuauFunctionCallShorthand_end_c2 [82..83]
+ │   │       │               └─ PunctuationBraceClose [82..83]: "}"
+ │   │       └─ ActionLineEnd_end 83
+ │   └─ ImplicitAction_end 83
  └─ Newline [83..84]: "\n"

@@ -690,12 +690,6 @@
       "include": "#LuauSparkdownControlBlock"
     },
     {
-      "include": "#LuauFunctionCallShorthand"
-    },
-    {
-      "include": "#LuauInterpolatedStringExpression"
-    },
-    {
       "include": "#LuauEndKeyword"
     },
     {
