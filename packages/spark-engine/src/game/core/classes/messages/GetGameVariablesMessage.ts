@@ -6,7 +6,7 @@ import type { Variable } from "../../types/Variable";
 export type GetGameVariablesMethod = typeof GetGameVariablesMessage.method;
 
 export interface GetGameVariablesParams {
-  scope: "vars" | "lists" | "defines" | "temps" | "children" | "value";
+  scope: "vars" | "defines" | "temps" | "children" | "value";
   /**
    * The variable for which to retrieve its children.
    * The `variablesReference` must have been obtained in the current suspended state.

@@ -11,7 +11,6 @@ import {
   IntValue,
   FloatValue,
   BoolValue,
-  DivertTargetValue,
   VariablePointerValue,
   ObjectValue,
   AbstractValue,
@@ -123,7 +122,7 @@ export function extractClosureTarget(
 // Lua's index-type rule: only tables (and strings, via their library
 // metatable) are indexable. Returns the "attempt to index a X value"
 // message for non-indexable values, or `null` when `v` may be indexed.
-// Function values include bare DivertTargets, closure-shaped
+// Function values include symbol values, closure-shaped
 // ObjectValues, and `__stdlib_fn` markers (`math.pow.a` indexes a
 // builtin).
 function luauIndexTargetError(v: unknown): string | null {
@@ -229,7 +228,7 @@ function indexThroughMetatable(
     }
     return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
   }
-  // DivertTargetValue / bare-knot — function form. An index is one value:
+  // A function held by reference — function form. An index is one value:
   // the handler's first, or nil when it returns none.
   if (isFunctionReference(indexFn)) {
     const results = story.CallLuauFunction(indexFn, [
@@ -241,10 +240,9 @@ function indexThroughMetatable(
   return null;
 }
 
-/** Whether `v` is a function held by reference: a symbol value, or a divert
- *  target. */
+/** Whether `v` is a function held by reference: a symbol value. */
 export function isFunctionReference(v: unknown): boolean {
-  return v instanceof DivertTargetValue || v instanceof SymbolValue;
+  return v instanceof SymbolValue;
 }
 
 /**
@@ -340,17 +338,14 @@ const UNOP_TO_METAMETHOD: Record<string, string> = {
 //     comparison if no metamethod fired).
 // rawequal for function-shaped values, used by the `__eq` same-handler
 // rule. Closure ObjectValues compare by underlying-Map identity (same
-// notion as table `==`); bare DivertTargetValues compare by target
-// path, so the same named function referenced twice matches even if
-// the wrapper instances differ.
+// notion as table `==`); symbol values compare by the function their
+// symbols refer to, so the same named function referenced twice matches
+// even if the wrapper instances differ.
 function sameLuauFunctionValue(a: any, b: any): boolean {
   if (a == null || b == null) return false;
   if (a === b) return true;
   if (a instanceof ObjectValue && b instanceof ObjectValue) {
     return a.value === b.value;
-  }
-  if (a instanceof DivertTargetValue && b instanceof DivertTargetValue) {
-    return a.value?.toString() === b.value?.toString();
   }
   if (a instanceof SymbolValue && b instanceof SymbolValue) {
     return a.ref.Equals(b.ref);
@@ -700,7 +695,7 @@ function bindingsOf(
 // parameters) left the table stranded, and `#t` "returned" the table
 // itself. Variadic callees bind their fixed params positionally and
 // receive the extras packed into one MultiValue (the `__varargs__`
-// slot — same shape a static call site's PackTuple produces). The
+// slot — same shape a static call site's `Pack` produces). The
 // parameters come from `bindingsOf`: a closure's table, or the
 // function a function value names.
 export function normalizeLuauCallArgs(
@@ -732,7 +727,7 @@ export function normalizeLuauCallArgs(
 // a function call returned multiple values (a `MultiValue`), spread
 // its inner values onto the eval stack so the callee's parameter
 // binding pops them individually. Skipped for variadic targets —
-// their compile-time `PackTuple` already handled the spread and the
+// their compile-time `Pack` already handled the spread and the
 // trailing `MultiValue` is the `__varargs__` slot value. Only for a
 // call whose argument count the story does not record; a call that
 // records it adjusts its arguments instead (`adjustCallArgs`).
@@ -759,11 +754,11 @@ export { oneValue, spreadCallArgs };
 // `MultiValue` slot whose elements are wrapped by `Value.Create`: a
 // single-value consumer sees its first value through MultiValue's
 // transparent `valueObject`, and a multiple assignment spreads it with
-// `UnpackTuple`. An InkObject is pushed as it is, and a JS primitive wrapped
+// `Unpack`. An InkObject is pushed as it is, and a JS primitive wrapped
 // (number → IntValue/FloatValue, string → StringValue, boolean → BoolValue).
 // No value (`table.insert`, `print`, ...) pushes the `Void` sentinel so the
 // eval stack stays balanced: a call in statement position is followed by a
-// static PopEvaluatedValue, which would otherwise consume whatever operand
+// static `Pop`, which would otherwise consume whatever operand
 // sat beneath (`1 + #pack(7, 8)` lost the `1` to an inner `table.insert`).
 // Void coerces to nil in single-value contexts and spreads to zero values in
 // call-arg position, matching Lua's "no return values".
@@ -1087,10 +1082,9 @@ export function callValueAsFunction(
   story: any,
   callSiteArgCount: number,
 ): void {
-  // Pops a `DivertTargetValue` (regular fn) OR a closure
-  // `ObjectValue` off the eval stack and diverts to the
-  // corresponding path, pushing a Function call-stack frame
-  // so a later `~ret` / `PopFunction` returns control to the
+  // Pops a symbol value (regular fn) OR a closure `ObjectValue` off
+  // the eval stack and calls the function it refers to, pushing a
+  // Function call-stack frame so the function's return resumes the
   // instruction after this one.
   //
   // Arguments must already be on the eval stack *below* the target —
@@ -1103,9 +1097,8 @@ export function callValueAsFunction(
   // (`foo(1, 2, 3)` against `function foo(a, b)` would bind a=2, b=3), or
   // dig into the caller's eval context for missing ones. The call-site
   // arg count is
-  // encoded on the ControlCommand via CallValueExpression's
-  // `CallValueAsFunction(this.args.length)`; -1 means "untracked"
-  // (legacy bytecode).
+  // the `CallValue` instruction's, which CallValueExpression emits with
+  // `this.args.length`; -1 means "untracked".
   //
   // Closure dispatch: when the target is a closure-shaped
   // `ObjectValue` (has `__closure_fn` / `__closure_upvals`
@@ -1230,7 +1223,7 @@ export function callValueAsFunction(
     );
   }
   // The arguments arranged for the function: a variadic function reached
-  // as a bare DivertTargetValue (e.g. a sibling variadic subflow passed
+  // as a bare symbol value (e.g. a sibling variadic subflow passed
   // first-class) gets its extras packed here. A call that did not say how
   // many args it pushed spreads a last multi-return instead.
   if (callSiteArgCount >= 0) {
@@ -1335,7 +1328,7 @@ function newindexThroughMetatable(
 // `FunctionTargetOf` and `EnterFunction` besides.
 
 /** The table the key and value pairs of `between` from `first` on make, as
- *  `EndObject` builds it: a computed key reads as a map key, a nil value is
+ *  `MakeTable` builds it: a computed key reads as a map key, a nil value is
  *  no entry, and a last value that is a multiple value spreads over the
  *  array positions from its key. */
 export function tableFromPairs(
@@ -1408,7 +1401,7 @@ export function tableFromPairs(
   return new ObjectValue(entries);
 }
 
-/** `indexBase[indexKey]`, as `IndexValue` reads it. */
+/** `indexBase[indexKey]`, as the `Index` instruction reads it. */
 export function indexValue(
   story: any,
   indexBase: InkObject | null,
@@ -1563,7 +1556,7 @@ export function readVariable(story: any, name: string | null): InkObject {
   let foundValue: InkObject | null = null;
   // `_G` — Luau's global environment table. A bare reference
   // resolves to a marker-tagged proxy ObjectValue; the
-  // `IndexValue` / `StoreIndex` handlers route reads and writes
+  // `Index` / `StoreIndex` instructions route reads and writes
   // through global variable storage when they see the tag.
   // (`luauTypeOf` reports ObjectValue as "table", matching
   // `type(_G) == "table"`.)
@@ -1644,7 +1637,7 @@ export function readVariable(story: any, name: string | null): InkObject {
         // the metatable lookup so `t.x` resolves to either
         // `rawget(t, "x")` (when present) or
         // `__index(t, "x")` / chained-table lookup. Matches
-        // the IndexValue ControlCommand's metamethod behavior.
+        // the `Index` instruction's metamethod behavior.
         if (cur instanceof ObjectValue) {
           // Reactive dep tracking: this dotted read walked through `cur` —
           // record its identity so an in-place mutation re-runs the binding.
@@ -1697,8 +1690,7 @@ export function readVariable(story: any, name: string | null): InkObject {
 
   // Lua-style first-class fn fallback: if no variable named
   // `<name>` exists but a knot/function `<name>` IS defined,
-  // resolve to its value: a `DivertTargetValue` pointing at the
-  // knot, or on the binary program's engine a symbol value.
+  // resolve to its value: the symbol value of that function or flow.
   // This makes `local f = double` work as if the user had
   // written `local f = -> double`. Common authoring pattern.
   if (foundValue == null && name) {
@@ -1868,7 +1860,7 @@ export function callNativeFunction(
   return result;
 }
 
-/** Pops `n` values and pushes them as one multiple value, as `PackTuple`
+/** Pops `n` values and pushes them as one multiple value, as `Pack`
  *  does: the last value spreads, the others adjust to one value. */
 export function packTuple(story: any, n: number): void {
   // Pop N expression results and pack them into one
@@ -1911,7 +1903,7 @@ export function packTuple(story: any, n: number): void {
   }
   // Variadic call-site spread when extras = 0: the
   // SYNTACTICALLY LAST expression is the call's last regular
-  // arg (already pushed before this PackTuple). If it's a
+  // arg (already pushed before this `Pack`). If it's a
   // MultiValue, spread it so its first inner value stays as
   // the regular arg and the rest land in the vararg
   // MultiValue we're building. E.g. `f(pcall(...))` against
@@ -1939,7 +1931,7 @@ export function packTuple(story: any, n: number): void {
 }
 
 /** Pops one value and pushes its first `n` values, padded with nil, the
- *  first on top, as `UnpackTuple` does. */
+ *  first on top, as `Unpack` does. */
 export function unpackTuple(story: any, n: number): void {
   // Pop the top eval-stack slot. If it's a `MultiValue`,
   // push the first N inner values in REVERSE order so the
@@ -1973,7 +1965,7 @@ export function unpackTuple(story: any, n: number): void {
 }
 
 /** Whether the value on top decides an `and` or an `or` alone, as
- *  `ShortCircuit` tests it: a multiple value adjusts to its first, a call
+ *  `JumpIfKeep` tests it: a multiple value adjusts to its first, a call
  *  that returned none to nil, which the operator then yields when it
  *  decides, and a value that does not decide is popped for the right side
  *  to replace. */
@@ -1993,8 +1985,8 @@ export function shortCircuitDecides(story: any, op: "and" | "or"): boolean {
   return decides;
 }
 
-/** Pops a condition and tests it by Luau truthiness, as the `ShortCircuit`
- *  "if" of an `if` expression does. */
+/** Pops a condition and tests it by Luau truthiness, as the jump of an `if`
+ *  expression does. */
 export function popLuauCondition(story: any): boolean {
   // Condition position adjusts a multi-value to one value.
   return isLuauTruthy(oneValue(story.state.PopEvaluationStack() as AbstractValue));

@@ -141,4 +141,29 @@ describe("the debug adapter's frames", () => {
     });
     expect(s.variablesSent().at(-1)).toEqual({ scope: "temps" });
   });
+
+  // Sparkdown has no list type (#1752), so the Variables view shows no
+  // Lists scope and never asks the game for one (#1805).
+  it("offers the Temps, Vars and Defines scopes and asks the game for each", async () => {
+    const s = session();
+    const { stackFrames } = await s.call("stackTraceRequest", { threadId: 0 });
+    const { scopes } = await s.call("scopesRequest", {
+      frameId: stackFrames[0].id,
+    });
+    expect(scopes.map((c: { name: string }) => c.name)).toEqual([
+      "Temps",
+      "Vars",
+      "Defines",
+    ]);
+    for (const scope of scopes) {
+      await s.call("variablesRequest", {
+        variablesReference: scope.variablesReference,
+      });
+    }
+    expect(s.variablesSent().map((p) => p.scope)).toEqual([
+      "temps",
+      "vars",
+      "defines",
+    ]);
+  });
 });

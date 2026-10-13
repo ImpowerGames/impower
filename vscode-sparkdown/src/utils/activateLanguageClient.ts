@@ -80,6 +80,12 @@ export const activateLanguageClient = async (
       // cloned across two threads on every keystroke). Consumers that need
       // the full program pull it on demand via SparkProgramManager.
       slimProgramNotifications: true,
+      // The language server's keystroke compiles wait for a pause of 200 ms (a
+      // max-wait of 800 ms while typing goes on), as in the web editor, where
+      // applying each compile result costs the page about 100 ms of main
+      // thread. The Game Preview's player keeps the workspace's shorter
+      // default (#1797).
+      compileDebounceDelay: 200,
     },
     middleware: {
       provideCompletionItem: async (

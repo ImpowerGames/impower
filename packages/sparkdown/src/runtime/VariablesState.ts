@@ -16,7 +16,6 @@ import { tryGetValueFromMap } from "./TryGetResult";
 import { throwNullException } from "./NullException";
 import { CallStack } from "./CallStack";
 import { SimpleJson } from "./SimpleJson";
-import { Path } from "./Path";
 
 // Fake class wrapper around VariableState to have correct typing
 // when using the Proxy syntax in typescript
@@ -24,7 +23,7 @@ function VariablesStateAccessor<T>(): new () => Pick<T, keyof T> {
   return class {} as any;
 }
 
-type VariableStateValue = boolean | string | number | Path | null;
+type VariableStateValue = boolean | string | number | null;
 
 /** What the program engine's images hear of the keyed state before it is
  *  written (docs/engine/binary-program.md, section 7, The write barrier): a

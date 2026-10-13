@@ -10,7 +10,7 @@ import { runConformanceSource } from "./conformanceTestHarness";
 //
 // `lowerMethodCall` now emits a `CallValueExpression(IndexExpression
 // (receiver, "method"), args)` for non-stdlib methods. The runtime's
-// `CallValueAsFunction` ControlCommand pops the callable (the method
+// `CallValue` instruction pops the callable (the method
 // value) and dispatches via the same path closure literals use.
 
 describe("user-defined method dispatch", () => {

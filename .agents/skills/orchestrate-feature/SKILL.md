@@ -9,7 +9,7 @@ One coordinator owns the named Feature's delivery. Each ticket's writer runs [re
 
 ## Authority
 
-An explicit request such as "Use orchestrate-feature for #692" grants the coordinator two things for that Feature: dispatching writers for its open sub-issues, and the bounded disk recovery in step 5. Record the request verbatim with `init --invocation`. It accepts a writer model override (`--writer-model`) and a concurrency override (`--concurrency`). It does not authorize review rounds beyond a writer's default three or any merge: relay those decisions to the maintainer with the writer's checkpoint report, unless the maintainer has delegated them in this conversation.
+An explicit request such as "Use orchestrate-feature for #692" grants the coordinator three things for that Feature: dispatching writers for its open sub-issues, the review checkpoint decisions in [review checkpoints](references/review-checkpoints.md), and the bounded disk recovery in step 5. Record the request verbatim with `init --invocation`; extensions and acceptances quote it. It accepts a writer model override (`--writer-model`) and a concurrency override (`--concurrency`). It does not authorize any merge: the maintainer merges ready PRs.
 
 ## 0. Start
 
@@ -47,7 +47,7 @@ A writer is replaced only after it is observed to have ended; `release --observa
 
 For `adopt-pr` and `adopt-worktree`, identify the existing writer and record it with `adopt`. Once it is known to have ended (released first if the record holds it), `claim --operation continue --evidence <how you know>` starts a new writer on its branch; the PR keeps its started rounds.
 
-Before acting on any writer's report or request, and on the first wake after you restart, read [writer reports](references/writer-reports.md): messages are hints, a short note is never the report, and every request and answer is recorded. Relay a writer's request for a further review round to the maintainer with your own reading. Writers keep their own review jobs, round counts, freezes and the machine-wide reviewer and test reservations; the coordinator holds no lock on their worktrees.
+Before acting on any writer's report or request, and on the first wake after you restart, read [writer reports](references/writer-reports.md): messages are hints, a short note is never the report, and every request and answer is recorded. A writer's checkpoint report, sent after round 3's verified fixes and after every later round's, is decided as [review checkpoints](references/review-checkpoints.md) describes, never by its round count alone. Writers keep their own review jobs, round counts, freezes and the machine-wide reviewer and test reservations; the coordinator holds no lock on their worktrees.
 
 ## 5. Bounded disk recovery
 

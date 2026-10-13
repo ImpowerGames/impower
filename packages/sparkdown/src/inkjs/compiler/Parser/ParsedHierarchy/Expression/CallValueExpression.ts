@@ -2,11 +2,11 @@ import { Expression } from "./Expression";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
 
-// Call an arbitrary expression value (closure, DivertTargetValue, or
+// Call an arbitrary expression value (closure, symbol value, or
 // `__call`-equipped table) with a list of pre-evaluated args. The
-// expression evaluates to the callable; runtime `CallValueAsFunction`
+// expression evaluates to the callable; the program engine's `CallValue`
 // pops it (and the args below it), then dispatches via the same path
-// closure literals and direct DivertTargetValue calls use.
+// closure literals and direct symbol-value calls use.
 //
 // Used by `lowerMethodCall` when the method receiver isn't a stdlib
 // namespace — sparkdown can't statically resolve `a.method(args)` to

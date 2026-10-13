@@ -81,6 +81,24 @@ A route replayed from the top of its scene starts from a game that has never run
 
 The player's worker sends its workspace summaries, which the program transport passes over. A compiler worker that sends whole programs, as the language server's does, sends them through `ProgramTransportEncoder` (worker) and `ProgramTransportDecoder` (workspace), which share each attribute vocabulary's large parts across programs by number, sending a part again only when its file changes, and send path locations as one typed array. Programs are decoded in the order they are encoded; after each program both sides keep only the parts that program used. The asset channel shares vocabularies with the context instead of copying them (`cloneSharingVocabularies`).
 
+## Typed edits
+
+An accepted suggestion and every other typed change reach the preview through the player's ordinary keystroke compile, not a preview compile. `SparkdownWorkspace.scheduleChangeCompile` holds a typed change for a trailing debounce, 50 ms by default, with a max-wait of four times the delay so the preview keeps following sustained typing. The workspace runs one keystroke compile at a time: when the debounce runs out while any compile is still running, the next one starts as soon as that compile returns, with the text as it is by then. Documents in different compile trees still compile one after another in a batch.
+
+The delay is the workspace's default, which the player's workspace uses in the web editor and in VS Code's Game Preview. A host can change it with `compileDebounceDelay` in its initialize options. Both language-server hosts (`impower-dev/src/modules/spark-editor/workspace/WorkspaceLanguageServer.ts`, `vscode-sparkdown/src/utils/activateLanguageClient.ts`) pass 200 ms, so diagnostics follow typing at the pace they did before #1797. In the web editor, applying each language-server compile result costs the page about 100 ms of main thread. At a 50 ms delay the language server would compile after nearly every key and keep the page busy, so key presses would wait for it.
+
+Measured on 2026-10-12 on the Raffles & Bunny project at `main.sd` line 3514 (accepting a suggestion, `driver.mjs measure --edit`) and with a 52-character clause typed at the end of line 3516, one key every 80 to 120 ms (`measure --burst`). Each figure is the median of three alternating runs on a shared machine.
+
+| Player delay, language server delay | Key to painted edit | Compiles per 5 s burst | Stale on arrival | Longest burst stretch without a compile | Median input delay | Long tasks per burst |
+| --- | --- | --- | --- | --- | --- | --- |
+| 200, 200 (before #1797) | 351 ms | 7 | 2 | 912 ms | 0.5 ms | 0.7 s |
+| 30, 200 | 160 ms | 34 | 15 | 377 ms | 0.6 ms | 0.6 s |
+| **50, 200 (chosen)** | **188 ms** | **30** | **8** | **420 ms** | **0.6 ms** | **0.7 s** |
+| 75, 200 | 214 ms | 28 | 7 | 430 ms | 0.6 ms | 0.7 s |
+| 50, 50 (one shared delay) | 208 ms | 4 | 2 | 3.2 s | 56 ms | 2.8 s |
+
+50 ms is the shortest delay whose compiles are no more often stale on arrival than at 200 ms (about three in ten; at 30 ms nearly half are). With the language server at 200 ms, compiles run for about a third of the burst or less at any of these player delays, and never two at once. A shared delay below 200 ms keeps the editor's main thread busy with language-server results: 2.8 s of long tasks per 5 s burst at 30 to 75 ms, 2.1 s at 125 and 1.4 to 1.9 s at 150. The player's compiles then wait on that thread and start only every few seconds.
+
 ## Performance
 
 Measured on 2026-09-24 on the Raffles & Bunny project (main script 8,254 lines, 646 files, 149 MB of assets) at `main.sd` line 3515, highlighting a replacement for `raffles_concerned`, on a desktop Windows 11 machine in headless Chromium, with the editor driver's `measure` (key press to the `preview/didChangeGameState` that reports the suggestion on screen) and the worker benchmark (`scripts/bench/preview-bench.mjs`, which replays the worker's compile, route and display in Node).

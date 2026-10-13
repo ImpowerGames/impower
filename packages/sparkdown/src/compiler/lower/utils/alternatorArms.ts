@@ -48,9 +48,9 @@ const ARM_VALUES = nodeNameSet([
 // `expression/lowerExpression.ts > lowerDivertTargetLiteral` does for
 // the value form, but produces a bare `Divert` (which executes as
 // flow control) instead of wrapping in `DivertTarget` (which produces
-// a `DivertTargetValue` and emits it to the output stream). Used by
+// the target's symbol value and prints it to the output stream). Used by
 // the inline-alternator arm path so `{chain | -> next | other end}`
-// transfers control on arm 1 instead of emitting "DivertTargetValue(next)".
+// transfers control on arm 1 instead of printing the target as a value.
 function buildDivertFromTargetLiteral(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -135,7 +135,7 @@ export function lowerArms(
       // no Sparkdown prefix) use `#LuauExpression` for arm content. A
       // `-> target` literal inside an arm would normally lower as a
       // `LuauDivertTargetLiteral` value expression (producing a
-      // `DivertTargetValue` emitted to the output stream — not what the
+      // symbol value printed to the output stream — not what the
       // author meant). Detect the divert-shape and route it through the
       // statement-form divert lowerer so the chosen arm's runtime
       // transfers control instead of emitting the target as a value.
