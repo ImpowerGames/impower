@@ -200,6 +200,28 @@ describe("the debugger on the program engine", () => {
     expect(h.game.getThreads()).toEqual([{ id: 0, name: "sub" }]);
   });
 
+  it("pages the stack from the top frame", () => {
+    const h = debugGame(NESTED);
+    h.game.setBreakpoints([{ file: MAIN, line: 15 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    const id = h.game.getThreads()[0]!.id;
+    const page = (s: number, l?: number) => {
+      const trace = h.game.getStackTrace(id, s, l);
+      expect(trace.totalFrames).toBe(2);
+      return trace.stackFrames.map((f) => `${f.id}:${f.name}`);
+    };
+    expect(page(0)).toEqual(["1:sub", "0:main"]);
+    expect(page(0, 1)).toEqual(["1:sub"]);
+    expect(page(1, 1)).toEqual(["0:main"]);
+    // A level count past the stack, or none (0, as the protocol says), is
+    // the rest of the stack.
+    expect(page(0, 20)).toEqual(["1:sub", "0:main"]);
+    expect(page(0, 0)).toEqual(["1:sub", "0:main"]);
+    expect(page(1)).toEqual(["0:main"]);
+    expect(page(2, 1)).toEqual([]);
+  });
+
   /** Stops in `add` on its first line (where a function breakpoint stops),
    *  then steps over each line to `line`. */
   const stopInAdd = (h: ReturnType<typeof debugGame>, line: number) => {
