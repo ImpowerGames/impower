@@ -385,6 +385,90 @@ describe("the debugger on the program engine", () => {
     expect(h.stoppedAt()).toBe(9);
   });
 
+  // A step in stops once the function's entry code has bound every
+  // parameter, at the `EnterBlock` a function breakpoint stops at (#1743).
+  it("steps in to a function once it has bound every parameter", () => {
+    const h = debugGame(NESTED);
+    h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(18);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=2", "b=3"]);
+  });
+
+  /** The script of `main` calling `call`, with `functions` after it: the
+   *  call is on line 4 and the first function starts on line 7. */
+  const calling = (call: string, functions: string[]) =>
+    [
+      "store result = 0", //          0
+      "-> main", //                   1
+      "scene main", //                2
+      "  Before.", //                 3
+      `  result = ${call}`, //        4
+      "  done", //                    5
+      "end", //                       6
+      ...functions,
+      "",
+    ].join("\n");
+
+  /** Steps in from the call on line 4, returning where the game stopped and
+   *  the temporaries it shows there. */
+  const stepInFromCall = (script: string) => {
+    const h = debugGame(script);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(4);
+    h.game.step("in");
+    return {
+      h,
+      line: h.stoppedAt(),
+      temps: names(h.game.getTempVariables()).sort(),
+    };
+  };
+
+  it("steps in to a function with no parameters on its first line", () => {
+    const { line, temps } = stepInFromCall(
+      calling("zero()", ["function zero()", "  return 0", "end"]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual([]);
+  });
+
+  it("steps in to a function with one parameter once it is bound", () => {
+    const { line, temps } = stepInFromCall(
+      calling("twice(4)", ["function twice(n)", "  return n * 2", "end"]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual(["n=4"]);
+  });
+
+  it("steps in to a vararg function once its named parameters are bound", () => {
+    const { line, temps } = stepInFromCall(
+      calling("first(7, 8, 9)", ["function first(a, b, ...)", "  return a", "end"]),
+    );
+    expect(line).toBe(7);
+    expect(temps.filter((t) => /^[ab]=/.test(t))).toEqual(["a=7", "b=8"]);
+  });
+
+  it("steps in to the call inside an argument, then to the outer call", () => {
+    const { h, line, temps } = stepInFromCall(
+      calling("add(add(1, 2), 3)", [
+        "function add(a, b)",
+        "  return a + b",
+        "end",
+      ]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual(["a=1", "b=2"]);
+    h.game.step("out");
+    expect(h.stoppedAt()).toBe(4);
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(7);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=3", "b=3"]);
+  });
+
   // A temporary named like a global shadows it, for reading and for writing.
   const SHADOWED = [
     "store health = 100", //      0
@@ -1917,7 +2001,7 @@ describe("a choose block's caption on the program engine", () => {
   // line in progress back, with what it holds for the next beat.
   it("reports the carried step's lines after a save at a breakpoint on the carried line", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
     h.game.start();
     expect(h.stoppedAt()).toBe(3);
     expect(typeof h.game.save()).toBe("string");
@@ -2035,7 +2119,7 @@ describe("a choose block's caption on the program engine", () => {
 
   it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
     h.game.start();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.stoppedAt()).toBe(3);
