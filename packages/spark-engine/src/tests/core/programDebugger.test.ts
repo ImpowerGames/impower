@@ -469,6 +469,41 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables()).sort()).toEqual(["a=3", "b=3"]);
   });
 
+  it("steps in to each of two calls on one line once each binds its parameters", () => {
+    const { h, line, temps } = stepInFromCall(
+      calling("add(1, 2) + add(3, 4)", [
+        "function add(a, b)",
+        "  return a + b",
+        "end",
+      ]),
+    );
+    expect(line).toBe(7);
+    expect(temps).toEqual(["a=1", "b=2"]);
+    h.game.step("out");
+    expect(h.stoppedAt()).toBe(4);
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(7);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=3", "b=4"]);
+  });
+
+  it("stops once when a step in lands where a function breakpoint stops", () => {
+    const h = debugGame(NESTED);
+    h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
+    h.game.setFunctionBreakpoints([{ name: "add" }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(8);
+    const stops = () =>
+      h.of("game/hitBreakpoint").length + h.of("game/stepped").length;
+    const before = stops();
+    h.game.step("in");
+    expect(stops()).toBe(before + 1);
+    expect(h.stoppedAt()).toBe(18);
+    expect(names(h.game.getTempVariables()).sort()).toEqual(["a=2", "b=3"]);
+    h.game.step("in");
+    expect(h.stoppedAt()).toBe(19);
+  });
+
   // A temporary named like a global shadows it, for reading and for writing.
   const SHADOWED = [
     "store health = 100", //      0
