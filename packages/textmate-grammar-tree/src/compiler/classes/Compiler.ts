@@ -478,20 +478,20 @@ export class Compiler {
   }
 
   /**
-   * How much of the text a parse of an edit at `pos` would parse again: from
-   * the split point it restarts at to the first split point after `pos` it
-   * can splice the old chunks back in at, or the end of the packet.
+   * The stretch of the text a parse of an edit at `pos` would parse again:
+   * from the split point it restarts at to the first split point after `pos`
+   * it can splice the old chunks back in at, or the end of the packet.
    *
    * A from-scratch parse mints no split points inside a block, so an edit
    * inside a long block reparses all of it until an incremental parse has
    * minted them.
    */
-  reparseSpan(pos: number): number {
+  reparseRange(pos: number): { from: number; to: number } {
     const behind = this.restartPoint(pos);
     const ahead = this.packet.findAheadSplitPoint(pos);
     const from = behind.chunk?.from ?? 0;
     const to = ahead.chunk?.from ?? this.packet.last?.to ?? pos;
-    return Math.max(0, to - from);
+    return { from, to: Math.max(from, to) };
   }
 
   /**

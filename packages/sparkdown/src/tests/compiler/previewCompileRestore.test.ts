@@ -14,50 +14,11 @@
 import { describe, expect, it } from "vitest";
 import { Compiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { describeRoot } from "../program/describeRoot";
 import { cumulativeScreenplay, includedChapter } from "./fixtures/coupledScreenplay";
+import { divergedFields as diverged, fieldSig } from "./programSignature";
 
 const URI = "inmemory:///main.sd";
 const CHAPTER_URI = "inmemory:///chapter.sd";
-
-// Every field the cumulative oracle compares, so a divergence names the field.
-const FIELDS = [
-  "functionLocations",
-  "sceneLocations",
-  "knotLocations",
-  "branchLocations",
-  "labelLocations",
-  "context",
-  "diagnostics",
-  "ui",
-] as const;
-
-function stable(value: unknown): string {
-  const seen = new WeakSet();
-  const walk = (v: any): any => {
-    if (v && typeof v === "object") {
-      if (seen.has(v)) return "[Circular]";
-      seen.add(v);
-      if (Array.isArray(v)) return v.map(walk);
-      const out: Record<string, any> = {};
-      for (const k of Object.keys(v).sort()) out[k] = walk(v[k]);
-      return out;
-    }
-    return v;
-  };
-  return JSON.stringify(walk(value));
-}
-
-function fieldSig(program: any): Record<string, string> {
-  const sig: Record<string, string> = {};
-  sig["chunks"] = JSON.stringify(program.chunks ? describeRoot(program.chunks) : null);
-  for (const f of FIELDS) sig[f] = stable(program[f]);
-  return sig;
-}
-
-function diverged(a: Record<string, string>, b: Record<string, string>) {
-  return Object.keys(a).filter((f) => a[f] !== b[f]);
-}
 
 function quiet<T>(fn: () => T): T {
   const realWarn = console.warn;
@@ -338,43 +299,49 @@ describe("a preview compile", () => {
     expect(digest(compiler) === before, "the compiler's digest after an in-block preview").toBe(true);
   });
 
-  it("in a long block a cold parse left whole splits it once, and each later preview reparses a few lines", () => {
-    // A `then` clause a from-scratch parse keeps as a single chunk, so an edit
-    // deep inside it reparses all of it until an incremental parse has minted
-    // the split points the edit's parse can restart at.
-    const L: string[] = ["scene long", "  The hall is quiet.", "", "  choose", "    + [Go on]", "      The door opens.", "", "    + [Wait]", "      Nothing happens.", "  then", ""];
-    for (let i = 0; i < 400; i++) {
-      L.push(`    Action line ${i} describing the hall at some length.`, "", "    HERO:", `      Dialogue line ${i}.`, "");
+  it("in long blocks a cold parse left whole splits each once, and every later preview there reparses a few lines", () => {
+    // Two `then` clauses a from-scratch parse keeps as single chunks, so an
+    // edit deep inside either reparses all of it until an incremental parse
+    // has minted the split points the edit's parse can restart at.
+    const L: string[] = [];
+    for (const name of ["first", "second"]) {
+      L.push(`scene ${name}`, "  The hall is quiet.", "", "  choose", "    + [Go on]", "      The door opens.", "", "    + [Wait]", "      Nothing happens.", "  then", "");
+      for (let i = 0; i < 400; i++) {
+        L.push(`    Action line ${i} describing the ${name} hall at some length.`, "", "    HERO:", `      Dialogue line ${i} of ${name}.`, "");
+      }
+      L.push("  end", "end", "");
     }
-    L.push("  end", "end", "");
     const base = L.join("\n");
     const c = compilerFor({ [URI]: base });
     quiet(() => c.compile({ textDocument: { uri: URI } }));
-    const target = "Dialogue line 380.";
     const compiler = parserCompiler(c);
-
-    // The first preview there parses the text as it is once, kept, and then
-    // the suggestion; the registry keeps its tree and annotations.
     const before = parseOf(c);
-    const [, first] = reparsedSpans(c, () => previewOf(c, URI, 1, change(base, target, "Dialogue line 380!").contentChanges));
-    expect(first.length).toBeLessThanOrEqual(2);
-    expectSameParse(c, before);
-
-    // Every preview after it parses once, reparses a few lines, and leaves
-    // the parser as it found it.
     const digest = digester();
-    const state = digest(compiler);
-    for (const replace of ["Dialogue line 380?", "Dialogue 380.", "Line 380."]) {
-      const [preview, spans] = reparsedSpans(c, () => previewOf(c, URI, 1, change(base, target, replace).contentChanges));
-      expect(preview.outdated).toBeUndefined();
-      expect(spans.length, "parses per preview").toBe(1);
-      expect(spans[0], "characters the preview's parse reparsed").toBeLessThan(1_000);
-      expect(digest(compiler) === state, "the compiler's digest").toBe(true);
+    const preview = (target: string, replace: string) =>
+      reparsedSpans(c, () => previewOf(c, URI, 1, change(base, target, replace).contentChanges));
+
+    // The first preview in a block parses the text as it is once, kept, and
+    // then the suggestion; every preview after it there parses once,
+    // reparses a few lines and leaves the parser as it found it, whichever
+    // block the previews before it were in.
+    for (const block of ["first", "second", "first"]) {
+      const target = `Dialogue line 380 of ${block}.`;
+      const [, first] = preview(target, `Dialogue line 380 of ${block}!`);
+      expect(first.length).toBeLessThanOrEqual(2);
+      expectSameParse(c, before);
+      const state = digest(compiler);
+      for (const replace of ["?", ";", "..."]) {
+        const [result, spans] = preview(target, `Dialogue line 380 of ${block}${replace}`);
+        expect(result.outdated).toBeUndefined();
+        expect(spans.length, `parses per preview in the ${block} block`).toBe(1);
+        expect(spans[0], `characters a preview in the ${block} block reparsed`).toBeLessThan(1_000);
+        expect(digest(compiler) === state, "the compiler's digest").toBe(true);
+      }
     }
     expectSameParse(c, before);
 
     // The next real edit there compiles to the cold program.
-    const typed = change(base, "Dialogue line 381.", "Dialogue line 381, typed.");
+    const typed = change(base, "Dialogue line 381 of second.", "Dialogue line 381 of second, typed.");
     quiet(() =>
       c.updateDocument({ textDocument: { uri: URI, version: 2 }, contentChanges: typed.contentChanges } as never),
     );
@@ -382,7 +349,63 @@ describe("a preview compile", () => {
     expect(diverged(fieldSig(incremental), fieldSig(coldProgram({ [URI]: typed.after })))).toEqual([]);
   });
 
-  it("rolls back when the compile throws", () => {
+  // Where the preview's work stops: before the compile does anything, while
+  // the edit's update lowers, and once the compile has renumbered the names
+  // of objects it shares with the last real compile.
+  // A throw inside the compile's passes is caught there and reported as a
+  // failed compile, so only the first two reach the caller.
+  const THROW_SITES: {
+    name: string;
+    edit: [string, string];
+    reachesCaller: boolean;
+    arm: (c: SparkdownCompiler) => () => void;
+  }[] = [
+    {
+      name: "before the compile does anything",
+      edit: [...SUGGESTED],
+      reachesCaller: true,
+      arm: (c) => {
+        const real = (c as any).compileStory;
+        (c as any).compileStory = () => {
+          throw new Error("compile failed");
+        };
+        return () => ((c as any).compileStory = real);
+      },
+    },
+    {
+      name: "while the edit's update lowers",
+      edit: [...SUGGESTED],
+      reachesCaller: true,
+      arm: (c) => {
+        const annotators = parseState(c).annotators;
+        const real = annotators.update;
+        annotators.update = () => {
+          throw new Error("compile failed");
+        };
+        return () => (annotators.update = real);
+      },
+    },
+    {
+      name: "after the compile renumbered shared names",
+      // A function written above the fixture's own makes every generated
+      // name after it take the next number.
+      edit: ["store trust = 0", "& early = function() return 9 end\nstore trust = 0"],
+      reachesCaller: false,
+      arm: (c) => {
+        const resolver = (c as any)._programResolver;
+        const real = resolver.resolve;
+        resolver.resolve = () => {
+          renumbered = (c as any)._previewUndo.length;
+          throw new Error("compile failed");
+        };
+        return () => (resolver.resolve = real);
+      },
+    },
+  ];
+  // How many undo records the renumbering left when the resolve threw.
+  let renumbered = 0;
+
+  it.each(THROW_SITES)("rolls back when the compile throws $name", ({ edit, arm, reachesCaller }) => {
     const base = cumulativeScreenplay();
     const c = compilerFor({ [URI]: base });
     quiet(() => c.compile({ textDocument: { uri: URI } }));
@@ -391,14 +414,18 @@ describe("a preview compile", () => {
     const compiler = parserCompiler(c);
     const state = digest(compiler);
 
-    const real = (c as any).compileStory;
-    (c as any).compileStory = () => {
-      throw new Error("compile failed");
-    };
+    renumbered = 0;
+    const disarm = arm(c);
     try {
-      expect(() => previewOf(c, URI, 1, change(base, ...SUGGESTED).contentChanges)).toThrow("compile failed");
+      const run = () => previewOf(c, URI, 1, change(base, ...edit).contentChanges);
+      if (reachesCaller) {
+        expect(run).toThrow("compile failed");
+      } else {
+        run();
+        expect(renumbered, "names renumbered in place before the throw").toBeGreaterThan(1);
+      }
     } finally {
-      (c as any).compileStory = real;
+      disarm();
     }
 
     expectSameParse(c, before);

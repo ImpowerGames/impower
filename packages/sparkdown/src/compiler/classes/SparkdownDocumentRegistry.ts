@@ -552,9 +552,10 @@ export class SparkdownDocumentRegistry {
    * them as a side effect. The parse replaces one character with itself, so
    * the tree it builds describes the text the registry's tree does, and the
    * registry keeps its own tree (and with it the annotators' state), stamped
-   * with the epoch the parse left the compiler in. A compiler is tried once
-   * per epoch, so a stretch that minting cannot split is not parsed again
-   * until a real edit moves it on.
+   * with the epoch the parse left the compiler in. Each long stretch is split
+   * the first time an edit lands in it; a stretch the parse leaves long all
+   * the same (`_unsplit`) is not parsed again until a real edit changes the
+   * text.
    */
   protected mintSplitPoints(
     uri: string,
@@ -570,9 +571,17 @@ export class SparkdownDocumentRegistry {
       !state.treeFragments ||
       state.treeVersion !== document.version ||
       (tree as { __compilerEpoch?: number }).__compilerEpoch !==
-        compiler.reuseEpoch ||
-      this._mintedAt.get(compiler) === compiler.reuseEpoch ||
-      compiler.reparseSpan(pos) <= MINT_SPAN
+        compiler.reuseEpoch
+    ) {
+      return;
+    }
+    const range = compiler.reparseRange(pos);
+    const recorded = this._unsplit.get(compiler);
+    const unsplit =
+      recorded?.epoch === compiler.reuseEpoch ? recorded.ranges : [];
+    if (
+      range.to - range.from <= MINT_SPAN ||
+      unsplit.some((r) => r.from <= pos && pos <= r.to)
     ) {
       return;
     }
@@ -591,13 +600,31 @@ export class SparkdownDocumentRegistry {
     if (minted.prop(cachedCompilerProp) === compiler) {
       (tree as { __compilerEpoch?: number }).__compilerEpoch =
         compiler.reuseEpoch;
+      // The text is unchanged, so the stretches recorded before this parse
+      // stand where they stood.
+      const after = compiler.reparseRange(pos);
+      this._unsplit.set(compiler, {
+        epoch: compiler.reuseEpoch,
+        ranges:
+          after.to - after.from > MINT_SPAN ? [...unsplit, after] : unsplit,
+      });
+    } else {
+      // The parse did not reuse the compiler, which is as it was.
+      this._unsplit.set(compiler, {
+        epoch: compiler.reuseEpoch,
+        ranges: [...unsplit, range],
+      });
     }
-    this._mintedAt.set(compiler, compiler.reuseEpoch);
     profile("end", this._profilerId, "mintSplitPoints", uri);
   }
 
-  /** The epoch each compiler was last left in by `mintSplitPoints`. */
-  protected _mintedAt = new WeakMap<Compiler, number>();
+  /** The stretches of each compiler's text that `mintSplitPoints` parsed and
+   *  left long, at the epoch they were recorded at: a real edit moves the
+   *  epoch on and so forgets them. */
+  protected _unsplit = new WeakMap<
+    Compiler,
+    { epoch: number; ranges: { from: number; to: number }[] }
+  >();
 
   /** The snapshots held, by document: the edits made to one meanwhile are
    *  folded into its `edited`. */

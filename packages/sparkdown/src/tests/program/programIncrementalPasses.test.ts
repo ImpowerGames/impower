@@ -899,6 +899,10 @@ describe("a hazard of reuse", () => {
       "\n",
     );
     const s = session({ [MAIN_URI]: text });
+    // The same edits made with no preview before them: a preview compile is
+    // rolled back whole (#666), so the edit after it reads what the edit
+    // alone reads.
+    const plain = session({ [MAIN_URI]: text });
     const closures = (root: ProgramRoot, script: string) =>
       below.flatMap((name) => [
         chunkAt(root, script, `Kept {keep()} in ${name}.`),
@@ -919,6 +923,7 @@ describe("a hazard of reuse", () => {
         } as never),
       );
       const after = s.edit("  Line 11 of FIRST.\n", `  Line 11 of FIRST.\n${insert(n)}`)!;
+      plain.edit("  Line 11 of FIRST.\n", `  Line 11 of FIRST.\n${insert(n)}`);
       expect(closures(after, s.text).every((chunk, i) => chunk === kept[i])).toBe(true);
       // The statements the parse read again around the edit: the lines
       // above it, and on the second edit the function written the first
@@ -926,8 +931,10 @@ describe("a hazard of reuse", () => {
       // of the scenes below, which write or call functions the new one
       // renumbered, is read again.
       const passes = s.store.passesLastBuild;
-      expect(passes.identity).toBeLessThanOrEqual(4);
-      expect(passes.facts).toBeLessThanOrEqual(8);
+      expect(passes.identity).toBeLessThanOrEqual(5);
+      expect(passes.facts).toBeLessThanOrEqual(10);
+      expect(passes.identity).toBe(plain.store.passesLastBuild.identity);
+      expect(passes.facts).toBe(plain.store.passesLastBuild.facts);
       expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
     }
   });

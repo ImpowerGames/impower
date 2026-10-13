@@ -1292,20 +1292,25 @@ export class SparkdownCompiler {
    * `params.textDocument`, without applying them to anything another request
    * can see.
    *
-   * The changes are applied to the registry's copy of the script, the program
-   * is compiled through the ordinary incremental pipeline, and the script is
-   * put back by applying the inverse changes before this returns. Both edits
-   * reparse incrementally, so the cost is that of two small edits rather than
-   * of a second compiler holding a second copy of the project.
+   * A transaction (#666, docs/editor/completion-preview.md): the registry
+   * takes a snapshot of the script's parse, the changes are applied to its
+   * copy of the script, the program is compiled through the ordinary
+   * incremental pipeline, and before this returns, also when the edit or the
+   * compile throws, the snapshot is restored, the parser's compiler rolls
+   * back its journal, and `_previewUndo` takes back the names the compile
+   * numbered in place. So a preview reparses once, the cost of one small
+   * edit, and no second compiler or second copy of the project exists. The
+   * first preview inside a long block a from-scratch parse left whole also
+   * parses the unchanged text there once, kept, to split the block
+   * (`SparkdownDocumentRegistry.mintSplitPoints`).
    *
-   * The compile's own caches then describe the edited text, which is sound for
-   * the same reason typing a character and deleting it is: every compile
-   * compares against the one before it. What does not survive is the runtime
-   * story the last real compile produced, whose unchanged flows the preview
-   * compile took over, so until the next real compile nothing may be routed
-   * against it. `selectDocument` recompiles the real documents first when that
-   * is the case, and `isProgramOutdated` keeps answering for the last real
-   * compile throughout.
+   * The compile's own caches then describe the edited text, which is sound
+   * because every compile compares against the one before it, and the
+   * restored blocks are blocks that compile never placed. What does not
+   * survive is the runtime story the last real compile produced, so until the
+   * next real compile nothing may be routed against it. `selectDocument`
+   * recompiles the real documents first when that is the case, and
+   * `isProgramOutdated` keeps answering for the last real compile throughout.
    */
   previewCompile(
     params: PreviewCompileProgramParams,
