@@ -21,9 +21,11 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRecord, updateRecord, coordinatorMerges } from "./feature-run.mjs";
+import { readRecord, updateRecord, coordinatorMerges, parseCriteria, verificationHolds } from "./feature-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText } from "./checkpoint.mjs";
-import { roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
+import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
+
+export { parseCriteria };
 
 // Every slice merges into main, the branch the snapshot measures delivery on.
 export const TARGET = "main";
@@ -122,13 +124,14 @@ function acceptanceOn(decisions, chain) {
 
 // The merge gate. It admits the PR's current head only when every condition
 // holds, and otherwise names each one that fails; it never changes anything.
-export function admission(record, { ticket: number, pr, snapshot, facts, git }) {
+export function admission(record, { ticket: number, pr, snapshot, facts, git, running = null }) {
   const { pull, state, comments, originMain, chain, protection } = facts;
   const head = pull.head, blockers = [];
   // Authority: the invocation granted the merge, did not stop at ready, and
   // the coordinator never wrote for this ticket.
-  if (record.invocation?.stopAtReady) blockers.push("the invocation stops at ready PRs, so the maintainer merges every PR of this run");
-  else if (!coordinatorMerges(record)) blockers.push(`the run's recorded merge authority is "${record.authority?.merge}", which leaves merging to the maintainer`);
+  if (record.invocation?.merging !== "coordinator") blockers.push(`the run records that the maintainer merges (merging ${record.invocation?.merging ?? "not recorded"}), so no PR of this run merges here`);
+  else if (!coordinatorMerges(record)) blockers.push(`the run's recorded grant ("${record.authority?.merge}") or its quoted request ("${record.invocation?.text}") does not let the coordinator merge`);
+  if (!record.checkpoints) blockers.push("checkpoints are not enabled for this run, so a merge's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
   if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-feature and Feature #${record.feature}; only an explicit invocation grants a merge, and discussing the skill is not one`);
   const own = record.tickets[number];
   if (own && writersOf(own).includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
@@ -145,7 +148,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git }) 
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
   if (pull.isDraft) blockers.push(`PR #${pr} is a draft; it merges only once marked ready`);
   if (pull.base !== TARGET) blockers.push(`PR #${pr} targets ${pull.base}, not ${TARGET}`);
-  for (const op of (record.operations ?? []).filter((o) => o.pr === pr && o.kind !== "close" && OPEN.has(o.state))) blockers.push(`${operationText(op)} ${op.id} at ${op.expectHead} is ${op.state}; settle it with checkpoint.mjs reconcile-operations before any new merge`);
+  for (const op of (record.operations ?? []).filter((o) => o.pr === pr && o.kind !== "close" && OPEN.has(o.state) && o.id !== running)) blockers.push(`${operationText(op)} ${op.id} at ${op.expectHead} is ${op.state}; settle it with checkpoint.mjs reconcile-operations before any new merge`);
   // Review: every planned reviewer exited and every report is adjudicated,
   // read through the same accounting as the review checkpoints; then the
   // head is the last reviewed one, or a published acceptance covers it.
@@ -163,6 +166,13 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git }) 
       blockers.push(`head ${head} is not the last independently reviewed head ${e.reviewedHead ?? "(none)"} or a clean merge of ${TARGET} on top of it${unreviewed}, and no acceptance covers it (${a.reason}); the writer's next review round, or a checkpoint decision on this head, settles it`);
     }
   }
+  // From round 3 on, every completed round ends at the coordinator's
+  // checkpoint: the PR merges only under that round's published finish or an
+  // acceptance that applies, and never while a repair, an extension or a
+  // question to the maintainer is the decision in force.
+  const latest = decisions.filter((d) => d.effective).at(-1);
+  if (latest && ["maintainer", "repair"].includes(latest.kind)) blockers.push(`decision ${latest.id} (${latest.kind} after round ${latest.round}) is in force; ${latest.kind === "maintainer" ? "the ticket waits for the maintainer's answer" : "the repair is decided again once it is verified"}, and a later checkpoint decision replaces it`);
+  else if (e.completedRound >= FIRST_CHECKPOINT_ROUND && !(latest && latest.verified && latest.round === e.completedRound && ["finish", "accept-unreviewed"].includes(latest.kind))) blockers.push(`round ${e.completedRound}'s checkpoint has no published finish or acceptance decided at it${latest ? ` (the decision in force is ${latest.id}, ${latest.kind} after round ${latest.round}${latest.verified ? "" : ", not verified by this record"})` : ""}; decide it with review-checkpoint.mjs before the merge`);
   // A reviewed completion also needs the writer's final report on that head
   // with nothing outstanding: an unresolved finding or a material
   // verification gap keeps the PR from merging.
@@ -198,12 +208,15 @@ const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.review
 
 // --- Merge -------------------------------------------------------------------
 
-// Merges an admitted PR. The gate runs again on fresh facts, the intent is
-// recorded (and, with checkpoints, saved remotely) before GitHub is called,
-// and the call names the head the gate admitted, so a push in between makes
-// GitHub refuse it. The outcome is what GitHub reads back afterwards, never
-// what the call said: an unreadable or contradictory result is uncertain and
-// is settled by reconcile-operations before any retry.
+// Merges an admitted PR. The gate runs on fresh facts, the intent is
+// recorded and saved to the state branch, and the gate runs once more, so a
+// head or main that moved while the intent was saved stops the merge before
+// GitHub is called. The call names the head the gate admitted, so a push in
+// between makes GitHub refuse it. The outcome is what GitHub reads back
+// afterwards, never what the call said: an unreadable or contradictory result
+// is uncertain and is settled by reconcile-operations before any retry. A
+// merge commit whose first parent is not the main the gate admitted landed on
+// code CI never checked, and the outcome says so.
 export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, snapshot, client, git, afterIntent }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
@@ -215,12 +228,16 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, s
     return op;
   });
   const op = planned.output;
-  if (afterIntent) {
-    try { afterIntent(); }
-    catch (error) {
-      updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${error.message}` }); });
-      throw error;
-    }
+  const notRun = (reason) => { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); }); };
+  try { afterIntent?.(); }
+  catch (error) { notRun(error.message); throw error; }
+  let again;
+  try { again = admission(readRecord(file), { ticket, pr, snapshot, facts: gatherFacts({ record: readRecord(file), pr, client, git }), git, running: op.id }); }
+  catch (error) { notRun(`the gate could not be checked again after the intent was saved: ${error.message}`); throw error; }
+  if (!again.admitted || again.head !== gate.head || again.originMain !== gate.originMain) {
+    const why = !again.admitted ? again.blockers.join("; ") : again.head !== gate.head ? `the head moved from ${gate.head} to ${again.head}` : `${TARGET} moved from ${gate.originMain} to ${again.originMain}`;
+    notRun(`while the intent was saved, ${why}; run the gate again`);
+    return { admitted: true, merged: false, operation: op.id, state: "failed", evidence: `not run: ${why}`, gate, recheck: again };
   }
   let call;
   try { call = client.merge(pr, gate.head); }
@@ -231,35 +248,22 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, s
   // interrupted, or failed without GitHub's answer, may still land.
   const refused = !call.ok && !call.interrupted && GITHUB_REFUSAL.test(call.message ?? "");
   const said = call.ok ? "returned success" : `${refused ? "was refused by GitHub" : call.interrupted ? "was interrupted" : "failed without GitHub's answer"} (${call.message})`;
-  let state, evidence, mergeCommit = null, onMain = null;
+  let state, evidence, merged = null;
   if (!back) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} could not be read back (${readError})`; }
   else if (back.state === "MERGED" && back.head === gate.head && back.mergeCommit) {
-    mergeCommit = back.mergeCommit;
-    try { git.fetch(); onMain = git.isAncestor(mergeCommit, git.main()); } catch { onMain = null; }
+    merged = { mergeCommit: back.mergeCommit, mergedOnto: null, onMain: null };
+    try { git.fetch(); merged.onMain = git.isAncestor(back.mergeCommit, git.main()); merged.mergedOnto = git.firstParent(back.mergeCommit); } catch { /* the merge stands; where it landed is reported as unknown */ }
+    merged.baseMoved = merged.mergedOnto !== null && merged.mergedOnto !== gate.originMain;
     state = "confirmed";
-    evidence = `PR #${pr} reads back merged as ${mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : ""}`;
+    evidence = `PR #${pr} reads back merged as ${back.mergeCommit} at ${gate.head}${merged.onMain ? `; the merge commit is on origin/${TARGET}` : merged.onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : ""}${merged.baseMoved ? `; it landed on ${merged.mergedOnto}, not the admitted ${gate.originMain}, so CI never ran on that combination` : merged.mergedOnto === null ? "; where it landed could not be read" : ""}`;
   } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
   else if (back.state === "OPEN" && !refused && back.head === gate.head) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} reads back open at ${back.head}; the request may still land, so reconcile-operations settles it`; }
   else { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
-  const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (mergeCommit) Object.assign(o, { mergeCommit, onMain }); });
-  return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, mergeCommit, onMain, revision: settled.record.revision, gate };
+  const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (merged) Object.assign(o, merged); });
+  return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, ...(merged ?? {}), revision: settled.record.revision, gate };
 }
 
 // --- The Feature's acceptance -------------------------------------------------
-
-// The checklist under the Feature's "Acceptance criteria" heading.
-export function parseCriteria(body) {
-  const lines = String(body ?? "").split(/\r?\n/);
-  const start = lines.findIndex((l) => /^#{1,6}\s+Acceptance criteria\s*$/i.test(l.trim()));
-  if (start < 0) return [];
-  const out = [];
-  for (const l of lines.slice(start + 1)) {
-    if (/^#{1,6}\s/.test(l)) break;
-    const m = /^\s*[-*]\s+\[[ xX]\]\s+(.*\S)\s*$/.exec(l);
-    if (m) out.push({ index: out.length + 1, text: m[1] });
-  }
-  return out;
-}
 
 // What the run merged, and how: through this run's gate with its
 // disposition, or outside it.
@@ -267,7 +271,7 @@ function slices(record, snapshot) {
   return snapshot.tickets.filter((t) => !t.container).map((t) => {
     const merged = t.prs.find((p) => p.state === "MERGED" && p.mergeCommit);
     const op = merged && (record.operations ?? []).find((o) => o.kind === "merge" && o.pr === merged.number && o.state === "confirmed");
-    return { number: t.number, title: t.title, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
+    return { number: t.number, title: t.title, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: Boolean(op?.baseMoved), mergedOnto: op?.mergedOnto ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
   });
 }
 
@@ -286,7 +290,8 @@ export function finalReport(record, snapshot, v) {
       : !s.gate ? `merged as \`${short(s.mergeCommit)}\` outside this run's merge gate (by the maintainer or before this run merged)`
       : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
-    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? `#${s.pr}` : ""} | ${how.replace(/\|/g, "/")} |`;
+    const landed = s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, not the admitted \`${short(s.gate.originMain)}\`, so CI never ran on that combination` : "";
+    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? `#${s.pr}` : ""} | ${(how + landed).replace(/\|/g, "/")} |`;
   });
   const accepted = acceptances(record, snapshot);
   const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)];
@@ -357,37 +362,54 @@ export function verifyFeature(record, { snapshot, criteria, evidence, mainSha })
   return { id: v.id, verdict, report: v.report };
 }
 
-// Closes the Feature after a complete verification: the intent is recorded
-// and saved first, the final report is posted (or found, if an earlier
-// attempt posted it) and read back, and the issue is closed. The outcome is
-// the issue state GitHub reads back.
-export function closeFeature(file, { coordinator, expectRevision, verification: id, client, git, afterIntent }) {
+// Closes the Feature after a complete verification that still holds: main
+// is the commit it verified, the Feature lists the criteria it checked, every
+// slice is still delivered and no operation is unsettled, all read afresh.
+// The intent is recorded and saved first, the final report is posted (or
+// found, if an earlier attempt posted it) and read back, and the issue is
+// closed. The outcome is the issue state GitHub reads back; a close call that
+// was interrupted or failed without GitHub's answer leaves an open Feature
+// uncertain, since the request may still land.
+export function closeFeature(file, { coordinator, expectRevision, verification: id, snapshot, criteria, client, git, afterIntent }) {
   const record = readRecord(file);
+  if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
+  if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run, so the closure's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
   const v = (record.verifications ?? []).at(-1);
   if (!v || v.id !== id) throw new Error(`Verification ${id} is not the run's latest${v ? ` (${v.id} is)` : ""}; close only on the latest verification`);
   if (v.verdict !== "complete") throw new Error(`Verification ${id} found the Feature incomplete (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...v.unsettled].join("; ")}); the Feature stays open`);
+  if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
   git.fetch();
-  if (!git.isAncestor(v.mainSha, git.main())) throw new Error(`origin/${TARGET} no longer contains the verified commit ${v.mainSha}; verify again`);
+  const main = git.main();
+  const now = { ...snapshot, feature: { ...snapshot.feature, criteria } };
+  const changed = [
+    ...(main !== v.mainSha ? [`origin/${TARGET} is ${main}, not the verified ${v.mainSha}`] : []),
+    ...(snapshot.originMain !== main ? [`the snapshot saw origin/${TARGET} at ${snapshot.originMain}; snapshot again`] : []),
+    ...(!verificationHolds(record, now) ? ["the Feature's criteria or the run's operations changed since the verification"] : []),
+    ...slices(record, snapshot).filter((s) => !s.delivered).map((s) => `#${s.number} is no longer delivered`),
+  ];
+  if (changed.length) throw new Error(`Verification ${id} no longer holds: ${changed.join("; ")}; verify the Feature again`);
   if (client.issue(record.feature).state === "closed") throw new Error(`Feature #${record.feature} is already closed; nothing was recorded`);
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => intent(r, { kind: "close", ticket: r.feature, pr: r.feature, expectHead: v.mainSha, evidence: `verification ${v.id}` }));
   const op = planned.output;
-  if (afterIntent) {
-    try { afterIntent(); }
-    catch (error) { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${error.message}` }); }); throw error; }
-  }
-  let comment = null, problem = null;
+  try { afterIntent?.(); }
+  catch (error) { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${error.message}` }); }); throw error; }
+  let comment = null, problem = null, called = false, refused = false;
   try {
     const existing = client.comments(record.feature).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id)));
     const posted = existing ?? client.createComment(record.feature, v.report);
     const back = client.getComment(posted.id);
     if (norm(back.body) !== norm(v.report)) throw new Error(`comment ${posted.id} does not read back as the report`);
     comment = { id: back.id, url: back.url, reused: Boolean(existing) };
-  } catch (error) { problem = `the final report was not posted: ${error.message}`; }
-  if (comment) { try { client.closeIssue(record.feature); } catch (error) { problem = `the close call failed: ${error.message}`; } }
+  } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
+  if (comment) {
+    called = true;
+    try { client.closeIssue(record.feature); }
+    catch (error) { refused = GITHUB_REFUSAL.test(`${error.stderr ?? ""} ${error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${error.message}`; }
+  }
   let issue = null;
   try { issue = client.issue(record.feature); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the Feature could not be read back: ${error.message}`; }
-  const state = !issue ? "uncertain" : issue.state === "closed" ? "confirmed" : "failed";
-  const evidence = !issue ? problem : issue.state === "closed" ? `Feature #${record.feature} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `Feature #${record.feature} reads back ${issue.state}${problem ? `: ${problem}` : ""}`;
+  const state = !issue ? (called ? "uncertain" : "failed") : issue.state === "closed" ? "confirmed" : called && problem && !refused ? "uncertain" : "failed";
+  const evidence = !issue ? problem : issue.state === "closed" ? `Feature #${record.feature} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `Feature #${record.feature} reads back ${issue.state}${problem ? `: ${problem}` : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`;
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (comment) o.comment = comment; });
   return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
 }
@@ -457,6 +479,7 @@ export function integrationGit(checkout, { fetch, main } = {}) {
   main ??= () => git("rev-parse", `origin/${TARGET}`);
   return {
     ...localGit(checkout, { fetch, base: main }), fetch, main, isAncestor,
+    firstParent: (sha) => git("rev-parse", `${sha}^1`),
     // The head, then each first parent reached through a clean merge of the
     // target: two parents, the second on the target, and an empty remerge
     // diff, so the merge changed nothing a clean merge would not.
@@ -514,8 +537,8 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
     }
     case "close-feature": {
-      const { client, git } = context();
-      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, client, git, afterIntent: saved });
+      const { record, client, git } = context();
+      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, snapshot: readJson(abs(o.snapshot, "snapshot")), criteria: parseCriteria(client.issue(record.feature).body), client, git, afterIntent: saved });
       return { ...result, ...checkpointAfter(`closing the Feature (${result.state})`) };
     }
     default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-feature|close-feature --option value ...");

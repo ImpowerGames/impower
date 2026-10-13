@@ -81,7 +81,10 @@ try {
     protection: () => structuredClone(gh.protection),
     merge: (pr, head) => {
       gh.mergeCalls.push(ig.mergeArgs(REPO, pr, head));
+      gh.beforeMerge?.(pr, head);
       const p = gh.pulls.get(pr);
+      // Another PR's merge lands on main just before this one does.
+      if (gh.mode === "main-moves") { gh.mode = "ok"; advanceMain("racing.txt", "a racing PR\n", "feat: a racing PR"); }
       if (gh.mode === "refuse") return { ok: false, message: "GraphQL: Pull request is not mergeable: the base branch policy prohibits the merge" };
       if (gh.mode === "throw") throw new Error("connection reset before GitHub answered");
       if (gh.mode === "no-answer") return { ok: false, message: "unexpected EOF" };
@@ -94,7 +97,7 @@ try {
     issue: (n) => structuredClone(gh.issues.get(n)),
     createComment: (n, body) => { const c = post(n, body); return { id: c.id, body: c.body, url: c.html_url }; },
     getComment: (id) => { const c = allComments().find((x) => x.id === id); if (!c) throw new Error("HTTP 404"); return { id: c.id, body: c.body, url: c.html_url }; },
-    closeIssue: (n) => { if (gh.closeFail > 0) { gh.closeFail--; throw new Error("HTTP 502 while closing"); } gh.issues.get(n).state = "closed"; },
+    closeIssue: (n) => { if (gh.closeFail > 0) { gh.closeFail--; throw new Error(gh.closeError); } gh.issues.get(n).state = "closed"; },
   };
   // The status comment store for checkpoints shares GitHub's comments.
   const statusGithub = {
@@ -129,10 +132,20 @@ try {
   fs.mkdirSync(srcPrivate);
   const recordFile = path.join(srcPrivate, "run.json");
   const invocation = `Use orchestrate-feature for #${FEATURE}.`;
-  run.initRecord({ record: recordFile, checkout: src, repository: REPO, feature: FEATURE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
-  assert.equal(run.readRecord(recordFile).authority.merge, run.AUTHORITY.merge, "an explicit invocation grants the coordinator the scoped merge");
+  // Who merges is the coordinator's recorded reading of the request: the
+  // command line refuses to leave it out, and a request that asks to stop at
+  // ready PRs never grants the coordinator the merge.
+  assert.throws(() => run.main(["init", "--invocation", invocation]), /--merging must record who merges: coordinator or maintainer/);
+  assert.throws(() => run.mergingFor(invocation, "maybe"), /--merging must be coordinator or maintainer/);
+  for (const text of ["Use orchestrate-feature for #40, but stop at ready PRs.", "Use orchestrate-feature for #40 and do not merge anything."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);
+  run.initRecord({ record: recordFile, checkout: src, repository: REPO, feature: FEATURE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
+  assert.deepEqual([run.readRecord(recordFile).invocation.merging, run.readRecord(recordFile).authority.merge], ["coordinator", run.MERGE_GRANT], "an explicit invocation, recorded as such, grants the coordinator the scoped merge");
   assert.equal(run.coordinatorMerges(run.readRecord(recordFile)), true);
   assert.equal(cp.enable(recordFile, { coordinator: "local_coord", expectRevision: 1, github: statusGithub, host: SRC }).checkpoint.saved, true);
+  // Inside every merge call, before GitHub acts, the shared checkpoint must
+  // already hold that merge's intent.
+  gh.intentsSeen = [];
+  gh.beforeMerge = (pr, head) => gh.intentsSeen.push({ pr, head, saved: cp.fetchState(src, "origin", REPO, FEATURE).checkpoint.operations.some((o) => o.pr === pr && o.expectHead === head && o.state === "intent") });
   const record = () => run.readRecord(recordFile);
   const change = (fn, file = recordFile, coordinator = "local_coord") => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator }, fn).output;
 
@@ -140,10 +153,9 @@ try {
   const stopFile = path.join(tmp, "stop-checkout");
   git(tmp, "clone", "-q", remote, stopFile);
   const stopRecordFile = path.join(srcPrivate, "stop.json");
-  run.initRecord({ record: stopRecordFile, checkout: stopFile, repository: REPO, feature: FEATURE, coordinator: "local_stop", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `${invocation} Stop at ready PRs.`, stopAtReady: true }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
+  run.initRecord({ record: stopRecordFile, checkout: stopFile, repository: REPO, feature: FEATURE, coordinator: "local_stop", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `${invocation} Stop at ready PRs.`, merging: "maintainer" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   const stopRecord = run.readRecord(stopRecordFile);
-  assert.deepEqual([stopRecord.invocation.stopAtReady, stopRecord.authority.merge, run.coordinatorMerges(stopRecord)], [true, run.STOP_AT_READY_MERGE, false]);
-  assert.equal(run.parseArgs(["init", "--stop-at-ready"]).options.stopAtReady, true, "--stop-at-ready is a flag");
+  assert.deepEqual([stopRecord.invocation.merging, stopRecord.authority.merge, run.coordinatorMerges(stopRecord)], ["maintainer", run.AUTHORITY.merge, false]);
 
   // --- Dispatch: plan, claim and confirm the writers --------------------------
   const preflights = [{ route: "claude-desktop", model: "claude-opus-5-5", verdicts: [41, 42, 43].map((n) => ({ ticket: n, effort: "high", verdict: "available" })) }];
@@ -194,7 +206,7 @@ try {
     return ig.admission(rec, { ticket: n, pr, snapshot: snapshotNow(), facts: facts ?? ig.gatherFacts({ record: rec, pr, client, git: g }), git: g });
   };
   const blocked = (result, pattern, why) => assert.ok(!result.admitted && result.blockers.some((b) => pattern.test(b)), `${why}: ${result.blockers.join(" | ")}`);
-  const merge = (n, file = recordFile, coordinator = "local_coord", dir = src) => ig.mergeAdmitted(file, { coordinator, expectRevision: run.readRecord(file).revision, ticket: n, pr: 100 + n, snapshot: snapshotNow(dir), client, git: gitOf(dir), afterIntent: () => cp.ensureSaved(file, { coordinator, github: statusGithub, host: dir === src ? SRC : DST }) });
+  const merge = (n, file = recordFile, coordinator = "local_coord", dir = src, afterIntent = () => cp.ensureSaved(file, { coordinator, github: statusGithub, host: dir === src ? SRC : DST })) => ig.mergeAdmitted(file, { coordinator, expectRevision: run.readRecord(file).revision, ticket: n, pr: 100 + n, snapshot: snapshotNow(dir), client, git: gitOf(dir), afterIntent });
 
   // --- #41: normal reviewed completion ----------------------------------------
   startBranch(41);
@@ -209,11 +221,15 @@ try {
   assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince], [true, "reviewed", h41, []]);
   assert.deepEqual(g41.checks.map((c) => [c.name, c.result, c.required]), [["test-suite", "passed", true], ["packages (sparkdown)", "skipped", false], ["hook-tests", "passed", false]], "a skipped package job is reported as skipped, not as a check that ran");
 
-  // Authority: stop-at-ready, a discussion, and a coordinator that wrote for
-  // the ticket are refused; so is any session other than the coordinator.
-  const stopped = { ...record(), invocation: { ...record().invocation, stopAtReady: true }, authority: run.authorityFor({ stopAtReady: true }) };
-  blocked(gate(41, stopped), /stops at ready PRs, so the maintainer merges/, "stop-at-ready disables merging");
-  blocked(gate(41, { ...record(), authority: { ...record().authority, merge: "the maintainer merges ready PRs" } }), /leaves merging to the maintainer/, "a record made under another grant does not merge");
+  // Authority: a run that records the maintainer's merge, a grant in other
+  // words, a request asking to stop at ready, a discussion, and a coordinator
+  // that wrote for the ticket are refused; so is any session other than the
+  // coordinator, and a run whose intents cannot be saved remotely.
+  blocked(gate(41, { ...record(), invocation: { ...record().invocation, merging: "maintainer" }, authority: run.authorityFor("maintainer") }), /the run records that the maintainer merges \(merging maintainer\)/, "stop-at-ready disables merging");
+  blocked(gate(41, { ...record(), invocation: { text: invocation } }), /the run records that the maintainer merges \(merging not recorded\)/, "a record without the decision does not merge");
+  blocked(gate(41, { ...record(), authority: { ...record().authority, merge: "the maintainer merges ready PRs" } }), /does not let the coordinator merge/, "a record made under another grant does not merge");
+  blocked(gate(41, { ...record(), invocation: { text: "Use orchestrate-feature for #40, but stop at ready PRs.", merging: "coordinator" } }), /does not let the coordinator merge/, "a request to stop at ready never merges, whatever decision sits beside it");
+  blocked(gate(41, { ...record(), checkpoints: undefined }), /checkpoints are not enabled for this run/, "no merge without a durable intent");
   blocked(gate(41, { ...record(), invocation: { text: "Can you explain how orchestrate-feature merges PRs?" } }), /does not name orchestrate-feature and Feature #40/, "a discussion of the skill grants nothing");
   const selfWritten = structuredClone(record());
   selfWritten.tickets[41].history.push({ owner: { handle: { kind: "session", id: "local_coord" } }, released: "x" });
@@ -287,17 +303,31 @@ try {
   assert.match(stopPlan.tickets.find((t) => t.number === 41).reason, /the invocation stops at ready, so the maintainer merges it/);
   assert.match(stopPlan.remaining.join(" "), /wait for the maintainer to merge them/);
 
+  // A save that fails stops the merge before GitHub is called.
+  const callsBeforeSave = gh.mergeCalls.length;
+  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, snapshot: snapshotNow(), client, git: gitOf(src), afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
+  assert.equal(gh.mergeCalls.length, callsBeforeSave, "no merge call without a saved intent");
+  assert.deepEqual([record().operations.at(-1).state, record().operations.at(-1).evidence], ["failed", "not run: the remote is unreachable"]);
+  // Main moves while the intent is saved: the gate runs again after the save
+  // and stops the merge, since the admitted head no longer contains main.
+  const moved = merge(41, recordFile, "local_coord", src, () => { advanceMain("other2.txt", "another PR\n", "feat: a PR merged during the save"); cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); });
+  assert.deepEqual([moved.merged, moved.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], moved.evidence);
+  assert.match(moved.evidence, /not run: .*main has moved to .* which head .* does not contain/);
+  git(worktrees[41], "fetch", "-q", "origin");
+  git(worktrees[41], "merge", "-q", "--no-edit", "origin/main");
+  const h41n = push(41);
+  setHead(41, h41n);
+
   // The merge: intent saved first, an expected-head call with no bypass,
   // and the outcome read back from GitHub.
   const merged41 = merge(41);
   trace("merge-41", merged41);
-  assert.deepEqual([merged41.merged, merged41.state, merged41.onMain], [true, "confirmed", true]);
-  assert.deepEqual(gh.mergeCalls.at(-1), ["pr", "merge", "141", "--repo", REPO, "--merge", "--match-head-commit", h41m]);
+  assert.deepEqual([merged41.merged, merged41.state, merged41.onMain, merged41.baseMoved], [true, "confirmed", true, false]);
+  assert.deepEqual(gh.mergeCalls.at(-1), ["pr", "merge", "141", "--repo", REPO, "--merge", "--match-head-commit", h41n]);
   assert.ok(!gh.mergeCalls.flat().some((a) => ["--admin", "--auto", "--rebase", "--squash"].includes(a)), "the merge call never bypasses protection or defers the merge");
   const op41 = record().operations.find((o) => o.id === merged41.operation);
-  assert.deepEqual([op41.state, op41.expectHead, op41.gate.disposition, op41.mergeCommit], ["confirmed", h41m, "reviewed", gh.pulls.get(141).mergeCommit]);
-  const savedOps = JSON.parse(git(src, "show", `${cp.fetchState(src, "origin", REPO, FEATURE).commit}:checkpoint.json`)).operations;
-  assert.ok(savedOps.some((o) => o.id === op41.id && o.state === "intent" && o.expectHead === h41m), "the merge intent reached the shared checkpoint before GitHub was called");
+  assert.deepEqual([op41.state, op41.expectHead, op41.gate.disposition, op41.gate.mergedSince.length, op41.mergeCommit], ["confirmed", h41n, "reviewed", 2, gh.pulls.get(141).mergeCommit]);
+  assert.deepEqual(gh.intentsSeen.at(-1), { pr: 141, head: h41n, saved: true }, "the intent was on the state branch when GitHub was called");
   // Dependency release follows the confirmed integration on main.
   p = plan();
   assert.deepEqual([actions(p)[41], actions(p)[42]], ["done", "dispatch"]);
@@ -333,8 +363,12 @@ try {
   git(worktrees[42], "reset", "-q", "--hard", correction);
   setHead(42, push(42));
   change((r) => run.release(r, { ticket: 42, observations: { sessions: { local_w42: { state: "archived" } } }, evidence: "the writer's session ended", host: SRC }));
+  // Another PR lands on main inside the merge call itself, after the second
+  // gate: the merge stands, and its outcome says CI never ran on what landed.
+  gh.mode = "main-moves";
   const merged42 = merge(42);
-  assert.deepEqual([merged42.state, merged42.gate.disposition], ["confirmed", "accepted-unreviewed"]);
+  assert.deepEqual([merged42.state, merged42.gate.disposition, merged42.baseMoved], ["confirmed", "accepted-unreviewed", true], merged42.evidence);
+  assert.match(merged42.evidence, /landed on [0-9a-f]{40}, not the admitted [0-9a-f]{40}, so CI never ran on that combination/);
 
   // --- #43: a changed head, a conflicting main merge, failed CI, a refused
   // merge and an interrupted one ----------------------------------------------
@@ -361,6 +395,20 @@ try {
   blocked(gate(43), new RegExp(`not the last independently reviewed head ${h43b} or a clean merge of main on top of it`), "a conflict-resolving merge of main");
   reviewed(143, 3, h43c);
   report(43, h43c);
+  // Round 3 is complete, so the PR merges only under a checkpoint decided at
+  // it, and never while a question to the maintainer is in force.
+  blocked(gate(43), /round 3's checkpoint has no published finish or acceptance decided at it/, "an undecided round 3 checkpoint");
+  const decide43 = (kind, more = {}) => {
+    const e = rc.gatherEvidence({ record: record(), ticket: 43, pr: 143, client, git: rcGit(src) });
+    const findings = rc.roundState(rc.readJournals(path.join(`${src}.review-jobs`, "pr-143"))).reports.map((x) => ({ comment: x.comment, finding: `round ${x.round}`, disposition: "accepted" }));
+    const d = change((r) => rc.decide(r, { ticket: 43, kind, assessment: { ...assessment, findings, ...more }, evidence: e }));
+    const c = post(143, d.body);
+    change((r) => rc.published(r, { ticket: 43, id: d.id, comment: c.id, readBack: d.body, head: h43c }));
+    return d;
+  };
+  const hold = decide43("maintainer", { question: "Should the README keep main's line last?" });
+  blocked(gate(43), new RegExp(`decision ${hold.id} \\(maintainer after round 3\\) is in force; the ticket waits for the maintainer's answer`), "a question to the maintainer holds a reviewed head");
+  decide43("finish");
   setHead(43, h43c, passing().map((c) => (c.name === "hook-tests" ? { ...c, state: "FAILURE" } : c)));
   blocked(gate(43), /Hook Tests \/ hook-tests concluded FAILURE/, "a failed check that is not the required gate still refuses");
   setHead(43, h43c);
@@ -412,7 +460,7 @@ try {
   const dstRecord = path.join(dstPrivate, "run.json");
   const found = cp.discover({ repository: REPO, feature: FEATURE, checkout: dst, github: statusGithub });
   assert.ok(cp.limitations(found.checkpoint).some((l) => l.kind === "operation" && l.ticket === 43), "the destination is told the merge is unsettled");
-  const taken = cp.resume({ record: dstRecord, checkout: dst, repository: REPO, feature: FEATURE, coordinator: "local_dst", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `Use orchestrate-feature for #${FEATURE}; take over from the exhausted account.`, evidence: "the maintainer reports the source account reached its usage limit" }, { github: statusGithub, host: DST, defaults, totalMemory: 64 * GB });
+  const taken = cp.resume({ record: dstRecord, checkout: dst, repository: REPO, feature: FEATURE, coordinator: "local_dst", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `Use orchestrate-feature for #${FEATURE}; take over from the exhausted account.`, merging: "coordinator", evidence: "the maintainer reports the source account reached its usage limit" }, { github: statusGithub, host: DST, defaults, totalMemory: 64 * GB });
   assert.equal(taken.action, "takeover");
   assert.equal(run.coordinatorMerges(run.readRecord(dstRecord)), true, "the new coordinator's own invocation grants the merge");
   const overUnsettled = ig.mergeAdmitted(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, ticket: 43, pr: 143, snapshot: snapshotNow(dst), client, git: gitOf(dst) });
@@ -439,7 +487,8 @@ try {
   // Every slice merged, one criterion unmet: the Feature stays open.
   const unmet = verify({ criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission"]), met(criteria[1], ["the final report lists decision on PR #142"]), { criterion: criteria[2], status: "unmet", gap: "the closing run has not been exercised" }] });
   assert.equal(unmet.verdict, "incomplete");
-  assert.throws(() => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: unmet.id, client, git: gitOf(dst) }), /found the Feature incomplete .*unmet: The Feature closes only/);
+  const close = (id, extra = {}) => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: id, snapshot: snapshotNow(dst), criteria: ig.parseCriteria(gh.issues.get(FEATURE).body), client, git: gitOf(dst), ...extra });
+  assert.throws(() => close(unmet.id), /found the Feature incomplete .*unmet: The Feature closes only/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "merged slices with an unmet criterion are not completion");
   // A slice not delivered keeps it open too, whatever the criteria say.
   const missing = snapshotNow(dst);
@@ -448,28 +497,61 @@ try {
   assert.equal(partial.verdict, "incomplete");
   assert.match(partial.report, /#43: open with no merged PR/);
   // Every criterion met on the assembled implementation.
-  const done = verify({ criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission and read-back"]), met(criteria[1], ["the final report names decision on PR #142 with its range"]), met(criteria[2], ["the unmet run above stayed open; this run closes with evidence"])] });
-  trace("final-report", done.report);
+  const doneEvidence = { criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission and read-back"]), met(criteria[1], ["the final report names decision on PR #142 with its range"]), met(criteria[2], ["the unmet run above stayed open; this run closes with evidence"])] };
+  const done = verify(doneEvidence);
   assert.equal(done.verdict, "complete");
-  assert.match(done.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 1 clean merge of main \|/);
-  assert.match(done.report, new RegExp(`#42, PR #142: decision \`${decided.id}\` .* accepted \`${h42[3].slice(0, 9)}\\.\\.${correction.slice(0, 9)}\` \\(1 commit\\) unreviewed on head \`${correction.slice(0, 9)}\`; that head merged`));
-  assert.match(done.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\` \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover");
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);
+  // A complete verification stops holding once its premises change: a new
+  // criterion, an unsettled operation, or main moving on. Neither the plan
+  // nor the closure trusts it then.
+  const body = gh.issues.get(FEATURE).body;
+  gh.issues.get(FEATURE).body = body.replace("## Additional context", "- [ ] A criterion added after the verification.\n\n## Additional context");
+  assert.throws(() => close(done.id), /no longer holds: .*criteria or the run's operations changed/);
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "a new criterion");
+  gh.issues.get(FEATURE).body = body;
+  const late = change((r) => cp.intent(r, { kind: "merge", ticket: 43, pr: 143, expectHead: h43c, evidence: "a probe recorded after the verification" }), dstRecord, "local_dst");
+  assert.throws(() => close(done.id), /no longer holds: .*operations changed/);
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "an unsettled operation");
+  change((r) => cp.outcome(r, { id: late.id, state: "failed", evidence: "a probe operation, never run" }), dstRecord, "local_dst");
+  advanceMain("revert.txt", "a later change on main\n", "revert: a later change on main");
+  assert.throws(() => close(done.id), /no longer holds: origin\/main is [0-9a-f]{40}, not the verified/);
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "main moved on");
+  const final = verify(doneEvidence);
+  trace("final-report", final.report);
+  assert.equal(final.verdict, "complete");
+  assert.match(final.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 2 clean merges of main \|/);
+  assert.match(final.report, /\| #42 \| delivered \| #142 \| .*; it landed on main `[0-9a-f]{9}`, not the admitted `[0-9a-f]{9}`, so CI never ran on that combination \|/, "a merge that landed on a main CI never checked is named");
+  assert.match(final.report, new RegExp(`#42, PR #142: decision \`${decided.id}\` .* accepted \`${h42[3].slice(0, 9)}\\.\\.${correction.slice(0, 9)}\` \\(1 commit\\) unreviewed on head \`${correction.slice(0, 9)}\`; that head merged`));
+  assert.match(final.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\` \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover");
   // A slice merged without this run's gate (by the maintainer) is reported
   // as such, never as reviewed or accepted by the gate.
   const withoutGate = { ...run.readRecord(dstRecord), operations: [] };
   assert.match(ig.finalReport(withoutGate, snapshotNow(dst), run.readRecord(dstRecord).verifications.at(-1)), /\| #41 \| delivered \| #141 \| merged as `[0-9a-f]{9}` outside this run's merge gate/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);
-  // Closing: the report is posted and read back, then the issue is closed.
+  // Closing: the report is posted and read back, then the issue is closed. A
+  // close whose answer is lost may still land, so it is uncertain and holds
+  // the next attempt until reconciled; GitHub's own refusal is a failure.
+  assert.throws(() => close(final.id, { snapshot: { ...snapshotNow(dst), repository: "acme/other" } }), /another repository or Feature/);
   gh.closeFail = 1;
-  const firstClose = ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: done.id, client, git: gitOf(dst), afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }) });
-  assert.deepEqual([firstClose.closed, firstClose.state, gh.issues.get(FEATURE).state], [false, "failed", "open"], "a failed close is not completion");
-  const closed = ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: done.id, client, git: gitOf(dst) });
+  gh.closeError = "HTTP 502 while closing";
+  const lostClose = close(final.id, { afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }) });
+  assert.deepEqual([lostClose.closed, lostClose.state, gh.issues.get(FEATURE).state], [false, "uncertain", "open"], lostClose.evidence);
+  assert.throws(() => close(final.id), /is uncertain; reconcile it/, "no blind retry of an uncertain close");
+  assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst) }), dstRecord, "local_dst").map((s) => [s.kind, s.state, s.retry]), [["close", "not-applied", true]]);
+  gh.closeFail = 1;
+  gh.closeError = "HTTP 403: Resource not accessible by integration";
+  const refusedClose = close(final.id);
+  assert.deepEqual([refusedClose.closed, refusedClose.state], [false, "failed"], refusedClose.evidence);
+  const closed = close(final.id);
   assert.deepEqual([closed.closed, closed.state, closed.comment.reused, gh.issues.get(FEATURE).state], [true, "confirmed", true, "closed"]);
-  assert.equal(gh.comments.get(FEATURE).filter((c) => c.body.includes(`final report: verification ${done.id}`)).length, 1, "a retried close reuses the posted report");
-  assert.throws(() => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: done.id, client, git: gitOf(dst) }), /already closed/);
+  assert.equal(gh.comments.get(FEATURE).filter((c) => c.body.includes(`final report: verification ${final.id}`)).length, 1, "every retried close reuses the posted report");
+  assert.throws(() => close(final.id), /already closed/);
   const status = cp.autoCheckpoint(dstRecord, { coordinator: "local_dst", transition: "the Feature closed", github: statusGithub, host: DST });
-  assert.match(statusGithub.get(status.summary.commentId).body, new RegExp(`Feature verification ${done.id} on main .*: complete\\.`), "the status comment shows the verification");
+  assert.match(statusGithub.get(status.summary.commentId).body, new RegExp(`Feature verification ${final.id} on main .*: complete\\.`), "the status comment shows the verification");
   assert.equal(cp.reconcileOperations(structuredClone(run.readRecord(dstRecord)), { snapshot: { observedAt: "now", feature: { number: FEATURE, state: "closed" }, tickets: [] } }).length, 0, "nothing is left unsettled");
+
+  assert.equal(gh.intentsSeen.length, gh.mergeCalls.length);
+  assert.deepEqual(gh.intentsSeen.filter((s) => !s.saved), [], "every merge call found its intent already on the state branch");
 
   console.log(`PASS: merge gate (normal, clean main merge, accepted unreviewed, stale head, changed head, conflicting main merge, failed and pending CI, skipped jobs, authority, scope, review state, protection), expected-head merges with refused and interrupted outcomes, takeover settling an uncertain merge from GitHub, dependency release, and the Feature's verification and closure${traceDir ? `; ${traces.length} traces in ${traceDir}` : ""}`);
 } finally {

@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import { writeExclusive, readJson, currentIdentity, alive } from "../../../scripts/review-job-store.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
-import { RECORD_VERSION, authorityFor, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
+import { RECORD_VERSION, authorityFor, mergingFor, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
 
 export const CHECKPOINT_VERSION = 1;
 export const stateBranch = (feature) => `orchestrate-state/feature-${feature}`;
@@ -731,6 +731,8 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const { record: file, checkout, repository, feature, coordinator, harness, invocation, evidence, remote = DEFAULT_REMOTE } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
   if (!coordinator || !invocation) throw new Error("--coordinator and --invocation (the user's request in this session) are required");
+  // Who merges comes from this session's request, never from the previous one.
+  const merging = mergingFor(invocation, options.merging);
   if (options.concurrency !== undefined && (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 8)) throw new Error("--concurrency must be 1 to 8");
   const found = discover({ repository, feature, checkout, remote, github });
   if (!found.found) throw new Error(`${found.reason}; start the run with feature-run.mjs init`);
@@ -768,8 +770,8 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const record = {
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout,
     coordinator: { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since },
-    invocation: { text: invocation, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }), ...(options.stopAtReady && { stopAtReady: true }) },
-    authority: authorityFor({ stopAtReady: options.stopAtReady }), writer, concurrency,
+    invocation: { text: invocation, merging, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
+    authority: authorityFor(merging), writer, concurrency,
     tickets: structuredClone(prev.tickets), diskRecoveries: prev.diskRecoveries, operations: prev.operations ?? [], decisionRefs: prev.decisions ?? [], verifications: prev.verifications ?? [],
     // Saved snapshots stay the tickets' retrievable work under the new
     // coordinator. The work inventory needs no copy: every location passes
@@ -1000,14 +1002,12 @@ export function decisionLinks(record) {
 
 // --- Command line -----------------------------------------------------------
 
-const FLAGS = new Set(["stopAtReady"]);
 function parse(argv) {
   const [command, ...rest] = argv, o = {};
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
-    const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    if (arg.startsWith("--") && FLAGS.has(key)) { o[key] = true; continue; }
     if (!arg.startsWith("--") || i + 1 >= rest.length) throw new Error(`Unexpected argument ${arg}`);
+    const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     if (Object.hasOwn(o, key)) throw new Error(`${arg} given twice`);
     o[key] = rest[++i];
   }
@@ -1030,7 +1030,7 @@ export function main(argv, { github: injected } = {}) {
     case "publish": { const { file, github } = fromRecord(); return publish(file, { coordinator: o.coordinator, transition: o.transition ?? "an explicit publish", plan: o.plan ? readJson(abs(o.plan, "plan")) : undefined, github }); }
     case "sync-summary": { const checkout = abs(o.checkout, "checkout"), feature = int(o.feature, "feature"); return syncSummary({ repository: o.repo, feature, checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); }
     case "discover": { const checkout = abs(o.checkout, "checkout"); const found = discover({ repository: o.repo, feature: int(o.feature, "feature"), checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); return found.found ? { ...found, limitations: limitations(found.checkpoint) } : found; }
-    case "resume": { const checkout = abs(o.checkout, "checkout"); return resume({ record: o.record, checkout, repository: o.repo, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, stopAtReady: Boolean(o.stopAtReady), concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote: o.remote }, { github: githubFor(o.repo, checkout) }); }
+    case "resume": { const checkout = abs(o.checkout, "checkout"); return resume({ record: o.record, checkout, repository: o.repo, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, merging: o.merging ?? "(missing)", concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote: o.remote }, { github: githubFor(o.repo, checkout) }); }
     case "prepare-handoff": { const { file, github } = fromRecord(); return prepareHandoff(file, { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), step: o.step, observations: o.observations ? readJson(abs(o.observations, "observations")) : {}, github }); }
     case "retrieve": return retrieve({ repository: o.repo, feature: int(o.feature, "feature"), checkout: abs(o.checkout, "checkout"), remote: o.remote, ticket: int(o.ticket, "ticket"), worktree: o.worktree });
     case "intent": return mutate((r) => intent(r, { kind: o.kind, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), expectHead: o.expectHead, evidence: o.evidence }), `the intent to ${o.kind} PR #${o.pr}`);

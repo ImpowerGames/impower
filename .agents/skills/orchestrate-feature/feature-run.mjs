@@ -176,16 +176,25 @@ export function pointerFile(checkout, repository, feature) {
 }
 
 // What an invocation authorizes; a takeover starts from it again rather than
-// inheriting the previous coordinator's grant. An explicit invocation lets the
-// coordinator merge the Feature's PRs that pass integration.mjs's merge gate;
-// one that stops at ready PRs leaves every merge to the maintainer.
-export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the coordinator merges this Feature's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" };
-export const STOP_AT_READY_MERGE = "the maintainer merges ready PRs: the invocation stops at ready";
-export const authorityFor = ({ stopAtReady = false } = {}) => (stopAtReady ? { ...AUTHORITY, merge: STOP_AT_READY_MERGE } : AUTHORITY);
-// Only a run whose own invocation granted the merge, in this grant's words,
-// merges; a record made under any other grant leaves merging to the
-// maintainer.
-export const coordinatorMerges = (record) => record.invocation?.stopAtReady !== true && record.authority?.merge === AUTHORITY.merge;
+// inheriting the previous coordinator's grant. Who merges is the coordinator's
+// recorded reading of the request it quotes: `coordinator` for an explicit
+// request to orchestrate the Feature, `maintainer` when the request stops at
+// ready PRs. Without that decision the maintainer merges.
+export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here" };
+export const MERGE_GRANT = "the coordinator merges this Feature's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection";
+export const MERGING = ["coordinator", "maintainer"];
+// A request that asks to stop at ready PRs, or not to merge, never grants the
+// coordinator the merge, whatever decision is recorded beside it.
+export const STOP_AT_READY = /stop(?:s|ping)? at (?:the )?ready|do(?:n't| not) merge|without merging|leave (?:the )?merg|maintainer merges/i;
+export function mergingFor(invocation, merging = "maintainer") {
+  if (!MERGING.includes(merging)) throw new Error(`--merging must be ${MERGING.join(" or ")}: coordinator when the request explicitly asks to orchestrate the Feature, maintainer when it stops at ready PRs`);
+  if (merging === "coordinator" && STOP_AT_READY.test(invocation ?? "")) throw new Error(`The request "${invocation}" asks to stop at ready PRs or not to merge; record --merging maintainer`);
+  return merging;
+}
+export const authorityFor = (merging = "maintainer") => (merging === "coordinator" ? { ...AUTHORITY, merge: MERGE_GRANT } : AUTHORITY);
+// Only a run whose own recorded decision granted the merge, in this grant's
+// words, merges; any other record leaves merging to the maintainer.
+export const coordinatorMerges = (record) => record.invocation?.merging === "coordinator" && record.authority?.merge === MERGE_GRANT && !STOP_AT_READY.test(record.invocation?.text ?? "");
 
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
   const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
@@ -194,6 +203,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   if (!Number.isSafeInteger(feature) || feature <= 0) throw new Error("--feature must be the Feature's issue number");
   if (!coordinator) throw new Error("--coordinator must name the coordinator's session");
   if (!invocation) throw new Error("--invocation must quote the user's request that invoked the skill");
+  const merging = mergingFor(invocation, options.merging);
   if (!options.coordinatorModel || !writerEfforts(options.coordinatorModel).includes(options.coordinatorEffort)) throw new Error("--coordinator-model and --coordinator-effort must be the coordinator's own metadata");
   const writer = resolveWriterModel(harness, options.writerModel, defaults);
   let concurrency = defaultConcurrency({ totalMemory });
@@ -206,8 +216,8 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since: new Date().toISOString() };
   const fresh = (carried = {}) => ({
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout, coordinator: self,
-    invocation: { text: invocation, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }), ...(options.stopAtReady && { stopAtReady: true }) },
-    authority: authorityFor({ stopAtReady: options.stopAtReady }),
+    invocation: { text: invocation, merging, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
+    authority: authorityFor(merging),
     writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [],
     log: [{ time: self.since, event: carried.tickets ? "takeover" : "init", coordinator, writer: writer.model, concurrency: concurrency.limit }],
   });
@@ -352,7 +362,7 @@ export function takeSnapshot({ repository, feature }, client) {
   };
   const issue = client.issue(feature);
   visit(feature, 1);
-  return { repository, feature: { number: feature, state: issue.state, title: issue.title }, observedAt: new Date().toISOString(), originMain, tickets };
+  return { repository, feature: { number: feature, state: issue.state, title: issue.title, criteria: parseCriteria(issue.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
 // --- Admission plan -------------------------------------------------------
@@ -373,6 +383,31 @@ function adoptedNext(pending) {
     "handoff requested": ["reconcile-pending", `confirm session ${last?.sessionId} in the app's session list and record it with launched --handle-kind session`],
   }[at];
   return next ?? ["reconcile-pending", `unexpected adopted step ${at}`];
+}
+
+// The checklist under the Feature's "Acceptance criteria" heading.
+export function parseCriteria(body) {
+  const lines = String(body ?? "").split(/\r?\n/);
+  const start = lines.findIndex((l) => /^#{1,6}\s+Acceptance criteria\s*$/i.test(l.trim()));
+  if (start < 0) return [];
+  const out = [];
+  for (const l of lines.slice(start + 1)) {
+    if (/^#{1,6}\s/.test(l)) break;
+    const m = /^\s*[-*]\s+\[[ xX]\]\s+(.*\S)\s*$/.exec(l);
+    if (m) out.push({ index: out.length + 1, text: m[1] });
+  }
+  return out;
+}
+const sameCriteria = (a, b) => JSON.stringify(a.map((c) => c.text ?? c.criterion)) === JSON.stringify(b.map((c) => c.text ?? c.criterion));
+
+// The latest verification still describes the Feature only while main is the
+// commit it verified, the Feature lists the criteria it checked, and no
+// operation is unsettled; any change needs a new verification.
+export function verificationHolds(record, snapshot) {
+  const v = (record.verifications ?? []).at(-1);
+  if (v?.verdict !== "complete") return false;
+  if (snapshot.originMain !== v.mainSha || !Array.isArray(snapshot.feature?.criteria) || !sameCriteria(snapshot.feature.criteria, v.criteria)) return false;
+  return !(record.operations ?? []).some((o) => o.kind !== "close" && OPEN_OPERATION.has(o.state));
 }
 
 // Remaining work the coordinator reports beside every plan.
@@ -578,7 +613,7 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
   tickets.sort((a, b) => a.number - b.number);
   // The Feature is complete only once its acceptance criteria were verified
   // on main and every ticket is still delivered.
-  const complete = (record.verifications ?? []).at(-1)?.verdict === "complete" && tickets.every((t) => ["done", "container"].includes(t.action));
+  const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
   return {
     repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session, turn,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow },
@@ -1107,7 +1142,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
 
 // --- Command line ---------------------------------------------------------
 
-const FLAGS = new Set(["takeover", "retry", "absent", "stopAtReady"]);
+const FLAGS = new Set(["takeover", "retry", "absent"]);
 export function parseArgs(argv) {
   const [command, ...rest] = argv, options = {};
   for (let i = 0; i < rest.length; i++) {
@@ -1147,6 +1182,8 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
   const number = () => integer(o.ticket, "ticket");
   switch (command) {
     case "init": {
+      // The command line always records who merges; it is never left to a default.
+      if (!o.merging) throw new Error(`--merging must record who merges: ${MERGING.join(" or ")}`);
       const done = initRecord({ ...o, feature: integer(o.feature, "feature"), repository: o.repo, concurrency: o.concurrency === undefined ? undefined : integer(o.concurrency, "concurrency"), observations: readOptional(o.observations) }, { defaults });
       return { action: done.action, revision: done.record.revision, pointer: done.pointer, writer: done.record.writer, concurrency: done.record.concurrency, ...(done.diskAdmits !== undefined && { diskAdmitsNow: done.diskAdmits }) };
     }
