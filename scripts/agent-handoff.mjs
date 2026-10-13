@@ -621,6 +621,21 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   let plannedRoundReviewers = config.plannedRoundReviewers ?? null;
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild, pendingReport;
+  // Set once a Codex reviewer's exit is confirmed and taken by the first
+  // runProbeCleanup, which runs after validation or, when a later step throws,
+  // before the blocked row: an exited reviewer's probe checkouts never wait on
+  // its report passing.
+  let pendingProbeCleanup = null;
+  const runProbeCleanup = () => {
+    const cleanup = pendingProbeCleanup;
+    pendingProbeCleanup = null;
+    if (!cleanup) return;
+    const { index, step, directory, preserve, keep } = cleanup;
+    try {
+      const result = probeCleanup(directory, { preserve, keep: keep && fs.existsSync(keep) ? [keep] : [] });
+      append({ event: result.skipped ? "probe-cleanup-skipped" : "probe-checkouts-removed", index, step, directory, ...result });
+    } catch (error) { append({ event: "probe-cleanup-failed", index, step, directory, reason: error.message }); }
+  };
   const usedReports=new Set();
   const coordinatorPosts = config.reportPosting === "coordinator";
   try {
@@ -662,7 +677,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       const reportNotBefore=new Date().toISOString();
       // What the reviewer directory holds before the reviewer runs is never cleaned up afterwards.
       const reviewerHad = step.role === "review" && step.nativeResult === "codex-jsonl" ? snapshotReviewerDirectory(step.permissions.cwd) : null;
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1, plannedReviewers: step.reviewers } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), ...(reviewerHad ? { reviewerDirectory: step.permissions.cwd, reviewerHad: [...reviewerHad] } : {}), round: step.round, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1, plannedReviewers: step.reviewers } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
       const log = fs.openSync(output, "wx");
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
@@ -725,6 +740,8 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         else {closeLogs();discardAuth();await drainExecution();if(executionFailure)error.message+=`; delegated execution: ${executionFailure.message}`;if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message+=`; reservation retained at ${slot.file}: ${releaseError.message}`;}}throw error;}
       }
       let result;
+      const reportFlag = args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg));
+      const probeCleanupAfterExit = reviewerHad ? { index, step: current, directory: step.permissions.cwd, preserve: reviewerHad, keep: reportFlag >= 0 ? args[reportFlag + 1] : undefined } : null;
       try {
         child.stdin.on("error", () => {});
         let identityRow;
@@ -742,6 +759,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         child.stdin.end(prompt + accessPrompt + executionPrompt + editorPrompt);
         result = await exited;
         activeChild = null;
+        pendingProbeCleanup = probeCleanupAfterExit;
       } catch(error) {
         // The handle belongs to the child just spawned here. Close its input
         // and terminate that child, retaining ownership until close is observed.
@@ -759,6 +777,11 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         if(executionFailure)error.message += `; delegated execution: ${executionFailure.message}`;
         if(stopped){
           activeChild=null;
+          // The observed close is the stopped reviewer's exit evidence, which
+          // the journal cleanup command requires before it removes anything.
+          try { append({ event: "exited", index, step: current, ...stopped, stopped: true }); }
+          catch(journalError){error.message += `; stopped-child exit journal write failed: ${journalError.message}`;}
+          pendingProbeCleanup = probeCleanupAfterExit;
           if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
         } else {
           child.unref();
@@ -813,16 +836,9 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         usedReports.add(id);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
-      // The report is validated and the exit confirmed: the reviewer's probe
-      // clones and installs can be removed unless suite ownership still needs
-      // their canonical proof. Skipped/failed cleanup never voids the review.
-      if (reviewerHad) {
-        try {
-          const kept = args[args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg)) + 1];
-          const cleanup = probeCleanup(step.permissions.cwd, { preserve: reviewerHad, keep: [kept] });
-          append({ event: cleanup.skipped ? "probe-cleanup-skipped" : "probe-checkouts-removed", index, step: current, directory: step.permissions.cwd, ...cleanup });
-        } catch (error) { append({ event: "probe-cleanup-failed", index, step: current, directory: step.permissions.cwd, reason: error.message }); }
-      }
+      // The reviewer's probe clones and installs go once its exit is confirmed;
+      // a skipped or failed cleanup never voids the validated review.
+      runProbeCleanup();
       if (step.role === "review") {
         const newRound = step.round > completedRound;
         if (step.reviewerId !== undefined && (newRound || completedRoundReviewers)) {
@@ -849,6 +865,9 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     else append({ event: "finished" });
   } catch (error) {
     if (fd !== undefined) {
+      // A step that threw after its reviewer exited still frees the disk.
+      try { runProbeCleanup(); }
+      catch(journalError){error.message += `; probe cleanup journal write failed: ${journalError.message}`;}
       try { append({ event: "blocked", ...failureDetails(error) }); }
       catch(journalError){error.message += `; blocked journal write failed: ${journalError.message}`;}
     }

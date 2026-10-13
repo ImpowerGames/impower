@@ -149,6 +149,116 @@ try {
   assert.ok(fullLogs.some((line) => line.includes('worktree ownership could not be inspected') && line.includes(brokenCheckout)));
   assert.ok(isRegistered(brokenCheckout));
   assert.equal(fs.readFileSync(path.join(brokenCheckout, 'ignored.txt'), 'utf8'), 'broken sentinel');
+  // A reviewer's probe clone inside a closed PR's job directory is scratch once
+  // it holds nothing origin/main lacks; a registered worktree beside one still
+  // keeps the directory, and so does a clone with a change or a local commit.
+  const probeClone = (dir, name = 'probe-clone') => {
+    const clone = path.join(dir, 'round-1', 'reviewer-a-1', name);
+    fs.mkdirSync(path.dirname(clone), { recursive: true });
+    const r = spawnSync('git', ['clone', '-q', mainRoot, clone], { windowsHide: true, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    fs.mkdirSync(path.join(clone, 'node_modules'));
+    fs.writeFileSync(path.join(clone, 'ignored.txt'), 'install output the clone ignores');
+    return clone;
+  };
+  const cloneJob = job();
+  const cleanClone = probeClone(cloneJob.dir);
+  fs.writeFileSync(path.join(cloneJob.dir, 'round-1', 'reviewer-a-1', 'report.md'), 'report');
+  const cloneVerdict = classifyJob(cloneJob.name, cloneJob.dir, deps, ctx);
+  assert.equal(cloneVerdict.remove, true, `a clean probe clone kept its closed PR's directory: ${cloneVerdict.reason}`);
+  const cloneRun = cleanJobs(ctx, deps, true, () => {});
+  assert.ok(cloneRun.rows.some((row) => row.name === cloneJob.name && row.decision === 'removed'), JSON.stringify(cloneRun.rows));
+  assert.equal(fs.existsSync(cleanClone), false, 'the clean probe clone survived apply');
+  assert.equal(fs.existsSync(cloneJob.dir), false);
+  const heldJob = job();
+  const heldClone = probeClone(heldJob.dir);
+  const heldCheckout = path.join(heldJob.dir, 'checkout');
+  git('worktree', 'add', '-b', 'held-beside-clone', heldCheckout);
+  fs.writeFileSync(path.join(heldCheckout, 'ignored.txt'), 'held sentinel');
+  const heldVerdict = classifyJob(heldJob.name, heldJob.dir, deps, ctx);
+  assert.equal(heldVerdict.remove, false, 'a registered worktree beside a probe clone was removable');
+  assert.ok(heldVerdict.reason.includes(`protected registered worktree ${heldCheckout}`), heldVerdict.reason);
+  cleanJobs(ctx, deps, true, () => {});
+  assert.equal(fs.readFileSync(path.join(heldCheckout, 'ignored.txt'), 'utf8'), 'held sentinel');
+  assert.ok(fs.existsSync(path.join(heldClone, '.git')));
+  assert.ok(isRegistered(heldCheckout));
+  // A local commit kept by a branch, by a tag alone, by a branch reflog alone
+  // (the branch reset back to origin/main) or by a custom ref's reflog alone
+  // keeps the clone, as do an untracked file, a linked worktree of the clone's
+  // own and a paused `git am`. The tag and custom-ref commits are made with
+  // commit-tree, so no HEAD or branch reflog reaches them.
+  for (const state of ['untracked', 'committed', 'tagged', 'reflog', 'custom-reflog', 'linked', 'am', 'assume-unchanged']) {
+    const fixture = job();
+    const clone = probeClone(fixture.dir);
+    const inClone = (...args) => { const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', ...args], { cwd: clone, windowsHide: true, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+    if (state === 'untracked' || state === 'committed' || state === 'reflog') fs.writeFileSync(path.join(clone, 'probe.txt'), state);
+    if (state === 'committed' || state === 'reflog') {
+      inClone('add', 'probe.txt');
+      inClone('commit', '-q', '-m', 'local only');
+      if (state === 'reflog') inClone('reset', '-q', '--hard', 'origin/main');
+    }
+    if (state === 'tagged' || state === 'custom-reflog') {
+      const local = inClone('commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'local only');
+      if (state === 'tagged') inClone('tag', 'saved-work', local);
+      else { inClone('update-ref', '--create-reflog', 'refs/probe/saved', local); inClone('update-ref', 'refs/probe/saved', 'HEAD'); }
+    }
+    const external = path.join(scratch, `linked-${fixture.name}`);
+    if (state === 'linked') inClone('worktree', 'add', '-q', '--detach', external, 'HEAD');
+    if (state === 'am') {
+      // A mail patch whose context does not apply leaves `git am` paused, its
+      // patch kept under the Git directory and the status clean.
+      const patch = ['From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001', 'From: Scratch <scratch@example.com>', 'Date: Mon, 12 Oct 2026 00:00:00 +0000', 'Subject: [PATCH] pending', '', '---', '', 'diff --git a/.gitignore b/.gitignore', '--- a/.gitignore', '+++ b/.gitignore', '@@ -1 +1 @@', '-not-the-content', '+pending-unique-work', '-- ', '2.40.1', ''].join('\n');
+      const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'am'], { cwd: clone, input: patch, windowsHide: true, encoding: 'utf8' });
+      assert.notEqual(r.status, 0, 'the fixture patch applied');
+      assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply')), r.stderr);
+    }
+    if (state === 'assume-unchanged') {
+      // A change to a file marked assume-unchanged does not show in status.
+      inClone('update-index', '--assume-unchanged', '.gitignore');
+      fs.appendFileSync(path.join(clone, '.gitignore'), 'hidden-unique-work\n');
+      assert.equal(inClone('status', '--porcelain', '--untracked-files=all'), '', 'the fixture change shows in status');
+    }
+    const verdict = classifyJob(fixture.name, fixture.dir, deps, ctx);
+    assert.equal(verdict.remove, false, `a ${state} probe clone was removable`);
+    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : state === 'linked' ? /has linked worktrees/ : state === 'am' ? /unfinished in it \(rebase-apply\)/ : state === 'assume-unchanged' ? /assume-unchanged or skip-worktree/ : /is not on origin\/main/);
+    cleanJobs(ctx, deps, true, () => {});
+    assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
+    if (state === 'am') assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply', 'patch')), 'the paused patch survives apply');
+  }
+  // The removal's repeated checks do not judge an approved clone again: once
+  // the walk unlinks a tracked symbolic link inside it, status reports a
+  // deletion the removal itself made. The status after classification is
+  // made to read as that deletion, as git reports it once the link is gone.
+  {
+    const fixture = job();
+    const clone = probeClone(fixture.dir);
+    let statusCalls = 0;
+    const unlinking = { ...deps, exec: (cmd, args, cwd, timeout) => {
+      if (cmd === 'git' && args[0] === 'status' && path.resolve(cwd) === path.resolve(clone) && ++statusCalls > 1) return { status: 0, out: 'D tracked-link', err: '' };
+      return deps.exec(cmd, args, cwd, timeout);
+    } };
+    const run = cleanJobs(ctx, unlinking, true, () => {});
+    assert.ok(run.rows.some((row) => row.name === fixture.name && row.decision === 'removed'), JSON.stringify(run.rows.filter((row) => row.name === fixture.name)));
+    assert.equal(statusCalls, 1, 'the approved clone was judged once');
+    assert.equal(fs.existsSync(fixture.dir), false);
+  }
+  // A HEAD git cannot read keeps the clone, even when its branches are all merged.
+  {
+    const fixture = job();
+    const clone = probeClone(fixture.dir);
+    const headless = { ...deps, exec: (cmd, args, cwd, timeout) => cmd === 'git' && args[0] === 'rev-parse' && args.includes('HEAD^{commit}') ? { status: 128, out: '', err: 'fixture: HEAD unreadable' } : deps.exec(cmd, args, cwd, timeout) };
+    const verdict = classifyJob(fixture.name, fixture.dir, headless, ctx);
+    assert.equal(verdict.remove, false, 'a clone with an unreadable HEAD was removable');
+    assert.match(verdict.reason, /HEAD could not be read/);
+    cleanJobs(ctx, headless, true, () => {});
+    assert.ok(fs.existsSync(path.join(clone, '.git')));
+  }
+  const openJob = job();
+  const openClone = probeClone(openJob.dir);
+  const openVerdict = classifyJob(openJob.name, openJob.dir, { ...deps, exec: (cmd, args, cwd) => cmd === 'gh' ? { status: 0, out: 'open PR' } : deps.exec(cmd, args, cwd) }, ctx);
+  assert.equal(openVerdict.remove, false);
+  assert.ok(openVerdict.reason.includes(`protected embedded Git repository ${path.dirname(path.join(openClone, '.git'))}`), openVerdict.reason);
+  fs.rmSync(openJob.dir, { recursive: true, force: true });
   const dotted = job();
   const dottedCheckout = path.join(dotted.dir, '..checkout');
   git('worktree', 'add', '-b', 'dotted', dottedCheckout);
