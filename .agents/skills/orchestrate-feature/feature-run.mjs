@@ -253,7 +253,11 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
   if (handle.kind === "process") {
     if (handle.host !== host) {
       const seen = observations.processes?.[handle.pid];
-      if (seen?.host === handle.host && seen.start === handle.start && (seen.state === "exited" || EXITED.has(seen.state))) return { status: "exited", reason: `process ${handle.pid} on ${handle.host} was observed ${seen.state} there${seen.source ? ` (${seen.source})` : ""}` };
+      // The recorded process is the writer's wrapper; the writer itself is
+      // found by its launch directory, as on its own host, so the observation
+      // must also have found no process naming that directory.
+      const writerGone = !handle.launchDir || seen?.launchDirUnused === true;
+      if (seen?.host === handle.host && seen.start === handle.start && (seen.state === "exited" || EXITED.has(seen.state))) return writerGone ? { status: "exited", reason: `process ${handle.pid} on ${handle.host} was observed ${seen.state} there${handle.launchDir ? ", with no process naming its launch directory" : ""}${seen.source ? ` (${seen.source})` : ""}` } : { status: "unknown", reason: `process ${handle.pid} on ${handle.host} was observed ${seen.state}, but not that no process there still names its launch directory ${handle.launchDir}; observe that on ${handle.host} (launchDirUnused)` };
       if (seen?.host === handle.host && seen.start === handle.start && seen.state === "running") return { status: "live", reason: `process ${handle.pid} on ${handle.host} was observed running there` };
       return { status: "unknown", reason: `process ${handle.pid} runs on ${handle.host}; this host cannot observe it` };
     }
@@ -1127,7 +1131,10 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       const record = readRecord(absolute(o.record, "record"));
       const plan = planDispatch({ record, snapshot: readJson(absolute(o.snapshot, "snapshot")), observations: readOptional(o.observations), turn: o.turn, preflights: (o.preflight ? o.preflight.split(",") : []).map((f) => readJson(absolute(f, "preflight"))), freeBytes: freeBytesAt(record.checkout), defaults });
       if (o.out) fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(plan, null, 2) + "\n");
-      return plan;
+      // With checkpoints, a plan whose summary changed becomes the status the
+      // Feature's comment shows: done and remaining work, blockers and actions.
+      const checkpoint = autoCheckpoint(absolute(o.record, "record"), { coordinator: record.coordinator.session, transition: "a new plan", github, plan, onlyIfChanged: true });
+      return checkpoint ? { ...plan, checkpoint } : plan;
     }
     case "claim": return mutate((r) => claim(r, { plan: absolute(o.plan, "plan"), ticket: number(), worktree: o.worktree, branch: o.branch, artifactParent: o.artifactParent, operation: o.operation, evidence: o.evidence }));
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt }));

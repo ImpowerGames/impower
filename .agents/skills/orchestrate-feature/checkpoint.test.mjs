@@ -208,6 +208,11 @@ try {
   assert.equal(run.ownerStatus(foreignProcess, { processes: { [process.pid]: { host: DST, start: "recorded-on-source", state: "exited" } } }, { host: DST }).status, "unknown");
   assert.equal(run.ownerStatus(foreignProcess, { processes: { [process.pid]: { host: SRC, start: "reused", state: "exited" } } }, { host: DST }).status, "unknown", "an observation of a reused PID is not the recorded process");
   assert.equal(run.ownerStatus(foreignProcess, { processes: { [process.pid]: { host: SRC, start: "recorded-on-source", state: "exited" } } }, { host: DST }).status, "exited");
+  // A detached writer's recorded process is its wrapper: its exit alone
+  // leaves the writer, found by its launch directory, unknown.
+  const foreignWrapper = { handle: { ...foreignProcess.handle, launchDir: "/source/artifacts/launch-1" } };
+  assert.equal(run.ownerStatus(foreignWrapper, { processes: { [process.pid]: { host: SRC, start: "recorded-on-source", state: "exited" } } }, { host: DST }).status, "unknown", "a wrapper's exit does not show its writer ended");
+  assert.equal(run.ownerStatus(foreignWrapper, { processes: { [process.pid]: { host: SRC, start: "recorded-on-source", state: "exited", launchDirUnused: true } } }, { host: DST }).status, "exited");
 
   // Takeover needs evidence, and a stale takeover (built on a checkpoint
   // another coordinator has since replaced) is refused.
@@ -433,6 +438,35 @@ try {
   assert.equal(state720.checkpoint.work[721].snapshot, undefined);
   assert.ok(cp.limitations(state720.checkpoint, { host: DST }).some((l) => l.ticket === 721 && l.kind === "unpublished"));
 
+  // History another remote holds is still unpublished on the checkpoint's
+  // remote, and commit messages are scanned like files.
+  const elsewhere = path.join(tmp, "elsewhere.git");
+  git(tmp, "init", "-q", "--bare", "-b", "main", elsewhere);
+  git(src, "remote", "add", "elsewhere", elsewhere);
+  const rec770 = init(770, "local_src77");
+  cp.enable(rec770, { coordinator: "local_src77", expectRevision: 1, github, host: SRC });
+  const snap770 = { repository: "acme/widgets", feature: { number: 770, state: "open" }, originMain: "x", tickets: [ticket(771, { parent: 770 }), ticket(772, { parent: 770 })] };
+  const wt771 = startWriter(rec770, "local_src77", snap770, 771, "elsewhere");
+  fs.writeFileSync(path.join(wt771, "config.txt"), `token ${fakeToken}\n`);
+  git(wt771, "add", "config.txt");
+  git(wt771, "commit", "-q", "-m", "a secret, pushed only elsewhere");
+  git(wt771, "push", "-q", "elsewhere", "HEAD:refs/heads/feat/771-elsewhere");
+  git(wt771, "fetch", "-q", "elsewhere");
+  fs.writeFileSync(path.join(wt771, "config.txt"), "no secret\n");
+  git(wt771, "commit", "-q", "-am", "secret removed");
+  fs.writeFileSync(path.join(wt771, "draft.txt"), "draft\n");
+  const wt772 = startWriter(rec770, "local_src77", snap770, 772, "message");
+  fs.writeFileSync(path.join(wt772, "plain.txt"), "plain\n");
+  git(wt772, "add", "plain.txt");
+  git(wt772, "commit", "-q", "-m", `pasted ${fakeToken} by mistake`);
+  fs.writeFileSync(path.join(wt772, "draft.txt"), "draft\n");
+  cp.prepareHandoff(rec770, { coordinator: "local_src77", expectRevision: rev(rec770), step: "stop", github, host: SRC });
+  const handed770 = cp.prepareHandoff(rec770, { coordinator: "local_src77", expectRevision: rev(rec770), step: "publish", observations: { sessions: { local_w771: { state: "archived" }, local_w772: { state: "archived" } } }, github, host: SRC });
+  const refusal = (n) => handed770.uncertain.find((u) => u.ticket === n && u.status === "not snapshotted")?.reason ?? "";
+  assert.match(refusal(771), /config\.txt holds a GitHub token/, "history pushed only to another remote is scanned");
+  assert.match(refusal(772), /commit [0-9a-f]{40} holds a GitHub token/, "an unpushed commit message is scanned");
+  assert.equal(git(src, "rev-list", "--parents", "-n", "1", cp.fetchState(src, "origin", "acme/widgets", 770).commit).split(" ").length, 2, "neither snapshot was attached");
+
   // A handoff whose save failed is saved by a later ordinary publish together
   // with its snapshot. The writer had replaced a committed directory with a
   // file and a committed file with a directory; both arrive as they are.
@@ -442,8 +476,15 @@ try {
   fs.mkdirSync(path.join(wt731, "entry"));
   fs.writeFileSync(path.join(wt731, "entry", "child.txt"), "child\n");
   fs.writeFileSync(path.join(wt731, "leaf"), "leaf\n");
+  fs.writeFileSync(path.join(wt731, "clean.txt"), "base\n");
+  fs.writeFileSync(path.join(wt731, ".gitattributes"), "clean.txt text eol=lf\n");
   git(wt731, "add", "-A");
   git(wt731, "commit", "-q", "-m", "shapes");
+  // A staged edit, then working bytes whose clean conversion equals HEAD.
+  fs.writeFileSync(path.join(wt731, "clean.txt"), "staged edit\n");
+  git(wt731, "add", "clean.txt");
+  fs.writeFileSync(path.join(wt731, "clean.txt"), "base\r\n");
+  assert.match(git(wt731, "status", "--porcelain", "--", "clean.txt"), /^MM clean\.txt$/);
   fs.rmSync(path.join(wt731, "entry"), { recursive: true });
   fs.writeFileSync(path.join(wt731, "entry"), "now a file\n");
   fs.rmSync(path.join(wt731, "leaf"));
@@ -463,6 +504,14 @@ try {
   assert.equal(got731.verified, true, "the snapshot reached the remote with the retried save");
   assert.equal(fs.readFileSync(path.join(got731.worktree, "entry"), "utf8"), "now a file\n");
   assert.equal(fs.readFileSync(path.join(got731.worktree, "leaf", "inner.txt"), "utf8"), "now a directory\n");
+  assert.equal(fs.readFileSync(path.join(got731.worktree, "clean.txt")).toString("hex"), Buffer.from("base\r\n").toString("hex"), "working bytes that normalize to HEAD are kept");
+  assert.equal(git(got731.worktree, "show", ":clean.txt"), "staged edit", "and the staged edit beside them");
+  // Releasing the writer keeps the snapshot in the latest checkpoint.
+  mutate(rec730, "local_src73", (r) => run.release(r, { ticket: 731, observations: { sessions: { local_w731: { state: "archived" } } }, host: SRC, evidence: "its session was archived" }));
+  assert.equal(cp.autoCheckpoint(rec730, { coordinator: "local_src73", transition: "the release", github, host: SRC }).saved, true);
+  assert.equal(cp.fetchState(dst3, "origin", "acme/widgets", 730).checkpoint.work[731].snapshot.commit, handed730.snapshots[731].commit, "the snapshot outlives its writer");
+  const dst4 = clone("dst4");
+  assert.equal(cp.retrieve({ repository: "acme/widgets", feature: 730, checkout: dst4, ticket: 731, worktree: path.join(tmp, "dst4-wt-731") }).verified, true);
 
   // A run whose first checkpoint never saved hands off while offline; the
   // first saved checkpoint then carries the snapshot with no previous one,
@@ -627,6 +676,17 @@ try {
   cp.autoCheckpoint(rec800, { coordinator: "local_cli", transition: "a note", github });
   assert.ok(cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.observed?.tickets.some((t) => t.number === 803), "the summary keeps the last plan");
   assert.match(github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec800), "utf8")).summary.commentId).body, /\| #803 \| dispatch-step \|/);
+
+  // The ordinary plan command publishes its summary: every ticket, done and
+  // waiting ones too, with its action. An unchanged plan publishes nothing.
+  const snap800c = { ...snap800, observedAt: "now", tickets: [...snap800b.tickets, ticket(804, { parent: 800, state: "closed", delivered: true }), ticket(805, { parent: 800, blockers: [{ number: 803, state: "open", delivered: false }] })] };
+  const planCli = () => run.main(["plan", "--record", rec800, "--snapshot", write("snap-800c.json", snap800c), "--turn", "event", "--preflight", write("pf-800.json", available("claude-adopted", [802, 803, 805])), "--out", path.join(tmp, "plan-800c.json")], { defaults, github });
+  const planned = planCli();
+  assert.equal(planned.checkpoint.saved, true);
+  const statusBody = github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec800), "utf8")).summary.commentId).body;
+  assert.match(statusBody, /\| #804 \| done \|/);
+  assert.match(statusBody, /\| #805 \| wait-dependency \|/);
+  assert.equal(planCli().checkpoint.unchanged, true, "an unchanged plan adds no checkpoint");
 
   // An outdated copy of the record never publishes over newer state.
   const staleCopy = path.join(dstPrivate, "run-800-stale.json");
