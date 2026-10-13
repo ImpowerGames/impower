@@ -2036,7 +2036,7 @@ describe("a choose block's caption on the program engine", () => {
   // line in progress back, with what it holds for the next beat.
   it("reports the carried step's lines after a save at a breakpoint on the carried line", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
     h.game.start();
     expect(h.stoppedAt()).toBe(3);
     expect(typeof h.game.save()).toBe("string");
@@ -2154,7 +2154,7 @@ describe("a choose block's caption on the program engine", () => {
 
   it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
     h.game.start();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.stoppedAt()).toBe(3);
