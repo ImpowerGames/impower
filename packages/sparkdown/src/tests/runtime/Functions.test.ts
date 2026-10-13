@@ -12,6 +12,7 @@ import { describe, expect, test } from "vitest";
 import {
   collectDiagnosticsFromFile,
   makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 
 describe("Functions — clean-compile invariants", () => {
@@ -87,17 +88,33 @@ describe("Functions — clean-compile invariants", () => {
   });
 
   test("function parameters shadow a global function or store of their name", () => {
-    // Upstream ink reports both of these as collisions (`"name has already
-    // been used for a function"` / `"... for a var"`). Sparkdown follows
-    // Luau, where a parameter shadows any outer name inside its function:
-    //   - `function pass_divert(aTarget)` beside `function aTarget()`
+    // A port of upstream ink's argument-name-collision test, whose
+    // expectation is dropped for the Luau rule: a parameter shadows any
+    // outer name inside its function (#1177 for a const, #1742 for a
+    // store). Ink reported both of the fixture's parameters:
+    //   - `function pass_divert(aTarget)` beside `function aTarget()`,
+    //     already allowed before #1742 (parameters may shadow callables)
     //   - `function variable_param_test(global_var)` beside
-    //     `store global_var = 5` (#1742)
+    //     `store global_var = 5`, the fixture's only error until #1742
     const ctx = makeRuntimeStoryFromFile(
       "functions",
       "argument-name-collisions",
     );
     expect(ctx.errorMessages).toEqual([]);
+  });
+
+  test.each([
+    ["a local at the top level beside a store", "store global_var = 5\nlocal global_var = 1\n"],
+    ["two stores of one name", "store global_var = 5\nstore global_var = 1\n"],
+    [
+      "a store declared in the function beside its parameter",
+      "function f(global_var)\n  store global_var = 5\n  return global_var\nend\n",
+    ],
+  ])("%s still collides", (_label, source) => {
+    const ctx = makeRuntimeStoryFromSource(`${source}done\n`);
+    expect(ctx.errorMessages.join("\n")).toContain(
+      "Duplicate identifier `global_var`",
+    );
   });
 });
 
