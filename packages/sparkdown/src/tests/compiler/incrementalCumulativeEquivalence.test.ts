@@ -24,7 +24,7 @@
 import { describe, it, expect } from "vitest";
 import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { describeRoot } from "../program/describeRoot";
+import { fieldSig } from "./programSignature";
 
 const URI = "inmemory:///main.sd";
 
@@ -71,41 +71,6 @@ const SHAPED_EDITS: [string, string][] = [
   ["function bonus(", "function bonus_b("],
 ];
 
-// Per-field stable stringify (sorted keys; arrays kept in order). Each program
-// field is compared independently so a failure names the diverging field.
-const FIELDS = [
-  "functionLocations",
-  "sceneLocations",
-  "knotLocations",
-  "branchLocations",
-  "labelLocations",
-  "context",
-  "diagnostics",
-  "ui",
-] as const;
-
-function stable(value: unknown): string {
-  const seen = new WeakSet();
-  const walk = (v: any): any => {
-    if (v && typeof v === "object") {
-      if (seen.has(v)) return "[Circular]";
-      seen.add(v);
-      if (Array.isArray(v)) return v.map(walk);
-      const out: Record<string, any> = {};
-      for (const k of Object.keys(v).sort()) out[k] = walk(v[k]);
-      return out;
-    }
-    return v;
-  };
-  return JSON.stringify(walk(value));
-}
-
-function fieldSig(program: any): Record<string, string> {
-  const sig: Record<string, string> = {};
-  sig["chunks"] = JSON.stringify(program.chunks ? describeRoot(program.chunks) : null);
-  for (const f of FIELDS) sig[f] = stable(program[f]);
-  return sig;
-}
 
 function coldProgram(text: string) {
   const c = new SparkdownCompiler();

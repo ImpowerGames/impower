@@ -54,6 +54,29 @@ export class SparkdownDocument implements TextDocument {
     this.text = TextDocument.create(uri, languageId, version, content);
   }
 
+  /**
+   * A copy of this document at its version, which an update can edit while
+   * this one stays as it is. The line offsets the text document computes on
+   * first use are copied with it, so the copy's first position lookup does not
+   * scan the whole text again.
+   */
+  clone(): SparkdownDocument {
+    const copy = new SparkdownDocument(
+      this.uri,
+      this.languageId,
+      this.version,
+      this.getText(),
+    );
+    const lineOffsets = (this.text as { _lineOffsets?: number[] })
+      ._lineOffsets;
+    if (lineOffsets) {
+      (copy.text as { _lineOffsets?: number[] })._lineOffsets =
+        lineOffsets.slice();
+    }
+    copy._cachedText = this._cachedText;
+    return copy;
+  }
+
   getText(range?: Range): string {
     return this.text.getText(range);
   }

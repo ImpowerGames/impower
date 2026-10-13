@@ -34,7 +34,10 @@ import {
   valueListAssignmentName,
 } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
-import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import {
+  SparkdownAnnotator,
+  type SparkdownAnnotatorSnapshot,
+} from "../SparkdownAnnotator";
 
 export interface InkDiagnostic {
   message: string;
@@ -174,6 +177,20 @@ function nodeStartingAt(
   return null;
 }
 
+interface CompilationAnnotatorSnapshot extends SparkdownAnnotatorSnapshot {
+  globalCallableNames?: Set<string>;
+  globalCallableNamesTree?: unknown;
+  checkedGlobalCallableNames?: Set<string>;
+  checkedDefineTypeNames?: Set<string>;
+  documentText: string;
+  documentTextOf?: unknown;
+  hasReads: boolean;
+  memoStats: MemoStats;
+  served: Set<StatementMemoEntry>;
+  rebuilt: { from: number; to: number } | null;
+  inverse?: ChangeDesc;
+}
+
 export class CompilationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<CompiledBlock>,
   CompilationConfig
@@ -229,6 +246,52 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       this._documentText = this.text ? documentString(this.text) : "";
     }
     return this._documentText;
+  }
+
+  /**
+   * The caches this annotator keeps beside the ranges the base class covers.
+   *
+   * Every one of them is replaced rather than edited by an update, so the
+   * snapshot holds references. The callable-name and text caches are keyed
+   * on the tree and text they were derived from, so restoring those alone
+   * would leave them correct but cold; carrying them keeps the annotator
+   * exactly where it was before the hypothetical edit. The define-type-name
+   * index is owned by `SparkdownCombinedAnnotator`, which saves and restores
+   * it alongside this. The statement memos live on the blocks the ranges
+   * hold, so restoring the ranges restores them.
+   */
+  override snapshot(): SparkdownAnnotatorSnapshot {
+    const snapshot: CompilationAnnotatorSnapshot = {
+      ...super.snapshot(),
+      globalCallableNames: this._globalCallableNames,
+      globalCallableNamesTree: this._globalCallableNamesTree,
+      checkedGlobalCallableNames: this._checkedGlobalCallableNames,
+      checkedDefineTypeNames: this._checkedDefineTypeNames,
+      documentText: this._documentText,
+      documentTextOf: this._documentTextOf,
+      hasReads: this._hasReads,
+      memoStats: this.memoStats,
+      served: this._served,
+      rebuilt: this._rebuilt,
+      inverse: this._inverse,
+    };
+    return snapshot;
+  }
+
+  override restore(snapshot: SparkdownAnnotatorSnapshot): void {
+    super.restore(snapshot);
+    const compilation = snapshot as CompilationAnnotatorSnapshot;
+    this._globalCallableNames = compilation.globalCallableNames;
+    this._globalCallableNamesTree = compilation.globalCallableNamesTree;
+    this._checkedGlobalCallableNames = compilation.checkedGlobalCallableNames;
+    this._checkedDefineTypeNames = compilation.checkedDefineTypeNames;
+    this._documentText = compilation.documentText;
+    this._documentTextOf = compilation.documentTextOf;
+    this._hasReads = compilation.hasReads;
+    this.memoStats = compilation.memoStats;
+    this._served = compilation.served;
+    this._rebuilt = compilation.rebuilt;
+    this._inverse = compilation.inverse;
   }
 
   private computeGlobalCallableNames(): Set<string> {
