@@ -29,7 +29,7 @@ export interface MemoAssignment {
 /** What a statement's memo records of the assignment the statement lowered
  *  to, or null for one it cannot stand for: a declaration the story
  *  declares for the whole program (a global, a property, a constant's
- *  global, a list's or a `define`'s). A local declaration it stands for:
+ *  global, or a `define`'s). A local declaration it stands for:
  *  its stand-in declares the local again. */
 export const memoAssignmentOf = (assignment: VariableAssignment): MemoAssignment | null => {
   if (
@@ -37,7 +37,6 @@ export const memoAssignmentOf = (assignment: VariableAssignment): MemoAssignment
     assignment.isPropertyDeclaration ||
     assignment.isDefineDeclaration ||
     assignment.isConstantDeclaration ||
-    assignment.listDefinition !== null ||
     assignment.structDefinition !== null ||
     assignment.variableName == null
   ) {

@@ -247,7 +247,7 @@ describe("an edit inside one beat", () => {
     // engine's resolution counted in their containers. A program runs from
     // its chunks, and its compile builds no runtime story (#1607, #705): its
     // root holds what the engine reads of the story besides its chunks, the
-    // lists, structs and constants (`ProgramRoot.tables`).
+    // structs and constants (`ProgramRoot.tables`).
     const text = [
       "scene MAIN",
       "  label knock",

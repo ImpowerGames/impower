@@ -1,7 +1,5 @@
 export enum SymbolType {
   Knot = 0,
-  List = 1,
-  ListItem = 2,
   Struct = 3,
   StructProperty = 4,
   Var = 5,

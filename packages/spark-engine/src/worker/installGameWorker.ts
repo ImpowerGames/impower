@@ -477,8 +477,9 @@ export function installGameWorker(connection: MessageConnection) {
           return { variables };
         }
         if (scope === "lists") {
-          const variables = game.getListVariables();
-          return { variables };
+          // Sparkdown has no list type (#1752): the debugger's Lists scope
+          // holds nothing.
+          return { variables: [] };
         }
         if (scope === "defines") {
           const variables = game.getDefineVariables();

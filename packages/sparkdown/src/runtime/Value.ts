@@ -1,8 +1,7 @@
 import { InkObject } from "./Object";
 import { Path } from "./Path";
-import { InkList, InkListItem } from "./InkList";
 import { StoryException } from "./StoryException";
-import { asOrNull, asOrThrows } from "./TypeAssertion";
+import { asOrThrows } from "./TypeAssertion";
 import { tryParseInt, tryParseFloat } from "./TryGetResult";
 import { throwNullException } from "./NullException";
 
@@ -67,8 +66,6 @@ export abstract class AbstractValue extends InkObject {
       return new FloatValue(Number(val));
     } else if (val instanceof Path) {
       return new DivertTargetValue(asOrThrows(val, Path));
-    } else if (val instanceof InkList) {
-      return new ListValue(asOrThrows(val, InkList));
     }
 
     return null;
@@ -643,82 +640,12 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
   }
 }
 
-export class ListValue extends Value<InkList> {
-  public get isTruthy() {
-    if (this.value === null) {
-      return throwNullException("this.value");
-    }
-    return this.value.Count > 0;
-  }
-  public get valueType() {
-    return ValueType.List;
-  }
-  public Cast(newType: ValueType): Value<any> {
-    if (this.value === null) return throwNullException("Value.value");
-
-    if (newType == ValueType.Int) {
-      let max = this.value.maxItem;
-      if (max.Key.isNull) return new IntValue(0);
-      else return new IntValue(max.Value);
-    } else if (newType == ValueType.Float) {
-      let max = this.value.maxItem;
-      if (max.Key.isNull) return new FloatValue(0.0);
-      else return new FloatValue(max.Value);
-    } else if (newType == ValueType.String) {
-      let max = this.value.maxItem;
-      if (max.Key.isNull) return new StringValue("");
-      else {
-        return new StringValue(max.Key.toString());
-      }
-    }
-
-    if (newType == this.valueType) return this;
-
-    throw this.BadCastException(newType);
-  }
-  constructor();
-  constructor(list: InkList);
-  constructor(listOrSingleItem: InkListItem, singleValue: number);
-  constructor(listOrSingleItem?: InkListItem | InkList, singleValue?: number) {
-    super(null);
-
-    if (!listOrSingleItem && !singleValue) {
-      this.value = new InkList();
-    } else if (listOrSingleItem instanceof InkList) {
-      this.value = new InkList(listOrSingleItem);
-    } else if (
-      listOrSingleItem instanceof InkListItem &&
-      typeof singleValue === "number"
-    ) {
-      this.value = new InkList({
-        Key: listOrSingleItem,
-        Value: singleValue,
-      });
-    }
-  }
-  public static RetainListOriginsForAssignment(
-    oldValue: InkObject | null,
-    newValue: InkObject,
-  ) {
-    let oldList = asOrNull(oldValue, ListValue);
-    let newList = asOrNull(newValue, ListValue);
-
-    if (newList && newList.value === null)
-      return throwNullException("newList.value");
-    if (oldList && oldList.value === null)
-      return throwNullException("oldList.value");
-
-    // When assigning the empty list, try to retain any initial origin names
-    if (oldList && newList && newList.value!.Count == 0)
-      newList.value!.SetInitialOriginNames(oldList.value!.originNames);
-  }
-}
-
 export enum ValueType {
   Bool = -1,
   Int = 0,
   Float = 1,
-  List = 2,
+  // 2 was ink's list type, deleted (#1752); the numbers that follow keep
+  // their places, so coercion still ranks each type as before.
   String = 3,
   DivertTarget = 4,
   VariablePointer = 5,

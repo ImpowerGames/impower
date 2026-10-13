@@ -17,7 +17,6 @@ export class VariableReference extends Expression {
   // - Normal variables have a single item in their "path"
   // - Knot/stitch names for read counts are actual dot-separated paths
   //   (though this isn't actually used at time of writing)
-  // - List names are dot separated: listName.itemName (or just itemName)
   get name() {
     return this.path.join(".");
   }
@@ -37,8 +36,6 @@ export class VariableReference extends Expression {
   get isConstantReference(): boolean {
     return this.story.constants.has(this.name);
   }
-  // Only known after PrepareIntoContainer has run
-  public isListItemReference: boolean = false;
 
   /**
    * What the name resolved to when references were last resolved: a
@@ -76,35 +73,19 @@ export class VariableReference extends Expression {
     return "ref";
   }
 
-  /** The story's constants read, and a list item looked up. */
+  /** The reference marked prepared; it reads nothing of the story until it
+   *  is resolved. */
   public override PrepareIntoContainer(): void {
     this._preparedReference = true;
-    if (this.story.constants.has(this.name)) {
-      return;
-    }
-    if (this.path.length === 1 || this.path.length === 2) {
-      let listItemName: string = "";
-      let listName: string = "";
-      if (this.path.length === 1) {
-        listItemName = this.path[0]!;
-      } else {
-        listName = this.path[0]!;
-        listItemName = this.path[1]!;
-      }
-      const listItem = this.story.ResolveListItem(listName, listItemName, this);
-      if (listItem) {
-        this.isListItemReference = true;
-      }
-    }
   }
 
   public override ResolveWith(context: Story): void {
     super.ResolveWith(context);
 
-    // Work is already done if it's a constant or list item reference
+    // Work is already done if it's a constant reference
     this.resolvedAs = "variable";
     this.countTarget = null;
-    if (this.isConstantReference || this.isListItemReference) {
+    if (this.isConstantReference) {
       return;
     }
 
@@ -151,8 +132,7 @@ export class VariableReference extends Expression {
       return;
     }
 
-    // Couldn't find this multi-part path at all, whether as a divert target,
-    // or list item reference.
+    // Couldn't find this multi-part path at all as a divert target.
     if (this.path.length > 1) {
       // Last chance: maybe this is property access on a table-typed
       // variable (sparkdown extension — `result.value` where `result`
@@ -266,9 +246,6 @@ export class VariableReference extends Expression {
   // added in one flow emits nothing of the flow it counts
   // (docs/engine/binary-program.md, section 5).
   public override EmitExpression(emitter: ProgramEmitter): void {
-    if (this.isListItemReference) {
-      emitter.unsupported("list");
-    }
     emitter.recordResolution(this.resolutionKey);
     if (this.resolvedAs === "count") {
       const symbol = emitter.targetSymbol(this.countTarget, this.name);

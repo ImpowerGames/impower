@@ -285,6 +285,26 @@ describe("a construct the program cannot build", () => {
     expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage("list")]);
   });
 
+  // Sparkdown has no list type (#1752): a call of any of ink's list
+  // builtins is the list construct, given a table.
+  it.each([
+    "LIST_ALL(t)",
+    "LIST_COUNT(t)",
+    "LIST_INVERT(t)",
+    "LIST_MAX(t)",
+    "LIST_MIN(t)",
+    "LIST_RANDOM(t)",
+    "LIST_RANGE(t, 1, 2)",
+    "LIST_VALUE(t)",
+  ])("is reported for the list builtin %s", (call) => {
+    const { program } = compileScript(
+      `store t = {1, 2}\nscene MAIN\n  One {${call}}.\nend\n`,
+      {},
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage("list")]);
+  });
+
   it("is reported in a scene at the line of its statement", () => {
     const { program } = compileScript(
       `scene MAIN\n  One.\n  choose\n${indent(PREAMBLE_THEN)}    + [A]\n      Took A.\n  end\nend\n`,

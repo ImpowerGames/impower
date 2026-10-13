@@ -7,21 +7,12 @@
 // names, as TypeScript reads them past any comment, and each specifier of
 // this package (relative, or `@impower/sparkdown/...`) is resolved to the
 // file it names.
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, test } from "vitest";
+import { scanOf, sourcesUnder } from "./repositoryScan";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const PACKAGES = "@impower/";
@@ -41,18 +32,6 @@ const GENERATION = /\b(GenerateRuntimeObject|GenerateIntoContainer)\b/;
  *  `import "..."`, `import type`, and `import("...")`. */
 const specifiersOf = (text: string): string[] =>
   ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
-
-/** Every `.ts`, `.mts`, `.js` and `.mjs` file under `dir`, at any depth,
- *  outside `node_modules`. */
-const sourcesUnder = (dir: string): string[] =>
-  existsSync(dir)
-    ? readdirSync(dir).flatMap((name) => {
-        if (name === "node_modules") return [];
-        const path = join(dir, name);
-        if (statSync(path).isDirectory()) return sourcesUnder(path);
-        return /\.(m?ts|m?js)$/.test(name) && !name.endsWith(".d.ts") ? [path] : [];
-      })
-    : [];
 
 /** The roots the check reads, under `repo`. */
 const rootsOf = (repo: string): string[] => [
@@ -101,18 +80,8 @@ test("nothing imports the object-hierarchy engine or generates runtime objects",
 describe("the scan the check is held to", () => {
   // A repository of its own, written to a temporary directory, with each way
   // a file can name a module of the deleted engine.
-  const withRepo = (files: Record<string, string>): string[] => {
-    const root = mkdtempSync(join(tmpdir(), "object-engine-gone-"));
-    try {
-      for (const [path, text] of Object.entries(files)) {
-        mkdirSync(dirname(join(root, path)), { recursive: true });
-        writeFileSync(join(root, path), text);
-      }
-      return whatRemains(root);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  };
+  const withRepo = (files: Record<string, string>): string[] =>
+    scanOf("object-engine-gone-", files, whatRemains);
 
   test("finds a relative import, an export from and a dynamic import", () => {
     expect(

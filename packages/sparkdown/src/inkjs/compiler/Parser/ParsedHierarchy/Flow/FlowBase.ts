@@ -765,10 +765,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         // A declaration-only marker of an unseeded compile
         // (Story.DeclareBuiltinGlobals) has no parsed node and nothing to
         // generate, so it is simply dropped rather than re-registered.
-        const incumbentIsMarker =
-          !varab.expression &&
-          !varab.structDefinition &&
-          !varab.listDefinition;
+        const incumbentIsMarker = !varab.expression && !varab.structDefinition;
         if (!incumbentIsMarker) {
           const shadowKey = `$prelude_${varName}`;
           if (!this.variableDeclarations.has(shadowKey)) {

@@ -10,14 +10,14 @@
  *
  * For instance a `TryGet` prototype would look like this:
 ```
-TryGetItemWithValue(val: number, item: InkListItem): TryGetResult<InkListItem>{
+tryGetValueFromMap<K, V>(map: Map<K, V> | null, key: K, value: V): TryGetResult<V>
 ```
  *
  * On the other hand, dealing with the result can be done in the following way:
 ```
-var item = item.TryGetItemWithValue(intVal, InkListItem.Null);
-if (item.exists) {
-	console.log(item.result)
+var found = tryGetValueFromMap(map, key, null);
+if (found.exists) {
+	console.log(found.result)
 }
 ```
  *

@@ -6,7 +6,6 @@ import {
   EXECUTION_WATCH_STEPS,
   executionWatch,
 } from "../runtime/ExecutionWatch";
-import { InkList } from "../runtime/InkList";
 import { NativeFunctionCall } from "../runtime/NativeFunctionCall";
 import { InkObject } from "../runtime/Object";
 import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
@@ -42,7 +41,6 @@ import {
   VariablesState,
 } from "../runtime/VariablesState";
 import { CallStack } from "../runtime/CallStack";
-import type { ListDefinitionsOrigin } from "../runtime/ListDefinitionsOrigin";
 import type { StructDefinitionTable } from "../runtime/StructDefinition";
 import { Void } from "../runtime/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
@@ -381,7 +379,7 @@ export interface CarriedDeclarations {
  * addresses (#700) and the debugger (#702).
  *
  * Each reset gives the engine a call stack of its own (`CallStack.ForProgram`)
- * and a `VariablesState` over it with the story's lists and constants
+ * and a `VariablesState` over it with the story's constants
  * (`ProgramRoot.tables`), as the object engine's state built them: the
  * globals hold this engine's variables, and the call stack this engine's
  * frames, whose scopes hold the temporaries and whose open upvalues close as
@@ -1145,10 +1143,6 @@ export class ProgramStory implements StoryEngine {
     return this._state.variablesState;
   }
 
-  get listDefinitions(): ListDefinitionsOrigin | null {
-    return this.root.tables?.listDefinitions ?? null;
-  }
-
   get structDefinitions(): StructDefinitionTable {
     return this.root.tables?.structDefinitions ?? {};
   }
@@ -1242,7 +1236,7 @@ export class ProgramStory implements StoryEngine {
     const reactiveDepsEnabled =
       this._state?.variablesState?.reactiveDepsEnabled ?? false;
     const callStack = CallStack.ForProgram();
-    const variablesState = new VariablesState(callStack, this.listDefinitions);
+    const variablesState = new VariablesState(callStack);
     variablesState.constantNames = new Set(this.root.tables?.constantNames ?? []);
     variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
     this._state = new ProgramStoryState(
@@ -3086,8 +3080,8 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Pushes a host's arguments (`StoryState.PassArgumentsToEvaluationStack`):
-   *  a runtime value as it is, and a number, string, boolean or list as the
-   *  value it makes. */
+   *  a runtime value as it is, and a number, string or boolean as the value
+   *  it makes. */
   protected passArguments(args: any[] | null): void {
     if (args === null) {
       return;
@@ -3101,13 +3095,12 @@ export class ProgramStory implements StoryEngine {
         !(
           typeof arg === "number" ||
           typeof arg === "string" ||
-          typeof arg === "boolean" ||
-          arg instanceof InkList
+          typeof arg === "boolean"
         )
       ) {
         throw new Error(
-          "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be" +
-            "number, string, bool or InkList. Argument was " +
+          "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be " +
+            "number, string or bool. Argument was " +
             (arg == null ? "null" : arg.constructor.name),
         );
       }

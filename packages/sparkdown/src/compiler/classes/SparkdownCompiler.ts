@@ -28,7 +28,6 @@ import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { ExternalDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
-import { ListDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/List/ListDefinition";
 import { StructDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructDefinition";
 import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -584,7 +583,7 @@ export class SparkdownCompiler {
   // The key is the ordered identities of the chunks that feed it plus the
   // file-registry epoch and the config fields that shape it. A chunk feeds it
   // when it contributes `context`, `sparkle` or `defaultDefinitions` — and
-  // also when it declares a global, constant, struct, external or list, which
+  // also when it declares a global, constant, struct or external, which
   // is what `scanChunkForReuse` already answers per chunk identity. The second
   // half is what makes the revision sound for the ENGINE's define tables: a
   // define's property value can be computed from a global or constant declared
@@ -801,7 +800,6 @@ export class SparkdownCompiler {
     object,
     {
       disqualifies: boolean;
-      invalidatesGlobals: boolean;
       declaredNames: string[];
     }
   >;
@@ -2236,16 +2234,13 @@ export class SparkdownCompiler {
     // never be reused, because skipping its generation loses a story-global
     // side effect: global `var`/`store` declarations register into the fresh
     // Story's variableDeclarations, EXTERNALs into `story.externals`, and
-    // const/list/struct declarations feed story-level maps, and a LIST is
-    // additionally INLINED BY VALUE into other flows' bytecode — which is why
-    // a CHANGED chunk containing a list disables reuse globally. Constants
-    // are no longer inlined (#309), so they only cost the declaring flow its
-    // own reuse, not everyone else's.
+    // const/struct declarations feed story-level maps. Constants are no
+    // longer inlined (#309), so they only cost the declaring flow its own
+    // reuse, not everyone else's.
     const scanChunkForReuse = (
       block: any,
     ): {
       disqualifies: boolean;
-      invalidatesGlobals: boolean;
       declaredNames: string[];
     } => {
       let cached = this._chunkReuseScan?.get(block);
@@ -2253,23 +2248,14 @@ export class SparkdownCompiler {
         return cached;
       }
       let disqualifies = false;
-      let invalidatesGlobals = false;
       const declaredNames: string[] = [];
       const scan = (nodes: ParsedObject[]) => {
         for (const n of nodes) {
-          if (n instanceof ListDefinition) {
-            // List items are still resolved and inlined at generation time.
-            disqualifies = true;
-            invalidatesGlobals = true;
-            const listName = n.identifier?.name;
-            if (listName) {
-              declaredNames.push(`c:${listName}`);
-            }
-          } else if (n instanceof ConstantDeclaration) {
+          if (n instanceof ConstantDeclaration) {
             // Constants are no longer inlined into referencing flows (#309),
             // so a constant's VALUE changing can't invalidate anyone else's
-            // bytecode and `invalidatesGlobals` is not set — editing a
-            // constant no longer kills flow reuse program-wide.
+            // bytecode — editing a constant no longer kills flow reuse
+            // program-wide.
             //
             // The NAME still matters, and for the same reason a global's
             // does: constants are registered in `story.variableDeclarations`,
@@ -2306,13 +2292,13 @@ export class SparkdownCompiler {
       if (block?.content) {
         scan(block.content);
       }
-      cached = { disqualifies, invalidatesGlobals, declaredNames };
+      cached = { disqualifies, declaredNames };
       (this._chunkReuseScan ??= new WeakMap()).set(block, cached);
       return cached;
     };
 
     // ---- Flow-reuse guards computed from this file's chunk list ----
-    // (1) ROOT-REGION STRUCTURE: the ordered sequence of `include`/`run`
+    // ROOT-REGION STRUCTURE: the ordered sequence of `include`/`run`
     // targets and `EXTERNAL` signatures. These change which files contribute
     // flows, and which call sites compile to external calls — neither of
     // which a reused flow can re-derive on its own. Compared by DESCRIPTOR
@@ -2330,11 +2316,7 @@ export class SparkdownCompiler {
     // shift when top-level content grows or shrinks, and globals are read
     // through runtime variable lookups rather than inlined — as are
     // constants since #309. Their NAMES still matter, and are covered by the
-    // declared-name census (see `_censusEntries`); LIST values are still
-    // inlined and are covered by (2).
-    //
-    // (2) A changed chunk containing a list declaration anywhere disables all
-    // reuse (value inlining into other flows).
+    // declared-name census (see `_censusEntries`).
     {
       const rootDescriptors: string[] = [];
       for (const rec of chunkRecords) {
@@ -2389,12 +2371,9 @@ export class SparkdownCompiler {
             }
           }
           if (this._prevCompilationIds && !this._prevCompilationIds.has(block)) {
-            if (scan.invalidatesGlobals) {
-              this._flowReuseDisabled = true;
-            }
             if (scan.disqualifies) {
-              // A changed chunk that declares a list, a constant, an external,
-              // a struct or a global. Every one of those is registered into the
+              // A changed chunk that declares a constant, an external, a
+              // struct or a global. Every one of those is registered into the
               // story at generation time and read back out of the variables a
               // checkpoint carries, so a route resumed from a checkpoint taken
               // before this compile would carry the OLD value forward however

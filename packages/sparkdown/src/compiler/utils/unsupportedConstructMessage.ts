@@ -31,9 +31,6 @@ export const unsupportedConstructMessage = (construct: string): string => {
     case FUNCTION_DIVERT:
       return "A function can't be diverted to: call it instead, as `& name()` on a line of its own or `{name()}` in a line.";
     case "list":
-    case "List":
-    case "ListDefinition":
-    case "ListElementDefinition":
       return "The `LIST` type is not supported: use a table.";
     default:
       return `This statement cannot be compiled: ${construct}.`;

@@ -47,7 +47,7 @@ The value layer the engine runs on lives in `runtime/`:
 | [`runtime/ControlCommand.ts`](../../src/runtime/ControlCommand.ts) | The markers the engine writes into its output (`BeginString`, `BeginTag`, `EndTag`) |
 | [`runtime/outputWhitespace.ts`](../../src/runtime/outputWhitespace.ts) | How output text is cleaned (`cleanOutputWhitespace`) |
 
-The layer still holds pieces of ink that no Sparkdown program reaches: the list type (`InkList`, `ListValue`, `ListDefinition`) and the wire objects the engine never emits (`DivertTargetValue`, `Path`, and the control commands other than the output markers and `BeginScope`/`EndScope`). They are not part of the value model, and #1752 and #1753 remove them.
+The layer still holds pieces of ink that no Sparkdown program reaches: the wire objects the engine never emits (`DivertTargetValue`, `Path`, and the control commands other than the output markers and `BeginScope`/`EndScope`). They are not part of the value model, and #1753 removes them. Ink's list type is gone (#1752): Sparkdown has no list syntax, and a call of one of ink's `LIST_*` builtins reports that the `LIST` type is not supported.
 
 The parsed objects that emit chunks are the classes under `inkjs/compiler/Parser/ParsedHierarchy/`, each with an `EmitProgram` method; `LOWERING.md` covers how the lowerer builds them. A game builds its engine in `packages/spark-engine/src/game/core/classes/Game.ts` (`new ProgramStory(chunks, ...)`, where `chunks` is the compile's `program.chunks`).
 

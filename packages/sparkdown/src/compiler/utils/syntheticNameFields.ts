@@ -9,7 +9,7 @@ import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/O
 // declarations): the base `identifier`, Divert/VariableReference
 // `pathIdentifiers`, VariableReference `unresolvedMember`,
 // VariableAssignment `variableIdentifier`,
-// StructDefinition `modifier`/`type`/`name`, List `itemIdentifierList`.
+// StructDefinition `modifier`/`type`/`name`.
 // Visiting these directly instead of sweeping `Object.keys(node)` per node
 // is what keeps the pass cheap (no per-node key-array allocation over the
 // whole tree). If a new Identifier-valued field is ever added to a parsed
@@ -23,7 +23,6 @@ export const IDENTIFIER_FIELDS = [
   "modifier",
   "type",
   "name",
-  "itemIdentifierList",
 ];
 
 // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
