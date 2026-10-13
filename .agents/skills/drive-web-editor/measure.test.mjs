@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { attributeEditSample, attributePreviewSample, measure as measureCommand, parseMeasureArgs, runFailed, phaseName, replacedSpan, summarize } from "./measure.mjs";
+import { analyzeBurst, attributeEditSample, attributePreviewSample, measure as measureCommand, parseMeasureArgs, runFailed, phaseName, replacedSpan, summarize, summarizeBurst } from "./measure.mjs";
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -315,6 +315,68 @@ await check("the command fails a run whose warm-up sample was painted elsewhere,
   });
   assert.equal(clean.report.summary.warmupFailures, 0);
   assert.notEqual(clean.exitCode, 1);
+});
+
+await check("a burst needs a line but no word, and excludes --edit", () => {
+  const parsed = parseMeasureArgs(["--project", "rb", "--line", "3516", "--burst", "--text", " ab"]);
+  assert.equal(parsed.burst, true);
+  assert.equal(parsed.text, " ab");
+  assert.equal(parsed.word, undefined);
+  assert.equal(parseMeasureArgs(["--fixture", "--burst"]).burst, true);
+  assert.throws(() => parseMeasureArgs(["--project", "rb", "--burst"]), /--burst needs --line/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--burst", "--edit"]), /exclusive/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--text", "x"]), /--text needs --burst/);
+});
+
+// Keys pressed at 0, 100, ..., 500, each handled 10 ms later and the last 60
+// ms later; compiles named as the workspace names them.
+const burstKeys = [0, 100, 200, 300, 400, 500].map((ts) => ({ t: ts + (ts === 500 ? 60 : 10), ts, kind: "key", key: "a" }));
+const compileAt = (start, dur) => ({ t: start + dur, kind: "measure", name: "player workspace compile file:///main.sd", start, dur });
+
+await check("a burst counts its compiles, the stale ones, the overlap and the worker's busy share", () => {
+  const events = [
+    ...burstKeys,
+    // Started before the burst: not one of its compiles.
+    compileAt(-300, 250),
+    compileAt(150, 100), // a key at 200 lands while it runs: stale
+    compileAt(220, 40), // runs beside the one before
+    compileAt(450, 30), // the key at 500 is after it returns: not stale
+    compileAt(560, 40), // the text as typed, 100 ms after the last key
+    // Not a keystroke compile.
+    { t: 330, kind: "measure", name: "player workspace previewCompile file:///main.sd", start: 300, dur: 30 },
+    // Long tasks: one before the burst, two during it.
+    { t: -100, kind: "longtask", start: -100, dur: 80 },
+    { t: 210, kind: "longtask", start: 210, dur: 70 },
+    { t: 505, kind: "longtask", start: 505, dur: 55 },
+  ];
+  const sample = analyzeBurst(events);
+  assert.equal(sample.failure, undefined);
+  assert.equal(sample.keys, 6);
+  assert.equal(sample.burstMs, 500);
+  assert.deepEqual(sample.keyGap, { median: 100, max: 100 });
+  assert.deepEqual(sample.inputDelay, { median: 10, max: 60 });
+  assert.equal(sample.longtaskMs, 125);
+  assert.equal(sample.compiles, 4);
+  assert.equal(sample.compilesDuringBurst, 3);
+  assert.equal(sample.staleOnArrival, 1);
+  assert.equal(sample.maxConcurrent, 2);
+  // 150 to 260, then 450 to 480: 140 ms of 500.
+  assert.equal(sample.busyShare, 0.28);
+  // From 220 to 450 no compile started.
+  assert.equal(sample.longestWithoutCompile, 230);
+  assert.equal(sample.lastKeyToCompiled, 100);
+  const summary = summarizeBurst([sample, { failure: "x" }]);
+  assert.equal(summary.samples, 2);
+  assert.equal(summary.failures, 1);
+  assert.deepEqual(summary.staleOnArrival, { min: 1, median: 1, max: 1 });
+  assert.deepEqual(summary.inputDelayMax, { min: 60, median: 60, max: 60 });
+});
+
+await check("a burst no compile followed is a failure", () => {
+  const sample = analyzeBurst([...burstKeys, compileAt(150, 100)]);
+  assert.match(sample.failure, /no workspace compile started after the last key/);
+  assert.equal(sample.lastKeyToCompiled, null);
+  assert.match(analyzeBurst([burstKeys[0]]).failure, /1 keydown/);
 });
 
 await check("bad arguments print the usage through die and launch nothing", async () => {

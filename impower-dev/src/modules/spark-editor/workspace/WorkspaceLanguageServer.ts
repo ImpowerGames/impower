@@ -289,6 +289,12 @@ export default class WorkspaceLanguageServer {
         // the inlined SVG source that dominated its payload. LS previews
         // re-source it lazily from watched files.
         stripImageData: true,
+        // Applying each of the language server's compile results (diagnostics
+        // and their refreshes) costs this page about 100 ms of main thread, so
+        // its keystroke compiles wait for a pause of 200 ms (a max-wait of
+        // 800 ms while typing goes on). The player's preview compiles keep the
+        // workspace's shorter default (#1797).
+        compileDebounceDelay: 200,
       },
       workspaceFolders: [
         {

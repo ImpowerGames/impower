@@ -20,6 +20,9 @@ export const MEASURE_USAGE = [
   "  --samples <K>           measured samples (default 10)",
   "  --warmup <W>            discarded samples first (default 2)",
   "  --edit                  accept a suggestion per sample and time the real compile instead",
+  "  --burst                 type --text at the end of --line, a key every 80 to 120 ms, per sample, and count",
+  "                          the keystroke compiles it caused (--word is not needed)",
+  "  --text <text>           what a burst types (default: a 52-character clause, about five seconds)",
   "  --timeout <ms>          how long one sample may take before it is a failure (default 20000)",
   "  --settle <ms>           wait after each result so its trailing measures arrive (default 1500)",
   "  --json <file>           also write the full report, with the raw event log of every sample",
@@ -64,6 +67,12 @@ export function parseMeasureArgs(args) {
       case "--edit":
         out.edit = true;
         break;
+      case "--burst":
+        out.burst = true;
+        break;
+      case "--text":
+        out.text = value(args, i++, name);
+        break;
       case "--timeout":
         out.timeout = integer(value(args, i++, name), name, 1);
         break;
@@ -85,8 +94,99 @@ export function parseMeasureArgs(args) {
   }
   if (out.project && out.fixture) throw new Error("--project and --fixture are exclusive");
   if (!out.project && !out.fixture) throw new Error("measure needs --project <dir-or-zip> or --fixture");
-  if (out.project && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
+  if (out.edit && out.burst) throw new Error("--edit and --burst are exclusive");
+  if (out.text != null && !out.burst) throw new Error("--text needs --burst");
+  if (out.burst) {
+    if (out.project && out.line == null) throw new Error("--project --burst needs --line");
+  } else if (out.project && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
   return out;
+}
+
+export const BURST_TEXT = " and then the storm broke over the old house at last";
+// The pause after each key of a burst, cycled: 80 to 120 ms, in an order that
+// is the same on every run so two runs type alike.
+export const BURST_GAPS = [100, 85, 115, 90, 120, 80, 105, 95, 110];
+
+// One burst of typing. `events` is the page's log from just before its first
+// key: the keys and the player frame's measures. A keystroke compile is a
+// `workspace compile` measure that started at or after the first key. Its
+// result is stale on arrival when a key was pressed after it started and
+// before it returned, since that key's text is not in it. `busyShare` is the
+// part of the burst (first key to last) during which at least one compile ran;
+// `maxConcurrent` is the most compiles running at once; `longestWithoutCompile`
+// is the longest stretch of the burst in which no compile started, which the
+// max-wait bounds; `lastKeyToCompiled` runs from the last key to the end of the
+// first compile that started after it, the text as typed compiled.
+//
+// A key's time is when it was pressed (`ts`, the event's time stamp), and
+// `inputDelay` is how long the page took to get to it; `longtaskMs` sums the
+// player frame's long tasks from the first key to the last key handled. Those
+// two say whether the editor kept up with the typing.
+export function analyzeBurst(events) {
+  const pressed = events.filter((e) => e.kind === "key");
+  const keys = pressed.map((e) => e.ts ?? e.t).sort((a, b) => a - b);
+  if (keys.length < 2) return { failure: `${keys.length} keydown(s) were recorded` };
+  const delays = pressed.map((e) => ms(e.t - (e.ts ?? e.t))).sort((a, b) => a - b);
+  const handled = Math.max(...pressed.map((e) => e.t));
+  const first = keys[0];
+  const last = keys.at(-1);
+  const compiles = events
+    .filter((e) => e.kind === "measure" && /\bworkspace compile\b/.test(e.name) && e.start >= first - 1)
+    .map((e) => ({ start: e.start, end: e.start + e.dur }))
+    .sort((a, b) => a.start - b.start);
+  const gaps = keys.slice(1).map((t, i) => t - keys[i]).sort((a, b) => a - b);
+  let busy = 0;
+  let reach = first;
+  for (const c of compiles) {
+    const from = Math.max(c.start, reach);
+    const to = Math.min(c.end, last);
+    if (to > from) busy += to - from;
+    reach = Math.max(reach, c.end);
+  }
+  let maxConcurrent = 0;
+  for (const c of compiles) {
+    const running = compiles.filter((o) => o.start <= c.start && o.end > c.start).length;
+    maxConcurrent = Math.max(maxConcurrent, running);
+  }
+  const starts = compiles.filter((c) => c.start <= last).map((c) => c.start);
+  const marks = [first, ...starts, last];
+  const longestWithoutCompile = Math.max(...marks.slice(1).map((t, i) => t - marks[i]));
+  const final = compiles.find((c) => c.start >= last);
+  const sample = {
+    keys: keys.length,
+    burstMs: ms(last - first),
+    keyGap: { median: ms(gaps[Math.floor(gaps.length / 2)]), max: ms(gaps.at(-1)) },
+    inputDelay: { median: delays[Math.floor(delays.length / 2)], max: delays.at(-1) },
+    longtaskMs: ms(events.filter((e) => e.kind === "longtask" && e.start >= first && e.start <= handled).reduce((sum, e) => sum + e.dur, 0)),
+    compiles: compiles.length,
+    compilesDuringBurst: starts.length,
+    staleOnArrival: compiles.filter((c) => keys.some((t) => t > c.start && t <= c.end)).length,
+    maxConcurrent,
+    busyShare: Math.round((busy / (last - first)) * 1000) / 1000,
+    longestWithoutCompile: ms(longestWithoutCompile),
+    compileMs: stats(compiles.map((c) => ms(c.end - c.start)).sort((a, b) => a - b)),
+    lastKeyToCompiled: final ? ms(final.end - last) : null,
+  };
+  if (!final) sample.failure = "no workspace compile started after the last key";
+  return sample;
+}
+
+const stats = (list) => (list.length ? { min: list[0], median: list[Math.floor(list.length / 2)], max: list.at(-1) } : null);
+
+const BURST_FIGURES = ["burstMs", "inputDelayMedian", "inputDelayMax", "longtaskMs", "compiles","compilesDuringBurst", "staleOnArrival", "maxConcurrent", "busyShare", "longestWithoutCompile", "lastKeyToCompiled"];
+
+export function summarizeBurst(samples) {
+  const passed = samples.filter((s) => !s.failure);
+  return {
+    samples: samples.length,
+    failures: samples.length - passed.length,
+    ...Object.fromEntries(
+      BURST_FIGURES.map((name) => {
+        const read = (s) => (name === "inputDelayMedian" ? s.inputDelay?.median : name === "inputDelayMax" ? s.inputDelay?.max : s[name]);
+        return [name, stats(passed.map(read).sort((a, b) => a - b))];
+      }),
+    ),
+  };
 }
 
 // A measure's name without the document URI the workspace appends, so the
@@ -181,7 +281,6 @@ const CLOCKS = ["msFromKey", "debounce", "keyToRequest"];
 export function summarize(samples) {
   const passed = samples.filter((s) => !s.failure);
   const times = passed.map((s) => s.ms).sort((a, b) => a - b);
-  const stats = (list) => (list.length ? { min: list[0], median: list[Math.floor(list.length / 2)], max: list.at(-1) } : null);
   const phaseNames = [...new Set(samples.flatMap((s) => Object.keys(s.phases ?? {})))];
   const clocks = CLOCKS.map((name) => [name, passed.filter((s) => s[name] != null).map((s) => s[name]).sort((a, b) => a - b)]).filter(([, list]) => list.length);
   return {
@@ -235,7 +334,8 @@ async function instrument(page) {
     const log = (window.__measureLog = []);
     window.__measureState = null;
     const origin = performance.timeOrigin;
-    window.addEventListener("keydown", (e) => log.push({ t: performance.now(), kind: "key", key: e.key }), true);
+    // `ts` is when the key was pressed, `t` when the page got to handle it.
+    window.addEventListener("keydown", (e) => log.push({ t: performance.now(), ts: e.timeStamp, kind: "key", key: e.key }), true);
     window.__editorProtocol.subscribe((m) => {
       if (m.method === "textDocument/previewCompletion") {
         log.push({ t: performance.now(), kind: "request", request: m.params.request, state: m.params.state, edit: m.params.contentChanges?.[0]?.text });
@@ -328,7 +428,7 @@ export async function measure(args, deps) {
     return deps.die([error.message, "", ...MEASURE_USAGE].join("\n"));
   }
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-measure-"));
-  const report = { mode: options.edit ? "edit" : "preview", line: options.line, word: options.word, samples: [], warmup: options.warmup };
+  const report = { mode: options.burst ? "burst" : options.edit ? "edit" : "preview", line: options.line, word: options.word, samples: [], warmup: options.warmup };
   let pageConsole = [];
   try {
     let project = options.project;
@@ -337,7 +437,7 @@ export async function measure(args, deps) {
       project = path.join(scratch, "fixture");
       const target = writePreviewFixture(project);
       options.line ??= target.line;
-      options.word ??= target.word;
+      if (!options.burst) options.word ??= target.word;
       report.line = options.line;
       report.word = options.word;
     }
@@ -367,7 +467,9 @@ export async function measure(args, deps) {
         report.uri = uri;
         const lineText = text.split("\n")[options.line - 1];
         report.lineText = lineText ?? null;
-        const wordAt = lineText?.indexOf(options.word) ?? -1;
+        if (lineText == null) throw new Error(`${uri} has no line ${options.line}`);
+        // A burst types at the end of the line and needs no word.
+        const wordAt = options.burst ? lineText.length : lineText.indexOf(options.word);
         if (wordAt < 0) throw new Error(`"${options.word}" is not on line ${options.line} of ${uri}: ${JSON.stringify(lineText)}`);
         const target = { uri, line: options.line - 1 };
         report.playerFramesObserved = await instrument(page);
@@ -406,7 +508,52 @@ export async function measure(args, deps) {
         };
 
         const total = options.warmup + options.samples;
-        try {
+        if (options.burst) {
+          const text = options.text ?? BURST_TEXT;
+          report.text = text;
+          const end = lineText.length;
+          const compiledAfterLastKey = () => {
+            const log = window.__measureLog;
+            const keys = log.filter((e) => e.kind === "key");
+            const lastKey = keys.at(-1)?.t ?? Infinity;
+            return log.some((e) => e.kind === "measure" && /\bworkspace compile\b/.test(e.name) && e.start >= lastKey);
+          };
+          for (let i = 0; i < total; i++) {
+            try {
+              await select(end, end);
+              await page.waitForTimeout(options.settle + 2500);
+              await takeLog(page);
+              // Keys go out on a schedule, as a person types, rather than each
+              // after the page has handled the last: a busy page then shows as
+              // input delay instead of slowing the typing down.
+              const typed = [];
+              const startedAt = Date.now();
+              let at = 0;
+              for (let k = 0; k < text.length; k++) {
+                const wait = startedAt + at - Date.now();
+                if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+                typed.push(page.keyboard.type(text[k]));
+                at += BURST_GAPS[k % BURST_GAPS.length];
+              }
+              await Promise.all(typed);
+              await waitInPage(page, compiledAfterLastKey, null, options.timeout);
+              await page.waitForTimeout(options.settle);
+              const events = await takeLog(page);
+              report.samples.push({ index: i + 1, warmup: i < options.warmup, ...analyzeBurst(events), events });
+            } finally {
+              // Take the typed text out again, whether or not the burst finished.
+              const current = await readLine(page, options.line);
+              if (current !== lineText && current.startsWith(lineText)) {
+                await select(end, current.length);
+                await page.keyboard.press("Backspace");
+              }
+              await page.waitForTimeout(3000);
+            }
+            report.restored = await readLine(page, options.line);
+            report.restoredMatches = report.restored === lineText;
+            if (!report.restoredMatches) throw new Error(`line ${options.line} was not put back after burst ${i + 1}: ${JSON.stringify(report.restored)}`);
+          }
+        } else try {
           if (!options.edit) {
             if (options.heap) report.heapMB = { before: await pageHeapMB(page) };
             const popup = await openList();
@@ -488,7 +635,7 @@ export async function measure(args, deps) {
   }
 
   const measured = report.samples.filter((s) => !s.warmup);
-  report.summary = summarize(measured);
+  report.summary = options.burst ? summarizeBurst(measured) : summarize(measured);
   report.summary.warmupFailures = report.samples.filter((s) => s.warmup && s.failure).length;
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(report, null, 2));
   const printed = { ...report, samples: report.samples.map(({ events, ...rest }) => rest) };
