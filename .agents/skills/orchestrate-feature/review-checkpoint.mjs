@@ -83,14 +83,14 @@ export function roundState(journals) {
         // declares, one when it declares none.
         const declared = plan?.steps?.[row.step]?.reviewers;
         const plannedCount = Array.isArray(declared) ? declared.length : Number.isSafeInteger(declared) ? declared : 1;
-        const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount, exited: Boolean(exited) || (!spawned && terminal), exitedAt: exited?.time ?? null };
+        const launch = { file, index: row.index, time: row.time, round: row.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, plannedReviewers: row.plannedReviewers ?? null, plannedCount, head: rows.find((r) => r.event === "running" && r.index === row.index)?.head ?? null, exited: Boolean(exited) || (!spawned && terminal), exitedAt: exited?.time ?? null };
         if (spawned && !exited) blockers.push(`${file}: reviewer launch ${row.index} of round ${row.round} has no exited row`);
         reviewLaunch.set(row.index, launch);
         launches.push(launch);
       }
       if (row.event === "completed" && reviewLaunch.has(row.index)) {
         const launch = reviewLaunch.get(row.index);
-        completions.push({ file, time: row.time, round: launch.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, reviewedHead: row.reviewedHead, comments: row.commentIds ?? [], completedRoundReviews: row.completedRoundReviews ?? null, plannedCount: launch.plannedCount, plannedRoundReviewers: row.plannedRoundReviewers ?? null, pendingReviewers: row.pendingReviewers ?? null });
+        completions.push({ file, time: row.time, round: launch.round, reviewerId: row.reviewerId ?? null, attempt: row.attempt ?? 1, reviewedHead: row.reviewedHead, comments: row.commentIds ?? [], completedRoundReviews: row.completedRoundReviews ?? null, plannedCount: launch.plannedCount, plannedRoundReviewers: row.plannedRoundReviewers ?? null, pendingReviewers: row.pendingReviewers ?? null, complete: row.pendingReviewers ? row.pendingReviewers.length === 0 : row.completedRoundReviews >= launch.plannedCount });
       }
     }
     if (plan) plans.push({ file, limit: plan.reviewRoundLimit ?? FIRST_CHECKPOINT_ROUND, authorization: plan.extendedReviewAuthorization ?? null });
@@ -112,14 +112,20 @@ export function roundState(journals) {
 
 // --- Decisions published on the PR ----------------------------------------
 
-// Every checkpoint block in the PR's comments, in comment order. A decision
-// counts only when its coordinator is one the caller trusts: the run record's
-// coordinators, or the ones the Feature's status names. With a run record, a
-// decision naming that record's own coordinator counts only when the record
-// published it as that comment, so a comment that copies the coordinator's
-// name is not its decision.
+// Every checkpoint block in the PR's comments, in comment order, each with
+// its exact head and range. Writers and coordinators post under the same
+// GitHub account, so a comment's author proves nothing, and a decision
+// counts (trusted) only when it names a coordinator the caller trusts and
+// its comment was never edited. With a run record (its own, carried over by
+// a takeover, or restored from the shared record), a decision counts only if
+// the record published it, after read-back, as that comment with exactly
+// that content (verified); a block that copies a coordinator's name, a
+// decision posted but never read back, and a retargeted comment all count
+// for nothing. Without a record the decisions are restored but unverified:
+// they still count rounds, but they never make an acceptance apply.
+export const blockHash = (decision) => sha256(JSON.stringify(decision));
 export function restore(comments, { trusted = [], record = null } = {}) {
-  const own = record ? new Map(Object.values(record.tickets).flatMap((t) => (t.checkpoints ?? []).filter((d) => d.state === "published").map((d) => [d.id, d.published.comment]))) : null;
+  const published = record ? new Map(Object.values(record.tickets).flatMap((t) => (t.checkpoints ?? []).filter((d) => d.state === "published").map((d) => [d.id, d]))) : null;
   const decisions = [];
   for (const c of comments) {
     for (const m of (c.body ?? "").matchAll(BLOCK)) {
@@ -127,8 +133,14 @@ export function restore(comments, { trusted = [], record = null } = {}) {
       try { d = JSON.parse(m[1]); } catch { decisions.push({ comment: c.id, malformed: "its block is not JSON" }); continue; }
       const problem = !KINDS.includes(d?.kind) ? "unknown kind" : !Number.isSafeInteger(d.round) ? "no round" : !SHA.test(d.head ?? "") ? "no head" : (d.reviewedHead !== null && !SHA.test(d.reviewedHead ?? "")) ? "no reviewed head" : typeof d.coordinator !== "string" ? "no coordinator" : (d.kind === "extend" && (!Number.isSafeInteger(d.limit) || !d.authority)) ? "an extension without its limit and authority" : null;
       if (problem) { decisions.push({ comment: c.id, malformed: problem }); continue; }
-      const recorded = !own || d.coordinator !== record.coordinator.session || own.get(d.id) === c.id;
-      decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: trusted.includes(d.coordinator) && recorded, ...(!recorded && { unrecorded: `the run record did not publish decision ${d.id} as comment ${c.id}` }) });
+      const mine = published?.get(d.id);
+      const verified = Boolean(mine && mine.published.comment === c.id && mine.blockSha256 === blockHash(d));
+      const edited = Boolean(c.updated_at && c.updated_at !== c.created_at);
+      const untrusted = !trusted.includes(d.coordinator) ? `coordinator ${d.coordinator} is not one this restoration trusts`
+        : edited ? `comment ${c.id} was edited at ${c.updated_at}, after it was posted`
+        : record && !verified ? `the run record did not publish decision ${d.id}, after read-back, as comment ${c.id} with this content`
+        : null;
+      decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, ...(untrusted && { untrusted }) });
     }
   }
   return decisions;
@@ -151,10 +163,15 @@ export function audit(state, decisions) {
     if (!covering) violations.push(`round ${r} launched at ${first.time} with no published extension, decided at the checkpoint after round ${r - 1}, that covers it`);
   }
   const events = [...state.completions.map((c) => ({ ...c, kind: "completed" })), ...state.launches.map((l) => ({ ...l, kind: "launching" }))].sort(byTime);
+  // Once a round is complete, a reviewer of that round may launch again only
+  // on the head its completion recorded; on a corrected head it is a new
+  // round, whatever attempt or plan it claims.
   let highest = 0;
+  const completeOn = new Map();
   for (const e of events) {
-    if (e.kind === "completed") highest = Math.max(highest, e.round);
-    else if (e.round < highest) violations.push(`${e.file} launched a round ${e.round} reviewer at ${e.time}, after round ${highest} completed; a restarted count is not a new round`);
+    if (e.kind === "completed") { highest = Math.max(highest, e.round); if (e.complete) completeOn.set(e.round, e.reviewedHead); continue; }
+    if (completeOn.has(e.round) && e.head && e.head !== completeOn.get(e.round)) violations.push(`${e.file} launched a round ${e.round} reviewer on ${e.head} at ${e.time}, after round ${e.round} completed on ${completeOn.get(e.round)}; a reviewer on a corrected head is a new round`);
+    if (e.round < highest) violations.push(`${e.file} launched a round ${e.round} reviewer at ${e.time}, after round ${highest} completed; a restarted count is not a new round`);
   }
   for (const l of state.launches) {
     const planned = state.completions.find((c) => c.round === l.round)?.plannedRoundReviewers;
@@ -167,14 +184,16 @@ export function audit(state, decisions) {
   return violations;
 }
 
-// The latest trusted acceptance applies only to the head it names, and only
-// while no later trusted decision replaced it.
+// The latest trusted acceptance applies only when a run record verified it,
+// only to the head it names, and only while no later trusted decision
+// replaced it.
 export function acceptanceApplies(decisions, head) {
   const trusted = decisions.filter((d) => d.trusted);
   const at = trusted.findLastIndex((d) => d.kind === "accept-unreviewed");
   if (at < 0) return { applies: false, reason: "the PR records no trusted acceptance of unreviewed corrections" };
   const d = trusted[at], later = trusted.slice(at + 1);
   if (later.length) return { applies: false, decision: d, reason: `decision ${later.at(-1).id} (${later.at(-1).kind}) after round ${later.at(-1).round} replaced acceptance ${d.id}` };
+  if (!d.verified) return { applies: false, decision: d, reason: `acceptance ${d.id} is restored from the PR but not verified against the run record that published it; restore that record, or decide again` };
   if (d.head !== head) return { applies: false, decision: d, reason: `acceptance ${d.id} applies to ${d.head}, but the PR's head is ${head}; a new push needs a new checkpoint` };
   return { applies: true, decision: d, reason: `acceptance ${d.id} applies to head ${head}, with ${d.range.from}..${d.range.to} unreviewed` };
 }
@@ -275,13 +294,13 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   const decision = {
     version: 1, id: randomUUID().slice(0, 8), kind, feature: record.feature, ticket: number, pr: e.pr, coordinator: record.coordinator.session, runId: record.runId, time: new Date().toISOString(),
     round: e.completedRound, limitBefore: e.limit, reviewedHead: e.reviewedHead, head: e.head,
-    range: e.range ? { from: e.range.from, to: e.range.to, commits: e.range.commits.map((c) => c.sha), diffSha256: e.range.diffSha256 } : null,
+    range: e.range ? { from: e.range.from, to: e.range.to, base: e.range.base, commits: e.range.commits.map((c) => c.sha), diffSha256: e.range.diffSha256 } : null,
     reports: e.reports.map(({ comment, round, reviewerId, adjudication }) => ({ comment, round, reviewerId, adjudication })),
-    checks: e.checks.map(({ name, result }) => ({ name, result })), ...extra, assessment: a,
+    checks: e.checks.map(({ name, result }) => ({ name, result })), due: e.due, blockers: e.blockers, audit: e.audit, ...extra, assessment: a,
   };
   const body = renderDecision(decision, e);
   if (body.length > MAX_COMMENT) throw new Error(`The decision's comment would be ${body.length} characters, beyond GitHub's ${MAX_COMMENT}; shorten the assessment`);
-  ticket.checkpoints = [...earlier, { ...decision, state: "intent", body, bodySha256: sha256(body) }];
+  ticket.checkpoints = [...earlier, { ...decision, state: "intent", body, bodySha256: sha256(body), blockSha256: blockHash(decision) }];
   record.log.push({ time: decision.time, event: "checkpoint-intent", ticket: number, id: decision.id, kind, round: decision.round, head: decision.head });
   return { id: decision.id, body };
 }
@@ -299,9 +318,11 @@ export function renderDecision(d, e) {
     "",
     `Decision \`${d.id}\` by coordinator \`${d.coordinator}\` of Feature #${d.feature} for #${d.ticket}.${d.authority ? ` Authority: the orchestrate-feature invocation, quoted verbatim from the run record: "${line(d.authority)}"` : ""}`,
     "",
-    `- Round state: round ${d.round} is complete (limit ${d.limitBefore} before this decision); its planned reviewers (${[e.plannedReviewers].flat().join(", ")}) exited, and every report has its adjudication (${d.reports.map((r) => `${r.comment} in ${r.adjudication}`).join(", ") || "none"}).`,
-    `- Independently reviewed through \`${d.reviewedHead}\`.`,
-    `- Head \`${d.head}\`. ${commits.length ? `Unreviewed: \`${d.range.from.slice(0, 9)}..${d.range.to.slice(0, 9)}\`, ${commits.length} commit${commits.length > 1 ? "s" : ""} (${commits.map((c) => `\`${c.sha.slice(0, 9)}\` ${line(c.subject)}`).join("; ")}), diff SHA-256 \`${d.range.diffSha256}\`.` : "Nothing after the reviewed head is unreviewed."}`,
+    d.due
+      ? `- Round state: round ${d.round} is complete (limit ${d.limitBefore} before this decision); its planned reviewers (${[e.plannedReviewers].flat().join(", ")}) exited, and every report has its adjudication (${d.reports.map((r) => `${r.comment} in ${r.adjudication}`).join(", ") || "none"}).`
+      : `- Round state: no checkpoint is due, so this question reaches the maintainer before the review gates hold: ${[...d.blockers, ...d.audit].map(line).join("; ")}. Reports and their adjudications: ${d.reports.map((r) => `${r.comment} ${r.adjudication ? `in ${r.adjudication}` : "not adjudicated"}`).join(", ") || "none"}.`,
+    `- Independently reviewed through \`${d.reviewedHead}\`${d.due ? "" : " (the last reviewer to complete; the round's coverage is as stated above)"}.`,
+    `- Head \`${d.head}\`. ${commits.length ? `Unreviewed: \`${d.range.from.slice(0, 9)}..${d.range.to.slice(0, 9)}\`, ${commits.length} commit${commits.length > 1 ? "s" : ""} (${commits.map((c) => `\`${c.sha.slice(0, 9)}\` ${line(c.subject)}${c.via ? ` (merged in by \`${c.via.slice(0, 9)}\`)` : c.merge === "base" ? " (base merge, shown as its remerge diff)" : c.merge ? " (merge of commits no review saw, shown in full)" : ""}`).join("; ")}), diff SHA-256 \`${d.range.diffSha256}\`.` : "Nothing after the reviewed head is unreviewed."}`,
     `- CI on the head: ${d.checks.map((c) => `${c.name} ${c.result}`).join(", ") || "no check has started"}.`,
     `- Findings across all rounds: ${counts || "none"}; unresolved: ${open.length ? open.map((f) => `${f.comment} (${line(f.finding)})`).join(", ") : "none"}.`,
     `- Shared mechanisms: ${line(a.mechanisms)}`,
@@ -364,21 +385,35 @@ export function checkpointClient(repository, checkout) {
 }
 
 // The unreviewed range from the reviewed head to the PR's head, read from
-// the checkout's object store once the PR head is fetched. The range is the
-// branch's own first-parent commits: a merge of the base counts as one
-// commit, and its diff is what the merge itself changed beyond a clean
-// merge of its parents (git's remerge diff), since the base's commits were
-// reviewed in their own PRs.
-export function localGit(checkout, { fetch = (pr) => execFileSync("git", ["fetch", "-q", "origin", `refs/pull/${pr}/head`], { cwd: checkout, windowsHide: true }) } = {}) {
+// the checkout's object store once the PR head and the base are fetched. The
+// range is the branch's first-parent commits. A merge whose other parents are
+// all on the base counts as one commit, and its diff is what the merge itself
+// changed beyond a clean merge of its parents (git's remerge diff), since the
+// base's commits were reviewed in their own PRs. Any other merge brings in
+// commits no review saw: they are listed after it, and its diff is
+// everything it changed against its first parent.
+const defaultFetch = (checkout) => (pr) => execFileSync("git", ["fetch", "-q", "origin", `refs/pull/${pr}/head`, "main"], { cwd: checkout, windowsHide: true });
+export function localGit(checkout, { fetch = defaultFetch(checkout), base = () => execFileSync("git", ["rev-parse", "origin/main"], { cwd: checkout, encoding: "utf8", windowsHide: true }).trim() } = {}) {
   const git = (...args) => execFileSync("git", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
+  const isAncestor = (a, b) => spawnSync("git", ["merge-base", "--is-ancestor", a, b], { cwd: checkout, windowsHide: true }).status === 0;
+  const log = (...args) => git("log", "--format=%H%x09%P%x09%s", ...args).split("\n").filter(Boolean).map((l) => { const [sha, parents, ...s] = l.split("\t"); return { sha, parents: parents.split(" "), subject: s.join("\t") }; }).reverse();
   return {
     fetch,
     range(from, to) {
       for (const sha of [from, to]) if (spawnSync("git", ["cat-file", "-e", `${sha}^{commit}`], { cwd: checkout, windowsHide: true }).status !== 0) throw new Error(`Commit ${sha} is not in ${checkout}; fetch the PR head first`);
-      const ancestor = spawnSync("git", ["merge-base", "--is-ancestor", from, to], { cwd: checkout, windowsHide: true }).status === 0;
-      const commits = git("log", "--first-parent", "--format=%H%x09%P%x09%s", `${from}..${to}`).split("\n").filter(Boolean).map((l) => { const [sha, parents, ...s] = l.split("\t"); return { sha, merge: parents.split(" ").length > 1, subject: s.join("\t") }; }).reverse();
-      const diff = commits.map((c) => git("show", "--binary", "--format=commit %H%n%s%n", ...(c.merge ? ["--remerge-diff"] : []), c.sha)).join("\n");
-      return { from, to, ancestor, commits, diff, diffSha256: sha256(diff) };
+      const baseSha = base();
+      const commits = [], parts = [];
+      for (const c of log("--first-parent", `${from}..${to}`)) {
+        const merge = c.parents.length > 1;
+        const baseMerge = merge && c.parents.slice(1).every((p) => isAncestor(p, baseSha));
+        commits.push({ sha: c.sha, subject: c.subject, ...(merge && { merge: baseMerge ? "base" : "other" }) });
+        if (merge && !baseMerge) {
+          for (const m of log(`${c.parents[0]}..${c.sha}`, "--not", baseSha).filter((m) => m.sha !== c.sha)) commits.push({ sha: m.sha, subject: m.subject, via: c.sha });
+          parts.push(`commit ${c.sha}\n${c.subject}\nmerges commits no review saw; its whole change against its first parent:\n\n${git("diff", "--binary", c.parents[0], c.sha)}`);
+        } else parts.push(git("show", "--binary", "--format=commit %H%n%s%n", ...(baseMerge ? ["--remerge-diff"] : []), c.sha));
+      }
+      const diff = parts.join("\n");
+      return { from, to, base: baseSha, ancestor: isAncestor(from, to), commits, diff, diffSha256: sha256(diff) };
     },
   };
 }

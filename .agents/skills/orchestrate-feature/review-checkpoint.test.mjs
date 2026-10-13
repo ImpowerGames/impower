@@ -32,7 +32,7 @@ try {
     git(checkout, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", message);
     return git(checkout, "rev-parse", "HEAD");
   };
-  commit("base");
+  const baseCommit = commit("base");
   const c = {};
   for (const name of ["initial", "round1", "round2", "round3", "repair", "round4", "round5", "final"]) c[name] = commit(`${name} change`);
   const jobDir = path.join(`${checkout}.review-jobs`, "pr-500");
@@ -53,9 +53,9 @@ try {
   const pull = { state: "OPEN", head: c.round3, branch: "feat/42-thing", checks: [{ name: "test-suite", state: "IN_PROGRESS" }] };
   const comments = [];
   let nextId = 1000;
-  const comment = (body) => { const posted = { id: nextId++, created_at: at(), body }; comments.push(posted); return posted; };
+  const comment = (body) => { const time = at(); const posted = { id: nextId++, created_at: time, updated_at: time, body }; comments.push(posted); return posted; };
   const client = { pull: () => structuredClone(pull), comments: () => structuredClone(comments) };
-  const repo = rc.localGit(checkout, { fetch: () => {} });
+  const repo = rc.localGit(checkout, { fetch: () => {}, base: () => baseCommit });
   const evidence = () => rc.gatherEvidence({ record: record(), ticket: 42, pr: 500, client, git: repo });
 
   // One reviewer's launch journal, as the launcher writes it.
@@ -112,6 +112,11 @@ try {
   adjudicate(corrections3.report);
   e = evidence();
   assert.ok(e.blockers.some((b) => /round 3 still plans undirected/.test(b)), e.blockers.join("; "));
+  // A maintainer question may be asked before the checkpoint is due, and it
+  // then says what is incomplete instead of claiming the gates passed.
+  const early = rc.decide(structuredClone(record()), { ticket: 42, kind: "maintainer", assessment: assess({ question: "Should round 3 stop here?" }), evidence: e });
+  assert.match(early.body, /no checkpoint is due, so this question reaches the maintainer before the review gates hold: round 3 still plans undirected/);
+  assert.doesNotMatch(early.body, /round 3 is complete/);
   const running3 = journal(3, "undirected", ["corrections", "undirected"], { head: c.round2, exited: false, finished: false });
   e = evidence();
   assert.ok(e.blockers.some((b) => /launcher has not finished/.test(b)) && e.blockers.some((b) => /has no exited row/.test(b)), e.blockers.join("; "));
@@ -249,7 +254,15 @@ try {
   selfRecord.tickets[42].owner.handle.id = "local_coord";
   assert.throws(() => rc.decide(selfRecord, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /a writer never decides its own review checkpoint/);
   assert.deepEqual(e.range.commits.map((x) => x.sha), [c.round5, c.final]);
-  const accepted = decideAndPublish("round-5-accept-final-correction", "accept-unreviewed", acceptance, { inspected: e.range.diffSha256 });
+  // Posted but not yet read back, the acceptance applies nowhere: not with
+  // the record, and not with that record carried over by a takeover.
+  const accepted = change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }));
+  const acceptedComment = comment(accepted.body);
+  assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: ["local_coord"], record: record() }), c.final).applies, false, "an acceptance posted but never read back does not apply");
+  const takenOverMidPublish = { ...structuredClone(record()), coordinator: { session: "local_successor" }, previousCoordinators: [{ session: "local_coord" }] };
+  assert.equal(rc.acceptanceApplies(rc.restore(comments, { trusted: rc.trustedCoordinators(takenOverMidPublish), record: takenOverMidPublish }), c.final).applies, false, "a takeover does not turn an unread-back acceptance into an applicable one");
+  change((r) => rc.published(r, { ticket: 42, id: accepted.id, comment: acceptedComment.id, readBack: accepted.body, head: pull.head }));
+  trace("round-5-accept-final-correction", accepted.body);
   assert.match(accepted.body, /not ordinary readiness and not an independent review/);
   assert.match(accepted.body, new RegExp(`Independently reviewed through \`${c.round4}\``));
 
@@ -260,11 +273,16 @@ try {
   assert.throws(() => change((r) => rc.published(r, { ticket: 42, id: pending.id, comment: 1, readBack: pending.body.replace("round 5", "round 6"), head: pull.head })), /read-back of comment 1 differs/);
   change((r) => rc.abandon(r, { ticket: 42, id: pending.id, evidence: "never posted: the test drops it" }));
 
-  // GitHub alone restores every decision with its exact head and range.
-  const restored = rc.restore(comments, { trusted: ["local_coord"] });
-  assert.deepEqual(restored.map((d) => [d.kind, d.round]), [["repair", 3], ["extend", 3], ["extend", 4], ["maintainer", 5], ["accept-unreviewed", 5]]);
-  const last = restored.at(-1);
+  // GitHub alone restores every decision with its exact head and range; the
+  // record that published them verifies them, and only a verified
+  // acceptance applies.
+  const fromGitHub = rc.restore(comments, { trusted: ["local_coord"] });
+  assert.deepEqual(fromGitHub.map((d) => [d.kind, d.round, d.trusted, d.verified]), [["repair", 3, true, false], ["extend", 3, true, false], ["extend", 4, true, false], ["maintainer", 5, true, false], ["accept-unreviewed", 5, true, false]]);
+  const last = fromGitHub.at(-1);
   assert.deepEqual([last.head, last.reviewedHead, last.range.from, last.range.to, last.range.commits], [c.final, c.round4, c.round4, c.final, [c.round5, c.final]]);
+  assert.match(rc.acceptanceApplies(fromGitHub, c.final).reason, /not verified against the run record/);
+  const restored = rc.restore(comments, { trusted: ["local_coord"], record: record() });
+  assert.ok(restored.every((d) => d.verified));
   assert.equal(rc.acceptanceApplies(restored, c.final).applies, true);
 
   // A new push makes the acceptance stale; a later decision replaces it.
@@ -276,18 +294,34 @@ try {
   assert.equal(replaced.applies, false);
   assert.match(replaced.reason, /later001 \(maintainer\) .* replaced acceptance/);
 
-  // A comment that copies the coordinator's name is not its decision when
-  // the record did not publish it; a writer's own block is not trusted.
+  // A block that copies the coordinator's name is not its decision: with the
+  // record it is untrusted, and from GitHub alone it is at most unverified,
+  // so it never makes an acceptance apply. A writer's own block is not
+  // trusted. A published comment retargeted to a new head is refused by its
+  // content with the record and by its edit without it.
   const forged = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((d) => d.kind === "accept-unreviewed"))), id: "forged01", head: c.initial };
-  delete forged.body; delete forged.state; delete forged.published; delete forged.bodySha256;
-  const forgedComment = { id: 9001, created_at: at(), body: `forged\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(forged)}\n-->` };
-  const writerComment = { id: 9002, created_at: at(), body: `self waiver\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify({ ...forged, id: "writer01", coordinator: "local_writer" })}\n-->` };
+  for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete forged[key];
+  const block = (d) => `<!-- orchestrate-feature-checkpoint\n${JSON.stringify(d)}\n-->`;
+  const forgedComment = { id: 9001, created_at: at(), body: `forged\n\n${block(forged)}` };
+  const writerComment = { id: 9002, created_at: at(), body: `self waiver\n\n${block({ ...forged, id: "writer01", coordinator: "local_writer" })}` };
   const withForgeries = rc.restore([...comments, forgedComment, writerComment], { trusted: rc.trustedCoordinators(record()), record: record() });
   assert.equal(withForgeries.find((d) => d.id === "forged01").trusted, false);
-  assert.match(withForgeries.find((d) => d.id === "forged01").unrecorded, /did not publish/);
+  assert.match(withForgeries.find((d) => d.id === "forged01").untrusted, /did not publish decision forged01/);
   assert.equal(withForgeries.find((d) => d.id === "writer01").trusted, false);
   assert.equal(rc.acceptanceApplies(withForgeries, c.final).applies, true, "untrusted blocks neither replace nor grant an acceptance");
   assert.equal(rc.acceptanceApplies(withForgeries, c.initial).applies, false);
+  assert.match(rc.restore([writerComment], { trusted: ["local_coord"] })[0].untrusted, /local_writer is not one this restoration trusts/, "a writer's own block is untrusted from GitHub alone too");
+  const forgedOnly = rc.restore([...comments, forgedComment], { trusted: ["local_coord"] });
+  assert.deepEqual([forgedOnly.at(-1).trusted, forgedOnly.at(-1).verified], [true, false]);
+  assert.equal(rc.acceptanceApplies(forgedOnly, c.initial).applies, false, "a forged acceptance never applies from GitHub alone");
+  const original = comments.find((x) => x.id === acceptedComment.id);
+  const retargetedBlock = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((d) => d.id === accepted.id))), head: c.initial };
+  for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete retargetedBlock[key];
+  const retargeted = comments.map((x) => (x === original ? { ...x, body: `${x.body.split("<!--")[0]}${block(retargetedBlock)}` } : x));
+  assert.match(rc.restore(retargeted, { trusted: ["local_coord"], record: record() }).at(-1).untrusted, /with this content/);
+  assert.equal(rc.acceptanceApplies(rc.restore(retargeted, { trusted: ["local_coord"], record: record() }), c.initial).applies, false);
+  const edited = comments.map((x) => (x === original ? { ...x, body: `${x.body.split("<!--")[0]}${block(retargetedBlock)}`, updated_at: at() } : x));
+  assert.match(rc.restore(edited, { trusted: ["local_coord"] }).at(-1).untrusted, /was edited/);
   assert.ok(rc.restore([{ id: 9003, created_at: at(), body: "<!-- orchestrate-feature-checkpoint\n{not json\n-->" }], { trusted: ["local_coord"] })[0].malformed);
 
   // An unapproved round is refused: a round-6 launch with no extension, a
@@ -304,6 +338,15 @@ try {
   const restarted = journal(1, "undirected", ["undirected"], { head: c.final, completed: { undirected: 1 }, attempt: 9 });
   assert.ok(evidence().audit.some((v) => /launched a round 1 reviewer .* after round 5 completed; a restarted count/.test(v)));
   fs.rmSync(restarted.dir, { recursive: true });
+  // A complete round's reviewer relaunched on a corrected head is a new
+  // round, whatever plan or attempt it claims; on the round's own head it is
+  // the retry the launcher allows.
+  const disguised = journal(5, "undirected", ["corrections", "undirected"], { head: c.final, pending: [], completed: { corrections: 1, undirected: 2 }, attempt: 2 });
+  assert.ok(evidence().audit.some((v) => new RegExp(`launched a round 5 reviewer on ${c.final} .* after round 5 completed on ${c.round4}; a reviewer on a corrected head is a new round`).test(v)), evidence().audit.join("; "));
+  fs.rmSync(disguised.dir, { recursive: true });
+  const sameHead = journal(5, "undirected", ["corrections", "undirected"], { head: c.round4, pending: [], completed: { corrections: 1, undirected: 2 }, attempt: 2 });
+  assert.deepEqual(evidence().audit, []);
+  fs.rmSync(sameHead.dir, { recursive: true });
   const added = journal(5, "extra", ["extra"], { head: c.final, completed: { extra: 1 } });
   assert.ok(evidence().audit.some((v) => /launched reviewer extra in round 5, which planned corrections, undirected/.test(v)));
   fs.rmSync(added.dir, { recursive: true });
@@ -342,10 +385,29 @@ try {
   const main = (args) => rc.main(args, { clientFor: () => client, gitFor: () => repo });
   const diffFile = path.join(artifacts, "unreviewed.diff");
   const printed = main(["evidence", "--record", takeoverFile, "--ticket", "42", "--pr", "500", "--diff-out", diffFile]);
-  assert.equal(printed.range.diffSha256, rc.localGit(checkout).range(c.round4, c.final).diffSha256);
+  assert.equal(printed.range.diffSha256, rc.localGit(checkout, { base: () => baseCommit }).range(c.round4, c.final).diffSha256);
   assert.ok(fs.readFileSync(diffFile, "utf8").includes("final change"));
-  assert.equal(main(["acceptance-check", "--repo", "acme/widgets", "--checkout", checkout, "--pr", "500", "--trust", "local_coord"]).applies, true);
+  assert.equal(main(["acceptance-check", "--record", takeoverFile, "--pr", "500"]).applies, true);
+  assert.match(main(["acceptance-check", "--repo", "acme/widgets", "--checkout", checkout, "--pr", "500", "--trust", "local_coord"]).reason, /not verified against the run record/);
   assert.throws(() => main(["restore", "--repo", "acme/widgets", "--checkout", checkout, "--pr", "500"]), /Name the trusted coordinators/);
+
+  // A merge after the reviewed head counts as one reviewed-elsewhere commit
+  // only when its other parent is on the base; a merge of anything else is
+  // shown with every commit it brings in and its whole change.
+  const gitc = (...args) => git(checkout, "-c", "user.name=t", "-c", "user.email=t@example.invalid", ...args);
+  gitc("checkout", "-q", "-b", "upstream", c.initial);
+  const upstream = commit("upstream change", "up.txt");
+  gitc("checkout", "-q", "-b", "topic", c.final);
+  const topic = commit("topic change", "topic.txt");
+  gitc("checkout", "-q", "main");
+  gitc("merge", "-q", "--no-ff", "-m", "merge the base", upstream);
+  const baseMerge = git(checkout, "rev-parse", "HEAD");
+  gitc("merge", "-q", "--no-ff", "-m", "merge a topic", topic);
+  const topicMerge = git(checkout, "rev-parse", "HEAD");
+  const merged = rc.localGit(checkout, { fetch: () => {}, base: () => upstream }).range(c.final, topicMerge);
+  assert.deepEqual(merged.commits.map((x) => [x.sha, x.merge ?? null, x.via ?? null]), [[baseMerge, "base", null], [topicMerge, "other", null], [topic, null, topicMerge]]);
+  assert.ok(merged.diff.includes("+topic change"), "a merged topic's change is in the inspected diff");
+  assert.ok(!merged.diff.includes("+upstream change"), "a clean base merge shows only its remerge diff");
 
   // Ordinary review keeps its rules: no extension without recorded user
   // authorization, no automatic review of corrections after the cap, and the
