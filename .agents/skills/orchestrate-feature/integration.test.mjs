@@ -77,7 +77,7 @@ try {
   };
   const client = {
     pull: (pr) => { if (gh.readFail > 0) { gh.readFail--; throw new Error("HTTP 502 while reading the PR"); } return structuredClone(gh.pulls.get(pr)); },
-    comments: (n) => structuredClone(gh.comments.get(n) ?? []),
+    comments: (n) => { gh.onComments?.(n); return structuredClone(gh.comments.get(n) ?? []); },
     protection: () => structuredClone(gh.protection),
     merge: (pr, head) => {
       gh.mergeCalls.push(ig.mergeArgs(REPO, pr, head));
@@ -109,18 +109,20 @@ try {
     create: (n, body) => client.createComment(n, body),
     update: (id, body) => { const c = allComments().find((x) => x.id === id); c.body = body; c.updated_at = at(); return { id, body, url: c.html_url }; },
   };
-  const gitOf = (dir) => ig.integrationGit(dir, { fetch: () => originMain(dir), main: () => git(dir, "rev-parse", "origin/main") });
+  const gitOf = (dir) => ig.integrationGit(dir, { fetch: (pr) => { gh.onFetch?.(pr); return originMain(dir); }, main: () => git(dir, "rev-parse", "origin/main") });
   const rcGit = (dir) => rc.localGit(dir, { fetch: () => originMain(dir), base: () => git(dir, "rev-parse", "origin/main") });
 
   // The Feature and its three slices: #42 is blocked by #41.
   const criteria = ["Each slice merges only through the gate.", "An accepted unreviewed correction is named in the final report.", "The Feature closes only with evidence for every criterion."];
   gh.issues.set(FEATURE, { state: "open", title: "Widgets", body: `## Problem\n\nx\n\n## Acceptance criteria\n\n${criteria.map((c) => `- [ ] ${c}`).join("\n")}\n\n## Additional context\n\n- [ ] not a criterion\n` });
   const slices = { 41: "alpha", 42: "beta", 43: "gamma" };
+  // The Feature's sub-issues as GitHub lists them; a slice can leave it.
+  gh.slices = new Set(Object.keys(slices).map(Number));
   for (const n of Object.keys(slices)) gh.issues.set(Number(n), { state: "open", title: `slice ${n}`, body: "" });
   const snapClient = (dir) => ({
     fetchMain: () => originMain(dir), worktrees: () => [],
     issue: (n) => ({ ...gh.issues.get(n), number: n }),
-    subIssues: (n) => (n === FEATURE ? Object.keys(slices).map((k) => ({ number: Number(k), title: `slice ${k}`, state: gh.issues.get(Number(k)).state })) : []),
+    subIssues: (n) => (n === FEATURE ? [...gh.slices].map((k) => ({ number: k, title: `slice ${k}`, state: gh.issues.get(k).state })) : []),
     blockedBy: (n) => (n === 42 ? [{ number: 41, state: gh.issues.get(41).state }] : []),
     effort: () => "High",
     pulls: (n) => [...gh.pulls.values()].filter((p) => p.closes.includes(n)).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, headRefName: p.branch, headRefOid: p.head, baseRefName: p.base, closingIssuesReferences: p.closes.map((c) => ({ number: c })), mergeCommit: p.mergeCommit ? { oid: p.mergeCommit } : null })),
@@ -209,7 +211,7 @@ try {
     return ig.admission(rec, { ticket: n, pr, snapshot: snapshotNow(), facts: facts ?? ig.gatherFacts({ record: rec, pr, client, git: g }), git: g });
   };
   const blocked = (result, pattern, why) => assert.ok(!result.admitted && result.blockers.some((b) => pattern.test(b)), `${why}: ${result.blockers.join(" | ")}`);
-  const merge = (n, file = recordFile, coordinator = "local_coord", dir = src, afterIntent = () => cp.ensureSaved(file, { coordinator, github: statusGithub, host: dir === src ? SRC : DST })) => ig.mergeAdmitted(file, { coordinator, expectRevision: run.readRecord(file).revision, ticket: n, pr: 100 + n, snapshot: snapshotNow(dir), client, git: gitOf(dir), afterIntent });
+  const merge = (n, file = recordFile, coordinator = "local_coord", dir = src, afterIntent = () => cp.ensureSaved(file, { coordinator, github: statusGithub, host: dir === src ? SRC : DST })) => ig.mergeAdmitted(file, { coordinator, expectRevision: run.readRecord(file).revision, ticket: n, pr: 100 + n, takeSnapshot: () => snapshotNow(dir), client, git: gitOf(dir), afterIntent });
 
   // --- #41: normal reviewed completion ----------------------------------------
   startBranch(41);
@@ -237,7 +239,7 @@ try {
   const selfWritten = structuredClone(record());
   selfWritten.tickets[41].history.push({ owner: { handle: { kind: "session", id: "local_coord" } }, released: "x" });
   blocked(gate(41, selfWritten), /local_coord wrote for #41, and a writer never merges its own work/, "a coordinator that wrote for the ticket");
-  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, snapshot: snapshotNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
+  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
 
   // CI: pending, failed, cancelled and a skipped required gate all refuse.
   for (const [state, pattern] of [["IN_PROGRESS", /still pending .* a merge may not/], ["FAILURE", /test-suite concluded FAILURE/], ["CANCELLED", /test-suite concluded CANCELLED/], ["SKIPPED", /required check Test Suite \/ test-suite was skipped/]]) {
@@ -308,9 +310,15 @@ try {
 
   // A save that fails stops the merge before GitHub is called.
   const callsBeforeSave = gh.mergeCalls.length;
-  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, snapshot: snapshotNow(), client, git: gitOf(src), afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
+  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src), afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
   assert.equal(gh.mergeCalls.length, callsBeforeSave, "no merge call without a saved intent");
   assert.deepEqual([record().operations.at(-1).state, record().operations.at(-1).evidence], ["failed", "not run: the remote is unreachable"]);
+  // The slice leaves the Feature while the intent is saved: the second gate
+  // takes a fresh snapshot, so the coordinator's scope is current.
+  const unscoped = merge(41, recordFile, "local_coord", src, () => { gh.slices.delete(41); cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); });
+  gh.slices.add(41);
+  assert.deepEqual([unscoped.merged, unscoped.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], unscoped.evidence);
+  assert.match(unscoped.evidence, /not run: #41 is not a sub-issue of Feature #40/);
   // Main moves while the intent is saved: the gate runs again after the save
   // and stops the merge, since the admitted head no longer contains main.
   const moved = merge(41, recordFile, "local_coord", src, () => { advanceMain("other2.txt", "another PR\n", "feat: a PR merged during the save"); cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); });
@@ -318,19 +326,32 @@ try {
   assert.match(moved.evidence, /not run: .*main has moved to .* which head .* does not contain/);
   git(worktrees[41], "fetch", "-q", "origin");
   git(worktrees[41], "merge", "-q", "--no-edit", "origin/main");
-  const h41n = push(41);
+  let h41n = push(41);
   setHead(41, h41n);
+  // Main moves during the second gate's slower reads, and then between the
+  // second gate and the call: main is read after those reads and once more
+  // just before GitHub is called, so each stops the merge.
+  const catchUp = () => { git(worktrees[41], "fetch", "-q", "origin"); git(worktrees[41], "merge", "-q", "--no-edit", "origin/main"); h41n = push(41); setHead(41, h41n); };
+  const duringReads = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onComments = () => { gh.onComments = null; advanceMain("during-reads.txt", "lands during the gate's reads\n", "feat: a PR merged during the second gate"); }; });
+  assert.deepEqual([duringReads.merged, duringReads.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], duringReads.evidence);
+  assert.match(duringReads.evidence, /not run: .*main has moved to .* which head .* does not contain/);
+  catchUp();
+  const beforeCall = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onFetch = (pr) => { if (pr === undefined) { gh.onFetch = null; advanceMain("before-call.txt", "lands just before the call\n", "feat: a PR merged just before the call"); } }; });
+  assert.deepEqual([beforeCall.merged, beforeCall.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], beforeCall.evidence);
+  assert.match(beforeCall.evidence, /not run: main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
+  catchUp();
 
-  // The merge: intent saved first, an expected-head call with no bypass,
-  // and the outcome read back from GitHub.
-  const merged41 = merge(41);
+  // The merge, through the public command: intent saved first by the
+  // command's own wiring, an expected-head call with no bypass, and the
+  // outcome read back from GitHub.
+  const merged41 = ig.main(["merge", "--record", recordFile, "--coordinator", "local_coord", "--expect-revision", String(record().revision), "--ticket", "41", "--pr", "141"], { clientFor: () => client, gitFor: () => gitOf(src), github: statusGithub, snapshotFor: () => () => snapshotNow() });
   trace("merge-41", merged41);
-  assert.deepEqual([merged41.merged, merged41.state, merged41.onMain, merged41.baseMoved], [true, "confirmed", true, false]);
+  assert.deepEqual([merged41.merged, merged41.state, merged41.onMain, merged41.baseMoved, merged41.checkpoint?.saved], [true, "confirmed", true, false, true]);
   assert.deepEqual(gh.mergeCalls.at(-1), ["pr", "merge", "141", "--repo", REPO, "--merge", "--match-head-commit", h41n]);
   assert.ok(!gh.mergeCalls.flat().some((a) => ["--admin", "--auto", "--rebase", "--squash"].includes(a)), "the merge call never bypasses protection or defers the merge");
   const op41 = record().operations.find((o) => o.id === merged41.operation);
-  assert.deepEqual([op41.state, op41.expectHead, op41.gate.disposition, op41.gate.mergedSince.length, op41.mergeCommit], ["confirmed", h41n, "reviewed", 2, gh.pulls.get(141).mergeCommit]);
-  assert.deepEqual(gh.intentsSeen.at(-1), { pr: 141, head: h41n, saved: true }, "the intent was on the state branch when GitHub was called");
+  assert.deepEqual([op41.state, op41.expectHead, op41.gate.disposition, op41.gate.mergedSince.length, op41.mergeCommit], ["confirmed", h41n, "reviewed", 4, gh.pulls.get(141).mergeCommit]);
+  assert.deepEqual(gh.intentsSeen.at(-1), { pr: 141, head: h41n, saved: true }, "the public command saved the intent on the state branch before GitHub was called");
   // Dependency release follows the confirmed integration on main.
   p = plan();
   assert.deepEqual([actions(p)[41], actions(p)[42]], ["done", "dispatch"]);
@@ -477,7 +498,7 @@ try {
   const taken = cp.resume({ record: dstRecord, checkout: dst, repository: REPO, feature: FEATURE, coordinator: "local_dst", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `Use orchestrate-feature for #${FEATURE}; take over from the exhausted account.`, merging: "coordinator", evidence: "the maintainer reports the source account reached its usage limit" }, { github: statusGithub, host: DST, defaults, totalMemory: 64 * GB });
   assert.equal(taken.action, "takeover");
   assert.equal(run.coordinatorMerges(run.readRecord(dstRecord)), true, "the new coordinator's own invocation grants the merge");
-  const overUnsettled = ig.mergeAdmitted(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, ticket: 43, pr: 143, snapshot: snapshotNow(dst), client, git: gitOf(dst) });
+  const overUnsettled = ig.mergeAdmitted(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, ticket: 43, pr: 143, takeSnapshot: () => snapshotNow(dst), client, git: gitOf(dst) });
   blocked(overUnsettled.gate, /is uncertain; settle it with checkpoint\.mjs reconcile-operations before any new merge/, "the destination does not merge over an unsettled operation");
   const settled = change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst), firstParent: (sha) => git(dst, "rev-parse", `${sha}^1`) }), dstRecord, "local_dst");
   trace("reconcile-43", settled);
@@ -539,7 +560,7 @@ try {
   let final = verify(doneEvidence);
   trace("final-report", final.report);
   assert.equal(final.verdict, "complete");
-  assert.match(final.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 2 clean merges of main \|/);
+  assert.match(final.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 4 clean merges of main \|/);
   assert.match(final.report, /\| #42 \| delivered \| #142 \| .*; it landed on main `[0-9a-f]{9}`, not the admitted `[0-9a-f]{9}`, so CI never ran on that combination \|/, "a merge that landed on a main CI never checked is named");
   assert.match(final.report, new RegExp(`#42, PR #142: decision \`${decided.id}\` .* accepted \`${h42[3].slice(0, 9)}\\.\\.${correction.slice(0, 9)}\` \\(1 commit\\) unreviewed on head \`${correction.slice(0, 9)}\`; that head merged`));
   assert.match(final.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\`; it landed on main \`[0-9a-f]{9}\`, not the admitted \`[0-9a-f]{9}\`, so CI never ran on that combination \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover with where it landed");

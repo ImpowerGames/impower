@@ -98,19 +98,17 @@ const mergeStateBlocker = (s) => MERGE_STATES[s] ?? `GitHub has not settled whet
 
 // --- Facts and the gate -----------------------------------------------------
 
-// Everything the gate decides on, read afresh: the PR as GitHub shows it,
-// main as the remote holds it, the branch's protection, the PR's comments,
-// the review journals on this machine, and the chain of clean main merges
-// at the head of the branch.
+// Everything the gate decides on, read afresh: the PR as GitHub shows it, the
+// branch's protection, the PR's comments, the review journals on this
+// machine, and, read last so the slower reads cannot outdate it, main as the
+// remote holds it with the chain of clean main merges at the branch's head.
 export function gatherFacts({ record, pr, client, git }) {
   const pull = client.pull(pr);
+  const protection = client.protection(TARGET), comments = client.comments(pr);
+  const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
   git.fetch(pr);
   const originMain = git.main();
-  return {
-    pull, originMain, protection: client.protection(TARGET), comments: client.comments(pr),
-    state: roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`))),
-    chain: git.cleanChain(pull.head, originMain), containsMain: git.isAncestor(originMain, pull.head),
-  };
+  return { pull, originMain, protection, comments, state, chain: git.cleanChain(pull.head, originMain), containsMain: git.isAncestor(originMain, pull.head) };
 }
 
 // An acceptance applies to the head, or to a commit the head reaches through
@@ -208,19 +206,20 @@ const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.review
 
 // --- Merge -------------------------------------------------------------------
 
-// Merges an admitted PR. The gate runs on fresh facts, the intent is
-// recorded and saved to the state branch, and the gate runs once more, so a
-// head or main that moved while the intent was saved stops the merge before
+// Merges an admitted PR. The gate runs on a fresh snapshot and fresh facts,
+// the intent is recorded and saved to the state branch, the gate runs once
+// more on another fresh snapshot, and main is read one last time, so a scope,
+// head or main that changed while the intent was saved stops the merge before
 // GitHub is called. The call names the head the gate admitted, so a push in
 // between makes GitHub refuse it. The outcome is what GitHub reads back
 // afterwards, never what the call said: an unreadable or contradictory result
 // is uncertain and is settled by reconcile-operations before any retry. A
 // merge commit whose first parent is not the main the gate admitted landed on
 // code CI never checked, and the outcome says so.
-export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, snapshot, client, git, afterIntent }) {
+export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, client, git, afterIntent }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
-  const gate = admission(record, { ticket, pr, snapshot, facts: gatherFacts({ record, pr, client, git }), git });
+  const gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, pr, client, git }), git });
   if (!gate.admitted) return { admitted: false, merged: false, gate };
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => {
     const op = intent(r, { kind: "merge", ticket, pr, expectHead: gate.head, evidence: `admitted as ${gate.disposition}` });
@@ -232,10 +231,16 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, s
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
   let again;
-  try { again = admission(readRecord(file), { ticket, pr, snapshot, facts: gatherFacts({ record: readRecord(file), pr, client, git }), git, running: op.id }); }
-  catch (error) { notRun(`the gate could not be checked again after the intent was saved: ${error.message}`); throw error; }
-  if (!again.admitted || again.head !== gate.head || again.originMain !== gate.originMain) {
-    const why = !again.admitted ? again.blockers.join("; ") : again.head !== gate.head ? `the head moved from ${gate.head} to ${again.head}` : `${TARGET} moved from ${gate.originMain} to ${again.originMain}`;
+  let lastMain;
+  try {
+    again = admission(readRecord(file), { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record: readRecord(file), pr, client, git }), git, running: op.id });
+    // The last read before GitHub is called: main once more, after every
+    // slower read of the second gate.
+    git.fetch();
+    lastMain = git.main();
+  } catch (error) { notRun(`the gate could not be checked again after the intent was saved: ${error.message}`); throw error; }
+  if (!again.admitted || again.head !== gate.head || again.originMain !== gate.originMain || lastMain !== gate.originMain) {
+    const why = !again.admitted ? again.blockers.join("; ") : again.head !== gate.head ? `the head moved from ${gate.head} to ${again.head}` : `${TARGET} moved from ${gate.originMain} to ${again.originMain === gate.originMain ? lastMain : again.originMain}`;
     notRun(`while the intent was saved, ${why}; run the gate again`);
     return { admitted: true, merged: false, operation: op.id, state: "failed", evidence: `not run: ${why}`, gate, recheck: again };
   }
@@ -518,20 +523,23 @@ function parse(argv) {
 const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`); return n; };
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
-export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github } = {}) {
+// The Feature's snapshot, taken afresh each time a command needs one.
+const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record.repository, record.checkout));
+
+export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot } = {}) {
   const { command, o } = parse(argv);
   const file = () => abs(o.record, "record");
-  const context = () => { const record = readRecord(file()); return { record, client: clientFor(record.repository, record.checkout), git: gitFor(record.checkout) }; };
+  const context = () => { const record = readRecord(file()); return { record, client: clientFor(record.repository, record.checkout), git: gitFor(record.checkout), snapshotNow: snapshotFor(record) }; };
   const saved = () => ensureSaved(file(), { coordinator: o.coordinator, github });
   const checkpointAfter = (transition) => { const c = autoCheckpoint(file(), { coordinator: o.coordinator, transition, github }); return c ? { checkpoint: c } : {}; };
   switch (command) {
     case "gate": {
-      const { record, client, git } = context(), pr = int(o.pr, "pr");
-      return admission(record, { ticket: int(o.ticket, "ticket"), pr, snapshot: readJson(abs(o.snapshot, "snapshot")), facts: gatherFacts({ record, pr, client, git }), git });
+      const { record, client, git, snapshotNow } = context(), pr = int(o.pr, "pr");
+      return admission(record, { ticket: int(o.ticket, "ticket"), pr, snapshot: snapshotNow(), facts: gatherFacts({ record, pr, client, git }), git });
     }
     case "merge": {
-      const { client, git } = context(), pr = int(o.pr, "pr");
-      const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, snapshot: readJson(abs(o.snapshot, "snapshot")), client, git, afterIntent: saved });
+      const { client, git, snapshotNow } = context(), pr = int(o.pr, "pr");
+      const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, takeSnapshot: snapshotNow, client, git, afterIntent: saved });
       return result.admitted ? { ...result, ...checkpointAfter(`the merge of PR #${pr} (${result.state})`) } : result;
     }
     case "criteria": { const { record, client } = context(); return { feature: record.feature, criteria: parseCriteria(client.issue(record.feature).body) }; }
@@ -544,8 +552,7 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
     }
     case "close-feature": {
-      const { record, client } = context();
-      const snapshotNow = () => takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record.repository, record.checkout));
+      const { client, snapshotNow } = context();
       const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, client, afterIntent: saved });
       return { ...result, ...checkpointAfter(`closing the Feature (${result.state})`) };
     }
