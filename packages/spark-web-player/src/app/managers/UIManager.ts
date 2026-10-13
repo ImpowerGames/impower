@@ -230,8 +230,15 @@ export default class UIManager extends Manager {
       // create stream never re-emits — the sweep would then delete a live
       // element. Elements this manager did not create carry no `__sdId` and
       // are correctly left alone.
+      //
+      // Not what a held clear removes (#1820): applied at once, that clear had
+      // detached it, and a pass that opened then could not have found it here.
+      const keep = this.connectedAsCleared();
       overlay.querySelectorAll("*").forEach((node) => {
         const el = node as HTMLElement;
+        if (!keep(el)) {
+          return;
+        }
         const structural = (el as any).__sdId;
         if (structural) {
           this._staleIds.add(structural);
@@ -322,7 +329,8 @@ export default class UIManager extends Manager {
     // was already detached by that clear, so this clear's empty writes, which
     // resolve the target among connected elements, neither emptied nor signed
     // it. Its hiding still came, by id.
-    const targetEls = this.findTargetElements(clear.target).filter(
+    const targetEls = this.findTargetElements(
+      clear.target,
       this.connectedAsCleared(),
     );
     const empty = JSON.stringify([]);
@@ -502,13 +510,19 @@ export default class UIManager extends Manager {
       return;
     }
     if (WriteTextMessage.type.isRequest(msg)) {
-      for (const el of this.findTargetElements(msg.params.target)) {
+      for (const el of this.findTargetElements(
+        msg.params.target,
+        this.connectedAsCleared(),
+      )) {
         this.applyHeld(el, ["text"]);
       }
       return;
     }
     if (WriteImageMessage.type.isRequest(msg)) {
-      for (const el of this.findTargetElements(msg.params.target)) {
+      for (const el of this.findTargetElements(
+        msg.params.target,
+        this.connectedAsCleared(),
+      )) {
         this.applyHeld(el, ["image"]);
       }
       return;
@@ -621,9 +635,12 @@ export default class UIManager extends Manager {
     // element whose own `#id` replaced its structural value in the DOM.
     // `_elements` is repopulated for the whole overlay at the start of every
     // reconcile pass, so this walk is a cache-miss fallback, not the hot path.
+    // Not what a held clear removes, which applied at once had been detached
+    // and out of reach of this walk (#1820).
     let found: HTMLElement | undefined;
+    const keep = this.connectedAsCleared();
     this.app.overlay?.querySelectorAll("*").forEach((node) => {
-      if (!found && (node as any).__sdId === id) {
+      if (!found && (node as any).__sdId === id && keep(node)) {
         found = node as HTMLElement;
       }
     });
@@ -1004,8 +1021,15 @@ export default class UIManager extends Manager {
    * The engine owns the `Element` tree and only forwards the original `target`
    * string, so the consumer re-resolves it here against the real DOM. (D13 may
    * later replace this with a consumer-side id→element map.)
+   *
+   * `keep` narrows the matches before the `#index` is taken, so an instance
+   * counts only among the elements kept (the clears and writes keep what a
+   * held clear has not removed: #1820).
    */
-  protected findTargetElements(target: string): HTMLElement[] {
+  protected findTargetElements(
+    target: string,
+    keep?: (el: HTMLElement) => boolean,
+  ): HTMLElement[] {
     const overlay = this.app.overlay;
     if (!overlay) {
       return [];
@@ -1020,9 +1044,8 @@ export default class UIManager extends Manager {
     if (!selector) {
       return [];
     }
-    const matches = Array.from(
-      overlay.querySelectorAll(selector),
-    ) as HTMLElement[];
+    const all = Array.from(overlay.querySelectorAll(selector)) as HTMLElement[];
+    const matches = keep ? all.filter(keep) : all;
     if (instance) {
       const instanceIndex = Number(instance);
       if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
@@ -1231,7 +1254,8 @@ export default class UIManager extends Manager {
     shown = 0,
   ) {
     // Not what a held clear removes: applied at once, it had detached it.
-    const targetEls = this.findTargetElements(target).filter(
+    const targetEls = this.findTargetElements(
+      target,
       this.connectedAsCleared(),
     );
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
@@ -1386,7 +1410,8 @@ export default class UIManager extends Manager {
     startTime?: number,
   ) {
     // Not what a held clear removes: applied at once, it had detached it.
-    const targetEls = this.findTargetElements(target).filter(
+    const targetEls = this.findTargetElements(
+      target,
       this.connectedAsCleared(),
     );
     // This target has been written this pass, so the sweep must leave its layers
@@ -1448,7 +1473,10 @@ export default class UIManager extends Manager {
         );
         if (instruction.affected) {
           for (const a of instruction.affected) {
-            for (const el of this.findTargetElements(a.target)) {
+            for (const el of this.findTargetElements(
+              a.target,
+              this.connectedAsCleared(),
+            )) {
               this.addAnimationEffects(enterEffects, el, a.animations);
             }
           }

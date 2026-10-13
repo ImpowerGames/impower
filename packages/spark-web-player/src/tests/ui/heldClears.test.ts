@@ -496,6 +496,108 @@ describe("held clears (#1820)", () => {
     expect(held).toEqual(immediate);
   });
 
+  test("an indexed write counts its instance among the elements a held clear has not removed", async () => {
+    // Portrait A sits in `panel`'s text slot, portrait B on the stage.
+    // Applied at once, `panel`'s clear detaches A, and `portrait#0` then
+    // means B, the only connected match.
+    const build = async () => {
+      await create("e", null, "stage");
+      await create("e-panel-0", "e", "panel");
+      await create("e-panel-0-text-0", "e-panel-0", "text");
+      await create("e-panel-0-text-0-portrait-0", "e-panel-0-text-0", "portrait");
+      await create("e-panel-0-text-0-portrait-0-image-0", "e-panel-0-text-0-portrait-0", "image");
+      await create("e-portrait-0", "e", "portrait");
+      await create("e-portrait-0-image-0", "e-portrait-0", "image");
+    };
+    const run = async (held: boolean) => {
+      await build();
+      await show("portrait#1", "old");
+      await flushMicrotasks();
+      page.beginReconcilePass();
+      await build();
+      const b = overlay.querySelector("#e-portrait-0") as HTMLElement;
+      if (held) {
+        hold("panel", ["e-panel-0"]);
+      } else {
+        await request("ui/update", { element: "e-panel-0", style: { display: "none" }, attributes: { text: null } });
+        await request("ui/write-text", { target: "panel", instructions: [], instant: true });
+        await request("ui/write-image", { target: "panel", instructions: [], instant: true });
+      }
+      await show("portrait#0", "new");
+      page.sweepReconcile();
+      return Array.from(b.querySelectorAll(":scope > .image > .instance[image]")).map((l) =>
+        l.getAttribute("image"),
+      );
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    // The control: applied at once, the write reaches B (this helper's write
+    // keeps the earlier layer, having no hide animation for it).
+    expect(immediate).toContain("new");
+    expect(held).toEqual(immediate);
+  });
+
+  test("a new manager does not adopt what a held clear removes, as it could not after the clear applied at once", async () => {
+    // A display holds `panel`'s clear, whose text slot holds portrait A, and
+    // is taken over; the next display runs on a new manager, which adopts the
+    // page. Applied at once, the clear had detached A, so the new manager's
+    // create stream builds the portrait afresh rather than reusing A.
+    const build = async () => {
+      await create("e", null, "stage");
+      await create("e-panel-0", "e", "panel");
+      await create("e-panel-0-text-0", "e-panel-0", "text");
+      await create("e-panel-0-text-0-portrait-0", "e-panel-0-text-0", "portrait");
+      await create("e-panel-0-text-0-portrait-0-image-0", "e-panel-0-text-0-portrait-0", "image");
+    };
+    const run = async (held: boolean) => {
+      await build();
+      await show("portrait", "old");
+      await flushMicrotasks();
+      page.beginReconcilePass();
+      await build();
+      const a = overlay.querySelector(".portrait") as HTMLElement;
+      if (held) {
+        hold("panel", ["e-panel-0"]);
+      } else {
+        await request("ui/update", { element: "e-panel-0", style: { display: "none" }, attributes: { text: null } });
+        await request("ui/write-text", { target: "panel", instructions: [], instant: true });
+        await request("ui/write-image", { target: "panel", instructions: [], instant: true });
+      }
+      page.onDispose();
+      page = new UIManager(createStubApp(overlay, () => {}));
+      await page.onInit();
+      page.beginReconcilePass();
+      await build();
+      page.sweepReconcile();
+      const shown = Array.from(overlay.querySelectorAll(".portrait"));
+      return {
+        portraits: shown.length,
+        reusedA: shown.includes(a),
+        aConnected: overlay.contains(a),
+        pictures: portraits(),
+      };
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    // The control: applied at once, the new manager built a fresh portrait.
+    expect(immediate).toEqual({ portraits: 1, reusedA: false, aConnected: false, pictures: [[]] });
+    expect(held).toEqual(immediate);
+  });
+
   test("an update of a content slot alone leaves the picture until the write replaces it", async () => {
     // A saved style restored onto a portrait's image slot during the
     // connect changes the slot, not its picture.
