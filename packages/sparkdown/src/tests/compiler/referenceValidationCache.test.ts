@@ -9,6 +9,10 @@
 // the incremental compile with a cold compile of the same text.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import {
+  ReferenceValidationCache,
+  type ReferenceValidationInputs,
+} from "../../compiler/utils/ReferenceValidationCache";
 
 const URI = "file:///main.sd";
 
@@ -348,5 +352,114 @@ describe("reference validation per chunk (#411)", () => {
     expect(withPreview.diagnostics).toEqual(without.diagnostics);
     expect(withPreview.diagnostics).toEqual(coldDiagnostics(withPreview.text));
     expect(without.stats.chunksValidated).toBeLessThan(without.stats.chunksServed);
+  });
+
+  it("validates every reference again when the configured definitions change", () => {
+    const text = screenplay();
+    const compiler = compilerFor(text);
+    compile(compiler);
+    compile(compiler);
+    compiler.configure({ definitions: { builtins: { mia: {} } } } as never);
+    const program = compile(compiler);
+    expect(stats(compiler).chunksServed).toBe(0);
+    expect(stats(compiler).reused).toBe(0);
+    const cold = compilerFor(text);
+    cold.configure({ definitions: { builtins: { mia: {} } } } as never);
+    expect(diagnostics(program)).toEqual(diagnostics(compile(cold)));
+  });
+});
+
+// The cache's invalidation, driven directly: no Sparkdown construct today makes
+// one chunk's reference depend on an implicit definition another chunk implies
+// (an image reference implies its own), so the compiler cannot reach these
+// paths through a script alone.
+describe("ReferenceValidationCache (#411)", () => {
+  const inputs = (
+    overrides: Partial<ReferenceValidationInputs> = {},
+  ): ReferenceValidationInputs => ({
+    base: "root",
+    baseIds: [],
+    definitions: undefined,
+    builtins: undefined,
+    handlerCallables: "",
+    declaredParentTypes: "",
+    ...overrides,
+  });
+  const entry = (keys: string[], types: string[] = []) => ({
+    length: 1,
+    references: 1,
+    outcomes: [],
+    keys: new Set(keys),
+    types: new Set(types),
+  });
+
+  it("drops a chunk and a reference that read a layer entry the layer changed, and keeps the rest", () => {
+    const cache = new ReferenceValidationCache();
+    const reads = { block: {}, annotation: {} };
+    const other = { block: {}, annotation: {} };
+    const whole = { block: {}, annotation: {} };
+    cache.begin(inputs(), "r1", ["filtered_image/a~x"]);
+    cache.keep("main", reads.block, entry(["filtered_image/b~y"]));
+    cache.keepReference(reads.annotation, 1, [], { keys: new Set(["filtered_image/b~y"]) });
+    cache.keep("main", other.block, entry(["image/c"]));
+    cache.keepReference(other.annotation, 1, [], { keys: new Set(["image/c"]) });
+    cache.keep("main", whole.block, entry([], ["filtered_image"]));
+    cache.keepReference(whole.annotation, 1, [], { types: new Set(["filtered_image"]) });
+    cache.end();
+
+    // Another chunk's directive now implies `b~y`.
+    cache.begin(inputs(), "r2", ["filtered_image/a~x", "filtered_image/b~y"]);
+    expect(cache.take("main", reads.block)).toBeUndefined();
+    expect(cache.reference(reads.annotation)).toBeUndefined();
+    expect(cache.take("main", whole.block)).toBeUndefined();
+    expect(cache.reference(whole.annotation)).toBeUndefined();
+    expect(cache.take("main", other.block)).toBeDefined();
+    expect(cache.reference(other.annotation)).toBeDefined();
+  });
+
+  it("drops everything when a story-wide input changes", () => {
+    const cache = new ReferenceValidationCache();
+    const block = {};
+    const annotation = {};
+    const ids = [{}];
+    cache.begin(inputs({ baseIds: ids }), "r1", []);
+    cache.keep("main", block, entry([]));
+    cache.keepReference(annotation, 1, [], {});
+    cache.end();
+    for (const changed of [
+      inputs({ baseIds: [{}] }),
+      inputs({ declaredParentTypes: "item" }),
+      inputs({ handlerCallables: "go_on" }),
+      inputs({ definitions: {} }),
+    ]) {
+      cache.begin(inputs({ baseIds: ids }), "r1", []);
+      cache.keep("main", block, entry([]));
+      cache.keepReference(annotation, 1, [], {});
+      cache.end();
+      cache.begin(changed, "r1", []);
+      expect(cache.take("main", block)).toBeUndefined();
+      expect(cache.reference(annotation)).toBeUndefined();
+      cache.end();
+    }
+  });
+
+  it("starts over after 32 layer changes and on a change to a `$` entry", () => {
+    const cache = new ReferenceValidationCache();
+    const annotation = {};
+    cache.begin(inputs(), "r0", []);
+    cache.keepReference(annotation, 1, [], { keys: new Set(["image/unrelated"]) });
+    cache.end();
+    for (let i = 1; i <= 32; i++) {
+      cache.begin(inputs(), `r${i}`, [`filtered_image/n${i}`]);
+      expect(cache.reference(annotation)).toBeDefined();
+      cache.end();
+    }
+    cache.begin(inputs(), "r33", ["filtered_image/n33"]);
+    expect(cache.reference(annotation)).toBeUndefined();
+    cache.end();
+
+    cache.keepReference(annotation, 1, [], { keys: new Set(["image/unrelated"]) });
+    cache.begin(inputs(), "r34", ["filtered_image/$default"]);
+    expect(cache.reference(annotation)).toBeUndefined();
   });
 });

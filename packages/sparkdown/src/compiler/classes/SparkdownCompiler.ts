@@ -5984,8 +5984,9 @@ export class SparkdownCompiler {
         const block = chunks.value.type as object;
         const from = chunks.from;
         const to = chunks.to;
-        // References outside every chunk belong to no block that could name
-        // them, so they are validated on every compile.
+        // References outside every chunk belong to no block that could serve
+        // them whole, so they are visited on every compile, and each is served
+        // from its own annotation's outcomes when those still hold.
         const loose: ReferenceOutcome[] = [];
         validateUntil(from, 0, loose, {});
         emit(loose, 0);
