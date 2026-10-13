@@ -44,7 +44,9 @@ interface HeldScreen {
   frames: number;
   queue: HeldMessage[];
   /** Waits for the start of the played beat that is held. */
-  showTimer?: ReturnType<typeof setTimeout>;
+  showTimer?: ReturnType<typeof setTimeout> | number;
+  /** The document time the held beat goes up at. */
+  showAt?: number;
   /** Puts up what is held through the manager now showing the overlay;
    *  `due` once the held beat's start has come. */
   release?: (due?: boolean) => void;
@@ -410,7 +412,10 @@ export default class UIManager extends Manager {
    * beat's writes carry the time the beat starts on the shared clock, and its
    * text and pictures show from then (`getDisplayTime`): what the beat clears
    * waits for that time too, so the old beat gives way in the frame the new
-   * one starts. `due` is set by the timer that waits for it.
+   * one starts. `due` is set by the timer that waits for it. The reveals run
+   * on the document timeline, whose time is each frame's start: once the
+   * timer has fired, the beat goes up in the first animation frame whose
+   * time has reached its start, so that frame shows its first letter too.
    */
   protected releaseIfIdle(due = false) {
     const hold = this.hold;
@@ -420,10 +425,23 @@ export default class UIManager extends Manager {
     if (hold.showTimer != null && !due) {
       return;
     }
+    if (due && hold.showAt != null) {
+      const doc = this.app.overlay?.ownerDocument;
+      const view = doc?.defaultView;
+      if (
+        view?.requestAnimationFrame &&
+        Number(doc?.timeline?.currentTime) < hold.showAt
+      ) {
+        hold.showTimer = view.requestAnimationFrame(() => hold.release?.(true));
+        return;
+      }
+    }
     hold.showTimer = undefined;
+    hold.showAt = undefined;
     if (!due) {
       const wait = this.waitToShow(hold.queue);
       if (wait > 0) {
+        hold.showAt = Number(this.app.overlay?.ownerDocument?.timeline?.currentTime) + wait;
         hold.showTimer = setTimeout(() => hold.release?.(true), wait);
         return;
       }
