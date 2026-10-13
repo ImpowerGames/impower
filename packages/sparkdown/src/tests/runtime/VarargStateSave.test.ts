@@ -47,7 +47,7 @@ function saveInsideVarargAndResume(callArgs: string): {
   storyA.BindExternalFunction("host_record", (v: unknown) => v);
   storyA.onError = (m: string) => errors.push(`[before save] ${m}`);
   storyA.pauseBeforeEvaluatingConditions = true;
-  for (let i = 0; i < 100 && !storyA.pausedBeforeCondition; i++) {
+  for (let i = 0; i < 100 && storyA.pausedBeforeCondition === null; i++) {
     if (!storyA.canContinue) break;
     storyA.ContinueAsync();
   }
