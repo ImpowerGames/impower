@@ -107,6 +107,7 @@ async function main() {
   const cold = compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any).program;
   transport.encode(cold);
   const coldDiagnostics = diagnosticsOf(cold).length;
+  const coldReferences = { ...compiler.referenceValidationStats };
   const fallback = compiler.lastProgramBuild?.unsupported?.construct ?? null;
   takeMeasures();
 
@@ -135,6 +136,9 @@ async function main() {
         initializerRuns: (compiler.chunkStore?.initializerRuns ?? 0) - runsBefore,
         emitted: compiler.chunkStore?.emittedLastBuild,
         fallback: compiler.lastProgramBuild?.unsupported?.construct ?? null,
+        // References `validateReferences` validated, and those it served
+        // from the chunks it kept (#411).
+        references: { ...compiler.referenceValidationStats },
       },
     });
   }
@@ -147,6 +151,7 @@ async function main() {
     warmup: config.warmup,
     samples: samples.length,
     diagnostics: coldDiagnostics,
+    coldReferences,
     wall: Object.fromEntries(Object.keys(samples[0]?.wall ?? {}).map((k) => [k, stats(samples.map((s) => s.wall[k]))])),
     phases: Object.fromEntries(
       [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
@@ -163,6 +168,7 @@ function printReport(report: any) {
   const out = [
     `language server compile: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up${report.fallback ? ` (the program was not built: ${report.fallback})` : ""}; ${report.diagnostics} diagnostics`,
+    `references validated by the first compile: ${JSON.stringify(report.coldReferences)}`,
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
     ...Object.entries(report.wall).map(([k, s]: any) => row(k, s)),

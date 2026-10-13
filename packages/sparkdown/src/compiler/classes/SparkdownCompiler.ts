@@ -86,6 +86,11 @@ import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
 import { getPossibleStringIdentifiers } from "../utils/getPossibleStringIdentifiers";
 import { profile } from "../utils/profile";
 import { readProperty } from "../utils/readProperty";
+import {
+  ReferenceValidationCache,
+  type ReferenceOutcome,
+} from "../utils/ReferenceValidationCache";
+import type { Reference } from "./annotators/ReferenceAnnotator";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { resolveSelector } from "../utils/resolveSelector";
 import { getContextEntry } from "../utils/getContextEntry";
@@ -642,6 +647,24 @@ export class SparkdownCompiler {
   // same struct on every compile, and a project the size of Raffles and Bunny
   // has thousands of them.
   protected _implicitDefCache?: Map<string, any>;
+  // Each chunk's and each reference's validated outcomes, kept while its
+  // block or annotation is carried and what they read of the context holds
+  // (#411).
+  protected _referenceCache?: ReferenceValidationCache;
+  protected _referenceValidationStats = {
+    validated: 0,
+    reused: 0,
+    stepped: 0,
+    chunksValidated: 0,
+    chunksServed: 0,
+  };
+  /** What the last `validateReferences` did: the references it validated,
+   *  those whose own kept outcomes it reused in a chunk it visited, those it
+   *  stepped over in a chunk it served whole, and the chunks it visited and
+   *  served. */
+  get referenceValidationStats() {
+    return this._referenceValidationStats;
+  }
   // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
   // by top-level flow name plus "0" for root content, read from the program's
   // chunks once they are built (`captureProgramAssets`).
@@ -5637,256 +5660,369 @@ export class SparkdownCompiler {
       }
       return cached;
     };
-    for (const uri of Object.keys(program.scripts)) {
-      const doc = this.documents.get(uri);
-      if (doc) {
-        const annotations = this.documents.annotations(uri);
-        const cur = annotations.references.iter();
-        while (cur.value) {
-          const reference = cur.value.type;
-          if (reference.usage === "handler") {
-            // A Sparkle `@event=handler` that names a function/knot the runtime
-            // can't invoke — warn (it silently never fires). See ReferenceAnnotator.
-            const name = reference.symbolIds?.[0];
-            if (name && !handlerCallables.has(name)) {
-              const message = `Cannot find function \`${name}\` for this handler — define \`function ${name}() … end\`, or use an inline handler \`{ … }\``;
-              const range = doc.range(cur.from, cur.to);
-              program.diagnostics ??= {};
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push({
-                range,
-                severity: DiagnosticSeverity.Warning,
-                message: {
-                  value: message,
-                  kind: "markdown",
-                },
-                relatedInformation: [
-                  {
-                    location: { uri, range },
-                    message: "",
-                  },
-                ],
-                source: LANGUAGE_NAME,
-              });
-            }
-            cur.next();
-            continue;
-          }
-          if (reference.symbolIds) {
-            for (const symbolId of reference.symbolIds) {
-              if (this._config.definitions?.builtins?.[symbolId]) {
-                if (
-                  reference.declaration === "const" ||
-                  reference.declaration === "var" ||
-                  reference.declaration === "param"
-                ) {
-                  const message = `Cannot declare ${reference.declaration} named \`${symbolId}\`:\nConflicts with builtin type \`${symbolId}\``;
-                  const range = doc.range(cur.from, cur.to);
-                  program.diagnostics ??= {};
-                  program.diagnostics[uri] ??= [];
-                  program.diagnostics[uri].push({
-                    range,
-                    severity: DiagnosticSeverity.Error,
-                    message: {
-                      value: message,
-                      kind: "markdown",
-                    },
-                    relatedInformation: [
-                      {
-                        location: { uri, range },
-                        message: "",
-                      },
-                    ],
-                    source: LANGUAGE_NAME,
-                  });
-                }
-              }
-            }
-          }
-          if (reference.selectors) {
-            const declaration = reference.assigned;
-            const possibleStringIdentifiers =
-              possibleStringIdentifiersFor(declaration);
-            const expectedSelectorTypes = expectedSelectorTypesFor(declaration);
-            if (expectedSelectorTypes.includes("color")) {
-              const range = doc.range(cur.from, cur.to);
-              program.colorAnnotations ??= {};
-              program.colorAnnotations[uri] ??= [];
-              program.colorAnnotations[uri].push(range);
-            }
-            const selector = reference.selectors?.[0];
-            // Validate that reference resolves to existing an struct
-            let found: any = undefined;
-            for (const s of reference.selectors) {
-              const resolved = resolveSelectorMemo(s, expectedSelectorTypes);
-              if (resolved) {
-                found = resolved;
-              }
-            }
+    // What a reference's validation reads of the context by name or by type,
+    // which a change to the context's layer is checked against
+    // (`ReferenceValidationCache`). Everything else it reads is compared whole.
+    type Reads = { keys?: Set<string>; types?: Set<string> };
+    const readKey = (reads: Reads, type: string, name: string) => {
+      (reads.keys ??= new Set()).add(`${type}/${name}`);
+    };
+    const readType = (reads: Reads, type: string) => {
+      (reads.types ??= new Set()).add(type);
+    };
+    // `collectLayerNames` reads the layout, component and config tables.
+    const readsLayout = (reads: Reads) => {
+      readType(reads, "layout");
+      readType(reads, "component");
+      readType(reads, "config");
+      return true;
+    };
+    // `resolveSelector` looks a named selector up as `type/name`, then as the
+    // path `type.name`, whose first step is `type/<first segment>`. An empty
+    // segment searches the whole table, and so does a selector without a name.
+    const readSelector = (
+      reads: Reads,
+      selector: SparkSelector,
+      expectedSelectorTypes: string[],
+    ) => {
+      const types =
+        selector.types && selector.types.length > 0
+          ? selector.types
+          : expectedSelectorTypes;
+      for (const type of types) {
+        const path = `${type}.${selector.name ?? ""}`.split(".");
+        if (!selector.name || path.some((segment) => !segment)) {
+          readType(reads, path[0]!);
+          readType(reads, type);
+        } else {
+          readKey(reads, type, selector.name);
+          readKey(reads, path[0]!, path[1]!);
+        }
+      }
+    };
+    // Validates the reference at `[from, to)`, adding what it reports to
+    // `outcomes` at offsets relative to `offset`.
+    const check = (
+      reference: Reference,
+      from: number,
+      to: number,
+      offset: number,
+      outcomes: ReferenceOutcome[],
+      reads: Reads,
+    ) => {
+      const report = (severity: DiagnosticSeverity, message: string) => {
+        outcomes.push({
+          from: from - offset,
+          to: to - offset,
+          diagnostic: { severity, message },
+        });
+      };
+      if (reference.usage === "handler") {
+        // A Sparkle `@event=handler` that names a function/knot the runtime
+        // can't invoke — warn (it silently never fires). See ReferenceAnnotator.
+        const name = reference.symbolIds?.[0];
+        if (name && !handlerCallables.has(name)) {
+          report(
+            DiagnosticSeverity.Warning,
+            `Cannot find function \`${name}\` for this handler — define \`function ${name}() … end\`, or use an inline handler \`{ … }\``,
+          );
+        }
+        return;
+      }
+      if (reference.symbolIds) {
+        for (const symbolId of reference.symbolIds) {
+          if (this._config.definitions?.builtins?.[symbolId]) {
             if (
-              reference.stylingStringIdentifier &&
-              selector?.name &&
-              possibleStringIdentifiers.includes(selector?.name)
+              reference.declaration === "const" ||
+              reference.declaration === "var" ||
+              reference.declaration === "param"
             ) {
-              // Valid styling string identifier
-            } else if (found) {
-              // Validate that resolved reference matches expected type
-              if (
-                expectedSelectorTypes &&
-                expectedSelectorTypes.length > 0 &&
-                typeof found === "object" &&
-                "$type" in found &&
-                !expectedSelectorTypes.includes(found.$type)
-              ) {
-                // Report type mismatch error
-                const message = `Type '${
-                  found.$type
-                }' is not assignable to type ${formatList(
-                  expectedSelectorTypes,
-                )}`;
-                const range = doc.range(cur.from, cur.to);
-                program.diagnostics ??= {};
-                program.diagnostics[uri] ??= [];
-                program.diagnostics[uri].push({
-                  range,
-                  severity: DiagnosticSeverity.Warning,
-                  message: {
-                    value: message,
-                    kind: "markdown",
-                  },
-                  relatedInformation: [
-                    {
-                      location: { uri, range },
-                      message: "",
-                    },
-                  ],
-                  source: LANGUAGE_NAME,
-                });
-              }
-            } else if (namesLayoutElement(selector)) {
-              // Valid layer: an element declared in the UI tree
-            } else if (
-              reference.declaration === "define_type_name" &&
-              selector?.types?.some((type) => declaredParentTypes.has(type))
-            ) {
-              // Valid declared parent; navigation still uses $default when present.
-            } else {
-              // Report missing error
-              const validDescription =
-                selector && (selector.displayName || selector.name)
-                  ? selector.displayType
-                    ? `${selector.displayType} named \`${
+              report(
+                DiagnosticSeverity.Error,
+                `Cannot declare ${reference.declaration} named \`${symbolId}\`:\nConflicts with builtin type \`${symbolId}\``,
+              );
+            }
+          }
+        }
+      }
+      if (reference.selectors) {
+        const declaration = reference.assigned;
+        const possibleStringIdentifiers =
+          possibleStringIdentifiersFor(declaration);
+        const expectedSelectorTypes = expectedSelectorTypesFor(declaration);
+        if (expectedSelectorTypes.includes("color")) {
+          outcomes.push({ from: from - offset, to: to - offset, color: true });
+        }
+        const selector = reference.selectors?.[0];
+        // Validate that reference resolves to existing an struct
+        let found: any = undefined;
+        for (const s of reference.selectors) {
+          readSelector(reads, s, expectedSelectorTypes);
+          const resolved = resolveSelectorMemo(s, expectedSelectorTypes);
+          if (resolved) {
+            found = resolved;
+          }
+        }
+        if (
+          reference.stylingStringIdentifier &&
+          selector?.name &&
+          possibleStringIdentifiers.includes(selector?.name)
+        ) {
+          // Valid styling string identifier
+        } else if (found) {
+          // Validate that resolved reference matches expected type
+          if (
+            expectedSelectorTypes &&
+            expectedSelectorTypes.length > 0 &&
+            typeof found === "object" &&
+            "$type" in found &&
+            !expectedSelectorTypes.includes(found.$type)
+          ) {
+            // Report type mismatch error
+            report(
+              DiagnosticSeverity.Warning,
+              `Type '${found.$type}' is not assignable to type ${formatList(
+                expectedSelectorTypes,
+              )}`,
+            );
+          }
+        } else if (readsLayout(reads) && namesLayoutElement(selector)) {
+          // Valid layer: an element declared in the UI tree
+        } else if (
+          reference.declaration === "define_type_name" &&
+          selector?.types?.some((type) => declaredParentTypes.has(type))
+        ) {
+          // Valid declared parent; navigation still uses $default when present.
+        } else {
+          // Report missing error
+          const validDescription =
+            selector && (selector.displayName || selector.name)
+              ? selector.displayType
+                ? `${selector.displayType} named \`${
+                    selector.displayName || selector.name
+                  }\``
+                : selector.types && selector.types.length > 0
+                  ? `${selector.types[0]} named \`${
+                      selector.displayName || selector.name
+                    }\``
+                  : expectedSelectorTypes && expectedSelectorTypes.length > 0
+                    ? `${expectedSelectorTypes[0]} named \`${
                         selector.displayName || selector.name
                       }\``
-                    : selector.types && selector.types.length > 0
-                      ? `${selector.types[0]} named \`${
-                          selector.displayName || selector.name
-                        }\``
-                      : expectedSelectorTypes &&
-                          expectedSelectorTypes.length > 0
-                        ? `${expectedSelectorTypes[0]} named \`${
-                            selector.displayName || selector.name
-                          }\``
-                        : `\`${selector.displayName || selector.name}\``
-                  : selector && selector.types
-                    ? `type named \`${selector.types[0]}\``
-                    : `type`;
-              const type =
-                selector?.displayType ||
-                selector?.types?.[0] ||
-                expectedSelectorTypes[0];
-              const invalidStylingStringIdentifier =
-                reference.stylingStringIdentifier && !type;
-              const message = invalidStylingStringIdentifier
-                ? `Invalid property value`
-                : `Cannot find ${validDescription}`;
-              const severity = invalidStylingStringIdentifier
-                ? DiagnosticSeverity.Error
-                : DiagnosticSeverity.Warning;
-              const range = doc.range(cur.from, cur.to);
-              program.diagnostics ??= {};
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push({
-                range,
-                severity,
-                message: {
-                  value: message,
-                  kind: "markdown",
-                },
-                relatedInformation: [
-                  {
-                    location: { uri, range },
-                    message: "",
-                  },
-                ],
-                source: LANGUAGE_NAME,
-              });
-            }
-          } else if (reference.assigned) {
-            const declaration = reference.assigned;
-            const structType = declaration?.type;
-            const structName = declaration?.name || "$default";
-            const structProperty = declaration?.property;
-            if (structType && structProperty) {
-              // Validate struct property types
-              const struct = getContextEntry(program.context, structType, structName);
-              if (struct) {
-                const definedPropertyValue = readProperty(
-                  structProperty,
-                  struct,
-                );
-                if (definedPropertyValue !== undefined) {
-                  const expectedPropertyValue = this.getExpectedPropertyValue(
+                    : `\`${selector.displayName || selector.name}\``
+              : selector && selector.types
+                ? `type named \`${selector.types[0]}\``
+                : `type`;
+          const type =
+            selector?.displayType ||
+            selector?.types?.[0] ||
+            expectedSelectorTypes[0];
+          const invalidStylingStringIdentifier =
+            reference.stylingStringIdentifier && !type;
+          report(
+            invalidStylingStringIdentifier
+              ? DiagnosticSeverity.Error
+              : DiagnosticSeverity.Warning,
+            invalidStylingStringIdentifier
+              ? `Invalid property value`
+              : `Cannot find ${validDescription}`,
+          );
+        }
+      } else if (reference.assigned) {
+        const declaration = reference.assigned;
+        const structType = declaration?.type;
+        const structName = declaration?.name || "$default";
+        const structProperty = declaration?.property;
+        if (structType && structProperty) {
+          // Validate struct property types
+          readKey(reads, structType, structName);
+          const struct = getContextEntry(program.context, structType, structName);
+          if (struct) {
+            const definedPropertyValue = readProperty(structProperty, struct);
+            if (definedPropertyValue !== undefined) {
+              const expectedPropertyValue = this.getExpectedPropertyValue(
+                program,
+                declaration,
+              );
+              if (expectedPropertyValue != null) {
+                if (
+                  typeof definedPropertyValue !== typeof expectedPropertyValue
+                ) {
+                  const schemaPropertyValues = this.getSchemaPropertyValues(
                     program,
                     declaration,
                   );
-                  if (expectedPropertyValue != null) {
-                    if (
-                      typeof definedPropertyValue !==
-                      typeof expectedPropertyValue
-                    ) {
-                      const schemaPropertyValues = this.getSchemaPropertyValues(
-                        program,
-                        declaration,
-                      );
-                      const isSchemaSupportedScalarType =
-                        Array.isArray(schemaPropertyValues) &&
-                        schemaPropertyValues.some(
-                          (v) =>
-                            typeof v !== "object" &&
-                            typeof v === typeof definedPropertyValue,
-                        );
-                      if (!isSchemaSupportedScalarType) {
-                        const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue === "object" && "$type" in expectedPropertyValue ? expectedPropertyValue.$type : typeof expectedPropertyValue}' property`;
-                        const range = doc.range(cur.from, cur.to);
-                        program.diagnostics ??= {};
-                        program.diagnostics[uri] ??= [];
-                        program.diagnostics[uri].push({
-                          range,
-                          severity: DiagnosticSeverity.Error,
-                          message: {
-                            value: message,
-                            kind: "markdown",
-                          },
-                          relatedInformation: [
-                            {
-                              location: { uri, range },
-                              message: "",
-                            },
-                          ],
-                          source: LANGUAGE_NAME,
-                        });
-                      }
-                    }
+                  const isSchemaSupportedScalarType =
+                    Array.isArray(schemaPropertyValues) &&
+                    schemaPropertyValues.some(
+                      (v) =>
+                        typeof v !== "object" &&
+                        typeof v === typeof definedPropertyValue,
+                    );
+                  if (!isSchemaSupportedScalarType) {
+                    report(
+                      DiagnosticSeverity.Error,
+                      `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue === "object" && "$type" in expectedPropertyValue ? expectedPropertyValue.$type : typeof expectedPropertyValue}' property`,
+                    );
                   }
                 }
               }
             }
           }
-          cur.next();
         }
       }
+    };
+    // A preview compile neither reads nor keeps chunks' outcomes: what it
+    // validates is text the rollback takes back, and the blocks it lowers
+    // are never seen again (`previewCompile`).
+    const cache = this._previewing
+      ? undefined
+      : (this._referenceCache ??= new ReferenceValidationCache());
+    cache?.begin(
+      {
+        base: [
+          this._contextBase?.uri,
+          this._contextBase?.filesEpoch,
+          this._contextBase?.configKey,
+        ].join("\u0000"),
+        baseIds: this._contextBase?.ids ?? [],
+        definitions: this._config.definitions,
+        builtins: this._config.definitions?.builtins,
+        handlerCallables: [...handlerCallables].sort().join("\u0000"),
+        declaredParentTypes: [...declaredParentTypes].sort().join("\u0000"),
+      },
+      program.contextRevision ?? "",
+      this._contextLayerAdded ?? [],
+    );
+    const stats = (this._referenceValidationStats = {
+      validated: 0,
+      reused: 0,
+      stepped: 0,
+      chunksValidated: 0,
+      chunksServed: 0,
+    });
+    for (const uri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(uri);
+      if (!doc) {
+        continue;
+      }
+      const annotations = this.documents.annotations(uri);
+      const emit = (outcomes: ReferenceOutcome[], offset: number) => {
+        for (const outcome of outcomes) {
+          const range = doc.range(offset + outcome.from, offset + outcome.to);
+          if (outcome.color) {
+            program.colorAnnotations ??= {};
+            program.colorAnnotations[uri] ??= [];
+            program.colorAnnotations[uri].push(range);
+          }
+          if (outcome.diagnostic) {
+            program.diagnostics ??= {};
+            program.diagnostics[uri] ??= [];
+            program.diagnostics[uri].push({
+              range,
+              severity: outcome.diagnostic.severity,
+              message: {
+                value: outcome.diagnostic.message,
+                kind: "markdown",
+              },
+              relatedInformation: [
+                {
+                  location: { uri, range },
+                  message: "",
+                },
+              ],
+              source: LANGUAGE_NAME,
+            });
+          }
+        }
+      };
+      let cur = annotations.references.iter();
+      // Reports every reference that starts before `end`, from the outcomes
+      // kept for its annotation when they still hold, and returns how many
+      // there were.
+      const validateUntil = (
+        end: number,
+        offset: number,
+        outcomes: ReferenceOutcome[],
+        reads: Reads,
+      ) => {
+        let count = 0;
+        while (cur.value && cur.from < end) {
+          count += 1;
+          const annotation = cur.value;
+          const length = cur.to - cur.from;
+          const kept = cache?.reference(annotation);
+          let own: { outcomes: ReferenceOutcome[] } & Reads;
+          if (kept && kept.length === length) {
+            stats.reused += 1;
+            own = kept;
+          } else {
+            stats.validated += 1;
+            own = { outcomes: [] };
+            check(annotation.type, cur.from, cur.to, cur.from, own.outcomes, own);
+            cache?.keepReference(annotation, length, own.outcomes, own);
+          }
+          for (const outcome of own.outcomes) {
+            outcomes.push({
+              ...outcome,
+              from: outcome.from + cur.from - offset,
+              to: outcome.to + cur.from - offset,
+            });
+          }
+          for (const key of own.keys ?? []) {
+            (reads.keys ??= new Set()).add(key);
+          }
+          for (const type of own.types ?? []) {
+            readType(reads, type);
+          }
+          cur.next();
+        }
+        return count;
+      };
+      const chunks = annotations.compilations.iter();
+      for (; chunks.value; chunks.next()) {
+        const block = chunks.value.type as object;
+        const from = chunks.from;
+        const to = chunks.to;
+        // References outside every chunk belong to no block that could serve
+        // them whole, so they are visited on every compile, and each is served
+        // from its own annotation's outcomes when those still hold.
+        const loose: ReferenceOutcome[] = [];
+        validateUntil(from, 0, loose, {});
+        emit(loose, 0);
+        const kept = cache?.take(uri, block);
+        if (kept && kept.length === to - from) {
+          stats.chunksServed += 1;
+          emit(kept.outcomes, from);
+          // Seek past the chunk rather than stepping over its references one
+          // by one, once there are enough of them to be worth a seek.
+          if (kept.references >= 16) {
+            cur = annotations.references.iter(to);
+          }
+          while (cur.value && cur.from < to) {
+            stats.stepped += 1;
+            cur.next();
+          }
+          continue;
+        }
+        stats.chunksValidated += 1;
+        const reads: Reads = {};
+        const outcomes: ReferenceOutcome[] = [];
+        const references = validateUntil(to, from, outcomes, reads);
+        cache?.keep(uri, block, {
+          length: to - from,
+          references,
+          outcomes,
+          keys: reads.keys,
+          types: reads.types,
+        });
+        emit(outcomes, from);
+      }
+      const rest: ReferenceOutcome[] = [];
+      validateUntil(Number.POSITIVE_INFINITY, 0, rest, {});
+      emit(rest, 0);
     }
+    cache?.end();
     profile("end", this._profilerId, "validateReferences", uri);
   }
 
