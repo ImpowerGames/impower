@@ -330,8 +330,9 @@ export class Coordinator<G extends Game> {
         // The beat is on the page: the preview's prediction window follows
         // the cursor from here (sent once per cursor position; the beat's
         // own pictures were waited for by the preview before it displayed
-        // the beat, since there is no clock to wait on here).
-        assets.onBeatDisplayed();
+        // the beat, since there is no clock to wait on here). A composed beat
+        // is on the page once it has been sent (#1820).
+        game.module.ui.afterCompose(() => assets.onBeatDisplayed());
       }
       return;
     }
@@ -369,8 +370,9 @@ export class Coordinator<G extends Game> {
           // count.
           elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
           // The page has the beat and shows it at its stamp: move the
-          // prediction window past it.
-          assets.onBeatDisplayed();
+          // prediction window past it. A composed beat is on the page once it
+          // has been sent, and its pictures stay pinned until then (#1820).
+          game.module.ui.afterCompose(() => assets.onBeatDisplayed());
         }
       } else if (!finished) {
         elapsedMS += deltaMS;

@@ -6,6 +6,7 @@
 // targets the new beat does not write are emptied and the written ones
 // replaced.
 
+import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { BeatMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import AssetManager from "../../app/managers/AssetManager";
@@ -13,6 +14,7 @@ import {
   createDOMHarness,
   createStubApp,
   flushMicrotasks,
+  untilShown,
 } from "./domTestHarness";
 
 const SOURCE = `-> start
@@ -337,5 +339,114 @@ describe("a composed beat's dedupe against the live DOM (#1820)", () => {
     expect(h.overlay.querySelector(".dialogue > .text")).toBe(leaf);
     expect(leaf.textContent).toBe("Do you understand?");
     expect(rebuilt).toEqual([]);
+  });
+});
+
+describe("a composed beat on the page, round 1 of PR #1865", () => {
+  test("a message for another of the page's managers leaves a waiting beat waiting", async () => {
+    const { h, dialogue } = await showing();
+    const time = controlTime(h);
+    try {
+      h.ui.onReceiveNotification(
+        beat({
+          text: [write("dialogue", [{ text: "N", after: 0.1 }], { instant: false, time: 1_100 })],
+          time: 1_100,
+        }),
+      );
+      await time.at(1_010);
+      h.ui.onReceiveNotification({ jsonrpc: "2.0", method: "assets/prefetch", params: {} } as any);
+      void h.ui.onReceiveRequest({ jsonrpc: "2.0", id: "1", method: "audio/update", params: {} } as any);
+      await flushMicrotasks(10);
+      expect(dialogue()).toBe("Do you understand?");
+
+      await time.at(1_200);
+      expect(dialogue()).toBe("N");
+    } finally {
+      time.restore();
+    }
+  });
+
+  test("a leading space does not commit the beat before its first visible letter", async () => {
+    const { h, dialogue } = await showing();
+    const time = controlTime(h);
+    try {
+      h.ui.onReceiveNotification(
+        beat({
+          text: [
+            write(
+              "dialogue",
+              [
+                { text: " ", after: 0 },
+                { text: "H", after: 0.025 },
+              ],
+              { instant: false, time: 1_100 },
+            ),
+          ],
+          time: 1_100,
+        }),
+      );
+      await time.at(1_110);
+      expect(dialogue()).toBe("Do you understand?");
+
+      await time.at(1_125);
+      expect(dialogue()).toBe(" H");
+    } finally {
+      time.restore();
+    }
+  });
+});
+
+const HUD = `layout main with
+  textbox {
+    character_info {
+      character_name {
+        text
+      }
+    }
+    dialogue {
+      text
+    }
+  }
+end
+
+layout hud with
+  panel {
+    dialogue {
+      text "HUD label"
+    }
+  }
+end
+
+-> start
+
+scene start
+  HERO:
+    [[open hud]]
+    Hello.
+end
+`;
+
+describe("a composed beat's writes keep their place in its structure (#1820)", () => {
+  test("a layout the beat opens after its write keeps its own content", async () => {
+    // The beat writes the dialogue, then opens a layout with a dialogue of
+    // its own: the write went to the dialogue there was, as on the base.
+    const h = createDOMHarness(HUD, 0, { compose: true, autoOpenAll: false });
+    await h.ready;
+    h.game.module.ui.sweepReconcile();
+    await flushMicrotasks(10);
+    h.game.context.system.previewing = undefined;
+    h.jumpTo("start");
+    const next = h.nextBeat();
+    expect(next).toBeTruthy();
+    const coordinator = new Coordinator(h.game, next!);
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks();
+      coordinator.onUpdate({ deltaMS: 0 } as any);
+    }
+    await flushMicrotasks(10);
+    await untilShown(h.overlay);
+
+    expect(h.overlay.querySelector(".panel .dialogue > .text")?.textContent).toBe("HUD label");
+    expect(h.overlay.querySelector(".textbox .dialogue > .text")?.textContent).toBe("Hello.");
   });
 });

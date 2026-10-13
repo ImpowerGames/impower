@@ -74,6 +74,7 @@ const createGame = (
         beginCompose: () => false,
         composeWait: () => {},
         endCompose: async () => {},
+        afterCompose: (work: () => void) => work(),
         reveal: () => {},
         hideAll: () => {},
         observe: () => {},

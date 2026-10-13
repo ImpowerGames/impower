@@ -133,7 +133,7 @@ describe("a composed display (#1820)", () => {
     expect(opsOf(beat).some((m: any) => m.method === "ui/create")).toBe(true);
     // The targets the display leaves empty are explicit empties.
     const dialogue = beat.text.find((e: any) => e.target === "dialogue");
-    expect(dialogue).toEqual({ target: "dialogue", replace: true, writes: [] });
+    expect(dialogue).toMatchObject({ target: "dialogue", replace: true, writes: [] });
     expect(screenOps(h.messages)).toEqual([]);
   });
 
@@ -282,5 +282,125 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
       ...beats(after).flatMap((b) => opsOf(b)),
     ];
     expect(ops.some((m) => m.method === "ui/create" && m.params?.name === "hud")).toBe(false);
+  });
+});
+
+const SPRITE: File = {
+  uri: "file://proj/sprite.png",
+  type: "image",
+  name: "SPRITE",
+  ext: "png",
+  src: "/file:/proj/sprite.png?v=1",
+} as File;
+
+describe("composition, round 1 of PR #1865", () => {
+  test("a mount an abandoned display left waiting does not hold a newer display back", async () => {
+    // A beat opens a layout whose font is held; a newer preview, connected
+    // to a checkpoint from before it, sweeps a display with no layouts.
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.jumpToFlow("start");
+    const before = h.game.save() as string;
+    const beat = h.nextBeat();
+    const coordinator = new Coordinator(h.game, beat!);
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks(20);
+      coordinator.onUpdate(tick());
+    }
+    h.game.load(before);
+    h.game.context.system.previewing = true;
+    void h.reconnect();
+    await flushMicrotasks(40);
+    const mark = h.messages.length;
+
+    h.game.module.ui.sweepReconcile();
+    await flushMicrotasks(40);
+
+    // The newer display goes up although the old font is still held.
+    expect(beats(h.messages.slice(mark)).filter((b) => b.sweep)).toHaveLength(1);
+  });
+
+  test("a played beat that starts while the last one waits on what it realizes gets a beat of its own", async () => {
+    // The last beat waits on work that has not settled (a layout's font);
+    // the next beat starts. The last goes as it is, and the next is sent on
+    // its own, with its own writes.
+    const h = createHarness(STORY, 0, { beforeConnect: playing });
+    await h.ready;
+    h.reset();
+    const ui: any = h.game.module.ui;
+    expect(ui.beginCompose()).toBe(true);
+    void ui.text.write("dialogue", [{ text: "First" }], true);
+    ui.composeWait(new Promise(() => {}));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+    expect(beats(h.messages)).toEqual([]);
+
+    expect(ui.beginCompose()).toBe(true);
+    void ui.text.write("dialogue", [{ text: "Second" }], true);
+    void ui.endCompose({ time: 200 });
+    await flushMicrotasks(20);
+
+    const sent = beats(h.messages);
+    expect(sent.map((b: any) => b.time)).toEqual([100, 200]);
+    const texts = sent.map((b: any) =>
+      b.text.flatMap((e: any) => e.writes.flatMap((w: any) => w.instructions.map((i: any) => i.text))),
+    );
+    expect(texts).toEqual([["First"], ["Second"]]);
+  });
+
+  test("a played beat's pictures are let go only once its beat has gone to the page", async () => {
+    const h = createHarness(
+      `define SPRITE as image with\n  src = "${SPRITE.src}"\nend\n\n${STORY.replace("  HERO: The first line.", "  HERO:\n    [[show portrait SPRITE]]\n    The first line.")}`,
+      0,
+      { assets: [SPRITE], beforeConnect: playing },
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    h.reset();
+
+    await play(h);
+
+    const beatAt = h.messages.findIndex((m) => m.method === "ui/beat");
+    const releases = h.messages
+      .map((m, i) => ({ m, i }))
+      .filter(({ m }) => m.method === "assets/release" && (m.params?.pins ?? []).some((p: string) => p.startsWith("beat:")));
+    expect(beatAt).toBeGreaterThan(-1);
+    expect(releases.length).toBeGreaterThan(0);
+    expect(releases.every(({ i }) => i > beatAt)).toBe(true);
+  });
+
+  test("a beat does not wait for an animation already playing on the page", async () => {
+    // SEAM(#1820 layout transitions): a layout operation that only waits on
+    // an exit animation playing on the page does not hold the beat.
+    const h = createHarness(STORY, 0, { beforeConnect: playing });
+    await h.ready;
+    h.reset();
+    const ui: any = h.game.module.ui;
+    expect(ui.beginCompose()).toBe(true);
+    void ui.text.write("dialogue", [{ text: "New" }], true);
+    // Work that never settles, already waiting on an animation when the
+    // beat ends.
+    ui._animating = 1;
+    ui.composeWait(new Promise(() => {}));
+    void ui.endCompose({});
+    await flushMicrotasks(20);
+    ui._animating = 0;
+
+    expect(beats(h.messages)).toHaveLength(1);
+  });
+
+  test("a beat that waits on nothing leaves no subscription behind", async () => {
+    const h = createHarness(STORY, 0, { beforeConnect: playing });
+    await h.ready;
+    h.jumpToFlow("start");
+    await play(h);
+    await play(h);
+
+    expect((h.game.module.ui as any)._realizationChange).toBeUndefined();
   });
 });

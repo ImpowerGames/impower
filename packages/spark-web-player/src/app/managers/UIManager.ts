@@ -418,7 +418,7 @@ export default class UIManager extends Manager {
    * starts revealing: the display time its stamp gives plus the delay of the
    * first letter it reveals. Text it writes that the page already shows
    * reveals nothing (an unchanged name), and neither do the letters a
-   * continuation keeps (`shown`), so neither counts. A beat that reveals no
+   * continuation keeps (`shown`) or a space, so none of them counts. A beat that reveals no
    * text commits at its display time. A display time far from the page's
    * clock (a clock that has not synced) is not waited for.
    */
@@ -438,6 +438,11 @@ export default class UIManager extends Manager {
       }
       for (const write of entry.writes) {
         for (const instruction of write.instructions.slice(write.shown ?? 0)) {
+          // A space paints nothing: the beat starts revealing with the first
+          // letter that shows.
+          if (instruction.text != null && !/\S/.test(instruction.text)) {
+            continue;
+          }
           const after = instruction.after ?? 0;
           first = first == null ? after : Math.min(first, after);
         }
@@ -502,7 +507,12 @@ export default class UIManager extends Manager {
         return;
       }
       this.applyBeatMessage(
-        type.request({ target: entry.target, instructions: [], instant: true } as unknown as P),
+        type.request({
+          target: entry.target,
+          instructions: [],
+          instant: true,
+          ...(entry.elements ? { elements: entry.elements } : {}),
+        } as unknown as P),
       );
     }
     for (const write of entry.writes) {
@@ -536,7 +546,10 @@ export default class UIManager extends Manager {
       return false;
     }
     const sig = JSON.stringify(last.instructions);
-    const els = this.findTargetElements(entry.target);
+    const els = this.onlyElements(
+      this.findTargetElements(entry.target),
+      (last as { elements?: string[] }).elements ?? entry.elements,
+    );
     if (els.length === 0 || !els.every((el) => (el as any)[signature] === sig)) {
       return false;
     }
@@ -550,9 +563,24 @@ export default class UIManager extends Manager {
     return true;
   }
 
+  /** The elements of `els` a composed write names (#1820): the target as it
+   *  resolved where the write stands in the beat. All of them when it names
+   *  none. */
+  protected onlyElements(els: HTMLElement[], elements?: string[]): HTMLElement[] {
+    if (!elements) {
+      return els;
+    }
+    const named = new Set(elements);
+    return els.filter((el) => named.has((el as any).__sdId));
+  }
+
   override async onReceiveRequest(msg: RequestMessage) {
-    // What arrives after a beat waiting for its commit goes up after it.
-    this.flushPendingBeat();
+    // A screen op that arrives after a beat waiting for its commit goes up
+    // after it. Messages for the page's other managers (assets, audio, the
+    // game's reports) reach this one too, and leave the beat waiting.
+    if (msg.method.startsWith("ui/")) {
+      this.flushPendingBeat();
+    }
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
@@ -824,6 +852,7 @@ export default class UIManager extends Manager {
         params.instant,
         this.getDisplayTime(params.time),
         params.shown,
+        params.elements,
       );
       return WriteTextMessage.type.result(params.target);
     }
@@ -833,6 +862,7 @@ export default class UIManager extends Manager {
         params.target,
         params.instructions,
         this.getDisplayTime(params.time),
+        params.elements,
       );
       return WriteImageMessage.type.result(params.target);
     }
@@ -867,8 +897,12 @@ export default class UIManager extends Manager {
       this.receiveBeat(msg.params);
       return;
     }
-    // What arrives after a beat waiting for its commit goes up after it.
-    this.flushPendingBeat();
+    // A screen op that arrives after a beat waiting for its commit goes up
+    // after it. Messages for the page's other managers (assets, audio, the
+    // game's reports) reach this one too, and leave the beat waiting.
+    if (msg.method.startsWith("ui/")) {
+      this.flushPendingBeat();
+    }
     // The game opens a pass at every connect and closes it once the stream
     // has written everything it shows.
     if (BeginReconcileMessage.type.isNotification(msg)) {
@@ -1169,8 +1203,9 @@ export default class UIManager extends Manager {
     instant: boolean,
     startTime?: number,
     shown = 0,
+    elements?: string[],
   ) {
-    const targetEls = this.findTargetElements(target);
+    const targetEls = this.onlyElements(this.findTargetElements(target), elements);
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
     // target already shows exactly this write, leave it untouched. Stored on the
@@ -1321,8 +1356,9 @@ export default class UIManager extends Manager {
     target: string,
     instructions: WriteImageInstruction[],
     startTime?: number,
+    elements?: string[],
   ) {
-    const targetEls = this.findTargetElements(target);
+    const targetEls = this.onlyElements(this.findTargetElements(target), elements);
     // This target has been written this pass, so the sweep must leave its layers
     // alone. Marked BEFORE the dedup below: re-writing the image already on
     // screen is the commonest case on a re-render (restore replays it), and

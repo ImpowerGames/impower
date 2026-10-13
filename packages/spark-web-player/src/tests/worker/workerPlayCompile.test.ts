@@ -114,6 +114,13 @@ const run = async (compileAt?: number) => {
     };
     for (const m of sent) {
       if (m.method === "ui/write-text") collect(m.params);
+      // A played beat's writes reach the page inside its composed beat
+      // (#1820).
+      if (m.method === "ui/beat") {
+        for (const entry of m.params.text ?? []) {
+          for (const write of entry.writes) collect(write);
+        }
+      }
     }
     const text = texts.join("");
     return { sent, compiled, text };

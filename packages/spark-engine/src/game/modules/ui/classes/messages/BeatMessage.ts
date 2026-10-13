@@ -15,6 +15,9 @@ export interface BeatContent<P> {
   replace: boolean;
   /** The writes, in order, as `ui/write-text` or `ui/write-image` carry them. */
   writes: P[];
+  /** The structural ids of the elements the target resolved to when the beat
+   *  first touched it. */
+  elements?: string[];
 }
 
 export interface BeatParams {
