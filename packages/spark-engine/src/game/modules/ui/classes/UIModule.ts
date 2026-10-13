@@ -79,9 +79,9 @@ import {
   type DestroyElementMessageMap,
 } from "./messages/DestroyElementMessage";
 import {
-  HoldClearMessage,
-  type HoldClearMessageMap,
-} from "./messages/HoldClearMessage";
+  FrameMessage,
+  type FrameMessageMap,
+} from "./messages/FrameMessage";
 import {
   MoveElementMessage,
   type MoveElementMessageMap,
@@ -486,7 +486,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   BeginReconcileMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
-  HoldClearMessageMap &
+  FrameMessageMap &
   MoveElementMessageMap &
   ObserveElementMessageMap &
   SetThemeMessageMap &
@@ -651,13 +651,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /** Close the reconcile pass this connect opened: the page removes what it
-   *  still shows that the stream did not emit again, and applies the clears
-   *  it still holds ({@link _holdingClears}). Sent once the stream's last
-   *  write has gone out, after every op still buffered. */
+   *  still shows that the stream did not emit again. Sent once the stream's
+   *  last write has gone out, after every op still buffered. */
   sweepReconcile() {
-    this._holdingClears = false;
     this.flushUIBatch();
     this.emit(SweepReconcileMessage.type.notification({}));
+  }
+
+  /** Open a frame: what the screen changes until {@link closeFrame} reaches
+   *  it in one task (#1820). A beat brackets its own writes this way. A route
+   *  replay or a simulation shows nothing, so it brackets nothing. */
+  openFrame() {
+    if (this._game.replaying || this.context?.system?.simulating) {
+      return false;
+    }
+    this.flushUIBatch();
+    this.emit(FrameMessage.type.notification({ open: true }));
+    return true;
+  }
+
+  /** Close the frame {@link openFrame} opened, after every op still
+   *  buffered. */
+  closeFrame() {
+    this.flushUIBatch();
+    this.emit(FrameMessage.type.notification({ open: false }));
   }
 
   override async onConnected() {
@@ -665,7 +682,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
     this.flushUIBatch();
-    this.emit(BeginReconcileMessage.type.notification({}));
+    const previewing = this.context?.system?.previewing;
+    this.emit(
+      BeginReconcileMessage.type.notification(
+        previewing != null && previewing !== false ? { hold: true } : {},
+      ),
+    );
     const epoch = this._game.connection.epoch;
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
@@ -705,61 +727,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this.loadTheme();
     const transientTargets = this.getTransientTargets();
-    const previewing = this.context?.system?.previewing;
-    this._holdingClears = previewing != null && previewing !== false;
     await Promise.all([
       this.text.clearAll(transientTargets),
       this.image.clearAll(transientTargets),
     ]);
-  }
-
-  /**
-   * Whether a clear is sent for the page to hold (#1820): from a previewing
-   * connect until its preview has written the beat, or the pass's sweep.
-   *
-   * A preview display re-emits a screen the page is already showing, and its
-   * messages reach the page as separate tasks, between any two of which the
-   * page can render a frame. A clear the page applied at once showed such a
-   * frame with the box's text, the name or the portrait gone before the write
-   * that replaces it: the connect's clear always lands frames before the
-   * restore and the beat, and the beat's own clear can land a frame before
-   * its writes. Held, a target's clear applies with the next message that
-   * touches it, its hiding with the update that shows the target again and
-   * its content with the write that refills it, so no frame shows the target
-   * empty in between; what nothing touches goes at the sweep. A connect that
-   * is not a preview (PLAY's) clears at once, since no sweep follows it.
-   */
-  protected _holdingClears = false;
-
-  /** Whether a clear now is held: in the window above, while the game is
-   *  still a preview (a game PLAY starts is not one any more). */
-  protected get holdingClears(): boolean {
-    const previewing = this.context?.system?.previewing;
-    return this._holdingClears && previewing != null && previewing !== false;
-  }
-
-  override onPreview() {
-    this._holdingClears = false;
-  }
-
-  /** Send the page clears to hold of `targets`, of the content kinds named.
-   *  The module's state is the caller's to clear. */
-  protected holdClears(
-    targets: string[],
-    kind: { text?: boolean; image?: boolean },
-  ) {
-    if (targets.length === 0) {
-      return;
-    }
-    this.enqueueUI(
-      HoldClearMessage.type.notification({
-        targets: targets.map((target) => ({
-          target,
-          elements: this.findIds(target),
-          ...kind,
-        })),
-      }),
-    );
   }
 
   override async onRestore() {
@@ -4161,22 +4132,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       async clear(target: string) {
         this.saveState(target, null);
         if (!$.context?.system?.simulating) {
-          if ($.holdingClears) {
-            $.holdClears([target], { text: true });
-          } else {
-            await this.applyChanges(target, null, true);
-          }
+          await this.applyChanges(target, null, true);
         }
       }
 
       async clearAll(targets: string[]) {
-        if ($.holdingClears && !$.context?.system?.simulating) {
-          for (const target of targets) {
-            this.saveState(target, null);
-          }
-          $.holdClears(targets, { text: true });
-          return;
-        }
         await Promise.all(targets.map((target) => this.clear(target)));
       }
 
@@ -4566,22 +4526,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       async clear(target: string) {
         this.saveState(target, null);
         if (!$.context?.system?.simulating) {
-          if ($.holdingClears) {
-            $.holdClears([target], { image: true });
-          } else {
-            await this.applyChanges(target, null, true);
-          }
+          await this.applyChanges(target, null, true);
         }
       }
 
       async clearAll(targets: string[]) {
-        if ($.holdingClears && !$.context?.system?.simulating) {
-          for (const target of targets) {
-            this.saveState(target, null);
-          }
-          $.holdClears(targets, { image: true });
-          return;
-        }
         await Promise.all(targets.map((target) => this.clear(target)));
       }
 

@@ -1,16 +1,20 @@
-// Redrawing the preview must never paint a frame with the box's text, the name
-// or the portrait gone (#1820).
+// Redrawing the preview, or playing the next beat, must never paint a frame
+// with the box's text, the name or the portrait gone, or with part of the
+// screen changed and part not yet (#1820).
 //
 // Every display connects the game, and the connect clears each clear-on-continue
 // target (the portrait, the dialogue, the name, the choices); the beat then
-// clears them again before it writes them. The page handles each message as a
-// task of its own and can render a frame between any two, so a clear applied
-// when it arrived showed frames with the box and the portrait empty: always
-// between the connect and the restore, sometimes between the beat's clear and
-// its writes. A preview display now has the page hold its clears and apply
-// each with the message that next touches the target, so every frame shows
-// either what the target showed before the display or what it shows after.
+// clears them again before it writes them, and the sweep takes away what the
+// display no longer shows. The page handles each message as a task of its own
+// and can render a frame between any two, so a clear applied when it arrived
+// showed frames with the box and the portrait empty. The page now holds a
+// preview display from its reconcile pass to its sweep, and a beat from its
+// frame's open to its close, and puts what it held on the screen in one task:
+// every frame shows the whole of what the screen showed before or the whole of
+// what it shows after.
 
+import { type Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
+import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -31,17 +35,21 @@ scene start
 
   HERO:
     [[${picture}]]
+    Do you understand?
+
+  HERO:
     ${words}
 end
 `;
 
-const BEFORE = source("a", "Do you understand?");
+const BEFORE = source("a", "Do you know?");
 
 const lineOf = (src: string, text: string) =>
   src.split("\n").findIndex((l) => l.includes(text));
 
 const ACTION_LINE = lineOf(BEFORE, "The rain has not let up.");
 const DIALOGUE_LINE = lineOf(BEFORE, "Do you understand?");
+const NEXT_LINE = lineOf(BEFORE, "Do you know?");
 
 /** Whether the element and every ancestor up to the overlay are displayed. */
 function displayed(el: Element | null, overlay: HTMLElement): boolean {
@@ -81,12 +89,12 @@ function frame(overlay: HTMLElement) {
   };
 }
 
-/** The beat on the dialogue line, on screen as a preview leaves it, with
- *  every frame the page could show recorded while `recording` is on. */
-async function previewingTheDialogue() {
+/** The beat on `line`, on screen as a preview leaves it, with every frame
+ *  the page could show recorded while `recording` is on. */
+async function previewing(line = DIALOGUE_LINE, src = BEFORE) {
   const frames: Frame[] = [];
   let recording = false;
-  const h = createDOMHarness(BEFORE, DIALOGUE_LINE, {
+  const h = createDOMHarness(src, line, {
     afterEachMessage: () => {
       if (recording) {
         frames.push(frame(h.overlay));
@@ -94,7 +102,7 @@ async function previewingTheDialogue() {
     },
   });
   await h.ready;
-  await h.rerender(BEFORE, DIALOGUE_LINE);
+  await h.rerender(src, line);
   await flushMicrotasks(10);
   return {
     h,
@@ -105,52 +113,60 @@ async function previewingTheDialogue() {
   };
 }
 
-/** The parts of `seen` that show neither what was there before nor after. */
-function torn(seen: Frame[], before: Frame, after: Frame) {
-  const parts = Object.keys(before) as (keyof Frame)[];
+/** The frames in `seen` that are neither the whole of what the page showed
+ *  before nor the whole of what it shows after: some part changed while
+ *  another had not yet, or a part showed neither. */
+function mixed(seen: Frame[], before: Frame, after: Frame) {
+  const same = (a: Frame, b: Frame) => JSON.stringify(a) === JSON.stringify(b);
   return seen.flatMap((f, i) =>
-    parts
-      .filter(
-        (part) =>
-          JSON.stringify(f[part]) !== JSON.stringify(before[part]) &&
-          JSON.stringify(f[part]) !== JSON.stringify(after[part]),
-      )
-      .map((part) => `message ${i}: ${part} = ${JSON.stringify(f[part])}`),
+    same(f, before) || same(f, after)
+      ? []
+      : [`message ${i}: ${JSON.stringify(f)}`],
   );
 }
+
+const SPOKEN = {
+  textbox: true,
+  dialogue: "Do you understand?",
+  name: "HERO",
+  action: "",
+  portrait: ["a"],
+};
+
+const ACTION = {
+  textbox: true,
+  dialogue: "",
+  name: "",
+  action: "The rain has not let up.",
+  portrait: [],
+};
 
 describe("redrawing the preview keeps the beat on screen (#1820)", () => {
   test("the dialogue beat is on screen before the edit", async () => {
     // The control: the tests below compare against this frame.
-    const { h } = await previewingTheDialogue();
-    expect(frame(h.overlay)).toEqual({
-      textbox: true,
-      dialogue: "Do you understand?",
-      name: "HERO",
-      action: "",
-      portrait: ["a"],
-    });
+    const { h } = await previewing();
+    expect(frame(h.overlay)).toEqual(SPOKEN);
   });
 
-  test("an edited dialogue line shows the old line or the new one in every frame", async () => {
-    const { h, frames, record } = await previewingTheDialogue();
+  test("an edited dialogue line shows the old beat or the new one in every frame", async () => {
+    const { h, frames, record } = await previewing(NEXT_LINE);
     const before = frame(h.overlay);
-    const edited = source("a", "Do you know?");
+    const edited = source("a", "Do you see?");
 
     record(true);
-    await h.rerender(edited, lineOf(edited, "Do you know?"));
+    await h.rerender(edited, lineOf(edited, "Do you see?"));
     record(false);
 
     const after = frame(h.overlay);
-    expect(after).toEqual({ ...before, dialogue: "Do you know?" });
+    expect(after).toEqual({ ...before, dialogue: "Do you see?" });
     expect(frames.length).toBeGreaterThan(0);
-    expect(torn(frames, before, after)).toEqual([]);
+    expect(mixed(frames, before, after)).toEqual([]);
   });
 
-  test("a changed portrait shows the old picture or the new one in every frame, never both", async () => {
-    const { h, frames, record } = await previewingTheDialogue();
+  test("a changed portrait shows the old beat or the new one in every frame, never both pictures", async () => {
+    const { h, frames, record } = await previewing();
     const before = frame(h.overlay);
-    const edited = source("b", "Do you understand?");
+    const edited = source("b", "Do you know?");
 
     record(true);
     await h.rerender(edited, DIALOGUE_LINE);
@@ -158,17 +174,56 @@ describe("redrawing the preview keeps the beat on screen (#1820)", () => {
 
     const after = frame(h.overlay);
     expect(after).toEqual({ ...before, portrait: ["b"] });
-    expect(torn(frames, before, after)).toEqual([]);
+    expect(mixed(frames, before, after)).toEqual([]);
   });
 
-  test("after a display taken over before its sweep, the next one still shows the old portrait or the new one in every frame", async () => {
+  test("the name stays up from one dialogue beat to the next", async () => {
+    const { h, frames, record } = await previewing();
+    const before = frame(h.overlay);
+
+    record(true);
+    await h.rerender(BEFORE, NEXT_LINE);
+    record(false);
+
+    const after = frame(h.overlay);
+    expect(after).toEqual({ ...before, dialogue: "Do you know?", portrait: [] });
+    expect(frames.filter((f) => f.name !== "HERO")).toEqual([]);
+    expect(mixed(frames, before, after)).toEqual([]);
+  });
+
+  test("a beat that leaves the box empty takes it away in the same frame as it shows its own", async () => {
+    const { h, frames, record } = await previewing();
+    const before = frame(h.overlay);
+
+    record(true);
+    await h.rerender(BEFORE, ACTION_LINE);
+    record(false);
+
+    expect(frame(h.overlay)).toEqual(ACTION);
+    expect(mixed(frames, before, ACTION)).toEqual([]);
+  });
+
+  test("scrubbing from the action to the dialogue shows one beat or the other in every frame", async () => {
+    const { h, frames, record } = await previewing(ACTION_LINE);
+    const before = frame(h.overlay);
+    expect(before).toEqual(ACTION);
+
+    record(true);
+    await h.rerender(BEFORE, DIALOGUE_LINE);
+    record(false);
+
+    expect(frame(h.overlay)).toEqual(SPOKEN);
+    expect(mixed(frames, before, SPOKEN)).toEqual([]);
+  });
+
+  test("after a display taken over before its sweep, the next one still shows the old beat or the new one in every frame", async () => {
     // Arrowing through suggestions: a display connects, a newer one takes
     // over before it writes its beat, and the newer one's create stream
-    // rebuilds the layout inside the portrait while the first one's clears
+    // rebuilds the layout inside the portrait while the first one's writes
     // are still held.
-    const { h, frames, record } = await previewingTheDialogue();
+    const { h, frames, record } = await previewing();
     const before = frame(h.overlay);
-    const edited = source("b", "Do you understand?");
+    const edited = source("b", "Do you know?");
 
     record(true);
     await h.rerender(BEFORE, DIALOGUE_LINE, { connectOnly: true });
@@ -177,15 +232,15 @@ describe("redrawing the preview keeps the beat on screen (#1820)", () => {
 
     const after = frame(h.overlay);
     expect(after).toEqual({ ...before, portrait: ["b"] });
-    expect(torn(frames, before, after)).toEqual([]);
+    expect(mixed(frames, before, after)).toEqual([]);
   });
 
   test("while the display waits for its beat, the page still shows the last one", async () => {
-    const { h } = await previewingTheDialogue();
+    const { h } = await previewing();
     const before = frame(h.overlay);
     let between: Frame | undefined;
 
-    await h.rerender(source("b", "Do you know?"), DIALOGUE_LINE, {
+    await h.rerender(source("b", "Do you see?"), DIALOGUE_LINE, {
       afterConnect: () => {
         between = frame(h.overlay);
       },
@@ -194,34 +249,18 @@ describe("redrawing the preview keeps the beat on screen (#1820)", () => {
     expect(between).toEqual(before);
   });
 
-  test("a beat that writes none of them still takes them away, by the sweep", async () => {
-    const { h } = await previewingTheDialogue();
-
-    await h.rerender(BEFORE, ACTION_LINE);
-
-    expect(frame(h.overlay)).toEqual({
-      textbox: true,
-      dialogue: "",
-      name: "",
-      action: "The rain has not let up.",
-      portrait: [],
-    });
-  });
-
-  test("a display taken over before its sweep leaves its clears to the next one", async () => {
-    const { h } = await previewingTheDialogue();
+  test("a display taken over before its sweep leaves what it sent to the next one", async () => {
+    const { h, frames, record } = await previewing();
+    const before = frame(h.overlay);
 
     // Connected, never previewed, never swept: a later display took it over.
+    record(true);
     await h.rerender(BEFORE, DIALOGUE_LINE, { connectOnly: true });
     await h.rerender(BEFORE, ACTION_LINE);
+    record(false);
 
-    expect(frame(h.overlay)).toEqual({
-      textbox: true,
-      dialogue: "",
-      name: "",
-      action: "The rain has not let up.",
-      portrait: [],
-    });
+    expect(frame(h.overlay)).toEqual(ACTION);
+    expect(mixed(frames, before, ACTION)).toEqual([]);
   });
 
   test("a first connect on an empty page hides the empty targets at once", async () => {
@@ -232,5 +271,68 @@ describe("redrawing the preview keeps the beat on screen (#1820)", () => {
     for (const target of [".dialogue", ".character_name", ".portrait"]) {
       expect(displayed(h.overlay.querySelector(target), h.overlay)).toBe(false);
     }
+  });
+});
+
+const PLAYED = `-> start
+
+scene start
+  HERO: Do you understand?
+
+  HERO: Do you know?
+end
+`;
+
+const tick = (deltaMS = 0) => ({ deltaMS }) as Clock;
+
+describe("playing the next beat keeps the screen whole (#1820)", () => {
+  test("the name stays up from one played dialogue beat to the next", async () => {
+    const frames: Frame[] = [];
+    let recording = false;
+    const h = createDOMHarness(PLAYED, 0, {
+      afterEachMessage: () => {
+        if (recording) {
+          frames.push(frame(h.overlay));
+        }
+      },
+    });
+    await h.ready;
+    h.game.context.system.previewing = undefined;
+    h.jumpTo("start");
+    const play = async () => {
+      const beat = h.nextBeat();
+      expect(beat).toBeTruthy();
+      const coordinator = new Coordinator(h.game, beat!);
+      for (let i = 0; i < 10; i += 1) {
+        await flushMicrotasks();
+        coordinator.onUpdate(tick());
+      }
+      await flushMicrotasks(10);
+    };
+    await play();
+    const before = frame(h.overlay);
+    expect(before).toMatchObject({ name: "HERO", dialogue: "Do you understand?" });
+    // The same name written again is left as it is: its content is not
+    // rebuilt.
+    const name = h.overlay.querySelector(".character_name")!;
+    const rebuilt: MutationRecord[] = [];
+    const win = h.overlay.ownerDocument.defaultView as any;
+    const observer = new win.MutationObserver((records: MutationRecord[]) =>
+      rebuilt.push(...records),
+    );
+    observer.observe(name, { childList: true, subtree: true, characterData: true });
+
+    recording = true;
+    await play();
+    recording = false;
+    rebuilt.push(...observer.takeRecords());
+    observer.disconnect();
+
+    const after = frame(h.overlay);
+    expect(after).toEqual({ ...before, dialogue: "Do you know?" });
+    expect(frames.length).toBeGreaterThan(0);
+    expect(frames.filter((f) => f.name !== "HERO")).toEqual([]);
+    expect(rebuilt).toEqual([]);
+    expect(mixed(frames, before, after)).toEqual([]);
   });
 });

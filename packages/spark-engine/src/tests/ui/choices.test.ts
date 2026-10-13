@@ -69,10 +69,6 @@ describe("choices", () => {
 
     const observed = harness.observedElementIds();
     expect(observed.length).toBe(3);
-    // The preview has written its beat, which ends its hold on clears
-    // (#1820): no choice can be clicked before that, so the click's clears
-    // apply at once.
-    harness.game.module.ui.onPreview();
 
     // Click choice 0; capture only what the round-trip produces.
     harness.reset();

@@ -42,6 +42,10 @@ describe("stream epochs", () => {
       h.router.receive(arrived);
     });
     await flushMicrotasks(10);
+    // Its sweep goes with them: a preview pass shows nothing until it sweeps
+    // (#1820), so without it the control below would have nothing to see.
+    h.game.module.ui.sweepReconcile();
+    await flushMicrotasks(10);
     expect(late.length).toBeGreaterThan(0);
     expect(new Set(late.map((m) => m.epoch))).toEqual(new Set([2]));
 

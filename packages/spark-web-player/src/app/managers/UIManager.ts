@@ -15,7 +15,7 @@ import { BatchElementsMessage } from "../../../../spark-engine/src/game/modules/
 import { BeginReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeginReconcileMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
-import { HoldClearMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/HoldClearMessage";
+import { FrameMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/FrameMessage";
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
@@ -32,24 +32,25 @@ import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/u
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
-/** What the page still holds of the clears of one element
- *  (`UIManager.heldClears`). */
-interface HeldClear {
-  /** Whether it is still to be hidden. */
-  hide: boolean;
-  /** Whether hiding it also removes its `text` attribute (a text clear). */
-  textAttr: boolean;
-  /** The text content still to be removed: the nodes its `text` and
-   *  `stroke` held when the text clear arrived. Absent when none is held. */
-  text?: Set<Node>;
-  /** The same for the image clear, from its `image` and `mask`. */
-  image?: Set<Node>;
+/** A screen message the page holds (`UIManager.hold`), with the answer
+ *  owed to it when it is a request answered once applied. */
+interface HeldMessage {
+  message: RequestMessage | NotificationMessage;
+  answer?: (result: unknown) => void;
 }
 
-/** The content elements a text clear empties, and those an image clear
- *  empties. */
-const TEXT_CONTENT = ["text", "stroke"] as const;
-const IMAGE_CONTENT = ["image", "mask"] as const;
+interface HeldScreen {
+  pass: boolean;
+  frames: number;
+  queue: HeldMessage[];
+  timer?: ReturnType<typeof setTimeout>;
+  /** Puts up what is held through the manager now showing the overlay. */
+  release?: () => void;
+}
+
+/** How long a preview pass may hold the screen before what it holds goes up
+ *  anyway: longer than any display waits for its pictures. */
+const HOLD_LIMIT_MS = 10_000;
 
 /**
  * Apply one engine-sent attribute to a realized element.
@@ -181,33 +182,6 @@ export default class UIManager extends Manager {
    */
   protected _placeCursor = new Map<Element, Element>();
 
-  /** Elements this reconcile pass built rather than reused. A clear the
-   *  connect holds for them applies at once: they have nothing on screen to
-   *  keep, and held, an empty box would paint until the beat. */
-  protected _createdThisPass = new WeakSet<Element>();
-
-  /**
-   * Clears a preview display sent that the page has not applied yet
-   * (`ui/reconcile-clear`, #1820), by element. A held clear has two parts,
-   * applied as late as the messages after it allow: the element's hiding
-   * just before the next message that updates, animates, moves or destroys
-   * it, and the content the clear empties just before the next write to it,
-   * so it never shows empty between its clear and what replaces it. The
-   * sweep applies what is left. Kept on the overlay, like the write
-   * signatures on its nodes, so a display another one takes over before its
-   * sweep leaves them to the next manager and pass rather than losing them.
-   */
-  protected get heldClears(): Map<HTMLElement, HeldClear> | undefined {
-    const overlay = this.app.overlay as
-      | (HTMLElement & { __sdHeldClears?: Map<HTMLElement, HeldClear> })
-      | undefined;
-    if (!overlay) {
-      return undefined;
-    }
-    overlay.__sdHeldClears ??= new Map();
-    return overlay.__sdHeldClears;
-  }
-
   override async onInit() {
     await super.onInit();
     // A fresh UIManager built for a re-render inherits the prior render's overlay
@@ -222,7 +196,6 @@ export default class UIManager extends Manager {
     this._staleIds.clear();
     this._staleImageTargets.clear();
     this._placeCursor.clear();
-    this._createdThisPass = new WeakSet();
     const overlay = this.app.overlay;
     if (overlay) {
       // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
@@ -230,15 +203,8 @@ export default class UIManager extends Manager {
       // create stream never re-emits — the sweep would then delete a live
       // element. Elements this manager did not create carry no `__sdId` and
       // are correctly left alone.
-      //
-      // Not what a held clear removes (#1820): applied at once, that clear had
-      // detached it, and a pass that opened then could not have found it here.
-      const keep = this.connectedAsCleared();
       overlay.querySelectorAll("*").forEach((node) => {
         const el = node as HTMLElement;
-        if (!keep(el)) {
-          return;
-        }
         const structural = (el as any).__sdId;
         if (structural) {
           this._staleIds.add(structural);
@@ -254,16 +220,9 @@ export default class UIManager extends Manager {
     }
   }
 
-  /** End a reconcile pass: apply the clears still held, then remove elements
-   *  that survived from the previous render but weren't re-emitted (touched)
-   *  this pass — the mark-and-sweep tail. */
+  /** End a reconcile pass: remove elements that survived from the previous render
+   *  but weren't re-emitted (touched) this pass — the mark-and-sweep tail. */
   sweepReconcile() {
-    const held = this.heldClears;
-    if (held) {
-      for (const el of Array.from(held.keys())) {
-        this.applyHeld(el);
-      }
-    }
     for (const id of this._staleIds) {
       this.removeElementById(id);
     }
@@ -287,338 +246,6 @@ export default class UIManager extends Manager {
       }
     }
     delete (el as any).__sdImg;
-  }
-
-  /** Hold a target's clear, element by element, until the messages after it
-   *  touch each element, or the sweep. The hiding is held for the elements
-   *  the game named, and the content for those the target names on the page
-   *  now: the very nodes their content elements hold now, which are what the
-   *  clear applied at once would have removed. An element, a content slot or
-   *  a node created later is not this clear's to empty. An element this pass
-   *  built is cleared at once, since it has nothing on screen to keep. */
-  protected holdClear(clear: {
-    target: string;
-    elements: string[];
-    text?: boolean;
-    image?: boolean;
-  }) {
-    const parts = new Map<HTMLElement, HeldClear>();
-    const part = (el: HTMLElement) => {
-      let entry = parts.get(el);
-      if (!entry) {
-        entry = { hide: false, textAttr: false };
-        parts.set(el, entry);
-      }
-      return entry;
-    };
-    for (const id of clear.elements) {
-      const el = this.getElement(id);
-      if (el && el !== this.app.overlay) {
-        const entry = part(el);
-        entry.hide = true;
-        entry.textAttr ||= Boolean(clear.text);
-      }
-    }
-    const held = this.heldClears;
-    // Applied at once, an empty write removes nothing when every element of
-    // its target already shows an empty write (`writeText` and `writeImage`
-    // dedupe on the signature), so a held clear decides the same, now. An
-    // element whose clear of that kind is still held counts as cleared: the
-    // clear applied at once would already have signed it.
-    // An element inside content another held clear removes, applied at once,
-    // was already detached by that clear, so this clear's empty writes, which
-    // resolve the target among connected elements, neither emptied nor signed
-    // it. Its hiding still came, by id.
-    const targetEls = this.findTargetElements(
-      clear.target,
-      this.connectedAsCleared(),
-    );
-    const empty = JSON.stringify([]);
-    const shownEmpty = (kind: "text" | "image") =>
-      targetEls.length > 0 &&
-      targetEls.every(
-        (el) =>
-          held?.get(el)?.[kind] != null ||
-          (el as any)[kind === "text" ? "__sdTxt" : "__sdImg"] === empty,
-      );
-    const textEmpty = shownEmpty("text");
-    const imageEmpty = shownEmpty("image");
-    for (const el of targetEls) {
-      const entry = part(el);
-      if (clear.text) {
-        entry.text = textEmpty ? new Set() : this.contentNodes(el, TEXT_CONTENT);
-      }
-      if (clear.image) {
-        entry.image = imageEmpty
-          ? new Set()
-          : this.contentNodes(el, IMAGE_CONTENT);
-      }
-    }
-    for (const [el, entry] of parts) {
-      if (!held || this._createdThisPass.has(el)) {
-        this.applyClear(el, entry);
-        continue;
-      }
-      const prior = held.get(el);
-      if (!prior) {
-        held.set(el, entry);
-        continue;
-      }
-      prior.hide ||= entry.hide;
-      prior.textAttr ||= entry.textAttr;
-      for (const kind of ["text", "image"] as const) {
-        const nodes = entry[kind];
-        if (nodes) {
-          prior[kind] = new Set([...(prior[kind] ?? []), ...nodes]);
-        }
-      }
-    }
-  }
-
-  /** Whether an element would still be connected had the held clears been
-   *  applied at once: not inside content one of them removes. Applied at
-   *  once, that clear had detached it, and a later write or clear, which
-   *  resolves its target among connected elements, did not find it. */
-  protected connectedAsCleared(): (el: Node) => boolean {
-    const held = this.heldClears;
-    if (!held || held.size === 0) {
-      return () => true;
-    }
-    const removing = new Set<Node>();
-    for (const entry of held.values()) {
-      for (const node of [...(entry.text ?? []), ...(entry.image ?? [])]) {
-        removing.add(node);
-      }
-    }
-    return (el: Node) => {
-      for (let n: Node | null = el; n; n = n.parentNode) {
-        if (removing.has(n)) {
-          return false;
-        }
-      }
-      return true;
-    };
-  }
-
-  /** The nodes `el`'s content elements of the given classes hold now. */
-  protected contentNodes(el: HTMLElement, tags: readonly string[]): Set<Node> {
-    const nodes = new Set<Node>();
-    for (const tag of tags) {
-      for (const contentEl of this.getContentElements(el, tag)) {
-        for (const node of Array.from(contentEl.childNodes)) {
-          nodes.add(node);
-        }
-      }
-    }
-    return nodes;
-  }
-
-  /** Apply what is held for `el`: its hiding (unless `hide` is false), and
-   *  the content of the kinds given (all of them when none are). */
-  protected applyHeld(
-    el: HTMLElement,
-    kinds?: readonly ("text" | "image")[],
-    hide = true,
-  ) {
-    const held = this.heldClears;
-    const entry = held?.get(el);
-    if (!held || !entry) {
-      return;
-    }
-    const release: HeldClear = { hide: false, textAttr: false };
-    if (hide) {
-      release.hide = entry.hide;
-      release.textAttr = entry.textAttr;
-      entry.hide = false;
-      entry.textAttr = false;
-    }
-    for (const kind of kinds ?? (["text", "image"] as const)) {
-      release[kind] = entry[kind];
-      delete entry[kind];
-    }
-    if (!entry.hide && !entry.text && !entry.image) {
-      held.delete(el);
-    }
-    this.applyClear(el, release);
-  }
-
-  /** A clear of one element, as the engine's text and image clears leave
-   *  it: hidden (and its `text` attribute gone, for a text clear), and the
-   *  content each clear empties emptied, with the write signature and the
-   *  reveal reset as `writeText` and `writeImage` reset them for a clear. */
-  protected applyClear(el: HTMLElement, entry: HeldClear) {
-    if (entry.hide) {
-      this.applyHide(el, entry.textAttr);
-    }
-    if (entry.text) {
-      (el as any).__sdWait?.cancel();
-      delete (el as any).__sdWait;
-      this.revealAtOnce(el);
-      (el as any).__sdTxt = JSON.stringify([]);
-      for (const node of entry.text) {
-        node.parentNode?.removeChild(node);
-      }
-    }
-    if (entry.image) {
-      this._staleImageTargets.delete(el);
-      (el as any).__sdImg = JSON.stringify([]);
-      for (const node of entry.image) {
-        node.parentNode?.removeChild(node);
-      }
-    }
-  }
-
-  /** The part of a clear that hides an element, as the clear's update
-   *  would. Applied to the node directly rather than as an update: an update
-   *  marks its element live in this pass, and a clear held over from a
-   *  display taken over before its sweep can name one this pass dropped. */
-  protected applyHide(el: HTMLElement, textAttr: boolean) {
-    const [prop, value] = getCSSPropertyKeyValue("display", "none");
-    for (const [cssProp, cssValue] of getCssEquivalent(prop, value)) {
-      el.style.setProperty(cssProp, cssValue);
-    }
-    if (textAttr) {
-      applyAttributes(el, { text: null });
-    }
-  }
-
-  /**
-   * Apply what `msg` touches of the held clears, before `msg` is handled, so
-   * each element still sees its clear before anything after it, as if the
-   * clear had been applied when it was sent.
-   *
-   * A write applies the clear of each element it writes, and only of those,
-   * and only of its own kind: a text write empties the text it replaces and
-   * leaves the element's pictures until the image write that replaces them,
-   * and an element the write does not replace (another instance of the
-   * target, written by an indexed write of its own) keeps what it shows. An
-   * update, an animation, a move or a destroy of an element applies only its
-   * hiding: the update that shows a target again (the restore's or the
-   * beat's) then lands on it in the same task, and the element keeps what it
-   * shows until its write. An update of a content element itself (`text`,
-   * `stroke`, `image`, `mask`: its style, its attributes) releases nothing:
-   * removing the nodes inside it and updating it commute, so the picture or
-   * the words stay until the write that replaces them. A create releases
-   * nothing either: a held clear removes only the nodes it found when it
-   * arrived, so what is created after it (a layout the beat opens, a content
-   * slot a branch mounts) is not its to empty, and what a create re-emits is
-   * handled by {@link reemittedHeld}.
-   */
-  protected releaseHeldClears(msg: RequestMessage) {
-    const held = this.heldClears;
-    if (!held || held.size === 0) {
-      return;
-    }
-    if (WriteTextMessage.type.isRequest(msg)) {
-      for (const el of this.findTargetElements(
-        msg.params.target,
-        this.connectedAsCleared(),
-      )) {
-        this.applyHeld(el, ["text"]);
-      }
-      return;
-    }
-    if (WriteImageMessage.type.isRequest(msg)) {
-      for (const el of this.findTargetElements(
-        msg.params.target,
-        this.connectedAsCleared(),
-      )) {
-        this.applyHeld(el, ["image"]);
-      }
-      return;
-    }
-    let ids: (string | null | undefined)[] = [];
-    if (AnimateElementsMessage.type.isRequest(msg)) {
-      ids = msg.params.effects.map((effect) => effect?.element);
-    } else if (
-      UpdateElementMessage.type.isRequest(msg) ||
-      MoveElementMessage.type.isRequest(msg) ||
-      DestroyElementMessage.type.isRequest(msg)
-    ) {
-      ids = [msg.params.element];
-    }
-    const keep = this.connectedAsCleared();
-    for (const id of ids) {
-      const el = id ? this.getElement(id) : undefined;
-      if (!el) {
-        continue;
-      }
-      if (!keep(el)) {
-        // Inside content a held clear removes, which applied at once had
-        // detached it, so this message changed nothing on screen: remove
-        // that content now, before it can show the change.
-        this.releaseRemovalHolding(el);
-      }
-      this.applyHeld(el, []);
-    }
-  }
-
-  /** Apply, in content only, every held clear whose removal holds `el` or
-   *  one of its ancestors. */
-  protected releaseRemovalHolding(el: Node) {
-    const held = this.heldClears;
-    if (!held) {
-      return;
-    }
-    for (let n: Node | null = el; n; n = n.parentNode) {
-      for (const [owner, entry] of Array.from(held)) {
-        for (const kind of ["text", "image"] as const) {
-          if (entry[kind]?.has(n)) {
-            this.applyHeld(owner, [kind], false);
-          }
-        }
-      }
-    }
-  }
-
-  /** A create builds `id` afresh while a node with that structural id, which
-   *  a held clear removes, is still on the page: applied at once, that clear
-   *  had detached it, so the fresh element takes its place now rather than
-   *  showing beside it. */
-  protected replaceHeldOut(id: string) {
-    const held = this.heldClears;
-    const overlay = this.app.overlay;
-    if (!held || held.size === 0 || !overlay) {
-      return;
-    }
-    const keep = this.connectedAsCleared();
-    overlay.querySelectorAll("*").forEach((node) => {
-      if ((node as any).__sdId === id && !keep(node)) {
-        node.remove();
-      }
-    });
-  }
-
-  /**
-   * A create re-emitted `el`, which this pass reuses. A clear held over from
-   * a display taken over before its sweep, applied at once, came before this
-   * create, which then put `el` back as the create says:
-   * - when `el` is content such a clear removes, the create has put it back
-   *   and it is no longer that clear's to remove;
-   * - when the create restyles `el`, its static style replaces the hiding
-   *   the clear would have set, and only the clear's removal of the `text`
-   *   attribute (which a create does not write) still stands.
-   * A clear the connect holds after this create stream records `el` again.
-   */
-  protected reemittedHeld(el: HTMLElement, restyled: boolean) {
-    const held = this.heldClears;
-    if (!held || held.size === 0) {
-      return;
-    }
-    for (const [owner, entry] of Array.from(held)) {
-      entry.text?.delete(el);
-      entry.image?.delete(el);
-      if (owner === el && restyled && entry.hide) {
-        if (entry.textAttr) {
-          applyAttributes(el, { text: null });
-        }
-        entry.hide = false;
-        entry.textAttr = false;
-      }
-      if (!entry.hide && !entry.text && !entry.image) {
-        held.delete(owner);
-      }
-    }
   }
 
   /** Remove every DOM listener tracked for `id` (used on destroy/sweep, and
@@ -655,6 +282,254 @@ export default class UIManager extends Manager {
     this._staleIds.delete(id);
   }
 
+  /**
+   * What the page holds back from the screen until it can show it in one go
+   * (#1820). The page handles each message as a task of its own and can
+   * render a frame between any two, so a display that clears a target in one
+   * message and writes it in the next, or removes what the old beat showed
+   * after the new beat is up, would show a frame that is neither. While a
+   * hold is open the screen messages are queued in order, and when it closes
+   * they are applied in that order in one task, so the screen goes from the
+   * old beat to the new one in a single frame.
+   *
+   * - `pass`: a preview display's reconcile pass (`ui/reconcile-begin` with
+   *   `hold`), open until its sweep. A display taken over before its sweep
+   *   leaves the pass open, and the next display's messages join the queue.
+   * - `frames`: the beats' own frames (`ui/frame`), open and close.
+   *
+   * Kept on the overlay, which outlives this manager, so a manager built for
+   * the next display applies what the last one queued.
+   */
+  protected get hold(): HeldScreen | undefined {
+    const overlay = this.app.overlay as
+      | (HTMLElement & { __sdHold?: HeldScreen })
+      | undefined;
+    if (!overlay) {
+      return undefined;
+    }
+    overlay.__sdHold ??= { pass: false, frames: 0, queue: [] };
+    overlay.__sdHold.release = () => this.releaseIfIdle();
+    return overlay.__sdHold;
+  }
+
+  /** Whether screen messages are being held. */
+  protected get holding(): boolean {
+    const hold = this.hold;
+    return hold != null && (hold.pass || hold.frames > 0);
+  }
+
+  /** Open a preview pass's hold, or keep holding for a display that took
+   *  over one still held. A page showing nothing has nothing to keep on
+   *  screen, so its first display goes up as it arrives. A display held
+   *  longer than {@link HOLD_LIMIT_MS} (one that never sweeps) is let
+   *  through rather than freezing the screen. */
+  protected openPass() {
+    const hold = this.hold;
+    if (!hold) {
+      return;
+    }
+    if (!hold.pass && !this.app.overlay?.firstElementChild) {
+      return;
+    }
+    hold.pass = true;
+    clearTimeout(hold.timer);
+    hold.timer = setTimeout(() => {
+      if (hold.pass) {
+        hold.pass = false;
+        hold.release?.();
+      }
+    }, HOLD_LIMIT_MS);
+  }
+
+  protected closePass() {
+    const hold = this.hold;
+    if (!hold) {
+      return;
+    }
+    hold.pass = false;
+    clearTimeout(hold.timer);
+    hold.timer = undefined;
+  }
+
+  /** Apply what is held once no pass or frame holds it any more. */
+  protected releaseIfIdle() {
+    const hold = this.hold;
+    if (!hold || hold.pass || hold.frames > 0 || hold.queue.length === 0) {
+      return;
+    }
+    const queue = hold.queue.splice(0);
+    const skipped = this.skippedClears(queue);
+    for (const item of queue) {
+      if (skipped.has(item)) {
+        item.answer?.(this.answerAtOnce(item.message as RequestMessage));
+        continue;
+      }
+      if ("id" in item.message) {
+        const done = this.applyRequest(item.message as RequestMessage);
+        item.answer?.(done);
+      } else {
+        this.applyNotification(item.message as NotificationMessage);
+      }
+    }
+  }
+
+  /**
+   * The empty writes in `queue` that a later write in it makes a no-op: a
+   * clear whose target the queue writes next with exactly what it shows now.
+   * Applied in one task, that clear and that rewrite would empty and rebuild
+   * the same content for nothing (and replay its reveal); skipping the clear
+   * lets the rewrite's signature check leave the target as it is.
+   */
+  protected skippedClears(queue: HeldMessage[]): Set<HeldMessage> {
+    const skipped = new Set<HeldMessage>();
+    const kinds = [
+      { type: WriteTextMessage.type, signature: "__sdTxt" },
+      { type: WriteImageMessage.type, signature: "__sdImg" },
+    ] as const;
+    for (const { type, signature } of kinds) {
+      for (let i = 0; i < queue.length; i += 1) {
+        const clear = queue[i]!.message as RequestMessage;
+        if (!type.isRequest(clear) || clear.params.instructions.length > 0) {
+          continue;
+        }
+        const target = clear.params.target;
+        // A beat can clear a target more than once before it writes it (the
+        // transient clear, then the beat's own): the clears all go together,
+        // so each is judged by the write that follows them.
+        const next = queue
+          .slice(i + 1)
+          .map((item) => item.message as RequestMessage)
+          .find(
+            (m) =>
+              type.isRequest(m) &&
+              m.params.target === target &&
+              m.params.instructions.length > 0,
+          );
+        if (!next || !type.isRequest(next)) {
+          continue;
+        }
+        const sig = JSON.stringify(next.params.instructions);
+        const els = this.findTargetElements(target);
+        if (
+          els.length > 0 &&
+          els.every((el) => (el as any)[signature] === sig)
+        ) {
+          skipped.add(queue[i]!);
+        }
+      }
+    }
+    return skipped;
+  }
+
+  /** What a held request answers before it is applied: its element or
+   *  target, as its handler would. */
+  protected answerAtOnce(msg: RequestMessage): unknown {
+    const params = msg.params as any;
+    if (CreateElementMessage.type.isRequest(msg)) {
+      return CreateElementMessage.type.result(params.element);
+    }
+    if (UpdateElementMessage.type.isRequest(msg)) {
+      return UpdateElementMessage.type.result(params.element);
+    }
+    if (DestroyElementMessage.type.isRequest(msg)) {
+      return DestroyElementMessage.type.result(params.element);
+    }
+    if (MoveElementMessage.type.isRequest(msg)) {
+      return MoveElementMessage.type.result(params.element);
+    }
+    if (WriteTextMessage.type.isRequest(msg)) {
+      return WriteTextMessage.type.result(params.target);
+    }
+    if (WriteImageMessage.type.isRequest(msg)) {
+      return WriteImageMessage.type.result(params.target);
+    }
+    if (AnimateElementsMessage.type.isRequest(msg)) {
+      return AnimateElementsMessage.type.result(
+        params.effects.map((_: unknown, i: number) => i),
+      );
+    }
+    if (SetThemeMessage.type.isRequest(msg)) {
+      return SetThemeMessage.type.result("");
+    }
+    return undefined;
+  }
+
+  protected isScreenRequest(msg: RequestMessage) {
+    return (
+      CreateElementMessage.type.isRequest(msg) ||
+      UpdateElementMessage.type.isRequest(msg) ||
+      DestroyElementMessage.type.isRequest(msg) ||
+      MoveElementMessage.type.isRequest(msg) ||
+      WriteTextMessage.type.isRequest(msg) ||
+      WriteImageMessage.type.isRequest(msg) ||
+      AnimateElementsMessage.type.isRequest(msg) ||
+      SetThemeMessage.type.isRequest(msg)
+    );
+  }
+
+  override async onReceiveRequest(msg: RequestMessage) {
+    const hold = this.hold;
+    if (hold && this.holding && this.isScreenRequest(msg)) {
+      // A preview pass's requests are answered now: the display goes on to
+      // its beat and its sweep only once the restore's writes are answered,
+      // and a preview writes everything at once. A beat's frame closes in
+      // the same turn that sent its writes, so they answer once applied.
+      if (hold.pass) {
+        hold.queue.push({ message: msg });
+        return this.answerAtOnce(msg) as any;
+      }
+      return new Promise((resolve) => {
+        hold.queue.push({ message: msg, answer: resolve });
+      });
+    }
+    return this.applyRequest(msg);
+  }
+
+  override onReceiveNotification(msg: NotificationMessage) {
+    const hold = this.hold;
+    if (FrameMessage.type.isNotification(msg)) {
+      if (hold) {
+        hold.frames = Math.max(0, hold.frames + (msg.params.open ? 1 : -1));
+        this.releaseIfIdle();
+      }
+      return;
+    }
+    if (BeginReconcileMessage.type.isNotification(msg)) {
+      // A begin starts a new stream: no beat of an earlier one is still
+      // between its frame's open and close.
+      if (hold) {
+        hold.frames = 0;
+      }
+      if (msg.params?.hold) {
+        this.openPass();
+      } else {
+        // A pass that is not a preview (PLAY's) shows what it sends as it
+        // arrives, after whatever an earlier pass still holds.
+        this.closePass();
+        this.releaseIfIdle();
+      }
+    }
+    if (hold && this.holding && this.isScreenNotification(msg)) {
+      hold.queue.push({ message: msg });
+      if (SweepReconcileMessage.type.isNotification(msg)) {
+        this.closePass();
+        this.releaseIfIdle();
+      }
+      return;
+    }
+    this.applyNotification(msg);
+  }
+
+  protected isScreenNotification(msg: NotificationMessage) {
+    return (
+      BeginReconcileMessage.type.isNotification(msg) ||
+      SweepReconcileMessage.type.isNotification(msg) ||
+      BatchElementsMessage.type.isNotification(msg) ||
+      ObserveElementMessage.type.isNotification(msg) ||
+      UnobserveElementMessage.type.isNotification(msg)
+    );
+  }
+
   override onDispose() {
     // Clean up listeners off the nodes but DO NOT remove the overlay DOM: the
     // next render's UIManager adopts it (beginReconcilePass) and reconciles, so a
@@ -679,12 +554,9 @@ export default class UIManager extends Manager {
     // element whose own `#id` replaced its structural value in the DOM.
     // `_elements` is repopulated for the whole overlay at the start of every
     // reconcile pass, so this walk is a cache-miss fallback, not the hot path.
-    // Not what a held clear removes, which applied at once had been detached
-    // and out of reach of this walk (#1820).
     let found: HTMLElement | undefined;
-    const keep = this.connectedAsCleared();
     this.app.overlay?.querySelectorAll("*").forEach((node) => {
-      if (!found && (node as any).__sdId === id && keep(node)) {
+      if (!found && (node as any).__sdId === id) {
         found = node as HTMLElement;
       }
     });
@@ -694,8 +566,7 @@ export default class UIManager extends Manager {
     return found;
   }
 
-  override async onReceiveRequest(msg: RequestMessage) {
-    this.releaseHeldClears(msg);
+  protected async applyRequest(msg: RequestMessage) {
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
@@ -735,11 +606,7 @@ export default class UIManager extends Manager {
       }
       const reused = el != null;
       if (!el) {
-        if (id) {
-          this.replaceHeldOut(id);
-        }
         el = document.createElement(params.type);
-        this._createdThisPass.add(el);
       }
       if (id) {
         // The STRUCTURAL id — the reconcile key — is stamped as a JS property,
@@ -772,9 +639,6 @@ export default class UIManager extends Manager {
         params.style ?? null,
         params.attributes ?? null,
       ]);
-      if (reused) {
-        this.reemittedHeld(el, (el as any).__sdCreate !== sig);
-      }
       // Apply class/content/style/attrs only when this is a fresh node or its
       // create-params actually changed — an unchanged reused node is left
       // untouched (no restyle / recalc / devtools flash). The signature lives ON
@@ -994,7 +858,7 @@ export default class UIManager extends Manager {
   // separate `event` notification). Handling them as requests leaked a resolve
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
-  override onReceiveNotification(msg: NotificationMessage) {
+  protected applyNotification(msg: NotificationMessage) {
     // The game opens a pass at every connect and closes it once the stream
     // has written everything it shows.
     if (BeginReconcileMessage.type.isNotification(msg)) {
@@ -1003,12 +867,6 @@ export default class UIManager extends Manager {
     }
     if (SweepReconcileMessage.type.isNotification(msg)) {
       this.sweepReconcile();
-      return;
-    }
-    if (HoldClearMessage.type.isNotification(msg)) {
-      for (const clear of msg.params.targets) {
-        this.holdClear(clear);
-      }
       return;
     }
     // A `ui/batch` coalesces a synchronous run of fire-and-forget ops. Dispatch
@@ -1068,15 +926,8 @@ export default class UIManager extends Manager {
    * The engine owns the `Element` tree and only forwards the original `target`
    * string, so the consumer re-resolves it here against the real DOM. (D13 may
    * later replace this with a consumer-side id→element map.)
-   *
-   * `keep` narrows the matches before the `#index` is taken, so an instance
-   * counts only among the elements kept (the clears and writes keep what a
-   * held clear has not removed: #1820).
    */
-  protected findTargetElements(
-    target: string,
-    keep?: (el: HTMLElement) => boolean,
-  ): HTMLElement[] {
+  protected findTargetElements(target: string): HTMLElement[] {
     const overlay = this.app.overlay;
     if (!overlay) {
       return [];
@@ -1091,8 +942,9 @@ export default class UIManager extends Manager {
     if (!selector) {
       return [];
     }
-    const all = Array.from(overlay.querySelectorAll(selector)) as HTMLElement[];
-    const matches = keep ? all.filter(keep) : all;
+    const matches = Array.from(
+      overlay.querySelectorAll(selector),
+    ) as HTMLElement[];
     if (instance) {
       const instanceIndex = Number(instance);
       if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
@@ -1300,11 +1152,7 @@ export default class UIManager extends Manager {
     startTime?: number,
     shown = 0,
   ) {
-    // Not what a held clear removes: applied at once, it had detached it.
-    const targetEls = this.findTargetElements(
-      target,
-      this.connectedAsCleared(),
-    );
+    const targetEls = this.findTargetElements(target);
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
     // target already shows exactly this write, leave it untouched. Stored on the
@@ -1456,11 +1304,7 @@ export default class UIManager extends Manager {
     instructions: WriteImageInstruction[],
     startTime?: number,
   ) {
-    // Not what a held clear removes: applied at once, it had detached it.
-    const targetEls = this.findTargetElements(
-      target,
-      this.connectedAsCleared(),
-    );
+    const targetEls = this.findTargetElements(target);
     // This target has been written this pass, so the sweep must leave its layers
     // alone. Marked BEFORE the dedup below: re-writing the image already on
     // screen is the commonest case on a re-render (restore replays it), and
@@ -1520,10 +1364,7 @@ export default class UIManager extends Manager {
         );
         if (instruction.affected) {
           for (const a of instruction.affected) {
-            for (const el of this.findTargetElements(
-              a.target,
-              this.connectedAsCleared(),
-            )) {
+            for (const el of this.findTargetElements(a.target)) {
               this.addAnimationEffects(enterEffects, el, a.animations);
             }
           }

@@ -752,9 +752,8 @@ end
   it("sends no clears for choices the connect has already taken off the page", async () => {
     // The page connects the game again before every preview. The connect
     // clears every transient target, the choice slots among them, out of
-    // the module's state, so the restore does not bring them back and the
-    // preview after it has nothing to clear; a preview's connect leaves the
-    // page's clear to the page, which holds it until the sweep (#1820).
+    // the page and out of the module's state, so the restore does not bring
+    // them back and the preview after it has nothing to clear.
     const h = connected(CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -762,13 +761,14 @@ end
     h.reset();
     await h.reconnect();
     await flushMicrotasks(20);
-    const held = byMethod(screenOps(h.messages), "ui/reconcile-clear").flatMap(
-      (m) => m.params.targets,
+    const choiceWrites = byMethod(
+      screenOps(h.messages).filter(aboutChoice),
+      "ui/write-text",
     );
-    expect(held.filter(aboutChoice).length).toBeGreaterThan(0);
+    expect(choiceWrites.length).toBeGreaterThan(0);
     expect(
-      byMethod(screenOps(h.messages).filter(aboutChoice), "ui/write-text"),
-    ).toEqual([]);
+      choiceWrites.every((m) => m.params.instructions.length === 0),
+    ).toBe(true);
     h.reset();
     const previewing = h.preview(11);
     await flushMicrotasks(20);

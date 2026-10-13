@@ -203,6 +203,19 @@ export class Coordinator<G extends Game> {
     // `time` is when a played beat starts on the shared clock; an instant or
     // simulated display has none and shows as soon as the page handles it.
     const updateUI = (time?: number) => {
+      // The beat changes the screen in one frame: its clears, its rewrites
+      // and the targets it leaves empty reach the page together, so no frame
+      // shows a target empty between them or part of the old beat (#1820).
+      const framed = game.module.ui.openFrame();
+      try {
+        writeUI(time);
+      } finally {
+        if (framed) {
+          game.module.ui.closeFrame();
+        }
+      }
+    };
+    const writeUI = (time?: number) => {
       // A beat that carries on in the box writes the whole box again; one
       // with no text of its own (pictures or sound only) leaves it as it is.
       if (!extended || instructions.text) {

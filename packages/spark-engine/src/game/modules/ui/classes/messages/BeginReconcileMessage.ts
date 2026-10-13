@@ -2,7 +2,12 @@ import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/cla
 
 export type BeginReconcileMethod = typeof BeginReconcileMessage.method;
 
-export interface BeginReconcileParams {}
+export interface BeginReconcileParams {
+  /** The pass is a preview display, which ends with a sweep: the page holds
+   *  everything the pass sends and puts it on the screen in one go at the
+   *  sweep, so no frame shows the screen half rebuilt (#1820). */
+  hold?: boolean;
+}
 
 /**
  * Opens a reconcile pass: every element the page is showing becomes a

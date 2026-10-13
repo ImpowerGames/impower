@@ -559,6 +559,21 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
             },
           },
         },
+      ],
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/frame",
+    "params": {
+      "open": true,
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
         {
           "id": "req-17",
           "kind": "request",
@@ -912,6 +927,13 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
           },
         },
       ],
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/frame",
+    "params": {
+      "open": false,
     },
   },
 ]
