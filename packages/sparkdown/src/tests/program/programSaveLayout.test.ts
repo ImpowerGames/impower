@@ -840,30 +840,6 @@ describe("a save inside a scene entered by a divert", () => {
     expect(play(loaded)).toEqual(["First 10 20 nil.", "Second 10 20 nil."]);
   });
 
-  // #1744: declaring a local again in the scope that binds it closes the
-  // cell a closure captured on the value the old binding held.
-  it("closes a captured local on its old value when its scope declares it again", () => {
-    const story = engine(
-      rootOf(
-        [
-          "store keep = nil",
-          "",
-          "-> start",
-          "",
-          "scene start",
-          "  & local c = 30",
-          "  & keep = function() return c end",
-          "  & c = 35",
-          "  & local c = 40",
-          "  First {c} {keep()}.",
-          "end",
-          "",
-        ].join("\n"),
-      ),
-    );
-    expect(play(story)).toEqual(["First 40 35."]);
-  });
-
   // A scene whose content starts with a branch, entered by a divert.
   const STARTS = (header: string, divert: string) =>
     [
@@ -1027,5 +1003,31 @@ describe("a save inside a scene entered by a thread", () => {
     expect(report.warnings.join(" ")).toMatch(/choice raised in 's' is dropped/);
     expect(play(loaded)).toEqual([]);
     expect(loaded.currentChoices.map((c) => c.text)).toEqual(['"Stay"']);
+  });
+});
+
+// #1744: declaring a local again in the scope that binds it closes the cell a
+// closure captured on the value the old binding held.
+describe("a local declared again in the scope that binds it", () => {
+  it("closes a captured local on its old value", () => {
+    const story = engine(
+      rootOf(
+        [
+          "store keep = nil",
+          "",
+          "-> start",
+          "",
+          "scene start",
+          "  & local c = 30",
+          "  & keep = function() return c end",
+          "  & c = 35",
+          "  & local c = 40",
+          "  First {c} {keep()}.",
+          "end",
+          "",
+        ].join("\n"),
+      ),
+    );
+    expect(play(story)).toEqual(["First 40 35."]);
   });
 });
