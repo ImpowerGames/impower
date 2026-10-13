@@ -264,28 +264,10 @@ export class CallStack {
         // this path — the outer binding stays alive in its own frame
         // and PopScope closes it when that block exits. Only cells bound
         // in this innermost scope close: one over an outer `x` stays open.
-        const innerIndex = scopes.length - 1;
-        if (contextElement!.openUpvalues.length > 0) {
-          const stillOpen: VariablePointerValue[] = [];
-          for (const ptr of contextElement!.openUpvalues) {
-            if (
-              !ptr.isClosed &&
-              ptr.variableName === name &&
-              contextElement!.ScopeIndexOf(ptr) === innerIndex
-            ) {
-              this.cellBarrier?.(ptr);
-              ptr.closedValue = (oldValue.result as InkObject) ?? null;
-              continue;
-            }
-            if (!ptr.isClosed) stillOpen.push(ptr);
-          }
-          contextElement!.openUpvalues = stillOpen;
-        }
-        // A copied thread no longer binds a borrowed cell whose binding
-        // this declaration replaces.
-        contextElement!.ReleaseBorrowedUpvalues(
-          innerIndex,
+        contextElement!.RetireBindings(
+          scopes.length - 1,
           (ptrName) => ptrName === name,
+          this.cellBarrier,
         );
       }
       inner.set(name, value);
@@ -487,6 +469,35 @@ export namespace CallStack {
       }
       // Drop the references so the frame element can be GC'd cleanly.
       this.openUpvalues = [];
+    }
+
+    // Retire the bindings of scope `scopeIndex` whose variable `retired`
+    // names, before a declaration replaces them: each open cell captured
+    // against one closes with the binding's current value, and a copied
+    // thread no longer binds a borrowed cell over one.
+    public RetireBindings(
+      scopeIndex: number,
+      retired: (name: string) => boolean,
+      barrier: ((cell: VariablePointerValue) => void) | null = null,
+    ) {
+      if (this.openUpvalues.length > 0) {
+        const scope = this.temporaryScopes[scopeIndex];
+        const stillOpen: VariablePointerValue[] = [];
+        for (const ptr of this.openUpvalues) {
+          if (
+            !ptr.isClosed &&
+            retired(ptr.variableName) &&
+            this.ScopeIndexOf(ptr) === scopeIndex
+          ) {
+            barrier?.(ptr);
+            ptr.closedValue = scope?.get(ptr.variableName) ?? null;
+            continue;
+          }
+          if (!ptr.isClosed) stillOpen.push(ptr);
+        }
+        this.openUpvalues = stillOpen;
+      }
+      this.ReleaseBorrowedUpvalues(scopeIndex, retired);
     }
 
     // Forget the borrowed cells bound in scope `scopeIndex` whose variable
