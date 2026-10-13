@@ -43,7 +43,6 @@ interface HeldScreen {
   pass: boolean;
   frames: number;
   queue: HeldMessage[];
-  timer?: ReturnType<typeof setTimeout>;
   /** Waits for the start of the played beat that is held. */
   showTimer?: ReturnType<typeof setTimeout>;
   /** Puts up what is held through the manager now showing the overlay;
@@ -51,13 +50,11 @@ interface HeldScreen {
   release?: (due?: boolean) => void;
 }
 
-/** How long a preview pass may hold the screen before what it holds goes up
- *  anyway: longer than any display waits for its pictures. */
-const HOLD_LIMIT_MS = 10_000;
-
-/** The longest a held beat waits for the start its writes are stamped with.
- *  A beat starts a little ahead of its writes (the beat lead plus the audio
- *  output latency); a stamp further off is a clock out of step, not a wait. */
+/** The furthest ahead of the page's clock a held beat's display time may be
+ *  for the page to wait for it. A beat is stamped a little ahead of its
+ *  writes (the beat lead plus the audio output latency); a stamp further off
+ *  is a clock out of step, not a wait. The text's own delay before its first
+ *  letter comes on top. */
 const SHOW_WAIT_LIMIT_MS = 1_000;
 
 /** What a create sets on its node, by which a reused node already showing it
@@ -240,6 +237,9 @@ export default class UIManager extends Manager {
    */
   protected _placeCursor = new Map<Element, Element>();
 
+  /** Whether a `ui/reconcile-begin` opened the pass a sweep closes. */
+  protected _passBegun = false;
+
   override async onInit() {
     await super.onInit();
     // A fresh UIManager built for a re-render inherits the prior render's overlay
@@ -382,9 +382,10 @@ export default class UIManager extends Manager {
 
   /** Open a preview pass's hold, or keep holding for a display that took
    *  over one still held. A page showing nothing has nothing to keep on
-   *  screen, so its first display goes up as it arrives. A display held
-   *  longer than {@link HOLD_LIMIT_MS} (one that never sweeps) is let
-   *  through rather than freezing the screen. */
+   *  screen, so its first display goes up as it arrives. A pass has no time
+   *  limit: a display can wait on its pictures as long as the project allows
+   *  (`restore_timeout`, which can be unbounded), and every display ends with
+   *  a sweep, a repeat included. */
   protected openPass() {
     const hold = this.hold;
     if (!hold) {
@@ -394,13 +395,6 @@ export default class UIManager extends Manager {
       return;
     }
     hold.pass = true;
-    clearTimeout(hold.timer);
-    hold.timer = setTimeout(() => {
-      if (hold.pass) {
-        hold.pass = false;
-        hold.release?.();
-      }
-    }, HOLD_LIMIT_MS);
   }
 
   protected closePass() {
@@ -409,8 +403,6 @@ export default class UIManager extends Manager {
       return;
     }
     hold.pass = false;
-    clearTimeout(hold.timer);
-    hold.timer = undefined;
   }
 
   /**
@@ -461,35 +453,66 @@ export default class UIManager extends Manager {
     });
   }
 
-  /** How long the held beat waits for its start, in milliseconds: until the
-   *  latest display time its writes carry, if that is soon. A stamp far from
-   *  the page's clock (a clock that has not synced) is not waited for. */
+  /**
+   * How long the held beat waits to go up, in milliseconds. The maintainer's
+   * rule (#1820): the old beat stays fully visible until the instant the new
+   * beat's text starts revealing, and at that instant the targets the new
+   * beat does not write are emptied and the written ones replaced. That
+   * instant is the earliest first letter of the beat's text writes: the
+   * display time their stamp gives plus the letter's own delay. A beat with
+   * no text goes up at the display time of its other stamped writes. A stamp
+   * whose display time is far from the page's clock (a clock that has not
+   * synced) is not waited for.
+   */
   protected waitToShow(queue: HeldMessage[]): number {
     const doc = this.app.overlay?.ownerDocument;
     const now = Number(doc?.timeline?.currentTime);
     if (!Number.isFinite(now)) {
       return 0;
     }
-    let at: number | undefined;
+    let reveal: number | undefined;
+    let other: number | undefined;
+    let earliest: number | undefined;
     for (const message of flattenHeld(queue)) {
-      const time = (message.params as { time?: unknown } | undefined)?.time;
+      const msg = message as RequestMessage;
+      const params = msg.params as
+        | { time?: unknown; instructions?: { after?: number }[] }
+        | undefined;
+      const time = params?.time;
+      if (typeof time !== "number") {
+        continue;
+      }
+      const text = WriteTextMessage.type.isRequest(msg);
       if (
-        typeof time === "number" &&
-        (WriteTextMessage.type.isRequest(message as RequestMessage) ||
-          WriteImageMessage.type.isRequest(message as RequestMessage) ||
-          AnimateElementsMessage.type.isRequest(message as RequestMessage))
+        !text &&
+        !WriteImageMessage.type.isRequest(msg) &&
+        !AnimateElementsMessage.type.isRequest(msg)
       ) {
-        const shown = this.getDisplayTime(time);
-        if (shown != null && (at == null || shown > at)) {
-          at = shown;
-        }
+        continue;
+      }
+      const shown = this.getDisplayTime(time);
+      if (shown == null) {
+        continue;
+      }
+      earliest = earliest == null ? shown : Math.min(earliest, shown);
+      const instructions = params?.instructions ?? [];
+      if (text && instructions.length > 0) {
+        const first = instructions.reduce(
+          (min, e) => Math.min(min, e.after ?? 0),
+          Infinity,
+        );
+        const start = shown + first * 1000;
+        reveal = reveal == null ? start : Math.min(reveal, start);
+      } else {
+        other = other == null ? shown : Math.max(other, shown);
       }
     }
-    if (at == null) {
+    const at = reveal ?? other;
+    if (at == null || earliest == null || earliest - now > SHOW_WAIT_LIMIT_MS) {
       return 0;
     }
     const wait = at - now;
-    return wait >= 1 && wait <= SHOW_WAIT_LIMIT_MS ? wait : 0;
+    return wait >= 1 ? wait : 0;
   }
 
   /**
@@ -1016,10 +1039,18 @@ export default class UIManager extends Manager {
     // has written everything it shows.
     if (BeginReconcileMessage.type.isNotification(msg)) {
       this.beginReconcilePass();
+      this._passBegun = true;
       return;
     }
     if (SweepReconcileMessage.type.isNotification(msg)) {
-      this.sweepReconcile();
+      // Only a pass a begin opened here is swept. A preview that repeats one
+      // taken over before its sweep sweeps for it (#1820); a manager built
+      // since adopted the whole overlay as stale and saw no begin, so a sweep
+      // there would remove the screen it is showing.
+      if (this._passBegun) {
+        this._passBegun = false;
+        this.sweepReconcile();
+      }
       return;
     }
     // A `ui/batch` coalesces a synchronous run of fire-and-forget ops. Dispatch

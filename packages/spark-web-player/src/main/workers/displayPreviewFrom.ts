@@ -72,7 +72,14 @@ export async function displayPreviewFrom(
     // A repeat of the preview that ran, whose image gate may still be
     // pending: the engine answers with the same promise.
     await game.preview(validPreviewFrom.file, validPreviewFrom.line);
-    return !superseded();
+    if (superseded()) {
+      return false;
+    }
+    // The display this repeats was taken over by this one before it could
+    // sweep, so this one sweeps for it: that ends the pass the page holds
+    // for it (#1820). With nothing left to sweep, the sweep changes nothing.
+    game.module.ui.sweepReconcile();
+    return true;
   }
 
   // A suggestion's report is not relayed to the editors, so the game leaves

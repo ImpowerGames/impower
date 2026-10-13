@@ -117,21 +117,21 @@ describe("the page's hold (#1820)", () => {
     expect(dialogue()).toBe("");
   });
 
-  test("a display that never sweeps is let through rather than freezing the screen", async () => {
+  test("a display has no time limit: one still waiting keeps the old screen whole", async () => {
+    // A display can wait on its pictures as long as `restore_timeout`
+    // allows, which can be unbounded; what it has sent so far is not put up
+    // early, however long it waits. Its sweep (or the next display's) ends
+    // the hold.
     const { h, dialogue } = await showing();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     await h.rerender(SOURCE, LINE, { connectOnly: true });
 
-    vi.advanceTimersByTime(9_000);
-    expect(dialogue()).toBe("Do you understand?");
-    // A newer display that takes over keeps the screen held for as long
-    // again.
-    await h.rerender(SOURCE, LINE, { connectOnly: true });
-    vi.advanceTimersByTime(9_000);
+    vi.advanceTimersByTime(60_000);
     expect(dialogue()).toBe("Do you understand?");
 
-    vi.advanceTimersByTime(1_000);
-    expect(dialogue()).toBe("");
+    h.game.module.ui.sweepReconcile();
+    await flushMicrotasks(10);
+    expect((h.overlay as any).__sdHold.pass).toBe(false);
   });
 });
 
@@ -246,5 +246,98 @@ describe("what the page holds goes up as it would have one message at a time (#1
     );
 
     expect(assets.derivedPins().has(src)).toBe(true);
+  });
+});
+
+describe("a played beat's commit point (#1820)", () => {
+  // The maintainer's rule: the old beat stays fully visible until the
+  // instant the new beat's text starts revealing, and at that instant the
+  // targets the new beat does not write are emptied and the written ones
+  // replaced. This oracle drives the page's timeline and timers by hand and
+  // records the reveal animations the page starts, so it sees both the
+  // instant the DOM changes and the instant the first letter's reveal
+  // begins. It cannot see composited pixels: that is the live measurement's.
+  test("the old beat stays whole until the new text's first letter starts to reveal", async () => {
+    const { h, dialogue } = await showing();
+    const g = globalThis as any;
+    const played: { startTime: number | null; effect: any }[] = [];
+    const { Animation, KeyframeEffect } = g;
+    g.KeyframeEffect = class {
+      constructor(
+        public target: HTMLElement,
+        public keyframes: unknown,
+        public timing: { delay?: number } = {},
+      ) {}
+      getComputedTiming() {
+        return { endTime: this.timing.delay ?? 0 };
+      }
+    };
+    g.Animation = class {
+      startTime: number | null = null;
+      finished = Promise.resolve();
+      constructor(public effect: any) {
+        played.push(this);
+      }
+      play() {}
+      cancel() {}
+      finish() {}
+    };
+    const timeline = h.overlay.ownerDocument.timeline as unknown as {
+      currentTime: number;
+    };
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      timeline.currentTime = 1_000;
+      const win = h.overlay.ownerDocument.defaultView as any;
+      let changedAt: number | undefined;
+      const observer = new win.MutationObserver(() => {
+        changedAt ??= timeline.currentTime;
+      });
+      observer.observe(h.overlay, { subtree: true, childList: true, characterData: true });
+
+      // The beat is stamped to start at 1100; its first letter waits 100 ms.
+      h.ui.onReceiveNotification(FrameMessage.type.notification({ open: true }));
+      void h.ui.onReceiveRequest(write());
+      void h.ui.onReceiveRequest(
+        WriteTextMessage.type.request({
+          target: "dialogue",
+          instructions: [
+            { text: "D", after: 0.1 },
+            { text: "o", after: 0.2 },
+          ] as any,
+          instant: false,
+          time: 1_100,
+        }),
+      );
+      h.ui.onReceiveNotification(FrameMessage.type.notification({ open: false }));
+      await flushMicrotasks(10);
+
+      timeline.currentTime = 1_199;
+      vi.advanceTimersByTime(199);
+      await flushMicrotasks(10);
+      expect(dialogue()).toBe("Do you understand?");
+      expect(changedAt).toBeUndefined();
+
+      timeline.currentTime = 1_200;
+      vi.advanceTimersByTime(1);
+      await flushMicrotasks(10);
+      observer.disconnect();
+      expect(dialogue()).toBe("Do");
+
+      const letters = played.filter((a) =>
+        a.effect?.target?.classList?.contains("text_letter"),
+      );
+      expect(letters.length).toBeGreaterThan(0);
+      const firstReveal = Math.min(
+        ...letters.map((a) => (a.startTime ?? NaN) + (a.effect.timing?.delay ?? 0)),
+      );
+      // The DOM changed at the instant the first letter starts to reveal.
+      expect(firstReveal).toBe(1_200);
+      expect(changedAt).toBe(firstReveal);
+    } finally {
+      g.Animation = Animation;
+      g.KeyframeEffect = KeyframeEffect;
+      timeline.currentTime = 0;
+    }
   });
 });
