@@ -1,11 +1,7 @@
 import type { Server } from "node:http";
 import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
-
-/** Client to server: `{methods?: string[]}`; omitted means every notification, `[]` none. */
-const SUBSCRIBE_METHOD = "$/subscribe";
-/** Server to editor; keep in step with devProtocolBridge.ts. */
-const BRIDGE_SUBSCRIPTIONS_METHOD = "$/bridgeSubscriptions";
+import { BRIDGE_SUBSCRIPTIONS_METHOD, SUBSCRIBE_METHOD } from "../modules/spark-editor/workspace/devProtocolMethods";
 
 /** One dev-server port names one editor session. No editor means no mutation. */
 export function attachDevProtocolSocket(server: Server) {
@@ -88,6 +84,9 @@ export function attachDevProtocolSocket(server: Server) {
           publishSubscriptions();
           return;
         }
+        // Only the server speaks for the clients' union; a forged update
+        // would make the editor serialize notifications nobody receives.
+        if (message.method === BRIDGE_SUBSCRIPTIONS_METHOD) { ws.close(1007, "Reserved method"); return; }
         if (!editor || editor.readyState !== WebSocket.OPEN) {
           if ("id" in message) send(ws, { jsonrpc: "2.0", id: message.id, error: { code: -32000, message: "No editor connected" } });
           else ws.close(1013, "No editor connected");

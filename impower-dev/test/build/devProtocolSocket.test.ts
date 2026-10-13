@@ -147,6 +147,17 @@ it("relays only subscribed notifications and tells the editor the union", async 
   await settle();
   expect(republished.map(m => m.params.methods)).toEqual([["x"]]);
 });
+it("refuses a client that forges the editor's subscription update", async () => {
+  const { connect } = await host();
+  const received: any[] = [];
+  await connect("editor", received);
+  const client = await connect("client");
+  client.send(JSON.stringify({ jsonrpc: "2.0", method: "$/bridgeSubscriptions", params: { methods: ["*"] } }));
+  const [code] = await once(client, "close");
+  expect(code).toBe(1007);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(received).toEqual([]);
+});
 it("rejects a malformed subscription", async () => {
   const { connect } = await host();
   const client = await connect("client");

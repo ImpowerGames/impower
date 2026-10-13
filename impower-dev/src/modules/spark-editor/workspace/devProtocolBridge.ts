@@ -1,9 +1,7 @@
 import { MessageProtocol, sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import type { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { parseProtocolJSON, stringifyProtocolJSON } from "@impower/spark-editor-protocol/src/utils/protocolJSON";
-
-/** Server to editor: the methods any socket client wants ("*" for all). */
-export const BRIDGE_SUBSCRIPTIONS_METHOD = "$/bridgeSubscriptions";
+import { BRIDGE_SUBSCRIPTIONS_METHOD } from "./devProtocolMethods";
 
 export interface ProtocolBridge {
   send(message: Message, timeoutMs?: number): Promise<unknown>;
