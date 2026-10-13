@@ -84,6 +84,7 @@ try {
       const p = gh.pulls.get(pr);
       if (gh.mode === "refuse") return { ok: false, message: "GraphQL: Pull request is not mergeable: the base branch policy prohibits the merge" };
       if (gh.mode === "throw") throw new Error("connection reset before GitHub answered");
+      if (gh.mode === "no-answer") return { ok: false, message: "unexpected EOF" };
       if (p.head !== head) return { ok: false, message: "GraphQL: Head branch was modified. Review and try the merge again." };
       githubMerge(pr);
       // The merge lands, then the answer and the next read are lost.
@@ -370,6 +371,22 @@ try {
   assert.deepEqual([refused.merged, refused.state], [false, "failed"]);
   assert.match(refused.evidence, /was refused .*reads back OPEN at .*nothing was merged/);
   assert.equal(gh.pulls.get(143).state, "OPEN");
+  // An interrupted call, or one that failed without GitHub's answer, may
+  // still land: the outcome is uncertain even though the PR reads back open,
+  // and the next merge waits for it to be settled from GitHub.
+  for (const mode of ["throw", "no-answer"]) {
+    gh.mode = mode;
+    const unsure = merge(43);
+    assert.deepEqual([unsure.merged, unsure.state], [false, "uncertain"], `${mode}: ${unsure.evidence}`);
+    assert.match(unsure.evidence, /reads back open at .*may still land/);
+    const calls = gh.mergeCalls.length;
+    const waiting = merge(43);
+    assert.equal(waiting.admitted, false);
+    assert.equal(waiting.gate.blockers.length, 1, waiting.gate.blockers.join(" | "));
+    assert.match(waiting.gate.blockers[0], new RegExp(`merge of PR #143 ${unsure.operation} at ${h43c} is uncertain; settle it with checkpoint\\.mjs reconcile-operations`), "the unsettled merge alone holds the next one");
+    assert.equal(gh.mergeCalls.length, calls, "no blind retry");
+    assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow() })).map((s) => [s.id, s.state, s.retry]), [[unsure.operation, "not-applied", true]], "GitHub shows it did not apply, so the gate may run again");
+  }
   // The merge lands but the answer and the read-back are lost: uncertain,
   // and no further merge until it is settled from GitHub.
   gh.mode = "merge-then-throw";

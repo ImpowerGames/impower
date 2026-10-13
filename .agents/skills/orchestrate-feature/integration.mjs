@@ -227,7 +227,10 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, s
   catch (error) { call = { ok: false, interrupted: true, message: error.message }; }
   let back = null, readError = null;
   try { back = client.pull(pr); } catch (error) { readError = error.message; }
-  const said = call.ok ? "returned success" : `${call.interrupted ? "was interrupted" : "was refused"} (${call.message})`;
+  // Only GitHub's own refusal shows the request did not apply; a call that was
+  // interrupted, or failed without GitHub's answer, may still land.
+  const refused = !call.ok && !call.interrupted && GITHUB_REFUSAL.test(call.message ?? "");
+  const said = call.ok ? "returned success" : `${refused ? "was refused by GitHub" : call.interrupted ? "was interrupted" : "failed without GitHub's answer"} (${call.message})`;
   let state, evidence, mergeCommit = null, onMain = null;
   if (!back) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} could not be read back (${readError})`; }
   else if (back.state === "MERGED" && back.head === gate.head && back.mergeCommit) {
@@ -236,7 +239,7 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, s
     state = "confirmed";
     evidence = `PR #${pr} reads back merged as ${mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : ""}`;
   } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
-  else if (back.state === "OPEN" && call.ok) { state = "uncertain"; evidence = `the merge call returned success, but PR #${pr} reads back open at ${back.head}`; }
+  else if (back.state === "OPEN" && !refused && back.head === gate.head) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} reads back open at ${back.head}; the request may still land, so reconcile-operations settles it`; }
   else { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (mergeCommit) Object.assign(o, { mergeCommit, onMain }); });
   return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, mergeCommit, onMain, revision: settled.record.revision, gate };
@@ -392,7 +395,10 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
 // --- GitHub and Git ---------------------------------------------------------
 
 // The merge call: a merge commit, the head the gate admitted, and no flag
-// that bypasses protection or defers the merge.
+// that bypasses protection or defers the merge. A failed call counts as
+// GitHub's refusal only when its message is GitHub's answer: a GraphQL error
+// or a 4xx status, such as a moved head or an unmet branch policy.
+export const GITHUB_REFUSAL = /GraphQL:|HTTP 4[0-9][0-9]/;
 export const mergeArgs = (repository, pr, head) => ["pr", "merge", String(pr), "--repo", repository, "--merge", "--match-head-commit", head];
 
 export function integrationClient(repository, checkout) {
