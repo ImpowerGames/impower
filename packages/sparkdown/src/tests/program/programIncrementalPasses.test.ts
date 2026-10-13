@@ -84,6 +84,9 @@ function session(
     get text() {
       return text;
     },
+    get version() {
+      return version;
+    },
     get store() {
       return c.compiler.chunkStore!;
     },
@@ -913,15 +916,17 @@ describe("a hazard of reuse", () => {
     // A preview of a function, then the function itself, twice.
     for (const n of [1, 2]) {
       const at = s.text.indexOf("  Line 11 of FIRST.") + "  Line 11 of FIRST.".length + 1;
-      quietly(() =>
+      const preview = quietly(() =>
         s.compiler.previewCompile({
-          textDocument: { uri: MAIN_URI, version: 1 },
+          textDocument: { uri: MAIN_URI, version: s.version },
           contentChanges: [
             { range: { start: posAt(s.text, at), end: posAt(s.text, at) }, text: insert(n) },
           ],
           root: { uri: MAIN_URI },
         } as never),
       );
+      expect(preview.outdated, `preview ${n} compiled`).toBeUndefined();
+      expect(preview.program, `preview ${n} compiled`).toBeTruthy();
       const after = s.edit("  Line 11 of FIRST.\n", `  Line 11 of FIRST.\n${insert(n)}`)!;
       plain.edit("  Line 11 of FIRST.\n", `  Line 11 of FIRST.\n${insert(n)}`);
       expect(closures(after, s.text).every((chunk, i) => chunk === kept[i])).toBe(true);
