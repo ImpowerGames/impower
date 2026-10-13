@@ -537,12 +537,56 @@ export default class UIManager extends Manager {
     ) {
       ids = [msg.params.element];
     }
+    const keep = this.connectedAsCleared();
     for (const id of ids) {
       const el = id ? this.getElement(id) : undefined;
-      if (el) {
-        this.applyHeld(el, []);
+      if (!el) {
+        continue;
+      }
+      if (!keep(el)) {
+        // Inside content a held clear removes, which applied at once had
+        // detached it, so this message changed nothing on screen: remove
+        // that content now, before it can show the change.
+        this.releaseRemovalHolding(el);
+      }
+      this.applyHeld(el, []);
+    }
+  }
+
+  /** Apply, in content only, every held clear whose removal holds `el` or
+   *  one of its ancestors. */
+  protected releaseRemovalHolding(el: Node) {
+    const held = this.heldClears;
+    if (!held) {
+      return;
+    }
+    for (let n: Node | null = el; n; n = n.parentNode) {
+      for (const [owner, entry] of Array.from(held)) {
+        for (const kind of ["text", "image"] as const) {
+          if (entry[kind]?.has(n)) {
+            this.applyHeld(owner, [kind], false);
+          }
+        }
       }
     }
+  }
+
+  /** A create builds `id` afresh while a node with that structural id, which
+   *  a held clear removes, is still on the page: applied at once, that clear
+   *  had detached it, so the fresh element takes its place now rather than
+   *  showing beside it. */
+  protected replaceHeldOut(id: string) {
+    const held = this.heldClears;
+    const overlay = this.app.overlay;
+    if (!held || held.size === 0 || !overlay) {
+      return;
+    }
+    const keep = this.connectedAsCleared();
+    overlay.querySelectorAll("*").forEach((node) => {
+      if ((node as any).__sdId === id && !keep(node)) {
+        node.remove();
+      }
+    });
   }
 
   /**
@@ -691,6 +735,9 @@ export default class UIManager extends Manager {
       }
       const reused = el != null;
       if (!el) {
+        if (id) {
+          this.replaceHeldOut(id);
+        }
         el = document.createElement(params.type);
         this._createdThisPass.add(el);
       }

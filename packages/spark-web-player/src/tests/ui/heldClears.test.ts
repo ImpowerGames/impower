@@ -598,6 +598,103 @@ describe("held clears (#1820)", () => {
     expect(held).toEqual(immediate);
   });
 
+  test("a fresh element takes the place of the held-out one it replaces, not a place beside it", async () => {
+    // As above, but the next display writes the portrait's picture before its
+    // sweep. Applied at once, the old portrait was detached, so no frame shows
+    // the old picture beside the new one.
+    const build = async () => {
+      await create("e", null, "stage");
+      await create("e-panel-0", "e", "panel");
+      await create("e-panel-0-text-0", "e-panel-0", "text");
+      await create("e-panel-0-text-0-portrait-0", "e-panel-0-text-0", "portrait");
+      await create("e-panel-0-text-0-portrait-0-image-0", "e-panel-0-text-0-portrait-0", "image");
+    };
+    const pictures = () =>
+      Array.from(overlay.querySelectorAll(".portrait > .image > .instance[image]")).map((l) =>
+        l.getAttribute("image"),
+      );
+    const run = async (held: boolean) => {
+      await build();
+      await show("portrait", "old");
+      await flushMicrotasks();
+      page.beginReconcilePass();
+      await build();
+      if (held) {
+        hold("panel", ["e-panel-0"]);
+      } else {
+        await request("ui/update", { element: "e-panel-0", style: { display: "none" }, attributes: { text: null } });
+        await request("ui/write-text", { target: "panel", instructions: [], instant: true });
+        await request("ui/write-image", { target: "panel", instructions: [], instant: true });
+      }
+      page.onDispose();
+      page = new UIManager(createStubApp(overlay, () => {}));
+      await page.onInit();
+      page.beginReconcilePass();
+      await build();
+      await request("ui/update", { element: "e-panel-0", style: { display: null } });
+      await show("portrait", "new");
+      const beforeSweep = pictures();
+      page.sweepReconcile();
+      return { beforeSweep, after: pictures() };
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    expect(immediate).toEqual({ beforeSweep: ["new"], after: ["new"] });
+    expect(held).toEqual(immediate);
+  });
+
+  test("an update inside content a held clear removes does not show on the page", async () => {
+    // A reactive refresh updates a structural caption in the text slot of a
+    // target whose clear is held. Applied at once, that clear had detached the
+    // caption, so the update showed nowhere.
+    const build = async () => {
+      await create("e", null, "stage");
+      await create("e-dialogue-0", "e", "dialogue");
+      await create("e-dialogue-0-text-0", "e-dialogue-0", "text");
+      await create("e-dialogue-0-text-0-caption-0", "e-dialogue-0-text-0", "caption", {
+        content: { text: "Old" },
+      });
+    };
+    const run = async (held: boolean) => {
+      await build();
+      page.beginReconcilePass();
+      await build();
+      if (held) {
+        hold("dialogue", ["e-dialogue-0"]);
+      } else {
+        await request("ui/update", { element: "e-dialogue-0", style: { display: "none" }, attributes: { text: null } });
+        await request("ui/write-text", { target: "dialogue", instructions: [], instant: true });
+        await request("ui/write-image", { target: "dialogue", instructions: [], instant: true });
+      }
+      await request("ui/update", { element: "e-dialogue-0", style: { display: null } });
+      await request("ui/update", {
+        element: "e-dialogue-0-text-0-caption-0",
+        content: { text: "Transient" },
+      });
+      const shown = (overlay.querySelector(".dialogue") as HTMLElement).textContent;
+      page.sweepReconcile();
+      return { shown, after: (overlay.querySelector(".dialogue") as HTMLElement).textContent };
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    expect(immediate).toEqual({ shown: "", after: "" });
+    expect(held).toEqual(immediate);
+  });
+
   test("an update of a content slot alone leaves the picture until the write replaces it", async () => {
     // A saved style restored onto a portrait's image slot during the
     // connect changes the slot, not its picture.
