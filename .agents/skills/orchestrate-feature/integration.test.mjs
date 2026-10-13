@@ -89,6 +89,8 @@ try {
       if (gh.mode === "refuse") return { ok: false, message: "GraphQL: Pull request is not mergeable: the base branch policy prohibits the merge" };
       if (gh.mode === "throw") throw new Error("connection reset before GitHub answered");
       if (gh.mode === "no-answer") return { ok: false, message: "unexpected EOF" };
+      // The writer pushes while the answer to this call is lost.
+      if (gh.mode === "push-no-answer") { gh.mode = "ok"; p.head = gh.pushTo; return { ok: false, message: "unexpected EOF" }; }
       if (p.head !== head) return { ok: false, message: "GraphQL: Head branch was modified. Review and try the merge again." };
       githubMerge(pr);
       // The merge lands, then the answer and the next read are lost.
@@ -98,7 +100,7 @@ try {
     issue: (n) => structuredClone(gh.issues.get(n)),
     createComment: (n, body) => { const c = post(n, body); return { id: c.id, body: c.body, url: c.html_url }; },
     getComment: (id) => { const c = allComments().find((x) => x.id === id); if (!c) throw new Error("HTTP 404"); return { id: c.id, body: c.body, url: c.html_url }; },
-    closeIssue: (n) => { gh.closeCalls = (gh.closeCalls ?? 0) + 1; if (gh.closeFail > 0) { gh.closeFail--; throw new Error(gh.closeError); } gh.issues.get(n).state = "closed"; },
+    closeIssue: (n) => { gh.closeCalls = (gh.closeCalls ?? 0) + 1; if (gh.closeFail > 0) { gh.closeFail--; throw new Error(gh.closeError); } if (gh.closeSilent > 0) { gh.closeSilent--; return; } gh.issues.get(n).state = "closed"; },
   };
   // The status comment store for checkpoints shares GitHub's comments.
   const statusGithub = {
@@ -138,7 +140,7 @@ try {
   // ready PRs never grants the coordinator the merge.
   assert.throws(() => run.main(["init", "--invocation", invocation]), /--merging must record who merges: coordinator or maintainer/);
   assert.throws(() => run.mergingFor(invocation, "maybe"), /--merging must be coordinator or maintainer/);
-  for (const text of ["Use orchestrate-feature for #40, but stop at ready PRs.", "Use orchestrate-feature for #40 and do not merge anything."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);
+  for (const text of ["Use orchestrate-feature for #40, but stop at ready PRs.", "Use orchestrate-feature for #40 and do not merge anything.", "Use orchestrate-feature for #40 --stop-at-ready."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);
   run.initRecord({ record: recordFile, checkout: src, repository: REPO, feature: FEATURE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   assert.deepEqual([run.readRecord(recordFile).invocation.merging, run.readRecord(recordFile).authority.merge], ["coordinator", run.MERGE_GRANT], "an explicit invocation, recorded as such, grants the coordinator the scoped merge");
   assert.equal(run.coordinatorMerges(run.readRecord(recordFile)), true);
@@ -229,7 +231,7 @@ try {
   blocked(gate(41, { ...record(), invocation: { ...record().invocation, merging: "maintainer" }, authority: run.authorityFor("maintainer") }), /the run records that the maintainer merges \(merging maintainer\)/, "stop-at-ready disables merging");
   blocked(gate(41, { ...record(), invocation: { text: invocation } }), /the run records that the maintainer merges \(merging not recorded\)/, "a record without the decision does not merge");
   blocked(gate(41, { ...record(), authority: { ...record().authority, merge: "the maintainer merges ready PRs" } }), /does not let the coordinator merge/, "a record made under another grant does not merge");
-  blocked(gate(41, { ...record(), invocation: { text: "Use orchestrate-feature for #40, but stop at ready PRs.", merging: "coordinator" } }), /does not let the coordinator merge/, "a request to stop at ready never merges, whatever decision sits beside it");
+  for (const text of ["Use orchestrate-feature for #40, but stop at ready PRs.", "Use orchestrate-feature for #40 --stop-at-ready."]) blocked(gate(41, { ...record(), invocation: { text, merging: "coordinator" } }), /does not let the coordinator merge/, `a request to stop at ready never merges, whatever decision sits beside it: ${text}`);
   blocked(gate(41, { ...record(), checkpoints: undefined }), /checkpoints are not enabled for this run/, "no merge without a durable intent");
   blocked(gate(41, { ...record(), invocation: { text: "Can you explain how orchestrate-feature merges PRs?" } }), /does not name orchestrate-feature and Feature #40/, "a discussion of the skill grants nothing");
   const selfWritten = structuredClone(record());
@@ -427,7 +429,7 @@ try {
     gh.mode = mode;
     const unsure = merge(43);
     assert.deepEqual([unsure.merged, unsure.state], [false, "uncertain"], `${mode}: ${unsure.evidence}`);
-    assert.match(unsure.evidence, /reads back open at .*may still land/);
+    assert.match(unsure.evidence, /reads back OPEN at .*may still land/);
     const calls = gh.mergeCalls.length;
     const waiting = merge(43);
     assert.equal(waiting.admitted, false);
@@ -436,6 +438,16 @@ try {
     assert.equal(gh.mergeCalls.length, calls, "no blind retry");
     assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow() })).map((s) => [s.id, s.state, s.retry]), [[unsure.operation, "not-applied", true]], "GitHub shows it did not apply, so the gate may run again");
   }
+  // The writer pushes while the merge's answer is lost: the PR reads back
+  // open at another head, which is no refusal, so the outcome stays uncertain
+  // and reconciliation settles it from GitHub's state.
+  gh.mode = "push-no-answer";
+  gh.pushTo = h43b;
+  const pushed = merge(43);
+  assert.deepEqual([pushed.merged, pushed.state], [false, "uncertain"], pushed.evidence);
+  assert.match(pushed.evidence, new RegExp(`reads back OPEN at ${h43b}; the request may still land`));
+  assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow() })).map((s) => [s.id, s.state]), [[pushed.operation, "superseded"]], "a moved head means the expected-head merge did not apply");
+  setHead(43, h43c);
   // Another PR lands on main, this merge lands on top of it, and the answer
   // and the read-back are lost: uncertain, and no further merge until it is
   // settled from GitHub.
@@ -495,7 +507,7 @@ try {
   // Every slice merged, one criterion unmet: the Feature stays open.
   const unmet = verify({ criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission"]), met(criteria[1], ["the final report lists decision on PR #142"]), { criterion: criteria[2], status: "unmet", gap: "the closing run has not been exercised" }] });
   assert.equal(unmet.verdict, "incomplete");
-  const close = (id, extra = {}) => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: id, snapshot: snapshotNow(dst), criteria: ig.parseCriteria(gh.issues.get(FEATURE).body), client, git: gitOf(dst), ...extra });
+  const close = (id, extra = {}) => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: id, takeSnapshot: () => snapshotNow(dst), client, ...extra });
   assert.throws(() => close(unmet.id), /found the Feature incomplete .*unmet: The Feature closes only/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "merged slices with an unmet criterion are not completion");
   // A slice not delivered keeps it open too, whatever the criteria say.
@@ -514,11 +526,11 @@ try {
   // nor the closure trusts it then.
   const body = gh.issues.get(FEATURE).body;
   gh.issues.get(FEATURE).body = body.replace("## Additional context", "- [ ] A criterion added after the verification.\n\n## Additional context");
-  assert.throws(() => close(done.id), /no longer holds: .*criteria or the run's operations changed/);
+  assert.throws(() => close(done.id), /no longer holds: the Feature's acceptance criteria changed/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "a new criterion");
   gh.issues.get(FEATURE).body = body;
   const late = change((r) => cp.intent(r, { kind: "merge", ticket: 43, pr: 143, expectHead: h43c, evidence: "a probe recorded after the verification" }), dstRecord, "local_dst");
-  assert.throws(() => close(done.id), /no longer holds: .*operations changed/);
+  assert.throws(() => close(done.id), new RegExp(`no longer holds: merge ${late.id} of PR #143 is unsettled`));
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "an unsettled operation");
   change((r) => cp.outcome(r, { id: late.id, state: "failed", evidence: "a probe operation, never run" }), dstRecord, "local_dst");
   advanceMain("revert.txt", "a later change on main\n", "revert: a later change on main");
@@ -539,14 +551,21 @@ try {
   // Closing: the report is posted and read back, then the issue is closed. A
   // close whose answer is lost may still land, so it is uncertain and holds
   // the next attempt until reconciled; GitHub's own refusal is a failure.
-  assert.throws(() => close(final.id, { snapshot: { ...snapshotNow(dst), repository: "acme/other" } }), /another repository or Feature/);
+  assert.throws(() => close(final.id, { takeSnapshot: () => ({ ...snapshotNow(dst), repository: "acme/other" }) }), /another repository or Feature/);
   // Main moves while the closure's intent is saved: the verification is
   // checked again after the save, and nothing is posted or closed.
   const closeCallsBefore = gh.closeCalls ?? 0, reportsBefore = gh.comments.get(FEATURE).length;
   const racing = close(final.id, { afterIntent: () => { advanceMain("late.txt", "lands during the closure\n", "feat: a PR merged during the closure"); cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); } });
   assert.deepEqual([racing.closed, racing.state, gh.closeCalls ?? 0, gh.comments.get(FEATURE).length, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, reportsBefore, "open"], racing.evidence);
-  assert.match(racing.evidence, /not run: origin\/main moved to [0-9a-f]{40}/);
+  assert.match(racing.evidence, /not run: origin\/main is [0-9a-f]{40}, not the verified/);
   final = verify(doneEvidence);
+  // A slice reopened while the intent is saved: every premise is read again
+  // from a fresh snapshot, so nothing is posted or closed.
+  const reopened = close(final.id, { afterIntent: () => { gh.issues.get(41).state = "open"; cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); } });
+  assert.deepEqual([reopened.closed, reopened.state, gh.closeCalls ?? 0, gh.comments.get(FEATURE).length], [false, "failed", closeCallsBefore, reportsBefore], reopened.evidence);
+  assert.match(reopened.evidence, /not run: #41 is no longer closed with its deliverable on main/);
+  assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "a reopened slice");
+  gh.issues.get(41).state = "closed";
   gh.closeFail = 1;
   gh.closeError = "HTTP 502 while closing";
   const lostClose = close(final.id, { afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }) });
@@ -557,6 +576,14 @@ try {
   gh.closeError = "HTTP 403: Resource not accessible by integration";
   const refusedClose = close(final.id);
   assert.deepEqual([refusedClose.closed, refusedClose.state], [false, "failed"], refusedClose.evidence);
+  // A close call that reports success while the Feature reads back open is
+  // not a refusal either: uncertain until reconciled.
+  gh.closeSilent = 1;
+  const silentClose = close(final.id);
+  assert.deepEqual([silentClose.closed, silentClose.state], [false, "uncertain"], silentClose.evidence);
+  assert.match(silentClose.evidence, /the close call returned success; the request may still land/);
+  assert.throws(() => close(final.id), /is uncertain; reconcile it/);
+  assert.deepEqual(change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst) }), dstRecord, "local_dst").map((s) => [s.kind, s.state]), [["close", "not-applied"]]);
   const closed = close(final.id);
   assert.deepEqual([closed.closed, closed.state, closed.comment.reused, gh.issues.get(FEATURE).state], [true, "confirmed", true, "closed"]);
   assert.equal(gh.comments.get(FEATURE).filter((c) => c.body.includes(`final report: verification ${final.id}`)).length, 1, "every retried close reuses the posted report");

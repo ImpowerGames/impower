@@ -21,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRecord, updateRecord, coordinatorMerges, parseCriteria, verificationHolds } from "./feature-run.mjs";
+import { readRecord, updateRecord, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, githubClient } from "./feature-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
 
@@ -257,8 +257,10 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, s
     state = "confirmed";
     evidence = `PR #${pr} reads back merged as ${back.mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : `; whether it is on origin/${TARGET} could not be read (${readError})`}${landingText(merged, gate.originMain)}`;
   } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
-  else if (back.state === "OPEN" && !refused && back.head === gate.head) { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} reads back open at ${back.head}; the request may still land, so reconcile-operations settles it`; }
-  else { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
+  // A merge that was called is failed only on GitHub's own refusal; every
+  // other result short of a confirmed merge is uncertain until reconciled.
+  else if (refused) { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
+  else { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; the request may still land, so reconcile-operations settles it`; }
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (merged) Object.assign(o, merged); });
   return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, ...(merged ?? {}), revision: settled.record.revision, gate };
 }
@@ -362,49 +364,41 @@ export function verifyFeature(record, { snapshot, criteria, evidence, mainSha })
   return { id: v.id, verdict, report: v.report };
 }
 
-// Closes the Feature after a complete verification that still holds: main
-// is the commit it verified, the Feature lists the criteria it checked, every
-// slice is still delivered and no operation is unsettled, all read afresh.
-// The intent is recorded and saved first, the final report is posted (or
-// found, if an earlier attempt posted it) and read back, and the issue is
-// closed. The outcome is the issue state GitHub reads back; a close call that
-// was interrupted or failed without GitHub's answer leaves an open Feature
-// uncertain, since the request may still land.
-export function closeFeature(file, { coordinator, expectRevision, verification: id, snapshot, criteria, client, git, afterIntent }) {
+// Closes the Feature after a complete verification that still holds in a
+// fresh snapshot, taken before the intent is saved and again after it: main
+// is the commit it verified, the Feature lists the criteria and slices it
+// covered, each slice is still delivered and no operation is unsettled. The
+// final report is then posted (or found, if an earlier attempt posted it) and
+// read back, and the issue is closed. The outcome is the issue state GitHub
+// reads back: a close that was called is failed only on GitHub's own refusal,
+// and every other result short of a closed Feature is uncertain until
+// reconciled, since the request may still land.
+export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, client, afterIntent }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
   if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run, so the closure's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
   const v = (record.verifications ?? []).at(-1);
   if (!v || v.id !== id) throw new Error(`Verification ${id} is not the run's latest${v ? ` (${v.id} is)` : ""}; close only on the latest verification`);
   if (v.verdict !== "complete") throw new Error(`Verification ${id} found the Feature incomplete (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...v.unsettled].join("; ")}); the Feature stays open`);
-  if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
-  git.fetch();
-  const main = git.main();
-  const now = { ...snapshot, feature: { ...snapshot.feature, criteria } };
-  const changed = [
-    ...(main !== v.mainSha ? [`origin/${TARGET} is ${main}, not the verified ${v.mainSha}`] : []),
-    ...(snapshot.originMain !== main ? [`the snapshot saw origin/${TARGET} at ${snapshot.originMain}; snapshot again`] : []),
-    ...(!verificationHolds(record, now) ? ["the Feature's criteria or the run's operations changed since the verification"] : []),
-    ...slices(record, snapshot).filter((s) => !s.delivered).map((s) => `#${s.number} is no longer delivered`),
-  ];
-  if (changed.length) throw new Error(`Verification ${id} no longer holds: ${changed.join("; ")}; verify the Feature again`);
+  const gapsNow = (rec) => {
+    const snapshot = takeSnapshot();
+    if (snapshot.repository !== rec.repository || snapshot.feature?.number !== rec.feature) throw new Error("The snapshot is of another repository or Feature");
+    return verificationGaps(rec, snapshot);
+  };
+  const before = gapsNow(record);
+  if (before.length) throw new Error(`Verification ${id} no longer holds: ${before.join("; ")}; verify the Feature again`);
   if (client.issue(record.feature).state === "closed") throw new Error(`Feature #${record.feature} is already closed; nothing was recorded`);
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => intent(r, { kind: "close", ticket: r.feature, pr: r.feature, expectHead: v.mainSha, evidence: `verification ${v.id}` }));
   const op = planned.output;
   const notRun = (reason) => { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); }); };
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
-  // The verification is checked once more after the intent was saved: main,
-  // the Feature's criteria and the run's operations, read afresh.
-  let moved;
-  try {
-    git.fetch();
-    const mainNow = git.main();
-    moved = mainNow !== v.mainSha ? `origin/${TARGET} moved to ${mainNow}` : !verificationHolds(readRecord(file), { originMain: mainNow, feature: { criteria: parseCriteria(client.issue(record.feature).body) } }) ? "the Feature's criteria or the run's operations changed" : null;
-  } catch (error) { notRun(`the verification could not be checked again after the intent was saved: ${error.message}`); throw error; }
-  if (moved) {
-    notRun(`while the intent was saved, ${moved}; verify the Feature again`);
-    return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${moved}`, comment: null };
+  let after;
+  try { after = gapsNow(readRecord(file)); }
+  catch (error) { notRun(`the verification could not be checked again after the intent was saved: ${error.message}`); throw error; }
+  if (after.length) {
+    notRun(`while the intent was saved, ${after.join("; ")}; verify the Feature again`);
+    return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${after.join("; ")}`, comment: null };
   }
   let comment = null, problem = null, called = false, refused = false;
   try {
@@ -421,8 +415,8 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   }
   let issue = null;
   try { issue = client.issue(record.feature); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the Feature could not be read back: ${error.message}`; }
-  const state = !issue ? (called ? "uncertain" : "failed") : issue.state === "closed" ? "confirmed" : called && problem && !refused ? "uncertain" : "failed";
-  const evidence = !issue ? problem : issue.state === "closed" ? `Feature #${record.feature} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `Feature #${record.feature} reads back ${issue.state}${problem ? `: ${problem}` : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`;
+  const state = issue?.state === "closed" ? "confirmed" : !called || refused ? "failed" : "uncertain";
+  const evidence = issue?.state === "closed" ? `Feature #${record.feature} reads back closed${comment ? `, with the final report in comment ${comment.id}` : ""}` : `${issue ? `Feature #${record.feature} reads back ${issue.state}` : "the Feature was not read back"}${problem ? `: ${problem}` : called ? ": the close call returned success" : ""}${state === "uncertain" ? "; the request may still land, so reconcile-operations settles it" : ""}`;
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (comment) o.comment = comment; });
   return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
 }
@@ -550,8 +544,9 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
     }
     case "close-feature": {
-      const { record, client, git } = context();
-      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, snapshot: readJson(abs(o.snapshot, "snapshot")), criteria: parseCriteria(client.issue(record.feature).body), client, git, afterIntent: saved });
+      const { record, client } = context();
+      const snapshotNow = () => takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record.repository, record.checkout));
+      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, client, afterIntent: saved });
       return { ...result, ...checkpointAfter(`closing the Feature (${result.state})`) };
     }
     default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-feature|close-feature --option value ...");

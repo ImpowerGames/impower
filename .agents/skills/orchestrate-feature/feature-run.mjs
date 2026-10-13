@@ -185,16 +185,19 @@ export const MERGE_GRANT = "the coordinator merges this Feature's PRs that pass 
 export const MERGING = ["coordinator", "maintainer"];
 // A request that asks to stop at ready PRs, or not to merge, never grants the
 // coordinator the merge, whatever decision is recorded beside it.
+// Hyphens and underscores read as spaces, so an option-like spelling such as
+// stop-at-ready is the same request.
 export const STOP_AT_READY = /stop(?:s|ping)? at (?:the )?ready|do(?:n't| not) merge|without merging|leave (?:the )?merg|maintainer merges/i;
+export const stopsAtReady = (text) => STOP_AT_READY.test(String(text ?? "").replace(/[-_]+/g, " "));
 export function mergingFor(invocation, merging = "maintainer") {
   if (!MERGING.includes(merging)) throw new Error(`--merging must be ${MERGING.join(" or ")}: coordinator when the request explicitly asks to orchestrate the Feature, maintainer when it stops at ready PRs`);
-  if (merging === "coordinator" && STOP_AT_READY.test(invocation ?? "")) throw new Error(`The request "${invocation}" asks to stop at ready PRs or not to merge; record --merging maintainer`);
+  if (merging === "coordinator" && stopsAtReady(invocation)) throw new Error(`The request "${invocation}" asks to stop at ready PRs or not to merge; record --merging maintainer`);
   return merging;
 }
 export const authorityFor = (merging = "maintainer") => (merging === "coordinator" ? { ...AUTHORITY, merge: MERGE_GRANT } : AUTHORITY);
 // Only a run whose own recorded decision granted the merge, in this grant's
 // words, merges; any other record leaves merging to the maintainer.
-export const coordinatorMerges = (record) => record.invocation?.merging === "coordinator" && record.authority?.merge === MERGE_GRANT && !STOP_AT_READY.test(record.invocation?.text ?? "");
+export const coordinatorMerges = (record) => record.invocation?.merging === "coordinator" && record.authority?.merge === MERGE_GRANT && !stopsAtReady(record.invocation?.text);
 
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
   const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
@@ -400,15 +403,27 @@ export function parseCriteria(body) {
 }
 const sameCriteria = (a, b) => JSON.stringify(a.map((c) => c.text ?? c.criterion)) === JSON.stringify(b.map((c) => c.text ?? c.criterion));
 
-// The latest verification still describes the Feature only while main is the
-// commit it verified, the Feature lists the criteria it checked, and no
-// operation is unsettled; any change needs a new verification.
-export function verificationHolds(record, snapshot) {
+// The latest complete verification still describes the Feature only while
+// every premise it was made on holds in a fresh snapshot: main is the commit
+// it verified, the Feature lists the criteria it checked and the slices it
+// covered, each of those slices is still closed with its deliverable on main,
+// and no operation is unsettled. Each premise that changed is named; any
+// change needs a new verification.
+export function verificationGaps(record, snapshot) {
   const v = (record.verifications ?? []).at(-1);
-  if (v?.verdict !== "complete") return false;
-  if (snapshot.originMain !== v.mainSha || !Array.isArray(snapshot.feature?.criteria) || !sameCriteria(snapshot.feature.criteria, v.criteria)) return false;
-  return !(record.operations ?? []).some((o) => o.kind !== "close" && OPEN_OPERATION.has(o.state));
+  if (v?.verdict !== "complete") return ["the latest verification is not complete"];
+  const gaps = [];
+  if (snapshot.originMain !== v.mainSha) gaps.push(`origin/main is ${snapshot.originMain}, not the verified ${v.mainSha}`);
+  if (!Array.isArray(snapshot.feature?.criteria) || !sameCriteria(snapshot.feature.criteria, v.criteria)) gaps.push("the Feature's acceptance criteria changed");
+  const slices = (snapshot.tickets ?? []).filter((t) => !t.container);
+  const list = (ns) => [...ns].sort((a, b) => a - b).map((n) => `#${n}`).join(", ");
+  if (list(slices.map((t) => t.number)) !== list(v.tickets ?? [])) gaps.push(`the Feature's slices are ${list(slices.map((t) => t.number)) || "none"}, not the verified ${list(v.tickets ?? []) || "none"}`);
+  for (const t of slices) if (!(t.state === "closed" && t.delivered)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
+  const open = (record.operations ?? []).filter((o) => o.kind !== "close" && OPEN_OPERATION.has(o.state));
+  if (open.length) gaps.push(`${open.map((o) => `${o.kind} ${o.id} of PR #${o.pr}`).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled`);
+  return gaps;
 }
+export const verificationHolds = (record, snapshot) => verificationGaps(record, snapshot).length === 0;
 
 // Remaining work the coordinator reports beside every plan.
 export function remainingFor(record, complete) {
