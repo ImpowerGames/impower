@@ -1,3 +1,7 @@
+// agent-tooling-timeout-ms: 900000
+// Measured at 254 s on the Windows CI runner, 403 s alone and 518 s inside
+// the sweep on a loaded Windows machine, so the default five-minute bound
+// leaves no headroom.
 // Exercises portable checkpoints of a Feature run across two clones of one
 // scratch remote: discovery from the Feature number, takeover by a destination
 // with none of the source's private files, competing and stale updates, an
@@ -234,7 +238,11 @@ try {
   const rec500d = path.join(dstPrivate, "run-500.json");
   const resumeArgs = { record: rec500d, checkout: dst, repository: "acme/widgets", feature: 500, coordinator: "local_dst", harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #500; the previous account is out of usage.", concurrency: 4 };
   assert.throws(() => cp.resume(resumeArgs, { github, host: DST, defaults, totalMemory: 64 * GB }), /--evidence/);
-  const taken = cp.resume({ ...resumeArgs, evidence: "the maintainer reports the source account reached its usage limit" }, { github, host: DST, defaults, totalMemory: 64 * GB });
+  // A takeover holds the same concurrency bounds as init, refused before
+  // anything is written or published; the takeover below is still next.
+  for (const concurrency of [0, 9, 99, 2.5]) assert.throws(() => cp.resume({ ...resumeArgs, concurrency, evidence: "out of usage" }, { github, host: DST, defaults, totalMemory: 64 * GB }), /--concurrency must be 1 to 8/, `concurrency ${concurrency} is refused`);
+  assert.equal(fs.existsSync(rec500d), false, "a refused takeover writes no record");
+  const taken =cp.resume({ ...resumeArgs, evidence: "the maintainer reports the source account reached its usage limit" }, { github, host: DST, defaults, totalMemory: 64 * GB });
   assert.equal(taken.action, "takeover");
   assert.equal(taken.seq, lastSeq + 1);
   assert.equal(taken.summary.state, "synced", "the takeover repairs the stale summary from the durable checkpoint");
@@ -568,6 +576,11 @@ try {
   const unseen = structuredClone(latest780);
   unseen.work[Object.keys(unseen.work).find((k) => unseen.work[k].ticket === 782)] = { ticket: 782, host: SRC, worktree: moved782, branch: "feat/782-moved", exists: false, observedAt: "now" };
   assert.match(cp.renderSummary({ commit: "0".repeat(40), checkpoint: unseen }, "acme/widgets").split("\n").find((line) => line.startsWith("| #782 ")), /worktree missing, push state unknown, file state unknown; snapshot [0-9a-f]+ from src-host/);
+  // An observation that passes through later checkpoints keeps its own time,
+  // clean or not, so it never reads as current.
+  const old = structuredClone(latest780);
+  old.work[Object.keys(old.work).find((k) => old.work[k].ticket === 782)] = { ticket: 782, host: SRC, worktree: moved782, branch: "feat/782-moved", exists: true, head: "x", dirty: false, unpushed: false, observedAt: "2026-10-01T00:00:00.000Z" };
+  assert.match(cp.renderSummary({ commit: "0".repeat(40), checkpoint: old }, "acme/widgets").split("\n").find((line) => line.startsWith("| #782 ")), /src-host: as of 2026-10-01T00:00:00\.000Z, head pushed, clean/);
   const got781 = cp.retrieve({ repository: "acme/widgets", feature: 780, checkout: dst4, ticket: 781, worktree: path.join(tmp, "dst4-wt-781") });
   assert.equal(fs.readFileSync(path.join(got781.worktree, "clean.txt")).toString("hex"), Buffer.from("base\r\n").toString("hex"), "the unstaged bytes arrive");
   assert.equal(fs.readFileSync(path.join(cp.retrieve({ repository: "acme/widgets", feature: 780, checkout: dst4, ticket: 782, worktree: path.join(tmp, "dst4-wt-782") }).worktree, "draft.txt"), "utf8"), "moved draft\n");
@@ -680,11 +693,11 @@ try {
     assert.equal(there.isSymbolicLink() ? fs.readlinkSync(path.join(gotLink.worktree, "link.txt")) : fs.readFileSync(path.join(gotLink.worktree, "link.txt"), "utf8"), "README.md", "the link keeps its target");
   }
 
-  // Work judged against an existing snapshot, by location: a conflicting merge
-  // and an edit inside a submodule after the snapshot are reported; a head
-  // the snapshot already reaches is not; work another host adopts after
-  // retrieving it keeps its snapshot; and a source host's newer observation
-  // is never undone by an older one after a takeover round trip.
+  // Work beside an existing snapshot, by location: a conflicting merge, an
+  // edit inside a submodule and work the snapshot holds whole are all
+  // reported; work another host adopts after retrieving it keeps its
+  // snapshot; and a source host's newer observation is never undone by an
+  // older one after a takeover round trip.
   const rec810 = init(810, "local_src81", { concurrency: 8 });
   cp.enable(rec810, { coordinator: "local_src81", expectRevision: 1, github, host: SRC });
   const snap810 = { repository: "acme/widgets", feature: { number: 810, state: "open" }, originMain: "x", tickets: [811, 812, 813, 814, 815].map((n) => ticket(n, { parent: 810 })) };
@@ -740,6 +753,8 @@ try {
   mutate(rec810b, "local_dst81", (r) => run.adopt(r, { plan: planB, ticket: 813, handleKind: "session", handle: "local_b813", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: wt813b, host: DST }));
   assert.equal(cp.autoCheckpoint(rec810b, { coordinator: "local_dst81", transition: "the adoption", github, host: DST }).saved, true);
   const adopted810 = cp.fetchState(dst8, "origin", "acme/widgets", 810).checkpoint;
+  const row811 = github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec810b), "utf8")).summary.commentId).body.split("\n").find((line) => line.startsWith("| #811 "));
+  assert.match(row811, new RegExp(`src-host: as of ${at(adopted810, 811).observedAt.replace(/\./g, "\\.")}, `), "the destination's summary shows the source's observation at its own time");
   assert.equal(adopted810.snapshots[813]?.commit, h810.snapshots[813].commit, "the adopted work keeps its snapshot");
   assert.deepEqual(cp.workFor(adopted810, 813).map((w) => w.host).sort(), [DST, SRC], "the adopting host records its own location, and the source's draft stays reported");
   assert.ok(cp.limitations(adopted810, { host: THIRD }).some((l) => l.ticket === 813 && l.kind === "unpublished" && /dst-host held unfinished files/.test(l.detail)), "the adopted work is reported where it now is, beside its snapshot");
@@ -759,7 +774,7 @@ try {
 
   // A snapshot made offline against a stale branch is scanned again before it
   // is published; a filter-hidden edit counts as unfinished work; and a
-  // location's comparison with a replaced snapshot no longer counts.
+  // location's work stays reported once another host replaces the snapshot.
   const rec820 = init(820, "local_src82", { concurrency: 8 });
   cp.enable(rec820, { coordinator: "local_src82", expectRevision: 1, github, host: SRC });
   const snap820 = { repository: "acme/widgets", feature: { number: 820, state: "open" }, originMain: "x", tickets: [821, 822, 823].map((n) => ticket(n, { parent: 820 })) };

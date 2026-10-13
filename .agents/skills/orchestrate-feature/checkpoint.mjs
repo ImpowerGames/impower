@@ -420,11 +420,13 @@ const ownerText = (t) => {
   if (t.pending) return `pending ${t.pending.operation} on ${t.pending.route} (claimed on ${t.pending.host})`;
   return "none";
 };
-// A flag nobody observed is said to be unknown, never clean or pushed.
+// Every location is shown as an observation at its own time, since another
+// host's entry passes through later checkpoints unchanged; a flag nobody
+// observed is said to be unknown, never clean or pushed.
 const locationText = (w) => {
   const s = workState(w);
   const flag = (value, yes, no, unknown) => (value === undefined ? unknown : value ? yes : no);
-  const parts = [...(w.exists === false ? ["worktree missing"] : []), ...(w.dirty === undefined && s.at ? [`as of ${s.at}`] : []), flag(s.unpushed, "unpushed commits", "head pushed", "push state unknown"), flag(s.dirty, "unfinished files", "clean", "file state unknown")];
+  const parts = [...(w.exists === false ? ["worktree missing"] : []), ...(s.at ? [`as of ${s.at}`] : []), flag(s.unpushed, "unpushed commits", "head pushed", "push state unknown"), flag(s.dirty, "unfinished files", "clean", "file state unknown")];
   if (w.handoffLock) parts.push("handoff lock present");
   return parts.join(", ");
 };
@@ -707,8 +709,8 @@ export function limitations(checkpoint, { host = os.hostname(), observations = {
     if (t.pending) out.push({ ticket: Number(n), kind: "pending", detail: `${t.pending.operation} ${t.pending.launchId} on ${t.pending.route} was claimed on ${t.pending.host} with no recorded outcome; settle it from that host before any retry` });
     const snap = checkpoint.snapshots?.[n];
     if (snap && !snap.clean) out.push({ ticket: Number(n), kind: "snapshot", detail: `unfinished work as of ${snap.time ?? "the handoff"} is retrievable from snapshot ${snap.commit}, made on ${snap.host ?? "its source"} (work in progress, not reviewed)` });
-    // Each location is judged against the snapshot by what it holds: its
-    // files by tree equality and its commits by reachability.
+    // Every location with unfinished files or unpushed commits is reported as
+    // possibly holding work only there, whatever the snapshot holds.
     for (const w of workFor(checkpoint, n)) {
       for (const detail of onlyHereDetails(w, snap)) out.push({ ticket: Number(n), kind: "unpublished", detail });
       if (w.handoffLock) out.push({ ticket: Number(n), kind: "handoff-lock", detail: `a handoff lock remains in ${w.worktree} on ${w.host}; only scripts/agent-handoff.mjs recover-lock on that host may remove it` });
@@ -727,6 +729,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const { record: file, checkout, repository, feature, coordinator, harness, invocation, evidence, remote = DEFAULT_REMOTE } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
   if (!coordinator || !invocation) throw new Error("--coordinator and --invocation (the user's request in this session) are required");
+  if (options.concurrency !== undefined && (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 8)) throw new Error("--concurrency must be 1 to 8");
   const found = discover({ repository, feature, checkout, remote, github });
   if (!found.found) throw new Error(`${found.reason}; start the run with feature-run.mjs init`);
   const prev = found.checkpoint;
