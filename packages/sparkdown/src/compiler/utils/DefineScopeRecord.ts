@@ -57,14 +57,18 @@ export interface DefineScopeStats {
  * after the identifiers.
  *
  * **Preview compiles** (#666) read the record, and write nothing that
- * outlives them: a block's union is not recorded, and every identifier the
- * preview changes is journaled on its undo list, put back on rollback and
+ * outlives them. A preview records no block's classification, and compares
+ * each compile's union with the one its own last compile classified under
+ * (`PreviewOverlay`): a preview can compile two roots before its rollback,
+ * and the second must find the identifiers as the first left them. Every identifier
+ * the preview changes is journaled on its undo list, put back on rollback and
  * reported in `namesRolledBack` (the resolver resolves it again, as it does
- * any name a rollback put back). After the rollback each declaration holds
- * the key the last real compile gave it, under the record that compile left,
- * so the next real compile scopes as if the preview had not happened. The
- * blocks a preview lowers are recorded like any other: what they hold is
- * theirs alone, and they are dropped with the preview.
+ * any name a rollback put back), and the rollback drops the overlay. After the
+ * rollback each declaration holds the key the last real compile gave it,
+ * under the record that compile left, so the next real compile scopes as if
+ * the preview had not happened. The blocks a preview lowers are recorded like
+ * any other: what they hold is theirs alone, and they are dropped with the
+ * preview.
  *
  * The builtins prelude is not recorded here: its story is parsed once and
  * classified by its own type names, which never change, so the compiler
@@ -80,6 +84,8 @@ export class DefineScopeRecord {
   // were last classified under (none until a real compile classifies them).
   protected _blocks = new WeakMap<object, BlockDefines>();
   protected _typeNames?: ReadonlySet<string>;
+  // The union the preview under way last classified under, while it lasts.
+  protected _overlay?: PreviewOverlay;
 
   stats: DefineScopeStats = DefineScopeRecord.emptyStats();
 
@@ -106,10 +112,9 @@ export class DefineScopeRecord {
     preview?: { undo: (() => void)[]; rolledBack: () => ParsedObject[] },
   ): ParsedObject[] {
     const stats = (this.stats = DefineScopeRecord.emptyStats());
-    const union =
-      this._typeNames && sameNames(this._typeNames, typeNames)
-        ? this._typeNames
-        : typeNames;
+    const overlay = preview ? this.overlayFor(preview.undo) : undefined;
+    const last = overlay ? overlay.typeNames : this._typeNames;
+    const union = last && sameNames(last, typeNames) ? last : typeNames;
     const declarations: ParsedObject[] = [];
     stats.blocks = blocks.length;
     for (const block of blocks) {
@@ -145,15 +150,33 @@ export class DefineScopeRecord {
           renamed.push(va);
         }
       }
-      if (!preview) {
+      if (!overlay) {
         entry.under = union;
       }
     }
     stats.declarations = declarations.length;
-    if (!preview) {
+    if (overlay) {
+      overlay.typeNames = union;
+    } else {
       this._typeNames = union;
     }
     return declarations;
+  }
+
+  /** The union the preview whose undo list is `undo` last classified under,
+   *  which the rollback discards (`PreviewOverlay`). */
+  protected overlayFor(undo: (() => void)[]): PreviewOverlay {
+    if (this._overlay?.undo === undo) {
+      return this._overlay;
+    }
+    const overlay: PreviewOverlay = { undo, typeNames: this._typeNames };
+    this._overlay = overlay;
+    undo.push(() => {
+      if (this._overlay === overlay) {
+        this._overlay = undefined;
+      }
+    });
+    return overlay;
   }
 
   /** The define declarations `block` holds. */
@@ -242,6 +265,28 @@ export class DefineScopeRecord {
       }
     }
   }
+}
+
+/** The union a preview last classified under, in place of the record's: a
+ *  preview can compile more than one root before its rollback
+ *  (`previewCompile` compiles the edited script on its own when the
+ *  requested root does not include it), and each compile after the first
+ *  finds the identifiers as the compiles before it left them.
+ *
+ *  Comparing a compile's union with this one rather than with the last real
+ *  compile's is what keeps that sound. While every compile of the preview
+ *  has the real union, its identity is the record's, carried chunks stand as
+ *  the record says, and none is classified. Once one compile of the preview
+ *  has another union, it is a set of the preview's own, which no block's
+ *  record holds, so that compile and every later one of the preview
+ *  classify every carried chunk again. A later compile whose union has the
+ *  real union's contents gets a set of its own too (it is compared with the
+ *  preview's last, not the record's), so it cannot take a carried chunk's
+ *  record for the identifiers an earlier compile of the preview changed.
+ *  The rollback puts every identifier back and drops the overlay. */
+interface PreviewOverlay {
+  readonly undo: (() => void)[];
+  typeNames?: ReadonlySet<string>;
 }
 
 interface BlockDefines {

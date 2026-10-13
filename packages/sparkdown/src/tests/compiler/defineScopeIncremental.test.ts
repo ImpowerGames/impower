@@ -377,6 +377,59 @@ describe.each<[string, Config]>([
     expect(keys).toContain("lamp");
   });
 
+  // A preview compiles the requested root and then, when that root does not
+  // include the edited script, the edited script on its own, both before the
+  // rollback (`previewCompile`). Two scripts that include one defining script
+  // classify its define under their own unions, so the second compile must
+  // see the key the first left, not the one the last real compile recorded
+  // (PR #1863, round 1).
+  it("scopes a shared define for each root a preview compiles", () => {
+    const SIDE = "inmemory:///side.sd";
+    const texts: Record<string, string> = {
+      [MAIN]: 'include defs.sd\n\ndefine glow as lamp with\n  hue = "red"\nend\n',
+      [DEFS]: "define lamp as object with\n  lit = true\nend\n",
+      [SIDE]: "include defs.sd\n\nscene side\n  Side.\nend\n",
+    };
+    const c = compilerOver(texts, config);
+    quiet(() => c.compile({ textDocument: { uri: MAIN } }));
+    quiet(() => c.compile({ textDocument: { uri: SIDE } }));
+    const at = texts[SIDE]!.indexOf("Side.");
+    verifyFailures();
+    const preview = quiet(() =>
+      c.previewCompile({
+        root: { uri: MAIN },
+        textDocument: { uri: SIDE, version: 1 },
+        contentChanges: [
+          {
+            range: {
+              start: posAt(texts[SIDE]!, at),
+              end: posAt(texts[SIDE]!, at + "Side.".length),
+            },
+            text: "Side changed.",
+          },
+        ],
+      } as never),
+    ) as { program: SparkProgram };
+    expect(verifyFailures(), "both preview compiles against a walk").toEqual([]);
+    const edited = { ...texts, [SIDE]: texts[SIDE]!.replace("Side.", "Side changed.") };
+    const coldSide = compilerOver(edited, config);
+    const coldKeys = globalKeys(
+      quiet(() => coldSide.compile({ textDocument: { uri: SIDE } })).program,
+    );
+    verifyFailures();
+    expect(globalKeys(preview.program)).toEqual(coldKeys);
+    expect(globalKeys(preview.program)).toContain("$object_lamp");
+    // And after the rollback each root compiles as a cold compile does.
+    expect(
+      globalKeys(quiet(() => c.compile({ textDocument: { uri: MAIN } })).program),
+    ).toContain("lamp");
+    expect(verifyFailures()).toEqual([]);
+    expect(
+      globalKeys(quiet(() => c.compile({ textDocument: { uri: SIDE } })).program),
+    ).toEqual(globalKeys(quiet(() => compilerOver(texts, config).compile({ textDocument: { uri: SIDE } })).program));
+    expect(verifyFailures()).toEqual([]);
+  });
+
   it("walks only the chunks an edit lowered anew, and classifies nothing again unless the type names moved", () => {
     const s = session();
     s.compile();
