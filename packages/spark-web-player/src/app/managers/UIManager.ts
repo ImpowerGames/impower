@@ -438,10 +438,14 @@ export default class UIManager extends Manager {
    * update, an animation, a move or a destroy of an element applies only its
    * hiding: the update that shows a target again (the restore's or the
    * beat's) then lands on it in the same task, and the element keeps what it
-   * shows until its write. Touching a content element applies the clear of
-   * that content's kind. A create touches nothing: a held clear removes only
-   * the nodes it found when it arrived, so what is created after it (a layout
-   * the beat opens, a content slot a branch mounts) is not its to empty.
+   * shows until its write. An update of a content element itself (`text`,
+   * `stroke`, `image`, `mask`: its style, its attributes) releases nothing:
+   * removing the nodes inside it and updating it commute, so the picture or
+   * the words stay until the write that replaces them. A create releases
+   * nothing either: a held clear removes only the nodes it found when it
+   * arrived, so what is created after it (a layout the beat opens, a content
+   * slot a branch mounts) is not its to empty, and what a create re-emits is
+   * handled by {@link reemittedHeld}.
    */
   protected releaseHeldClears(msg: RequestMessage) {
     const held = this.heldClears;
@@ -472,19 +476,40 @@ export default class UIManager extends Manager {
     }
     for (const id of ids) {
       const el = id ? this.getElement(id) : undefined;
-      if (!el) {
-        continue;
-      }
-      const owner = el.parentElement;
-      const kind = TEXT_CONTENT.some((tag) => el.classList.contains(tag))
-        ? "text"
-        : IMAGE_CONTENT.some((tag) => el.classList.contains(tag))
-          ? "image"
-          : undefined;
-      if (owner && kind) {
-        this.applyHeld(owner, [kind], false);
-      } else {
+      if (el) {
         this.applyHeld(el, []);
+      }
+    }
+  }
+
+  /**
+   * A create re-emitted `el`, which this pass reuses. A clear held over from
+   * a display taken over before its sweep, applied at once, came before this
+   * create, which then put `el` back as the create says:
+   * - when `el` is content such a clear removes, the create has put it back
+   *   and it is no longer that clear's to remove;
+   * - when the create restyles `el`, its static style replaces the hiding
+   *   the clear would have set, and only the clear's removal of the `text`
+   *   attribute (which a create does not write) still stands.
+   * A clear the connect holds after this create stream records `el` again.
+   */
+  protected reemittedHeld(el: HTMLElement, restyled: boolean) {
+    const held = this.heldClears;
+    if (!held || held.size === 0) {
+      return;
+    }
+    for (const [owner, entry] of Array.from(held)) {
+      entry.text?.delete(el);
+      entry.image?.delete(el);
+      if (owner === el && restyled && entry.hide) {
+        if (entry.textAttr) {
+          applyAttributes(el, { text: null });
+        }
+        entry.hide = false;
+        entry.textAttr = false;
+      }
+      if (!entry.hide && !entry.text && !entry.image) {
+        held.delete(owner);
       }
     }
   }
@@ -634,6 +659,9 @@ export default class UIManager extends Manager {
         params.style ?? null,
         params.attributes ?? null,
       ]);
+      if (reused) {
+        this.reemittedHeld(el, (el as any).__sdCreate !== sig);
+      }
       // Apply class/content/style/attrs only when this is a fresh node or its
       // create-params actually changed — an unchanged reused node is left
       // untouched (no restyle / recalc / devtools flash). The signature lives ON

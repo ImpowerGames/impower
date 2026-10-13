@@ -256,6 +256,75 @@ describe("held clears (#1820)", () => {
     expect(frames.at(-1)).toEqual({ words: "New words.", pictures: ["new"] });
   });
 
+  test("a content node the next display re-emits stays, when that display does not clear it", async () => {
+    // A display holds the clear of a target whose text holds a structural
+    // caption, and is taken over before its sweep. The next display no
+    // longer clears that target (its layout changed), re-emits the caption
+    // with new words and re-shows the target. Applied at once, the first
+    // clear removed the caption and the re-emitting create put it back.
+    const build = async (words: string) => {
+      await create("e", null, "stage");
+      await create("e-portrait-0", "e", "portrait");
+      await create("e-portrait-0-text-0", "e-portrait-0", "text");
+      await create("e-portrait-0-text-0-caption-0", "e-portrait-0-text-0", "caption", {
+        content: { text: words },
+      });
+    };
+    const run = async (held: boolean) => {
+      await build("Old");
+      page.beginReconcilePass();
+      await build("Old");
+      if (held) {
+        hold("portrait", ["e-portrait-0"]);
+      } else {
+        await request("ui/update", {
+          element: "e-portrait-0",
+          style: { display: "none" },
+          attributes: { text: null },
+        });
+        await request("ui/write-text", { target: "portrait", instructions: [], instant: true });
+        await request("ui/write-image", { target: "portrait", instructions: [], instant: true });
+      }
+      // Taken over: the next display's pass, which clears nothing here.
+      page.beginReconcilePass();
+      await build("New");
+      await request("ui/update", { element: "e-portrait-0", style: { display: null } });
+      page.sweepReconcile();
+      const portrait = overlay.querySelector(".portrait") as HTMLElement;
+      return {
+        caption: portrait.querySelector(".text > .caption")?.textContent,
+        display: portrait.style.display,
+        attribute: portrait.getAttribute("text"),
+      };
+    };
+
+    const immediate = await run(false);
+    restore();
+    const dom = installJSDOM();
+    restore = dom.restore;
+    overlay = dom.overlay;
+    page = new UIManager(createStubApp(overlay, () => {}));
+    const held = await run(true);
+
+    // The control: applied at once, the re-emitted caption shows its words.
+    expect(immediate.caption).toBe("New");
+    expect(held).toEqual(immediate);
+  });
+
+  test("an update of a content slot alone leaves the picture until the write replaces it", async () => {
+    // A saved style restored onto a portrait's image slot during the
+    // connect changes the slot, not its picture.
+    await twoPortraitsShowing();
+    hold("portrait", ["e-portrait-0"], { image: true });
+
+    await request("ui/update", { element: "e-portrait-0-image-0", style: { opacity: "0.5" } });
+    expect(portraits()[0]).toEqual(["old0"]);
+    await request("ui/update", { element: "e-portrait-0", style: { display: null } });
+    expect(portraits()[0]).toEqual(["old0"]);
+    await show("portrait#0", "new0");
+    expect(portraits()[0]).toEqual(["new0"]);
+  });
+
   test("an update re-shows the element with what it showed, and the write replaces it in one task", async () => {
     await twoPortraitsShowing();
     hold("portrait", ["e-portrait-0", "e-portrait-1"]);
