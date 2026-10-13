@@ -723,6 +723,14 @@ export class SparkdownCompiler {
   // resolution (`canonicalizeSyntheticFlowNames`, `scopeDefineInstances`),
   // which the program path's resolver resolves again.
   protected _renamedNames: ParsedObject[] = [];
+  // The objects whose names a preview compile's rollback put back, which the
+  // resolver last resolved as the preview named them: the next resolve
+  // resolves them again, as it does the objects a pass renamed.
+  protected _namesRolledBack: ParsedObject[] = [];
+  // While a preview compile runs, the undo of each write it makes into the
+  // parsed objects it shares with the last real compile, in the order it made
+  // them, which its rollback replays backwards (`previewCompile`).
+  protected _previewUndo?: (() => void)[];
   // The statement memo (#656, `compiler/lower/statementMemo.ts`): the host the
   // compilation annotator serves memos through.
   protected _memoHost: StatementMemoHost = {
@@ -1307,33 +1315,31 @@ export class SparkdownCompiler {
     if (!document || document.version !== textDocument.version) {
       return { textDocument, outdated: true };
     }
-    const inverse = invertContentChanges(document.getText(), contentChanges);
+    // Taken before the edit and always put back, including when the edit or
+    // the compile throws: the snapshot has already swapped the registry's
+    // document for the copy the edit mutates.
+    const snapshot = this.documents.snapshot(textDocument.uri);
     // Negative, and never reused, so neither the no-change short-circuit nor
     // `isProgramOutdated` can mistake the edited text for a real version.
     const previewVersion = --this._lastPreviewVersion;
-    // What the preview's updates lower, from the suggestion's to the one that
-    // puts the text back, no compile completes, so a statement they lower
-    // anew keeps the memo a real compile completed for the lowerings after
-    // them (`StatementMemoHost.provisional`, #1757).
+    // What the preview's updates lower no compile completes, so a statement
+    // they lower anew keeps the memo a real compile completed for the
+    // lowerings after them (`StatementMemoHost.provisional`, #1757).
     const provisional = this._memoHost.provisional;
     this._memoHost.provisional = true;
-    let applied: boolean;
+    let applied = false;
+    let compiled: ReturnType<SparkdownCompiler["compileStory"]>;
     try {
       applied = this.documents.update({
         textDocument: { uri: textDocument.uri, version: previewVersion },
         contentChanges,
       });
-    } catch (e) {
-      this._memoHost.provisional = provisional;
-      throw e;
-    }
-    if (applied) {
-      this.noteDocumentEdits(textDocument.uri, contentChanges);
-    }
-    let compiled: ReturnType<SparkdownCompiler["compileStory"]>;
-    // The root of statement chunks a preview builds is dropped with it.
-    this._previewing = true;
-    try {
+      if (applied) {
+        this.noteDocumentEdits(textDocument.uri, contentChanges);
+      }
+      // The root of statement chunks a preview builds is dropped with it.
+      this._previewing = true;
+      this._previewUndo = [];
       compiled = this.compileStory({ textDocument: root, startFrom });
       if (compiled.program.scripts[textDocument.uri] == null) {
         // The root does not include the edited script, which is then compiled
@@ -1342,23 +1348,28 @@ export class SparkdownCompiler {
       }
     } finally {
       this._previewing = false;
-      try {
-        if (applied) {
-          this.documents.update({
-            textDocument: {
-              uri: textDocument.uri,
-              version: textDocument.version,
-            },
-            contentChanges: inverse,
-          });
-          // Putting the text back is itself an edit as far as the NEXT compile is
-          // concerned: the compile above is the one it will be measured against,
-          // and that compile read the suggested text.
-          this.noteDocumentEdits(textDocument.uri, inverse);
-          this._previewedSinceCanonical = true;
+      this._memoHost.provisional = provisional;
+      profile("start", this._profilerId, "previewRollback", textDocument.uri);
+      const undo = this._previewUndo;
+      this._previewUndo = undefined;
+      if (undo) {
+        for (let i = undo.length - 1; i >= 0; i--) {
+          undo[i]!();
         }
-      } finally {
-        this._memoHost.provisional = provisional;
+      }
+      if (snapshot) {
+        this.documents.restore(snapshot);
+      }
+      profile("end", this._profilerId, "previewRollback", textDocument.uri);
+      if (applied) {
+        // Putting the text back is itself an edit as far as the NEXT compile
+        // is concerned: the compile above is the one it will be measured
+        // against, and that compile read the suggested text.
+        this.noteDocumentEdits(
+          textDocument.uri,
+          invertContentChanges(document.getText(), contentChanges),
+        );
+        this._previewedSinceCanonical = true;
       }
     }
     const event = {
@@ -1697,7 +1708,9 @@ export class SparkdownCompiler {
       };
       const preludeVAs = new Set<ParsedObject>();
       const preludeStory = this._cachedPreludeParsedStory;
-      this._renamedNames = [];
+      // The names a preview compile's rollback put back were last resolved
+      // as the preview named them.
+      this._renamedNames = this._namesRolledBack.slice();
       if (preludeStory && this.documents.has(BUILTINS_PRELUDE_URI)) {
         const preludeTypeNames = collectTypeNamesFor([BUILTINS_PRELUDE_URI]);
         scopeDefineInstances([preludeStory], preludeTypeNames, {
@@ -1820,6 +1833,7 @@ export class SparkdownCompiler {
       if (stale.length > 0) {
         throw new StatementMemoRetry(stale, "a name its resolution read is declared otherwise");
       }
+      this._namesRolledBack = [];
       watchStatements(restoreWatch ?? null);
       restoreWatch = undefined;
       // After resolution: the diverts it reports are recorded while the
@@ -3286,6 +3300,13 @@ export class SparkdownCompiler {
         changed = true;
       }
     }
+    // A preview compile's renames are undone when it is rolled back
+    // (`previewCompile`), with this record of what each held.
+    const undo = this._previewUndo;
+    const lastRun = this._syntheticNamesLastRun;
+    undo?.push(() => {
+      this._syntheticNamesLastRun = lastRun;
+    });
     this._syntheticNamesLastRun = remap;
     if (!changed) {
       return;
@@ -3299,6 +3320,11 @@ export class SparkdownCompiler {
       if (next) {
         if (next !== id.name) {
           this._renamedNames.push(owner);
+          const was = id.name;
+          undo?.push(() => {
+            id.name = was;
+            this._namesRolledBack.push(owner);
+          });
         }
         id.name = next;
       }
@@ -3308,12 +3334,21 @@ export class SparkdownCompiler {
       if (next) {
         if (next !== name) {
           this._renamedNames.push(node);
+          undo?.push(() => {
+            node[field] = name;
+            this._namesRolledBack.push(node);
+          });
         }
         node[field] = next;
       }
     }
     for (const { group, next } of matchedGroups) {
       if (next !== group.text) {
+        const was = group.text;
+        undo?.push(() => {
+          group.text = was;
+          noteResolved(group);
+        });
         group.text = next;
         // A kept chunk recorded the group's name (`StatementWatch`).
         noteResolved(group);
@@ -3321,10 +3356,20 @@ export class SparkdownCompiler {
     }
     for (const { node, next } of matchedUuids) {
       if (next !== node.uuid) {
+        const was = node.uuid;
+        undo?.push(() => {
+          node.uuid = was;
+        });
         node.uuid = next;
       }
     }
     for (const flow of flowsToRekey) {
+      const subFlows = flow._subFlowsByName;
+      const declarations = flow.variableDeclarations;
+      undo?.push(() => {
+        flow._subFlowsByName = subFlows;
+        flow.variableDeclarations = declarations;
+      });
       const next = flow.subFlowTable();
       for (const [, sub] of flow._subFlowsByName) {
         const nm = sub.identifier?.name;
@@ -3634,7 +3679,16 @@ export class SparkdownCompiler {
         continue;
       }
       for (const shape of stale) {
-        shape.memo!.stale = true;
+        const memo = shape.memo!;
+        if (!memo.stale) {
+          // A memo a preview found stale may be found so only by the text the
+          // preview compiled: its rollback leaves the memo as it found it,
+          // for the next real compile's resolve to judge.
+          this._previewUndo?.push(() => {
+            memo.stale = false;
+          });
+        }
+        memo.stale = true;
       }
       let list = ranges.get(place.uri);
       if (!list) {

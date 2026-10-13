@@ -61,6 +61,46 @@ function sameChunk(chunk: Chunk, record: ChunkRecord): boolean {
   return true;
 }
 
+/**
+ * The last epoch any compiler was given. Epochs are drawn from one sequence
+ * so that a compiler rolled back to an earlier epoch (see
+ * {@link Compiler.rollback}) never reaches the epoch of a tree the rolled-back
+ * parse built: the next destructive reuse moves past both.
+ */
+let lastReuseEpoch = 0;
+
+/**
+ * What a compiler and its chunks held before a journaled parse began, and how
+ * to undo each change the parse made since, in the order it made them (see
+ * {@link Compiler.beginJournal}).
+ */
+class CompilerJournal {
+  /** The undo of each change, in the order the changes were made. */
+  undo: (() => void)[] = [];
+  /** Whether the compiled buffer is a copy of the one the journal began with. */
+  ownsCompiled = false;
+  /** The chunks whose token stream was saved before a token was added. */
+  savedContent = new Set<Chunk>();
+
+  constructor(
+    readonly packet: Packet,
+    readonly chunks: Chunk[],
+    readonly chunkCount: number,
+    readonly pendingSplits: ReturnType<Packet["scheduledSplits"]>,
+    readonly compiled: Int32Array,
+    readonly nodeCount: number,
+    readonly reused: ITreeBuffer[],
+    readonly index: number,
+    readonly reparsedFrom: number | undefined,
+    readonly reparsedTo: number | undefined,
+    readonly ahead: Packet | undefined,
+    readonly maxTreeBufferLength: number,
+    readonly resumeState: TokenizerResume | undefined,
+    readonly retokenized: Compiler["retokenized"],
+    readonly reuseEpoch: number,
+  ) {}
+}
+
 export class Compiler {
   declare grammar: Grammar;
   declare packet: Packet;
@@ -128,7 +168,12 @@ export class Compiler {
     this.packet = left;
     this.index = left.chunks.length;
     this.nodeCount = left.compilerNodeCount ?? 0;
-    this.reused.length = left.compilerReusedCount ?? 0;
+    if (this._journal) {
+      // The journal holds the array as it was; the parse fills a copy.
+      this.reused = this.reused.slice(0, left.compilerReusedCount ?? 0);
+    } else {
+      this.reused.length = left.compilerReusedCount ?? 0;
+    }
     this.maxTreeBufferLength =
       left.compilerMaxTreeBufferLength ?? DEFAULT_MAX_TREE_BUFFER_LENGTH;
     this.reparsedFrom = left.last?.to ?? 0;
@@ -144,6 +189,177 @@ export class Compiler {
    * describe this state and the parse must start from scratch.
    */
   reuseEpoch = 0;
+
+  /** The journal of the parse in progress, while one is kept. */
+  protected _journal?: CompilerJournal;
+
+  /**
+   * Start recording what the parses from now on change, so that
+   * {@link rollback} can put this compiler and every chunk it holds back as
+   * they are now.
+   *
+   * An incremental parse mutates the compiler it reuses in place: it rewinds
+   * the packet, slides every chunk after the edit by the edit's offset,
+   * detaches a restart snapshot, patches the baked close records of a
+   * mid-scope splice and restamps the compiler counts of every chunk it
+   * steps. Each of those is recorded as it is made, with its undo, so the
+   * rollback costs what the parse touched rather than a copy of the whole
+   * packet. The compiled buffer, which the parse overwrites from its restart
+   * point on, is copied once on the parse's first write instead.
+   *
+   * Journals do not nest: one begun while another is kept is refused.
+   */
+  beginJournal(): boolean {
+    if (this._journal) {
+      return false;
+    }
+    this._journal = new CompilerJournal(
+      this.packet,
+      this.packet.chunks,
+      this.packet.chunks.length,
+      this.packet.scheduledSplits(),
+      this.compiled,
+      this.nodeCount,
+      this.reused,
+      this.index,
+      this.reparsedFrom,
+      this.reparsedTo,
+      this.ahead,
+      this.maxTreeBufferLength,
+      this.resumeState,
+      this.retokenized,
+      this.reuseEpoch,
+    );
+    return true;
+  }
+
+  /**
+   * Undo everything the parses since {@link beginJournal} changed, and stop
+   * recording. A compiler with no journal is left as it is.
+   */
+  rollback() {
+    const journal = this._journal;
+    if (!journal) {
+      return;
+    }
+    this._journal = undefined;
+    for (let i = journal.undo.length - 1; i >= 0; i--) {
+      journal.undo[i]!();
+    }
+    journal.packet.chunks = journal.chunks;
+    journal.chunks.length = journal.chunkCount;
+    journal.packet.restoreScheduledSplits(journal.pendingSplits);
+    this.packet = journal.packet;
+    this.compiled = journal.compiled;
+    this.nodeCount = journal.nodeCount;
+    this.reused = journal.reused;
+    this.index = journal.index;
+    this.reparsedFrom = journal.reparsedFrom;
+    this.reparsedTo = journal.reparsedTo;
+    this.ahead = journal.ahead;
+    this.maxTreeBufferLength = journal.maxTreeBufferLength;
+    this.resumeState = journal.resumeState;
+    this.retokenized = journal.retokenized;
+    this.reuseEpoch = journal.reuseEpoch;
+  }
+
+  /** Stop recording and keep what the parses since {@link beginJournal}
+   *  changed. */
+  commitJournal() {
+    this._journal = undefined;
+  }
+
+  /** Record the compiler counts and tree buffer `chunk` holds before a step
+   *  restamps them. */
+  protected journalStep(chunk: Chunk) {
+    const nodeCount = chunk.compilerNodeCount;
+    const reusedCount = chunk.compilerReusedCount;
+    const maxTreeBufferLength = chunk.compilerMaxTreeBufferLength;
+    const treeBuffer = chunk.treeBuffer;
+    this._journal!.undo.push(() => {
+      chunk.compilerNodeCount = nodeCount;
+      chunk.compilerReusedCount = reusedCount;
+      chunk.compilerMaxTreeBufferLength = maxTreeBufferLength;
+      chunk.treeBuffer = treeBuffer;
+    });
+  }
+
+  /** Record the token stream `chunk` holds before a token is added to it:
+   *  the end of the packet a parse resumes is a chunk it may keep adding
+   *  to. Saved once per chunk; what an add writes past `nodeCount` is never
+   *  read once the count is put back. */
+  protected journalContent(chunk: Chunk) {
+    const journal = this._journal!;
+    if (journal.savedContent.has(chunk)) {
+      return;
+    }
+    journal.savedContent.add(chunk);
+    const { to, length, nodeCount, compiled, treeBuffer, inheritedCloseRecords } = chunk;
+    const closes = inheritedCloseRecords?.length ?? 0;
+    const scopes = chunk.scopes;
+    const scopesCopy = scopes?.slice();
+    const stack = chunk.stack;
+    const { ids, positions, children } = stack;
+    const stackCopy = new CompileStack(stack);
+    journal.undo.push(() => {
+      chunk.to = to;
+      chunk.length = length;
+      chunk.nodeCount = nodeCount;
+      chunk.compiled = compiled;
+      chunk.treeBuffer = treeBuffer;
+      if (inheritedCloseRecords) {
+        inheritedCloseRecords.length = closes;
+      }
+      chunk.inheritedCloseRecords = inheritedCloseRecords;
+      if (scopes) {
+        scopes.length = 0;
+        scopes.push(...scopesCopy!);
+      }
+      chunk.scopes = scopes;
+      ids.set(stackCopy.ids);
+      positions.set(stackCopy.positions);
+      children.set(stackCopy.children);
+      stack.ids = ids;
+      stack.positions = positions;
+      stack.children = children;
+      stack.length = stackCopy.length;
+      chunk.stack = stack;
+    });
+  }
+
+  /** Record what a mid-scope splice patches in `chunk` (see
+   *  {@link spliceFixup}) before it patches it. */
+  protected journalFixup(chunk: Chunk) {
+    const seeds = chunk.entrySeeds;
+    const seedChildren = seeds?.children.slice();
+    const seedPositions = seeds?.absPositions.slice();
+    const frames = chunk.resume?.frames;
+    const frameOpenings = frames?.map((f) => f.openedAtAbs);
+    const compiled = chunk.compiled;
+    const closes = chunk.inheritedCloseRecords?.map((rec) => [
+      rec.offset,
+      compiled[rec.offset + 1]!,
+      compiled[rec.offset + 3]!,
+    ]);
+    const stack = chunk.stack;
+    const stackChildren = stack.children.slice();
+    const stackPositions = stack.positions.slice();
+    this._journal!.undo.push(() => {
+      if (seeds) {
+        seedChildren!.forEach((n, i) => (seeds.children[i] = n));
+        seedPositions!.forEach((n, i) => (seeds.absPositions[i] = n));
+      }
+      frames?.forEach((f, i) => {
+        f.openedAtAbs = frameOpenings![i]!;
+      });
+      for (const [offset, position, size] of closes ?? []) {
+        compiled[offset! + 1] = position!;
+        compiled[offset! + 3] = size!;
+      }
+      stack.children.set(stackChildren);
+      stack.positions.set(stackPositions);
+    });
+  }
 
   /**
    * Rewinds the packet to a restart point before the edit and keeps the
@@ -203,7 +419,7 @@ export class Compiler {
     }
     // Every path below mutates the packet — invalidate all other trees
     // holding this compiler (see reuseEpoch).
-    this.reuseEpoch++;
+    this.reuseEpoch = ++lastReuseEpoch;
     const editOnly = this.restartPoint(editedFrom);
     let splitBehind = editOnly;
     const earliest = lookaheadStart?.(editedFrom);
@@ -234,7 +450,21 @@ export class Compiler {
       // point is behind the edit, so its positions must not shift.
       this.resumeState = splitBehind.chunk?.resume;
       if (splitBehind.chunk) {
-        splitBehind.chunk.resume = undefined;
+        const chunk = splitBehind.chunk;
+        const resume = chunk.resume;
+        this._journal?.undo.push(() => {
+          chunk.resume = resume;
+        });
+        chunk.resume = undefined;
+      }
+      if (this._journal && editedOffset) {
+        // Sliding is its own inverse with the offset negated.
+        const slid = right.chunks;
+        this._journal.undo.push(() => {
+          for (const chunk of slid) {
+            chunk.offset(-editedOffset);
+          }
+        });
       }
       right.slide(0, editedOffset, true);
       const splitAhead = right.findAheadSplitPoint(editedTo);
@@ -340,6 +570,9 @@ export class Compiler {
       if (!seeds) {
         break;
       }
+      if (this._journal) {
+        this.journalFixup(chunk);
+      }
       const prefix = Math.min(m, seeds.ids.length);
       for (let i = 0; i < prefix; i++) {
         seeds.children[i]! += deltas[i]!;
@@ -388,6 +621,12 @@ export class Compiler {
   }
 
   add(token: GrammarToken) {
+    const last = this.packet.last;
+    if (this._journal && last && !last.endsPure) {
+      // The token may join the packet's last chunk, which can be one the
+      // journal began with.
+      this.journalContent(last);
+    }
     const addedChunk = this.packet.add(token);
     const lastChunk = this.packet.last;
     const lastTreeBufferLength = lastChunk?.treeBufferLength ?? 0;
@@ -412,6 +651,9 @@ export class Compiler {
       : this.packet.chunks.length - 1;
     if (this.index < limit) {
       const chunk = this.packet.chunks[this.index]!;
+      if (this._journal) {
+        this.journalStep(chunk);
+      }
 
       const treeBuffer = chunk.tryForTreeBuffer();
       if (treeBuffer) {
@@ -445,6 +687,13 @@ export class Compiler {
 
   private emitNode(type: number, from: number, to: number, children: number) {
     const idx = this.nodeCount * 4;
+
+    // A journaled parse writes into a copy: the journal holds the buffer as
+    // it began, which the parse overwrites from its restart point on.
+    if (this._journal && !this._journal.ownsCompiled) {
+      this._journal.ownsCompiled = true;
+      this.compiled = this.compiled.slice();
+    }
 
     // we may need to resize the array
     if (idx + 4 > this.compiled.length) {

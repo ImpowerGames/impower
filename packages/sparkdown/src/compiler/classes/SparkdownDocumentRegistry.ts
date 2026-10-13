@@ -4,7 +4,9 @@ TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 
 import { type ChangeSpec, type Text } from "@codemirror/state";
+import { type Compiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
 import { type TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type ChangedRange, Tree, TreeFragment } from "@lezer/common";
 import { noteLuauDocumentEdit } from "../typecheck/readLuauAst";
@@ -16,6 +18,7 @@ import {
   type SparkdownAnnotatorConfigs,
   type SparkdownAnnotators,
   SparkdownCombinedAnnotator,
+  type SparkdownCombinedAnnotatorSnapshot,
 } from "./SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "./SparkdownDocument";
 
@@ -35,6 +38,34 @@ interface TextDocumentState {
   /** The text the annotators were last given, which the next change is applied to. */
   text?: Text;
   annotators: SparkdownCombinedAnnotator;
+}
+
+/**
+ * One document's parse, as it stood before an edit: the document itself, the
+ * tree and fragments the edit will build on, the text the annotators were
+ * given, what the annotators held, and the parser's compiler, which journals
+ * the edit's reparse.
+ *
+ * The tree, its fragments and each annotator's ranges are persistent values —
+ * an edit builds new ones and leaves the old ones alone — so a snapshot is a
+ * handful of references rather than a copy of the parse. The compiler is the
+ * one piece an incremental parse mutates in place, so it records what the
+ * parse changes as it changes it (`Compiler.beginJournal`).
+ */
+export interface SparkdownDocumentSnapshot {
+  uri: string;
+  document: SparkdownDocument;
+  tree?: Tree;
+  treeFragments?: readonly TreeFragment[];
+  treeVersion?: number;
+  text?: Text;
+  annotators: SparkdownCombinedAnnotatorSnapshot;
+  /** The compiler the tree was built by, when it journals the edits made
+   *  while the snapshot is held. */
+  compiler?: Compiler;
+  /** Where the text the edits since the snapshot led to differs from the
+   *  snapshot's: from `from`, up to its last `suffix` characters. */
+  edited?: { from: number; suffix: number };
 }
 
 export class SparkdownDocumentRegistry {
@@ -143,6 +174,11 @@ export class SparkdownDocumentRegistry {
           treeChange,
         ]);
         const documentLengthBeforeChange = changeDocument.length;
+        this.noteSnapshotEdit(
+          afterDocument.uri,
+          fromA,
+          documentLengthBeforeChange - toA,
+        );
         changeDocument.update([change], changeDocument.version + 1);
         const documentLengthAfterChange = changeDocument.length;
         // Apply the change to the text before it rather than split the
@@ -186,6 +222,7 @@ export class SparkdownDocumentRegistry {
     } else {
       // First full parse
       profile("start", this._profilerId, "fullParse", beforeDocument.uri);
+      this.noteSnapshotEdit(afterDocument.uri, 0, 0);
       const text = documentText(afterDocument.getText());
       state.text = text;
       state.tree = this._parser.parse(afterDocument);
@@ -408,6 +445,99 @@ export class SparkdownDocumentRegistry {
       }
     }
     return true;
+  }
+
+  /**
+   * Save the parse of one document, so an edit applied next can be undone by
+   * putting the saved parse back rather than by parsing the edit's inverse.
+   *
+   * The synced document is swapped for a copy, which is what the edit then
+   * mutates, leaving the original to be handed back untouched. A document the
+   * registry does not hold has no parse to save and returns `undefined`.
+   *
+   * A caller that takes a snapshot must always restore it: the swap has
+   * already happened when this returns.
+   */
+  snapshot(uri: string): SparkdownDocumentSnapshot | undefined {
+    const document = this._syncedDocuments.get(uri);
+    if (!document || this._snapshots.has(uri)) {
+      return undefined;
+    }
+    this._syncedDocuments.set(
+      uri,
+      new SparkdownDocument(
+        document.uri,
+        document.languageId,
+        document.version,
+        document.getText(),
+      ),
+    );
+    const state = this.getDocumentState(uri);
+    const compiler = state.tree?.prop(cachedCompilerProp);
+    const snapshot: SparkdownDocumentSnapshot = {
+      uri,
+      document,
+      tree: state.tree,
+      treeFragments: state.treeFragments,
+      treeVersion: state.treeVersion,
+      text: state.text,
+      annotators: state.annotators.snapshot(this._annotate),
+      compiler: compiler?.beginJournal() ? compiler : undefined,
+    };
+    this._snapshots.set(uri, snapshot);
+    return snapshot;
+  }
+
+  /**
+   * Put back the parse `snapshot` saved, discarding whatever the edits since
+   * built. Nothing is parsed and nothing is annotated: the registry's values
+   * are references put back, and the parser's compiler undoes what its
+   * journal recorded, in time proportional to what the edits' reparse
+   * touched.
+   */
+  restore(snapshot: SparkdownDocumentSnapshot) {
+    this._snapshots.delete(snapshot.uri);
+    this._syncedDocuments.set(snapshot.uri, snapshot.document);
+    const state = this.getDocumentState(snapshot.uri);
+    const edited = snapshot.edited;
+    if (edited && state.text && snapshot.text) {
+      // The Luau readers carry what they read of one text over to the next
+      // through the edits the registry notes, and the text they last read
+      // can be the edited one: note the way back, as an edit putting the
+      // text back would have.
+      noteLuauDocumentEdit(
+        documentString(state.text),
+        documentString(snapshot.text),
+        edited.from,
+        state.text.length - edited.suffix,
+        snapshot.text.length - edited.suffix,
+      );
+    }
+    snapshot.compiler?.rollback();
+    state.tree = snapshot.tree;
+    state.treeFragments = snapshot.treeFragments;
+    state.treeVersion = snapshot.treeVersion;
+    state.text = snapshot.text;
+    state.annotators.restore(snapshot.annotators);
+  }
+
+  /** The snapshots held, by document: the edits made to one meanwhile are
+   *  folded into its `edited`. */
+  protected _snapshots = new Map<string, SparkdownDocumentSnapshot>();
+
+  /** Fold a change `uri`'s text took from `from` up to its last `suffix`
+   *  characters into the snapshot held of it, if one is. */
+  protected noteSnapshotEdit(uri: string, from: number, suffix: number) {
+    const snapshot = this._snapshots.get(uri);
+    if (!snapshot) {
+      return;
+    }
+    snapshot.edited = snapshot.edited
+      ? {
+          from: Math.min(snapshot.edited.from, from),
+          suffix: Math.min(snapshot.edited.suffix, suffix),
+        }
+      : { from, suffix };
   }
 
   remove(params: {

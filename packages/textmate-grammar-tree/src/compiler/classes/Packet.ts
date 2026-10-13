@@ -64,6 +64,16 @@ export class Packet {
     this.pendingSplits.length = 0;
   }
 
+  /** A copy of the scheduled splits, for {@link restoreScheduledSplits}. */
+  scheduledSplits(): { at: number; resume: TokenizerResume }[] {
+    return this.pendingSplits.slice();
+  }
+
+  /** Puts back the splits {@link scheduledSplits} copied. */
+  restoreScheduledSplits(splits: { at: number; resume: TokenizerResume }[]) {
+    this.pendingSplits = splits.slice();
+  }
+
   /** The first chunk in the packet. */
   get first() {
     if (!this.chunks.length) {
