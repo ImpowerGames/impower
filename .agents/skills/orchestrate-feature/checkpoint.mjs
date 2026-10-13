@@ -167,12 +167,14 @@ function treesOf(worktree) {
 // as unpublished here. Any of it that looks like a credential refuses the
 // snapshot; only paths and commits are named. A submodule's gitlink names a
 // commit of another repository, which the checkpoint never carries.
-function snapshotCredentials(worktree, head, commits, remote) {
-  // The remote's branches as it reports them, or, when it cannot be reached,
-  // as this checkout last fetched them from that same remote.
+export function snapshotCredentials(worktree, head, commits, remote, { live = false } = {}) {
+  // The remote's branches as it reports them. Offline, a snapshot may be made
+  // against the branches this checkout last fetched from that same remote, but
+  // those can be stale, so publication scans again with live = true, where
+  // only what the remote reports counts.
   let tips;
   try { tips = [...remoteHeads(worktree, remote, "refs/heads/*").values()]; }
-  catch { tips = git(worktree, ["for-each-ref", "--format=%(objectname)", `refs/remotes/${remote}/`]).split(/\r?\n/).filter(Boolean); }
+  catch (error) { if (live) throw error; tips = git(worktree, ["for-each-ref", "--format=%(objectname)", `refs/remotes/${remote}/`]).split(/\r?\n/).filter(Boolean); }
   const published = tips.filter((sha) => spawnOk(worktree, ["cat-file", "-e", `${sha}^{commit}`]));
   const unpushed = git(worktree, ["rev-list", head, ...(published.length ? ["--not", ...published] : [])]).split(/\r?\n/).filter(Boolean);
   const blobs = new Map();
@@ -299,10 +301,12 @@ export function inventoryWork(record, { host = os.hostname(), remote, snapshots 
         const pushed = heads.get(entry.branch) ?? null;
         entry.remoteHead = pushed;
         entry.unpushed = pushed === entry.head ? false : pushed && spawnOk(worktree, ["merge-base", "--is-ancestor", entry.head, pushed]) ? false : true;
-        entry.dirty = statusOf(worktree).length > 0;
+        entry.dirty = statusOf(worktree).length > 0 || rawEdits(worktree).length > 0;
         const lock = path.join(git(worktree, ["rev-parse", "--path-format=absolute", "--git-dir"]), "agent-handoff.lock");
         if (fs.existsSync(lock)) { let owner = null; try { owner = readJson(lock); } catch { /* reported as unreadable below */ } entry.handoffLock = owner ? { host: owner.host ?? null, pid: owner.processIdentity?.pid ?? owner.pid ?? null } : { unreadable: true }; }
         if (snap) {
+          // A comparison holds only for the snapshot it was made against.
+          entry.comparedWith = snap.commit;
           // The snapshot carries the commits its head reaches, wherever it was made.
           entry.headInSnapshot = spawnOk(worktree, ["merge-base", "--is-ancestor", entry.head, snap.commit]);
           const blocked = unrepresentable(worktree);
@@ -313,7 +317,7 @@ export function inventoryWork(record, { host = os.hostname(), remote, snapshots 
     } else {
       // Nothing can be observed: the last observation stands, with its time.
       if (worktree) entry.exists = false;
-      const last = before ? (before.lastObserved ?? { at: before.observedAt, head: before.head, dirty: before.dirty, unpushed: before.unpushed, snapshotCurrent: before.snapshotCurrent, headInSnapshot: before.headInSnapshot, unrepresentable: before.unrepresentable }) : null;
+      const last = before ? (before.lastObserved ?? { at: before.observedAt, head: before.head, dirty: before.dirty, unpushed: before.unpushed, snapshotCurrent: before.snapshotCurrent, headInSnapshot: before.headInSnapshot, comparedWith: before.comparedWith, unrepresentable: before.unrepresentable }) : null;
       if (last && [last.dirty, last.unpushed, last.snapshotCurrent].some((v) => v !== undefined)) entry.lastObserved = last;
     }
     const pr = prs[number] ?? ticket.owner?.adopted?.pr ?? ticket.owner?.continues?.pr ?? ticket.results?.at(-1)?.report?.pr ?? before?.pr ?? null;
@@ -334,7 +338,10 @@ export const workState = (w, snap) => {
   const last = w?.lastObserved ?? {};
   const snapped = Boolean(snap && !snap.clean);
   const dirty = w?.dirty ?? last.dirty, unpushed = w?.unpushed ?? last.unpushed;
-  const snapshotCurrent = w?.snapshotCurrent ?? last.snapshotCurrent, headInSnapshot = w?.headInSnapshot ?? last.headInSnapshot;
+  // Results of a comparison with another snapshot than the ticket's current
+  // one say nothing about it.
+  const compared = snapped && (w?.comparedWith ?? last.comparedWith) === snap.commit;
+  const snapshotCurrent = compared ? w?.snapshotCurrent ?? last.snapshotCurrent : undefined, headInSnapshot = compared ? w?.headInSnapshot ?? last.headInSnapshot : undefined;
   return {
     head: w?.head ?? last.head, dirty, unpushed, snapshotCurrent, headInSnapshot, unrepresentable: w?.unrepresentable ?? last.unrepresentable,
     at: w?.dirty !== undefined ? w.observedAt : last.at,
@@ -358,6 +365,26 @@ export function onlyHereDetails(w, snap) {
 }
 // Every ticket a checkpoint mentions: held, snapshotted or located.
 export const ticketsIn = (c) => [...new Set([...Object.keys(c.tickets ?? {}), ...Object.keys(c.snapshots ?? {}), ...Object.values(c.work ?? {}).map((w) => String(w.ticket))])].sort((a, b) => a - b);
+
+// Unfinished bytes Git's converted status cannot see: working files whose
+// stat differs from their index entry and whose raw bytes differ from what
+// checking that entry out here would write (a clean filter or line-ending
+// conversion can make an edit look unchanged). Once Git re-indexes such a
+// file it treats it as unchanged, and so do the snapshot and the inventory,
+// which both select files this way.
+function rawEdits(worktree) {
+  const candidates = git(worktree, ["--no-optional-locks", "diff-files", "--name-only", "-z"]).split("\0").filter(Boolean);
+  if (!candidates.length) return [];
+  // Each candidate costs a checkout conversion; past this many, the worktree
+  // is reported as holding edits rather than checked file by file.
+  if (candidates.length > 1000) return candidates;
+  const entries = new Map(git(worktree, ["ls-files", "-s", "-z"]).split("\0").filter(Boolean).map((line) => { const e = entryOf(line); return [e.path, e]; }));
+  return candidates.filter((file) => {
+    const e = entries.get(file), there = statOrNull(path.join(worktree, file));
+    if (!e || !REGULAR.has(e.mode) || !there?.isFile()) return false;
+    return !fs.readFileSync(path.join(worktree, file)).equals(gitRaw(worktree, ["cat-file", "--filters", `:${file}`]));
+  });
+}
 
 // A path below a file is absent too; POSIX reports it as ENOTDIR.
 const statOrNull = (file) => { try { return fs.lstatSync(file); } catch (error) { if (error.code === "ENOENT" || error.code === "ENOTDIR") return null; throw error; } };
@@ -579,6 +606,19 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
     const seq = (head?.checkpoint.seq ?? 0) + 1;
     const fresh = Object.fromEntries(Object.entries(snapshots).filter(([, s]) => s && !s.clean));
     const allSnapshots = { ...(record.snapshots ?? {}), ...fresh };
+    // Every snapshot the checkpoint names must travel with it: one not yet in
+    // the previous checkpoint's history (its first publication may have
+    // failed) becomes a parent of this one, after the previous checkpoint.
+    // Before it does, its history is scanned again against what the remote
+    // reports now; a snapshot made offline against stale branches that fails
+    // that scan is left out, and its work counts as existing only on its host.
+    const carried = (c) => Boolean(previous) && spawnOk(record.checkout, ["merge-base", "--is-ancestor", c, previous]);
+    const refusedSnapshots = {};
+    for (const [n, s] of Object.entries(allSnapshots)) {
+      if (carried(s.commit)) continue;
+      const findings = snapshotCredentials(record.checkout, s.head, [s.commit, s.indexCommit], remote, { live: true });
+      if (findings.length) { refusedSnapshots[n] = findings; delete allSnapshots[n]; }
+    }
     // This host's locations are observed afresh; every other host's pass
     // through unchanged until that host observes them.
     const previousWork = head?.checkpoint.work ?? {};
@@ -586,11 +626,7 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
       ...Object.fromEntries(Object.entries(previousWork).filter(([, w]) => w.host !== host)),
       ...inventoryWork(record, { host, remote, snapshots: allSnapshots, previousWork, prs: Object.fromEntries((plan?.tickets ?? []).filter((t) => t.pr).map((t) => [t.number, t.pr])) }),
     };
-    // Every snapshot the checkpoint names must travel with it: one not yet in
-    // the previous checkpoint's history (its first publication may have
-    // failed) becomes a parent of this one, after the previous checkpoint.
-    const named = Object.values(allSnapshots).map((s) => s.commit);
-    const extra = [...new Set(named)].filter((c) => !previous || !spawnOk(record.checkout, ["merge-base", "--is-ancestor", c, previous]));
+    const extra = [...new Set(Object.values(allSnapshots).map((s) => s.commit))].filter((c) => !carried(c));
     // The last plan's summary stays, across a takeover too, until a newer
     // plan replaces it; it carries the time it was planned.
     const checkpoint = buildCheckpoint(record, { seq, previous, snapshotParents: extra, kind, transition, host, work, snapshots: allSnapshots, observed });
@@ -618,7 +654,7 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
     side.saved = { seq, commit, recordRevision: record.revision, runId: record.runId, time: checkpoint.time };
     side.attempt = null;
     writeSidecar(file, side);
-    const result = { saved: true, seq, commit, url: `https://github.com/${record.repository}/tree/${commit}` };
+    const result = { saved: true, seq, commit, url: `https://github.com/${record.repository}/tree/${commit}`, ...(Object.keys(refusedSnapshots).length && { refusedSnapshots }) };
     if (sync && github) {
       try { side.summary = syncSummary({ repository: record.repository, feature: record.feature, checkout: record.checkout, remote, github, commentId: side.summary?.commentId, state: { commit, checkpoint, brief: "" } }); result.summary = { state: "synced", ...side.summary }; }
       catch (error) { result.summary = { state: "failed", reason: error.message, repair: "checkpoint.mjs sync-summary rewrites it from the saved checkpoint" }; side.summary = { ...(side.summary ?? {}), failed: error.message, time: new Date().toISOString() }; }
@@ -777,7 +813,9 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   catch (error) { throw error instanceof CoordinatorChanged ? setAside(error.message) : uncertain(error.message); }
   if (!published.saved) throw published.state === "refused" ? setAside(published.reason) : uncertain(published.reason);
   installPointer(checkout, repository, feature, { record: file, coordinator, host, since: retry?.coordinator.since ?? since });
-  return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer: retry?.writer ?? writer, summary: published.summary ?? null, limitations: limitations(found.checkpoint, { host }) };
+  // The limitations are those of the takeover's own checkpoint, which observed
+  // this host's work afresh.
+  return { action: "takeover", seq: published.seq, commit: published.commit, from: prev.coordinator, writer: retry?.writer ?? writer, summary: published.summary ?? null, limitations: limitations(readCheckpointAt(checkout, published.commit), { host }) };
 }
 
 // On this machine the local pointer follows the takeover, so a previous
@@ -887,6 +925,9 @@ export function retrieve({ repository, feature, checkout, remote = DEFAULT_REMOT
   });
   const trees = treesOf(worktree);
   if (wrong.length || trees.index !== snap.index) throw new Error(`${worktree} does not match snapshot ${snap.commit} (${wrong.length ? `files ${wrong.join(", ")}` : "the staged state"}); inspect it before use`);
+  // The new worktree's index was read from a tree and holds no file stat yet;
+  // refreshing it keeps later observations from rechecking every file.
+  spawnOk(worktree, ["update-index", "-q", "--refresh"]);
   return { worktree, branch: snap.branch, head: snap.head, snapshot: snap.commit, paths: snap.paths, verified: true };
 }
 

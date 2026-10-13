@@ -577,9 +577,12 @@ try {
   assert.equal(cp.autoCheckpoint(rec790, { coordinator: "local_src79", transition: "a later milestone", github, host: SRC }).saved, true);
   const after792 = at(cp.fetchState(src, "origin", "acme/widgets", 790).checkpoint, 792);
   assert.deepEqual([after792.snapshotCurrent, after792.unpushed, after792.head === h790.snapshots[792].head], [true, true, false], "the files match the snapshot but the head moved");
+  // The draft changes after the last save; the takeover observes it afresh.
+  fs.appendFileSync(path.join(wt791, "draft.txt"), "edited after the last save\n");
   const rec790b = path.join(srcPrivate, "run-790-second-account.json");
   const sameHost = cp.resume({ record: rec790b, checkout: src, repository: "acme/widgets", feature: 790, coordinator: "local_src79b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #790.", evidence: "the first account reached its usage limit" }, { github, host: SRC, defaults, totalMemory: 64 * GB });
   assert.ok(sameHost.limitations.some((l) => l.ticket === 792 && l.kind === "unpublished" && /commits made after the snapshot/.test(l.detail)), "commits after a matching snapshot are not hidden");
+  assert.ok(sameHost.limitations.some((l) => l.ticket === 791 && l.kind === "unpublished" && /changed since snapshot/.test(l.detail)), "the takeover reports what its own checkpoint observed");
   const taken790 = cp.fetchState(dst4, "origin", "acme/widgets", 790);
   assert.equal(taken790.checkpoint.coordinator.session, "local_src79b");
   assert.equal(taken790.checkpoint.snapshots[791]?.commit, h790.snapshots[791].commit, "the takeover's own checkpoint names the snapshot");
@@ -737,6 +740,68 @@ try {
   const back810 = cp.fetchState(dst8, "origin", "acme/widgets", 810).checkpoint;
   assert.ok(!cp.limitations(back810, { host: DST }).some((l) => l.ticket === 814 && l.kind === "unpublished"), "a newer observation on the source is not undone by an older one");
   assert.ok(!cp.workFor(back810, 814).some((w) => w.dirty || w.lastObserved?.dirty));
+
+  // A snapshot made offline against a stale branch is scanned again before it
+  // is published; a filter-hidden edit counts as unfinished work; and a
+  // location's comparison with a replaced snapshot no longer counts.
+  const rec820 = init(820, "local_src82", { concurrency: 8 });
+  cp.enable(rec820, { coordinator: "local_src82", expectRevision: 1, github, host: SRC });
+  const snap820 = { repository: "acme/widgets", feature: { number: 820, state: "open" }, originMain: "x", tickets: [821, 822, 823].map((n) => ticket(n, { parent: 820 })) };
+  const wt821 = startWriter(rec820, "local_src82", snap820, 821, "stale");
+  fs.writeFileSync(path.join(wt821, "config.txt"), `token ${fakeToken}\n`);
+  git(wt821, "add", "config.txt");
+  git(wt821, "commit", "-q", "-m", "a secret, pushed then deleted");
+  git(wt821, "push", "-q", "origin", "HEAD:refs/heads/feat/821-stale");
+  git(dst, "push", "-q", "origin", "--delete", "feat/821-stale");
+  assert.ok(git(src, "for-each-ref", "refs/remotes/origin/feat/821-stale"), "the source still has the deleted branch's tracking ref");
+  fs.writeFileSync(path.join(wt821, "config.txt"), "no secret\n");
+  git(wt821, "commit", "-q", "-am", "secret removed");
+  fs.writeFileSync(path.join(wt821, "draft.txt"), "draft\n");
+  git(src, "config", "filter.lower.clean", "tr A-Z a-z");
+  const wt822 = startWriter(rec820, "local_src82", snap820, 822, "filtered");
+  fs.writeFileSync(path.join(wt822, ".gitattributes"), "filtered.txt filter=lower\n");
+  fs.writeFileSync(path.join(wt822, "filtered.txt"), "lower case\n");
+  git(wt822, "add", "-A");
+  git(wt822, "commit", "-q", "-m", "a filtered file");
+  git(wt822, "push", "-q", "origin", "HEAD:refs/heads/feat/822-filtered");
+  const wt823 = startWriter(rec820, "local_src82", snap820, 823, "replaced");
+  fs.writeFileSync(path.join(wt823, "draft.txt"), "snapshot A\n");
+  cp.prepareHandoff(rec820, { coordinator: "local_src82", expectRevision: rev(rec820), step: "stop", github, host: SRC });
+  const offline820 = path.join(tmp, "remote-offline-820.git");
+  fs.renameSync(remote, offline820);
+  let h820;
+  try { h820 = cp.prepareHandoff(rec820, { coordinator: "local_src82", expectRevision: rev(rec820), step: "publish", observations: { sessions: Object.fromEntries([821, 822, 823].map((n) => [`local_w${n}`, { state: "running" }])) }, github, host: SRC }); }
+  finally { fs.renameSync(offline820, remote); }
+  assert.deepEqual([h820.checkpoint.saved, h820.snapshots[821]?.clean, h820.snapshots[823]?.clean], [false, false, false], "offline, the stale branch let the snapshot through");
+  fs.writeFileSync(path.join(wt822, "filtered.txt"), "LOWER CASE\n");
+  fs.utimesSync(path.join(wt822, "filtered.txt"), new Date(Date.now() + 5000), new Date(Date.now() + 5000));
+  assert.equal(git(wt822, "--no-optional-locks", "status", "--porcelain"), "", "the filter hides the edit from Git's status");
+  const online820 = cp.publish(rec820, { coordinator: "local_src82", transition: "the handoff online", github, host: SRC });
+  assert.equal(online820.saved, true);
+  assert.match(online820.refusedSnapshots?.[821]?.join(" ") ?? "", /config\.txt holds a GitHub token/, "the snapshot is scanned again against the remote as it is now");
+  const c820 = cp.fetchState(dst, "origin", "acme/widgets", 820);
+  assert.deepEqual([c820.checkpoint.snapshots[821], Boolean(c820.checkpoint.snapshots[823])], [undefined, true]);
+  assert.ok(!git(dst, "rev-list", c820.commit).split(/\r?\n/).includes(git(wt821, "rev-parse", "HEAD~1")), "the credential-bearing commit is not reachable from the state branch");
+  const lim820 = (c) => (n, host = DST) => cp.limitations(c, { host }).filter((l) => l.ticket === n && l.kind === "unpublished").map((l) => l.detail).join(" | ");
+  assert.match(lim820(c820.checkpoint)(821), /existed only on src-host/, "the refused snapshot's work is reported as existing only on its host");
+  assert.match(lim820(c820.checkpoint)(822), /unfinished files existed only on src-host/, "a filter-hidden edit is unfinished work");
+  mutate(rec820, "local_src82", (r) => run.release(r, { ticket: 822, observations: { sessions: { local_w822: { state: "archived" } } }, host: SRC, evidence: "its session was archived" }));
+  cp.autoCheckpoint(rec820, { coordinator: "local_src82", transition: "the release", github, host: SRC });
+  assert.match(lim820(cp.fetchState(dst, "origin", "acme/widgets", 820).checkpoint)(822), /unfinished files existed only on src-host/, "and it survives the release");
+  // Another host adopts #823's work, changes it and snapshots it again.
+  const dst9 = clone("dst9");
+  const rec820b = path.join(dstPrivate, "run-820.json");
+  cp.resume({ record: rec820b, checkout: dst9, repository: "acme/widgets", feature: 820, coordinator: "local_dst82", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-feature for #820.", evidence: "the source account is out of usage" }, { github, host: DST, defaults, totalMemory: 64 * GB });
+  mutate(rec820b, "local_dst82", (r) => run.release(r, { ticket: 823, observations: { sessions: { local_w823: { state: "archived", host: SRC } } }, host: DST, evidence: "the maintainer archived it on the source" }));
+  const wt823b = path.join(tmp, "dst9-wt-823");
+  cp.retrieve({ repository: "acme/widgets", feature: 820, checkout: dst9, ticket: 823, worktree: wt823b });
+  const plan820 = write("plan-820b.json", run.planDispatch({ record: run.readRecord(rec820b), snapshot: { ...snap820, tickets: snap820.tickets.map((t) => (t.number === 823 ? { ...t, worktrees: [{ path: wt823b, branch: "feat/823-replaced", head: "x" }] } : t)) }, turn: "user", preflights: [], freeBytes: 100 * GB, defaults, host: DST }));
+  mutate(rec820b, "local_dst82", (r) => run.adopt(r, { plan: plan820, ticket: 823, handleKind: "session", handle: "local_b823", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: wt823b, host: DST }));
+  fs.writeFileSync(path.join(wt823b, "draft.txt"), "snapshot B\n");
+  cp.prepareHandoff(rec820b, { coordinator: "local_dst82", expectRevision: rev(rec820b), step: "stop", github, host: DST });
+  const h820b = cp.prepareHandoff(rec820b, { coordinator: "local_dst82", expectRevision: rev(rec820b), step: "publish", observations: { sessions: { local_b823: { state: "running" } } }, github, host: DST });
+  assert.notEqual(h820b.snapshots[823]?.commit, h820.snapshots[823].commit, "the ticket has a new snapshot");
+  assert.match(lim820(cp.fetchState(dst9, "origin", "acme/widgets", 820).checkpoint)(823, THIRD), /files in .*src-wt-823 on src-host had changed since snapshot [0-9a-f]+ \(or could not be compared with it\)/, "the source's comparison with the replaced snapshot no longer counts");
 
   // A run whose first checkpoint never saved hands off while offline; the
   // first saved checkpoint then carries the snapshot with no previous one,
