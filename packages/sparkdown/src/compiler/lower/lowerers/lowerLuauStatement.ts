@@ -58,6 +58,7 @@ import {
   forwardBlockDiagnostics,
   unwrapBlockContent,
 } from "../utils/unwrapBlock";
+import { makeSource } from "../utils/validateDefineStructure";
 import { validateStatementNode } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerExplicitStatement } from "./lowerExplicitStatement";
@@ -176,18 +177,10 @@ export function unreadStatement(
     return at >= from && at <= to;
   });
   if (!explained) {
-    const end = from + keyword.length;
     ctx.diagnostics?.push({
       message: `This \`${keyword}\` statement cannot run here: its line is not read as a \`${keyword}\` statement.`,
       severity: ErrorType.Error,
-      source: {
-        fileName: null,
-        filePath: ctx.filePath ?? null,
-        startLineNumber: ctx.lineNumber(from) + 1,
-        endLineNumber: ctx.lineNumber(end) + 1,
-        startCharacterNumber: ctx.characterNumber(from) + 1,
-        endCharacterNumber: ctx.characterNumber(end) + 1,
-      },
+      source: makeSource(from, from + keyword.length, ctx),
     });
   }
   return {};
