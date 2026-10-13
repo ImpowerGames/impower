@@ -2,6 +2,9 @@ import { MessageProtocol, sendProtocolMessage } from "@impower/spark-editor-prot
 import type { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { parseProtocolJSON, stringifyProtocolJSON } from "@impower/spark-editor-protocol/src/utils/protocolJSON";
 
+/** Server to editor: the methods any socket client wants ("*" for all). */
+export const BRIDGE_SUBSCRIPTIONS_METHOD = "$/bridgeSubscriptions";
+
 export interface ProtocolBridge {
   send(message: Message, timeoutMs?: number): Promise<unknown>;
   subscribe(listener: (message: Message) => void): () => void;
@@ -86,14 +89,20 @@ export function installProtocolBridge() {
   let disposed = false;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let delay = 250;
+  // The server sends the union of its clients' subscriptions; until then, and
+  // after every disconnect, nothing is wanted, so nothing is serialized.
+  let wanted = new Set<string>();
   const unsubscribe = bridge.subscribe((message) => {
-    if (socket.readyState === WebSocket.OPEN) socket.send(stringifyProtocolJSON(message));
+    if (socket.readyState !== WebSocket.OPEN) return;
+    if (!wanted.has("*") && !wanted.has(message.method)) return;
+    socket.send(stringifyProtocolJSON(message));
   });
   const connect = () => {
     if (disposed) return;
     const connection = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/__editor_protocol?role=editor`);
     socket = connection;
     connection.onclose = () => {
+      if (socket === connection) wanted = new Set();
       if (disposed) return;
       retry = setTimeout(connect, delay);
       delay = Math.min(delay * 2, 5000);
@@ -103,6 +112,12 @@ export function installProtocolBridge() {
       let message: any;
       try {
         message = parseProtocolJSON(event.data);
+        if (message?.method === BRIDGE_SUBSCRIPTIONS_METHOD && !("id" in message)) {
+          const methods = message.params?.methods;
+          if (socket !== connection) return;
+          wanted = new Set(Array.isArray(methods) ? methods.filter((m: unknown) => typeof m === "string") : []);
+          return;
+        }
         const result = await bridge.send(message);
         if ("id" in message && connection.readyState === WebSocket.OPEN) {
           connection.send(stringifyProtocolJSON({ jsonrpc: "2.0", id: message.id, result: result ?? null }));

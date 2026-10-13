@@ -2,8 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { createProtocolBridge, installProtocolBridge } from "../../src/modules/spark-editor/workspace/devProtocolBridge";
 import { LoadedProjectIdMessage } from "@impower/spark-editor-protocol/src/protocols/window/LoadedProjectIdMessage";
+import * as protocolJSON from "@impower/spark-editor-protocol/src/utils/protocolJSON";
 
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+vi.mock("@impower/spark-editor-protocol/src/utils/protocolJSON", async (original) => {
+  const actual = await original<typeof import("@impower/spark-editor-protocol/src/utils/protocolJSON")>();
+  return { ...actual, stringifyProtocolJSON: vi.fn(actual.stringifyProtocolJSON) };
+});
+const subscribe = (socket: any, methods: string[]) =>
+  socket.onmessage({ data: JSON.stringify({ jsonrpc: "2.0", method: "$/bridgeSubscriptions", params: { methods } }) });
+
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.mocked(protocolJSON.stringifyProtocolJSON).mockClear(); });
 describe("editor protocol transport", () => {
   it("preserves structured errors across the installed socket boundary", async () => {
     const sockets: any[] = [];
@@ -47,6 +55,7 @@ describe("editor protocol transport", () => {
     };
     window.addEventListener("jsonrpc", handle);
     try {
+      await subscribe(sockets[0], ["*"]);
       await sockets[0].onmessage({ data: JSON.stringify({ jsonrpc: "2.0", method: "preview/didChangeGameState", params: { mounted: true } }) });
       await sockets[0].onmessage({ data: JSON.stringify({ jsonrpc: "2.0", method: "doChange", params: {} }) });
       expect(sockets[0].send.mock.calls.map(([data]: [string]) => JSON.parse(data))).toEqual([
@@ -77,6 +86,10 @@ describe("editor protocol transport", () => {
       sendProtocolMessage({ jsonrpc: "2.0", id: "pending", result: "late" }, window);
       await pending;
       expect(sockets[1].send).not.toHaveBeenCalled();
+      await subscribe(first, ["changed"]);
+      sendProtocolMessage({ jsonrpc: "2.0", method: "changed", params: {} });
+      expect(sockets[1].send).not.toHaveBeenCalled();
+      await subscribe(sockets[1], ["changed"]);
       sendProtocolMessage({ jsonrpc: "2.0", method: "changed", params: {} });
       expect(sockets[1].send).toHaveBeenCalledTimes(1);
       sockets[1].close();
@@ -84,6 +97,63 @@ describe("editor protocol transport", () => {
       await vi.advanceTimersByTimeAsync(10_000);
       expect(sockets).toHaveLength(2);
       expect(window.__editorProtocol).toBeUndefined();
+    } finally { dispose(); }
+  });
+  it("serializes editor notifications only for methods a socket client subscribed to", async () => {
+    vi.useFakeTimers();
+    const sockets: any[] = [];
+    class Socket {
+      static OPEN = 1;
+      readyState = 1;
+      onmessage: any;
+      onclose: any;
+      send = vi.fn();
+      close() { this.readyState = 3; this.onclose?.(); }
+      constructor() { sockets.push(this); }
+    }
+    vi.stubGlobal("WebSocket", Socket);
+    const stringify = vi.mocked(protocolJSON.stringifyProtocolJSON);
+    const dispose = installProtocolBridge();
+    const counts = () => {
+      const byMethod: Record<string, number> = {};
+      for (const [message] of stringify.mock.calls) byMethod[(message as any).method] = (byMethod[(message as any).method] ?? 0) + 1;
+      stringify.mockClear();
+      return byMethod;
+    };
+    const emit = () => {
+      for (const method of ["editor/didChange", "editor/didLoad", "preview/didChangeGameState"]) {
+        sendProtocolMessage({ jsonrpc: "2.0", method, params: {} });
+      }
+    };
+    try {
+      // Socket open, no client subscribed.
+      emit();
+      expect(counts()).toEqual({});
+      await subscribe(sockets[0], ["editor/didLoad"]);
+      emit();
+      expect(counts()).toEqual({ "editor/didLoad": 1 });
+      expect(sockets[0].send.mock.calls.map(([data]: [string]) => JSON.parse(data).method)).toEqual(["editor/didLoad"]);
+      await subscribe(sockets[0], ["*"]);
+      emit();
+      expect(counts()).toEqual({ "editor/didChange": 1, "editor/didLoad": 1, "preview/didChangeGameState": 1 });
+      await subscribe(sockets[0], []);
+      emit();
+      expect(counts()).toEqual({});
+      // A dropped connection forgets subscriptions until the server republishes.
+      await subscribe(sockets[0], ["*"]);
+      sockets[0].close();
+      await vi.advanceTimersByTimeAsync(250);
+      emit();
+      expect(counts()).toEqual({});
+      // Responses to socket requests are still serialized without any subscription.
+      const handle = (event: Event) => {
+        const message = (event as CustomEvent).detail;
+        if (message.method === "ask" && "id" in message) sendProtocolMessage({ jsonrpc: "2.0", id: message.id, result: 1 });
+      };
+      window.addEventListener("jsonrpc", handle);
+      try { await sockets[1].onmessage({ data: JSON.stringify({ jsonrpc: "2.0", id: "q", method: "ask", params: {} }) }); }
+      finally { window.removeEventListener("jsonrpc", handle); }
+      expect(JSON.parse(sockets[1].send.mock.calls[0][0])).toEqual({ jsonrpc: "2.0", id: "q", result: 1 });
     } finally { dispose(); }
   });
   it("does not detach the caller's buffers when a worker takes ownership", async () => {
