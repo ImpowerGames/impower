@@ -311,6 +311,76 @@ describe("held clears (#1820)", () => {
     expect(held).toEqual(immediate);
   });
 
+  test.each([
+    ["swept between the two displays", true],
+    ["the first taken over before its sweep", false],
+  ])(
+    "a clear that the empty-write signature makes a no-op stays one when held (%s)",
+    async (_name, sweepFirst) => {
+      // A portrait with a picture slot and a structural caption in its text
+      // slot. Each display clears it and writes only its picture. Applied at
+      // once, the first clear removes the caption and signs the text empty;
+      // the next connect re-creates the caption, and its clear, an empty
+      // write onto a target already signed empty, leaves it.
+      const build = async () => {
+        await create("e", null, "stage");
+        await create("e-portrait-0", "e", "portrait");
+        await create("e-portrait-0-text-0", "e-portrait-0", "text");
+        await create("e-portrait-0-text-0-caption-0", "e-portrait-0-text-0", "caption", {
+          content: { text: "Caption" },
+        });
+        await create("e-portrait-0-image-0", "e-portrait-0", "image");
+      };
+      const clear = async (held: boolean) => {
+        if (held) {
+          hold("portrait", ["e-portrait-0"]);
+          return;
+        }
+        await request("ui/update", {
+          element: "e-portrait-0",
+          style: { display: "none" },
+          attributes: { text: null },
+        });
+        await request("ui/write-text", { target: "portrait", instructions: [], instant: true });
+        await request("ui/write-image", { target: "portrait", instructions: [], instant: true });
+      };
+      const display = async (held: boolean, picture: string, sweep: boolean) => {
+        page.beginReconcilePass();
+        await build();
+        await clear(held);
+        await request("ui/update", { element: "e-portrait-0", style: { display: null } });
+        await show("portrait", picture);
+        if (sweep) {
+          page.sweepReconcile();
+        }
+      };
+      const run = async (held: boolean) => {
+        await build();
+        await show("portrait", "p0");
+        await flushMicrotasks();
+        await display(held, "p1", sweepFirst);
+        await display(held, "p2", true);
+        const portrait = overlay.querySelector(".portrait") as HTMLElement;
+        return {
+          caption: portrait.querySelector(".text > .caption")?.textContent ?? null,
+          pictures: portraits()[0],
+        };
+      };
+
+      const immediate = await run(false);
+      restore();
+      const dom = installJSDOM();
+      restore = dom.restore;
+      overlay = dom.overlay;
+      page = new UIManager(createStubApp(overlay, () => {}));
+      const held = await run(true);
+
+      // The control: applied at once, the second clear leaves the caption.
+      expect(immediate).toEqual({ caption: "Caption", pictures: ["p2"] });
+      expect(held).toEqual(immediate);
+    },
+  );
+
   test("an update of a content slot alone leaves the picture until the write replaces it", async () => {
     // A saved style restored onto a portrait's image slot during the
     // connect changes the slot, not its picture.

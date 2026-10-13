@@ -312,16 +312,34 @@ export default class UIManager extends Manager {
         entry.textAttr ||= Boolean(clear.text);
       }
     }
-    for (const el of this.findTargetElements(clear.target)) {
+    const held = this.heldClears;
+    // Applied at once, an empty write removes nothing when every element of
+    // its target already shows an empty write (`writeText` and `writeImage`
+    // dedupe on the signature), so a held clear decides the same, now. An
+    // element whose clear of that kind is still held counts as cleared: the
+    // clear applied at once would already have signed it.
+    const targetEls = this.findTargetElements(clear.target);
+    const empty = JSON.stringify([]);
+    const shownEmpty = (kind: "text" | "image") =>
+      targetEls.length > 0 &&
+      targetEls.every(
+        (el) =>
+          held?.get(el)?.[kind] != null ||
+          (el as any)[kind === "text" ? "__sdTxt" : "__sdImg"] === empty,
+      );
+    const textEmpty = shownEmpty("text");
+    const imageEmpty = shownEmpty("image");
+    for (const el of targetEls) {
       const entry = part(el);
       if (clear.text) {
-        entry.text = this.contentNodes(el, TEXT_CONTENT);
+        entry.text = textEmpty ? new Set() : this.contentNodes(el, TEXT_CONTENT);
       }
       if (clear.image) {
-        entry.image = this.contentNodes(el, IMAGE_CONTENT);
+        entry.image = imageEmpty
+          ? new Set()
+          : this.contentNodes(el, IMAGE_CONTENT);
       }
     }
-    const held = this.heldClears;
     for (const [el, entry] of parts) {
       if (!held || this._createdThisPass.has(el)) {
         this.applyClear(el, entry);
