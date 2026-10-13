@@ -1318,7 +1318,14 @@ export class SparkdownCompiler {
     // Taken before the edit and always put back, including when the edit or
     // the compile throws: the snapshot has already swapped the registry's
     // document for the copy the edit mutates.
-    const snapshot = this.documents.snapshot(textDocument.uri);
+    const snapshot = this.documents.snapshot(
+      textDocument.uri,
+      Math.min(
+        ...contentChanges.map((change) =>
+          "range" in change ? document.offsetAt(change.range.start) : 0,
+        ),
+      ),
+    );
     // Negative, and never reused, so neither the no-change short-circuit nor
     // `isProgramOutdated` can mistake the edited text for a real version.
     const previewVersion = --this._lastPreviewVersion;

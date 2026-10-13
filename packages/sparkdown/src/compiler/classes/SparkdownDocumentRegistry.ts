@@ -28,6 +28,12 @@ const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 const LANGUAGE_ID = "sparkdown";
 
+// How many characters a parse of a snapshot's edit may reparse before the
+// registry parses the text as it is there first (`mintSplitPoints`). A parse
+// that restarts at the split points an incremental parse mints reparses a few
+// lines; one in a block a from-scratch parse left whole reparses the block.
+const MINT_SPAN = 4096;
+
 export type SparkdownDocumentContentChangeEvent =
   TextDocumentContentChangeEvent;
 
@@ -457,11 +463,24 @@ export class SparkdownDocumentRegistry {
    *
    * A caller that takes a snapshot must always restore it: the swap has
    * already happened when this returns.
+   *
+   * `editedFrom` is where the edits the snapshot is taken for begin. When a
+   * parse of an edit there would reparse a long stretch of the text (a block
+   * a from-scratch parse left whole, which an incremental parse splits), the
+   * text as it is is parsed there once first, and kept, so that the edit's
+   * own parse, and every later one there, reparses a few lines
+   * (`mintSplitPoints`).
    */
-  snapshot(uri: string): SparkdownDocumentSnapshot | undefined {
+  snapshot(
+    uri: string,
+    editedFrom?: number,
+  ): SparkdownDocumentSnapshot | undefined {
     const document = this._syncedDocuments.get(uri);
     if (!document || this._snapshots.has(uri)) {
       return undefined;
+    }
+    if (editedFrom !== undefined) {
+      this.mintSplitPoints(uri, document, editedFrom);
     }
     this._syncedDocuments.set(
       uri,
@@ -520,6 +539,65 @@ export class SparkdownDocumentRegistry {
     state.text = snapshot.text;
     state.annotators.restore(snapshot.annotators);
   }
+
+  /**
+   * Parse `document` as it is around `pos`, keeping the result, when an edit
+   * there would make the parser reparse more than `MINT_SPAN` characters.
+   *
+   * A from-scratch parse mints no split points inside a block, so the first
+   * incremental parse inside a long block reparses all of it and mints them
+   * as it goes. A snapshot's edit is rolled back with everything its parse
+   * minted, so without this every one of them would reparse the whole block
+   * again; putting the text back by parsing the inverse edit used to mint
+   * them as a side effect. The parse replaces one character with itself, so
+   * the tree it builds describes the text the registry's tree does, and the
+   * registry keeps its own tree (and with it the annotators' state), stamped
+   * with the epoch the parse left the compiler in. A compiler is tried once
+   * per epoch, so a stretch that minting cannot split is not parsed again
+   * until a real edit moves it on.
+   */
+  protected mintSplitPoints(
+    uri: string,
+    document: SparkdownDocument,
+    pos: number,
+  ) {
+    const state = this.getDocumentState(uri);
+    const tree = state.tree;
+    const compiler = tree?.prop(cachedCompilerProp);
+    if (
+      !tree ||
+      !compiler ||
+      !state.treeFragments ||
+      state.treeVersion !== document.version ||
+      (tree as { __compilerEpoch?: number }).__compilerEpoch !==
+        compiler.reuseEpoch ||
+      this._mintedAt.get(compiler) === compiler.reuseEpoch ||
+      compiler.reparseSpan(pos) <= MINT_SPAN
+    ) {
+      return;
+    }
+    const length = document.getText().length;
+    const from = Math.min(pos, length - 1);
+    if (from < 0) {
+      return;
+    }
+    profile("start", this._profilerId, "mintSplitPoints", uri);
+    const minted = this._parser.parse(
+      document,
+      TreeFragment.applyChanges(state.treeFragments, [
+        { fromA: from, toA: from + 1, fromB: from, toB: from + 1 },
+      ]),
+    );
+    if (minted.prop(cachedCompilerProp) === compiler) {
+      (tree as { __compilerEpoch?: number }).__compilerEpoch =
+        compiler.reuseEpoch;
+    }
+    this._mintedAt.set(compiler, compiler.reuseEpoch);
+    profile("end", this._profilerId, "mintSplitPoints", uri);
+  }
+
+  /** The epoch each compiler was last left in by `mintSplitPoints`. */
+  protected _mintedAt = new WeakMap<Compiler, number>();
 
   /** The snapshots held, by document: the edits made to one meanwhile are
    *  folded into its `edited`. */

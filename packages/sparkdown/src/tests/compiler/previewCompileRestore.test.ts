@@ -317,6 +317,51 @@ describe("a preview compile", () => {
     expect(digest(compiler) === before, "the compiler's digest after an in-block preview").toBe(true);
   });
 
+  it("in a long block a cold parse left whole splits it once, and each later preview reparses a few lines", () => {
+    // A `then` clause a from-scratch parse keeps as a single chunk, so an edit
+    // deep inside it reparses all of it until an incremental parse has minted
+    // the split points the edit's parse can restart at.
+    const L: string[] = ["scene long", "  The hall is quiet.", "", "  choose", "    + [Go on]", "      The door opens.", "", "    + [Wait]", "      Nothing happens.", "  then", ""];
+    for (let i = 0; i < 400; i++) {
+      L.push(`    Action line ${i} describing the hall at some length.`, "", "    HERO:", `      Dialogue line ${i}.`, "");
+    }
+    L.push("  end", "end", "");
+    const base = L.join("\n");
+    const c = compilerFor({ [URI]: base });
+    quiet(() => c.compile({ textDocument: { uri: URI } }));
+    const target = "Dialogue line 380.";
+    const at = base.indexOf(target);
+    const compiler = parserCompiler(c);
+    expect(compiler.reparseSpan(at), "a parse there reparses the whole scene").toBeGreaterThan(20_000);
+
+    // The first preview there parses the text as it is once, kept, and then
+    // the suggestion; the registry keeps its tree and annotations.
+    const before = parseOf(c);
+    const [, first] = countingParses(c, () => previewOf(c, URI, 1, change(base, target, "Dialogue line 380!").contentChanges));
+    expect(first).toBe(2);
+    expectSameParse(c, before);
+    expect(compiler.reparseSpan(at), "a parse there reparses a few lines").toBeLessThan(1_000);
+
+    // Every preview after it parses once and leaves the parser as it found it.
+    const digest = digester();
+    const state = digest(compiler);
+    for (const replace of ["Dialogue line 380?", "Dialogue 380.", "Line 380."]) {
+      const [preview, parses] = countingParses(c, () => previewOf(c, URI, 1, change(base, target, replace).contentChanges));
+      expect(preview.outdated).toBeUndefined();
+      expect(parses).toBe(1);
+      expect(digest(compiler) === state, "the compiler's digest").toBe(true);
+    }
+    expectSameParse(c, before);
+
+    // The next real edit there compiles to the cold program.
+    const typed = change(base, "Dialogue line 381.", "Dialogue line 381, typed.");
+    quiet(() =>
+      c.updateDocument({ textDocument: { uri: URI, version: 2 }, contentChanges: typed.contentChanges } as never),
+    );
+    const incremental = quiet(() => c.compile({ textDocument: { uri: URI } })).program;
+    expect(diverged(fieldSig(incremental), fieldSig(coldProgram({ [URI]: typed.after })))).toEqual([]);
+  });
+
   it("rolls back when the compile throws", () => {
     const base = cumulativeScreenplay();
     const c = compilerFor({ [URI]: base });
