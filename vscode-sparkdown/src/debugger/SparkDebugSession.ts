@@ -909,17 +909,40 @@ export class SparkDebugSession extends LoggingDebugSession {
   ): Promise<void> {
     // console.log("evaluateRequest", args);
 
+    // Evaluate in the frame selected in the Call Stack, as the Temps scope
+    // reads it (#1740). A frame id this session never gave, or none, reads
+    // the frame that runs.
+    const frame =
+      args.frameId != null ? this._frames.get(args.frameId) : undefined;
     const { context } = await this._connection.emit(
-      GetGameEvaluationContextMessage.type.request({}),
+      GetGameEvaluationContextMessage.type.request({ ...frame }),
     );
 
+    // Each segment names a variable or a table's key, never a property an
+    // object inherits (`constructor`, `__proto__`).
     const value = args.expression
       .split(".")
       .reduce(
         (obj, key) =>
-          obj != null && typeof obj === "object" ? obj[key] : undefined,
+          obj != null &&
+          typeof obj === "object" &&
+          Object.prototype.hasOwnProperty.call(obj, key)
+            ? obj[key]
+            : undefined,
         context,
       );
+
+    // A hover on a name the frame does not have (a keyword, a word of
+    // prose) shows no debug hover, so the language hover shows instead
+    // (#1845).
+    if (value === undefined && args.context === "hover") {
+      this.sendErrorResponse(response, {
+        id: 2001,
+        format: "not available in this frame",
+        showUser: false,
+      });
+      return;
+    }
 
     const { variables } = await this._connection.emit(
       GetGameVariablesMessage.type.request({
