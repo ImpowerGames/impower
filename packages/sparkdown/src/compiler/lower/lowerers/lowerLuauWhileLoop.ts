@@ -17,7 +17,7 @@ import { findLoopDoBlock } from "../utils/loopDoBlock";
 import { openBody, recordLoop } from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
 // the loop's source position in the enclosing weave. The tail-jump is
@@ -76,7 +76,7 @@ export function lowerLuauWhileLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, WHILE_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "while", ctx);
   // The condition is the AST's. The body lives inside the loop node's
   // LuauDoBlock > LuauDoBlock_content. A loop in a scene or at the top level
   // parses as `LuauSparkdownWhileLoop` holding a `LuauSparkdownDoBlock`, in

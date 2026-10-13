@@ -27,7 +27,7 @@ import {
   recordLoop,
   openBody,
 } from "../utils/statementShape";
-import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
+import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
 // `repeat BODY until cond` — Luau's "do-while-not".
 //
@@ -86,7 +86,7 @@ export function lowerLuauRepeatLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const node = statementNodeAt(stat, site, REPEAT_NODES, ctx);
-  if (!node) return {};
+  if (!node) return unreadStatement(stat, site, "repeat", ctx);
   const bodyContent =
     findChildByName(node, `${node.name}_content`) ?? node;
   const untilNode = findNextUntilSibling(node);

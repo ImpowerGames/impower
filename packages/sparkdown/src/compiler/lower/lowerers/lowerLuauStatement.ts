@@ -17,6 +17,7 @@
 
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import {
   AstStat,
@@ -153,6 +154,43 @@ export function statementNodeAt(
     if (node === site.node) break;
   }
   return found;
+}
+
+/**
+ * A statement that holds a body, read from text whose syntax tree has no
+ * node of its kind: its body cannot be found, so it lowers to nothing. That
+ * is reported on its keyword rather than dropped silently, since the
+ * statement would otherwise compile and never run (#1748). A syntax error
+ * inside the statement is the checker's to report, and explains it.
+ */
+export function unreadStatement(
+  stat: AstStat,
+  site: StatementSite,
+  keyword: string,
+  ctx: LowerContext,
+): CompiledBlock {
+  const from = offsetAt(stat.location.begin, ctx);
+  const to = offsetAt(stat.location.end, ctx);
+  const explained = site.source.errors.some((error) => {
+    const at = offsetAt(error.location.begin, ctx);
+    return at >= from && at <= to;
+  });
+  if (!explained) {
+    const end = from + keyword.length;
+    ctx.diagnostics?.push({
+      message: `This \`${keyword}\` statement cannot run here: its line is not read as a \`${keyword}\` statement.`,
+      severity: ErrorType.Error,
+      source: {
+        fileName: null,
+        filePath: ctx.filePath ?? null,
+        startLineNumber: ctx.lineNumber(from) + 1,
+        endLineNumber: ctx.lineNumber(end) + 1,
+        startCharacterNumber: ctx.characterNumber(from) + 1,
+        endCharacterNumber: ctx.characterNumber(end) + 1,
+      },
+    });
+  }
+  return {};
 }
 
 /** The document range of a statement: from its first token to its last, no further than the nodes it was read from. */
