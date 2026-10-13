@@ -121,19 +121,29 @@ export function roundState(journals) {
 
 // --- Decisions published on the PR ----------------------------------------
 
-// Every checkpoint block in the PR's comments, in comment order, each with
-// its exact head and range. Writers and coordinators post under the same
-// GitHub account, so neither a comment's author nor the name in a block
-// proves who decided. A decision is verified only when a run record published
-// it, after read-back, as that comment with exactly that content: the
-// record's own decisions, and those of the coordinators it took over from.
+// Every checkpoint block in the PR's comments, each with its exact head and
+// range, and the decisions in effect, in order. Writers and coordinators post
+// under the same GitHub account, so neither a comment's author nor the name
+// in a block proves who decided, and the order of comments proves nothing
+// about what withdrew what.
+//
+// With a run record, the record is the authority on order: the decisions in
+// effect are the record's own decisions for this PR (its own, and those of
+// the coordinators it took over from), published or recorded but not yet
+// read back, in the order the record made them, together with any decision
+// of a predecessor the record names for the ticket and does not hold. A
+// recorded decision is verified only when its recorded comment still
+// carries exactly its recorded content; the comments otherwise only report
+// what was posted, and no block edited, damaged, removed, copied or forged
+// in a comment changes what is in effect. Without a record, the decisions in
+// effect are the trusted blocks in comment order, and serve round accounting
+// only, since none is verified.
+//
 // Only a verified acceptance ever applies. A decision is trusted, and counts
 // for round accounting, when it is verified, or when it names a coordinator
-// the caller trusts (with a record, a predecessor the record names) and the
-// record holds no other version of it. An edited comment, a block naming the
-// record's own coordinator that the record never published, a decision the
-// record holds unpublished or with other content, and a malformed block all
-// count for nothing; a malformed block is reported, never thrown.
+// the caller trusts and the record holds no version of it. Every parsed block
+// is returned, untrusted ones with the reason, and a malformed block is
+// reported, never thrown; `effective` marks the decisions in effect.
 export const blockHash = (decision) => sha256(JSON.stringify(decision));
 const HASH = /^[0-9a-f]{64}$/;
 // Fields of an untrusted block are tested only once they are strings, so no
@@ -150,15 +160,16 @@ function malformed(d) {
   if (d.kind === "accept-unreviewed" && (d.range == null || !present(d.authority))) return "an acceptance without its range or authority";
   return null;
 }
+const RECORD_ONLY = new Set(["state", "body", "bodySha256", "blockSha256", "published", "abandoned"]);
 export function restore(comments, { trusted = [], record = null, pr = null } = {}) {
   const held = record ? new Map(Object.values(record.tickets).flatMap((t) => (t.checkpoints ?? []).map((d) => [d.id, d]))) : null;
-  const decisions = [];
+  const parsed = [];
   for (const c of comments) {
     for (const m of (c.body ?? "").matchAll(BLOCK)) {
       let d;
-      try { d = JSON.parse(m[1]); } catch { decisions.push({ comment: c.id, postedAt: c.created_at, malformed: "its block is not JSON" }); continue; }
+      try { d = JSON.parse(m[1]); } catch { parsed.push({ comment: c.id, postedAt: c.created_at, malformed: "its block is not JSON", effective: false }); continue; }
       const problem = malformed(d);
-      if (problem) { decisions.push({ comment: c.id, postedAt: c.created_at, malformed: problem }); continue; }
+      if (problem) { parsed.push({ comment: c.id, postedAt: c.created_at, malformed: problem, effective: false }); continue; }
       const mine = held?.get(d.id);
       const verified = Boolean(mine && mine.state === "published" && mine.published?.comment === c.id && mine.blockSha256 === blockHash(d));
       const edited = Boolean(c.updated_at && c.updated_at !== c.created_at);
@@ -168,32 +179,30 @@ export function restore(comments, { trusted = [], record = null, pr = null } = {
         : record && d.coordinator === record.coordinator.session ? `the run record never published decision ${d.id}, which names its own coordinator`
         : !trusted.includes(d.coordinator) ? `coordinator ${d.coordinator} is not one this restoration trusts`
         : null;
-      // A decision withdraws what came before it while it is trusted. With a
-      // record, an untrusted one still does only at the comment the record
-      // published it as (its block since edited); a block elsewhere that
-      // copies a recorded id gains nothing from the copy. Without a record,
-      // an edited comment of a trusted coordinator still withdraws.
-      const supersedes = !untrusted || (record ? Boolean(mine && mine.state === "published" && mine.published?.comment === c.id) : edited && trusted.includes(d.coordinator));
-      decisions.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, supersedes, ...(untrusted && { untrusted }) });
+      // Without a record a trusted block is in effect; with one, only a
+      // predecessor's block the record does not hold is, alongside the
+      // record's own decisions below.
+      parsed.push({ ...d, comment: c.id, postedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, effective: !untrusted && !verified && !mine, ...(untrusted && { untrusted }) });
     }
   }
-  // The record's own decisions for this PR withdraw from their record
-  // identity, whatever the comments now hold: a published one from its
-  // recorded comment when that comment's block is damaged, removed or the
-  // comment deleted, and one recorded but not yet read back from the time it
-  // was decided.
-  for (const h of held?.values() ?? []) {
+  if (!record) return parsed.sort(byOrder);
+  const recorded = [];
+  for (const h of held.values()) {
     if ((h.state !== "published" && h.state !== "intent") || (pr !== null && h.pr !== pr)) continue;
-    if (h.state === "intent") {
-      decisions.push({ id: h.id, kind: h.kind, round: h.round, head: h.head, coordinator: h.coordinator, comment: null, postedAt: h.time, trusted: false, verified: false, supersedes: true, untrusted: `decision ${h.id} is recorded but not read back as published` });
-      continue;
-    }
-    if (decisions.some((d) => d.id === h.id && d.comment === h.published.comment)) continue;
-    const at = comments.find((c) => c.id === h.published.comment);
-    decisions.push({ id: h.id, kind: h.kind, round: h.round, head: h.head, coordinator: h.coordinator, comment: h.published.comment, postedAt: at?.created_at ?? h.published.time, trusted: false, verified: false, supersedes: true, untrusted: `comment ${h.published.comment} ${at ? "no longer carries" : "is gone, with"} published decision ${h.id}` });
+    const copy = parsed.find((d) => d.id === h.id && d.comment === h.published?.comment && d.verified);
+    if (copy) { copy.effective = true; copy.recordedAt = h.time; recorded.push(copy); continue; }
+    const at = h.published ? comments.find((c) => c.id === h.published.comment) : null;
+    const decision = Object.fromEntries(Object.entries(h).filter(([key]) => !RECORD_ONLY.has(key)));
+    recorded.push({ ...decision, comment: h.published?.comment ?? null, postedAt: at?.created_at ?? h.published?.time ?? h.time, recordedAt: h.time, trusted: false, verified: false, effective: true,
+      untrusted: h.state === "intent" ? `decision ${h.id} is recorded but not read back as published` : `comment ${h.published.comment} ${at ? "no longer carries exactly" : "is gone, with"} published decision ${h.id}` });
   }
-  return decisions.sort((a, b) => Date.parse(a.postedAt ?? 0) - Date.parse(b.postedAt ?? 0));
+  // The record's decisions keep the record's order (when each was made); a
+  // predecessor's decision the record does not hold, and every other block,
+  // take their place by when they were posted.
+  return [...parsed.filter((d) => !recorded.includes(d)), ...recorded].sort(byOrder);
 }
+const byOrder = (a, b) => Date.parse(a.recordedAt ?? a.postedAt ?? 0) - Date.parse(b.recordedAt ?? b.postedAt ?? 0);
+const inEffect = (decisions) => decisions.filter((d) => d.effective);
 
 // Rounds the journals show against the extensions the PR records. Each round
 // after the third needs a published extension decided at the checkpoint
@@ -203,18 +212,17 @@ export function restore(comments, { trusted = [], record = null, pr = null } = {
 // authority.
 export function audit(state, decisions) {
   const violations = [];
-  const trusted = decisions.filter((d) => d.trusted);
-  const extensions = trusted.filter((d) => d.kind === "extend");
+  const effective = inEffect(decisions);
+  const extensions = effective.filter((d) => d.trusted && d.kind === "extend");
   // The decision in force when a round after the third first launched is the
-  // latest superseding one posted before that launch; it must be a trusted
+  // latest decision in effect made before that launch; it must be a trusted
   // extension decided after the round before, so a later question, repair or
-  // stop withdraws an earlier extension, even once that later comment is
-  // edited.
+  // stop withdraws an earlier extension.
   for (let r = FIRST_CHECKPOINT_ROUND + 1; r <= state.startedRound; r++) {
     const first = state.launches.find((l) => l.round === r);
     if (!first) continue;
     if (r > MAX_REVIEW_ROUNDS) { violations.push(`round ${r} exceeds the ${MAX_REVIEW_ROUNDS}-round ceiling`); continue; }
-    const inForce = decisions.filter((d) => d.supersedes && Date.parse(d.postedAt ?? d.time) <= Date.parse(first.time)).at(-1);
+    const inForce = effective.filter((d) => Date.parse(d.postedAt ?? d.time) <= Date.parse(first.time)).at(-1);
     if (!inForce || !inForce.trusted || inForce.kind !== "extend" || inForce.round !== r - 1 || inForce.limit < r) violations.push(`round ${r} launched at ${first.time} with no published extension, decided at the checkpoint after round ${r - 1}, that covers it${inForce && (inForce.kind !== "extend" || !inForce.trusted) ? `; the decision in force then was ${inForce.id} (${inForce.kind} after round ${inForce.round}${inForce.trusted ? "" : `, untrusted: ${inForce.untrusted}`})` : ""}`);
   }
   for (const c of state.changedPlans ?? []) violations.push(`${c.file} declares round ${c.round}'s planned reviewers as ${c.declared}, but the round was planned with ${c.planned}; a round's planned reviewers never change`);
@@ -240,13 +248,14 @@ export function audit(state, decisions) {
   return violations;
 }
 
-// The latest trusted acceptance applies only when a run record verified it,
-// only to the head it names, and only while no later superseding decision
-// replaced it, trusted or not.
+// The latest trusted acceptance in effect applies only when a run record
+// verified it, only to the head it names, and only while no later decision
+// in effect replaced it, verified or not.
 export function acceptanceApplies(decisions, head) {
-  const at = decisions.findLastIndex((d) => d.trusted && d.kind === "accept-unreviewed");
+  const effective = inEffect(decisions);
+  const at = effective.findLastIndex((d) => d.trusted && d.kind === "accept-unreviewed");
   if (at < 0) return { applies: false, reason: "the PR records no trusted acceptance of unreviewed corrections" };
-  const d = decisions[at], later = decisions.slice(at + 1).filter((x) => x.supersedes);
+  const d = effective[at], later = effective.slice(at + 1);
   if (later.length) return { applies: false, decision: d, reason: `decision ${later.at(-1).id} (${later.at(-1).kind}) after round ${later.at(-1).round} replaced acceptance ${d.id}` };
   if (!d.verified) return { applies: false, decision: d, reason: `acceptance ${d.id} is restored from the PR but not verified by a run record that published it; restore that record, or decide and publish again after reading the PR` };
   if (d.head !== head) return { applies: false, decision: d, reason: `acceptance ${d.id} applies to ${d.head}, but the PR's head is ${head}; a new push needs a new checkpoint` };

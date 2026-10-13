@@ -300,31 +300,38 @@ try {
   const replaced = rc.acceptanceApplies([...restored, laterQuestion], c.final);
   assert.equal(replaced.applies, false);
   assert.match(replaced.reason, /later001 \(maintainer\) .* replaced acceptance/);
-  // Without a record, a later withdrawal of a trusted coordinator still
-  // withdraws once its comment is edited, though the edit makes it
-  // untrusted. With a record, a block the record never published withdraws
-  // nothing: the record's own withdrawals are kept by their record identity
-  // below.
+  // What withdraws what comes from the record's order; the comments only
+  // verify publication. The three shapes that once defeated comment-derived
+  // supersession are inert now. An edited withdrawal block the record never
+  // published is not in effect, with or without a record.
   const withdrawal = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((x) => x.id === accepted.id))), id: "withdr01", kind: "maintainer" };
   for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete withdrawal[key];
   const editedWithdrawal = { id: 9030, created_at: at(), updated_at: at(), body: `typo fixed\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(withdrawal)}\n-->` };
   const afterEditAlone = rc.restore([...comments, editedWithdrawal], { trusted: ["local_coord"] });
-  assert.deepEqual([afterEditAlone.at(-1).trusted, afterEditAlone.at(-1).supersedes], [false, true]);
-  assert.match(rc.acceptanceApplies(afterEditAlone, c.final).reason, /withdr01 \(maintainer\) .* replaced acceptance/);
-  const afterEdit = rc.restore([...comments, editedWithdrawal], { trusted: ["local_coord"], record: record() });
-  assert.deepEqual([afterEdit.at(-1).trusted, afterEdit.at(-1).supersedes], [false, false]);
+  assert.deepEqual([afterEditAlone.at(-1).trusted, afterEditAlone.at(-1).effective], [false, false]);
+  assert.match(rc.acceptanceApplies(afterEditAlone, c.final).reason, /not verified by a run record/, "without a record no acceptance applies, whatever the comments hold");
+  const afterEdit = rc.restore([...comments, editedWithdrawal], { trusted: ["local_coord"], record: record(), pr: 500 });
+  assert.equal(afterEdit.find((d) => d.comment === 9030).effective, false);
   assert.equal(rc.acceptanceApplies(afterEdit, c.final).applies, true, "with a record, an unrecorded block withdraws nothing");
-  // A block elsewhere that copies a recorded decision's id gains no
-  // withdrawal authority from the copy.
+  // A block elsewhere that copies a recorded decision's id is inert.
   const copiedId = { ...withdrawal, id: accepted.id, kind: "maintainer" };
   const copyComment = { id: 9031, created_at: at(), updated_at: undefined, body: `writer\n\n<!-- orchestrate-feature-checkpoint\n${JSON.stringify(copiedId)}\n-->` };
   copyComment.updated_at = copyComment.created_at;
   const withCopy = rc.restore([...comments, copyComment], { trusted: ["local_coord"], record: record(), pr: 500 });
-  assert.deepEqual([withCopy.find((d) => d.comment === 9031).trusted, withCopy.find((d) => d.comment === 9031).supersedes], [false, false]);
+  assert.deepEqual([withCopy.find((d) => d.comment === 9031).trusted, withCopy.find((d) => d.comment === 9031).effective], [false, false]);
   assert.equal(rc.acceptanceApplies(withCopy, c.final).applies, true, "a copied decision id does not withdraw the acceptance");
-  // A withdrawal the record published keeps withdrawing from its recorded
-  // comment when that comment's block is later damaged or removed, or the
-  // comment is deleted.
+  // The record's order wins where it differs from the comments' order: a
+  // decision the record made after the acceptance replaces it even when its
+  // comment was posted earlier.
+  const reordered = structuredClone(record());
+  const question = reordered.tickets[42].checkpoints.find((x) => x.kind === "maintainer" && x.state === "published");
+  question.time = new Date(Date.parse(reordered.tickets[42].checkpoints.find((x) => x.id === accepted.id).time) + 1000).toISOString();
+  const byRecord = rc.restore(comments, { trusted: ["local_coord"], record: reordered, pr: 500 });
+  assert.match(rc.acceptanceApplies(byRecord, c.final).reason, new RegExp(`${question.id} \\(maintainer\\) .* replaced acceptance`));
+  // A withdrawal the record holds is in effect in the record's order: once
+  // recorded, before it is read back, and after its comment's block is
+  // damaged or removed or the comment deleted, none of which revives the
+  // acceptance.
   const keptWithdrawals = [];
   const withdrawRecord = structuredClone(record());
   const w = rc.decide(withdrawRecord, { ticket: 42, kind: "maintainer", assessment: assess({ question: "Hold the acceptance while the maintainer looks?" }), evidence: evidence() });
@@ -343,7 +350,7 @@ try {
     const after = rc.restore(list, { trusted: ["local_coord"], record: withdrawRecord, pr: 500 });
     assert.equal(rc.acceptanceApplies(after, c.final).applies, false, `a withdrawal with its ${what} still withdraws the acceptance`);
     const kept = after.find((d) => d.id === w.id);
-    assert.deepEqual([kept?.supersedes, kept?.trusted], [true, false], what);
+    assert.deepEqual([kept?.effective, kept?.trusted], [true, false], what);
     keptWithdrawals.push([what, kept]);
   }
 
@@ -371,8 +378,11 @@ try {
   const retargetedBlock = { ...JSON.parse(JSON.stringify(record().tickets[42].checkpoints.find((d) => d.id === accepted.id))), head: c.initial };
   for (const key of ["body", "state", "published", "bodySha256", "blockSha256"]) delete retargetedBlock[key];
   const retargeted = comments.map((x) => (x === original ? { ...x, body: `${x.body.split("<!--")[0]}${block(retargetedBlock)}` } : x));
-  assert.match(rc.restore(retargeted, { trusted: ["local_coord"], record: record() }).at(-1).untrusted, /holds decision [0-9a-f]* as another comment or with other content/);
-  assert.equal(rc.acceptanceApplies(rc.restore(retargeted, { trusted: ["local_coord"], record: record() }), c.initial).applies, false);
+  const afterRetarget = rc.restore(retargeted, { trusted: ["local_coord"], record: record() });
+  assert.match(afterRetarget.find((d) => d.comment === acceptedComment.id && !d.effective).untrusted, /holds decision [0-9a-f]* as another comment or with other content/);
+  assert.match(afterRetarget.find((d) => d.id === accepted.id && d.effective).untrusted, /no longer carries exactly published decision/, "the recorded acceptance stays in effect, unverified, from the record");
+  assert.equal(rc.acceptanceApplies(afterRetarget, c.initial).applies, false);
+  assert.equal(rc.acceptanceApplies(afterRetarget, c.final).applies, false, "an acceptance whose comment no longer verifies it does not apply");
   const edited = comments.map((x) => (x === original ? { ...x, body: `${x.body.split("<!--")[0]}${block(retargetedBlock)}`, updated_at: at() } : x));
   assert.match(rc.restore(edited, { trusted: ["local_coord"] }).at(-1).untrusted, /was edited/);
   assert.ok(rc.restore([{ id: 9003, created_at: at(), body: "<!-- orchestrate-feature-checkpoint\n{not json\n-->" }], { trusted: ["local_coord"] })[0].malformed);
@@ -504,10 +514,11 @@ try {
   // A later decision withdraws an earlier extension: a round launched after
   // it is unauthorized.
   const withdrawn = { startedRound: 4, launches: [{ file: "j4", round: 4, time: "2026-10-12T12:00:00.000Z", reviewerId: "u" }], completions: [], plans: [], changedPlans: [] };
-  const ext = { id: "e1", kind: "extend", round: 3, limit: 4, trusted: true, supersedes: true, postedAt: "2026-10-12T10:00:00.000Z" };
+  const ext = { id: "e1", kind: "extend", round: 3, limit: 4, trusted: true, effective: true, postedAt: "2026-10-12T10:00:00.000Z" };
   assert.deepEqual(rc.audit(withdrawn, [ext]), []);
-  assert.ok(rc.audit(withdrawn, [ext, { id: "m1", kind: "maintainer", round: 3, trusted: true, supersedes: true, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was m1 \(maintainer after round 3\)/.test(v)));
-  assert.ok(rc.audit(withdrawn, [ext, { id: "m2", kind: "maintainer", round: 3, trusted: false, supersedes: true, untrusted: "comment 1 was edited", postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /the decision in force then was m2 \(maintainer after round 3, untrusted: comment 1 was edited\)/.test(v)), "an edited withdrawal still withdraws an extension");
+  assert.ok(rc.audit(withdrawn, [ext, { id: "m1", kind: "maintainer", round: 3, trusted: true, effective: true, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was m1 \(maintainer after round 3\)/.test(v)));
+  assert.ok(rc.audit(withdrawn, [ext, { id: "m2", kind: "maintainer", round: 3, trusted: false, effective: true, untrusted: "comment 1 no longer carries exactly published decision m2", postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /the decision in force then was m2 \(maintainer after round 3, untrusted: comment 1 no longer carries exactly published decision m2\)/.test(v)), "a recorded withdrawal whose comment was damaged still withdraws an extension");
+  assert.deepEqual(rc.audit(withdrawn, [ext, { id: "m3", kind: "maintainer", round: 3, trusted: false, effective: false, untrusted: "comment 2 was edited", postedAt: "2026-10-12T11:00:00.000Z" }]), [], "a block not in effect withdraws nothing");
   for (const [what, kept] of keptWithdrawals) assert.ok(rc.audit(withdrawn, [ext, { ...kept, postedAt: "2026-10-12T11:00:00.000Z" }]).some((v) => /round 4 launched .* the decision in force then was/.test(v)), `an extension stays withdrawn with the withdrawal's ${what}`);
 
   // Predecessor trust is scoped to its ticket and never trusts that
