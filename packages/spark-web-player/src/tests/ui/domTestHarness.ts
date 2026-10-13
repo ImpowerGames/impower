@@ -50,8 +50,16 @@ export interface DOMHarness {
    *  such a beat wrote. */
   preview(line?: number): Promise<ProgramAddress | null>;
   /** Re-render a (possibly edited) source into the same overlay via the same
-   *  reconciling UIManager — models a live-preview edit. */
-  rerender(newSource: string, line?: number): Promise<void>;
+   *  reconciling UIManager — models a live-preview edit. `afterConnect` sees
+   *  the page once the connect and its restore have settled, before the
+   *  preview writes the beat: what the page can paint while the display waits
+   *  for its beat. `connectOnly` stops there, as a display another display
+   *  takes over does, with no preview and no sweep. */
+  rerender(
+    newSource: string,
+    line?: number,
+    opts?: { afterConnect?: () => void; connectOnly?: boolean },
+  ): Promise<void>;
   /** Reset the story to the top of a flow named by its qualified name. */
   jumpTo(flow: string): void;
   nextBeat(): Instructions | undefined;
@@ -290,10 +298,17 @@ export function createDOMHarness(
   startLine = 0,
   opts?: {
     reactive?: boolean;
+    /** Compose each display and each played beat into one `ui/beat`, as the
+     *  worker that shows the preview and PLAY does (#1820). */
+    compose?: boolean;
     autoOpenAll?: boolean;
     /** Load a saved checkpoint before the connect, as the page does when it
      *  displays a preview from the worker's route. */
     loadCheckpoint?: string;
+    /** Called once the page has handled each message the game sends. The
+     *  page handles each message as a task of its own, and a frame can
+     *  render between any two, so this sees every state a frame can show. */
+    afterEachMessage?: (message: any) => void;
   },
 ): DOMHarness {
   const program = compile(source);
@@ -308,6 +323,7 @@ export function createDOMHarness(
     const g = new Game({
       program: prog,
       previewFrom: { file: MAIN_URI, line: startLine },
+      composeBeats: opts?.compose,
       now: () => 0,
       setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
         if (ms != null && ms > 0) {
@@ -364,6 +380,7 @@ export function createDOMHarness(
   let router = makeRouter();
   const sendToConsumer = (msg: any) => {
     router.receive(cloneMessage(msg));
+    opts?.afterEachMessage?.(msg);
   };
 
   if (opts?.loadCheckpoint) {
@@ -394,7 +411,7 @@ export function createDOMHarness(
      * `ui/reconcile-sweep`) runs, so the overlay is patched in place rather than
      * rebuilt. Returns once settled.
      */
-    async rerender(newSource: string, line = startLine) {
+    async rerender(newSource: string, line = startLine, opts) {
       const newProgram = compile(newSource);
       game = makeGame(newProgram);
       router = makeRouter();
@@ -410,6 +427,10 @@ export function createDOMHarness(
       await ui.onInit();
       await game.connect(sendToConsumer);
       await flushMicrotasks(10);
+      opts?.afterConnect?.();
+      if (opts?.connectOnly) {
+        return;
+      }
       await game.preview(MAIN_URI, line);
       await flushMicrotasks(10);
       game.module.ui.sweepReconcile();
@@ -467,6 +488,16 @@ export function createDOMHarness(
       return serializeDOM(overlay);
     },
   };
+}
+
+/** Wait until the page has committed a played beat waiting for the instant
+ *  its text starts revealing (#1820): a real timer, a few milliseconds here. */
+export async function untilShown(overlay: HTMLElement): Promise<void> {
+  await flushMicrotasks(10);
+  for (let i = 0; i < 200 && (overlay as any).__sdBeat != null; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  await flushMicrotasks(10);
 }
 
 export async function flushMicrotasks(rounds = 5): Promise<void> {

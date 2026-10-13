@@ -30,6 +30,54 @@ import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/util
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
+import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
+import {
+  type BeatContent,
+  BeatMessage,
+  type BeatParams,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
+
+/** A played beat waiting for the instant its text starts revealing (#1820).
+ *  Kept on the overlay, which outlives the manager built for each display,
+ *  with the manager now showing it. */
+interface PendingBeat {
+  params: BeatParams;
+  /** Its commit instant on the document timeline. */
+  at: number;
+  timer?: ReturnType<typeof setTimeout>;
+  owner: UIManager;
+}
+
+type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
+
+/** The furthest ahead of the page's clock a played beat's display time may
+ *  be for the page to wait for it. A beat is stamped a little ahead of its
+ *  writes (the beat lead plus the audio output latency); a stamp further off
+ *  is a clock out of step, not a wait. The delay before the beat's first
+ *  letter comes on top. */
+const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+/** Every src the image writes of the beat waiting on `overlay` will paint
+ *  once it commits (#1820). Until then the page shows the old beat, so what
+ *  they paint is in no image layer yet, and the asset cache must keep it
+ *  resident anyway (`AssetManager.derivedPins`). */
+export function pendingBeatImageSrcs(
+  overlay: HTMLElement | null | undefined,
+): string[] {
+  const pending = (overlay as OverlayWithBeat | null | undefined)?.__sdBeat;
+  if (!pending) {
+    return [];
+  }
+  return pending.params.image.flatMap((entry) =>
+    entry.writes.flatMap((write) =>
+      write.instructions.flatMap((i) =>
+        (i.content?.srcs ?? []).filter(
+          (src): src is string => typeof src === "string" && !!src,
+        ),
+      ),
+    ),
+  );
+}
 
 /**
  * Apply one engine-sent attribute to a realized element.
@@ -161,12 +209,25 @@ export default class UIManager extends Manager {
    */
   protected _placeCursor = new Map<Element, Element>();
 
+  /** Whether a `ui/reconcile-begin` opened the pass a sweep closes. */
+  protected _passBegun = false;
+
+  /** While a beat's structural ops are applied: the nodes they change what
+   *  holds content (a new child, new content, a removal or a move), for the
+   *  beat's dedupe of each target. */
+  protected _beatTouched?: Set<Element>;
+
   override async onInit() {
     await super.onInit();
     // A fresh UIManager built for a re-render inherits the prior render's overlay
     // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
     // the incoming create stream reuses them instead of duplicating.
     this.beginReconcilePass();
+    // A beat the last manager left waiting commits through this one (#1820).
+    const pending = (this.app.overlay as OverlayWithBeat | undefined)?.__sdBeat;
+    if (pending) {
+      pending.owner = this;
+    }
   }
 
   /** Start a reconcile pass: adopt every currently-rendered element as a
@@ -297,7 +358,201 @@ export default class UIManager extends Manager {
     return found;
   }
 
+  /**
+   * A beat the engine composed (#1820): everything a display or a played
+   * beat changes on the screen, in one message. The maintainer's rule: the
+   * old beat stays fully visible until the instant the new beat's text starts
+   * revealing, and at that same instant the targets the new beat does not
+   * write are emptied and the written ones replaced. A beat shown at once
+   * goes up as it arrives; a played beat waits for that instant.
+   */
+  protected receiveBeat(params: BeatParams) {
+    this.flushPendingBeat();
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const wait = this.waitToCommit(params);
+    if (!overlay || wait <= 0) {
+      this.applyBeat(params);
+      return;
+    }
+    const at = Number(overlay.ownerDocument.timeline?.currentTime) + wait;
+    const pending: PendingBeat = { params, at, owner: this };
+    pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), wait);
+    overlay.__sdBeat = pending;
+  }
+
+  /** Put the waiting beat up in the first animation frame whose timeline
+   *  has reached its commit instant: the reveals run on that timeline, so
+   *  that frame shows the beat's first letter too. */
+  protected commitWhenDue(pending: PendingBeat) {
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    if (overlay?.__sdBeat !== pending) {
+      return;
+    }
+    const doc = overlay.ownerDocument;
+    const view = doc.defaultView;
+    if (
+      view?.requestAnimationFrame &&
+      Number(doc.timeline?.currentTime) < pending.at
+    ) {
+      view.requestAnimationFrame(() => pending.owner.commitWhenDue(pending));
+      return;
+    }
+    this.flushPendingBeat();
+  }
+
+  /** Put up the beat waiting for its commit at once: something sent after
+   *  it has arrived, and goes up after it. */
+  protected flushPendingBeat() {
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const pending = overlay?.__sdBeat;
+    if (!overlay || !pending) {
+      return;
+    }
+    overlay.__sdBeat = undefined;
+    clearTimeout(pending.timer);
+    this.applyBeat(pending.params);
+  }
+
+  /**
+   * How long a played beat waits, in milliseconds, for the instant its text
+   * starts revealing: the display time its stamp gives plus the delay of the
+   * first letter it reveals. Text it writes that the page already shows
+   * reveals nothing (an unchanged name), and neither do the letters a
+   * continuation keeps (`shown`), so neither counts. A beat that reveals no
+   * text commits at its display time. A display time far from the page's
+   * clock (a clock that has not synced) is not waited for.
+   */
+  protected waitToCommit(params: BeatParams): number {
+    if (params.time == null) {
+      return 0;
+    }
+    const now = Number(this.app.overlay?.ownerDocument?.timeline?.currentTime);
+    const shown = this.getDisplayTime(params.time);
+    if (!Number.isFinite(now) || shown == null || shown - now > COMMIT_WAIT_LIMIT_MS) {
+      return 0;
+    }
+    let first: number | undefined;
+    for (const entry of params.text) {
+      if (this.contentIsNoOp(entry, "__sdTxt")) {
+        continue;
+      }
+      for (const write of entry.writes) {
+        for (const instruction of write.instructions.slice(write.shown ?? 0)) {
+          const after = instruction.after ?? 0;
+          first = first == null ? after : Math.min(first, after);
+        }
+      }
+    }
+    const wait = shown + (first ?? 0) * 1000 - now;
+    return wait >= 1 ? wait : 0;
+  }
+
+  /** Apply a beat, in this one task: its structural ops in order, then the
+   *  final content of every target it touches, then its sweep, then what
+   *  acts on what it put up. */
+  protected applyBeat(params: BeatParams) {
+    const touched = new Set<Element>();
+    this._beatTouched = touched;
+    try {
+      for (const message of params.messages) {
+        this.applyBeatMessage(message);
+      }
+    } finally {
+      this._beatTouched = undefined;
+    }
+    for (const entry of params.text) {
+      this.applyBeatContent(entry, WriteTextMessage.type, "__sdTxt", touched);
+    }
+    for (const entry of params.image) {
+      this.applyBeatContent(entry, WriteImageMessage.type, "__sdImg", touched);
+    }
+    if (params.sweep && this._passBegun) {
+      this._passBegun = false;
+      this.sweepReconcile();
+    }
+    for (const message of params.after) {
+      this.applyBeatMessage(message);
+    }
+  }
+
+  protected applyBeatMessage(message: IMessage) {
+    if ("id" in message) {
+      const request = message as RequestMessage;
+      this.onReceiveRequest(request).catch((error) => {
+        console.error(`${request.method} failed in a beat`, error);
+      });
+    } else {
+      this.onReceiveNotification(message as NotificationMessage);
+    }
+  }
+
+  /** Leave a target with the content a beat gives it. A target the beat
+   *  clears and writes again with exactly what it shows is left as it is:
+   *  its content is not rebuilt, and an instant write shows what it still
+   *  had to reveal. */
+  protected applyBeatContent<P extends { target: string; instructions: unknown[]; instant: boolean }>(
+    entry: BeatContent<P>,
+    type: { request: (params: P) => RequestMessage },
+    signature: "__sdTxt" | "__sdImg",
+    touched: Set<Element>,
+  ) {
+    if (entry.replace) {
+      if (this.contentIsNoOp(entry, signature, touched)) {
+        this.applyBeatMessage(type.request(entry.writes.at(-1)!));
+        return;
+      }
+      this.applyBeatMessage(
+        type.request({ target: entry.target, instructions: [], instant: true } as unknown as P),
+      );
+    }
+    for (const write of entry.writes) {
+      this.applyBeatMessage(type.request(write));
+    }
+  }
+
+  /**
+   * Whether a beat leaves `entry`'s target with what it shows now, judged
+   * against the live DOM: the beat replaces its content with a last write
+   * that gives the content in full (text written once; an image shown), that
+   * write is exactly what every target element shows, and nothing in the
+   * beat (`touched`) changed what the target holds.
+   */
+  protected contentIsNoOp(
+    entry: BeatContent<{ instructions: unknown[] }>,
+    signature: "__sdTxt" | "__sdImg",
+    touched?: Set<Element>,
+  ): boolean {
+    const last = entry.writes.at(-1);
+    if (!entry.replace || !last) {
+      return false;
+    }
+    const whole =
+      signature === "__sdTxt"
+        ? entry.writes.length === 1
+        : (last.instructions as { control?: string; content?: unknown }[]).some(
+            (i) => i.control === "show" && i.content != null,
+          );
+    if (!whole) {
+      return false;
+    }
+    const sig = JSON.stringify(last.instructions);
+    const els = this.findTargetElements(entry.target);
+    if (els.length === 0 || !els.every((el) => (el as any)[signature] === sig)) {
+      return false;
+    }
+    if (touched) {
+      for (const node of touched) {
+        if (els.some((el) => el === node || el.contains(node))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   override async onReceiveRequest(msg: RequestMessage) {
+    // What arrives after a beat waiting for its commit goes up after it.
+    this.flushPendingBeat();
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
@@ -375,7 +630,8 @@ export default class UIManager extends Manager {
       // untouched (no restyle / recalc / devtools flash). The signature lives ON
       // the node (`__sdCreate`), not in a per-manager map, because buildApp makes
       // a NEW UIManager every edit while the DOM node is preserved.
-      if (!reused || (el as any).__sdCreate !== sig) {
+      const changed = !reused || (el as any).__sdCreate !== sig;
+      if (changed) {
         // Full-replace className so a reused node matches the new render exactly.
         el.className = params.name || "";
         if (params.content) {
@@ -445,6 +701,15 @@ export default class UIManager extends Manager {
         (el as any).__sdCreate = sig;
       }
       const parent = this.getElement(params.parent);
+      // A beat's dedupe of a target needs to know whether the beat changed
+      // what the target holds: a new node in it, or new content on a node.
+      if (this._beatTouched) {
+        if (!reused && parent) {
+          this._beatTouched.add(parent);
+        } else if (changed && params.content) {
+          this._beatTouched.add(el);
+        }
+      }
       if (parent) {
         // Only (re)insert when the position actually changed — a no-op move
         // still registers as a DOM mutation (and flashes in devtools), so a
@@ -474,6 +739,10 @@ export default class UIManager extends Manager {
     }
     if (DestroyElementMessage.type.isRequest(msg)) {
       const params = msg.params;
+      const removedFrom = this.getElement(params.element)?.parentElement;
+      if (this._beatTouched && removedFrom) {
+        this._beatTouched.add(removedFrom);
+      }
       this.removeElementById(params.element);
       return DestroyElementMessage.type.result(params.element);
     }
@@ -482,6 +751,9 @@ export default class UIManager extends Manager {
       this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       const parent = element?.parentElement;
+      if (this._beatTouched && parent) {
+        this._beatTouched.add(parent);
+      }
       if (element && parent) {
         // Insert before the reference sibling (or append when null) — keyed
         // `for` reconciliation relocating a retained item's subtree.
@@ -496,6 +768,7 @@ export default class UIManager extends Manager {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
+          this._beatTouched?.add(element);
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -590,14 +863,28 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    if (BeatMessage.type.isNotification(msg)) {
+      this.receiveBeat(msg.params);
+      return;
+    }
+    // What arrives after a beat waiting for its commit goes up after it.
+    this.flushPendingBeat();
     // The game opens a pass at every connect and closes it once the stream
     // has written everything it shows.
     if (BeginReconcileMessage.type.isNotification(msg)) {
       this.beginReconcilePass();
+      this._passBegun = true;
       return;
     }
     if (SweepReconcileMessage.type.isNotification(msg)) {
-      this.sweepReconcile();
+      // Only a pass a begin opened here is swept. A preview that repeats one
+      // taken over before its sweep sweeps for it (#1820); a manager built
+      // since adopted the whole overlay as stale and saw no begin, so a sweep
+      // there would remove the screen it is showing.
+      if (this._passBegun) {
+        this._passBegun = false;
+        this.sweepReconcile();
+      }
       return;
     }
     // A `ui/batch` coalesces a synchronous run of fire-and-forget ops. Dispatch

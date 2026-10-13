@@ -203,6 +203,16 @@ export class Coordinator<G extends Game> {
     // `time` is when a played beat starts on the shared clock; an instant or
     // simulated display has none and shows as soon as the page handles it.
     const updateUI = (time?: number) => {
+      // The beat goes to the page as one composed `ui/beat` (#1820), which
+      // the page puts up at the instant its text starts revealing. A beat a
+      // preview displays is part of the preview's own, which its sweep sends.
+      const composed = game.module.ui.beginCompose();
+      writeUI(time);
+      if (composed) {
+        void game.module.ui.endCompose(time != null ? { time } : {});
+      }
+    };
+    const writeUI = (time?: number) => {
       // A beat that carries on in the box writes the whole box again; one
       // with no text of its own (pictures or sound only) leaves it as it is.
       if (!extended || instructions.text) {
@@ -265,7 +275,9 @@ export class Coordinator<G extends Game> {
         // without their transitions.
         const settle = !!instant || Boolean(game.context.system.simulating);
         Object.values(instructions.layout).forEach((events) =>
-          game.module.ui.applyLayoutInstructions(events, settle),
+          game.module.ui.composeWait(
+            game.module.ui.applyLayoutInstructions(events, settle),
+          ),
         );
       }
 

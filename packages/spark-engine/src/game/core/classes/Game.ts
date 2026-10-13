@@ -696,6 +696,7 @@ export class Game<T extends M = {}> {
         fetch: options?.fetch,
         resolve: options?.resolve,
         requestFrame: options?.requestFrame,
+        composeBeats: options?.composeBeats,
       },
     };
 

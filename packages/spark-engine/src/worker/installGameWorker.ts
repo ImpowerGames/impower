@@ -84,6 +84,8 @@ export function installGameWorker(connection: MessageConnection) {
 
   const systemConfiguration: SystemConfiguration = {
     now: sharedNow,
+    // Every game this worker holds shows its beats whole (#1820).
+    composeBeats: true,
     // Called as methods of this configuration, which a browser refuses for
     // the global's own functions ("Illegal invocation"), so each is called
     // on the global here.
