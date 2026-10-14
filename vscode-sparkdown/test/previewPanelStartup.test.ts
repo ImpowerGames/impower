@@ -165,6 +165,31 @@ describe("starting the Game Preview's player", () => {
     expect(initializations()).toHaveLength(1);
   });
 
+  it("initializes a webview reloaded while the first read is under way once, when the old read ends first", async () => {
+    // The replacement webview's script says it has loaded before its player
+    // mounts; the first read ends in between. The first initialization would
+    // otherwise go on to initialize the replacement's player before it asks,
+    // and then that player's own initialization would follow.
+    state.holding = true;
+    const { receive, initializations } = await open();
+
+    const first = receive(CONNECTED);
+    await Promise.resolve();
+    // The tab is moved: the replacement's script loads and says so.
+    await receive({});
+    for (const release of state.releases.splice(0)) release();
+    await first;
+    expect(initializations()).toHaveLength(0);
+
+    // Its player mounts and asks.
+    const second = receive(CONNECTED);
+    await Promise.resolve();
+    for (const release of state.releases.splice(0)) release();
+    await second;
+
+    expect(initializations()).toHaveLength(1);
+  });
+
   it("answers the webview's empty message once, not every message", async () => {
     const { receive, posted } = await open();
 

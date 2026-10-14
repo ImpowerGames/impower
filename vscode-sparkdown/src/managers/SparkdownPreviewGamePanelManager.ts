@@ -95,10 +95,11 @@ export class SparkdownPreviewGamePanelManager {
    *  it found may be out of date: the initialization reads again. */
   protected _workspaceFilesStale = false;
 
-  /** Counts the initializations begun, and the panel closing. Requests go to
-   *  whichever webview the panel holds now, so an initialization a newer one
-   *  has overtaken (a webview reloaded while the first read was still under
-   *  way) stops rather than initialize the new player as well. */
+  /** Counts the initializations begun, each webview script that loads, and
+   *  the panel closing. Requests go to whichever webview the panel holds
+   *  now, so an initialization overtaken by any of them (a webview reloaded
+   *  while the first read was still under way) stops rather than initialize
+   *  the new player as well. */
   protected _initializations = 0;
 
   _fileWatchersRegistered = false;
@@ -216,6 +217,19 @@ export class SparkdownPreviewGamePanelManager {
     this.readWorkspaceFiles();
     panel.webview.html = this.getWebviewContent(panel.webview, context);
     panel.webview.onDidReceiveMessage(async (message) => {
+      if (isWebviewHello(message)) {
+        // A webview's script has loaded: on first load, or in place of a
+        // webview vscode reloaded. Its player has not mounted yet, since the
+        // script says so before registering it (`game-webview.ts`), so an
+        // initialization still under way is for the webview this one
+        // replaced, and would otherwise go on to initialize this one's player
+        // before that player asks (#1874): it is overtaken. Answer, so the
+        // panel activates after deserialization. Answering every message
+        // instead doubled the traffic of a cold start, which sends a request
+        // for each of the project's files.
+        this._initializations += 1;
+        panel.webview.postMessage({});
+      }
       if (
         ConnectedPreviewMessage.type.isNotification(message) &&
         message.params.type === "game"
@@ -350,13 +364,6 @@ export class SparkdownPreviewGamePanelManager {
           listener(message);
         }
         this._connection.receive(message);
-      }
-      if (isWebviewHello(message)) {
-        // Answer the empty message the webview posts once its script has
-        // loaded, so the panel activates after deserialization. Answering
-        // every message instead doubled the traffic of a cold start, which
-        // sends a request for each of the project's files.
-        panel.webview.postMessage({});
       }
     });
   }
