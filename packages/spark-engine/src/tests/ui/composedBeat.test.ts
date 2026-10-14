@@ -393,13 +393,16 @@ describe("composition, round 1 of PR #1865", () => {
     const h = createHarness(STORY, 0, { beforeConnect: playing });
     await h.ready;
     h.jumpToFlow("start");
+    h.reset();
     await play(h);
     await play(h);
 
+    // Both beats were composed and went to the page.
+    expect(beats(h.messages).filter((b: any) => b.time != null)).toHaveLength(2);
     const ui: any = h.game.module.ui;
-    // Neither a pending change signal nor a list of listeners is left.
+    // No change signal is left waiting (round 5, U1: the one a composing
+    // beat subscribes to, `_realizationChange`).
     expect(ui._realizationChange).toBeUndefined();
-    expect(ui._realizationListeners?.length ?? 0).toBe(0);
   });
 });
 
@@ -713,5 +716,76 @@ describe("the retirement path, round 4 of PR #1865", () => {
     );
     expect(pinned).toBeGreaterThan(-1);
     expect(released).toBeGreaterThan(pinned);
+  });
+});
+
+describe("round 5 of PR #1865", () => {
+  test("a retired layout goes when its exit has played, past a beat still being composed, and its fonts' pin after it", async () => {
+    // R5-2: beat A closes the hud; beat B is still composing (it waits on
+    // work of its own) when the page reports A's exit played.
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    await ui.openLayout("hud", undefined, true);
+    await flushMicrotasks(20);
+    const hudId = ui._mountedLayouts.get("hud").element.id;
+    h.reset();
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+    const exit = beats(h.messages)
+      .flatMap((b: any) => opsOf(b))
+      .find((m: any) => m.method === "ui/animate" && m.params.effects[0]?.element === hudId);
+    expect(exit).toBeTruthy();
+    expect(ui.beginCompose()).toBe(true);
+    void ui.text.write("dialogue", [{ text: "B" }], true);
+    ui.composeWait(new Promise(() => {}));
+    void ui.endCompose({ time: 200 });
+    await flushMicrotasks(20);
+
+    h.game.connection.receive({ jsonrpc: "2.0", id: exit.id, method: exit.method, result: [0] } as any);
+    await flushMicrotasks(20);
+
+    // The destroy went to the page on its own, not into B.
+    const at = h.messages.findIndex(
+      (m: any) =>
+        m.method === "ui/batch" &&
+        m.params.messages.some((op: any) => op.method === "ui/destroy" && op.params.element === hudId),
+    );
+    expect(at).toBeGreaterThan(-1);
+    expect(
+      ui._compose.messages
+        .flatMap((m: any) => flattenMessages([m]))
+        .some((m: any) => m.method === "ui/destroy" && m.params.element === hudId),
+    ).toBe(false);
+    // Its pin went after it.
+    const released = h.messages.findIndex(
+      (m: any) =>
+        m.method === "assets/release" &&
+        m.params?.pins?.some((p: string) => p.startsWith("layout:hud:retiring:")),
+    );
+    expect(released).toBeGreaterThan(at);
+  });
+
+  test("a beat's screen change that fails is reported, and the beat still goes", async () => {
+    // R5-U2.
+    const h = createHarness(STORY, 0, { beforeConnect: playing });
+    await h.ready;
+    h.reset();
+    const ui: any = h.game.module.ui;
+    const errors: string[] = [];
+    h.game.story.onError = ((message: string) => errors.push(message)) as any;
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(Promise.reject(new Error("could not mount")));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+
+    expect(errors.some((e) => e.includes("could not mount"))).toBe(true);
+    expect(beats(h.messages).map((b: any) => b.time)).toEqual([100]);
   });
 });

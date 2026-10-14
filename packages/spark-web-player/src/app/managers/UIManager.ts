@@ -36,9 +36,6 @@ import {
   type BeatParams,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 
-/** A played beat waiting for the instant its text starts revealing (#1820).
- *  Kept on the overlay, which outlives the manager built for each display,
- *  with the manager now showing it. */
 /** What a composed beat does with one of its text or image writes
  *  (`UIManager.planBeat`, #1820). */
 type WriteDecision =
@@ -70,6 +67,9 @@ interface HeldState {
   empty: boolean;
 }
 
+/** A played beat waiting for the instant its text starts revealing (#1820),
+ *  kept on the overlay with the manager that received it. Only that
+ *  manager's application can put it up: its teardown calls it off. */
 interface PendingBeat {
   params: BeatParams;
   ops: IMessage[];
@@ -298,11 +298,6 @@ export default class UIManager extends Manager {
     // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
     // the incoming create stream reuses them instead of duplicating.
     this.beginReconcilePass();
-    // A beat the last manager left waiting commits through this one (#1820).
-    const pending = (this.app.overlay as OverlayWithBeat | undefined)?.__sdBeat;
-    if (pending) {
-      pending.owner = this;
-    }
   }
 
   /** Start a reconcile pass: adopt every currently-rendered element as a
@@ -408,6 +403,15 @@ export default class UIManager extends Manager {
     }
     this._listeners = {};
     this._elements.clear();
+    // A played beat still waiting for its commit belonged to the run being
+    // torn down (STOP, or the rebuild a new run makes): it never goes up, and
+    // the screen stays as it is until the next display (#1820).
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const pending = overlay?.__sdBeat;
+    if (overlay && pending?.owner === this) {
+      overlay.__sdBeat = undefined;
+      clearTimeout(pending.timer);
+    }
   }
 
   getElement(id: string | null | undefined) {
@@ -612,7 +616,9 @@ export default class UIManager extends Manager {
    *   (writes with no clear between) keeps it, as the uncomposed page does.
    * - An image write is `same` only when every element shows it, over the
    *   subtree as it is; otherwise it is written, replacing the layers.
-   * - A write to an element the beat creates, or creates again, is written.
+   * - An element the beat makes, or makes again, is followed as it is made:
+   *   empty, with the text and stroke leaves the beat gives it, and its
+   *   writes are decided as any other's.
    */
   protected planBeat(ops: IMessage[]): Map<IMessage, WriteDecision> {
     const plan = new Map<IMessage, WriteDecision>();
@@ -622,6 +628,10 @@ export default class UIManager extends Manager {
     const states = new Map<HTMLElement, HeldState>();
     const state = (el: HTMLElement): HeldState => {
       let s = states.get(el);
+      if (!s && making.has(el)) {
+        s = { leaves: making.get(el)!.leaves, empty: true };
+        states.set(el, s);
+      }
       if (!s) {
         const leaves = [
           ...this.getContentElements(el, "text"),
@@ -651,15 +661,66 @@ export default class UIManager extends Manager {
         node.querySelectorAll("*").forEach((d) => gone.add(d));
       }
     };
-    // Elements the beat makes, by id, with the element on the page each
-    // stands under.
-    const made = new Map<string, Element | null | undefined>();
+    // Elements the beat makes, by id: each stands for itself in the plan
+    // (`key`), under the element it is made in.
+    type Made = {
+      key: HTMLElement;
+      parent?: Made;
+      /** The element on the page the made subtree stands under. */
+      anchor: Element | null | undefined;
+      leaves: boolean;
+    };
+    const made = new Map<string, Made>();
+    const making = new Map<HTMLElement, Made>();
+    const make = (id: string, parent: Made | undefined, anchor: Element | null | undefined) => {
+      const m: Made = { key: {} as HTMLElement, parent, anchor, leaves: false };
+      made.set(id, m);
+      making.set(m.key, m);
+      return m;
+    };
+    const bump = (n: Element | null | undefined) => {
+      for (; n && n !== overlay; n = n.parentElement) {
+        revs.set(n, rev(n) + 1);
+      }
+    };
+    // A change in the subtree of a made element: it and every element above
+    // it, made or on the page.
+    const bumpMade = (m: Made | undefined, anchor?: Element | null) => {
+      let last: Made | undefined;
+      for (let n = m; n; n = n.parent) {
+        revs.set(n.key, rev(n.key) + 1);
+        last = n;
+      }
+      bump(last ? last.anchor : anchor);
+    };
+    // A text or stroke leaf made in `m`, or in an element on the page.
+    const leafMade = (name: string, m: Made | undefined, el: Element | null | undefined) => {
+      if (!/(^|\s)(text|stroke)(\s|$)/.test(name ?? "")) {
+        return;
+      }
+      if (m) {
+        m.leaves = true;
+        const st = states.get(m.key);
+        if (st) {
+          st.leaves = true;
+        }
+      } else if (el && el !== overlay) {
+        const st = state(el as HTMLElement);
+        if (!st.leaves) {
+          st.leaves = true;
+          st.empty = true;
+        }
+      }
+    };
     const cursor = new Map<Element, Element | null>(this._placeCursor);
     const targets = (p: WriteParams): HTMLElement[] | undefined => {
       const els = p.elements
-        ? p.elements.map((id) => this._elements.get(id) ?? this.getElement(id))
+        ? p.elements.map(
+            (id) => made.get(id)?.key ?? this._elements.get(id) ?? this.getElement(id),
+          )
         : this.findTargetElements(p.target);
-      return els.length > 0 && els.every((el) => el && el !== overlay && !gone.has(el))
+      return els.length > 0 &&
+        els.every((el) => el && el !== overlay && (making.has(el) || !gone.has(el)))
         ? (els as HTMLElement[])
         : undefined;
     };
@@ -704,45 +765,74 @@ export default class UIManager extends Manager {
           : undefined;
       if (!kind) {
         const params = msg.params as any;
-        let touched: (Element | null | undefined)[];
         if (CreateElementMessage.type.isRequest(msg)) {
-          const parent = this.getElement(params.parent);
-          const existing = params.element ? this.getElement(params.element) : undefined;
-          if (!parent && made.has(params.parent)) {
-            // Under an element the beat makes: what changes is the subtree
-            // of the element on the page above it.
-            touched = [made.get(params.parent)];
-            made.set(params.element, made.get(params.parent));
-          } else if (!existing || gone.has(existing)) {
+          const inMade = made.get(params.parent);
+          const parent = inMade ? undefined : this.getElement(params.parent);
+          const existing =
+            params.element && !made.has(params.element)
+              ? this.getElement(params.element)
+              : undefined;
+          if (inMade) {
+            // In an element the beat makes.
+            if (params.element) {
+              make(params.element, inMade, inMade.anchor);
+            }
+            bumpMade(inMade);
+            leafMade(params.name, inMade, undefined);
+          } else if (!existing || gone.has(existing) || made.has(params.element)) {
             // A new element, or one made again, under its parent.
-            touched = [parent];
-            made.set(params.element, parent);
+            if (params.element) {
+              make(params.element, undefined, parent);
+            }
+            bump(parent);
+            leafMade(params.name, undefined, parent);
           } else {
-            touched = this.touchesOf(msg, cursor);
+            for (const node of this.touchesOf(msg, cursor)) {
+              bump(node);
+            }
             if (existing.tagName.toLowerCase() !== params.type.toLowerCase()) {
               remove(existing);
-              made.set(params.element, parent);
+              make(params.element, undefined, parent);
+              leafMade(params.name, undefined, parent);
             }
           }
           if (parent) {
             cursor.set(parent, existing && !gone.has(existing) ? existing : null);
           }
-        } else {
-          const el = this.getElement(params.element);
-          if ((!el || gone.has(el)) && made.has(params.element)) {
-            touched = [made.get(params.element)];
-          } else {
-            touched = this.touchesOf(msg, cursor);
+          continue;
+        }
+        const m = made.get(params.element);
+        if (m) {
+          // An op on an element the beat made: its content changes its own
+          // subtree; anything else, its parent's.
+          if (UpdateElementMessage.type.isRequest(msg) && params.content != undefined) {
+            bumpMade(m);
+          }
+          if (
+            !UpdateElementMessage.type.isRequest(msg) ||
+            params.style != undefined ||
+            params.attributes != undefined
+          ) {
+            bumpMade(m.parent, m.anchor);
           }
           if (DestroyElementMessage.type.isRequest(msg)) {
-            remove(el);
-            made.delete(params.element);
+            for (const [id, n] of [...made]) {
+              for (let a: Made | undefined = n; a; a = a.parent) {
+                if (a === m) {
+                  made.delete(id);
+                  break;
+                }
+              }
+            }
           }
+          continue;
         }
-        for (const node of touched) {
-          for (let n = node; n && n !== overlay; n = n.parentElement) {
-            revs.set(n, rev(n) + 1);
-          }
+        const el = this.getElement(params.element);
+        for (const node of this.touchesOf(msg, cursor)) {
+          bump(node);
+        }
+        if (DestroyElementMessage.type.isRequest(msg)) {
+          remove(el);
         }
         continue;
       }

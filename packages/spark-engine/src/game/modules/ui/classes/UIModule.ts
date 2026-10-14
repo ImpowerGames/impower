@@ -965,29 +965,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return true;
   }
 
-  /** Whether a beat is being composed. */
-  get composing(): boolean {
-    return this._compose != null;
-  }
-
   /** Count `work` as part of the beat being composed: the beat is sent once
    *  what it puts on the screen is in. */
   composeWait(work: Promise<unknown>): void {
+    // What fails is reported, composed or not, and the beat goes on.
+    const settled = work.then(
+      () => undefined,
+      (e) => this.reportRuntimeError("Could not change the screen for this beat", e),
+    );
     const c = this._compose;
     if (!c) {
       return;
     }
     const entry = { done: false };
     c.realizing.push(entry);
-    void work
-      .then(
-        () => undefined,
-        () => undefined,
-      )
-      .finally(() => {
-        entry.done = true;
-        this.notifyRealization();
-      });
+    void settled.finally(() => {
+      entry.done = true;
+      this.notifyRealization();
+    });
   }
 
   /** Run `work` once the beat being composed has gone to the page, or been
@@ -3901,20 +3896,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /**
-   * A retiring layout's exit has played (#1820): its element goes, in a
-   * batch of its own that a beat waiting for its commit on the page lets
-   * by, and its fonts' pin with it. One a connect has ended since is gone
-   * already: that connect rebuilt the screen, and may have given the
-   * element's id to another.
+   * A retiring layout's exit has played (#1820): its element goes now, in a
+   * batch of its own. The batch is no part of any beat: it goes past one
+   * being composed (which keeps the ops it had buffered), and a beat waiting
+   * for its commit on the page lets it by. Its fonts' pin goes after it. One
+   * a connect has ended since is gone already: that connect rebuilt the
+   * screen, and may have given the element's id to another.
    */
   protected retire(r: Retirement): void {
     if (!this._retiring.delete(r)) {
       return;
     }
     if (!this.superseded(r.epoch)) {
+      // What is buffered belongs to whatever is being composed.
       this.flushUIBatch();
       this.destroyElement(r.element, true);
-      this.flushUIBatch();
+      const messages = this._uiBatch;
+      this._uiBatch = [];
+      if (messages.length > 0) {
+        void super.emit(BatchElementsMessage.type.notification({ messages }));
+      }
     }
     if (r.pin) {
       this._game.module.assets?.releaseRetiredLayout(r.pin);

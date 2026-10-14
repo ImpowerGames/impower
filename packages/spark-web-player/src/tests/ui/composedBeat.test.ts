@@ -1044,3 +1044,56 @@ describe("one decision per beat, round 4 of PR #1865", () => {
     expect(h.overlay.querySelector(".probe_portrait > .mask")?.children.length).toBeGreaterThan(0);
   });
 });
+
+describe("round 5 of PR #1865", () => {
+  test("a target the beat makes is followed through its writes: an identical write is a no-op there too", async () => {
+    // R5-1: applied one at a time, the second write finds the first's
+    // signature and leaves the text as it is.
+    const { h } = await showing();
+    const text = (instructions: { text: string }[]) =>
+      WriteTextMessage.type.request({
+        target: "probe_made",
+        instructions: instructions as any,
+        instant: true,
+        elements: ["probe-made"],
+      } as any);
+    h.ui.onReceiveNotification(
+      beat({
+        text: [
+          [
+            CreateElementMessage.type.request({ parent: null, element: "probe-made", type: "div", name: "probe_made" }),
+            CreateElementMessage.type.request({ parent: "probe-made", element: "probe-made-text", type: "span", name: "text" }),
+          ],
+          [text([{ text: "A" }]), text([{ text: "A" }])],
+        ],
+      }),
+    );
+    await flushMicrotasks(10);
+
+    expect(texts(h, ".probe_made > .text")).toEqual(["A"]);
+  });
+
+  test("a played beat waiting for its commit never goes up once its application is torn down", async () => {
+    // R5-3: STOP before the beat's first letter. The screen stays as it is
+    // until the next display.
+    const { h, dialogue } = await showing();
+    const time = controlTime(h);
+    try {
+      h.ui.onReceiveNotification(
+        beat({
+          text: [write("dialogue", [{ text: "N", after: 0.1 }], { instant: false, time: 1_100 })],
+          time: 1_100,
+        }),
+      );
+      await time.at(1_010);
+      h.ui.onDispose();
+
+      await time.at(1_300);
+      expect(dialogue()).toBe("Do you understand?");
+      expect(time.changedAt()).toBeUndefined();
+      expect((h.overlay as any).__sdBeat).toBeUndefined();
+    } finally {
+      time.restore();
+    }
+  });
+});
