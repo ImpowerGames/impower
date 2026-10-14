@@ -2,10 +2,10 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 2,
-  "previous": "bc2751807905293323afda3b11027b1665627fd9",
+  "seq": 3,
+  "previous": "c7cb0544afe7077c59a188fd9a5ec0e36fd397b3",
   "snapshotParents": [],
-  "time": "2026-10-14T03:19:23.434Z",
+  "time": "2026-10-14T03:20:28.719Z",
   "kind": "auto",
   "transition": "a new plan",
   "run": {
@@ -52,7 +52,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-14T03:19:23.433Z",
+    "at": "2026-10-14T03:20:28.717Z",
     "tickets": [
       {
         "number": 1776,
@@ -80,9 +80,9 @@
       },
       {
         "number": 1814,
-        "action": "blocked-route",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-desktop: no preflight result for claude-opus-5-5 at medium; claude-adopted: no preflight result for claude-opus-5-5 at medium; claude-cli: no preflight result for claude-opus-5-5 at medium; claude-agent: no preflight result for claude-opus-5-5 at medium"
+        "reason": "4 writers already hold tickets against a limit of 3"
       }
     ],
     "remaining": [
