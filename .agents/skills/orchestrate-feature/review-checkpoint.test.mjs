@@ -266,7 +266,7 @@ try {
   const cliSession = "6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f";
   const cliStream = (dir) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: cliSession })}\n`); return dir; };
   const cliHeld = structuredClone(record());
-  cliHeld.tickets[42].owner = { ...cliHeld.tickets[42].owner, route: "claude-cli", handle: { kind: "process", pid: null, host: os.hostname(), launchDir: cliStream(path.join(tmp, "cli-launch-42")) } };
+  cliHeld.tickets[42].owner = { ...cliHeld.tickets[42].owner, route: "claude-cli", launchId: "c1d2e3f4", handle: { kind: "process", pid: null, host: os.hostname(), launchDir: cliStream(path.join(tmp, "cli-launch-42")) } };
   const cliPending = structuredClone(record());
   cliPending.tickets[42].owner = null;
   cliPending.tickets[42].pending = { operation: "dispatch", route: "claude-cli", launchId: "a1b2c3d4", artifactParent: path.join(tmp, "cli-pending") };
@@ -277,6 +277,27 @@ try {
     }
     assert.ok(!rc.trustedCoordinators({ ...held, previousCoordinators: [{ session: `local_${cliSession}` }] }, 42).includes(`local_${cliSession}`), `a ${name} CLI writer's opened session is never a trusted coordinator`);
   }
+  // Release keeps the session its stream named, so the writer stays known
+  // once its stream is archived. A writer whose session is neither recorded
+  // nor readable is unknown, which refuses the decision until writer-session
+  // records it; so is one adopted by its process alone.
+  const decideAs = (rec, session) => rc.decide({ ...rec, coordinator: { ...rec.coordinator, session } }, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e });
+  const releasedRecord = structuredClone(cliHeld);
+  run.release(releasedRecord, { ticket: 42, observations: {}, evidence: "its turn ended" });
+  assert.equal(releasedRecord.tickets[42].history.at(-1).owner.sessionId, cliSession, "release keeps the session its stream named");
+  const unrecorded = structuredClone(cliHeld);
+  fs.renameSync(path.join(tmp, "cli-launch-42", "out.jsonl"), path.join(tmp, "cli-launch-42", "out.archived"));
+  assert.throws(() => decideAs(releasedRecord, `local_${cliSession}`), new RegExp(`local_${cliSession} wrote for #42, and is now its coordinator`), "a released writer stays known after its stream is archived");
+  const unknown = /#42's writer c1d2e3f4 has no recorded session and its stream .* cannot be read here, so whether its session wrote for the ticket is unknown; record its session with feature-run\.mjs writer-session --ticket 42 --writer c1d2e3f4/;
+  assert.throws(() => decideAs(unrecorded, "local_coord"), unknown, "an unreadable stream is not evidence that no session wrote");
+  assert.throws(() => rc.trustPredecessor(structuredClone(unrecorded), { ticket: 42, session: `local_${cliSession}`, source: "status comment" }), unknown);
+  assert.throws(() => rc.trustedCoordinators(unrecorded, 42), unknown);
+  run.writerSession(unrecorded, { ticket: 42, writer: "c1d2e3f4", session: cliSession, evidence: "the writer's transcript" });
+  assert.throws(() => decideAs(unrecorded, `local_${cliSession}`), /wrote for #42, and is now its coordinator/, "the recorded session is the ticket's writer");
+  assert.throws(() => run.writerSession(unrecorded, { ticket: 42, writer: "c1d2e3f4", session: "00000000-0000-4000-8000-000000000000", evidence: "x" }), /already recorded as session/);
+  const adoptedByProcess = structuredClone(record());
+  adoptedByProcess.tickets[42].owner = { ...adoptedByProcess.tickets[42].owner, route: "claude-cli", handle: { kind: "process", pid: 4242, start: "1", host: os.hostname() } };
+  assert.throws(() => decideAs(adoptedByProcess, "local_coord"), /#42's writer process 4242 has no recorded session and no stream was recorded for it.*writer-session --ticket 42 --writer 4242/);
   assert.deepEqual(e.range.commits.map((x) => x.sha), [c.round5, c.final]);
   // Posted but not yet read back, the acceptance applies nowhere: not with
   // the record, and not with that record carried over by a takeover.

@@ -551,6 +551,10 @@ try {
     assert.match(due.reason, new RegExp(`briefed to report to ${COORDINATOR}, not this coordinator ${NEXT}`));
     assert.throws(() => t.change((r) => run.deliver(r, { ticket: 374, retry: true })), /acknowledged its brief/);
     const notice = t.change((r) => run.contact(r, { ticket: 374, defaults })).message;
+    // A coordinator can take the run back after another took it over, so a
+    // notice never asks the writer to skip one that names a coordinator it
+    // has heard of before.
+    assert.doesNotMatch(notice, /ignore/i, "a contact notice is never one the writer is told to ignore");
     assert.match(notice, new RegExp(`your coordinator is now session ${NEXT} .*took over from ${COORDINATOR}\\. Send every further report, blocker and question to ${NEXT} as a cross-session message \\(SendMessage`));
     const queued = t.plan(374);
     assert.equal(queued.action, "reconcile-pending");

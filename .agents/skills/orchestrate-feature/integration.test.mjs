@@ -314,6 +314,9 @@ try {
   cliWritten.tickets[41].history.push({ owner: { route: "claude-cli", handle: { kind: "process", pid: null, launchDir: cliDir } }, released: "x" });
   cliWritten.coordinator.session = "local_6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f";
   blocked(gate(41, cliWritten), /local_6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f wrote for #41, and a writer never merges its own work/, "a coordinator whose session was the ticket's CLI writer, opened in the app");
+  const unknownWriter = structuredClone(record());
+  unknownWriter.tickets[41].history.push({ owner: { route: "claude-cli", handle: { kind: "process", pid: 4242, start: "1" } }, released: "x" });
+  blocked(gate(41, unknownWriter), /#41's writer process 4242 has no recorded session and no stream was recorded for it, so whether its session wrote for the ticket is unknown/, "a writer whose session is unknown never counts as not having written");
   assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
 
   // CI: pending, failed, cancelled and a skipped required gate all refuse.

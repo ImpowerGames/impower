@@ -1049,7 +1049,7 @@ export function launched(record, { ticket: number, handleKind, handle, observedO
 
 // Existing work found by the plan gets its existing writer as owner; adoption
 // starts nothing, and the PR keeps the rounds it already started.
-export function adopt(record, { plan, ticket: number, handleKind, handle, pid, route, model, effort, worktree, branch, host = os.hostname(), identify = processIdentity }) {
+export function adopt(record, { plan, ticket: number, handleKind, handle, pid, session, route, model, effort, worktree, branch, host = os.hostname(), identify = processIdentity }) {
   const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer", "merge-gate", "done", "decision-needed"]);
   if (["done", "decision-needed"].includes(entry.action) && !entry.reserves) throw new Error(`The plan's action for #${number} is ${entry.action} with no unsettled writer to adopt`);
   if (!Object.hasOwn(writerRoutes, route) || typeof model !== "string" || !writerEfforts(model).includes(effort)) throw new Error("--route, --model and --effort must describe the existing writer");
@@ -1063,11 +1063,12 @@ export function adopt(record, { plan, ticket: number, handleKind, handle, pid, r
     const identity = identify(Number(pid));
     if (!identity) throw new Error(`Process ${pid} is not running; it cannot own #${number}`);
     h = { kind: "process", ...identity, host };
+    if (session !== undefined && !new RegExp(`^${UUID}$`, "i").test(session)) throw new Error("--session must be the adopted process's session id");
   } else if (["session", "task"].includes(handleKind) && handle) h = { kind: handleKind, id: handle, host };
   else throw new Error("--handle-kind must be session, task or process");
   // The writer's own effort is recorded as found; verification judges it
   // against the ticket's Effort, so a mismatch stays recordable.
-  ticket.owner = { route, model, effort, ...(entry.effort && { requestedEffort: entry.effort }), worktree, branch: branch ?? entry.branch ?? found?.branch ?? null, artifactParent: null, handle: h, verified: false, adopted: { pr: entry.pr ?? null, rounds: entry.rounds ?? 0 }, since: new Date().toISOString() };
+  ticket.owner = { route, model, effort, ...(entry.effort && { requestedEffort: entry.effort }), worktree, branch: branch ?? entry.branch ?? found?.branch ?? null, artifactParent: null, handle: h, ...(h.kind === "process" && session && { sessionId: session }), verified: false, adopted: { pr: entry.pr ?? null, rounds: entry.rounds ?? 0 }, since: new Date().toISOString() };
   log(record, "adopted", { ticket: number, handle: h, pr: entry.pr ?? null, rounds: entry.rounds ?? 0 });
   return ticket.owner;
 }
@@ -1111,9 +1112,32 @@ export function release(record, { ticket: number, observations, evidence, host =
   // asks its own.
   const closed = openRequests(ticket);
   for (const r of closed) r.closed = { time: new Date().toISOString(), reason: "its writer was released" };
+  noteSession(owner);
   ticket.history.push({ owner, released: `${s.reason}${evidence ? `; ${evidence}` : ""}`, time: new Date().toISOString() });
   ticket.owner = null;
   log(record, "released", { ticket: number, reason: s.reason, ...(closed.length && { closedRequests: closed.map((r) => r.id) }) });
+}
+
+// A writer held by its process is known by the session its stream names. It
+// is kept on the record once read, so the writer stays known after its stream
+// is archived or when the record is read on another host.
+function noteSession(owner) {
+  if (!owner || owner.sessionId || owner.handle?.kind !== "process" || !owner.handle.launchDir) return;
+  try { owner.sessionId = streamSession(owner.handle.launchDir); } catch { /* no session started yet */ }
+}
+
+// Records the session of a writer held by its process, read from its stream
+// or transcript, when the record has none and its stream cannot be read: a
+// writer adopted by its process, or one whose stream was archived.
+export function writerSession(record, { ticket: number, writer, session, evidence }) {
+  if (!new RegExp(`^${UUID}$`, "i").test(session ?? "") || !evidence) throw new Error("--session must be the writer's session id and --evidence say where it was read");
+  const ticket = ticketOf(record, number);
+  const o = [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner)].find((x) => x?.handle?.kind === "process" && String(x.launchId ?? x.handle.pid) === String(writer));
+  if (!o) throw new Error(`#${number} has no writer ${writer} held by its process (give its assignment id, or the process id of one adopted by its process)`);
+  if (o.sessionId && o.sessionId !== session) throw new Error(`#${number}'s writer ${writer} is already recorded as session ${o.sessionId}`);
+  o.sessionId = session;
+  o.sessionEvidence = evidence;
+  log(record, "writer-session", { ticket: number, writer: String(writer), session, evidence });
 }
 
 export const REPORT_FIELDS = ["model", "effort", "permissionMode", "pr", "reviewedHead", "rounds", "findings", "verification", "ci", "next"];
@@ -1144,6 +1168,7 @@ export function acknowledged(record, { ticket: number, model, effort, permission
   if (!owner) throw new Error(`#${number} has no writer to have acknowledged`);
   if (!model || !effort || !evidence) throw new Error("--model and --effort must give what the writer confirmed from its own metadata, and --evidence where its acknowledgement was read");
   const confirmed = { model, effort, permissionMode: permissionMode ?? null };
+  noteSession(owner);
   owner.acknowledged = { time: new Date().toISOString(), confirmed, evidence, ...(owner.brief && { deliveryId: owner.brief.deliveryId }) };
   const gap = confirmationGap(owner, confirmed, owner.requestedEffort ?? owner.effort);
   if (gap) recordMismatch(owner, "acknowledgement", `the writer confirmed ${gap}`);
@@ -1177,6 +1202,7 @@ export function request(record, { ticket: number, text, source }) {
   if (!text || !source) throw new Error("--text must quote the writer's request and --source say where it was read");
   const ticket = ticketOf(record, number);
   if (!ticket.owner) throw new Error(`#${number} has no writer to have asked`);
+  noteSession(ticket.owner);
   const id = randomUUID().slice(0, 8);
   (ticket.requests ??= []).push({ id, owner: ownerId(ticket.owner), time: new Date().toISOString(), text, source, relayed: null, answer: null });
   log(record, "request", { ticket: number, id });
@@ -1243,7 +1269,7 @@ export function contact(record, { ticket: number, retry = false, defaults = read
   log(record, "contact-intent", { ticket: number, to, deliveryId: owner.contact.deliveryId, attempt: owner.contact.attempts });
   const how = defaults.routes[routeVendor(owner.model)]?.find((r) => r.route === owner.route)?.reports?.[record.coordinator.harness];
   const way = how?.mechanism ? ` as a cross-session message (${how.mechanism})` : `; ${how?.unsupported ?? "this route cannot message it"}, so end each decision point with the report as your turn's last message, and ${defaults.reportFallback}`;
-  return { message: `Assignment ${owner.launchId} (contact notice ${owner.contact.deliveryId}): your coordinator is now session ${to} on ${record.coordinator.host}, which took over from ${owner.coordinator}. Send every further report, blocker and question to ${to}${way}. If you already received a contact notice naming ${to}, ignore this copy.` };
+  return { message: `Assignment ${owner.launchId} (contact notice ${owner.contact.deliveryId}): your coordinator is now session ${to} on ${record.coordinator.host}, which took over from ${owner.coordinator}. Send every further report, blocker and question to ${to}${way}. A second copy of this notice says the same and needs nothing more.` };
 }
 export function contacted(record, { ticket: number, evidence }) {
   const owner = ticketOf(record, number).owner;
@@ -1258,6 +1284,7 @@ export function result(record, { ticket: number, report: file }) {
   if (missing.length) throw new Error(`The writer's report lacks ${missing.join(", ")}; ask the writer for them`);
   const ticket = ticketOf(record, number);
   ticket.results.push({ time: new Date().toISOString(), report });
+  if (ticket.owner) noteSession(ticket.owner);
   // The report carries what the writer's metadata confirmed; one that differs
   // from the start is kept as evidence and stops the writer.
   const gap = ticket.owner && confirmationGap(ticket.owner, report);
@@ -1761,16 +1788,17 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "checked-in": return mutate((r) => checkedIn(r, { outcome: o.outcome }));
     case "group": return mutate((r) => recordGroup(r, { id: o.id, none: o.none }));
     case "filed": return mutate((r) => filed(r, { ticket: number(), group: o.group }));
-    case "adopt": return mutate((r) => adopt(r, { plan: absolute(o.plan, "plan"), ticket: number(), handleKind: o.handleKind, handle: o.handle, pid: o.pid, route: o.route, model: o.model, effort: o.effort, worktree: o.worktree, branch: o.branch }));
+    case "adopt": return mutate((r) => adopt(r, { plan: absolute(o.plan, "plan"), ticket: number(), handleKind: o.handleKind, handle: o.handle, pid: o.pid, session: o.session, route: o.route, model: o.model, effort: o.effort, worktree: o.worktree, branch: o.branch }));
     case "reconcile": return mutate((r) => reconcile(r, { ticket: number() }));
     case "withdraw": return mutate((r) => withdraw(r, { ticket: number(), evidence: o.evidence, observedOn: o.observedOn }));
     case "verify": return mutate((r) => verify(r, { ticket: number(), preflight: absolute(o.preflight, "preflight") }));
+    case "writer-session": return mutate((r) => writerSession(r, { ticket: number(), writer: o.writer, session: o.session, evidence: o.evidence }));
     case "release": return mutate((r) => release(r, { ticket: number(), observations: readOptional(o.observations) ?? {}, evidence: o.evidence }));
     case "result": return mutate((r) => result(r, { ticket: number(), report: absolute(o.report, "report") }));
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|group|filed|disk-recovery|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|group|filed|disk-recovery|brief|recover-lock --option value ...");
   }
 }
 

@@ -19,6 +19,7 @@
 // acceptance-check.
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -462,18 +463,31 @@ export function abandon(record, { ticket: number, id, evidence }) {
 // reading the PR. Neither this coordinator's own session nor any session
 // that wrote for the ticket is ever a trusted predecessor.
 // Every session that wrote for a ticket: its owner, its released or ended
-// writers, and a pending start. A detached CLI writer is held by its process,
-// so its session is the one its stream names, under that id and as the app
-// shows it once opened.
+// writers, and a pending start. A writer held by its process is known by its
+// session, recorded on the owner or named by its stream, under that id and
+// as the app shows it once opened. A session that is neither recorded nor
+// readable here is unknown, never absent: this throws, so an action that
+// depends on who wrote waits until the session is recorded.
 export const writersOf = (ticket, number) => [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].flatMap((o) => {
   if (!o) return [];
-  const cli = o.sessionId ?? o.opened?.sessionId ?? streamOf(o === ticket.pending ? (o.route === "claude-cli" && o.artifactParent ? launchDirOf(o, number) : null) : o.handle?.kind === "process" ? o.handle.launchDir : null);
-  return [o.handle?.id, o.opened?.session, ...(cli ? [cli, `local_${cli}`] : [])];
+  const session = o.sessionId ?? o.opened?.sessionId ?? processSession(o, o === ticket.pending, number);
+  return [o.handle?.id, o.opened?.session, ...(session ? [session, `local_${session}`] : [])];
 }).filter(Boolean);
-const streamOf = (launchDir) => {
-  if (!launchDir) return null;
-  try { return streamSession(launchDir); } catch { return null; }
-};
+
+// The session a process-held writer's stream names, or null when its stream
+// shows that none started.
+function processSession(o, pending, number) {
+  if (pending ? o.route !== "claude-cli" || !o.artifactParent : o.handle?.kind !== "process") return null;
+  const dir = pending ? launchDirOf(o, number) : o.handle.launchDir;
+  const out = dir ? path.join(dir, "out.jsonl") : null;
+  if (out && fs.existsSync(out)) { try { return streamSession(dir); } catch { return null; } }
+  // A start claimed on this host whose launch directory was never made never ran.
+  if (pending && !fs.existsSync(dir) && (!o.host || o.host === os.hostname())) return null;
+  const which = pending ? `pending start ${o.launchId}` : `writer ${o.launchId ?? `process ${o.handle.pid}`}`;
+  const where = out ? `its stream ${out} cannot be read here` : "no stream was recorded for it";
+  const fix = pending ? `settle the start with feature-run.mjs reconcile or withdraw on ${o.host ?? "its host"}` : `record its session with feature-run.mjs writer-session --ticket ${number} --writer ${o.launchId ?? o.handle.pid} --session <id> --evidence <where it was read>`;
+  throw new Error(`#${number}'s ${which} has no recorded session and ${where}, so whether its session wrote for the ticket is unknown; ${fix} first`);
+}
 
 export function trustPredecessor(record, { ticket: number, session, source }) {
   if (!present(session) || !present(source)) throw new Error("--session must name the predecessor coordinator, and --source where the Feature names it (its status comment)");
