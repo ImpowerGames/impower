@@ -1054,10 +1054,13 @@ export function main(argv, { github: injected } = {}) {
     case "sync-summary": { const checkout = abs(o.checkout, "checkout"), feature = int(o.feature, "feature"); return syncSummary({ repository: o.repo, feature, checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); }
     case "discover": { const checkout = abs(o.checkout, "checkout"); const found = discover({ repository: o.repo, feature: int(o.feature, "feature"), checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); return found.found ? { ...found, limitations: limitations(found.checkpoint) } : found; }
     case "resume": {
-      // Like init, the command line records the coordinator's own session id
-      // and permission mode, never a default.
+      // Like init, the command line records the coordinator's own session id,
+      // permission mode and title slug, never a default.
       checkCoordinatorId(o.harness, o.coordinator);
       if (!PERMISSION_MODES.includes(o.coordinatorMode)) throw new Error(`--coordinator-mode must be this session's own permission mode: ${PERMISSION_MODES.join(", ")}`);
+      // The slug gives the session title to a checkpoint that carries none; a
+      // carried title stays.
+      orchestrationTitle(int(o.feature, "feature"), o.slug);
       const checkout = abs(o.checkout, "checkout");
       return resume({ record: o.record, checkout, repository: o.repo, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, coordinatorMode: o.coordinatorMode, slug: o.slug, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, merging: o.merging ?? "(missing)", concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote: o.remote }, { github: githubFor(o.repo, checkout) });
     }

@@ -295,6 +295,13 @@ try {
   run.writerSession(unrecorded, { ticket: 42, writer: "c1d2e3f4", session: cliSession, evidence: "the writer's transcript" });
   assert.throws(() => decideAs(unrecorded, `local_${cliSession}`), /wrote for #42, and is now its coordinator/, "the recorded session is the ticket's writer");
   assert.throws(() => run.writerSession(unrecorded, { ticket: 42, writer: "c1d2e3f4", session: "00000000-0000-4000-8000-000000000000", evidence: "x" }), /already recorded as session/);
+  // A stream that exists but cannot be read is unknown too, never empty.
+  const lockedDir = path.join(tmp, "cli-launch-locked");
+  fs.mkdirSync(path.join(lockedDir, "out.jsonl"), { recursive: true });
+  const locked = structuredClone(cliHeld);
+  locked.tickets[42].owner.handle = { ...locked.tickets[42].owner.handle, launchDir: lockedDir };
+  assert.throws(() => rc.trustedCoordinators(locked, 42), /#42's writer c1d2e3f4 has no recorded session and its stream .*out\.jsonl cannot be read here \(EISDIR\)/, "an unreadable stream is unknown, not a writer with no session");
+  assert.throws(() => decideAs(locked, "local_coord"), /cannot be read here \(EISDIR\)/);
   const adoptedByProcess = structuredClone(record());
   adoptedByProcess.tickets[42].owner = { ...adoptedByProcess.tickets[42].owner, route: "claude-cli", handle: { kind: "process", pid: 4242, start: "1", host: os.hostname() } };
   assert.throws(() => decideAs(adoptedByProcess, "local_coord"), /#42's writer process 4242 has no recorded session and no stream was recorded for it.*writer-session --ticket 42 --writer 4242/);

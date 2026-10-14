@@ -943,6 +943,9 @@ try {
   const rec800 = path.join(dstPrivate, "run-800.json");
   run.initRecord({ record: rec800, checkout: dst, repository: "acme/widgets", feature: 800, coordinator: "local_cli", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #800." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
   cp.main(["enable", "--record", rec800, "--coordinator", "local_cli", "--expect-revision", "1"], { github });
+  // Like init, resume from the command line takes the title slug, so a takeover
+  // of a checkpoint made before titles were recorded still gets its title.
+  assert.throws(() => cp.main(["resume", "--record", path.join(dstPrivate, "run-800b.json"), "--checkout", dst, "--repo", "acme/widgets", "--feature", "800", "--harness", "claude", "--coordinator", "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", "--coordinator-mode", "bypassPermissions", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--invocation", "Use orchestrate-feature for #800."], { github }), /--slug must be two to four lowercase words/);
   const snap800 = { repository: "acme/widgets", feature: { number: 800, state: "open" }, originMain: "x", tickets: [ticket(801, { parent: 800 })] };
   const plan800 = write("plan-800.json", run.planDispatch({ record: run.readRecord(rec800), snapshot: snap800, preflights: [available("claude-cli", [801])], freeBytes: 100 * GB, defaults }));
   const claimed = run.main(["claim", "--record", rec800, "--coordinator", "local_cli", "--expect-revision", String(rev(rec800)), "--plan", plan800, "--ticket", "801", "--worktree", path.join(tmp, "dst-wt-801"), "--branch", "feat/801-cli", "--artifact-parent", dstPrivate], { defaults, github });

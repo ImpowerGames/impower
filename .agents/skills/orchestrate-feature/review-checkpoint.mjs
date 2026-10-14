@@ -475,18 +475,33 @@ export const writersOf = (ticket, number) => [ticket.owner, ...(ticket.history ?
 }).filter(Boolean);
 
 // The session a process-held writer's stream names, or null when its stream
-// shows that none started.
+// was read and shows that none started. A stream that exists but cannot be
+// read leaves the session unknown, as a missing one does.
 function processSession(o, pending, number) {
   if (pending ? o.route !== "claude-cli" || !o.artifactParent : o.handle?.kind !== "process") return null;
   const dir = pending ? launchDirOf(o, number) : o.handle.launchDir;
   const out = dir ? path.join(dir, "out.jsonl") : null;
-  if (out && fs.existsSync(out)) { try { return streamSession(dir); } catch { return null; } }
-  // A start claimed on this host whose launch directory was never made never ran.
-  if (pending && !fs.existsSync(dir) && (!o.host || o.host === os.hostname())) return null;
+  let unreadable = null;
+  if (out && fs.existsSync(out)) {
+    try { return initSession(fs.readFileSync(out, "utf8")); } catch (error) { unreadable = `its stream ${out} cannot be read here (${error.code ?? error.message})`; }
+  } else if (pending && !fs.existsSync(dir) && (!o.host || o.host === os.hostname())) return null; // a start claimed on this host whose launch directory was never made never ran
   const which = pending ? `pending start ${o.launchId}` : `writer ${o.launchId ?? `process ${o.handle.pid}`}`;
-  const where = out ? `its stream ${out} cannot be read here` : "no stream was recorded for it";
+  const where = unreadable ?? (out ? `its stream ${out} cannot be read here` : "no stream was recorded for it");
   const fix = pending ? `settle the start with feature-run.mjs reconcile or withdraw on ${o.host ?? "its host"}` : `record its session with feature-run.mjs writer-session --ticket ${number} --writer ${o.launchId ?? o.handle.pid} --session <id> --evidence <where it was read>`;
   throw new Error(`#${number}'s ${which} has no recorded session and ${where}, so whether its session wrote for the ticket is unknown; ${fix} first`);
+}
+
+// The session a stream's init line names; null when the stream has no init
+// line, so no session started. A malformed init line is an error.
+function initSession(text) {
+  for (const line of text.split(/\r?\n/)) {
+    let row;
+    try { row = JSON.parse(line); } catch { continue; }
+    if (row?.type !== "system" || row.subtype !== "init") continue;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.session_id ?? "")) throw new Error("its init line names no session id");
+    return row.session_id;
+  }
+  return null;
 }
 
 export function trustPredecessor(record, { ticket: number, session, source }) {
