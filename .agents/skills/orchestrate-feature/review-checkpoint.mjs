@@ -25,7 +25,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
-import { readRecord, updateRecord } from "./feature-run.mjs";
+import { branchTicket, readRecord, updateRecord } from "./feature-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -285,7 +285,9 @@ const checkResult = (state) => { const s = String(state ?? "").toUpperCase(); re
 // Gathers what a checkpoint decides on: the round state, each report and its
 // adjudication, CI on the head, the unreviewed range and its diff, the
 // decisions already published, and every reason no checkpoint is due yet.
-export function checkpointEvidence({ pr, state, pull, comments, git, trusted, record = null }) {
+// The merge gate reads the same review state from round 1 on and judges CI
+// itself, so it passes `firstRound` 1 and `ci` false.
+export function checkpointEvidence({ pr, state, pull, comments, git, trusted, record = null, firstRound = FIRST_CHECKPOINT_ROUND, ci = true }) {
   const blockers = [...state.blockers];
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
   // Every round the PR posts a round state for needs its journals here: a
@@ -293,7 +295,7 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
   const posted = new Set(comments.flatMap((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))));
   const missing = [...posted].filter((r) => !state.roundsSeen.includes(r)).sort((a, b) => a - b);
   if (missing.length) blockers.push(`the PR posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} reviews; read those journals where they ran`);
-  if (state.completedRound < FIRST_CHECKPOINT_ROUND) blockers.push(`round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes`);
+  if (state.completedRound < firstRound) blockers.push(firstRound === FIRST_CHECKPOINT_ROUND ? `round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes` : `no review round is complete here; the PR has no independent review this checkout can show`);
   const reports = state.reports.map((r) => {
     const report = comments.find((c) => c.id === r.comment);
     if (!report) { blockers.push(`report ${r.comment} (round ${r.round}, ${r.reviewerId ?? "reviewer"}) is not on PR #${pr}`); return r; }
@@ -304,9 +306,9 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
     return { ...r, adjudication: adjudication?.id ?? null, adjudicatedAt: adjudication?.created_at ?? null };
   });
   const checks = pull.checks.map((c) => ({ name: c.name, state: c.state, result: checkResult(c.state) }));
-  if (!checks.length) blockers.push(`no CI check has started on ${pull.head}`);
+  if (ci && !checks.length) blockers.push(`no CI check has started on ${pull.head}`);
   const failed = checks.filter((c) => c.result === "failed");
-  if (failed.length) blockers.push(`CI failed on ${pull.head}: ${failed.map((c) => `${c.name} ${c.state}`).join(", ")}`);
+  if (ci && failed.length) blockers.push(`CI failed on ${pull.head}: ${failed.map((c) => `${c.name} ${c.state}`).join(", ")}`);
   const range = state.reviewedHead ? git.range(state.reviewedHead, pull.head) : null;
   if (range && !range.ancestor) blockers.push(`the reviewed head ${state.reviewedHead} is not an ancestor of ${pull.head}; the history was rewritten`);
   const decisions = restore(comments, { trusted, record, pr });
@@ -461,7 +463,7 @@ export function abandon(record, { ticket: number, id, evidence }) {
 // that wrote for the ticket is ever a trusted predecessor.
 // Every session that wrote for a ticket: its owner, its released or ended
 // writers, and a pending start.
-const writersOf = (ticket) => [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].map((o) => o?.handle?.id).filter(Boolean);
+export const writersOf = (ticket) => [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].map((o) => o?.handle?.id).filter(Boolean);
 
 export function trustPredecessor(record, { ticket: number, session, source }) {
   if (!present(session) || !present(source)) throw new Error("--session must name the predecessor coordinator, and --source where the Feature names it (its status comment)");
@@ -534,8 +536,7 @@ export function localGit(checkout, { fetch = defaultFetch(checkout), base = () =
 
 export function gatherEvidence({ record, ticket, pr, client, git }) {
   const pull = client.pull(pr);
-  const branchTicket = Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(pull.branch ?? "")?.[1]);
-  if (branchTicket !== ticket) throw new Error(`PR #${pr}'s branch ${pull.branch} is not #${ticket}'s`);
+  if (branchTicket(pull.branch) !== ticket) throw new Error(`PR #${pr}'s branch ${pull.branch} is not #${ticket}'s`);
   git.fetch(pr);
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
   return checkpointEvidence({ pr, state, pull, comments: client.comments(pr), git, trusted: trustedCoordinators(record, ticket), record });

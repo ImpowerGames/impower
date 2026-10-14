@@ -120,6 +120,14 @@ try {
   assert.equal(first.record.writer.model, "claude-opus-5-5");
   assert.equal(first.record.concurrency.limit, 3);
   assert.equal(init().action, "resume");
+  // Running init again in the same session with a changed request records
+  // it: a grant, then a request that stops at ready PRs takes the merge back.
+  const later = (extra) => init({ record: path.join(artifacts, "later.json"), feature: 109, invocation: "Use orchestrate-feature for #109.", ...extra });
+  assert.equal(later().action, "init");
+  assert.equal(run.coordinatorMerges(later({ merging: "coordinator" }).record), true);
+  const stopped = later({ invocation: "Use orchestrate-feature for #109; stop at ready PRs.", merging: "maintainer" }).record;
+  assert.deepEqual([run.coordinatorMerges(stopped), stopped.authority, stopped.log.at(-1).replaced], [false, run.AUTHORITY, { text: "Use orchestrate-feature for #109.", merging: "coordinator" }]);
+  assert.equal(later().record.invocation.text, "Use orchestrate-feature for #109.");
   const second = path.join(artifacts, "second.json");
   assert.throws(() => init({ record: second, coordinator: "local_b" }), /already has coordinator local_a/);
   assert.throws(() => init({ record: second, coordinator: "local_b", takeover: true, observations: { sessions: { local_a: { state: "idle" } } } }), /Takeover refused: .* waiting/);
@@ -163,7 +171,13 @@ try {
   assert.deepEqual([adopted.pr, adopted.rounds], [504, 2], "an adopted PR keeps its started review rounds");
   assert.match(p1.tickets.find((t) => t.number === 106).reason, /#91 \(closed, but no merged deliverable is on origin\/main\)/);
   assert.equal(p1.complete, false);
-  assert.ok(p1.remaining.some((line) => /maintainer to merge/.test(line)));
+  assert.ok(p1.remaining.some((line) => /maintainer to merge/.test(line)), "a run that recorded no coordinator merge leaves it to the maintainer");
+  // A run whose recorded decision grants the coordinator the merge sends the
+  // ready PR through the merge gate instead.
+  const merging = { ...settled105(run.readRecord(record)), invocation: { text: "Use orchestrate-feature for #100.", merging: "coordinator" }, authority: run.authorityFor("coordinator") };
+  const viaGate = plan({ record: merging });
+  assert.equal(actions(viaGate)[105], "merge-gate");
+  assert.ok(viaGate.remaining.some((line) => /merges only through integration\.mjs's merge gate/.test(line)));
   assert.equal(p1.tickets.find((t) => t.number === 101).route, "claude-desktop");
   // More capacity admits the next eligible tickets in number order.
   const roomy = { ...settled105(run.readRecord(record)), concurrency: { limit: 4, basis: "test" } };
@@ -500,7 +514,7 @@ try {
   assert.equal(refused.status, 1);
   assert.match(refused.stderr, new RegExp(`at revision ${rev}, not ${rev - 1}`));
   assert.equal(run.readRecord(record).revision, rev);
-  const duplicate = cli("init", "--record", second, "--checkout", checkout, "--repo", "acme/widgets", "--feature", "100", "--coordinator", "local_b", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--invocation", "Use orchestrate-feature for #100.");
+  const duplicate = cli("init", "--record", second, "--checkout", checkout, "--repo", "acme/widgets", "--feature", "100", "--coordinator", "local_b", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--invocation", "Use orchestrate-feature for #100.", "--merging", "coordinator");
   assert.equal(duplicate.status, 1);
   assert.match(duplicate.stderr, /already has coordinator local_a/);
   assert.equal(cli("plan", "--record", "relative.json").status, 1);
