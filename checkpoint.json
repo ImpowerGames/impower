@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 9,
-  "previous": "430c3f203f8d29d8c650c1e9654aa06968e59b92",
+  "seq": 10,
+  "previous": "99da8b4eef3fcfefbe0956ab989ff6a28d63cf5e",
   "snapshotParents": [],
-  "time": "2026-10-14T11:04:43.990Z",
+  "time": "2026-10-14T11:05:16.234Z",
   "kind": "auto",
-  "transition": "feature verification 8857639f (complete)",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "71e80032-0437-4e45-a74d-5262a900b96b",
-    "recordRevision": 6,
+    "recordRevision": 7,
     "source": {
       "host": "MSI",
       "checkout": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower"
@@ -60,7 +60,18 @@
   },
   "title": null,
   "tickets": {},
-  "operations": [],
+  "operations": [
+    {
+      "id": "389b285d",
+      "kind": "close",
+      "ticket": 1775,
+      "pr": 1775,
+      "expectHead": "5fac056828b3288fd533274030c43e9c1a15a834",
+      "state": "intent",
+      "time": "2026-10-14T11:05:15.190Z",
+      "evidence": "verification 8857639f"
+    }
+  ],
   "decisions": [],
   "diskRecoveries": [],
   "verifications": [
@@ -577,6 +588,13 @@
       "id": "8857639f",
       "verdict": "complete",
       "mainSha": "5fac056828b3288fd533274030c43e9c1a15a834"
+    },
+    {
+      "time": "2026-10-14T11:05:15.190Z",
+      "event": "operation-intent",
+      "id": "389b285d",
+      "kind": "close",
+      "pr": 1775
     }
   ]
 }
