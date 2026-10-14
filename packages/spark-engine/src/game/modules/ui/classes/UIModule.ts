@@ -673,6 +673,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  to the page (#657). */
   protected _standing?: StandingScreen;
 
+  /** Every message the module has sent the page, or composed for it. */
+  protected _uiOps = 0;
+
+  /** `_uiOps` when the standing screen went to the page: a message sent
+   *  since (a binding a click updated, a write) changed the screen it
+   *  records. */
+  protected _standingOps?: number;
+
   constructor(game: Game) {
     super(game);
     this.initLayouts();
@@ -815,6 +823,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.flushUIBatch();
     this.emit(SweepReconcileMessage.type.notification({}));
     this._standing = standing;
+    this._standingOps = this._uiOps;
   }
 
   /** The screen the display being swept leaves on the page, read at its
@@ -873,11 +882,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    * Why a display cannot leave the screen's structure standing and redo
    * only its content (#657), or null when it can, as far as this module
    * knows: the page shows the screen a display composed, whose beat changed
-   * nothing but written content; building the tree under it, and restoring
-   * it, wrote none of the story's state; and the program now held builds
-   * the same tree: the same layout, screen and component trees, the same
-   * style, layout, component and screen channels, and every picture the
-   * tree resolved by name resolving as it did.
+   * nothing but written content, and nothing was sent the page since;
+   * building the tree under it, and restoring it, wrote none of the
+   * story's state; and the program now held builds the same tree: the same
+   * layout, screen and component trees, the same style, layout, component
+   * and screen channels, and every picture the tree resolved by name
+   * resolving as it did.
    */
   beatOnlyRefusal(): string | null {
     const standing = this._standing;
@@ -885,7 +895,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!standing || !tree || standing.build !== tree.build) {
       return "unshown";
     }
-    if (!standing.contentOnly) {
+    if (!standing.contentOnly || this._uiOps !== this._standingOps) {
       return "screen";
     }
     if (!tree.pure) {
@@ -1402,6 +1412,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (c.standing) {
       // The display is on its way to the page, which shows it next (#657).
       this._standing = c.standing;
+      this._standingOps = this._uiOps;
     }
     this.runAfterSent(c);
   }
@@ -1495,6 +1506,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
     transfer?: ArrayBuffer[],
   ): Promise<R> {
+    this._uiOps += 1;
     const c = this._compose;
     if (c) {
       const captured = this.capture(c, msg);
@@ -1509,6 +1521,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     msg: RequestMessage<M, P, R>,
     transfer?: ArrayBuffer[],
   ): Promise<R | undefined> {
+    this._uiOps += 1;
     const c = this._compose;
     if (c) {
       const captured = this.capture(c, msg);
@@ -4325,6 +4338,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const messages = this._uiBatch;
       this._uiBatch = [];
       if (messages.length > 0) {
+        this._uiOps += 1;
         void super.emit(BatchElementsMessage.type.notification({ messages }));
       }
     }

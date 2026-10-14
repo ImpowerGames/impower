@@ -469,6 +469,51 @@ const SAID = lineIn(UNTAKEN, "The said line.");
 
 /** The overlay a full display of `text` at `line` leaves on a page that
  *  showed nothing before: a player of its own. */
+/** A badge bound to a variable that a button sets, and that the statement
+ *  of the cursor's beat sets before it speaks (round 1 of #1878): the
+ *  route's checkpoint, taken at that statement, holds what it wrote. */
+const BADGED = `store mode = false
+
+function set_mode(v)
+  mode = v
+  return ""
+end
+
+layout main with
+  button "Unset" @click=set_mode(false)
+  badge {
+    text "{mode}"
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: {set_mode(true)}Spoken.
+end
+`;
+const SETS_MODE = lineIn(BADGED, "Spoken.");
+
+/** The same, set by a beat the route passes before the cursor's, whose own
+ *  statement writes nothing. */
+const BADGED_BEFORE = BADGED.replace(
+  `  Before.
+  HERO: {set_mode(true)}Spoken.`,
+  `  HERO: {set_mode(true)}Before.
+  HERO: Spoken.`,
+);
+const SPEAKS = lineIn(BADGED_BEFORE, "HERO: Spoken.");
+
+/** What the badge of `BADGED` shows. */
+const badge = (p: { h: { overlay: HTMLElement } }) =>
+  (p.h.overlay.querySelector(".badge")?.textContent ?? "").trim();
+
 async function freshFrame(text: string, line: number) {
   const p = await player(text, line);
   try {
@@ -1193,6 +1238,49 @@ describe("a display that connects in full", () => {
     });
     expectBeatOnly(a);
     expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("(c) connects in full when the beat's own statement writes the story's state, which its checkpoint holds", async () => {
+    const { a, full } = await twins(BADGED, SETS_MODE, async (p) => {
+      const start = { badge: badge(p), ...after(p) };
+      await p.edit("set_mode(true)", "set_mode(false)");
+      return { start, edited: { badge: badge(p), ...after(p) } };
+    });
+    expect(a.start.badge).toBe("true");
+    expectFull(a.edited, "checkpoint");
+    expect(a.edited.badge).toBe("false");
+    expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
+  it("(h) connects in full when the page was sent a change after the display went up (a click updated a binding)", async () => {
+    const { a, full } = await twins(BADGED_BEFORE, SPEAKS, async (p) => {
+      const start = { badge: badge(p), ...after(p) };
+      const button = [...p.h.overlay.querySelectorAll<HTMLElement>("*")].find(
+        (el) => el.children.length === 0 && (el.textContent ?? "").trim() === "Unset",
+      );
+      const win = p.h.overlay.ownerDocument.defaultView as any;
+      button?.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+      await settle(40);
+      const clicked = { badge: badge(p), ...after(p) };
+      // The beat's line changes, and the route to it does not.
+      await p.edit("Spoken.", "Edited.");
+      return { start, clicked, edited: { badge: badge(p), ...after(p) } };
+    });
+    expect(a.start.badge).toBe("true");
+    expect(a.clicked.badge).toBe("false");
+    expectFull(a.edited, "screen");
+    // The replay set the badge's variable again, and the display sends the
+    // badge as a full display does. (The page keeps what the click wrote,
+    // after either: a reused node's create signature is not cleared by a
+    // later update.)
+    const badgeText = (step: { sent: any[] }) =>
+      ops(step.sent)
+        .filter((m) => m?.method === "ui/create" && /badge-0-text-0-span-0$/.test(m.params.element))
+        .map((m) => m.params.content);
+    expect(badgeText(a.edited)).toEqual([{ text: "true" }]);
+    expect(badgeText(a.edited)).toEqual(badgeText(full.edited));
+    expect(a.edited.badge).toBe(full.edited.badge);
+    expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
 
   it("(c) connects in full when the cursor moves to another beat", async () => {

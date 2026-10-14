@@ -313,9 +313,20 @@ export class Game<T extends M = {}> {
     program: SparkProgram;
     beat?: { uri: string; line: number };
     route?: RoutePlan;
+    targetWrote?: boolean;
     scenes: Set<string>;
     unmeasured: boolean;
   };
+
+  /** Whether the replay of the planned route wrote the story's state from
+   *  the step before its target to the checkpoint taken at the target
+   *  (#657): the checkpoint holds what the target's own statement wrote,
+   *  which the steps before it do not show. Unknown until a replay watched
+   *  it to its end. */
+  protected _routeTargetWrote?: boolean;
+  /** The reactive changes taken when the watch began, given back when it
+   *  ends; set while it runs. */
+  protected _targetWatch?: { globals: Set<string>; tables: Set<object> };
 
   protected _executingLocation: ScriptLocation | null = null;
 
@@ -866,9 +877,43 @@ export class Game<T extends M = {}> {
       beat:
         typeof previewing === "number" ? this.beatStart(previewing) : undefined,
       route: this.routeOfProgram(),
+      targetWrote: this._routeTargetWrote,
       scenes: new Set(),
       unmeasured: false,
     };
+  }
+
+  /** Watch the story's writes from here to the checkpoint at the route's
+   *  target. The reactive changes pending now are kept aside and given back
+   *  when the watch ends, so no binding misses one. A watch that would share
+   *  the write marks with another tracker leaves the answer unknown. */
+  protected watchTargetWrites(): void {
+    const vs = this._story.variablesState;
+    if (this._targetWatch || vs.trackWrites) {
+      return;
+    }
+    this._targetWatch = vs.takeReactiveChanges();
+    vs.TakeWrites();
+    vs.trackWrites = true;
+  }
+
+  /** End the watch `watchTargetWrites` began, recording what it saw. */
+  protected endTargetWatch(): void {
+    const prior = this._targetWatch;
+    if (!prior) {
+      return;
+    }
+    this._targetWatch = undefined;
+    const vs = this._story.variablesState;
+    const changes = vs.takeReactiveChanges();
+    const writes = vs.TakeWrites();
+    vs.trackWrites = false;
+    this._routeTargetWrote =
+      changes.globals.size > 0 ||
+      changes.tables.size > 0 ||
+      writes.cells.size > 0;
+    vs.restoreReactiveChanges(prior);
+    vs.restoreReactiveChanges(changes);
   }
 
   /** The route planned and replayed in the program the game holds, if the
@@ -1434,7 +1479,10 @@ export class Game<T extends M = {}> {
     // the same statements with the same decisions. The route's checkpoint is
     // taken at the beat's first statement in each program, so it is a value
     // of its own every time and cannot be compared by identity; the route
-    // says what ran before it.
+    // says what ran before it. What the beat's own statement wrote before the
+    // capture is in the checkpoint too, and the route does not show it, so a
+    // target that wrote the story's state in either replay, or one not
+    // watched to its end, connects.
     const since = this._changesSince;
     const beat = cursor != null ? this.beatStart(cursor) : undefined;
     const route = this.routeOfProgram();
@@ -1447,6 +1495,8 @@ export class Game<T extends M = {}> {
       since.beat.line !== beat.line ||
       !since.route ||
       !route ||
+      since.targetWrote !== false ||
+      this._routeTargetWrote !== false ||
       !Game.sameRouteToBeat(since.route, route)
     ) {
       return "checkpoint";
@@ -1991,6 +2041,7 @@ export class Game<T extends M = {}> {
       this._plannedRouteStepMap[step.seq] = i;
     }
     this._plannedRouteStepCursor = fromStep;
+    this._routeTargetWrote = undefined;
 
     // A replay is not a preview, even on a game that has displayed one: the
     // coordinator shows every beat a previewing game runs as a preview, which
@@ -2006,6 +2057,11 @@ export class Game<T extends M = {}> {
       // The checkpoint's image is restored in place.
       this.replayRoute(route, fromCheckpoint);
     } finally {
+      // A replay that stopped short of its target leaves the answer unknown.
+      if (this._targetWatch) {
+        this.endTargetWatch();
+        this._routeTargetWrote = undefined;
+      }
       this._replaying = false;
       this._context.system.previewing = previewing;
       for (const k of this._moduleNames) {
@@ -2054,6 +2110,10 @@ export class Game<T extends M = {}> {
     this._executingAddress = null;
     this._executingLocation = null;
 
+    if (this._plannedRouteStepCursor >= route.steps.length - 1) {
+      // The replay resumes at the target, or the step before it.
+      this.watchTargetWrites();
+    }
     this.continue(true);
 
     if (this._simulation === "simulating") {
@@ -3119,6 +3179,13 @@ export class Game<T extends M = {}> {
                   step.checkpoint = latestCheckpoint;
                 }
                 this._plannedRouteStepCursor++;
+                if (
+                  this._plannedRouteStepCursor ===
+                  this._plannedRoute.steps.length - 1
+                ) {
+                  // What runs from here to the target is the target's own.
+                  this.watchTargetWrites();
+                }
               }
             }
           }
@@ -3132,6 +3199,7 @@ export class Game<T extends M = {}> {
           this._runtimeState.pathsExecutedThisFrame.has(this._startAddress)
         ) {
           // End simulation
+          this.endTargetWatch();
           this.checkpoint();
           this._simulation = "success";
           return true;
