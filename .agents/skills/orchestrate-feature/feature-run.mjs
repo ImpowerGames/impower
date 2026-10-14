@@ -198,6 +198,19 @@ export const authorityFor = (merging = "maintainer") => (merging === "coordinato
 // Only a run whose own recorded decision granted the merge, in this grant's
 // words, merges; any other record leaves merging to the maintainer.
 export const coordinatorMerges = (record) => record.invocation?.merging === "coordinator" && record.authority?.merge === MERGE_GRANT && !stopsAtReady(record.invocation?.text);
+// A later request in the coordinator's own session replaces the recorded one
+// with who merges and the authority it grants, so a request that stops at
+// ready PRs takes the merge back; the replaced request stays in the log.
+export function applyInvocation(file, { coordinator, invocation, merging }) {
+  const record = readRecord(file);
+  if (record.invocation?.text === invocation && record.invocation?.merging === merging) return { record, changed: false };
+  const { record: next } = updateRecord(file, { expectRevision: record.revision, coordinator }, (r) => {
+    r.log.push({ time: new Date().toISOString(), event: "invocation", coordinator, replaced: { text: r.invocation?.text, merging: r.invocation?.merging }, merging });
+    r.invocation = { ...r.invocation, text: invocation, merging };
+    r.authority = authorityFor(merging);
+  });
+  return { record: next, changed: true };
+}
 
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
   const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
@@ -237,7 +250,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
       return { action: "init", record: readRecord(file), pointer, diskAdmits };
     }
-    if (existing.coordinator === coordinator && existing.record === file) return { action: "resume", record: readRecord(file), pointer };
+    if (existing.coordinator === coordinator && existing.record === file) return { action: "resume", record: applyInvocation(file, { coordinator, invocation, merging }).record, pointer };
     if (!options.takeover) throw new Error(`Feature #${feature} already has coordinator ${existing.coordinator} on ${existing.host} (record ${existing.record}); a second coordinator would duplicate writers. Continue in that session, or confirm it ended and run init --takeover with an observation of it`);
     const prior = ownerStatus({ handle: { kind: "session", id: existing.coordinator } }, options.observations ?? {}, { host, identify });
     if (prior.status !== "exited") throw new Error(`Takeover refused: the previous coordinator ${existing.coordinator} is ${prior.status} (${prior.reason})`);
@@ -306,7 +319,9 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
 
 // --- GitHub and worktree snapshot -----------------------------------------
 
-const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(branch ?? "")?.[1]) || null;
+// The ticket a branch named <kind>/<N>-<slug> works on, the convention that
+// discovery, review checkpoints and the merge gate all read.
+export const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(branch ?? "")?.[1]) || null;
 
 export function parseWorktrees(text) {
   return text.split(/\r?\n\r?\n/).map((block) => Object.fromEntries(block.split(/\r?\n/).filter(Boolean).map((line) => { const i = line.indexOf(" "); return i < 0 ? [line, true] : [line.slice(0, i), line.slice(i + 1)]; }))).filter((w) => w.worktree).map((w) => ({ path: w.worktree, head: w.HEAD ?? null, branch: typeof w.branch === "string" ? w.branch.replace(/^refs\/heads\//, "") : null }));
@@ -419,6 +434,12 @@ export function acceptanceSection(body) {
 // checkbox, its continuation or the prose around it, needs a new
 // verification.
 export const acceptanceHash = (body) => { const s = acceptanceSection(body); return s === null ? null : createHash("sha256").update(s.map((l) => l.trimEnd()).join("\n").trim()).digest("hex"); };
+// GitHub's list markers: `-`, `+` and `*` bullets and ordered `1.` or `1)`
+// items, inside any blockquote. A task item is a list item that opens with a
+// checkbox.
+const LIST_MARKER = String.raw`^\s*(?:>\s*)*(?:[-+*]|\d{1,9}[.)])`;
+const LIST_ITEM = new RegExp(String.raw`${LIST_MARKER}\s`);
+const TASK_ITEM = new RegExp(String.raw`${LIST_MARKER}\s+\[[ xX]\]\s+(.*\S)\s*$`);
 // Each checkbox in the section, with its indented continuation lines joined
 // to it, under any nested heading; a checkbox inside fenced code is an
 // example, not a criterion.
@@ -428,9 +449,9 @@ export function parseCriteria(body) {
   const section = acceptanceSection(body) ?? [], fenced = fencedLines(section);
   for (const [i, l] of section.entries()) {
     if (fenced[i]) { open = false; continue; }
-    const m = /^\s*[-*]\s+\[[ xX]\]\s+(.*\S)\s*$/.exec(l);
+    const m = TASK_ITEM.exec(l);
     if (m) { items.push([m[1]]); open = true; continue; }
-    if (open && /^\s+\S/.test(l) && !/^\s*[-*+]\s/.test(l)) { items.at(-1).push(l.trim()); continue; }
+    if (open && /^\s+\S/.test(l) && !LIST_ITEM.test(l)) { items.at(-1).push(l.trim()); continue; }
     if (/\S/.test(l)) open = false;
   }
   return items.map((parts, i) => ({ index: i + 1, text: parts.join(" ") }));

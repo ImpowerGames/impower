@@ -21,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRecord, updateRecord, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, githubClient } from "./feature-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, githubClient } from "./feature-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
 
@@ -39,7 +39,6 @@ const SHA = /^[0-9a-f]{40}$/;
 const short = (sha) => String(sha ?? "none").slice(0, 9);
 const present = (value) => typeof value === "string" && value.trim().length > 0;
 const norm = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
-const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(branch ?? "")?.[1]) || null;
 const sameCommit = (a, b) => typeof a === "string" && typeof b === "string" && a.length >= 7 && b.length >= 7 && (a.startsWith(b) || b.startsWith(a));
 // A writer's report has nothing outstanding when its findings field says None
 // or lists nothing.
@@ -245,11 +244,11 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   let owned;
   let lastMain;
   try {
-    again = admission(readRecord(file), { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record: readRecord(file), pr, client, git }), git, running: op.id });
-    // Ownership of the Feature and this intent, from the state branch, then
-    // the last read before GitHub is called: main once more, after every
-    // slower read of the second gate.
+    // Ownership of the Feature and this intent, from the state branch, comes
+    // first, so no slower read falls between the second gate's scope and the
+    // call; the last read before GitHub is called is main once more.
     owned = ownership(readRecord(file), op.id);
+    again = admission(readRecord(file), { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record: readRecord(file), pr, client, git }), git, running: op.id });
     git.fetch();
     lastMain = git.main();
   } catch (error) { notRun(`the gate could not be checked again after the intent was saved: ${error.message}`); throw error; }

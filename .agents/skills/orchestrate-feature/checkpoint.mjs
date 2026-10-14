@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import { writeExclusive, readJson, currentIdentity, alive } from "../../../scripts/review-job-store.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
-import { RECORD_VERSION, authorityFor, mergingFor, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
+import { RECORD_VERSION, applyInvocation, authorityFor, mergingFor, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
 
 export const CHECKPOINT_VERSION = 1;
 export const stateBranch = (feature) => `orchestrate-state/feature-${feature}`;
@@ -745,7 +745,11 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     const own = readRecord(file);
     if (own.runId !== prev.run.runId || own.coordinator.session !== coordinator) throw new Error(`Checkpoint ${prev.seq} names run ${prev.run.runId}, but ${file} holds run ${own.runId}; inspect both before continuing`);
     const pointer = installPointer(checkout, repository, feature, { record: file, coordinator, host, since: own.coordinator.since });
-    return { action: "resume", seq: prev.seq, commit: found.commit, pointer, limitations: limitations(prev, { host }) };
+    // This session's request, as it is now, decides who merges; a changed
+    // request is saved before the session acts on it.
+    const applied = applyInvocation(file, { coordinator, invocation, merging });
+    const checkpoint = applied.changed ? ensureSaved(file, { coordinator, host, github }) : undefined;
+    return { action: "resume", seq: prev.seq, commit: found.commit, pointer, ...(checkpoint && { checkpoint }), limitations: limitations(prev, { host }) };
   }
   if (!evidence) throw new Error(`--evidence must say why ${prev.coordinator.session} on ${prev.coordinator.host} no longer coordinates (for example, the maintainer's statement that its account reached its usage limit)`);
   // A record this session wrote for a takeover of this same checkpoint, whose

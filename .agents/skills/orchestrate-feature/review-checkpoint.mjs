@@ -25,7 +25,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
-import { readRecord, updateRecord } from "./feature-run.mjs";
+import { branchTicket, readRecord, updateRecord } from "./feature-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -536,8 +536,7 @@ export function localGit(checkout, { fetch = defaultFetch(checkout), base = () =
 
 export function gatherEvidence({ record, ticket, pr, client, git }) {
   const pull = client.pull(pr);
-  const branchTicket = Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(pull.branch ?? "")?.[1]);
-  if (branchTicket !== ticket) throw new Error(`PR #${pr}'s branch ${pull.branch} is not #${ticket}'s`);
+  if (branchTicket(pull.branch) !== ticket) throw new Error(`PR #${pr}'s branch ${pull.branch} is not #${ticket}'s`);
   git.fetch(pr);
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
   return checkpointEvidence({ pr, state, pull, comments: client.comments(pr), git, trusted: trustedCoordinators(record, ticket), record });

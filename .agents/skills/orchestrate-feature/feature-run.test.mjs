@@ -120,6 +120,14 @@ try {
   assert.equal(first.record.writer.model, "claude-opus-5-5");
   assert.equal(first.record.concurrency.limit, 3);
   assert.equal(init().action, "resume");
+  // Running init again in the same session with a changed request records
+  // it: a grant, then a request that stops at ready PRs takes the merge back.
+  const later = (extra) => init({ record: path.join(artifacts, "later.json"), feature: 109, invocation: "Use orchestrate-feature for #109.", ...extra });
+  assert.equal(later().action, "init");
+  assert.equal(run.coordinatorMerges(later({ merging: "coordinator" }).record), true);
+  const stopped = later({ invocation: "Use orchestrate-feature for #109; stop at ready PRs.", merging: "maintainer" }).record;
+  assert.deepEqual([run.coordinatorMerges(stopped), stopped.authority, stopped.log.at(-1).replaced], [false, run.AUTHORITY, { text: "Use orchestrate-feature for #109.", merging: "coordinator" }]);
+  assert.equal(later().record.invocation.text, "Use orchestrate-feature for #109.");
   const second = path.join(artifacts, "second.json");
   assert.throws(() => init({ record: second, coordinator: "local_b" }), /already has coordinator local_a/);
   assert.throws(() => init({ record: second, coordinator: "local_b", takeover: true, observations: { sessions: { local_a: { state: "idle" } } } }), /Takeover refused: .* waiting/);

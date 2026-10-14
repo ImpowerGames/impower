@@ -351,6 +351,13 @@ try {
   const disowned = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: () => ["Feature #40 has been taken over: checkpoint 99 names coordinator local_other"] });
   assert.deepEqual([disowned.merged, disowned.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], disowned.evidence);
   assert.match(disowned.evidence, /not run: Feature #40 has been taken over/);
+  // The slice leaves the Feature while ownership is read: ownership comes
+  // before the second gate's scope, so the scope that admits the call is the
+  // one read after every slower read.
+  const leftDuringOwnership = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: (r, id) => { gh.slices.delete(41); return ig.remoteOwnership(r, id); } });
+  gh.slices.add(41);
+  assert.deepEqual([leftDuringOwnership.merged, leftDuringOwnership.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], leftDuringOwnership.evidence);
+  assert.match(leftDuringOwnership.evidence, /not run: .*#41 is not a sub-issue of Feature #40/);
 
   // The merge, through the public command: intent saved first by the
   // command's own wiring, an expected-head call with no bypass, and the
@@ -549,6 +556,10 @@ try {
   const commentedBody = "## Acceptance criteria\n\n- [ ] Basic operation works.\n\n<!--\n## A heading left in a comment\n- [ ] a commented-out checkbox\n-->\n\n- [ ] Recovery after interruption works.\n\n## Additional context\n";
   assert.deepEqual(ig.parseCriteria(commentedBody).map((c) => c.text), ["Basic operation works.", "Recovery after interruption works."]);
   assert.notEqual(run.acceptanceHash(commentedBody), run.acceptanceHash(commentedBody.replace("after interruption", "after power loss")), "a criterion after a commented heading is inside the section's hash");
+  // Every list marker GitHub renders as a task item is a criterion: `-`, `+`
+  // and `*` bullets, ordered items, and items inside a blockquote.
+  const markersBody = "## Acceptance criteria\n\n- [ ] Basic works.\n+ [ ] Interrupted recovery works.\n* [x] Windows works.\n1. [ ] Linux works.\n2) [ ] macOS works.\n   on both architectures.\n> - [ ] Quoted works.\n\n## Additional context\n";
+  assert.deepEqual(ig.parseCriteria(markersBody).map((c) => c.text), ["Basic works.", "Interrupted recovery works.", "Windows works.", "Linux works.", "macOS works. on both architectures.", "Quoted works."]);
   const verify = (evidence, snapshot = snapshotNow(dst)) => change((r) => ig.verifyFeature(r, { snapshot, evidence, mainSha: originMain(dst) }), dstRecord, "local_dst");
   const met = (c, evidence) => ({ criterion: c, status: "met", evidence });
   assert.throws(() => verify({ criteria: [met(criteria[0], ["x"])] }), /omits criterion 2/);

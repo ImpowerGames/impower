@@ -266,6 +266,19 @@ try {
   assert.match(run.deliver(structuredClone(d), { ticket: 502, retry: true }).message, /the stored brief for #502/, "an unconfirmed brief can still be resent exactly after a takeover");
   // Resuming again in the same session is idempotent.
   assert.equal(cp.resume({ ...resumeArgs, evidence: "x" }, { github, host: DST, defaults, totalMemory: 64 * GB }).action, "resume");
+  // A later request in the same session decides who merges from then on, and
+  // the change is saved before the session acts on it: a grant, then a
+  // request that stops at ready PRs takes it back.
+  const granted = cp.resume({ ...resumeArgs, merging: "coordinator" }, { github, host: DST, defaults, totalMemory: 64 * GB });
+  assert.deepEqual([granted.action, granted.checkpoint?.saved, run.coordinatorMerges(run.readRecord(rec500d))], ["resume", true, true]);
+  const stopRequest = cp.resume({ ...resumeArgs, invocation: "Use orchestrate-feature for #500; stop at ready PRs.", merging: "maintainer" }, { github, host: DST, defaults, totalMemory: 64 * GB });
+  const afterStop = run.readRecord(rec500d);
+  assert.deepEqual([stopRequest.action, stopRequest.checkpoint?.saved, run.coordinatorMerges(afterStop), afterStop.invocation.text, afterStop.authority.merge], ["resume", true, false, "Use orchestrate-feature for #500; stop at ready PRs.", run.AUTHORITY.merge]);
+  assert.deepEqual(afterStop.log.at(-1).replaced, { text: resumeArgs.invocation, merging: "coordinator" }, "the replaced request stays in the log");
+  assert.equal(cp.fetchState(dst, "origin", "acme/widgets", 500).checkpoint.seq, stopRequest.checkpoint.seq, "the restriction is on the state branch");
+  assert.ok(!("checkpoint" in cp.resume({ ...resumeArgs, invocation: "Use orchestrate-feature for #500; stop at ready PRs.", merging: "maintainer" }, { github, host: DST, defaults, totalMemory: 64 * GB })), "an unchanged request saves nothing");
+  cp.resume({ ...resumeArgs, evidence: "x" }, { github, host: DST, defaults, totalMemory: 64 * GB });
+  assert.deepEqual(run.readRecord(rec500d).authority, run.AUTHORITY);
 
   // The destination plans from a fresh GitHub snapshot: #502's writer opened a
   // PR after the last checkpoint. Nothing is duplicated or replaced.
