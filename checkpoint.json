@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 1,
-  "previous": null,
+  "seq": 2,
+  "previous": "bc2751807905293323afda3b11027b1665627fd9",
   "snapshotParents": [],
-  "time": "2026-10-14T03:18:51.694Z",
+  "time": "2026-10-14T03:19:23.434Z",
   "kind": "auto",
-  "transition": "checkpoints were enabled",
+  "transition": "a new plan",
   "run": {
     "runId": "71e80032-0437-4e45-a74d-5262a900b96b",
     "recordRevision": 2,
@@ -51,7 +51,47 @@
   "work": {},
   "snapshots": {},
   "handoff": null,
-  "observed": null,
+  "observed": {
+    "at": "2026-10-14T03:19:23.433Z",
+    "tickets": [
+      {
+        "number": 1776,
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1776-orchestrate-feature-dispatch remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+      },
+      {
+        "number": 1777,
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1777-feature-run-checkpoints remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+      },
+      {
+        "number": 1778,
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1778-review-checkpoint-decisions remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+      },
+      {
+        "number": 1779,
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1779-coordinator-merge-acceptance remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+      },
+      {
+        "number": 1814,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-desktop: no preflight result for claude-opus-5-5 at medium; claude-adopted: no preflight result for claude-opus-5-5 at medium; claude-cli: no preflight result for claude-opus-5-5 at medium; claude-agent: no preflight result for claude-opus-5-5 at medium"
+      }
+    ],
+    "remaining": [
+      "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
+      "Ready PRs wait for the maintainer to merge them, since the invocation stops at ready; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
+      "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
+      "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone."
+    ]
+  },
   "log": [
     {
       "time": "2026-10-14T03:18:36.286Z",
