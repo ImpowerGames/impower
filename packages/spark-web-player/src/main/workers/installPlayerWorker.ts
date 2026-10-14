@@ -25,6 +25,7 @@ import {
 } from "@impower/sparkdown/src/runtime/ExecutionWatch";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
+import { compiledElsewhere } from "../../utils/compiledElsewhere";
 import { programIdentity } from "../../utils/programIdentity";
 import { planPreviewHint, type PreviewHintState } from "../utils/previewHint";
 import { displayPreviewFrom } from "./displayPreviewFrom";
@@ -239,6 +240,14 @@ export function installPlayerWorker(connection: MessageConnection) {
   let routingTo: { file: string; line: number } | null = null;
 
   compiler.addEventListener("compiler/didCompile", (params) => {
+    if (compiledElsewhere(params.program, params.program.startFrom)) {
+      // Compiled for a script the point the game routes to is not in. The
+      // page does not take it, so the game keeps the story's program and the
+      // display under way is not taken over: on a cold start in VS Code a
+      // compile of each open script would otherwise cancel the first
+      // display, which nothing asks for again (#1874).
+      return;
+    }
     routingTo = params.program.startFrom ?? null;
     if (!params.produced) {
       // A compile that produced no program that runs, which is one that

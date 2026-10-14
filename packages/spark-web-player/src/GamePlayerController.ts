@@ -1,5 +1,6 @@
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
+import { compiledElsewhere } from "./utils/compiledElsewhere";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
 import type {
   WorkerDisplayWorkspace,
@@ -1842,7 +1843,17 @@ export class GamePlayerController {
   /** Take `program`, the newest the page has been sent. A run still waiting
    *  for the display of the program before stops waiting, so a display the
    *  worker never answers cannot hold this one back. */
-  loadProgram = (program: SparkProgram) => {
+  loadProgram = async (program: SparkProgram) => {
+    // Before its first program the page has no point of its own, and
+    // previews from the one the program was compiled to start from.
+    if (
+      compiledElsewhere(program, this._options?.startFrom ?? program.startFrom)
+    ) {
+      // Previewing it would display nothing, and PLAY would run the wrong
+      // story. The selection that moves the preview to its script compiles
+      // that script again.
+      return;
+    }
     for (const arrived of [...this._programWaiters]) {
       arrived();
     }

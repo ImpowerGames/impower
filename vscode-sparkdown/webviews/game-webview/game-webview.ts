@@ -4,13 +4,13 @@ import {
   MessageProtocol,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
 import {
   SparkWebPlayerElement,
   setWorkspace,
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
+import { revealsPreview } from "./revealsPreview";
 
 console.log("running game-webview");
 
@@ -52,7 +52,7 @@ window.addEventListener(MessageProtocol.event, (e) => {
         // Forward responses and notifications from player to vscode extension
         connection.postMessage(message);
       }
-      if (GamePreviewedMessage.type.isNotification(message)) {
+      if (revealsPreview(message)) {
         document.body.classList.add("ready");
       }
     }

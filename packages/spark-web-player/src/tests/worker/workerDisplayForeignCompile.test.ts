@@ -1,0 +1,86 @@
+// Opening a script compiles it, and a script the story does not include
+// compiles on its own. On a cold start in VS Code every script is open, so
+// those compiles reach the worker while it displays the story's first beat. A
+// compile gave the worker's game its program, which took the display under way
+// over: the display answered that it showed nothing, and nothing asked for the
+// beat again, so the preview stayed black for good (#1874).
+import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
+import { describe, expect, it } from "vitest";
+import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
+import { programIdentity } from "../../utils/programIdentity";
+import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+
+const LOOSE_URI = "file:///local/loose.sd";
+
+const SOURCE = `define SPRITE_A as image with
+  src = "https://example.com/a.png"
+end
+
+-> start
+
+scene start
+  HERO:
+    The beat with nothing to wait for.
+
+  HERO:
+    [[SPRITE_A]]
+    The beat that waits for its picture.
+end
+`;
+
+const LOOSE = `-> loose
+
+scene loose
+  A script the story does not include.
+end
+`;
+
+const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(text));
+const FIRST = lineOf("The beat with nothing to wait for.");
+const WAITING = lineOf("The beat that waits for its picture.");
+
+describe("a compile of a script the story does not include", () => {
+  it("does not take over the story's display while it waits for its picture", async () => {
+    let releaseA!: () => void;
+    const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
+    const h = await createPlayerHarness({
+      files: [
+        { uri: MAIN_URI, text: SOURCE },
+        { uri: LOOSE_URI, text: LOOSE },
+      ],
+      startFrom: { file: MAIN_URI, line: FIRST },
+      holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
+    });
+    try {
+      await h.compile();
+      expect(h.overlay.textContent).toContain("The beat with nothing to wait for.");
+
+      // The page asks for the beat that waits on a.png.
+      const display = h.link.request(DisplayPreviewMessage.type, {
+        program: programIdentity(h.controller._program)!,
+        file: MAIN_URI,
+        line: WAITING,
+        speculative: false,
+      });
+      await settle(40);
+      expect(h.overlay.textContent).not.toContain("The beat that waits for its picture.");
+
+      // The other script opens and compiles on its own while it waits,
+      // routed to the point the preview shows, as the workspace compiles
+      // each script it opens.
+      const loose = await h.page.sendRequest(CompileProgramMessage.type, {
+        textDocument: { uri: LOOSE_URI },
+        startFrom: { file: MAIN_URI, line: WAITING },
+      });
+      expect(Object.keys(loose.program.scripts)).toEqual([LOOSE_URI]);
+      releaseA();
+      const result = await display;
+      await settle(40);
+
+      expect(result.displayed).toBe(true);
+      expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
