@@ -2,9 +2,10 @@
 // target has saved in place of what the page shows (#1813): a target with
 // text of its own, which the connect does not clear, reads as the restored
 // text alone, as a player opened fresh on the same source does, and not as
-// the text it showed with the restored text after it. What the layout itself
-// put in the target stays, and two targets that name one element both
-// restore onto it.
+// the text it showed with the restored text after it. Two targets that name
+// one element both restore onto it. The layout's own text in a written
+// target (`Says:`) is a placeholder, the maintainer's rule: shown until the
+// first write reaches the target, and gone after it.
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
@@ -129,14 +130,16 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const h = await open(TEXT, line);
     try {
       expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
+      // The first write replaced the layout's placeholder.
+      expect(saysIn(h.snapshotDOM() as Node, "dialogue")).toBe(false);
       await editWord(h, TEXT, line);
       const dom = h.snapshotDOM() as Node;
       expect(lettersIn(dom, "dialogue")).toBe("Premier.Second.");
       expect(lettersIn(dom, "dialogue")).toBe(
         await freshLetters(edited(TEXT), line, "dialogue"),
       );
-      // What the layout put in the box is no write's to replace.
-      expect(saysIn(dom, "dialogue")).toBe(true);
+      // The connect's creates put the placeholder back; the restore replaced it.
+      expect(saysIn(dom, "dialogue")).toBe(false);
     } finally {
       h.dispose();
     }
@@ -153,13 +156,13 @@ describe("a connect restores each target's text in place of what it shows (#1813
       expect(lettersIn(dom, "dialogue")).toBe(
         await freshLetters(edited(SHARED), line, "dialogue"),
       );
-      expect(saysIn(dom, "dialogue")).toBe(true);
+      expect(saysIn(dom, "dialogue")).toBe(false);
     } finally {
       h.dispose();
     }
   }, 120_000);
 
-  it("clears a standing target the restored state does not write, keeping the layout's own text", async () => {
+  it("shows a standing target the restored state does not write as its placeholder alone, as a fresh page does", async () => {
     const h = await open(TEXT, lineOf(TEXT, "HERO:"));
     try {
       expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
@@ -170,6 +173,13 @@ describe("a connect restores each target's text in place of what it shows (#1813
       expect(saysIn(dom, "dialogue")).toBe(true);
     } finally {
       h.dispose();
+    }
+    const fresh = await open(TEXT, lineOf(TEXT, "Before."));
+    try {
+      expect(lettersIn(fresh.snapshotDOM() as Node, "dialogue")).toBe("");
+      expect(saysIn(fresh.snapshotDOM() as Node, "dialogue")).toBe(true);
+    } finally {
+      fresh.dispose();
     }
   }, 120_000);
 
@@ -186,7 +196,7 @@ describe("a connect restores each target's text in place of what it shows (#1813
         await settle();
       }
       expect(shown()).toBe("First.");
-      expect(saysIn(h.snapshotDOM() as Node, "dialogue")).toBe(true);
+      expect(saysIn(h.snapshotDOM() as Node, "dialogue")).toBe(false);
       await h.controller.destroyGameAndApp();
     } finally {
       h.dispose();

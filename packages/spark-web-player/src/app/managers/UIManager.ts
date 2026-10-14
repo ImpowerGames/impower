@@ -284,7 +284,8 @@ export default class UIManager extends Manager {
    * reaches one of these in a pass a connect opened replaces what writes
    * left on it, and the writes after it in the pass add to it: two targets
    * that name one element both restore onto it. One no write reaches is
-   * cleared at the sweep. What the layout itself put there stays.
+   * cleared at the sweep, back to the placeholder text the layout put there,
+   * which a write replaces (the maintainer's rule, #1813).
    */
   protected _staleTextTargets = new Set<HTMLElement>();
 
@@ -375,15 +376,20 @@ export default class UIManager extends Manager {
   /** Drop the text a target's writes left, as a `ui/write-text` carrying no
    *  instructions does: the spans the writes built in its `text` and
    *  `stroke` content elements go, and what the layout put there (an element
-   *  it made, which carries a structural id, or its own text) stays. The
-   *  write signature goes with them, so the next write is not mistaken for
-   *  one already shown. */
-  protected clearWrittenText(el: HTMLElement) {
+   *  it made, which carries a structural id, or its own text) stays, as the
+   *  placeholder a page opened at this point shows. With `all`, the layout's
+   *  text goes too: a write replaces it (#1813). The write signature goes
+   *  with them, so the next write is not mistaken for one already shown. */
+  protected clearWrittenText(el: HTMLElement, all = false) {
     for (const leaf of [
       ...this.getContentElements(el, "text"),
       ...this.getContentElements(el, "stroke"),
     ]) {
-      this.removeWritten(leaf);
+      if (all) {
+        leaf.replaceChildren();
+      } else {
+        this.removeWritten(leaf);
+      }
     }
     (el as any).__sdWait?.cancel();
     delete (el as any).__sdWait;
@@ -673,10 +679,13 @@ export default class UIManager extends Manager {
    *   (writes with no clear between) keeps it, as the uncomposed page does.
    * - An image write is `same` only when every element shows it, over the
    *   subtree as it is; otherwise it is written, replacing the layers.
-   * - In a connect's pass, the first text write to reach an element that
-   *   shows what earlier writes left (#1813) is decided as though a clear
-   *   of that element came just before it: `same` when it is all the
-   *   element holds, else written in place of what it showed.
+   * - A text write to an element that shows no write yet (never written,
+   *   or cleared since), or, in a connect's pass, the first to reach an
+   *   element that shows what earlier writes left (#1813), is decided as
+   *   though a clear of that element came just before it: `same` when it is
+   *   all the element holds, else written in place of what it showed. The
+   *   layout's own text in a written target is a placeholder the write
+   *   replaces (the maintainer's rule).
    * - An element the beat makes, or makes again, is followed as it is made:
    *   empty, with the text and stroke leaves the beat gives it, and its
    *   writes are decided as any other's.
@@ -913,10 +922,19 @@ export default class UIManager extends Manager {
       const p = msg.params as WriteParams;
       const els = targets(p);
       const sig = JSON.stringify(p.instructions);
-      if (kind === WriteTextMessage.type && els && passOpen) {
-        const replaced = els.filter((el) => !passTouched.has(el) && stale(el));
-        for (const el of els) {
-          passTouched.add(el);
+      if (kind === WriteTextMessage.type && els) {
+        // An element that shows no write yet shows the layout's placeholder,
+        // which the write replaces, as one that shows the previous render's.
+        const replaced = els.filter(
+          (el) =>
+            state(el).txt === undefined ||
+            state(el).txt === "[]" ||
+            (passOpen && !passTouched.has(el) && stale(el)),
+        );
+        if (passOpen) {
+          for (const el of els) {
+            passTouched.add(el);
+          }
         }
         if (replaced.length > 0 && p.instructions.length > 0) {
           // Decided as a clear of those elements just before this write.
@@ -1753,6 +1771,11 @@ export default class UIManager extends Manager {
     // UIManager swap. In a composed beat the beat's plan has decided it
     // (#1820), by the same rule.
     const sig = JSON.stringify(instructions);
+    // Never written, or cleared since: whatever it shows is the layout's.
+    const holdsNoWrite = (el: HTMLElement) => {
+      const txt = (el as any).__sdTxt;
+      return txt === undefined || txt === "[]";
+    };
     const holds = (el: HTMLElement) => {
       const a = el as any;
       return (
@@ -1776,10 +1799,14 @@ export default class UIManager extends Manager {
       return;
     }
     for (const el of targetEls) {
-      if (decision === "rebuild" || stale.includes(el)) {
+      if (
+        instructions.length > 0 &&
+        (decision === "rebuild" || stale.includes(el) || holdsNoWrite(el))
+      ) {
         // Written again from empty: the subtree changed under what it showed,
-        // or what it showed is the previous render's.
-        this.clearWrittenText(el);
+        // what it showed is the previous render's, or it shows no write yet,
+        // only the layout's placeholder, which a write replaces (#1813).
+        this.clearWrittenText(el, true);
       }
       (el as any).__sdTxt = sig;
       // The subtree it was written over (#1820), as `__sdAllRev`.
@@ -1847,7 +1874,8 @@ export default class UIManager extends Manager {
             : undefined;
       } else {
         // Clear text + stroke (the `null`-sequence / clear path): what writes
-        // left, not what the layout put there (#1813).
+        // left. A placeholder the connect has put back stays until a write
+        // replaces it (#1813).
         for (const contentEl of contentEls) {
           this.removeWritten(contentEl);
         }

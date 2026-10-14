@@ -10,6 +10,7 @@ import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connec
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { AnimateElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
 import { BatchElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BatchElementsMessage";
+import { BeginReconcileMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeginReconcileMessage";
 import { BeatMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import { CreateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
@@ -312,19 +313,14 @@ describe("a composed beat's dedupe against the live DOM (#1820)", () => {
   test("a target whose leaf the display changes is rewritten, not left as it was", async () => {
     // Round 6, class 1: the layout's text leaf gains content while the same
     // line is previewed. The beat's create puts it in the reused leaf; the
-    // dialogue is then written again over it, and shows what a page opened
-    // on the edited source shows: the layout's own text stays, as it does
-    // for a write, and the line follows it once (#1813).
+    // dialogue then holds only its line.
     const { h } = await showing(LAYOUT("dialogue", "text"), LAYOUT_LINE);
     const text = () => h.overlay.querySelector(".dialogue > .text")?.textContent;
     expect(text()).toBe("Do you understand?");
 
     await h.rerender(LAYOUT("dialogue", 'text "placeholder"'), LAYOUT_LINE);
 
-    const fresh = await showing(LAYOUT("dialogue", 'text "placeholder"'), LAYOUT_LINE);
-    const freshText = fresh.h.overlay.querySelector(".dialogue > .text")?.textContent;
-    expect(freshText).toBe("placeholderDo you understand?");
-    expect(text()).toBe(freshText);
+    expect(text()).toBe("Do you understand?");
   });
 
   test("a style-only change of a reused target leaves its identical text as it is", async () => {
@@ -1100,5 +1096,84 @@ describe("round 5 of PR #1865", () => {
     } finally {
       time.restore();
     }
+  });
+});
+
+const NAMED = `layout main with
+  textbox {
+    character_name {
+      text "Name:"
+    }
+    dialogue {
+      text
+    }
+  }
+end
+
+${SOURCE}`;
+
+const NAMED_LINE = NAMED.split("\n").findIndex((l) => l.includes("Do you understand?"));
+
+describe("a layout's own text in a written target is a placeholder a write replaces (#1813)", () => {
+  const nameText = (h: { overlay: HTMLElement }) =>
+    h.overlay.querySelector(".character_name > .text")?.textContent;
+
+  for (const connect of [false, true]) {
+    test(`a standing name the first write replaced is the same on the next played beat, which commits at its dialogue's first letter${connect ? ", after PLAY's connect" : ""}`, async () => {
+      // Round 1 of PR #1873, R1: a write over the layout's text recorded no
+      // history, so the identical name was written again and the beat
+      // committed at its first letter, blanking the old dialogue early.
+      const { h, dialogue } = await showing(NAMED, NAMED_LINE);
+      const name = h.overlay.querySelector(".character_name") as any;
+      const shownName = JSON.parse(name.__sdTxt);
+      if (connect) {
+        // PLAY's connect is not composed: it opens a pass of its own.
+        h.ui.onReceiveNotification(BeginReconcileMessage.type.notification({}) as any);
+      }
+      const time = controlTime(h);
+      try {
+        h.ui.onReceiveNotification(
+          beat({
+            text: [
+              [
+                WriteTextMessage.type.request({
+                  target: "character_name",
+                  instructions: shownName,
+                  instant: false,
+                  time: 1_100,
+                }),
+              ],
+              write("dialogue", [{ text: "S", after: 0.1 }], { instant: false, time: 1_100 }),
+            ],
+            time: 1_100,
+          }),
+        );
+        await time.at(1_150);
+        expect(dialogue()).toBe("Do you understand?");
+        expect(time.changedAt()).toBeUndefined();
+
+        await time.at(1_200);
+        expect(dialogue()).toBe("S");
+        expect(nameText(h)).toBe("HERO");
+      } finally {
+        time.restore();
+      }
+    });
+  }
+
+  test("a clear after the first write leaves the target empty, not the placeholder back", async () => {
+    // Only a connect, whose layout creates put the placeholder back, shows
+    // it again.
+    const { h } = await showing(NAMED, NAMED_LINE);
+    expect(nameText(h)).toBe("HERO");
+    h.ui.onReceiveNotification(
+      beat({
+        text: [
+          [WriteTextMessage.type.request({ target: "character_name", instructions: [], instant: true })],
+        ],
+      }),
+    );
+    await flushMicrotasks(10);
+    expect(nameText(h)).toBe("");
   });
 });
