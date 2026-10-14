@@ -433,8 +433,8 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
       if (seen?.host === handle.host && seen.start === handle.start && seen.state === "running") return { status: "live", reason: `process ${handle.pid} on ${handle.host} was observed running there` };
       return { status: "unknown", reason: `process ${handle.pid} runs on ${handle.host}; this host cannot observe it` };
     }
-    let now;
-    try { now = identify(handle.pid); } catch (error) { return { status: "unknown", reason: `process ${handle.pid} could not be probed: ${error.message}` }; }
+    let now = null;
+    if (handle.pid != null) { try { now = identify(handle.pid); } catch (error) { return { status: "unknown", reason: `process ${handle.pid} could not be probed: ${error.message}` }; } }
     if (now && !handle.start) return { status: "unknown", reason: `process ${handle.pid} has no recorded start identity` };
     if (now && now.start === handle.start) return { status: "live", reason: `process ${handle.pid} started ${handle.start} is running` };
     if (handle.launchDir) {
@@ -1189,8 +1189,16 @@ export function answered(record, { ticket: number, request: id, evidence }) {
   if (r.answer?.state !== "intent") throw new Error(`Request ${id}'s answer is at ${r.answer?.state ?? "no step"}; record answer before sending it`);
   r.answer = { ...r.answer, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
   const owner = ticketOf(record, number).owner;
-  if (owner?.coordinator && r.answer.to) owner.coordinator = r.answer.to;
+  if (owner?.coordinator && r.answer.to) moveContact(owner, r.answer.to);
   log(record, "answered", { ticket: number, id, deliveryId: r.answer.deliveryId });
+}
+
+// The writer now reports to `to`. A stored brief written before briefs kept
+// their own coordinator is first given the one it names, so later copies are
+// still rewritten from it.
+function moveContact(owner, to) {
+  if (owner.brief && !owner.brief.coordinator && owner.coordinator) owner.brief.coordinator = owner.coordinator;
+  owner.coordinator = to;
 }
 
 // After a takeover, a writer briefed by the previous coordinator is told this
@@ -1212,7 +1220,7 @@ export function contacted(record, { ticket: number, evidence }) {
   const owner = ticketOf(record, number).owner;
   if (owner?.contact?.state !== "intent") throw new Error(`#${number}'s contact notice is at ${owner?.contact?.state ?? "no step"}; record contact before sending it`);
   owner.contact = { ...owner.contact, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
-  owner.coordinator = owner.contact.to;
+  moveContact(owner, owner.contact.to);
   log(record, "contacted", { ticket: number, to: owner.contact.to, deliveryId: owner.contact.deliveryId });
 }
 export function result(record, { ticket: number, report: file }) {
@@ -1431,7 +1439,7 @@ export function delivered(record, { ticket: number, evidence }) {
   const owner = ticketOf(record, number).owner;
   if (owner?.brief?.state !== "intent") throw new Error(`#${number}'s brief is at ${owner?.brief?.state ?? "no step"}; record deliver before sending it`);
   owner.brief = { ...owner.brief, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
-  if (owner.coordinator && owner.brief.to) owner.coordinator = owner.brief.to;
+  if (owner.coordinator && owner.brief.to) moveContact(owner, owner.brief.to);
   log(record, "brief-delivered", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId });
 }
 
@@ -1463,10 +1471,13 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     const launchDir = resumeDirOf(owner, number, id);
     if (UNSAFE.test(launchDir) || UNSAFE.test(r.checkout)) throw new Error(`${launchDir} holds a character the command line would interpret`);
     owner.sessionId = sessionId;
-    owner.resuming = { id, launchDir, time: new Date().toISOString() };
+    // A writer briefed by an earlier coordinator learns this one's id with the
+    // resume, so its next messages go here.
+    const moved = owner.coordinator && owner.coordinator !== r.coordinator.session ? r.coordinator.session : null;
+    owner.resuming = { id, launchDir, time: new Date().toISOString(), ...(moved && { contactTo: moved, contactNote: `Your coordinator is now session ${moved} on ${r.coordinator.host}; send every further report, blocker and question there.` }) };
     log(r, "resume-intent", { ticket: number, id, sessionId });
   });
-  const { id, launchDir } = intent.record.tickets[number].owner.resuming;
+  const { id, launchDir, contactNote } = intent.record.tickets[number].owner.resuming;
   if (afterIntent) {
     try { afterIntent(); }
     catch (error) {
@@ -1475,15 +1486,18 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     }
   }
   fs.mkdirSync(launchDir, { recursive: true });
-  fs.copyFileSync(prompt, path.join(launchDir, "prompt.txt"));
+  const text = fs.readFileSync(prompt, "utf8");
+  fs.writeFileSync(path.join(launchDir, "prompt.txt"), contactNote && !text.includes(contactNote) ? `${text.replace(/\s*$/, "")}\n${contactNote}\n` : text);
   let outcome;
   try { outcome = spawner({ executable, args: [...args, "--add-dir", launchDir], cwd: intent.record.checkout, launchDir }); }
   catch (error) { outcome = { started: false, uncertain: true, reason: error.message }; }
   const done = updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => {
     const o = ticketOf(r, number).owner;
     if (outcome.uncertain) { o.resuming = { ...o.resuming, reason: outcome.reason }; log(r, "resume-uncertain", { ticket: number, id, reason: outcome.reason }); return; }
+    const contactTo = o.resuming.contactTo;
     delete o.resuming;
     if (!outcome.started) { log(r, "resume-failed", { ticket: number, id, reason: outcome.reason }); return; }
+    if (contactTo) moveContact(o, contactTo);
     const identity = identify(outcome.pid);
     o.handle = { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir };
     (o.resumes ??= []).push({ id, time: new Date().toISOString(), launchDir });
@@ -1524,6 +1538,13 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   }
   const output = path.join(launchDir, "out.jsonl");
   const outcome = fs.existsSync(output) && fs.statSync(output).size > 0 ? "started and ended" : "not running";
+  if (outcome === "started and ended") {
+    const prompt = path.join(launchDir, "prompt.txt");
+    ticket.owner = ownerFrom(pending, { kind: "process", pid: null, start: null, host, launchDir }, sentBrief("prompt", fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined), record.coordinator.session);
+    log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome, handle: ticket.owner.handle });
+    ticket.pending = null;
+    return { outcome, owner: ticket.owner };
+  }
   ticket.history.push(settledStart(pending, { withdrawn: `no process names ${launchDir} (${outcome}); read its output before dispatching again`, ended: `the process census found no process naming ${launchDir}` }));
   log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome });
   ticket.pending = null;
@@ -1534,7 +1555,7 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
 // resumed writer; none means it ended or never started, and the writer is as
 // it was before the resume.
 function reconcileResume(record, owner, number, { host, census, identify }) {
-  const { id, launchDir } = owner.resuming;
+  const { id, launchDir, contactTo } = owner.resuming;
   if (owner.handle.host && owner.handle.host !== host) throw new Error(`Resume ${id} ran on ${owner.handle.host}; reconcile it on that host`);
   const processes = census();
   if (!Array.isArray(processes)) throw new Error("The process census failed; the resume stays unsettled");
@@ -1546,12 +1567,13 @@ function reconcileResume(record, owner, number, { host, census, identify }) {
     if (!identity) throw new Error(`Process ${writer.pid} names the resume but exited during the census; reconcile again`);
     owner.handle = { kind: "process", ...identity, host, launchDir };
     (owner.resumes ??= []).push({ id, time: new Date().toISOString(), launchDir });
+    if (contactTo) moveContact(owner, contactTo);
     log(record, "reconciled", { ticket: number, resume: id, outcome: "running", handle: owner.handle });
     return { outcome: "running", owner };
   }
   const output = path.join(launchDir, "out.jsonl");
   const outcome = fs.existsSync(output) && fs.statSync(output).size > 0 ? "started and ended" : "not running";
-  if (outcome === "started and ended") { owner.handle = { ...owner.handle, launchDir }; (owner.resumes ??= []).push({ id, time: new Date().toISOString(), launchDir }); }
+  if (outcome === "started and ended") { owner.handle = { ...owner.handle, launchDir }; (owner.resumes ??= []).push({ id, time: new Date().toISOString(), launchDir }); if (contactTo) moveContact(owner, contactTo); }
   log(record, "reconciled", { ticket: number, resume: id, outcome });
   return { outcome };
 }

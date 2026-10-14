@@ -88,6 +88,13 @@ try {
     const end = (owner) => { fs.writeFileSync(stop, ""); waitFor(() => run.ownerStatus(owner).status === "exited", "the stand-in writer to exit"); };
     return { f, snap, pre, planFile, prompt, args, launch, end, number };
   };
+  // A takeover of a run, as another coordinator session on this machine.
+  const NEXT = "local_4d5e6f7a-8b9c-4d0e-8f1a-2b3c4d5e6f7a";
+  const takeOver = (w) => {
+    const file = path.join(w.f.artifacts, "takeover.json");
+    run.initRecord({ record: file, checkout: w.f.dir, repository: "acme/widgets", feature: 300, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    return { file, change: (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: NEXT }, fn).output, plan: (n, now) => entryOf(run.planDispatch({ record: run.readRecord(file), snapshot: w.snap, preflights: w.pre, freeBytes: 100 * GB, defaults, census: () => [], ...(now && { now }) }), n) };
+  };
 
   // --- Routes ---------------------------------------------------------------
 
@@ -361,6 +368,46 @@ try {
     assert.deepEqual(p.sweep.deadLaunches.map((d) => [d.ticket, d.pr, d.plan]), [[377, 977, plan]], "a PR whose writer the record does not hold is checked too");
   });
 
+  scenario("a launch whose outcome was lost and whose writer then ended keeps that writer, so its request is answered by resume", () => {
+    const w = cliWriter("cli-lost-launch", 378);
+    // The writer ran and ended its turn, but the launch outcome was never recorded.
+    const launchDir = run.launchDirOf(run.readRecord(w.f.file).tickets[378].pending, 378);
+    fs.mkdirSync(launchDir, { recursive: true });
+    fs.copyFileSync(w.prompt, path.join(launchDir, "prompt.txt"));
+    fs.writeFileSync(path.join(launchDir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: WRITER_SESSION, model: "claude-opus-5-5" })}\n`);
+    const settled = w.f.change((r) => run.reconcile(r, { ticket: 378, census: () => [] }));
+    assert.equal(settled.outcome, "started and ended");
+    const owner = run.readRecord(w.f.file).tickets[378].owner;
+    assert.deepEqual([owner.handle.kind, owner.handle.pid, owner.handle.launchDir, owner.permissionMode], ["process", null, launchDir, "bypassPermissions"], "the ended writer is kept with its launch directory");
+    assert.deepEqual(planOf(w.f, w.snap, { preflights: w.pre }).sweep.read, [{ ticket: 378, from: path.join(launchDir, "out.jsonl") }]);
+    const { id } = w.f.change((r) => run.request(r, { ticket: 378, text: "Round 3 complete; may I start round 4?", source: "the writer's stream" }));
+    assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 378).action, "answer-request");
+    const answer = write("cli-lost-launch-answer.txt", w.f.change((r) => run.answer(r, { ticket: 378, request: id, text: "Round 4 is authorized." })).message);
+    let spawned = null;
+    const resumed = run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 378, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt: answer, spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
+    assert.equal(resumed.started, true);
+    assert.ok(spawned.args.includes(WRITER_SESSION), "the session the stream named is resumed");
+  });
+
+  scenario("a stopped writer resumed after a takeover is told the new coordinator with the resume, even from a brief kept before briefs named their coordinator", () => {
+    const w = cliWriter("cli-takeover-resume", 379);
+    const { owner } = w.launch();
+    w.end(owner);
+    // A record written before stored briefs kept their own coordinator.
+    w.f.change((r) => { delete r.tickets[379].owner.brief.coordinator; });
+    const t = takeOver(w);
+    assert.equal(t.plan(379).action, "collect-report");
+    const prompt = write("cli-takeover-resume.txt", "Continue: wait for the reviewer in the foreground, then carry on.");
+    let spawned = null;
+    run.resumeWriter(t.file, { coordinator: NEXT, expectRevision: run.readRecord(t.file).revision, ticket: 379, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt, spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
+    const sent = fs.readFileSync(path.join(spawned.launchDir, "prompt.txt"), "utf8");
+    assert.ok(sent.startsWith("Continue:") && sent.includes(`Your coordinator is now session ${NEXT}`), "the resume prompt carries the new coordinator");
+    const after = run.readRecord(t.file).tickets[379].owner;
+    assert.equal(after.coordinator, NEXT, "the resumed writer is recorded as told");
+    const printed = run.brief(run.readRecord(t.file), null, 379, [], defaults);
+    assert.ok(printed.includes(`coordinator session ${NEXT}`) && !printed.includes(COORDINATOR), "the old-shape brief still prints the current coordinator after the contact moved");
+  });
+
   scenario("a confirmed preflight never clears a mismatch the writer's acknowledgement showed", () => {
     const w = cliWriter("cli-verify", 372);
     const { owner } = w.launch();
@@ -372,13 +419,6 @@ try {
     w.end(owner);
   });
 
-  // A takeover of a run whose CLI writer is still running.
-  const NEXT = "local_4d5e6f7a-8b9c-4d0e-8f1a-2b3c4d5e6f7a";
-  const takeOver = (w) => {
-    const file = path.join(w.f.artifacts, "takeover.json");
-    run.initRecord({ record: file, checkout: w.f.dir, repository: "acme/widgets", feature: 300, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
-    return { file, change: (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: NEXT }, fn).output, plan: (n, now) => entryOf(run.planDispatch({ record: run.readRecord(file), snapshot: w.snap, preflights: w.pre, freeBytes: 100 * GB, defaults, census: () => [], ...(now && { now }) }), n) };
-  };
 
   scenario("after a takeover, a resent brief names the new coordinator, and settling it never reads a running writer's transcript", () => {
     const w = cliWriter("cli-takeover-brief", 373);
@@ -403,6 +443,8 @@ try {
     const w = cliWriter("cli-takeover-contact", 374);
     const { owner } = w.launch();
     w.f.change((r) => run.acknowledged(r, { ticket: 374, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
+    // A record written before stored briefs kept their own coordinator.
+    w.f.change((r) => { delete r.tickets[374].owner.brief.coordinator; });
     const t = takeOver(w);
     const due = t.plan(374);
     assert.equal(due.action, "update-contact");

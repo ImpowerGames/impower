@@ -32,6 +32,6 @@ An answer is a message, so it is recorded around its sending. `answer --ticket N
 
 The brief went with the writer's start, and a resend follows the same steps: `deliver --retry` prints the stored brief under a new delivery id, `delivered` confirms it, and every copy names the assignment so the writer acts on the first it receives. An existing writer adopted with its work already has its assignment and is not briefed again.
 
-After a takeover, a writer a previous coordinator briefed still reports to that coordinator. Before anything else reaches it, `contact --ticket N` records the intent and prints a notice naming this coordinator's id and how to reach it; send it, then record `contacted`, with the same retry rule as an answer. A resent brief and an answer from this coordinator name it too.
+After a takeover, a writer a previous coordinator briefed still reports to that coordinator. Before anything else reaches it, `contact --ticket N` records the intent and prints a notice naming this coordinator's id and how to reach it; send it, then record `contacted`, with the same retry rule as an answer. A resent brief and an answer from this coordinator name it too, and a resume of a writer whose turn ended carries the notice in its prompt.
 
 Writers do not post a separate protocol of PR comments for these exchanges; their normal review comments stay on the PR.
