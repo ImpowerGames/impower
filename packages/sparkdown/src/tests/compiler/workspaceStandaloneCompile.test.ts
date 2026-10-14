@@ -63,7 +63,11 @@ class TestWorkspace extends SparkdownWorkspace {
           params.textDocument.uri === MAIN
             ? workspace.compiledStory
             : { summary: true, uri: LOOSE, scripts: { [LOOSE]: 1 } };
-        return { textDocument: params.textDocument, program };
+        // A new object for every answer, as the player's compiler gives: it
+        // answers with a summary built for each response, and the answer
+        // crosses a port, so even a program the compiler served again
+        // arrives as another object.
+        return structuredClone({ textDocument: params.textDocument, program });
       },
       addEventListener() {},
       removeEventListener() {},
@@ -112,15 +116,18 @@ describe("a compile of a script the story does not include (#1874)", () => {
   });
 
   it("does not publish the story again when it did not change", async () => {
+    // A story published again reaches the page as a new program, which
+    // restarts PLAY: opening a script in the background would reset the run.
     const workspace = new TestWorkspace(true);
     workspace.compiledStory = story(1);
     await workspace.compile(MAIN, true);
     workspace.published = [];
 
-    // The compiler serves the program it compiled before.
+    // The compiler serves the program it compiled before, as another object.
+    await workspace.compile(LOOSE, true);
     await workspace.compile(LOOSE, true);
 
-    expect(workspace.published.map((p) => p.uri)).toEqual([LOOSE]);
+    expect(workspace.published.map((p) => p.uri)).toEqual([LOOSE, LOOSE]);
   });
 
   it("publishes only the script's program by default, as the language server needs", async () => {

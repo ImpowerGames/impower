@@ -40,6 +40,7 @@ import type {
   SourceLocation,
 } from "../../compiler/types/ProgramAddress";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
+import { isSameProgram } from "../../compiler/utils/programSummary";
 import { profile } from "../utils/logging/profile";
 import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
@@ -1125,12 +1126,17 @@ export abstract class SparkdownWorkspace {
       // player rebuilds its whole Game whenever program.version changes -- so
       // detect identity and keep the version stable.
       let programUnchanged = false;
+      // Whether the story compile served the program it served before, by
+      // the fields that survive the trip from the compiler: a host given
+      // summaries, as the player is, gets a new object for every answer.
+      let storyUnchanged = false;
       const mainScriptUri = this.getMainScriptUri(uri);
       try {
         if (mainScriptUri) {
           const previousProgram = this.getProgramState(mainScriptUri).program;
           result = await this.compileDocument(mainScriptUri);
           programUnchanged = result.program === previousProgram;
+          storyUnchanged = isSameProgram(result.program, previousProgram);
           this.getProgramState(mainScriptUri).program = result.program;
           if (result.program.scripts) {
             for (const [uri, version] of Object.entries(result.program.scripts)) {
@@ -1151,9 +1157,11 @@ export abstract class SparkdownWorkspace {
             this.publishesStoryOfStandaloneCompiles &&
             mainScriptUri &&
             result?.program &&
-            !programUnchanged
+            !storyUnchanged
           ) {
-            // The story changed, and the result below replaces it.
+            // The story changed, and the result below replaces it. One the
+            // compile served again is not published: the page would take it
+            // as a new program, and restart PLAY for it.
             this.publishCompiled(mainScriptUri, result, false);
           }
           // Target script is not included by main,
