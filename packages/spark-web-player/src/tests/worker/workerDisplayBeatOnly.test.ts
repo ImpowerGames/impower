@@ -438,6 +438,35 @@ end
 `;
 const OPENED = lineIn(OPENS, "Opened.");
 
+/** A beat before the cursor's in a branch the route never takes: the route
+ *  to a line takes a conditional's first branch, and so never this `else`. */
+const UNTAKEN = `define HAPPY as image with
+  src = "https://example.com/happy.png"
+end
+
+store skip = false
+
+-> start
+
+scene start
+  HERO:
+    Taken.
+
+  if skip then
+    HERO:
+      Taken branch.
+  else
+    HERO:
+      Never said.
+  end
+
+  HERO:
+    [[show portrait HAPPY]]
+    The said line.
+end
+`;
+const SAID = lineIn(UNTAKEN, "The said line.");
+
 /** The overlay a full display of `text` at `line` leaves on a page that
  *  showed nothing before: a player of its own. */
 async function freshFrame(text: string, line: number) {
@@ -1148,6 +1177,22 @@ describe("a display that connects in full", () => {
     const p = await player(SOURCE, SECOND);
     await p.edit("The first line.", "The first line, edited.");
     expectFull(after(p), "checkpoint");
+  }, 120_000);
+
+  it("(c) connects in full when a beat the route passes before the cursor's changed: its statement has a new id", async () => {
+    const p = await player(SOURCE, SECOND);
+    // The first line's beat runs on the route to the second line's.
+    await p.edit("The first line.", "The first line, changed.");
+    expectFull(after(p), "checkpoint");
+  }, 120_000);
+
+  it("(c) stays beat-only when a beat the route never passes changed, in a branch it does not take", async () => {
+    const { a, full } = await twins(UNTAKEN, SAID, async (p) => {
+      await p.edit("Never said.", "Never, ever said.");
+      return after(p);
+    });
+    expectBeatOnly(a);
+    expect(a.frame).toEqual(full.frame);
   }, 120_000);
 
   it("(c) connects in full when the cursor moves to another beat", async () => {
