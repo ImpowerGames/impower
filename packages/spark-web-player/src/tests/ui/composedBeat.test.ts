@@ -8,6 +8,8 @@
 
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { BeatMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
+import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
+import { WriteTextMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import AssetManager from "../../app/managers/AssetManager";
 import {
@@ -37,30 +39,30 @@ async function showing(src = SOURCE, line = LINE) {
   return { h, dialogue };
 }
 
-/** A beat that writes `target`, replacing what it shows. */
+/** A beat's ops that clear `target` and write it again, as the engine
+ *  sends them. */
 const write = (
   target: string,
   instructions: unknown[],
   opts: { instant?: boolean; time?: number } = {},
-) => ({
-  target,
-  replace: true,
-  writes: [
-    {
-      target,
-      instructions,
-      instant: opts.instant ?? true,
-      ...(opts.time != null ? { time: opts.time } : {}),
-    },
-  ],
-});
+) => [
+  WriteTextMessage.type.request({ target, instructions: [], instant: true }),
+  WriteTextMessage.type.request({
+    target,
+    instructions: instructions as any,
+    instant: opts.instant ?? true,
+    ...(opts.time != null ? { time: opts.time } : {}),
+  }),
+];
 
-const beat = (params: Record<string, unknown>) =>
+/** A composed beat carrying `text` and `image` ops in that order. */
+const beat = ({
+  text = [],
+  image = [],
+  ...params
+}: { text?: unknown[][]; image?: unknown[]; [key: string]: unknown }) =>
   BeatMessage.type.notification({
-    messages: [],
-    text: [],
-    image: [],
-    after: [],
+    messages: [...text.flat(), ...image],
     ...params,
   } as any);
 
@@ -256,18 +258,12 @@ describe("a composed beat on the page (#1820)", () => {
       h.ui.onReceiveNotification(
         beat({
           image: [
-            {
+            WriteImageMessage.type.request({
               target: "portrait",
-              replace: false,
-              writes: [
-                {
-                  target: "portrait",
-                  instructions: [{ control: "show", content: { srcs: [src] } }],
-                  instant: false,
-                  time: 1_100,
-                },
-              ],
-            },
+              instructions: [{ control: "show", content: { srcs: [src] } } as any],
+              instant: false,
+              time: 1_100,
+            }),
           ],
           time: 1_100,
         }),
@@ -448,5 +444,256 @@ describe("a composed beat's writes keep their place in its structure (#1820)", (
 
     expect(h.overlay.querySelector(".panel .dialogue > .text")?.textContent).toBe("HUD label");
     expect(h.overlay.querySelector(".textbox .dialogue > .text")?.textContent).toBe("Hello.");
+  });
+});
+
+/** A composed page whose game plays on: its connect's display is up, and
+ *  beats are composed as PLAY composes them. */
+async function playing(src: string, opts: { autoOpenAll?: boolean } = {}) {
+  const h = createDOMHarness(src, 0, { compose: true, autoOpenAll: opts.autoOpenAll });
+  await h.ready;
+  h.game.module.ui.sweepReconcile();
+  await flushMicrotasks(10);
+  h.game.context.system.previewing = undefined;
+  h.jumpTo("start");
+  return h;
+}
+
+/** Play the next beat through the Coordinator, as PLAY does, and wait for
+ *  the page to commit it. */
+async function playNext(h: Awaited<ReturnType<typeof playing>>) {
+  const next = h.nextBeat();
+  expect(next).toBeTruthy();
+  const coordinator = new Coordinator(h.game, next!);
+  for (let i = 0; i < 10; i += 1) {
+    await flushMicrotasks();
+    coordinator.onUpdate({ deltaMS: 0 } as any);
+  }
+  await flushMicrotasks(10);
+  await untilShown(h.overlay);
+}
+
+/** Compose one beat by hand, as a played beat does. */
+async function composeBeat(h: { game: any; overlay: HTMLElement }, ops: (ui: any) => void) {
+  const ui: any = h.game.module.ui;
+  expect(ui.beginCompose()).toBe(true);
+  ops(ui);
+  void ui.endCompose({});
+  await flushMicrotasks(20);
+}
+
+const texts = (h: { overlay: HTMLElement }, selector: string) =>
+  Array.from(h.overlay.querySelectorAll(selector)).map((el) => el.textContent);
+
+describe("a composed beat applies its ops in order, round 2 of PR #1865", () => {
+  test("a write keeps its place before the structure that follows it", async () => {
+    // D2: the beat writes the dialogue, then its layout refresh adds a leaf
+    // with content of its own inside the dialogue. In order, the write went
+    // to the leaf there was, as on the base.
+    const h = await playing(`store alternate = false
+
+layout main with
+  textbox {
+    character_info {
+      character_name {
+        text
+      }
+    }
+    dialogue {
+      text
+      if alternate then
+        text "NEW"
+      end
+    }
+  }
+end
+
+-> start
+
+scene start
+  HERO: Second.
+end
+`);
+    h.game.story.variablesState.$("alternate", true);
+    await playNext(h);
+
+    expect(texts(h, ".dialogue > .text")).toEqual(["Second.", "NEW"]);
+  });
+
+  test("a clear under one selector removes a write under another that reached the same element", async () => {
+    // D3: clear, write A to dialogue#0, clear, write B to dialogue. Applied
+    // one at a time that ends on B alone.
+    const h = await playing(SOURCE);
+    await composeBeat(h, (ui) => {
+      void ui.text.clear("dialogue");
+      void ui.text.write("dialogue#0", [{ text: "A" }], true);
+      void ui.text.clear("dialogue");
+      void ui.text.write("dialogue", [{ text: "B" }], true);
+    });
+
+    expect(texts(h, ".dialogue > .text")).toEqual(["B"]);
+  });
+
+  test("a write to an indexed target reaches the element it named, though the beat moves it after", async () => {
+    // D4: dialogue#0 is written, then moved behind its sibling in the same
+    // beat. The write stays with the element it went to.
+    const h = await playing(`layout main with
+  textbox {
+    dialogue {
+      text
+    }
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Nothing to say.
+end
+`);
+    await composeBeat(h, (ui) => {
+      const [first] = ui.findElements("dialogue");
+      void ui.text.write("dialogue#0", [{ text: "A" }], true);
+      ui.moveElement(first, null);
+    });
+
+    expect(texts(h, ".dialogue > .text")).toEqual(["", "A"]);
+  });
+
+  test("a clear is kept when the target holds more than the write that follows it", async () => {
+    // D5: the dialogue holds its line and B, written after it without a
+    // clear. A beat that clears it and writes B ends on B alone.
+    const h = await playing(SOURCE);
+    await playNext(h);
+    await composeBeat(h, (ui) => {
+      void ui.text.write("dialogue", [{ text: "B" }], true);
+    });
+    const before = texts(h, ".dialogue > .text")[0];
+    expect(before?.endsWith("B")).toBe(true);
+    expect(before).not.toBe("B");
+
+    await composeBeat(h, (ui) => {
+      void ui.text.clear("dialogue");
+      void ui.text.write("dialogue", [{ text: "B" }], true);
+    });
+
+    expect(texts(h, ".dialogue > .text")).toEqual(["B"]);
+  });
+});
+
+const TRANSITIONS = `layout main with
+  textbox {
+    character_info {
+      character_name {
+        text
+      }
+    }
+    dialogue {
+      text
+    }
+  }
+end
+
+layout hud with
+  panel {
+    stats {
+      text "HUD"
+    }
+  }
+end
+
+-> start
+
+scene start
+  HERO:
+    [[open hud]]
+    First.
+
+  HERO:
+    [[close hud with fade over 0.5s]] [[open hud]]
+    Second.
+
+  HERO: Third.
+end
+`;
+
+/** Animations whose end the test decides: \`finished\` settles on \`end()\`. */
+function holdAnimations() {
+  const g = globalThis as any;
+  const saved = g.Animation;
+  const waiting: (() => void)[] = [];
+  g.Animation = class {
+    startTime: number | null = null;
+    finished: Promise<void>;
+    constructor(public effect?: unknown) {
+      this.finished = new Promise((resolve) => waiting.push(resolve));
+    }
+    play() {}
+    cancel() {}
+    finish() {}
+  };
+  return {
+    end() {
+      for (const resolve of waiting.splice(0)) {
+        resolve();
+      }
+    },
+    restore() {
+      this.end();
+      g.Animation = saved;
+    },
+  };
+}
+
+describe("layout transitions in a composed beat: the maintainer's decision (#1820)", () => {
+  test("a layout closed and reopened in one beat mounts a fresh element while the old one animates out", async () => {
+    const h = await playing(TRANSITIONS, { autoOpenAll: false });
+    await playNext(h);
+    const panels = () => Array.from(h.overlay.querySelectorAll(".panel"));
+    expect(panels()).toHaveLength(1);
+    const [old] = panels();
+    const animations = holdAnimations();
+    try {
+      await playNext(h);
+
+      // The new beat is up, with a fresh panel beside the one retiring.
+      expect(texts(h, ".dialogue > .text")).toEqual(["Second."]);
+      expect(panels()).toHaveLength(2);
+      expect(panels()).toContain(old);
+      const fresh = panels().find((el) => el !== old) as any;
+      expect(fresh.__sdId).not.toBe((old as any).__sdId);
+
+      // Once its exit has played, the old one goes.
+      animations.end();
+      await flushMicrotasks(30);
+      expect(panels()).toEqual([fresh]);
+    } finally {
+      animations.restore();
+    }
+  });
+
+  test("an exit still playing does not hold the next beat back", async () => {
+    const h = await playing(TRANSITIONS, { autoOpenAll: false });
+    await playNext(h);
+    const animations = holdAnimations();
+    try {
+      await playNext(h);
+      const panels = () => Array.from(h.overlay.querySelectorAll(".panel"));
+      expect(panels()).toHaveLength(2);
+
+      await playNext(h);
+
+      // The third beat commits while the old panel is still playing out.
+      expect(texts(h, ".dialogue > .text")).toEqual(["Third."]);
+      expect(panels()).toHaveLength(2);
+      animations.end();
+      await flushMicrotasks(30);
+      expect(panels()).toHaveLength(1);
+    } finally {
+      animations.restore();
+    }
   });
 });

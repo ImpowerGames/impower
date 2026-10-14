@@ -117,8 +117,8 @@ const run = async (compileAt?: number) => {
       // A played beat's writes reach the page inside its composed beat
       // (#1820).
       if (m.method === "ui/beat") {
-        for (const entry of m.params.text ?? []) {
-          for (const write of entry.writes) collect(write);
+        for (const op of m.params.messages ?? []) {
+          if (op.method === "ui/write-text") collect(op.params);
         }
       }
     }

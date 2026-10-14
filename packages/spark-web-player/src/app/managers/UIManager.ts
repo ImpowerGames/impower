@@ -31,8 +31,8 @@ import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/u
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import {
-  type BeatContent,
   BeatMessage,
   type BeatParams,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
@@ -57,6 +57,39 @@ type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
  *  letter comes on top. */
 const COMMIT_WAIT_LIMIT_MS = 1_000;
 
+/** A beat's ops in order, each batch's ops in its place. */
+function beatOps(params: BeatParams): IMessage[] {
+  return params.messages.flatMap((message) =>
+    BatchElementsMessage.type.isNotification(message as NotificationMessage)
+      ? (((message as NotificationMessage).params as { messages?: IMessage[] })
+          ?.messages ?? [])
+      : [message],
+  );
+}
+
+/** Whether two lists hold the same elements. */
+function sameElements(a: HTMLElement[], b: HTMLElement[]): boolean {
+  return a.length === b.length && a.every((el) => b.includes(el));
+}
+
+/** What a create sets on its node, by which a reused node already showing
+ *  it is left untouched. */
+function createSignature(params: {
+  type: string;
+  name?: string;
+  content?: unknown;
+  style?: unknown;
+  attributes?: unknown;
+}): string {
+  return JSON.stringify([
+    params.type,
+    params.name ?? null,
+    params.content ?? null,
+    params.style ?? null,
+    params.attributes ?? null,
+  ]);
+}
+
 /** Every src the image writes of the beat waiting on `overlay` will paint
  *  once it commits (#1820). Until then the page shows the old beat, so what
  *  they paint is in no image layer yet, and the asset cache must keep it
@@ -68,14 +101,15 @@ export function pendingBeatImageSrcs(
   if (!pending) {
     return [];
   }
-  return pending.params.image.flatMap((entry) =>
-    entry.writes.flatMap((write) =>
-      write.instructions.flatMap((i) =>
-        (i.content?.srcs ?? []).filter(
-          (src): src is string => typeof src === "string" && !!src,
-        ),
-      ),
-    ),
+  return beatOps(pending.params).flatMap((op) =>
+    WriteImageMessage.type.isRequest(op as RequestMessage)
+      ? (op as ReturnType<typeof WriteImageMessage.type.request>).params.instructions.flatMap(
+          (i) =>
+            (i.content?.srcs ?? []).filter(
+              (src): src is string => typeof src === "string" && !!src,
+            ),
+        )
+      : [],
   );
 }
 
@@ -211,11 +245,6 @@ export default class UIManager extends Manager {
 
   /** Whether a `ui/reconcile-begin` opened the pass a sweep closes. */
   protected _passBegun = false;
-
-  /** While a beat's structural ops are applied: the nodes they change what
-   *  holds content (a new child, new content, a removal or a move), for the
-   *  beat's dedupe of each target. */
-  protected _beatTouched?: Set<Element>;
 
   override async onInit() {
     await super.onInit();
@@ -360,11 +389,12 @@ export default class UIManager extends Manager {
 
   /**
    * A beat the engine composed (#1820): everything a display or a played
-   * beat changes on the screen, in one message. The maintainer's rule: the
-   * old beat stays fully visible until the instant the new beat's text starts
-   * revealing, and at that same instant the targets the new beat does not
-   * write are emptied and the written ones replaced. A beat shown at once
-   * goes up as it arrives; a played beat waits for that instant.
+   * beat changes on the screen, in the order the engine sent it. The
+   * maintainer's rule: the old beat stays fully visible until the instant
+   * the new beat's text starts revealing, and at that same instant the
+   * targets the new beat does not write are emptied and the written ones
+   * replaced. A beat shown at once goes up as it arrives; a played beat
+   * waits for that instant.
    */
   protected receiveBeat(params: BeatParams) {
     this.flushPendingBeat();
@@ -400,8 +430,8 @@ export default class UIManager extends Manager {
     this.flushPendingBeat();
   }
 
-  /** Put up the beat waiting for its commit at once: something sent after
-   *  it has arrived, and goes up after it. */
+  /** Put up the beat waiting for its commit at once: a screen op sent
+   *  after it has arrived, and goes up after it. */
   protected flushPendingBeat() {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const pending = overlay?.__sdBeat;
@@ -416,11 +446,11 @@ export default class UIManager extends Manager {
   /**
    * How long a played beat waits, in milliseconds, for the instant its text
    * starts revealing: the display time its stamp gives plus the delay of the
-   * first letter it reveals. Text it writes that the page already shows
-   * reveals nothing (an unchanged name), and neither do the letters a
-   * continuation keeps (`shown`) or a space, so none of them counts. A beat that reveals no
-   * text commits at its display time. A display time far from the page's
-   * clock (a clock that has not synced) is not waited for.
+   * first letter it reveals. A write that leaves its target as it shows (an
+   * unchanged name) reveals nothing, and neither do the letters a
+   * continuation keeps (`shown`) or a space, so none of them counts. A beat
+   * that reveals no text commits at its display time. A display time far
+   * from the page's clock (a clock that has not synced) is not waited for.
    */
   protected waitToCommit(params: BeatParams): number {
     if (params.time == null) {
@@ -431,147 +461,238 @@ export default class UIManager extends Manager {
     if (!Number.isFinite(now) || shown == null || shown - now > COMMIT_WAIT_LIMIT_MS) {
       return 0;
     }
+    const ops = beatOps(params);
+    // Judged before any of the beat is applied, so what comes before each
+    // clear counts too.
+    const unchanged = new Set<number>();
+    ops.forEach((_, i) => {
+      const write = this.clearIsNoOp(ops, i, 0);
+      if (write >= 0) {
+        unchanged.add(write);
+      }
+    });
     let first: number | undefined;
-    for (const entry of params.text) {
-      if (this.contentIsNoOp(entry, "__sdTxt")) {
-        continue;
+    ops.forEach((op, i) => {
+      const msg = op as RequestMessage;
+      if (!WriteTextMessage.type.isRequest(msg) || unchanged.has(i)) {
+        return;
       }
-      for (const write of entry.writes) {
-        for (const instruction of write.instructions.slice(write.shown ?? 0)) {
-          // A space paints nothing: the beat starts revealing with the first
-          // letter that shows.
-          if (instruction.text != null && !/\S/.test(instruction.text)) {
-            continue;
-          }
-          const after = instruction.after ?? 0;
-          first = first == null ? after : Math.min(first, after);
+      const write = msg.params;
+      if (write.instructions.length === 0 || this.writeLeavesAsIs(write)) {
+        return;
+      }
+      for (const instruction of write.instructions.slice(write.shown ?? 0)) {
+        // A space paints nothing: the beat starts revealing with the first
+        // letter that shows.
+        if (instruction.text != null && !/\S/.test(instruction.text)) {
+          continue;
         }
+        const after = instruction.after ?? 0;
+        first = first == null ? after : Math.min(first, after);
       }
-    }
+    });
     const wait = shown + (first ?? 0) * 1000 - now;
     return wait >= 1 ? wait : 0;
   }
 
-  /** Apply a beat, in this one task: its structural ops in order, then the
-   *  final content of every target it touches, then its sweep, then what
-   *  acts on what it put up. */
+  /** Apply a beat, in this one task: its ops in the order the engine sent
+   *  them, but the clears that would only empty a target for its next write
+   *  to put back what it shows; then its sweep. */
   protected applyBeat(params: BeatParams) {
-    const touched = new Set<Element>();
-    this._beatTouched = touched;
-    try {
-      for (const message of params.messages) {
-        this.applyBeatMessage(message);
+    const ops = beatOps(params);
+    ops.forEach((op, i) => {
+      // Judged as the beat reaches it: what came before has been applied.
+      if (this.clearIsNoOp(ops, i, i + 1) < 0) {
+        this.applyBeatMessage(op);
       }
-    } finally {
-      this._beatTouched = undefined;
-    }
-    for (const entry of params.text) {
-      this.applyBeatContent(entry, WriteTextMessage.type, "__sdTxt", touched);
-    }
-    for (const entry of params.image) {
-      this.applyBeatContent(entry, WriteImageMessage.type, "__sdImg", touched);
-    }
+    });
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
       this.sweepReconcile();
     }
-    for (const message of params.after) {
-      this.applyBeatMessage(message);
-    }
   }
 
+  /** Apply one of a beat's ops. An animation is answered once it has
+   *  played: the engine waits on that answer (an exit transition's
+   *  element is destroyed once it has played out). */
   protected applyBeatMessage(message: IMessage) {
     if ("id" in message) {
       const request = message as RequestMessage;
-      this.onReceiveRequest(request).catch((error) => {
-        console.error(`${request.method} failed in a beat`, error);
-      });
+      const done = this.onReceiveRequest(request);
+      done.then(
+        (result) => {
+          if (AnimateElementsMessage.type.isRequest(request)) {
+            this.app.emit({
+              jsonrpc: "2.0",
+              method: request.method,
+              id: request.id,
+              result: result ?? null,
+            } as Message);
+          }
+        },
+        (error) => {
+          console.error(`${request.method} failed in a beat`, error);
+        },
+      );
     } else {
       this.onReceiveNotification(message as NotificationMessage);
     }
   }
 
-  /** Leave a target with the content a beat gives it. A target the beat
-   *  clears and writes again with exactly what it shows is left as it is:
-   *  its content is not rebuilt, and an instant write shows what it still
-   *  had to reveal. */
-  protected applyBeatContent<P extends { target: string; instructions: unknown[]; instant: boolean }>(
-    entry: BeatContent<P>,
-    type: { request: (params: P) => RequestMessage },
-    signature: "__sdTxt" | "__sdImg",
-    touched: Set<Element>,
-  ) {
-    if (entry.replace) {
-      if (this.contentIsNoOp(entry, signature, touched)) {
-        this.applyBeatMessage(type.request(entry.writes.at(-1)!));
-        return;
-      }
-      this.applyBeatMessage(
-        type.request({
-          target: entry.target,
-          instructions: [],
-          instant: true,
-          ...(entry.elements ? { elements: entry.elements } : {}),
-        } as unknown as P),
-      );
-    }
-    for (const write of entry.writes) {
-      this.applyBeatMessage(type.request(write));
-    }
-  }
-
   /**
-   * Whether a beat leaves `entry`'s target with what it shows now, judged
-   * against the live DOM: the beat replaces its content with a last write
-   * that gives the content in full (text written once; an image shown), that
-   * write is exactly what every target element shows, and nothing in the
-   * beat (`touched`) changed what the target holds.
+   * Whether the op at `i` is a clear that is a no-op, and if so the index
+   * of the write it is a no-op for; -1 otherwise. A clear empties its target
+   * and its next write fills it again. When that write is exactly what every
+   * element of the target holds (all of it, not only the last write), and
+   * nothing touches what the target holds, applying both would empty and
+   * rebuild the same content for nothing (and replay its reveal), so the
+   * clear is skipped and the write's own signature check leaves the target as
+   * it is. Judged against the live DOM:
+   *
+   * - The write must go to the same elements the clear does.
+   * - Another clear of the same target in between is skipped with it (a
+   *   connect's clear and the beat's own).
+   * - Any other write that reaches those elements in between, under another
+   *   selector, keeps the clear.
+   * - So does a structural op from `from` up to the write that changes what
+   *   they hold: a node created in one of them, new content on a node in one
+   *   of them, a node destroyed or moved there. A style or attribute change
+   *   does not. Ops already applied have made the page forget what the
+   *   target holds (`forgetHeld`) if they changed it.
    */
-  protected contentIsNoOp(
-    entry: BeatContent<{ instructions: unknown[] }>,
-    signature: "__sdTxt" | "__sdImg",
-    touched?: Set<Element>,
-  ): boolean {
-    const last = entry.writes.at(-1);
-    if (!entry.replace || !last) {
-      return false;
+  protected clearIsNoOp(ops: IMessage[], i: number, from: number): number {
+    const clear = ops[i] as RequestMessage;
+    const kind = WriteTextMessage.type.isRequest(clear)
+      ? WriteTextMessage.type
+      : WriteImageMessage.type.isRequest(clear)
+        ? WriteImageMessage.type
+        : undefined;
+    const params = clear.params as
+      | { target: string; instructions: unknown[]; elements?: string[] }
+      | undefined;
+    if (!kind || !params || params.instructions.length > 0) {
+      return -1;
     }
-    const whole =
-      signature === "__sdTxt"
-        ? entry.writes.length === 1
-        : (last.instructions as { control?: string; content?: unknown }[]).some(
-            (i) => i.control === "show" && i.content != null,
-          );
-    if (!whole) {
-      return false;
+    const els = this.writeTargets(params.target, params.elements);
+    if (els.length === 0) {
+      return -1;
     }
-    const sig = JSON.stringify(last.instructions);
-    const els = this.onlyElements(
-      this.findTargetElements(entry.target),
-      (last as { elements?: string[] }).elements ?? entry.elements,
-    );
-    if (els.length === 0 || !els.every((el) => (el as any)[signature] === sig)) {
-      return false;
-    }
-    if (touched) {
-      for (const node of touched) {
-        if (els.some((el) => el === node || el.contains(node))) {
-          return false;
+    let next = -1;
+    for (let k = i + 1; k < ops.length; k += 1) {
+      const m = ops[k] as RequestMessage;
+      if (kind.isRequest(m)) {
+        const p = m.params as { target: string; instructions: unknown[]; elements?: string[] };
+        const reached = this.writeTargets(p.target, p.elements);
+        if (!reached.some((el) => els.includes(el))) {
+          continue;
+        }
+        if (p.target !== params.target || !sameElements(reached, els)) {
+          return -1;
+        }
+        if (p.instructions.length > 0) {
+          next = k;
+          break;
         }
       }
     }
-    return true;
+    if (next < 0) {
+      return -1;
+    }
+    for (let k = from; k < next; k += 1) {
+      if (k !== i && this.changesContentOf(ops[k]!, els)) {
+        return -1;
+      }
+    }
+    const write = (ops[next] as RequestMessage).params as {
+      instructions: { control?: string; content?: unknown }[];
+    };
+    const sig = JSON.stringify(write.instructions);
+    const holds =
+      kind === WriteTextMessage.type
+        ? els.every(
+            (el) =>
+              (el as any).__sdTxt === sig &&
+              JSON.stringify((el as any).__sdAll) === sig,
+          )
+        : write.instructions.some((e) => e.control === "show" && e.content != null) &&
+          els.every((el) => (el as any).__sdImg === sig);
+    return holds ? next : -1;
   }
 
-  /** The elements of `els` a composed write names (#1820): the target as it
-   *  resolved where the write stands in the beat. All of them when it names
-   *  none. */
-  protected onlyElements(els: HTMLElement[], elements?: string[]): HTMLElement[] {
-    if (!elements) {
-      return els;
+  /** Whether a write with no clear before it leaves its target as it is:
+   *  every element already holds exactly that write, and its own signature
+   *  check makes it a no-op. */
+  protected writeLeavesAsIs(write: {
+    target: string;
+    instructions: unknown[];
+    elements?: string[];
+  }): boolean {
+    const sig = JSON.stringify(write.instructions);
+    const els = this.writeTargets(write.target, write.elements);
+    return (
+      els.length > 0 &&
+      els.every(
+        (el) =>
+          (el as any).__sdTxt === sig && JSON.stringify((el as any).__sdAll) === sig,
+      )
+    );
+  }
+
+  /** Whether op `m` changes what `els` hold: a node created in one of them,
+   *  new content on a node in one of them, or a node destroyed or moved
+   *  there. A style or attribute change does not. */
+  protected changesContentOf(m: IMessage, els: HTMLElement[]): boolean {
+    const msg = m as RequestMessage;
+    const params = msg.params as any;
+    const inside = (node: Element | null | undefined) =>
+      node != null && els.some((el) => el === node || el.contains(node));
+    if (CreateElementMessage.type.isRequest(msg)) {
+      const existing = params.element ? this._elements.get(params.element) : undefined;
+      if (!existing) {
+        return inside(this.getElement(params.parent));
+      }
+      return (
+        inside(existing) &&
+        params.content != null &&
+        (existing as any).__sdCreate !== createSignature(params)
+      );
     }
-    const named = new Set(elements);
-    return els.filter((el) => named.has((el as any).__sdId));
+    if (UpdateElementMessage.type.isRequest(msg)) {
+      return params.content != null && inside(this.getElement(params.element));
+    }
+    if (
+      DestroyElementMessage.type.isRequest(msg) ||
+      MoveElementMessage.type.isRequest(msg)
+    ) {
+      const node = this.getElement(params.element);
+      return inside(node) || inside(node?.parentElement);
+    }
+    return false;
+  }
+
+  /** The elements a write goes to: those a composed write names, by their
+   *  structural ids, as its target resolved where the write stands in the
+   *  beat (#1820); the target as it resolves now otherwise. */
+  protected writeTargets(target: string, elements?: string[]): HTMLElement[] {
+    if (!elements) {
+      return this.findTargetElements(target);
+    }
+    return elements
+      .map((id) => this._elements.get(id) ?? this.getElement(id))
+      .filter((el): el is HTMLElement => el != null && el !== this.app.overlay);
+  }
+
+  /** Forget what every target from `node` up holds (`__sdAll`): a node in
+   *  it changed, so a composed beat must not take a clear there for a no-op
+   *  (#1820). Its last write's own signature (`__sdTxt`) is kept, as the
+   *  base keeps it. */
+  protected forgetHeld(node: Element | null | undefined) {
+    const overlay = this.app.overlay;
+    for (let n = node; n && n !== overlay; n = n.parentElement) {
+      if ((n as any).__sdAll !== undefined) {
+        (n as any).__sdAll = undefined;
+      }
+    }
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
@@ -646,13 +767,7 @@ export default class UIManager extends Manager {
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
-      const sig = JSON.stringify([
-        params.type,
-        params.name ?? null,
-        params.content ?? null,
-        params.style ?? null,
-        params.attributes ?? null,
-      ]);
+      const sig = createSignature(params);
       // Apply class/content/style/attrs only when this is a fresh node or its
       // create-params actually changed — an unchanged reused node is left
       // untouched (no restyle / recalc / devtools flash). The signature lives ON
@@ -729,14 +844,12 @@ export default class UIManager extends Manager {
         (el as any).__sdCreate = sig;
       }
       const parent = this.getElement(params.parent);
-      // A beat's dedupe of a target needs to know whether the beat changed
-      // what the target holds: a new node in it, or new content on a node.
-      if (this._beatTouched) {
-        if (!reused && parent) {
-          this._beatTouched.add(parent);
-        } else if (changed && params.content) {
-          this._beatTouched.add(el);
-        }
+      // What a target holds changes when a node in it is new or gets new
+      // content (#1820).
+      if (!reused && parent) {
+        this.forgetHeld(parent);
+      } else if (changed && params.content) {
+        this.forgetHeld(el);
       }
       if (parent) {
         // Only (re)insert when the position actually changed — a no-op move
@@ -767,10 +880,7 @@ export default class UIManager extends Manager {
     }
     if (DestroyElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const removedFrom = this.getElement(params.element)?.parentElement;
-      if (this._beatTouched && removedFrom) {
-        this._beatTouched.add(removedFrom);
-      }
+      this.forgetHeld(this.getElement(params.element)?.parentElement);
       this.removeElementById(params.element);
       return DestroyElementMessage.type.result(params.element);
     }
@@ -779,9 +889,7 @@ export default class UIManager extends Manager {
       this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       const parent = element?.parentElement;
-      if (this._beatTouched && parent) {
-        this._beatTouched.add(parent);
-      }
+      this.forgetHeld(parent);
       if (element && parent) {
         // Insert before the reference sibling (or append when null) — keyed
         // `for` reconciliation relocating a retained item's subtree.
@@ -796,7 +904,7 @@ export default class UIManager extends Manager {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
-          this._beatTouched?.add(element);
+          this.forgetHeld(element);
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1205,7 +1313,7 @@ export default class UIManager extends Manager {
     shown = 0,
     elements?: string[],
   ) {
-    const targetEls = this.onlyElements(this.findTargetElements(target), elements);
+    const targetEls = this.writeTargets(target, elements);
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
     // target already shows exactly this write, leave it untouched. Stored on the
@@ -1274,6 +1382,15 @@ export default class UIManager extends Manager {
         for (const strokeEl of strokeEls) {
           this.processText(strokeEl, instructions, instant, enter, shown, enterNow);
         }
+        // Everything the target holds, for a composed beat's dedupe of a
+        // clear (#1820): `__sdTxt` records only the last write, and writes
+        // to a target that was not cleared accumulate.
+        const held: unknown[] | undefined = (targetEl as any).__sdAll;
+        (targetEl as any).__sdAll = empty
+          ? [...instructions]
+          : held
+            ? [...held, ...instructions]
+            : undefined;
       } else {
         // Clear text + stroke (the `null`-sequence / clear path).
         for (const textEl of textEls) {
@@ -1282,6 +1399,7 @@ export default class UIManager extends Manager {
         for (const strokeEl of strokeEls) {
           strokeEl.replaceChildren();
         }
+        (targetEl as any).__sdAll = [];
       }
     }
     // The letters already on the page appear now, not at the beat's start.
@@ -1358,7 +1476,7 @@ export default class UIManager extends Manager {
     startTime?: number,
     elements?: string[],
   ) {
-    const targetEls = this.onlyElements(this.findTargetElements(target), elements);
+    const targetEls = this.writeTargets(target, elements);
     // This target has been written this pass, so the sweep must leave its layers
     // alone. Marked BEFORE the dedup below: re-writing the image already on
     // screen is the commonest case on a re-render (restore replays it), and

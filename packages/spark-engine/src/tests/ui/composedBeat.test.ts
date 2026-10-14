@@ -89,6 +89,12 @@ const beats = (messages: any[]) =>
 /** Every op a beat carries, its batches opened. */
 const opsOf = (beat: any) => flattenMessages(beat.messages);
 
+/** The text writes a beat carries for `target`, in order. */
+const writesOf = (beat: any, target: string) =>
+  opsOf(beat)
+    .filter((m: any) => m.method === "ui/write-text" && m.params.target === target)
+    .map((m: any) => m.params);
+
 const screenOps = (messages: any[]) =>
   flattenMessages(messages).filter(
     (m) => m.method?.startsWith("ui/") && m.method !== "ui/beat",
@@ -131,9 +137,8 @@ describe("a composed display (#1820)", () => {
     // The pass opens first, and the screen is built inside the beat.
     expect(beat.messages[0].method).toBe("ui/reconcile-begin");
     expect(opsOf(beat).some((m: any) => m.method === "ui/create")).toBe(true);
-    // The targets the display leaves empty are explicit empties.
-    const dialogue = beat.text.find((e: any) => e.target === "dialogue");
-    expect(dialogue).toMatchObject({ target: "dialogue", replace: true, writes: [] });
+    // The targets the display leaves empty are cleared in it.
+    expect(writesOf(beat, "dialogue").map((w: any) => w.instructions)).toEqual([[]]);
     expect(screenOps(h.messages)).toEqual([]);
   });
 
@@ -148,19 +153,19 @@ describe("a composed display (#1820)", () => {
     const [beat, ...more] = beats(h.messages);
     expect(more).toEqual([]);
     expect(typeof beat.time).toBe("number");
-    const byTarget: any = Object.fromEntries(beat.text.map((e: any) => [e.target, e]));
-    expect(byTarget.dialogue.replace).toBe(true);
-    expect(byTarget.dialogue.writes).toHaveLength(1);
-    expect(byTarget.character_name.replace).toBe(true);
-    expect(byTarget.character_name.writes).toHaveLength(1);
+    // Each target is cleared, then written, in the order the beat sent them.
+    for (const target of ["dialogue", "character_name"]) {
+      const writes = writesOf(beat, target);
+      expect(writes.map((w: any) => w.instructions.length > 0)).toEqual([false, true]);
+      expect(typeof writes[1].time).toBe("number");
+    }
     // Nothing of the beat went to the page as it happened.
     expect(screenOps(h.messages)).toEqual([]);
   });
 
-  test("a target cleared, written, cleared and written again holds only its last write", async () => {
-    // Round 6, class 1: impossible by construction. The beat carries each
-    // target's final content, so no clear is judged against what the target
-    // showed before the beat.
+  test("a target cleared, written, cleared and written again keeps each op in its place", async () => {
+    // Round 6, class 1: the beat carries its ops in the order they were sent,
+    // so the page judges each clear as it reaches it.
     const h = createHarness(STORY, 0, { beforeConnect: composing });
     await h.ready;
     const ui = h.game.module.ui;
@@ -172,9 +177,10 @@ describe("a composed display (#1820)", () => {
     await flushMicrotasks(10);
 
     const [beat] = beats(h.messages);
-    const dialogue = beat.text.find((e: any) => e.target === "dialogue");
-    expect(dialogue.replace).toBe(true);
-    expect(dialogue.writes.map((w: any) => w.instructions)).toEqual([
+    expect(writesOf(beat, "dialogue").map((w: any) => w.instructions).slice(-4)).toEqual([
+      [],
+      [{ text: "B" }],
+      [],
       [{ text: "A" }],
     ]);
   });
@@ -221,7 +227,7 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
     const [beat, ...more] = beats(h.messages);
     expect(more).toEqual([]);
     expect(opsOf(beat).some((m: any) => m.method === "ui/create" && m.params.name === "hud")).toBe(true);
-    expect(beat.text.some((e: any) => e.target === "dialogue" && e.writes.length > 0)).toBe(true);
+    expect(writesOf(beat, "dialogue").some((w: any) => w.instructions.length > 0)).toBe(true);
     expect(screenOps(h.messages)).toEqual([]);
   });
 
@@ -325,17 +331,22 @@ describe("composition, round 1 of PR #1865", () => {
     expect(beats(h.messages.slice(mark)).filter((b) => b.sweep)).toHaveLength(1);
   });
 
-  test("a played beat that starts while the last one waits on what it realizes gets a beat of its own", async () => {
+  test("a played beat that starts while the last one waits on what it realizes gets a beat of its own, and takes that work over", async () => {
     // The last beat waits on work that has not settled (a layout's font);
-    // the next beat starts. The last goes as it is, and the next is sent on
-    // its own, with its own writes.
+    // the next beat starts. The last goes as it is, with its own writes; the
+    // next takes the unfinished work over, waits for it, and is sent on its
+    // own once it is done (the maintainer's decision).
     const h = createHarness(STORY, 0, { beforeConnect: playing });
     await h.ready;
     h.reset();
     const ui: any = h.game.module.ui;
+    let finish!: () => void;
+    const unfinished = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
     expect(ui.beginCompose()).toBe(true);
     void ui.text.write("dialogue", [{ text: "First" }], true);
-    ui.composeWait(new Promise(() => {}));
+    ui.composeWait(unfinished);
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
     expect(beats(h.messages)).toEqual([]);
@@ -344,11 +355,15 @@ describe("composition, round 1 of PR #1865", () => {
     void ui.text.write("dialogue", [{ text: "Second" }], true);
     void ui.endCompose({ time: 200 });
     await flushMicrotasks(20);
+    // The first went as it was; the second waits for the work it took over.
+    expect(beats(h.messages).map((b: any) => b.time)).toEqual([100]);
 
+    finish();
+    await flushMicrotasks(20);
     const sent = beats(h.messages);
     expect(sent.map((b: any) => b.time)).toEqual([100, 200]);
     const texts = sent.map((b: any) =>
-      b.text.flatMap((e: any) => e.writes.flatMap((w: any) => w.instructions.map((i: any) => i.text))),
+      writesOf(b, "dialogue").flatMap((w: any) => w.instructions.map((i: any) => i.text)),
     );
     expect(texts).toEqual([["First"], ["Second"]]);
   });
@@ -374,26 +389,6 @@ describe("composition, round 1 of PR #1865", () => {
     expect(releases.every(({ i }) => i > beatAt)).toBe(true);
   });
 
-  test("a beat does not wait for an animation already playing on the page", async () => {
-    // SEAM(#1820 layout transitions): a layout operation that only waits on
-    // an exit animation playing on the page does not hold the beat.
-    const h = createHarness(STORY, 0, { beforeConnect: playing });
-    await h.ready;
-    h.reset();
-    const ui: any = h.game.module.ui;
-    expect(ui.beginCompose()).toBe(true);
-    void ui.text.write("dialogue", [{ text: "New" }], true);
-    // Work that never settles, already waiting on an animation when the
-    // beat ends.
-    ui._animating = 1;
-    ui.composeWait(new Promise(() => {}));
-    void ui.endCompose({});
-    await flushMicrotasks(20);
-    ui._animating = 0;
-
-    expect(beats(h.messages)).toHaveLength(1);
-  });
-
   test("a beat that waits on nothing leaves no subscription behind", async () => {
     const h = createHarness(STORY, 0, { beforeConnect: playing });
     await h.ready;
@@ -405,5 +400,117 @@ describe("composition, round 1 of PR #1865", () => {
     // Neither a pending change signal nor a list of listeners is left.
     expect(ui._realizationChange).toBeUndefined();
     expect(ui._realizationListeners?.length ?? 0).toBe(0);
+  });
+});
+
+describe("composition, round 2 of PR #1865", () => {
+  const hudCreated = (ops: any[]) =>
+    ops.some((m) => m.method === "ui/create" && m.params?.name === "hud");
+
+  test("a mount the last beat still waits for goes up with the next beat, which waits for it", async () => {
+    // D1: the next beat takes over the unfinished font mount (the
+    // maintainer's decision) instead of leaving it to land outside both.
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.reset();
+    const ui: any = h.game.module.ui;
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.openLayout("hud"));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+    expect(ui.beginCompose()).toBe(true);
+    void ui.text.write("dialogue", [{ text: "Second" }], true);
+    void ui.endCompose({ time: 200 });
+    await flushMicrotasks(20);
+    expect(beats(h.messages).map((b: any) => b.time)).toEqual([100]);
+
+    await releaseFonts(h);
+
+    const sent = beats(h.messages);
+    expect(sent.map((b: any) => b.time)).toEqual([100, 200]);
+    expect(hudCreated(opsOf(sent[1]))).toBe(true);
+    expect(hudCreated(screenOps(h.messages))).toBe(false);
+  });
+
+  test("a close in the next beat calls off a mount still waiting on its font", async () => {
+    // D1: without it, the open the last beat started mounted the layout
+    // after the next beat had closed it.
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.reset();
+    const ui: any = h.game.module.ui;
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.openLayout("hud"));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.closeLayout("hud"));
+    void ui.endCompose({ time: 200 });
+
+    await releaseFonts(h);
+
+    const everything = [
+      ...screenOps(h.messages),
+      ...beats(h.messages).flatMap((b: any) => opsOf(b)),
+    ];
+    expect(hudCreated(everything)).toBe(false);
+  });
+
+  test("a closing layout's exit transition does not hold the beat; its element goes once the page reports the transition played", async () => {
+    // The maintainer's decision: a composed beat covers mounts and content;
+    // the layout leaves the mounted set at the commit, its exit plays from
+    // the commit, and its element is destroyed when the page reports the
+    // exit finished.
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    await ui.openLayout("hud", undefined, true);
+    await flushMicrotasks(20);
+    const hudId = ui._mountedLayouts.get("hud").element.id;
+    h.reset();
+
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    expect(ui._mountedLayouts.has("hud")).toBe(false);
+    void ui.text.write("dialogue", [{ text: "Next" }], true);
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+
+    // The beat went without waiting for the exit, carrying it.
+    const [beat, ...more] = beats(h.messages);
+    expect(more).toEqual([]);
+    const exit = opsOf(beat).find(
+      (m: any) => m.method === "ui/animate" && m.params.effects[0]?.element === hudId,
+    );
+    expect(exit).toBeTruthy();
+    const destroyed = () =>
+      flattenMessages(h.messages)
+        .concat(beats(h.messages).flatMap((b: any) => opsOf(b)))
+        .some((m: any) => m.method === "ui/destroy" && m.params.element === hudId);
+    expect(destroyed()).toBe(false);
+
+    // The page reports the exit played.
+    h.game.connection.receive({
+      jsonrpc: "2.0",
+      id: exit.id,
+      method: exit.method,
+      result: [0],
+    } as any);
+    await flushMicrotasks(20);
+    expect(destroyed()).toBe(true);
   });
 });
