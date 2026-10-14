@@ -76,4 +76,12 @@ describe("the point the player's workspace compiles toward (#1874)", () => {
     void workspace.selectTextDocument(select(LOOSE, 2, true));
     expect((workspace as any).compileStartFrom()).toEqual({ file: LOOSE, line: 2 });
   });
+
+  it("is published with the story's program when a compile of another script changed the story", () => {
+    // A compile of a script the story does not include compiles the story
+    // first; the page shows the story, so it must hear of the new program
+    // (SparkdownWorkspace's workspaceStandaloneCompile test pins the publish).
+    const workspace = createWorkspace();
+    expect((workspace as any).publishesStoryOfStandaloneCompiles).toBe(true);
+  });
 });

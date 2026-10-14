@@ -44,6 +44,14 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     // document is kept here too.
     protected override _mirrorDocumentTexts = true;
 
+    // The page shows the story, and judges every program by its point in it
+    // (`compiledElsewhere`). A compile of a script the story does not
+    // include (each script VS Code opens, and the document compiled last
+    // when a file changes) compiles the story first; when the story changed,
+    // the page takes that program, which names it to the worker and gives a
+    // display the story compile took over a new one (#1874).
+    protected override publishesStoryOfStandaloneCompiles = true;
+
     protected _watchdog!: WorkerWatchdog;
 
     protected _hangListeners = new Set<(hang: WorkerHang) => void>();
