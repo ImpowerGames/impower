@@ -267,7 +267,7 @@ try {
   // The check-in ended with the source's session: the takeover carries the
   // command that recreates it for the new record, and the Feature's group and
   // title.
-  assert.deepEqual([d.checkIn.job, d.checkIn.state, d.checkIn.command, d.group.id, d.title, d.coordinator.permissionMode], [null, "recreate on this coordinator's runner", `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record ${rec500d}`, "group-500", "ORCH #500: widget delivery", "bypassPermissions"]);
+  assert.deepEqual([d.checkIn.job, d.checkIn.state, d.checkIn.command, d.group.id, d.title, d.coordinator.permissionMode], [null, "recreate on this coordinator's runner", `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record '${rec500d}'`, "group-500", "ORCH #500: widget delivery", "bypassPermissions"]);
   assert.match(found.brief, /recreate it on your own runner with: node \.agents\/skills\/orchestrate-feature\/feature-run\.mjs schedule --record /);
   assert.ok(run.scheduleSpec(d, rec500d, defaults).prompt.includes(rec500d), "the recreated job names the new record");
   assert.deepEqual(d.authority, run.AUTHORITY, "the new coordinator's authority comes from its own invocation");

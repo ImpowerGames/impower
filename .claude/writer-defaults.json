@@ -16,7 +16,7 @@
       {
         "route": "claude-cli",
         "selfCheck": "the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort",
-        "turns": "Your process exits when your turn ends, and nothing wakes it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.",
+        "turns": "Your process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.",
         "reports": {
           "claude": { "mechanism": "SendMessage with to set to that session id" },
           "codex": { "unsupported": "a Claude session cannot message a Codex thread" }

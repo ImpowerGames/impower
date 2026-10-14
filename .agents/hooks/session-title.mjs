@@ -236,7 +236,13 @@ export function afterTool(payload, harness) {
     return instruction(entry, sessionId, harness);
   }
   if (RENAME.test(tool)) {
-    return modify(statePath(sessionId), sessionId, (entries) => {
+    return modify(statePath(sessionId), sessionId, (stored) => {
+      // A coordinator title stays acknowledged only while the session still
+      // carries it: renaming this session to anything else forgets it, so a
+      // later init or takeover asks again.
+      const target = payload.tool_input?.session_id;
+      const self = target === undefined || target === "self" || target === sessionId;
+      const entries = self ? stored.filter((entry) => !(entry.acknowledged && entry.title !== payload.tool_input?.title)) : stored;
       const pendingEntries = open(entries);
       if (!pendingEntries.length) return { entries };
       // A rename issued from inside one pending worktree can acknowledge only that worktree's title; a coordinator's
@@ -244,8 +250,7 @@ export function afterTool(payload, harness) {
       const from = payload.cwd ? pendingEntries.find((entry) => !forSession(entry) && touches(entry, { cwd: payload.cwd })) : undefined;
       const match = pendingEntries.find((entry) => entry.title === payload.tool_input?.title && (forSession(entry) || !from || entry === from));
       // A rename aimed at another session does not rename this one.
-      const target = payload.tool_input?.session_id;
-      if (!match || (target !== undefined && target !== "self" && target !== sessionId)) {
+      if (!match || !self) {
         const entry = match ?? from ?? pendingEntries[0];
         return { entries, value: `The session title must be exactly "${entry.title}". ${instruction(entry, sessionId, harness)}` };
       }

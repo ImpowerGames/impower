@@ -10,8 +10,9 @@
 //
 // Commands: init, snapshot, plan, claim, launch, launched, acknowledged,
 // deliver, delivered, request, relay, answer, answered, adopt, reconcile,
-// withdraw, verify, release, result, open, opened, schedule, check-in,
-// checked-in, group, filed, disk-recovery, brief, recover-lock.
+// withdraw, verify, release, result, open, opened, resume, contact, contacted,
+// schedule, check-in, checked-in, group, filed, disk-recovery, brief,
+// recover-lock.
 // Every command that changes the record takes --record, --coordinator and
 // --expect-revision, prints the new record revision, and refuses a stale
 // revision or another coordinator's session.
@@ -261,7 +262,13 @@ export function applyCoordinatorMode(file, { coordinator, permissionMode, title 
 // for a lost message or a dead writer; writers still message at every
 // decision point.
 export const CHECK_IN_MINUTES = 30;
-export const scheduleCommand = (file) => `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record ${file}`;
+// The record path is single-quoted, which both shells a runner offers (POSIX
+// and PowerShell) read literally, so a path with spaces or `$` stays one
+// argument; a path holding a single quote cannot be written that way.
+export const scheduleCommand = (file) => {
+  if (file.includes("'")) throw new Error(`The run record path ${file} holds a single quote, which the recorded schedule command cannot carry; keep the record under a path without one`);
+  return `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record '${file}'`;
+};
 // The job to create with the runner's scheduling capability. Its minutes are
 // spread by Feature number, so several coordinators do not all wake at once.
 export function scheduleSpec(record, file, defaults) {
@@ -339,6 +346,7 @@ export function carriedRun(prev, { file, record, defaults }) {
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
   const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
+  scheduleCommand(file);
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? "")) throw new Error("--repo must be owner/name");
   if (!Number.isSafeInteger(feature) || feature <= 0) throw new Error("--feature must be the Feature's issue number");
   if (!coordinator) throw new Error("--coordinator must name the coordinator's session");
@@ -783,18 +791,37 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       reviewed.push(...open.map((p) => ({ ticket: t.number, pr: p.number })));
       const extra = { owner: { route: own.owner.route, handle: own.owner.handle, status: s.status }, ...(transcript && { transcript }), ...(open.length === 1 && { pr: open[0].number, rounds: open[0].rounds }) };
       if (own.owner.mismatch) { active++; add(t, "stop-writer", `the writer does not run the requested route: ${own.owner.mismatch}; stop it and keep its evidence, never substitute`, extra); continue; }
-      const opening = openPending(own.owner);
+      const opening = openPending(own.owner) ?? (own.owner.resuming && `resume ${own.owner.resuming.id} of session ${own.owner.sessionId} has no recorded outcome (${own.owner.resuming.reason ?? "it may have started"}); run reconcile, which looks for a process naming ${own.owner.resuming.launchDir}, and never resume again before it`);
       if (opening) { active++; add(t, "reconcile-pending", opening, extra); continue; }
+      // A detached CLI writer's process ends with its turn, so a request it
+      // left is answered by resuming its session with the answer as the
+      // prompt; any other writer that ended has nobody left to answer.
       const asked = openRequests(own);
-      if (asked.length && s.status !== "exited") { active++; add(t, "answer-request", asked.map(requestNext).join("; "), { ...extra, requests: asked }); continue; }
+      const resumable = s.status === "exited" && own.owner.route === "claude-cli" && own.owner.handle.kind === "process";
+      if (asked.length && (s.status !== "exited" || resumable)) { active++; add(t, "answer-request", `${asked.map((r) => requestNext(r, ["waiting", "exited"].includes(s.status))).join("; ")}${resumable ? `; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered` : ""}`, { ...extra, requests: asked }); continue; }
       // A brief sent with the writer's start is acknowledged by the writer's
       // first message; without one after a check-in interval, the delivery
       // failed or the coordinator id was wrong, so it is settled now rather
       // than waited out. A resend with no recorded outcome is settled first.
+      // A running writer's transcript is never read, so only one whose turn
+      // ended is checked there before a resend.
       const brief = own.owner.brief;
       if (brief && !own.owner.acknowledged && s.status !== "exited") {
-        if (brief.state === "intent") { active++; add(t, "reconcile-pending", `brief delivery ${brief.deliveryId} of assignment ${own.owner.launchId} has no recorded outcome and may still be queued; if the writer's transcript shows the assignment, record delivered with that evidence; otherwise wait, or resend with deliver --retry, which the brief tells the writer to ignore once a copy has arrived`, extra); continue; }
-        if (now - Date.parse(brief.time) > interval) { active++; add(t, "settle-delivery", `no acknowledgement of assignment ${own.owner.launchId} arrived within ${interval / 60000} minutes of brief delivery ${brief.deliveryId}: confirm that ${record.coordinator.session} is this session's own id, read the writer's transcript at ${transcriptOf(own.owner)} and record acknowledged if it shows one; otherwise resend with deliver --retry, send that copy to the writer, and record delivered`, extra); continue; }
+        if (brief.state === "intent") { active++; add(t, "reconcile-pending", `brief delivery ${brief.deliveryId} of assignment ${own.owner.launchId} has no recorded outcome and may still be queued; ${s.status === "waiting" ? "if the writer's transcript shows the assignment, record delivered with that evidence; otherwise " : ""}wait, or resend with deliver --retry, which the brief tells the writer to ignore once a copy has arrived`, extra); continue; }
+        if (now - Date.parse(brief.time) > interval) {
+          active++;
+          const check = { waiting: `its turn has ended, so read its transcript at ${transcriptOf(own.owner)} and record acknowledged if it shows one; otherwise resend`, live: "it is running, so its transcript is not read: resend", unknown: `its state is unknown (${s.reason}), so establish it first; then resend` }[s.status];
+          add(t, "settle-delivery", `no acknowledgement of assignment ${own.owner.launchId} arrived within ${interval / 60000} minutes of brief delivery ${brief.deliveryId}: confirm that ${record.coordinator.session} is this session's own id; ${check} with deliver --retry, send that copy to the writer, and record delivered`, extra);
+          continue;
+        }
+      }
+      // A writer briefed by an earlier coordinator still reports there: tell
+      // it this coordinator's id before anything else reaches it.
+      if (own.owner.coordinator && own.owner.coordinator !== record.coordinator.session && s.status !== "exited") {
+        active++;
+        const c = own.owner.contact;
+        add(t, c?.state === "intent" ? "reconcile-pending" : "update-contact", c?.state === "intent" ? `contact notice ${c.deliveryId} to the writer has no recorded outcome and may still be queued; ${s.status === "waiting" ? "if its transcript shows it, record contacted with that evidence; otherwise " : ""}wait, or resend with contact --retry` : `the writer was briefed to report to ${own.owner.coordinator}, not this coordinator ${record.coordinator.session}; record contact, send the notice it prints, then record contacted`, extra);
+        continue;
       }
       if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { const [action, reason] = readyAction(record, open[0], `; ${s.reason}`); add(t, action, reason, extra); continue; }
       active++;
@@ -950,7 +977,7 @@ const settledStart = (pending, fields) => ({ pending, ...fields, ...(pending.con
 // A started writer has its brief already: it went with the start. The brief
 // counts as delivered from then, and the writer's acknowledgement confirms it.
 const sentBrief = (via, text) => ({ state: "delivered", via, ...(text !== undefined && { text }), deliveryId: randomUUID().slice(0, 8), attempts: 1, time: new Date().toISOString() });
-const ownerFrom = (pending, handle, brief) => ({ route: pending.route, model: pending.model, effort: pending.effort, ...(pending.permissionMode && { permissionMode: pending.permissionMode }), worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(brief && { brief }), ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
+const ownerFrom = (pending, handle, brief, coordinator) => ({ route: pending.route, model: pending.model, effort: pending.effort, coordinator, ...(pending.permissionMode && { permissionMode: pending.permissionMode }), worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(brief && { brief }), ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
 
 // A start runs only on the host that claimed it, and only while the run admits
 // work: another host's start is run or settled there, and a planned handoff
@@ -973,7 +1000,7 @@ export function launched(record, { ticket: number, handleKind, handle, observedO
   if (ticket.pending.route === "claude-cli") throw new Error("A detached CLI writer is started with launch and confirmed with reconcile");
   if (!["session", "task"].includes(handleKind) || !handle) throw new Error("--handle-kind must be session or task, with --handle naming it");
   // The writer runs where its start was claimed.
-  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host }, sentBrief("start"));
+  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host }, sentBrief("start"), record.coordinator.session);
   log(record, "launched", { ticket: number, launchId: ticket.pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return ticket.owner;
@@ -1023,8 +1050,11 @@ export function verify(record, { ticket: number, preflight: file }) {
   if (result.route !== owner.route || result.model !== owner.model) throw new Error(`The confirmation is for ${result.route} ${result.model}, not ${owner.route} ${owner.model}`);
   const requested = owner.requestedEffort ?? owner.effort;
   const verdict = result.verdicts?.find((v) => v.ticket === number && v.effort === requested);
-  if (verdict?.verdict === "confirmed") { owner.verified = true; delete owner.mismatch; }
-  else if (verdict?.verdict === "blocked") { owner.verified = false; owner.mismatch = verdict.reason; }
+  // The preflight judges the model and effort only, so a confirmation clears
+  // only a mismatch the preflight itself recorded; one the writer's
+  // acknowledgement or report showed stands.
+  if (verdict?.verdict === "confirmed") { owner.verified = true; if (!owner.mismatchBy || owner.mismatchBy === "preflight") { delete owner.mismatch; delete owner.mismatchBy; } }
+  else if (verdict?.verdict === "blocked") { owner.verified = false; recordMismatch(owner, "preflight", verdict.reason); }
   else throw new Error(`The confirmation has no observed verdict for #${number} at the ticket's effort ${requested}`);
   log(record, owner.verified ? "verified" : "mismatch", { ticket: number, ...(owner.mismatch && { reason: owner.mismatch }) });
   return owner;
@@ -1046,6 +1076,14 @@ export function release(record, { ticket: number, observations, evidence, host =
 
 export const REPORT_FIELDS = ["model", "effort", "permissionMode", "pr", "reviewedHead", "rounds", "findings", "verification", "ci", "next"];
 
+// The first mismatch found stands with its source; a later one from another
+// source does not replace it.
+function recordMismatch(owner, by, reason) {
+  if (owner.mismatch && owner.mismatchBy !== by) return;
+  owner.mismatch = reason;
+  owner.mismatchBy = by;
+}
+
 // What a writer read from its own metadata, against what it was started as;
 // null when they agree. A writer started without a recorded permission mode
 // (an existing writer adopted with its work, or a Codex writer) is judged on
@@ -1066,7 +1104,7 @@ export function acknowledged(record, { ticket: number, model, effort, permission
   const confirmed = { model, effort, permissionMode: permissionMode ?? null };
   owner.acknowledged = { time: new Date().toISOString(), confirmed, evidence, ...(owner.brief && { deliveryId: owner.brief.deliveryId }) };
   const gap = confirmationGap(owner, confirmed, owner.requestedEffort ?? owner.effort);
-  if (gap) owner.mismatch = `the writer confirmed ${gap}`;
+  if (gap) recordMismatch(owner, "acknowledgement", `the writer confirmed ${gap}`);
   log(record, "acknowledged", { ticket: number, confirmed, ...(gap && { mismatch: owner.mismatch }) });
 }
 
@@ -1075,10 +1113,15 @@ export function acknowledged(record, { ticket: number, model, effort, permission
 // answer is a message like the brief: its intent is recorded before it is
 // sent and its outcome after, and a resend is an identified retry the writer
 // ignores once a copy has arrived.
-const ownerId = (owner) => owner?.handle?.id ?? owner?.handle?.pid ?? null;
-const openRequests = (own) => (own.requests ?? []).filter((r) => !r.closed && r.answer?.state !== "delivered" && r.owner === ownerId(own.owner));
-function requestNext(r) {
-  if (r.answer?.state === "intent") return `answer ${r.answer.deliveryId} to request ${r.id} has no recorded outcome and may still be queued; if the writer's transcript shows it, record answered with that evidence; otherwise wait, or resend with answer --retry, which tells the writer to ignore a second copy`;
+// A writer started by this run keeps its assignment id across a resumed
+// process; an existing writer adopted with its work is known by its handle.
+const ownerId = (owner) => owner?.launchId ?? owner?.handle?.id ?? owner?.handle?.pid ?? null;
+const handleId = (owner) => owner?.handle?.id ?? owner?.handle?.pid ?? null;
+const openRequests = (own) => (own.requests ?? []).filter((r) => !r.closed && r.answer?.state !== "delivered" && own.owner && (r.owner === ownerId(own.owner) || r.owner === handleId(own.owner)));
+// A running writer's transcript is never read, so only a writer whose turn
+// ended is checked there for an answer that may have arrived.
+function requestNext(r, ended) {
+  if (r.answer?.state === "intent") return `answer ${r.answer.deliveryId} to request ${r.id} has no recorded outcome and may still be queued; ${ended ? "if the writer's transcript shows it, record answered with that evidence; otherwise " : ""}wait, or resend with answer --retry, which tells the writer to ignore a second copy`;
   if (r.relayed) return `request ${r.id} "${r.text}" was relayed to ${r.relayed.to} at ${r.relayed.time}; once they decide, record answer and send it`;
   return `the writer asked ${r.id}: "${r.text}"; decide or relay it, then record answer, send it and record answered`;
 }
@@ -1113,15 +1156,44 @@ export function answer(record, { ticket: number, request: id, text, retry = fals
   if (!r.answer && retry) throw new Error(`Request ${id} has no answer to retry`);
   const words = retry ? r.answer.text : text;
   if (!words) throw new Error("--text must give the answer");
-  r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString() };
+  const owner = ticketOf(record, number).owner, to = record.coordinator.session;
+  r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString(), to };
   log(record, "answer-intent", { ticket: number, id, deliveryId: r.answer.deliveryId, attempt: r.answer.attempts });
-  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.` };
+  // An answer from a coordinator that took over also names where the
+  // writer's next messages belong.
+  const moved = owner?.coordinator && owner.coordinator !== to ? `\nYour coordinator is now session ${to} on ${record.coordinator.host}; send every further report, blocker and question there.` : "";
+  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}${moved}\nIf you already received an answer to request ${id}, ignore this copy.` };
 }
 export function answered(record, { ticket: number, request: id, evidence }) {
   const r = findRequest(record, number, id);
   if (r.answer?.state !== "intent") throw new Error(`Request ${id}'s answer is at ${r.answer?.state ?? "no step"}; record answer before sending it`);
   r.answer = { ...r.answer, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
+  const owner = ticketOf(record, number).owner;
+  if (owner?.coordinator && r.answer.to) owner.coordinator = r.answer.to;
   log(record, "answered", { ticket: number, id, deliveryId: r.answer.deliveryId });
+}
+
+// After a takeover, a writer briefed by the previous coordinator is told this
+// coordinator's id, with the same intent, outcome and identified retry as an
+// answer; until then it reports to a session that no longer coordinates.
+export function contact(record, { ticket: number, retry = false, defaults = readWriterDefaults() }) {
+  const owner = ticketOf(record, number).owner, to = record.coordinator.session;
+  if (!owner?.coordinator) throw new Error(`#${number} has no writer this run briefed`);
+  if (owner.coordinator === to) throw new Error(`#${number}'s writer already reports to ${to}`);
+  if (owner.contact?.state === "intent" && !retry) throw new Error(`Contact notice ${owner.contact.deliveryId} to #${number}'s writer has no recorded outcome; settle it from the writer's transcript, or resend with --retry`);
+  if (retry && owner.contact?.state !== "intent") throw new Error(`#${number} has no contact notice to retry`);
+  owner.contact = { state: "intent", to, deliveryId: randomUUID().slice(0, 8), attempts: (owner.contact?.attempts ?? 0) + 1, time: new Date().toISOString() };
+  log(record, "contact-intent", { ticket: number, to, deliveryId: owner.contact.deliveryId, attempt: owner.contact.attempts });
+  const how = defaults.routes[routeVendor(owner.model)]?.find((r) => r.route === owner.route)?.reports?.[record.coordinator.harness];
+  const way = how?.mechanism ? ` as a cross-session message (${how.mechanism})` : `; ${how?.unsupported ?? "this route cannot message it"}, so end each decision point with the report as your turn's last message, and ${defaults.reportFallback}`;
+  return { message: `Assignment ${owner.launchId} (contact notice ${owner.contact.deliveryId}): your coordinator is now session ${to} on ${record.coordinator.host}, which took over from ${owner.coordinator}. Send every further report, blocker and question to ${to}${way}. If you already received a contact notice naming ${to}, ignore this copy.` };
+}
+export function contacted(record, { ticket: number, evidence }) {
+  const owner = ticketOf(record, number).owner;
+  if (owner?.contact?.state !== "intent") throw new Error(`#${number}'s contact notice is at ${owner?.contact?.state ?? "no step"}; record contact before sending it`);
+  owner.contact = { ...owner.contact, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
+  owner.coordinator = owner.contact.to;
+  log(record, "contacted", { ticket: number, to: owner.contact.to, deliveryId: owner.contact.deliveryId });
 }
 export function result(record, { ticket: number, report: file }) {
   const report = readJson(file);
@@ -1132,7 +1204,7 @@ export function result(record, { ticket: number, report: file }) {
   // The report carries what the writer's metadata confirmed; one that differs
   // from the start is kept as evidence and stops the writer.
   const gap = ticket.owner && confirmationGap(ticket.owner, report);
-  if (gap) ticket.owner.mismatch = `the writer reported ${gap}`;
+  if (gap) recordMismatch(ticket.owner, "report", `the writer reported ${gap}`);
   log(record, "result", { ticket: number, pr: report.pr, reviewedHead: report.reviewedHead, ...(gap && { mismatch: ticket.owner.mismatch }) });
 }
 
@@ -1217,7 +1289,7 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
     return { started: false, reason: outcome.reason };
   }
   const identity = identify(outcome.pid);
-  ticket.owner = ownerFrom(pending, { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir }, sentBrief("prompt", fs.readFileSync(path.join(launchDir, "prompt.txt"), "utf8")));
+  ticket.owner = ownerFrom(pending, { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir }, sentBrief("prompt", fs.readFileSync(path.join(launchDir, "prompt.txt"), "utf8")), record.coordinator.session);
   log(record, "launched", { ticket: number, launchId: pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return { started: true, owner: ticket.owner };
@@ -1324,7 +1396,11 @@ export function deliver(record, { ticket: number, retry = false }) {
   if (!retry) throw new Error("The brief went with the writer's start; resend it with deliver --retry");
   if (!owner?.brief) throw new Error(`#${number} has no writer this coordinator briefed; an existing writer adopted with its work already has its assignment`);
   if (owner.acknowledged) throw new Error(`#${number}'s writer acknowledged its brief at ${owner.acknowledged.time}`);
-  owner.brief = { ...owner.brief, state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief.attempts ?? 1) + 1, time: new Date().toISOString() };
+  // A resend after a takeover names this coordinator wherever the stored
+  // brief named the one that wrote it; everything else stays as first sent.
+  const to = record.coordinator.session;
+  const text = typeof owner.brief.text === "string" ? namingCoordinator(owner, record, owner.brief.text) : undefined;
+  owner.brief = { ...owner.brief, ...(text !== undefined && { text }), to, state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief.attempts ?? 1) + 1, time: new Date().toISOString() };
   log(record, "brief-intent", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId, attempt: owner.brief.attempts });
   // A start through another route's own means kept no copy of the prompt, so
   // that route resends it.
@@ -1335,13 +1411,72 @@ export function delivered(record, { ticket: number, evidence }) {
   const owner = ticketOf(record, number).owner;
   if (owner?.brief?.state !== "intent") throw new Error(`#${number}'s brief is at ${owner?.brief?.state ?? "no step"}; record deliver before sending it`);
   owner.brief = { ...owner.brief, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
+  if (owner.coordinator && owner.brief.to) owner.coordinator = owner.brief.to;
   log(record, "brief-delivered", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId });
+}
+
+// --- Resuming a CLI writer -------------------------------------------------
+
+// A detached CLI writer's process ends with its turn. When it left a request,
+// the coordinator answers by resuming that session, the one its stream named,
+// with the answer as the prompt, at the writer's own model, effort and
+// permission mode. The resumed process becomes the writer's handle; the
+// assignment, its requests and its history stay the same. The resume records
+// its intent before the side effect and its outcome after, and one whose
+// outcome was lost is settled with reconcile, never run again.
+const resumeDirOf = (owner, number, id) => path.join(owner.artifactParent, `resume-${number}-${id}`);
+export function resumeWriter(file, { coordinator, expectRevision, ticket: number, executable, args = [], prompt, host = os.hostname(), identify = processIdentity, census = processCensus, spawner = startDetachedWriter, afterIntent }) {
+  if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable) || !path.isAbsolute(prompt ?? "")) throw new Error("--executable and --prompt must be absolute paths");
+  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => {
+    if (r.handoff) throw new Error(`A planned handoff stopped new work at ${r.handoff.since}; nothing was resumed`);
+    const owner = ticketOf(r, number).owner;
+    if (owner?.route !== "claude-cli" || owner.handle.kind !== "process" || !owner.artifactParent) throw new Error(`#${number} has no detached claude-cli writer to resume`);
+    if (owner.handle.host && owner.handle.host !== host) throw new Error(`#${number}'s writer runs on ${owner.handle.host}; resume it there`);
+    if (owner.resuming) throw new Error(`Resume ${owner.resuming.id} has no recorded outcome; settle it with reconcile, and never resume again before it`);
+    const s = ownerStatus(owner, {}, { host, identify, census });
+    if (s.status !== "exited") throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only a writer whose turn has ended is resumed`);
+    const sessionId = owner.sessionId ?? streamSession(owner.handle.launchDir);
+    checkLaunchArgs(args, owner);
+    const at = args.flatMap((a, i) => (a === "--resume" ? [i] : []));
+    if (at.length !== 1 || args[at[0] + 1] !== sessionId) throw new Error(`The resume needs exactly one --resume ${sessionId}, the session the writer's stream names`);
+    const id = randomUUID();
+    const launchDir = resumeDirOf(owner, number, id);
+    if (UNSAFE.test(launchDir) || UNSAFE.test(r.checkout)) throw new Error(`${launchDir} holds a character the command line would interpret`);
+    owner.sessionId = sessionId;
+    owner.resuming = { id, launchDir, time: new Date().toISOString() };
+    log(r, "resume-intent", { ticket: number, id, sessionId });
+  });
+  const { id, launchDir } = intent.record.tickets[number].owner.resuming;
+  if (afterIntent) {
+    try { afterIntent(); }
+    catch (error) {
+      updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => { const o = ticketOf(r, number).owner; log(r, "resume-failed", { ticket: number, id, reason: `not run: ${error.message}` }); delete o.resuming; });
+      throw error;
+    }
+  }
+  fs.mkdirSync(launchDir, { recursive: true });
+  fs.copyFileSync(prompt, path.join(launchDir, "prompt.txt"));
+  let outcome;
+  try { outcome = spawner({ executable, args: [...args, "--add-dir", launchDir], cwd: intent.record.checkout, launchDir }); }
+  catch (error) { outcome = { started: false, uncertain: true, reason: error.message }; }
+  const done = updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => {
+    const o = ticketOf(r, number).owner;
+    if (outcome.uncertain) { o.resuming = { ...o.resuming, reason: outcome.reason }; log(r, "resume-uncertain", { ticket: number, id, reason: outcome.reason }); return; }
+    delete o.resuming;
+    if (!outcome.started) { log(r, "resume-failed", { ticket: number, id, reason: outcome.reason }); return; }
+    const identity = identify(outcome.pid);
+    o.handle = { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir };
+    (o.resumes ??= []).push({ id, time: new Date().toISOString(), launchDir });
+    log(r, "resumed", { ticket: number, id, handle: o.handle });
+  });
+  return { revision: done.record.revision, id, ...outcome };
 }
 
 // A launch whose outcome was not recorded is settled by a census of the
 // processes naming its launch directory, never by missing output alone.
 export function reconcile(record, { ticket: number, host = os.hostname(), census = processCensus, identify = processIdentity }) {
   const ticket = ticketOf(record, number), pending = ticket.pending;
+  if (!pending && ticket.owner?.resuming) return reconcileResume(record, ticket.owner, number, { host, census, identify });
   if (!pending) throw new Error(`#${number} has nothing pending`);
   if (pending.route !== "claude-cli") throw new Error(`A ${pending.route} start is confirmed with launched or withdrawn with evidence`);
   // The launch directory and the writer's processes are on the host that
@@ -1362,7 +1497,7 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
     const identity = identify(writer.pid);
     if (!identity) throw new Error(`Process ${writer.pid} names the launch but exited during the census; reconcile again`);
     const prompt = path.join(launchDir, "prompt.txt");
-    ticket.owner = ownerFrom(pending, { kind: "process", ...identity, host, launchDir }, sentBrief("prompt", fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined));
+    ticket.owner = ownerFrom(pending, { kind: "process", ...identity, host, launchDir }, sentBrief("prompt", fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined), record.coordinator.session);
     log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome: "running", handle: ticket.owner.handle });
     ticket.pending = null;
     return { outcome: "running", owner: ticket.owner };
@@ -1375,6 +1510,32 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   return { outcome };
 }
 
+// A resume whose outcome was lost: a process naming its directory is the
+// resumed writer; none means it ended or never started, and the writer is as
+// it was before the resume.
+function reconcileResume(record, owner, number, { host, census, identify }) {
+  const { id, launchDir } = owner.resuming;
+  if (owner.handle.host && owner.handle.host !== host) throw new Error(`Resume ${id} ran on ${owner.handle.host}; reconcile it on that host`);
+  const processes = census();
+  if (!Array.isArray(processes)) throw new Error("The process census failed; the resume stays unsettled");
+  const users = usersOf(launchDir, processes, process.pid);
+  delete owner.resuming;
+  if (users.length) {
+    const writer = users.find((p) => !users.some((q) => q.pid === p.ppid)) ?? users[0];
+    const identity = identify(writer.pid);
+    if (!identity) throw new Error(`Process ${writer.pid} names the resume but exited during the census; reconcile again`);
+    owner.handle = { kind: "process", ...identity, host, launchDir };
+    (owner.resumes ??= []).push({ id, time: new Date().toISOString(), launchDir });
+    log(record, "reconciled", { ticket: number, resume: id, outcome: "running", handle: owner.handle });
+    return { outcome: "running", owner };
+  }
+  const output = path.join(launchDir, "out.jsonl");
+  const outcome = fs.existsSync(output) && fs.statSync(output).size > 0 ? "started and ended" : "not running";
+  if (outcome === "started and ended") { owner.handle = { ...owner.handle, launchDir }; (owner.resumes ??= []).push({ id, time: new Date().toISOString(), launchDir }); }
+  log(record, "reconciled", { ticket: number, resume: id, outcome });
+  return { outcome };
+}
+
 // --- Writer brief ---------------------------------------------------------
 
 const assignmentHeader = (owner) => `Assignment ${owner.launchId} (delivery ${owner.brief.deliveryId}). If you have already received assignment ${owner.launchId}, ignore this copy and carry on with the first.`;
@@ -1383,8 +1544,15 @@ const assignmentHeader = (owner) => `Assignment ${owner.launchId} (delivery ${ow
 // reproduced exactly, under its current delivery.
 export function brief(record, planFile, number, decisions = [], defaults = readWriterDefaults()) {
   const owner = record.tickets[number]?.owner;
-  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${owner.brief.text}`;
+  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text)}`;
   return briefBody(record, planFile, number, decisions, defaults);
+}
+
+// A stored brief names the coordinator that wrote it; after a takeover every
+// copy names this coordinator instead, and nothing else changes.
+function namingCoordinator(owner, record, text) {
+  const from = owner.coordinator, to = record.coordinator.session;
+  return from && from !== to ? text.split(from).join(to) : text;
 }
 
 function briefBody(record, planFile, number, decisions, defaults) {
@@ -1458,7 +1626,7 @@ const readOptional = (file) => (file ? readJson(absolute(file, "file")) : undefi
 // with checkpoints enabled, the intent they act on must already be saved
 // remotely, so an interruption leaves a recorded intent rather than an
 // untracked writer.
-const SIDE_EFFECTS = new Set(["launch", "open"]);
+const SIDE_EFFECTS = new Set(["launch", "open", "resume"]);
 
 export function main(argv, { defaults = readWriterDefaults(), github, runners = {} } = {}) {
   const { command, options: o } = parseArgs(argv);
@@ -1504,6 +1672,9 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt }));
     case "open": return { ...openWriter(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, afterIntent: saveIntent, runner: runners.open }), ...checkpointAfter(absolute(o.record, "record")) };
     case "opened": return mutate((r) => opened(r, { ticket: number(), session: o.session }));
+    case "resume": return { ...resumeWriter(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt, afterIntent: saveIntent, ...(runners.resume && { spawner: runners.resume }) }), ...checkpointAfter(absolute(o.record, "record")) };
+    case "contact": return mutate((r) => contact(r, { ticket: number(), retry: Boolean(o.retry), defaults }));
+    case "contacted": return mutate((r) => contacted(r, { ticket: number(), evidence: o.evidence }));
     case "acknowledged": return mutate((r) => acknowledged(r, { ticket: number(), model: o.model, effort: o.effort, permissionMode: o.permissionMode, evidence: o.evidence }));
     case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry) }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
@@ -1525,7 +1696,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|release|result|open|opened|schedule|check-in|checked-in|group|filed|disk-recovery|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|group|filed|disk-recovery|brief|recover-lock --option value ...");
   }
 }
 

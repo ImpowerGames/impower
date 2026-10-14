@@ -284,6 +284,15 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(gate(at("orch", "git status"), "claude"), null, "the rename clears the gate");
   assert.equal(afterTool(at("orch", init), "claude"), null, "a resumed coordinator on the titled session is not asked again");
   assert.equal(gate(at("orch", "git status", os.tmpdir()), "claude"), null);
+  // Renaming the session away forgets the title, so resuming the coordinator there asks again.
+  assert.equal(afterTool(rename("orch", "Something unrelated"), "claude"), null);
+  assert.match(afterTool(at("orch", init), "claude"), new RegExp(title), "a session no longer carrying the title is asked again");
+  assert.match(gate(at("orch", "git status"), "claude"), new RegExp(title));
+  assert.equal(afterTool(rename("orch", title), "claude"), null);
+  assert.equal(gate(at("orch", "git status"), "claude"), null);
+  // A rename of another session leaves this session's acknowledgement in place.
+  afterTool(rename("orch", "Another session's name", undefined, "local_other"), "claude");
+  assert.equal(afterTool(at("orch", init), "claude"), null);
   // A takeover in a new session records the carried title; without a rename tool the acknowledgement clears it.
   const resume = `node .agents/skills/orchestrate-feature/checkpoint.mjs resume --record ${record.replaceAll("\\", "/")} --checkout C:/work/impower --repo acme/widgets --feature 1775`;
   const codexTold = afterTool(at("orch-next", resume), "codex");
@@ -324,6 +333,26 @@ out = run(claudePre.hooks[0].command, inWt("f", "git status"));
 assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "");
 assert.equal(run(claudePre.hooks[0].command, "{broken").status, 2, "a broken gate blocks");
+// The coordinator's init, from the main checkout with a private record path, reaches the hook through the configured
+// command, which no path named "worktree" carries.
+{
+  const records = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-native-"));
+  const record = path.join(records, "run.json");
+  fs.writeFileSync(record, JSON.stringify({ version: 1, revision: 1, feature: 1814, title: "ORCH #1814: coordinator contact", coordinator: { session: "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" } }));
+  const init = { ...shell("native-orch", `node .agents/skills/orchestrate-feature/feature-run.mjs init --record "${record}" --checkout "${repo}" --repo acme/widgets --feature 1814`), cwd: repo, hook_event_name: "PostToolUse" };
+  assert.ok(!JSON.stringify(init).toLowerCase().includes("worktree"), "the event names no worktree");
+  out = run(postShell.hooks[0].command, init);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(JSON.parse(out.stdout).hookSpecificOutput.additionalContext, /ORCH #1814: coordinator contact/);
+  out = run(claudePre.hooks[0].command, { ...shell("native-orch", "git status"), cwd: repo });
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision, "deny");
+  out = run(postRename.hooks[0].command, rename("native-orch", "ORCH #1814: coordinator contact"));
+  assert.equal(out.status, 0, out.stderr);
+  out = run(claudePre.hooks[0].command, { ...shell("native-orch", "git status"), cwd: repo });
+  assert.equal(out.stdout.trim(), "", "the rename clears the gate");
+  fs.rmSync(records, { recursive: true, force: true });
+}
 
 const codex = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
 const codexPost = codex.hooks.PostToolUse[0];
