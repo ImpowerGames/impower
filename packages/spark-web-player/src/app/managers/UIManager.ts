@@ -275,6 +275,20 @@ export default class UIManager extends Manager {
   protected _staleImageTargets = new Set<HTMLElement>();
 
   /**
+   * The same reconcile state, for WRITTEN TEXT (#1813): targets showing text
+   * the previous render's writes left that no write has reached this pass.
+   *
+   * A write adds to what its target holds, and a target with text of its own
+   * is not cleared on continue, so the restore a connect sends would add the
+   * saved text after what the target already showed. The first write that
+   * reaches one of these in a pass a connect opened replaces what writes
+   * left on it, and the writes after it in the pass add to it: two targets
+   * that name one element both restore onto it. One no write reaches is
+   * cleared at the sweep. What the layout itself put there stays.
+   */
+  protected _staleTextTargets = new Set<HTMLElement>();
+
+  /**
    * Per-reconcile-pass insertion cursor: parent → the last child we placed under
    * it this pass. The create stream re-emits a parent's children in document
    * order with `before=null` (append). Anchoring each append AFTER this cursor
@@ -305,6 +319,7 @@ export default class UIManager extends Manager {
   beginReconcilePass() {
     this._staleIds.clear();
     this._staleImageTargets.clear();
+    this._staleTextTargets.clear();
     this._placeCursor.clear();
     const overlay = this.app.overlay;
     if (overlay) {
@@ -326,6 +341,10 @@ export default class UIManager extends Manager {
         if ((el as any).__sdImg !== undefined) {
           this._staleImageTargets.add(el);
         }
+        // Likewise a target carrying a text write signature.
+        if ((el as any).__sdTxt !== undefined) {
+          this._staleTextTargets.add(el);
+        }
       });
     }
   }
@@ -345,6 +364,44 @@ export default class UIManager extends Manager {
       }
     }
     this._staleImageTargets.clear();
+    for (const el of this._staleTextTargets) {
+      if (el.isConnected) {
+        this.clearWrittenText(el);
+      }
+    }
+    this._staleTextTargets.clear();
+  }
+
+  /** Drop the text a target's writes left, as a `ui/write-text` carrying no
+   *  instructions does: the spans the writes built in its `text` and
+   *  `stroke` content elements go, and what the layout put there (an element
+   *  it made, which carries a structural id, or its own text) stays. The
+   *  write signature goes with them, so the next write is not mistaken for
+   *  one already shown. */
+  protected clearWrittenText(el: HTMLElement) {
+    for (const leaf of [
+      ...this.getContentElements(el, "text"),
+      ...this.getContentElements(el, "stroke"),
+    ]) {
+      this.removeWritten(leaf);
+    }
+    (el as any).__sdWait?.cancel();
+    delete (el as any).__sdWait;
+    delete (el as any).__sdTxt;
+    delete (el as any).__sdTxtRev;
+    (el as any).__sdAll = [];
+    (el as any).__sdAllRev = (el as any).__sdRev ?? 0;
+  }
+
+  /** Remove the spans writes built in a `text` or `stroke` content element.
+   *  A write only ever adds elements of its own, which carry no structural
+   *  id; the layout's elements and text stay. */
+  protected removeWritten(leaf: HTMLElement) {
+    for (const child of Array.from(leaf.children)) {
+      if (!(child as any).__sdId) {
+        child.remove();
+      }
+    }
   }
 
   /** Drop the image layers a target is still showing, exactly as the engine's
@@ -616,6 +673,10 @@ export default class UIManager extends Manager {
    *   (writes with no clear between) keeps it, as the uncomposed page does.
    * - An image write is `same` only when every element shows it, over the
    *   subtree as it is; otherwise it is written, replacing the layers.
+   * - In a connect's pass, the first text write to reach an element that
+   *   shows what earlier writes left (#1813) is decided as though a clear
+   *   of that element came just before it: `same` when it is all the
+   *   element holds, else written in place of what it showed.
    * - An element the beat makes, or makes again, is followed as it is made:
    *   empty, with the text and stroke leaves the beat gives it, and its
    *   writes are decided as any other's.
@@ -752,9 +813,22 @@ export default class UIManager extends Manager {
         }
       }
     };
+    // A connect's pass (#1813): the first text write to reach a target that
+    // shows what earlier writes left replaces it, as a clear before it would.
+    // A pass opened before the beat has the page's own record of them; one
+    // the beat opens, every target written before it.
+    let passOpen = this._passBegun;
+    let passInBeat = false;
+    const passTouched = new Set<HTMLElement>();
+    const stale = (el: HTMLElement) =>
+      !making.has(el) &&
+      (passInBeat ? state(el).txt !== undefined : this._staleTextTargets.has(el));
     for (const op of ops) {
       if (BeginReconcileMessage.type.isNotification(op as NotificationMessage)) {
         cursor.clear();
+        passOpen = true;
+        passInBeat = true;
+        passTouched.clear();
         continue;
       }
       const msg = op as RequestMessage;
@@ -839,6 +913,22 @@ export default class UIManager extends Manager {
       const p = msg.params as WriteParams;
       const els = targets(p);
       const sig = JSON.stringify(p.instructions);
+      if (kind === WriteTextMessage.type && els && passOpen) {
+        const replaced = els.filter((el) => !passTouched.has(el) && stale(el));
+        for (const el of els) {
+          passTouched.add(el);
+        }
+        if (replaced.length > 0 && p.instructions.length > 0) {
+          // Decided as a clear of those elements just before this write.
+          waiting.push({
+            clears: [],
+            kind,
+            target: p.target,
+            els: replaced,
+            at: new Map(replaced.map((el) => [el, { rev: rev(el), held: { ...state(el) } }])),
+          });
+        }
+      }
       // The clears this op settles: those that reach its elements.
       for (const w of [...waiting]) {
         if (w.kind !== kind || !els || !w.els.some((el) => els.includes(el))) {
@@ -1647,17 +1737,33 @@ export default class UIManager extends Manager {
     decision?: WriteDecision,
   ) {
     const targetEls = this.writeTargets(target, elements);
+    // The first write in a connect's pass to reach a target showing what the
+    // previous render's writes left replaces it (#1813).
+    const stale = this._passBegun
+      ? targetEls.filter((el) => this._staleTextTargets.has(el))
+      : [];
+    for (const el of targetEls) {
+      this._staleTextTargets.delete(el);
+    }
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
-    // target already shows exactly this write, leave it untouched. Stored on the
-    // node so it survives the per-edit UIManager swap. In a composed beat the
-    // beat's plan has decided it (#1820).
+    // target already shows exactly this write, leave it untouched; a target
+    // the write replaces, only when this write is all it holds, over the
+    // subtree as it is. Stored on the node so it survives the per-edit
+    // UIManager swap. In a composed beat the beat's plan has decided it
+    // (#1820), by the same rule.
     const sig = JSON.stringify(instructions);
+    const holds = (el: HTMLElement) => {
+      const a = el as any;
+      return (
+        a.__sdTxt === sig &&
+        (!stale.includes(el) ||
+          (JSON.stringify(a.__sdAll) === sig && a.__sdAllRev === (a.__sdRev ?? 0)))
+      );
+    };
     if (
       decision === "same" ||
-      (decision == null &&
-        targetEls.length > 0 &&
-        targetEls.every((el) => (el as any).__sdTxt === sig))
+      (decision == null && targetEls.length > 0 && targetEls.every(holds))
     ) {
       if (instant) {
         // The same write shown at once, as when a beat shown in full repeats
@@ -1670,18 +1776,14 @@ export default class UIManager extends Manager {
       return;
     }
     for (const el of targetEls) {
+      if (decision === "rebuild" || stale.includes(el)) {
+        // Written again from empty: the subtree changed under what it showed,
+        // or what it showed is the previous render's.
+        this.clearWrittenText(el);
+      }
       (el as any).__sdTxt = sig;
       // The subtree it was written over (#1820), as `__sdAllRev`.
       (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
-      if (decision === "rebuild") {
-        // Written again from empty: the subtree changed under what it showed.
-        for (const leaf of [
-          ...this.getContentElements(el, "text"),
-          ...this.getContentElements(el, "stroke"),
-        ]) {
-          leaf.replaceChildren();
-        }
-      }
     }
     const enter: {
       element: HTMLElement;
@@ -1744,12 +1846,10 @@ export default class UIManager extends Manager {
             ? [...held, ...instructions]
             : undefined;
       } else {
-        // Clear text + stroke (the `null`-sequence / clear path).
-        for (const textEl of textEls) {
-          textEl.replaceChildren();
-        }
-        for (const strokeEl of strokeEls) {
-          strokeEl.replaceChildren();
+        // Clear text + stroke (the `null`-sequence / clear path): what writes
+        // left, not what the layout put there (#1813).
+        for (const contentEl of contentEls) {
+          this.removeWritten(contentEl);
         }
         (targetEl as any).__sdAll = [];
         (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;

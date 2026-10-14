@@ -1152,6 +1152,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    * at a time. An animation is answered by the page once it has played,
    * after the beat is on the page. Returns undefined for a message that is
    * not the beat's.
+   *
+   * Each op is kept as it was when sent, as the wire would have carried it
+   * (#1813): an op can hold the module's own state, which the rest of the
+   * beat goes on changing (a restored text target's saved text, which the
+   * beat's next line of it extends in place).
    */
   protected capture(
     c: Composition,
@@ -1164,18 +1169,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ObserveElementMessage.type.isNotification(msg as any) ||
       UnobserveElementMessage.type.isNotification(msg as any)
     ) {
-      c.messages.push(msg);
+      c.messages.push(structuredClone(msg));
       return { result: undefined };
     }
     if (
       WriteTextMessage.type.isRequest(msg as any) ||
       WriteImageMessage.type.isRequest(msg as any)
     ) {
-      c.messages.push(msg);
+      c.messages.push(structuredClone(msg));
       return { result: params.target };
     }
     if (AnimateElementsMessage.type.isRequest(msg as any)) {
-      c.messages.push(msg);
+      c.messages.push(structuredClone(msg));
       c.expected.push((msg as RequestMessage).id);
       return {
         result: this._game.connection.expect(msg as RequestMessage),

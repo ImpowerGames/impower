@@ -312,14 +312,19 @@ describe("a composed beat's dedupe against the live DOM (#1820)", () => {
   test("a target whose leaf the display changes is rewritten, not left as it was", async () => {
     // Round 6, class 1: the layout's text leaf gains content while the same
     // line is previewed. The beat's create puts it in the reused leaf; the
-    // dialogue then holds only its line.
+    // dialogue is then written again over it, and shows what a page opened
+    // on the edited source shows: the layout's own text stays, as it does
+    // for a write, and the line follows it once (#1813).
     const { h } = await showing(LAYOUT("dialogue", "text"), LAYOUT_LINE);
     const text = () => h.overlay.querySelector(".dialogue > .text")?.textContent;
     expect(text()).toBe("Do you understand?");
 
     await h.rerender(LAYOUT("dialogue", 'text "placeholder"'), LAYOUT_LINE);
 
-    expect(text()).toBe("Do you understand?");
+    const fresh = await showing(LAYOUT("dialogue", 'text "placeholder"'), LAYOUT_LINE);
+    const freshText = fresh.h.overlay.querySelector(".dialogue > .text")?.textContent;
+    expect(freshText).toBe("placeholderDo you understand?");
+    expect(text()).toBe(freshText);
   });
 
   test("a style-only change of a reused target leaves its identical text as it is", async () => {
