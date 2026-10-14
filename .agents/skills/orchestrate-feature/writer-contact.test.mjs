@@ -519,6 +519,26 @@ try {
     w.end(owner);
   });
 
+  scenario("after a takeover, a resent answer the writer may already have still tells it the new coordinator", () => {
+    const w = cliWriter("cli-takeover-answer", 386);
+    const { owner } = w.launch();
+    w.f.change((r) => run.acknowledged(r, { ticket: 386, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
+    const { id } = w.f.change((r) => run.request(r, { ticket: 386, text: "Round 3 complete; may I start round 4?", source: "message from the writer" }));
+    // The writer received the first copy and carried on; its outcome was lost.
+    w.f.change((r) => run.answer(r, { ticket: 386, request: id, text: "Round 4 is authorized." }));
+    const t = takeOver(w);
+    assert.equal(t.plan(386).action, "answer-request");
+    const lines = t.change((r) => run.answer(r, { ticket: 386, request: id, retry: true })).message.trimEnd().split("\n");
+    const ignore = lines.findIndex((l) => /ignore this copy/.test(l));
+    const contactAt = lines.findIndex((l) => l.startsWith(`Your coordinator is now session ${NEXT} `));
+    assert.ok(ignore >= 0 && contactAt > ignore, "the new coordinator comes after the duplicate instruction");
+    assert.match(lines[contactAt], /holds even if you set the rest of this message aside as a copy you already have/);
+    t.change((r) => run.answered(r, { ticket: 386, request: id, evidence: "sent" }));
+    assert.equal(run.readRecord(t.file).tickets[386].owner.coordinator, NEXT);
+    assert.equal(t.plan(386).action, "observe");
+    w.end(owner);
+  });
+
   scenario("after a takeover, an acknowledged writer gets a contact notice naming the new coordinator before anything else", () => {
     const w = cliWriter("cli-takeover-contact", 374);
     const { owner } = w.launch();

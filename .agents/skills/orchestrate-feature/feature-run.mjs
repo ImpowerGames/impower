@@ -1189,6 +1189,12 @@ export function relay(record, { ticket: number, request: id, to }) {
   r.relayed = { time: new Date().toISOString(), to };
   log(record, "relayed", { ticket: number, id, to });
 }
+// Tells a writer where its reports now go. It rides on messages a writer may
+// set aside as copies it already has (an answer resend, a resume carrying
+// one), so it says it holds either way, and it comes last, after any such
+// instruction.
+const contactLine = (to, host) => `Your coordinator is now session ${to} on ${host}; send every further report, blocker and question there. This holds even if you set the rest of this message aside as a copy you already have.`;
+
 // Prints the message to send: the request and delivery ids let the writer
 // recognize a second copy.
 export function answer(record, { ticket: number, request: id, text, retry = false }) {
@@ -1202,9 +1208,10 @@ export function answer(record, { ticket: number, request: id, text, retry = fals
   r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString(), to };
   log(record, "answer-intent", { ticket: number, id, deliveryId: r.answer.deliveryId, attempt: r.answer.attempts });
   // An answer from a coordinator that took over also names where the
-  // writer's next messages belong.
-  const moved = owner?.coordinator && owner.coordinator !== to ? `\nYour coordinator is now session ${to} on ${record.coordinator.host}; send every further report, blocker and question there.` : "";
-  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}${moved}\nIf you already received an answer to request ${id}, ignore this copy.` };
+  // writer's next messages belong, in a line the duplicate instruction does
+  // not cover, so recording the answer delivered also records the contact.
+  const moved = owner?.coordinator && owner.coordinator !== to ? `\n${contactLine(to, record.coordinator.host)}` : "";
+  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.${moved}` };
 }
 export function answered(record, { ticket: number, request: id, evidence }) {
   const r = findRequest(record, number, id);
@@ -1496,7 +1503,7 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     // A writer briefed by an earlier coordinator learns this one's id with the
     // resume, so its next messages go here.
     const moved = owner.coordinator && owner.coordinator !== r.coordinator.session ? r.coordinator.session : null;
-    owner.resuming = { id, launchDir, time: new Date().toISOString(), ...(moved && { contactTo: moved, contactNote: `Your coordinator is now session ${moved} on ${r.coordinator.host}; send every further report, blocker and question there.` }) };
+    owner.resuming = { id, launchDir, time: new Date().toISOString(), ...(moved && { contactTo: moved, contactNote: contactLine(moved, r.coordinator.host) }) };
     log(r, "resume-intent", { ticket: number, id, sessionId });
   });
   const { id, launchDir, contactNote } = intent.record.tickets[number].owner.resuming;
