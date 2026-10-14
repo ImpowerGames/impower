@@ -195,6 +195,10 @@ end
 `mask` element carrying class `shadow_1`. `image "black"` is an `image` whose source is
 `black`.
 
+Literal text inside a target that beats write to (`dialogue { text "Says:" }`) is a
+placeholder: it shows until the first write reaches the target and is replaced by it, so a
+fixed prefix belongs in a sibling element outside the written target.
+
 > **[DIVERGES — D2] Content delimiter.** The wired struct grammar writes element content as
 > `image = "black"` (a `key = value` property). The (dead) element grammar and the docs use
 > adjacency: `image "black"`. **Recommend adjacency** (`tag "content"`) — it reads better,
