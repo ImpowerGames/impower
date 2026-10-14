@@ -522,14 +522,17 @@ function watch(game: any, refuse: boolean) {
     seen.connects += 1;
     return connect(send);
   };
-  const redisplay = game.redisplay.bind(game);
-  game.redisplay = (send: unknown) => {
-    seen.redisplays += 1;
-    return redisplay(send);
-  };
-  const refusal = game.beatOnlyRefusal.bind(game);
-  game.beatOnlyRefusal = (cursor: unknown) =>
-    refuse ? "refused" : refusal(cursor);
+  // A game with no redisplay connects every display.
+  if (game.redisplay && game.beatOnlyRefusal) {
+    const redisplay = game.redisplay.bind(game);
+    game.redisplay = (send: unknown) => {
+      seen.redisplays += 1;
+      return redisplay(send);
+    };
+    const refusal = game.beatOnlyRefusal.bind(game);
+    game.beatOnlyRefusal = (cursor: unknown) =>
+      refuse ? "refused" : refusal(cursor);
+  }
   return {
     seen,
     reset() {
@@ -568,7 +571,7 @@ async function player(text: string, line: number, refuse = false) {
     game,
     watched,
     /** How the worker's last display went. */
-    lastPath: () => h.workerState.player.lastDisplayPath(),
+    lastPath: () => (h.workerState.player as any).lastDisplayPath?.(),
     /** Edit the script, replacing `find` (the first after `after`), and
      *  compile, as typing does. */
     async edit(find: string, replace: string, after?: string) {
