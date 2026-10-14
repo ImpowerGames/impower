@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1775
 
-Checkpoint 3 (this commit), 2026-10-14T03:20:28.719Z, after a new plan. Coordinator c2d3cf90-22d1-4084-9c43-e32dd7e64ced on MSI.
+Checkpoint 4 (this commit), 2026-10-14T04:00:39.715Z, after a new plan. Coordinator c2d3cf90-22d1-4084-9c43-e32dd7e64ced on MSI.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 

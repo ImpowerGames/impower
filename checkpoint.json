@@ -2,10 +2,10 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 3,
-  "previous": "c7cb0544afe7077c59a188fd9a5ec0e36fd397b3",
+  "seq": 4,
+  "previous": "7a1f569a49585d2a04d54cb96c8d07bf93d42c5b",
   "snapshotParents": [],
-  "time": "2026-10-14T03:20:28.719Z",
+  "time": "2026-10-14T04:00:39.715Z",
   "kind": "auto",
   "transition": "a new plan",
   "run": {
@@ -52,37 +52,37 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-14T03:20:28.717Z",
+    "at": "2026-10-14T04:00:39.713Z",
     "tickets": [
       {
         "number": 1776,
         "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1776-orchestrate-feature-dispatch remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1777,
         "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1777-feature-run-checkpoints remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1778,
         "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1778-review-checkpoint-decisions remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1779,
         "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1779-coordinator-merge-acceptance remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1814,
-        "action": "wait-capacity",
+        "action": "adopt-worktree",
         "pr": null,
-        "reason": "4 writers already hold tickets against a limit of 3"
+        "reason": "worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1814-coordinator-message-checkin already holds this ticket's work; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue"
       }
     ],
     "remaining": [
