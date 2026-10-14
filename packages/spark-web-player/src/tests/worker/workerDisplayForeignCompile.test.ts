@@ -5,6 +5,7 @@
 // over: the display answered that it showed nothing, and nothing asked for the
 // beat again, so the preview stayed black for good (#1874).
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
+import { UpdateCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { describe, expect, it } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { programIdentity } from "../../utils/programIdentity";
@@ -122,6 +123,71 @@ describe("a compile of a script the story does not include", () => {
       expect(h.controller._program).toBe(compiled.program);
       expect(h.overlay.textContent).toContain("The beat, edited.");
       expect(h.controller.getGameState().position).toEqual({ uri: MAIN_URI, line: FIRST });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("is shown when it is the first program and the page takes it", async () => {
+    // The author's selection set the page's point in the story before any
+    // program arrived; one they did not make then moved the point the
+    // workspace compiles toward. No compile has given the worker's game a
+    // program when the page asks for this one.
+    const h = await createPlayerHarness({
+      files: [
+        { uri: MAIN_URI, text: SOURCE },
+        { uri: LOOSE_URI, text: LOOSE },
+      ],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    try {
+      h.controller._options = { startFrom: { file: MAIN_URI, line: FIRST } };
+      const compiled = await h.page.sendRequest(CompileProgramMessage.type, {
+        textDocument: { uri: MAIN_URI },
+        startFrom: { file: LOOSE_URI, line: 2 },
+      });
+      await h.controller.loadProgram(compiled.program);
+      await settle(40);
+
+      expect(h.overlay.textContent).toContain("The beat with nothing to wait for.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("is let go, however many the page does not take", async () => {
+    // Replacing a file recompiles the document compiled last, which after a
+    // cold start can be a script the story does not include; each of those
+    // programs is a new one, and the page takes none of them.
+    const h = await createPlayerHarness({
+      files: [
+        { uri: MAIN_URI, text: SOURCE },
+        { uri: LOOSE_URI, text: LOOSE },
+      ],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    try {
+      await h.compile();
+      const ids: string[] = [];
+      for (let version = 2; version <= 7; version++) {
+        await h.page.sendRequest(UpdateCompilerDocumentMessage.type, {
+          textDocument: { uri: LOOSE_URI, version },
+          contentChanges: [{ text: LOOSE.replace("include.", `include, take ${version}.`) }],
+        } as any);
+        const loose = await h.page.sendRequest(CompileProgramMessage.type, {
+          textDocument: { uri: LOOSE_URI },
+          startFrom: { file: MAIN_URI, line: FIRST },
+        });
+        await h.controller.loadProgram(loose.program);
+        ids.push(programIdentity(loose.program)!);
+      }
+      await settle(40);
+
+      expect(new Set(ids).size).toBe(6);
+      const kept = h.workerState.player.keptPrograms();
+      expect(ids.filter((id) => kept.includes(id))).toEqual(ids.slice(-2));
+      // The page's preview is untouched.
+      expect(h.overlay.textContent).toContain("The beat with nothing to wait for.");
     } finally {
       h.dispose();
     }
