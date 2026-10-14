@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 7,
-  "previous": "0dfc8e47f091ee9d6469cec446525eeff275fad5",
+  "seq": 8,
+  "previous": "987370be26a97263d0076c520fd7d040ed60cebe",
   "snapshotParents": [],
-  "time": "2026-10-14T10:45:44.600Z",
+  "time": "2026-10-14T10:45:52.055Z",
   "kind": "auto",
-  "transition": "check-in",
+  "transition": "group",
   "run": {
     "runId": "71e80032-0437-4e45-a74d-5262a900b96b",
-    "recordRevision": 4,
+    "recordRevision": 5,
     "source": {
       "host": "MSI",
       "checkout": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower"
@@ -53,7 +53,11 @@
     "since": "2026-10-14T10:45:43.535Z",
     "expires": null
   },
-  "group": null,
+  "group": {
+    "name": "Orchestrate #1775",
+    "id": null,
+    "none": "a headless claude -p session is not in the desktop app's session list, so it cannot be filed into the Orchestrate #1775 group"
+  },
   "title": null,
   "tickets": {},
   "operations": [],
@@ -347,6 +351,12 @@
       "event": "check-in-scheduled",
       "job": null,
       "none": "this coordinator is a detached claude -p acceptance-verification session whose process exits when its turn ends, so a session-scoped recurring job would never fire; it has no writers to check on and finishes the Feature's closure within this turn"
+    },
+    {
+      "time": "2026-10-14T10:45:50.980Z",
+      "event": "group",
+      "id": null,
+      "none": "a headless claude -p session is not in the desktop app's session list, so it cannot be filed into the Orchestrate #1775 group"
     }
   ]
 }
