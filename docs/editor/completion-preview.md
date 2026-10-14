@@ -131,6 +131,11 @@ Measured on 2026-09-24 on the Raffles & Bunny project (main script 8,254 lines, 
 | Sent to the page | 193 messages, 233 KB |
 | Long tasks on the player's main thread | none |
 
+Re-measured on 2026-10-14 at line 3514 (`raffles_inquisitive`) after the beat-only display (#657), base `0f97fcb2f` against the change in alternating rounds:
+- Every highlighted suggestion after the first is beat-only.
+- In the worker, the display takes about 13 ms (load 7.9, redisplay 1.9, preview 3.4) against 18 ms, and sends 7 messages, 23.8 KB, against 20 messages and 246 KB.
+- `player/displayPreview` takes 19.7 ms against 32.6 ms with the portrait resident, and 42.1 ms against 45.9 ms when it is loaded on the way.
+
 The page receives only the display's messages; no program, checkpoint or path locations cross. The largest remaining costs are the compiler's incremental parse and runtime export and the route replay, both shared with ordinary edits.
 
 No worker, game or application is created for a suggestion: the worker's game and the page's application are the ones the ordinary preview uses.
