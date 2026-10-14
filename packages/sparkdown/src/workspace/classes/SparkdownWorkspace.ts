@@ -1352,6 +1352,13 @@ export abstract class SparkdownWorkspace {
     return this._documentSelected;
   }
 
+  /** Whether a selection moves the point compiles route to
+   *  (`compileStartFrom`). Every selection does here; a host whose preview
+   *  follows only some of them narrows it. */
+  protected movesCompilePoint(_params: { userEvent?: boolean }): boolean {
+    return true;
+  }
+
   program(uri: string) {
     return this.getProgramState(uri).program;
   }
@@ -1429,10 +1436,12 @@ export abstract class SparkdownWorkspace {
     userEvent?: boolean;
   }) {
     const { textDocument, selectedRange } = params;
-    this._documentSelected = {
-      file: textDocument.uri,
-      line: selectedRange.start.line,
-    };
+    if (this.movesCompilePoint(params)) {
+      this._documentSelected = {
+        file: textDocument.uri,
+        line: selectedRange.start.line,
+      };
+    }
     await this.compilerReady();
     let result: SelectCompilerDocumentResult;
     try {
