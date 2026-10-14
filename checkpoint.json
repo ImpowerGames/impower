@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 5,
-  "previous": "e0f8ae2f7c3902e3bea9ff5aa4884765da1e17ec",
+  "seq": 6,
+  "previous": "e83b8437015b62fa0081862b82891efed24e9d81",
   "snapshotParents": [],
-  "time": "2026-10-14T04:16:10.602Z",
+  "time": "2026-10-14T10:45:25.285Z",
   "kind": "auto",
-  "transition": "feature verification bd024e56 (incomplete)",
+  "transition": "a new plan",
   "run": {
     "runId": "71e80032-0437-4e45-a74d-5262a900b96b",
     "recordRevision": 3,
@@ -43,6 +43,8 @@
     "basis": "the smaller of 3 (reviewer slots) and 3 by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer"
   },
   "checkIn": null,
+  "group": null,
+  "title": null,
   "tickets": {},
   "operations": [],
   "decisions": [],
@@ -270,7 +272,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-14T04:00:39.713Z",
+    "at": "2026-10-14T10:45:25.284Z",
     "tickets": [
       {
         "number": 1776,
@@ -298,9 +300,9 @@
       },
       {
         "number": 1814,
-        "action": "adopt-worktree",
+        "action": "done",
         "pr": null,
-        "reason": "worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1814-coordinator-message-checkin already holds this ticket's work; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue"
+        "reason": "closed with its merged deliverable on origin/main; its worktree C:/Users/Lovelle/Documents/GitHub/impower.worktrees/feat/1814-coordinator-message-checkin remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses"
       }
     ],
     "remaining": [
