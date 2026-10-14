@@ -673,12 +673,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  to the page (#657). */
   protected _standing?: StandingScreen;
 
-  /** Every message the module has sent the page, or composed for it. */
+  /** Every message the module has sent the page, or composed for it, and
+   *  every event from the page that reached a handler. */
   protected _uiOps = 0;
 
   /** `_uiOps` when the standing screen went to the page: a message sent
-   *  since (a binding a click updated, a write) changed the screen it
-   *  records. */
+   *  or an event handled since (a click, a binding it updated, an input's
+   *  value) changed the screen it records. */
   protected _standingOps?: number;
 
   constructor(game: Game) {
@@ -5571,6 +5572,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (params.currentTargetId) {
         const callback = this._events[params.type]?.[params.currentTargetId];
         if (callback) {
+          // What the viewer did may have changed the page by itself (an
+          // input's value), whether or not the handler sends anything.
+          this._uiOps += 1;
           callback(params);
         }
       }

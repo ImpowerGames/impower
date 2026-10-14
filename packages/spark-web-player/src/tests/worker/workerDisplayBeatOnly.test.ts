@@ -510,6 +510,28 @@ const BADGED_BEFORE = BADGED.replace(
 );
 const SPEAKS = lineIn(BADGED_BEFORE, "HERO: Spoken.");
 
+/** An input whose handler writes nothing: what the viewer types changes
+ *  the page, and the worker sends nothing back. */
+const TYPED = `store name = "Zelda"
+
+layout main with
+  input #value={name} @input={ }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: Spoken.
+end
+`;
+const TYPES = lineIn(TYPED, "HERO: Spoken.");
+
 /** What the badge of `BADGED` shows. */
 const badge = (p: { h: { overlay: HTMLElement } }) =>
   (p.h.overlay.querySelector(".badge")?.textContent ?? "").trim();
@@ -1281,6 +1303,20 @@ describe("a display that connects in full", () => {
     expect(badgeText(a.edited)).toEqual(badgeText(full.edited));
     expect(a.edited.badge).toBe(full.edited.badge);
     expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
+  it("(h) connects in full when the page sent an event since the display went up, though nothing was sent back", async () => {
+    const p = await player(TYPED, TYPES);
+    after(p);
+    const input = p.h.overlay.querySelector<HTMLInputElement>("input");
+    expect(input).toBeTruthy();
+    const win = p.h.overlay.ownerDocument.defaultView as any;
+    input!.value = "Link";
+    input!.dispatchEvent(new win.Event("input", { bubbles: true }));
+    await settle(40);
+    expect(after(p).sent).toEqual([]);
+    await p.edit("Spoken.", "Edited.");
+    expectFull(after(p), "screen");
   }, 120_000);
 
   it("(c) connects in full when the cursor moves to another beat", async () => {
