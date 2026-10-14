@@ -5,6 +5,8 @@ export type UnobserveElementMethod = typeof UnobserveElementMessage.method;
 export interface UnobserveElementParams {
   element: string;
   event: string;
+  /** As `DestroyElementParams.retired`. */
+  retired?: boolean;
 }
 
 // A NOTIFICATION (not a request) — see ObserveElementMessage: the consumer just

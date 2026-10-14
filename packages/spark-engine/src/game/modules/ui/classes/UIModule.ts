@@ -1,5 +1,6 @@
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { ErrorType } from "../../../core/enums/ErrorType";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
@@ -33,6 +34,7 @@ import {
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
+import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
 import type { Event } from "../../../core/types/Event";
 import type { EventMap } from "../../../core/types/EventMap";
@@ -66,6 +68,10 @@ import {
   BatchElementsMessage,
   type BatchElementsMessageMap,
 } from "./messages/BatchElementsMessage";
+import {
+  BeatMessage,
+  type BeatMessageMap,
+} from "./messages/BeatMessage";
 import {
   BeginReconcileMessage,
   type BeginReconcileMessageMap,
@@ -111,6 +117,37 @@ import {
   WriteTextMessage,
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
+
+/** A layout a composed close took out of the mounted set, whose element
+ *  stays on the page while its exit plays (#1820). */
+interface Retirement {
+  element: Element;
+  /** The stream it was closed in. */
+  epoch: number;
+  /** The pin holding its fonts until it has gone. */
+  pin?: string;
+}
+
+/** What a display or a played beat changes on the screen, gathered for one
+ *  `ui/beat` (#1820). */
+interface Composition {
+  /** A preview's display, from its connect to its sweep, or a played beat. */
+  kind: "display" | "beat";
+  /** What the beat sends the page, in order. */
+  messages: IMessage[];
+  /** Work it started whose screen changes belong in it: the layouts it
+   *  opens, closes or navigates. */
+  realizing: { done: boolean }[];
+  /** Work to run once the beat has gone to the page, or been dropped. */
+  afterSent: (() => void)[];
+  /** The ids of the animations it carries, which the page answers once
+   *  they have played. */
+  expected: (string | number)[];
+  /** The beat is being sent once what it realizes is in. */
+  ending?: boolean;
+  time?: number;
+  sweep?: boolean;
+}
 
 export interface UIState {
   text?: Record<string, TextState[]>;
@@ -479,6 +516,7 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &
+  BeatMessageMap &
   BeginReconcileMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
@@ -502,6 +540,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   // AWAITED op so create-before-use ordering holds). See enqueueUI/flushUIBatch.
   protected _uiBatch: IMessage[] = [];
   protected _uiBatchScheduled = false;
+
+  /** The display or played beat whose screen changes are being composed into
+   *  one `ui/beat` (#1820), while there is one. */
+  protected _compose?: Composition;
+
+  /** The composition each mount waiting on its fonts belongs to. A played
+   *  beat that ends before its mount is made hands it to the next. */
+  protected _mountOwners = new Map<Promise<void>, Composition>();
+
+  /** The opens of each layout waiting on its fonts, so a close in the
+   *  meantime can call them off. */
+  protected _pendingOpens = new Map<string, Set<{ cancelled: boolean }>>();
+
+  /** The layouts retiring on the page (#1820). */
+  protected _retiring = new Set<Retirement>();
+
+  /** Settles at the next change of what a composing beat waits on: a
+   *  mount waiting on fonts, an animation playing, work it counts, for
+   *  {@link realized}. */
+  protected _realizationChange?: { promise: Promise<void>; resolve: () => void };
 
   protected _events: Partial<
     Record<string, Record<string, (event: Event) => void>>
@@ -649,6 +707,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  still shows that the stream did not emit again. Sent once the stream's
    *  last write has gone out, after every op still buffered. */
   sweepReconcile() {
+    if (this._compose) {
+      // The display was composed: the page puts it up whole, and sweeps
+      // with it (#1820).
+      void this.endCompose({ sweep: true });
+      return;
+    }
     this.flushUIBatch();
     this.emit(SweepReconcileMessage.type.notification({}));
   }
@@ -657,8 +721,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // The connect re-emits the whole screen, so the page reconciles it
     // against what it already shows: every node becomes a candidate to reuse
     // or sweep. Ahead of the root's create, in the connect's own stream.
+    //
+    // A preview's display is composed from here to its sweep (#1820), and
+    // what an earlier display composed but never sent is dropped: this
+    // connect rebuilds the screen from its own state.
+    this.discardCompose();
+    const previewing = this.context?.system?.previewing;
+    if (previewing != null && previewing !== false) {
+      this.beginCompose("display");
+    }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({}));
+    // A layout still retiring belongs to the screen this connect replaces,
+    // and goes with it, before the rebuild mints its ids again (#1820).
+    for (const r of [...this._retiring]) {
+      this._retiring.delete(r);
+      this.destroyElement(r.element);
+      if (r.pin) {
+        this._game.module.assets?.releaseRetiredLayout(r.pin);
+      }
+    }
     const epoch = this._game.connection.epoch;
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
@@ -832,6 +914,276 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.emit(BatchElementsMessage.type.notification({ messages }));
   }
 
+  /**
+   * Start composing (#1820): until {@link endCompose}, what the module would
+   * send the page to change the screen is gathered instead, in the order it
+   * is sent, and the page gets it all in one `ui/beat`. A preview's display
+   * (`"display"`) composes from its connect to its sweep; a played beat
+   * (`"beat"`) from its first write to the end of what it realizes. Returns
+   * whether this call started a composition: a beat a preview displays is
+   * part of the preview's own.
+   *
+   * A played beat still waiting on what it realizes (a layout's font) when
+   * the next one starts goes to the page as it is, and hands what it still
+   * waits on to the next beat, which waits for it and carries what it puts
+   * on the screen.
+   *
+   * Only a host that asks for it composes (`composeBeats`). A route replay
+   * and a simulation show nothing, so they compose nothing.
+   */
+  beginCompose(kind: "display" | "beat" = "beat"): boolean {
+    if (
+      !this.context?.system?.composeBeats ||
+      this._game.replaying ||
+      this.context?.system?.simulating
+    ) {
+      return false;
+    }
+    const open = this._compose;
+    if (open && (open.kind === "display" || !open.ending)) {
+      return false;
+    }
+    this.flushUIBatch();
+    const next: Composition = {
+      kind,
+      messages: [],
+      realizing: [],
+      afterSent: [],
+      expected: [],
+    };
+    if (open) {
+      // The open beat goes as it is; what it still realizes is the next's.
+      next.realizing.push(...open.realizing.filter((e) => !e.done));
+      for (const [mount, owner] of this._mountOwners) {
+        if (owner === open) {
+          this._mountOwners.set(mount, next);
+        }
+      }
+      this.sendCompose(open);
+    }
+    this._compose = next;
+    return true;
+  }
+
+  /** Count `work` as part of the beat being composed: the beat is sent once
+   *  what it puts on the screen is in. */
+  composeWait(work: Promise<unknown>): void {
+    // What fails is reported, composed or not, and the beat goes on.
+    const settled = work.then(
+      () => undefined,
+      (e) => this.reportRuntimeError("Could not change the screen for this beat", e),
+    );
+    const c = this._compose;
+    if (!c) {
+      return;
+    }
+    const entry = { done: false };
+    c.realizing.push(entry);
+    void settled.finally(() => {
+      entry.done = true;
+      this.notifyRealization();
+    });
+  }
+
+  /** Run `work` once the beat being composed has gone to the page, or been
+   *  dropped; at once when nothing is being composed. What a beat's writes
+   *  need on the page (the pictures its pins keep resident) is let go only
+   *  then. */
+  afterCompose(work: () => void): void {
+    const c = this._compose;
+    if (c) {
+      c.afterSent.push(work);
+    } else {
+      work();
+    }
+  }
+
+  /** Send the beat being composed, once what it realizes is in: the layouts
+   *  it opens mounted, their fonts loaded. A connect that begins meanwhile
+   *  drops it, and the page never sees any of it. */
+  async endCompose(options: { time?: number; sweep?: boolean } = {}) {
+    const c = this._compose;
+    if (!c || c.ending) {
+      return;
+    }
+    c.ending = true;
+    c.time = options.time;
+    c.sweep = options.sweep;
+    await this.realized(c);
+    if (this._compose !== c) {
+      return;
+    }
+    this.sendCompose(c);
+  }
+
+  protected sendCompose(c: Composition) {
+    if (this._compose === c) {
+      // What is still buffered belongs to the beat.
+      this.flushUIBatch();
+      this._compose = undefined;
+    }
+    void super.emit(
+      BeatMessage.type.notification({
+        messages: c.messages,
+        ...(c.time != null ? { time: c.time } : {}),
+        ...(c.sweep ? { sweep: true } : {}),
+      }),
+    );
+    this.runAfterSent(c);
+  }
+
+  /** Drop the beat being composed: a newer connect rebuilds the screen.
+   *  The animations it carries will never play, and what waits on them is
+   *  let go as the page lets go of a superseded stream's requests. */
+  protected discardCompose() {
+    const c = this._compose;
+    if (c) {
+      // What is still buffered was the beat's.
+      this._compose = undefined;
+      this._uiBatch = [];
+      for (const id of c.expected.splice(0)) {
+        this._game.connection.cancel(id, {
+          code: SUPERSEDED,
+          message: "the beat that carried it was dropped",
+        });
+      }
+      for (const [mount, owner] of this._mountOwners) {
+        if (owner === c) {
+          this._mountOwners.delete(mount);
+        }
+      }
+      this.runAfterSent(c);
+    }
+  }
+
+  protected runAfterSent(c: Composition) {
+    const work = c.afterSent.splice(0);
+    for (const w of work) {
+      w();
+    }
+  }
+
+  /** Whether a mount `c` owns is still waiting on its fonts. */
+  protected mountsWaiting(c: Composition): boolean {
+    for (const owner of this._mountOwners.values()) {
+      if (owner === c) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Settles once what the beat started has put its screen changes in: every
+   * piece of work counted for it has settled, and none of the mounts it owns
+   * is waiting on fonts. A layout's transition does not hold it: a composed
+   * open or close starts its animation and goes on, and the animation plays
+   * once the beat is on the page. It wakes on each change of that state,
+   * never in a spin.
+   */
+  protected async realized(c: Composition): Promise<void> {
+    for (;;) {
+      if (this._compose !== c) {
+        return;
+      }
+      if (!c.realizing.some((e) => !e.done) && !this.mountsWaiting(c)) {
+        // Work the settled work started may still be on its way; a turn of
+        // microtasks lets it register before the beat goes.
+        await Promise.resolve();
+        if (!c.realizing.some((e) => !e.done) && !this.mountsWaiting(c)) {
+          return;
+        }
+        continue;
+      }
+      await this.realizationChanged();
+    }
+  }
+
+  /** Settles at the next change of what a composing beat waits on. */
+  protected realizationChanged(): Promise<void> {
+    if (!this._realizationChange) {
+      let resolve!: () => void;
+      const promise = new Promise<void>((r) => {
+        resolve = r;
+      });
+      this._realizationChange = { promise, resolve };
+    }
+    return this._realizationChange.promise;
+  }
+
+  protected notifyRealization() {
+    const change = this._realizationChange;
+    this._realizationChange = undefined;
+    change?.resolve();
+  }
+
+  override async emit<M extends string, P, R>(
+    msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
+    transfer?: ArrayBuffer[],
+  ): Promise<R> {
+    const c = this._compose;
+    if (c) {
+      const captured = this.capture(c, msg);
+      if (captured) {
+        return (await captured.result) as R;
+      }
+    }
+    return super.emit(msg, transfer);
+  }
+
+  override async emitSettled<M extends string, P, R>(
+    msg: RequestMessage<M, P, R>,
+    transfer?: ArrayBuffer[],
+  ): Promise<R | undefined> {
+    const c = this._compose;
+    if (c) {
+      const captured = this.capture(c, msg);
+      if (captured) {
+        return this.settled(msg.method, Promise.resolve(captured.result as R));
+      }
+    }
+    return super.emitSettled(msg, transfer);
+  }
+
+  /**
+   * Gather `msg` into the beat being composed, in its place, with the
+   * answer the page would give it. The beat's ops keep the order they were
+   * sent in, writes included, so the page applies them as it would have one
+   * at a time. An animation is answered by the page once it has played,
+   * after the beat is on the page. Returns undefined for a message that is
+   * not the beat's.
+   */
+  protected capture(
+    c: Composition,
+    msg: IMessage,
+  ): { result: unknown } | undefined {
+    const params = (msg as { params?: any }).params;
+    if (
+      BatchElementsMessage.type.isNotification(msg as any) ||
+      BeginReconcileMessage.type.isNotification(msg as any) ||
+      ObserveElementMessage.type.isNotification(msg as any) ||
+      UnobserveElementMessage.type.isNotification(msg as any)
+    ) {
+      c.messages.push(msg);
+      return { result: undefined };
+    }
+    if (
+      WriteTextMessage.type.isRequest(msg as any) ||
+      WriteImageMessage.type.isRequest(msg as any)
+    ) {
+      c.messages.push(msg);
+      return { result: params.target };
+    }
+    if (AnimateElementsMessage.type.isRequest(msg as any)) {
+      c.messages.push(msg);
+      c.expected.push((msg as RequestMessage).id);
+      return {
+        result: this._game.connection.expect(msg as RequestMessage),
+      };
+    }
+    return undefined;
+  }
+
   protected createElement(
     parent: Element | null,
     state?: ElementState,
@@ -892,7 +1244,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  protected destroyElement(element: Element) {
+  protected destroyElement(element: Element, retired = false) {
     const isRootElement = !element.parent;
     if (isRootElement) {
       this._root = undefined;
@@ -917,6 +1269,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           UnobserveElementMessage.type.notification({
             element: element.id,
             event,
+            ...(retired ? { retired } : {}),
           }),
         );
       }
@@ -925,6 +1278,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.enqueueUI(
       DestroyElementMessage.type.request({
         element: element.id,
+        ...(retired ? { retired } : {}),
       }),
     );
   }
@@ -3342,7 +3696,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  clauses, plays the resolved enter transition on the layout root; a bare
    *  `[[open X]]` (or `instant`) just mounts + shows. The layout root is revealed
    *  through the normal `reveal()` flow (root opacity). Returns once the enter
-   *  transition has settled, so a `wait` directive can block story advance. */
+   *  transition has settled, so a `wait` directive can block story advance;
+   *  in a composed beat (#1820), once the layout is mounted: its transition
+   *  starts after the beat's commit, and nothing waits for it. */
   async openLayout(
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
@@ -3391,36 +3747,99 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // resident. The mount check repeats after a wait because another open of
     // the same layout may have landed meanwhile, and the loading layout stays
     // unmounted when the load it was opened for ended during the wait.
+    //
+    // While it waits, the mount is recorded with the beat being composed
+    // (`_mountOwners`), so that beat, or the next one it hands the mount to,
+    // waits for it and puts the layout up with the rest (#1820). A connect
+    // that begins meanwhile rebuilds the screen from its own state, and this
+    // mount, belonging to the stream it superseded, is not made; nor is one a
+    // `[[close]]` of the layout called off while it waited.
     const fonts = this._game.module.assets?.prepareLayout(name);
+    let mounted: (() => void) | undefined;
     if (fonts) {
-      await fonts;
-      if (this._mountedLayouts.has(name)) {
-        return;
+      const epoch = this._game.connection.epoch;
+      const pendingOpen = { cancelled: false };
+      const opens = this._pendingOpens.get(name) ?? new Set();
+      opens.add(pendingOpen);
+      this._pendingOpens.set(name, opens);
+      const mount = new Promise<void>((resolve) => {
+        mounted = () => {
+          this._mountOwners.delete(mount);
+          opens.delete(pendingOpen);
+          if (opens.size === 0 && this._pendingOpens.get(name) === opens) {
+            this._pendingOpens.delete(name);
+          }
+          this.notifyRealization();
+          resolve();
+        };
+      });
+      if (this._compose) {
+        this._mountOwners.set(mount, this._compose);
       }
-      if (name === "loading" && !this._loading) {
+      this.notifyRealization();
+      try {
+        await fonts;
+      } catch (error) {
+        mounted?.();
+        throw error;
+      }
+      if (
+        pendingOpen.cancelled ||
+        this.superseded(epoch) ||
+        this._mountedLayouts.has(name) ||
+        (name === "loading" && !this._loading)
+      ) {
+        mounted?.();
+        // An open the story called off holds the layout's fonts for nothing
+        // once no instance of the layout is mounted and no other open of it
+        // waits (#1820).
+        if (
+          pendingOpen.cancelled &&
+          !this._mountedLayouts.has(name) &&
+          !this._pendingOpens.get(name)?.size
+        ) {
+          this._game.module.assets?.releaseLayout(name);
+        }
         return;
       }
     }
-    const vs = this._game.story.variablesState;
-    const pending = vs.takeReactiveChanges();
-    const element = this.constructLayoutFromAst(layout);
-    vs.takeReactiveChanges();
-    vs.restoreReactiveChanges(pending);
-    this.notifyMounted(name);
-    // The layouts layer's root opacity is revealed on the first beat anyway, but
-    // open it here too so a layout opened before any dialogue is visible.
-    this.reveal();
+    let element: Element;
+    try {
+      const vs = this._game.story.variablesState;
+      const pending = vs.takeReactiveChanges();
+      element = this.constructLayoutFromAst(layout);
+      vs.takeReactiveChanges();
+      vs.restoreReactiveChanges(pending);
+      this.notifyMounted(name);
+      // The layouts layer's root opacity is revealed on the first beat
+      // anyway, but open it here too so a layout opened before any dialogue
+      // is visible.
+      this.reveal();
+    } finally {
+      mounted?.();
+    }
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
-      await this.animateElements([{ element, animations: [enter] }]);
+      const entering = this.animateElements([{ element, animations: [enter] }]);
+      if (this._compose) {
+        // The maintainer's decision (#1820): a composed beat covers mounts
+        // and content, and the enter transition starts after the commit, at
+        // the reveal instant. The beat does not wait for it.
+        void entering;
+        return;
+      }
+      await entering;
     }
   }
 
   /** Play the exit transition then DESTROY a layout (`[[close X]]`): tears down
    *  its whole DOM subtree (one `ui/destroy` on the root removes the children)
-   *  and drops its reactive scope so refreshLayouts no longer touches it. No-op
-   *  if not mounted. A bare `[[close X]]` (or `instant`) destroys immediately.
-   *  Returns once the exit transition has settled, so `wait` can block advance. */
+   *  and drops its reactive scope so refreshLayouts no longer touches it. A
+   *  bare `[[close X]]` (or `instant`) destroys immediately. Every open of the
+   *  layout still waiting on its fonts is called off. Returns once the exit
+   *  transition has settled, so `wait` can block advance; in a composed beat
+   *  (#1820), at once: the layout retires, and goes once its exit has played
+   *  after the beat's commit. */
   async closeLayout(
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
@@ -3431,11 +3850,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.hideLayout(name);
       return;
     }
+    // Every open of the layout still waiting on its fonts is called off: the
+    // story has closed the layout since (#1820).
+    const opens = name ? this._pendingOpens.get(name) : undefined;
+    for (const open of opens ?? []) {
+      open.cancelled = true;
+    }
     const entry = name ? this._mountedLayouts.get(name) : undefined;
     if (!entry) {
       return;
     }
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
+    if (exit && !instant && this._compose) {
+      // The maintainer's decision (#1820): a composed beat covers mounts and
+      // content. The layout leaves the mounted set at the commit, so a reopen
+      // in the same beat mounts a fresh element; structural ids are not
+      // reused within a connect, so that element's id is its own (a connect
+      // restarts them, and ends what is still retiring first). The closing element leaves
+      // the engine's tree now and stays on the page, retiring, while its exit
+      // transition plays from the commit; it is destroyed once the page
+      // reports the transition finished. The beat does not wait for it. The
+      // retiring element keeps the stream it was closed in and a pin of its
+      // own on its fonts, which a reopen pins again for itself.
+      const retiring: Retirement = {
+        element: entry.element,
+        epoch: this._game.connection.epoch,
+        pin: this._game.module.assets?.retireLayout(name),
+      };
+      this._mountedLayouts.delete(name);
+      entry.element.remove();
+      this._retiring.add(retiring);
+      void this.animateElements([
+        { element: entry.element, animations: [exit] },
+      ]).then(() => this.retire(retiring));
+      return;
+    }
     if (exit && !instant) {
       await this.animateElements([{ element: entry.element, animations: [exit] }]);
     }
@@ -3444,6 +3893,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.destroyElement(entry.element);
     this._mountedLayouts.delete(name);
     this._game.module.assets?.releaseLayout(name);
+  }
+
+  /**
+   * A retiring layout's exit has played (#1820): its element goes now, in a
+   * batch of its own. The batch is no part of any beat: it goes past one
+   * being composed (which keeps the ops it had buffered), and a beat waiting
+   * for its commit on the page lets it by. Its fonts' pin goes after it. One
+   * a connect has ended since is gone already: that connect rebuilt the
+   * screen, and may have given the element's id to another.
+   */
+  protected retire(r: Retirement): void {
+    if (!this._retiring.delete(r)) {
+      return;
+    }
+    if (!this.superseded(r.epoch)) {
+      // What is buffered belongs to whatever is being composed.
+      this.flushUIBatch();
+      this.destroyElement(r.element, true);
+      const messages = this._uiBatch;
+      this._uiBatch = [];
+      if (messages.length > 0) {
+        void super.emit(BatchElementsMessage.type.notification({ messages }));
+      }
+    }
+    if (r.pin) {
+      this._game.module.assets?.releaseRetiredLayout(r.pin);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -3729,7 +4205,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** Apply a beat's `[[open/close/navigate]]` directives (Coordinator fan-out),
    *  mirroring `image.write`/`audio.schedule`. Awaits all transitions so a beat
-   *  with a `wait` directive can hold advance until they settle. */
+   *  with a `wait` directive can hold advance until they settle. In a composed
+   *  beat (#1820) it awaits only the mounts: each transition plays from the
+   *  beat's commit, and nothing here waits for it (`openLayout`,
+   *  `closeLayout`). */
   async applyLayoutInstructions(
     instructions: LayoutInstruction[],
     instant: boolean,
@@ -4086,8 +4565,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // children and drives the reveal from each instruction's after/over
         // timing. `await` here preserves the prior `await animateElements()`
         // lifecycle: the write completes only once the reveal has finished.
-        // Flush pending create/update ops first so the target exists before the
-        // (awaited) write arrives.
+        // In a composed beat (#1820) it completes once the write is part of the
+        // beat: the page reveals it from the beat's commit, and nothing here
+        // waits for that. Flush pending create/update ops first so the target
+        // exists before the (awaited) write arrives.
         $.flushUIBatch();
         await $.emitSettled(
           WriteTextMessage.type.request({
@@ -4096,6 +4577,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             ...(time != null ? { time } : {}),
             ...(shown > 0 ? { shown } : {}),
+            // A composed beat reaches the page with its structure: the write
+            // goes to the elements the target resolves to now (#1820).
+            ...($._compose ? { elements: targetEls.map((el) => el.id) } : {}),
           }),
         );
       }
@@ -4481,8 +4965,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // children and drives the enter/exit/destroy lifecycle. `await` here
         // preserves the prior `await animateElements()` lifecycle: the write
         // completes only once the crossfade animations have finished (so
-        // auto-advance still waits on the reveal). Flush pending create/update
-        // ops first so the target exists before the (awaited) write arrives.
+        // auto-advance still waits on the reveal). In a composed beat (#1820)
+        // it completes once the write is part of the beat: the page plays the
+        // crossfade from the beat's commit, and nothing here waits for that.
+        // Flush pending create/update ops first so the target exists before
+        // the (awaited) write arrives.
         $.flushUIBatch();
         await $.emitSettled(
           WriteImageMessage.type.request({
@@ -4490,6 +4977,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instructions: sequence ? this.resolve(sequence, instant) : [],
             instant,
             ...(time != null ? { time } : {}),
+            // A composed beat reaches the page with its structure: the write
+            // goes to the elements the target resolves to now (#1820).
+            ...($._compose ? { elements: targetEls.map((el) => el.id) } : {}),
           }),
         );
       }

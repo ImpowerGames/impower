@@ -1,4 +1,5 @@
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import {
   Container,
   DOMAdapter,
@@ -551,6 +552,12 @@ export class Application implements IApplication {
 
   emit(message: Message, _transfer?: ArrayBuffer[]) {
     this._game.receive(message);
+  }
+
+  /** Answer a request a manager met inside another message once `work`
+   *  settles, as every request the page receives is answered. */
+  answer(message: RequestMessage, work: Promise<unknown>) {
+    this._router.answer(message, work as Promise<any>);
   }
 
   onPointerDownView = (event: PointerEvent): void => {

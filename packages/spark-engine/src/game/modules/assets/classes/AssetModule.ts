@@ -60,6 +60,12 @@ export class AssetModule extends Module<
   /** Layouts whose fonts are pinned (`layout:<name>`). */
   protected _layoutPins = new Set<string>();
 
+  /** The pins of layouts a composed close retired, held until their
+   *  elements have gone (#1820). */
+  protected _retiringPins = new Set<string>();
+
+  protected _retiredLayouts = 0;
+
   /** Keys already handed to prediction since the last scene entry, so the
    *  window does not resend the same items after every beat. */
   /** Beat pins whose lines have not been written to the page yet; released
@@ -554,6 +560,33 @@ export class AssetModule extends Module<
   releaseLayout(name: string): void {
     if (this._layoutPins.delete(name)) {
       this.release([`layout:${name}`], false);
+    }
+  }
+
+  /**
+   * Hand a closing layout's fonts to a pin of their own (#1820): a composed
+   * close keeps the layout's element on the page, retiring, while its exit
+   * plays, and a reopen of the layout meanwhile pins them again under the
+   * layout's name. Returns the retiring pin, for {@link releaseRetiredLayout}
+   * once that element has gone; nothing for a layout with no fonts pinned.
+   */
+  retireLayout(name: string): string | undefined {
+    if (!this._layoutPins.delete(name)) {
+      return undefined;
+    }
+    this._retiredLayouts += 1;
+    const pin = `layout:${name}:retiring:${this._retiredLayouts}`;
+    this._retiringPins.add(pin);
+    // Pinned again before the layout's own pin goes, so the fonts are never
+    // free to evict in between.
+    void this.request(this.resolveFontItems([name]), 0, pin).catch(() => {});
+    this.release([`layout:${name}`], false);
+    return pin;
+  }
+
+  releaseRetiredLayout(pin: string): void {
+    if (this._retiringPins.delete(pin)) {
+      this.release([pin], false);
     }
   }
 
@@ -1076,6 +1109,7 @@ export class AssetModule extends Module<
       ...this._abandonedPins,
       ...[...this._loadPins].map((flow) => `load:${flow}`),
       ...[...this._layoutPins].map((name) => `layout:${name}`),
+      ...this._retiringPins,
     ];
     // Unpin without dropping: the cache outlives this game (STOP then PLAY
     // must not re-fetch), and the next game re-pins what it needs.
@@ -1088,6 +1122,7 @@ export class AssetModule extends Module<
     this._abandonedPins.clear();
     this._loadPins.clear();
     this._layoutPins.clear();
+    this._retiringPins.clear();
     this._fontNamesByLayout.clear();
     this._previewWindow = null;
     this._progress.clear();

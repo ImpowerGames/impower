@@ -696,6 +696,7 @@ export class Game<T extends M = {}> {
         fetch: options?.fetch,
         resolve: options?.resolve,
         requestFrame: options?.requestFrame,
+        composeBeats: options?.composeBeats,
       },
     };
 
@@ -4048,7 +4049,9 @@ export class Game<T extends M = {}> {
       this.displayHeld(instructions);
     } finally {
       this.forgetPendingPreview(generation);
-      gate.release();
+      // A composed display is on the page once it has been sent, and the
+      // pictures its gate pins stay resident until then (#1820).
+      this.module.ui.afterCompose(() => gate.release());
     }
     this.finishPreview(previewAddress, executed);
     return previewAddress;
