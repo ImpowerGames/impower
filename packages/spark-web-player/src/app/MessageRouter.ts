@@ -109,6 +109,23 @@ export class MessageRouter {
     }
   }
 
+  /**
+   * Answer a request a manager met inside another message (an animation a
+   * composed beat carries, #1820) once `work` settles, as this router
+   * answers the requests it hands out: with its result, with its error, or
+   * with an error when the page disconnects first.
+   */
+  answer(message: RequestMessage, work: Promise<Answer>): void {
+    if (this._disconnected) {
+      this.answerError(message, DISCONNECTED, "the page disconnected");
+      return;
+    }
+    this._pending.set(message.id, message.method);
+    void work
+      .catch((e): Answer => ({ error: toResponseError(e) }))
+      .then((answer) => this.settle(message, answer));
+  }
+
   protected async handleRequest(message: RequestMessage): Promise<void> {
     this._pending.set(message.id, message.method);
     // Every manager sees the request synchronously, as it arrives: a
@@ -125,8 +142,14 @@ export class MessageRouter {
     });
     // A manager that handles the method wins over one that threw on it.
     const settled = await Promise.all(answers);
-    const answer =
-      settled.find((a) => a && !("error" in a)) ?? settled.find(Boolean);
+    this.settle(
+      message,
+      settled.find((a) => a && !("error" in a)) ?? settled.find(Boolean),
+    );
+  }
+
+  /** Send the answer to a request, unless a disconnect has answered it. */
+  protected settle(message: RequestMessage, answer: Answer): void {
     if (!this._pending.delete(message.id)) {
       // Already answered by a disconnect.
       return;

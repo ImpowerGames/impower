@@ -34,6 +34,7 @@ import {
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
+import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
 import type { Event } from "../../../core/types/Event";
 import type { EventMap } from "../../../core/types/EventMap";
@@ -117,6 +118,16 @@ import {
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
 
+/** A layout a composed close took out of the mounted set, whose element
+ *  stays on the page while its exit plays (#1820). */
+interface Retirement {
+  element: Element;
+  /** The stream it was closed in. */
+  epoch: number;
+  /** The pin holding its fonts until it has gone. */
+  pin?: string;
+}
+
 /** What a display or a played beat changes on the screen, gathered for one
  *  `ui/beat` (#1820). */
 interface Composition {
@@ -129,6 +140,9 @@ interface Composition {
   realizing: { done: boolean }[];
   /** Work to run once the beat has gone to the page, or been dropped. */
   afterSent: (() => void)[];
+  /** The ids of the animations it carries, which the page answers once
+   *  they have played. */
+  expected: (string | number)[];
   /** The beat is being sent once what it realizes is in. */
   ending?: boolean;
   time?: number;
@@ -535,9 +549,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  beat that ends before its mount is made hands it to the next. */
   protected _mountOwners = new Map<Promise<void>, Composition>();
 
-  /** The open of each layout waiting on its fonts, so a close in the
-   *  meantime can call it off. */
-  protected _pendingOpens = new Map<string, { cancelled: boolean }>();
+  /** The opens of each layout waiting on its fonts, so a close in the
+   *  meantime can call them off. */
+  protected _pendingOpens = new Map<string, Set<{ cancelled: boolean }>>();
+
+  /** The layouts retiring on the page (#1820). */
+  protected _retiring = new Set<Retirement>();
 
   /** Settles at the next change of what a composing beat waits on: a
    *  mount waiting on fonts, an animation playing, work it counts, for
@@ -715,6 +732,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({}));
+    // A layout still retiring belongs to the screen this connect replaces,
+    // and goes with it, before the rebuild mints its ids again (#1820).
+    for (const r of [...this._retiring]) {
+      this._retiring.delete(r);
+      this.destroyElement(r.element);
+      if (r.pin) {
+        this._game.module.assets?.releaseRetiredLayout(r.pin);
+      }
+    }
     const epoch = this._game.connection.epoch;
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
@@ -923,6 +949,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       messages: [],
       realizing: [],
       afterSent: [],
+      expected: [],
     };
     if (open) {
       // The open beat goes as it is; what it still realizes is the next's.
@@ -1010,13 +1037,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.runAfterSent(c);
   }
 
-  /** Drop the beat being composed: a newer connect rebuilds the screen. */
+  /** Drop the beat being composed: a newer connect rebuilds the screen.
+   *  The animations it carries will never play, and what waits on them is
+   *  let go as the page lets go of a superseded stream's requests. */
   protected discardCompose() {
     const c = this._compose;
     if (c) {
       // What is still buffered was the beat's.
       this._compose = undefined;
       this._uiBatch = [];
+      for (const id of c.expected.splice(0)) {
+        this._game.connection.cancel(id, {
+          code: SUPERSEDED,
+          message: "the beat that carried it was dropped",
+        });
+      }
       for (const [mount, owner] of this._mountOwners) {
         if (owner === c) {
           this._mountOwners.delete(mount);
@@ -1109,11 +1144,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (c) {
       const captured = this.capture(c, msg);
       if (captured) {
-        try {
-          return (await captured.result) as R;
-        } catch {
-          return undefined;
-        }
+        return this.settled(msg.method, Promise.resolve(captured.result as R));
       }
     }
     return super.emitSettled(msg, transfer);
@@ -1150,6 +1181,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     if (AnimateElementsMessage.type.isRequest(msg as any)) {
       c.messages.push(msg);
+      c.expected.push((msg as RequestMessage).id);
       return {
         result: this._game.connection.expect(msg as RequestMessage),
       };
@@ -1217,7 +1249,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  protected destroyElement(element: Element) {
+  protected destroyElement(element: Element, retired = false) {
     const isRootElement = !element.parent;
     if (isRootElement) {
       this._root = undefined;
@@ -1242,6 +1274,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           UnobserveElementMessage.type.notification({
             element: element.id,
             event,
+            ...(retired ? { retired } : {}),
           }),
         );
       }
@@ -1250,6 +1283,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.enqueueUI(
       DestroyElementMessage.type.request({
         element: element.id,
+        ...(retired ? { retired } : {}),
       }),
     );
   }
@@ -3667,7 +3701,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  clauses, plays the resolved enter transition on the layout root; a bare
    *  `[[open X]]` (or `instant`) just mounts + shows. The layout root is revealed
    *  through the normal `reveal()` flow (root opacity). Returns once the enter
-   *  transition has settled, so a `wait` directive can block story advance. */
+   *  transition has settled, so a `wait` directive can block story advance;
+   *  in a composed beat (#1820), once the layout is mounted: its transition
+   *  starts after the beat's commit, and nothing waits for it. */
   async openLayout(
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
@@ -3728,11 +3764,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (fonts) {
       const epoch = this._game.connection.epoch;
       const pendingOpen = { cancelled: false };
-      this._pendingOpens.set(name, pendingOpen);
+      const opens = this._pendingOpens.get(name) ?? new Set();
+      opens.add(pendingOpen);
+      this._pendingOpens.set(name, opens);
       const mount = new Promise<void>((resolve) => {
         mounted = () => {
           this._mountOwners.delete(mount);
-          if (this._pendingOpens.get(name) === pendingOpen) {
+          opens.delete(pendingOpen);
+          if (opens.size === 0 && this._pendingOpens.get(name) === opens) {
             this._pendingOpens.delete(name);
           }
           this.notifyRealization();
@@ -3790,9 +3829,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** Play the exit transition then DESTROY a layout (`[[close X]]`): tears down
    *  its whole DOM subtree (one `ui/destroy` on the root removes the children)
-   *  and drops its reactive scope so refreshLayouts no longer touches it. No-op
-   *  if not mounted. A bare `[[close X]]` (or `instant`) destroys immediately.
-   *  Returns once the exit transition has settled, so `wait` can block advance. */
+   *  and drops its reactive scope so refreshLayouts no longer touches it. A
+   *  bare `[[close X]]` (or `instant`) destroys immediately. Every open of the
+   *  layout still waiting on its fonts is called off. Returns once the exit
+   *  transition has settled, so `wait` can block advance; in a composed beat
+   *  (#1820), at once: the layout retires, and goes once its exit has played
+   *  after the beat's commit. */
   async closeLayout(
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
@@ -3803,34 +3845,39 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.hideLayout(name);
       return;
     }
+    // Every open of the layout still waiting on its fonts is called off: the
+    // story has closed the layout since (#1820).
+    const opens = name ? this._pendingOpens.get(name) : undefined;
+    for (const open of opens ?? []) {
+      open.cancelled = true;
+    }
     const entry = name ? this._mountedLayouts.get(name) : undefined;
     if (!entry) {
-      // An open of the layout still waiting on its fonts is called off: the
-      // story has closed the layout since (#1820).
-      const pendingOpen = name ? this._pendingOpens.get(name) : undefined;
-      if (pendingOpen) {
-        pendingOpen.cancelled = true;
-      }
       return;
     }
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       // The maintainer's decision (#1820): a composed beat covers mounts and
       // content. The layout leaves the mounted set at the commit, so a reopen
-      // in the same beat mounts a fresh element; structural ids are never
-      // reused, so that element's id is its own. The closing element leaves
+      // in the same beat mounts a fresh element; structural ids are not
+      // reused within a connect, so that element's id is its own (a connect
+      // restarts them, and ends what is still retiring first). The closing element leaves
       // the engine's tree now and stays on the page, retiring, while its exit
       // transition plays from the commit; it is destroyed once the page
-      // reports the transition finished. The beat does not wait for it.
-      const retiring = entry.element;
+      // reports the transition finished. The beat does not wait for it. The
+      // retiring element keeps the stream it was closed in and a pin of its
+      // own on its fonts, which a reopen pins again for itself.
+      const retiring: Retirement = {
+        element: entry.element,
+        epoch: this._game.connection.epoch,
+        pin: this._game.module.assets?.retireLayout(name),
+      };
       this._mountedLayouts.delete(name);
-      retiring.remove();
-      void this.animateElements([{ element: retiring, animations: [exit] }]).then(
-        () => {
-          this.destroyElement(retiring);
-          this._game.module.assets?.releaseLayout(name);
-        },
-      );
+      entry.element.remove();
+      this._retiring.add(retiring);
+      void this.animateElements([
+        { element: entry.element, animations: [exit] },
+      ]).then(() => this.retire(retiring));
       return;
     }
     if (exit && !instant) {
@@ -3841,6 +3888,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.destroyElement(entry.element);
     this._mountedLayouts.delete(name);
     this._game.module.assets?.releaseLayout(name);
+  }
+
+  /**
+   * A retiring layout's exit has played (#1820): its element goes, in a
+   * batch of its own that a beat waiting for its commit on the page lets
+   * by, and its fonts' pin with it. One a connect has ended since is gone
+   * already: that connect rebuilt the screen, and may have given the
+   * element's id to another.
+   */
+  protected retire(r: Retirement): void {
+    if (!this._retiring.delete(r)) {
+      return;
+    }
+    if (!this.superseded(r.epoch)) {
+      this.flushUIBatch();
+      this.destroyElement(r.element, true);
+      this.flushUIBatch();
+    }
+    if (r.pin) {
+      this._game.module.assets?.releaseRetiredLayout(r.pin);
+    }
   }
 
   // ---------------------------------------------------------------------------

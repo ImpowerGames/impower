@@ -1,13 +1,20 @@
-// The page applies a composed `ui/beat` (#1820) in one handler: its
-// structural ops, then the final content of every target it touches, deduped
-// against the live DOM at that moment, then its sweep. A played beat commits
-// at the instant its text starts revealing. The maintainer's rule: the old
-// beat stays fully visible until that instant, and at that same instant the
-// targets the new beat does not write are emptied and the written ones
-// replaced.
+// The page applies a composed `ui/beat` (#1820) in one handler: its ops in
+// the order the engine sent them, writes included, skipping a clear only
+// when its next write is exactly what the target holds over its subtree as
+// it is, then its sweep. A played beat commits at the instant its text starts
+// revealing. The maintainer's rule: the old beat stays fully visible until
+// that instant, and at that same instant the targets the new beat does not
+// write are emptied and the written ones replaced.
 
+import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
+import { AnimateElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
+import { BatchElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BatchElementsMessage";
 import { BeatMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
+import { CreateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
+import { DestroyElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
+import { MoveElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
+import { UpdateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -695,5 +702,224 @@ describe("layout transitions in a composed beat: the maintainer's decision (#182
     } finally {
       animations.restore();
     }
+  });
+});
+
+/** Apply `ops` on the page one at a time, as it receives them. */
+const apply = (h: { ui: any }, ...ops: any[]) => {
+  for (const op of ops) {
+    void h.ui.onReceiveRequest(op);
+  }
+};
+
+/** A beat that clears the dialogue and writes back exactly what it shows. */
+const rewrite = (h: { overlay: HTMLElement }) => {
+  const target = h.overlay.querySelector(".dialogue") as any;
+  return beat({ text: [write("dialogue", JSON.parse(target.__sdTxt))] });
+};
+
+const letters = (h: { overlay: HTMLElement }) =>
+  Array.from(h.overlay.querySelectorAll(".dialogue > .text .text_letter"));
+
+type Ids = { dialogue: string; leaf: string; tag: string };
+
+/** Every structural way an op can change the dialogue's subtree: what it
+ *  needs there first, and the op. */
+const MUTATIONS: [string, { setup?: (ids: Ids) => any[]; mutate: (ids: Ids) => any[] }][] = [
+  [
+    "a node created in it",
+    { mutate: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra" })] },
+  ],
+  [
+    "a node destroyed in it",
+    {
+      setup: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra" })],
+      mutate: ({ dialogue }) => [DestroyElementMessage.type.request({ element: `${dialogue}-extra` })],
+    },
+  ],
+  [
+    "a node moved in it",
+    {
+      setup: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra" })],
+      mutate: ({ leaf }) => [MoveElementMessage.type.request({ element: leaf, before: null } as any)],
+    },
+  ],
+  [
+    "a node's style changed in it",
+    { mutate: ({ leaf }) => [UpdateElementMessage.type.request({ element: leaf, style: { color: "red" } } as any)] },
+  ],
+  [
+    "a node's attributes changed in it",
+    { mutate: ({ leaf }) => [UpdateElementMessage.type.request({ element: leaf, attributes: { title: "changed" } } as any)] },
+  ],
+  [
+    "a node's content replaced in it",
+    { mutate: ({ leaf }) => [UpdateElementMessage.type.request({ element: leaf, content: { text: "" } } as any)] },
+  ],
+  [
+    "a leaf replaced in it",
+    {
+      mutate: ({ dialogue, leaf, tag }) => [
+        CreateElementMessage.type.request({ parent: dialogue, element: leaf, type: tag === "div" ? "span" : "div", name: "text" }),
+      ],
+    },
+  ],
+];
+
+describe("a composed beat's dedupe after a structural change, round 3 of PR #1865", () => {
+  test.each(MUTATIONS)(
+    "%s: the next clear is kept, and the no-op holds again once the target is rewritten",
+    async (_, { setup, mutate }) => {
+      // Class 1: every op the manager applies to a target's subtree leaves
+      // the target's signatures older than the subtree, in one place.
+      const { h, dialogue } = await showing();
+      const line = dialogue();
+      const leafEl = h.overlay.querySelector(".dialogue > .text") as any;
+      const ids: Ids = {
+        dialogue: (h.overlay.querySelector(".dialogue") as any).__sdId,
+        leaf: leafEl.__sdId,
+        tag: leafEl.tagName.toLowerCase(),
+      };
+      if (setup) {
+        apply(h, ...setup(ids));
+        h.ui.onReceiveNotification(rewrite(h));
+        await flushMicrotasks(10);
+      }
+      const before = letters(h);
+      expect(before.length).toBeGreaterThan(0);
+
+      apply(h, ...mutate(ids));
+      h.ui.onReceiveNotification(rewrite(h));
+      await flushMicrotasks(10);
+
+      // The clear went: the dialogue was rebuilt, and holds its line once.
+      expect(texts(h, ".dialogue > .text")).toEqual([line]);
+      expect(letters(h).some((l) => before.includes(l))).toBe(false);
+
+      // Rewritten over its subtree as it is, the same beat is a no-op again.
+      const rebuilt = letters(h);
+      h.ui.onReceiveNotification(rewrite(h));
+      await flushMicrotasks(10);
+      expect(letters(h)).toEqual(rebuilt);
+      expect(letters(h).every((l, i) => l === rebuilt[i])).toBe(true);
+    },
+  );
+
+  test("a picture whose target gains a mask is painted in it", async () => {
+    // Class 1, as round 3 found it: a mask added to a portrait showing A,
+    // then A again.
+    const { h } = await showing();
+    apply(
+      h,
+      CreateElementMessage.type.request({ parent: null, element: "probe-portrait", type: "div", name: "probe_portrait" }),
+      CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-image", type: "span", name: "image" }),
+    );
+    const show = () =>
+      beat({
+        image: [
+          WriteImageMessage.type.request({ target: "probe_portrait", instructions: [], instant: true } as any),
+          WriteImageMessage.type.request({
+            target: "probe_portrait",
+            instructions: [
+              {
+                control: "show",
+                content: { background: 'url("a.png")', imageNames: "a", src: "a.png", srcs: ["a.png"] },
+              },
+            ],
+            instant: true,
+          } as any),
+        ],
+      });
+    h.ui.onReceiveNotification(show());
+    await flushMicrotasks(10);
+    expect(h.overlay.querySelector(".probe_portrait > .image")?.children.length).toBe(1);
+
+    apply(h, CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-mask", type: "span", name: "mask" }));
+    h.ui.onReceiveNotification(show());
+    await flushMicrotasks(10);
+
+    expect(h.overlay.querySelector(".probe_portrait > .mask")?.children.length).toBe(1);
+  });
+});
+
+describe("the retirement path on the page, round 3 of PR #1865", () => {
+  test("a layout going once it has retired leaves a beat waiting for its commit waiting", async () => {
+    // Class 2: the engine lets a retired layout go in a batch of its own.
+    const { h, dialogue } = await showing();
+    apply(h, CreateElementMessage.type.request({ parent: null, element: "probe-retiring", type: "div", name: "probe_retiring" }));
+    const time = controlTime(h);
+    try {
+      h.ui.onReceiveNotification(
+        beat({
+          text: [write("dialogue", [{ text: "N", after: 0.1 }], { instant: false, time: 1_100 })],
+          time: 1_100,
+        }),
+      );
+      await time.at(1_010);
+      h.ui.onReceiveNotification(
+        BatchElementsMessage.type.notification({
+          messages: [DestroyElementMessage.type.request({ element: "probe-retiring", retired: true } as any)],
+        }),
+      );
+      await flushMicrotasks(10);
+      expect(h.overlay.querySelector(".probe_retiring")).toBeNull();
+      expect(dialogue()).toBe("Do you understand?");
+
+      await time.at(1_200);
+      expect(dialogue()).toBe("N");
+    } finally {
+      time.restore();
+    }
+  });
+
+  /** How the engine's wait for `answered` has ended so far. */
+  const outcome = (answered: Promise<unknown>) =>
+    Promise.race([
+      answered.then(
+        (result) => ({ result }),
+        (error) => ({ error }),
+      ),
+      flushMicrotasks(20).then(() => "pending" as const),
+    ]);
+
+  const animation = (h: { overlay: HTMLElement }) =>
+    AnimateElementsMessage.type.request({
+      effects: [{ element: (h.overlay.querySelector(".dialogue") as any).__sdId, animations: [] }],
+    });
+
+  test("an animation a beat carries is answered with the effects it played", async () => {
+    // U3: the page's answer is the animation's own result.
+    const { h } = await showing();
+    const animate = animation(h);
+    const answered = h.game.connection.expect(animate);
+    h.ui.onReceiveNotification(beat({ image: [animate] }));
+
+    expect(await outcome(answered)).toEqual({ result: [0] });
+  });
+
+  test("an animation a beat carries is answered with an error when it fails, or when the page goes first", async () => {
+    // U2: the page answers it as it answers every request it receives.
+    const { h } = await showing();
+    const handle = h.ui.onReceiveRequest.bind(h.ui);
+    let fail = true;
+    (h.ui as any).onReceiveRequest = (msg: any) =>
+      msg.method === "ui/animate"
+        ? fail
+          ? Promise.reject(new Error("failed to animate"))
+          : new Promise(() => {})
+        : handle(msg);
+
+    const failing = animation(h);
+    const failed = h.game.connection.expect(failing);
+    h.ui.onReceiveNotification(beat({ image: [failing] }));
+    expect(await outcome(failed)).toMatchObject({ error: { message: "failed to animate" } });
+
+    fail = false;
+    const playing = animation(h);
+    const unfinished = h.game.connection.expect(playing);
+    h.ui.onReceiveNotification(beat({ image: [playing] }));
+    expect(await outcome(unfinished)).toBe("pending");
+    h.router.disconnect();
+    expect(await outcome(unfinished)).toMatchObject({ error: { code: DISCONNECTED } });
   });
 });

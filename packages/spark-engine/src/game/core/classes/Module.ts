@@ -191,13 +191,22 @@ export abstract class Module<
     msg: RequestMessage<M, P, R>,
     transfer?: ArrayBuffer[],
   ): Promise<R | undefined> {
+    return this.settled(msg.method, this._game.connection.emit(msg, transfer));
+  }
+
+  /** Wait for the page's answer to a `method` request, as {@link
+   *  emitSettled} does, wherever the request went. */
+  protected async settled<R>(
+    method: string,
+    answer: Promise<R>,
+  ): Promise<R | undefined> {
     try {
-      return await this._game.connection.emit(msg, transfer);
+      return await answer;
     } catch (e) {
       const code = (e as ResponseError | undefined)?.code;
       if (code !== DISCONNECTED && code !== SUPERSEDED) {
         console.warn(
-          `spark-engine: ${msg.method} failed: ${(e as ResponseError | undefined)?.message ?? e}`,
+          `spark-engine: ${method} failed: ${(e as ResponseError | undefined)?.message ?? e}`,
         );
       }
       return undefined;

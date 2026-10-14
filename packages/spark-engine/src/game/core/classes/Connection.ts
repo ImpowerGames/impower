@@ -191,6 +191,15 @@ export class Connection {
     });
   }
 
+  /** Stop waiting for an answer `expect` waits for, with `error`: the
+   *  message that carried the request will never reach the page. */
+  cancel(id: string | number, error: ResponseError): void {
+    const reject = this._outgoingRequestRejectCallbacks[id];
+    delete this._outgoingRequestResolveCallbacks[id];
+    delete this._outgoingRequestRejectCallbacks[id];
+    reject?.(error);
+  }
+
   protected handleResponse<M extends string, R>(
     message: ResponseMessage<M, R>,
   ): void {

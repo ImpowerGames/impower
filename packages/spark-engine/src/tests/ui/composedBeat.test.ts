@@ -4,7 +4,7 @@
 // revealing. A host opts in with `composeBeats`, as the worker does.
 
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { type Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { type Game } from "../../game/core/classes/Game";
@@ -512,5 +512,170 @@ describe("composition, round 2 of PR #1865", () => {
     } as any);
     await flushMicrotasks(20);
     expect(destroyed()).toBe(true);
+    // In a batch of its own, every op marked as a retired layout's, which a
+    // beat waiting for its commit on the page lets by (round 3, class 2).
+    const batch = h.messages.find(
+      (m: any) =>
+        m.method === "ui/batch" &&
+        m.params.messages.some((op: any) => op.method === "ui/destroy" && op.params.element === hudId),
+    );
+    expect(batch.params.messages.every((op: any) => op.params.retired === true)).toBe(true);
+  });
+});
+
+describe("the retirement path, round 3 of PR #1865", () => {
+  /** A page showing the hud, as an instant open leaves it. */
+  async function hudShown(opts: { holdAssets?: boolean } = {}) {
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      autoOpenAll: false,
+      beforeConnect: playing,
+      ...opts,
+    });
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    await ui.openLayout("hud", undefined, true);
+    await flushMicrotasks(20);
+    return { h, ui, hudId: ui._mountedLayouts.get("hud").element.id as string };
+  }
+
+  /** The exit animation of `id` a sent beat carries. */
+  const exitOf = (h: ReturnType<typeof createHarness>, id: string) =>
+    beats(h.messages)
+      .flatMap((b: any) => opsOf(b))
+      .find((m: any) => m.method === "ui/animate" && m.params.effects[0]?.element === id);
+
+  /** The page reports the animation `msg` played, or failed. */
+  const answer = (h: ReturnType<typeof createHarness>, msg: any, reply: object) =>
+    h.game.connection.receive({ jsonrpc: "2.0", id: msg.id, method: msg.method, ...reply } as any);
+
+  const everything = (h: ReturnType<typeof createHarness>) => [
+    ...screenOps(h.messages),
+    ...beats(h.messages).flatMap((b: any) => opsOf(b)),
+  ];
+
+  test("an exit that finishes after a connect leaves the screen that connect built alone", async () => {
+    // Class 3: the connect rebuilds the screen, and its ids start again, so
+    // the hud it mounts has the retiring hud's id.
+    const { h, ui, hudId } = await hudShown();
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+    const exit = exitOf(h, hudId);
+    expect(exit).toBeTruthy();
+
+    await h.reconnect();
+    await flushMicrotasks(20);
+    await ui.openLayout("hud", undefined, true);
+    await flushMicrotasks(20);
+    expect(ui._mountedLayouts.get("hud").element.id).toBe(hudId);
+    h.reset();
+
+    answer(h, exit, { result: [0] });
+    await flushMicrotasks(20);
+    expect(everything(h).some((m: any) => m.method === "ui/destroy" && m.params.element === hudId)).toBe(false);
+  });
+
+  test("a layout closed and reopened in one beat keeps its fonts pinned once the old element has gone", async () => {
+    // Class 4: the retiring hud holds its fonts under a pin of its own.
+    const { h, ui, hudId } = await hudShown();
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    ui.composeWait(ui.openLayout("hud"));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(30);
+    expect(ui._mountedLayouts.has("hud")).toBe(true);
+
+    answer(h, exitOf(h, hudId), { result: [0] });
+    await flushMicrotasks(20);
+
+    const at = (pred: (m: any) => boolean) => h.messages.map((m, i) => (pred(m) ? i : -1)).filter((i) => i >= 0);
+    const pinned = at((m) => m.method === "assets/load" && m.params?.pin === "layout:hud");
+    const released = at((m) => m.method === "assets/release" && m.params?.pins?.includes("layout:hud"));
+    expect(pinned.length).toBeGreaterThan(0);
+    expect(Math.max(...pinned)).toBeGreaterThan(Math.max(-1, ...released));
+    // The old element's own pin went with it.
+    expect(
+      h.messages.some(
+        (m: any) =>
+          m.method === "assets/release" &&
+          m.params?.pins?.some((p: string) => p.startsWith("layout:hud:retiring:")),
+      ),
+    ).toBe(true);
+  });
+
+  test("a close calls off every open of the layout still waiting on its font", async () => {
+    // Class 5: two beats each open the hud while its font is held; a third
+    // closes it.
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.reset();
+    const ui: any = h.game.module.ui;
+    for (const [time, step] of [
+      [100, () => ui.composeWait(ui.openLayout("hud"))],
+      [200, () => ui.composeWait(ui.openLayout("hud"))],
+      [300, () => ui.composeWait(ui.closeLayout("hud"))],
+    ] as const) {
+      expect(ui.beginCompose()).toBe(true);
+      step();
+      void ui.endCompose({ time });
+      await flushMicrotasks(20);
+    }
+
+    await releaseFonts(h);
+
+    expect(everything(h).some((m: any) => m.method === "ui/create" && m.params?.name === "hud")).toBe(false);
+    expect(ui._mountedLayouts.has("hud")).toBe(false);
+  });
+
+  test("a composition a connect drops lets go of the animations it carried", async () => {
+    // U1: the beat closing the hud waits on other work when a connect drops
+    // it, so the page never gets its exit.
+    const { h, ui, hudId } = await hudShown();
+    expect(ui.beginCompose()).toBe(true);
+    let closed = false;
+    void ui.closeLayout("hud", { with: "fade", over: 0.5 }).then(() => (closed = true));
+    ui.composeWait(new Promise(() => {}));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+    const exit = ui._compose.messages
+      .flatMap((m: any) => flattenMessages([m]))
+      .find((m: any) => m.method === "ui/animate" && m.params.effects[0]?.element === hudId);
+    expect(exit).toBeTruthy();
+    expect(closed).toBe(true);
+
+    await h.reconnect();
+    await flushMicrotasks(20);
+
+    const connection: any = h.game.connection;
+    expect(exit.id in connection._outgoingRequestRejectCallbacks).toBe(false);
+    expect(exit.id in connection._outgoingRequestResolveCallbacks).toBe(false);
+  });
+
+  test("a captured animation the page fails is reported, as one sent on its own is", async () => {
+    // U4: the composed path reports what `Module.emitSettled` reports.
+    const { h, ui, hudId } = await hudShown();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(ui.beginCompose()).toBe(true);
+      ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+      void ui.endCompose({ time: 100 });
+      await flushMicrotasks(20);
+
+      answer(h, exitOf(h, hudId), {
+        error: { code: -32601, message: "nothing on the page handles ui/animate" },
+      });
+      await flushMicrotasks(20);
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("ui/animate failed"));
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

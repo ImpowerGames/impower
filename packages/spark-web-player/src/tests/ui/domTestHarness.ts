@@ -360,6 +360,9 @@ export function createDOMHarness(
   const stubApp = createStubApp(overlay, (message) => {
     game.connection.receive(cloneMessage(message));
   });
+  // A request a manager meets inside another message is answered through the
+  // router, as `Application.answer` does.
+  stubApp.answer = (message: any, work: Promise<any>) => router.answer(message, work);
 
   // Swapped on rerender (buildApp makes a NEW manager per edit; the overlay DOM
   // persists across the swap).

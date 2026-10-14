@@ -31,7 +31,6 @@ import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/u
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
-import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import {
   BeatMessage,
   type BeatParams,
@@ -65,6 +64,16 @@ function beatOps(params: BeatParams): IMessage[] {
           ?.messages ?? [])
       : [message],
   );
+}
+
+/** Whether `msg` only lets a layout that has retired go: the batch the
+ *  engine sends once its exit has played (#1820), or one of its ops. */
+function retiredOnly(msg: IMessage): boolean {
+  if (BatchElementsMessage.type.isNotification(msg as NotificationMessage)) {
+    const ops = ((msg as NotificationMessage).params as { messages?: IMessage[] })?.messages ?? [];
+    return ops.length > 0 && ops.every(retiredOnly);
+  }
+  return (msg as { params?: { retired?: boolean } }).params?.retired === true;
 }
 
 /** Whether two lists hold the same elements. */
@@ -293,6 +302,8 @@ export default class UIManager extends Manager {
    *  but weren't re-emitted (touched) this pass — the mark-and-sweep tail. */
   sweepReconcile() {
     for (const id of this._staleIds) {
+      // A destroy, as `touchesOf` has it.
+      this.touch([this.getElement(id)?.parentElement]);
       this.removeElementById(id);
     }
     this._staleIds.clear();
@@ -500,11 +511,22 @@ export default class UIManager extends Manager {
    *  to put back what it shows; then its sweep. */
   protected applyBeat(params: BeatParams) {
     const ops = beatOps(params);
+    // The clears skipped, by the write they were skipped for.
+    const skipped = new Map<number, IMessage[]>();
     ops.forEach((op, i) => {
       // Judged as the beat reaches it: what came before has been applied.
-      if (this.clearIsNoOp(ops, i, i + 1) < 0) {
-        this.applyBeatMessage(op);
+      const write = this.clearIsNoOp(ops, i, i + 1);
+      if (write >= 0) {
+        skipped.set(write, [...(skipped.get(write) ?? []), op]);
+        return;
       }
+      // Should the target's subtree have changed after all, its clears go
+      // first: the write then fills what they empty, as on the base.
+      const clears = skipped.get(i);
+      if (clears && !this.writeHolds(op)) {
+        clears.forEach((clear) => this.applyBeatMessage(clear));
+      }
+      this.applyBeatMessage(op);
     });
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
@@ -513,27 +535,20 @@ export default class UIManager extends Manager {
   }
 
   /** Apply one of a beat's ops. An animation is answered once it has
-   *  played: the engine waits on that answer (an exit transition's
-   *  element is destroyed once it has played out). */
+   *  played, or failed, as any request the page receives: the engine waits
+   *  on that answer (an exit transition's element is destroyed once it has
+   *  played out). */
   protected applyBeatMessage(message: IMessage) {
     if ("id" in message) {
       const request = message as RequestMessage;
       const done = this.onReceiveRequest(request);
-      done.then(
-        (result) => {
-          if (AnimateElementsMessage.type.isRequest(request)) {
-            this.app.emit({
-              jsonrpc: "2.0",
-              method: request.method,
-              id: request.id,
-              result: result ?? null,
-            } as Message);
-          }
-        },
-        (error) => {
+      if (AnimateElementsMessage.type.isRequest(request)) {
+        this.app.answer(request, done);
+      } else {
+        done.catch((error) => {
           console.error(`${request.method} failed in a beat`, error);
-        },
-      );
+        });
+      }
     } else {
       this.onReceiveNotification(message as NotificationMessage);
     }
@@ -554,11 +569,10 @@ export default class UIManager extends Manager {
    *   connect's clear and the beat's own).
    * - Any other write that reaches those elements in between, under another
    *   selector, keeps the clear.
-   * - So does a structural op from `from` up to the write that changes what
-   *   they hold: a node created in one of them, new content on a node in one
-   *   of them, a node destroyed or moved there. A style or attribute change
-   *   does not. Ops already applied have made the page forget what the
-   *   target holds (`forgetHeld`) if they changed it.
+   * - So does a structural op from `from` up to the write that changes their
+   *   subtree, by the one rule the manager applies (`touchesOf`). An op
+   *   already applied that changed it has left the target's signatures older
+   *   than its subtree (`touch`), and they no longer hold.
    */
   protected clearIsNoOp(ops: IMessage[], i: number, from: number): number {
     const clear = ops[i] as RequestMessage;
@@ -598,25 +612,29 @@ export default class UIManager extends Manager {
     if (next < 0) {
       return -1;
     }
+    // Where the creates not applied yet will have reached under each parent.
+    const cursor = new Map<Element, Element | null>(this._placeCursor);
     for (let k = from; k < next; k += 1) {
-      if (k !== i && this.changesContentOf(ops[k]!, els)) {
+      const m = ops[k]!;
+      if (BeginReconcileMessage.type.isNotification(m as NotificationMessage)) {
+        cursor.clear();
+      }
+      if (k !== i && this.changesContentOf(m, els, cursor)) {
         return -1;
+      }
+      if (CreateElementMessage.type.isRequest(m as RequestMessage)) {
+        const params = (m as RequestMessage).params as any;
+        const parent = this.getElement(params.parent);
+        const el = params.element ? this.getElement(params.element) : undefined;
+        if (parent) {
+          cursor.set(parent, el ?? null);
+        }
       }
     }
     const write = (ops[next] as RequestMessage).params as {
       instructions: { control?: string; content?: unknown }[];
     };
-    const sig = JSON.stringify(write.instructions);
-    const holds =
-      kind === WriteTextMessage.type
-        ? els.every(
-            (el) =>
-              (el as any).__sdTxt === sig &&
-              JSON.stringify((el as any).__sdAll) === sig,
-          )
-        : write.instructions.some((e) => e.control === "show" && e.content != null) &&
-          els.every((el) => (el as any).__sdImg === sig);
-    return holds ? next : -1;
+    return this.holds(kind, els, write.instructions) ? next : -1;
   }
 
   /** Whether a write with no clear before it leaves its target as it is:
@@ -627,47 +645,23 @@ export default class UIManager extends Manager {
     instructions: unknown[];
     elements?: string[];
   }): boolean {
-    const sig = JSON.stringify(write.instructions);
     const els = this.writeTargets(write.target, write.elements);
     return (
       els.length > 0 &&
-      els.every(
-        (el) =>
-          (el as any).__sdTxt === sig && JSON.stringify((el as any).__sdAll) === sig,
-      )
+      this.holds(WriteTextMessage.type, els, write.instructions as any[])
     );
   }
 
-  /** Whether op `m` changes what `els` hold: a node created in one of them,
-   *  new content on a node in one of them, or a node destroyed or moved
-   *  there. A style or attribute change does not. */
-  protected changesContentOf(m: IMessage, els: HTMLElement[]): boolean {
-    const msg = m as RequestMessage;
-    const params = msg.params as any;
-    const inside = (node: Element | null | undefined) =>
-      node != null && els.some((el) => el === node || el.contains(node));
-    if (CreateElementMessage.type.isRequest(msg)) {
-      const existing = params.element ? this._elements.get(params.element) : undefined;
-      if (!existing) {
-        return inside(this.getElement(params.parent));
-      }
-      return (
-        inside(existing) &&
-        params.content != null &&
-        (existing as any).__sdCreate !== createSignature(params)
-      );
-    }
-    if (UpdateElementMessage.type.isRequest(msg)) {
-      return params.content != null && inside(this.getElement(params.element));
-    }
-    if (
-      DestroyElementMessage.type.isRequest(msg) ||
-      MoveElementMessage.type.isRequest(msg)
-    ) {
-      const node = this.getElement(params.element);
-      return inside(node) || inside(node?.parentElement);
-    }
-    return false;
+  /** Whether op `m`, not applied yet, changes the subtree of one of `els`,
+   *  by the one rule the manager applies (`touchesOf`). */
+  protected changesContentOf(
+    m: IMessage,
+    els: HTMLElement[],
+    cursor: Map<Element, Element | null>,
+  ): boolean {
+    return this.touchesOf(m, cursor).some(
+      (node) => node != null && els.some((el) => el.contains(node)),
+    );
   }
 
   /** The elements a write goes to: those a composed write names, by their
@@ -682,26 +676,132 @@ export default class UIManager extends Manager {
       .filter((el): el is HTMLElement => el != null && el !== this.app.overlay);
   }
 
-  /** Forget what every target from `node` up holds (`__sdAll`): a node in
-   *  it changed, so a composed beat must not take a clear there for a no-op
-   *  (#1820). Its last write's own signature (`__sdTxt`) is kept, as the
-   *  base keeps it. */
-  protected forgetHeld(node: Element | null | undefined) {
+  /**
+   * The nodes whose subtree a structural op changes (#1820), judged against
+   * the page as it stands before the op. Every node at or above one of them
+   * holds something its writes did not put there, so its text and image
+   * signatures (`__sdTxt` with `__sdAll`, `__sdImg`) are older than its
+   * subtree. One rule for every op the manager applies:
+   *
+   * - a node created, destroyed, moved or put elsewhere by a create (a leaf
+   *   replaced is one destroyed and one created): its parent, old and new;
+   * - a node whose own content is replaced: the node;
+   * - a node whose style, class or attributes change: its parent. A target's
+   *   own box (the engine's display toggles) is not what it holds.
+   *
+   * `cursor` is where creates under each parent have reached, for an op not
+   * applied yet (`changesContentOf`).
+   */
+  protected touchesOf(
+    m: IMessage,
+    cursor: Map<Element, Element | null> = this._placeCursor,
+  ): (Element | null | undefined)[] {
+    const msg = m as RequestMessage;
+    const params = msg.params as any;
+    if (CreateElementMessage.type.isRequest(msg)) {
+      const parent = this.getElement(params.parent);
+      const existing = params.element ? this.getElement(params.element) : undefined;
+      if (!existing || existing.tagName.toLowerCase() !== params.type.toLowerCase()) {
+        return [existing?.parentElement, parent];
+      }
+      const touched: (Element | null | undefined)[] = [];
+      if ((existing as any).__sdCreate !== createSignature(params)) {
+        touched.push(params.content ? existing : existing.parentElement);
+      }
+      if (parent && existing.parentElement !== parent) {
+        touched.push(existing.parentElement, parent);
+      } else if (parent) {
+        const moves = params.before
+          ? existing.nextElementSibling !== this.getElement(params.before)
+          : existing.previousElementSibling !== (cursor.get(parent) ?? null);
+        if (moves) {
+          touched.push(parent);
+        }
+      }
+      return touched;
+    }
+    if (UpdateElementMessage.type.isRequest(msg)) {
+      const element = this.getElement(params.element);
+      return [
+        params.content != undefined ? element : undefined,
+        params.style != undefined || params.attributes != undefined
+          ? element?.parentElement
+          : undefined,
+      ];
+    }
+    if (
+      DestroyElementMessage.type.isRequest(msg) ||
+      MoveElementMessage.type.isRequest(msg)
+    ) {
+      return [this.getElement(params.element)?.parentElement];
+    }
+    return [];
+  }
+
+  /** Mark every node from each of `nodes` up as holding something new: a
+   *  signature written before this no longer stands for what it holds. */
+  protected touch(nodes: (Element | null | undefined)[]) {
     const overlay = this.app.overlay;
-    for (let n = node; n && n !== overlay; n = n.parentElement) {
-      if ((n as any).__sdAll !== undefined) {
-        (n as any).__sdAll = undefined;
+    for (const node of nodes) {
+      for (let n = node; n && n !== overlay; n = n.parentElement) {
+        (n as any).__sdRev = ((n as any).__sdRev ?? 0) + 1;
       }
     }
+  }
+
+  /** Whether the elements text or image write `op` goes to hold it already
+   *  (`holds`). */
+  protected writeHolds(op: IMessage): boolean {
+    const msg = op as RequestMessage;
+    const kind = WriteTextMessage.type.isRequest(msg)
+      ? WriteTextMessage.type
+      : WriteImageMessage.type.isRequest(msg)
+        ? WriteImageMessage.type
+        : undefined;
+    const params = msg.params as
+      | { target: string; instructions: any[]; elements?: string[] }
+      | undefined;
+    if (!kind || !params) {
+      return false;
+    }
+    const els = this.writeTargets(params.target, params.elements);
+    return els.length > 0 && this.holds(kind, els, params.instructions);
+  }
+
+  /** Whether every one of `els` holds exactly this write, all of it, and
+   *  nothing has changed in its subtree since (#1820). */
+  protected holds(
+    kind: typeof WriteTextMessage.type | typeof WriteImageMessage.type,
+    els: HTMLElement[],
+    instructions: { control?: string; content?: unknown }[],
+  ): boolean {
+    const sig = JSON.stringify(instructions);
+    return kind === WriteTextMessage.type
+      ? els.every(
+          (el) =>
+            (el as any).__sdTxt === sig &&
+            JSON.stringify((el as any).__sdAll) === sig &&
+            (el as any).__sdAllRev === ((el as any).__sdRev ?? 0),
+        )
+      : instructions.some((e) => e.control === "show" && e.content != null) &&
+          els.every(
+            (el) =>
+              (el as any).__sdImg === sig &&
+              (el as any).__sdImgRev === ((el as any).__sdRev ?? 0),
+          );
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
     // A screen op that arrives after a beat waiting for its commit goes up
     // after it. Messages for the page's other managers (assets, audio, the
-    // game's reports) reach this one too, and leave the beat waiting.
-    if (msg.method.startsWith("ui/")) {
+    // game's reports) reach this one too, and leave the beat waiting, as
+    // does the going of a layout that has retired.
+    if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
     }
+    // What the op changes leaves the signatures written above it older than
+    // their subtree (#1820), whichever handler below applies it.
+    this.touch(this.touchesOf(msg));
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
@@ -844,13 +944,6 @@ export default class UIManager extends Manager {
         (el as any).__sdCreate = sig;
       }
       const parent = this.getElement(params.parent);
-      // What a target holds changes when a node in it is new or gets new
-      // content (#1820).
-      if (!reused && parent) {
-        this.forgetHeld(parent);
-      } else if (changed && params.content) {
-        this.forgetHeld(el);
-      }
       if (parent) {
         // Only (re)insert when the position actually changed — a no-op move
         // still registers as a DOM mutation (and flashes in devtools), so a
@@ -880,7 +973,6 @@ export default class UIManager extends Manager {
     }
     if (DestroyElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      this.forgetHeld(this.getElement(params.element)?.parentElement);
       this.removeElementById(params.element);
       return DestroyElementMessage.type.result(params.element);
     }
@@ -889,7 +981,6 @@ export default class UIManager extends Manager {
       this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       const parent = element?.parentElement;
-      this.forgetHeld(parent);
       if (element && parent) {
         // Insert before the reference sibling (or append when null) — keyed
         // `for` reconciliation relocating a retained item's subtree.
@@ -904,7 +995,6 @@ export default class UIManager extends Manager {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
-          this.forgetHeld(element);
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
@@ -1007,8 +1097,10 @@ export default class UIManager extends Manager {
     }
     // A screen op that arrives after a beat waiting for its commit goes up
     // after it. Messages for the page's other managers (assets, audio, the
-    // game's reports) reach this one too, and leave the beat waiting.
-    if (msg.method.startsWith("ui/")) {
+    // game's reports) reach this one too, and leave the beat waiting, as
+    // does the going of a layout that has retired (#1820): it is no part of
+    // any beat.
+    if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
     }
     // The game opens a pass at every connect and closes it once the stream
@@ -1384,8 +1476,13 @@ export default class UIManager extends Manager {
         }
         // Everything the target holds, for a composed beat's dedupe of a
         // clear (#1820): `__sdTxt` records only the last write, and writes
-        // to a target that was not cleared accumulate.
+        // to a target that was not cleared accumulate. Known from the subtree
+        // it was first written over (`__sdAllRev`), which an op that changes
+        // that subtree leaves behind (`touch`).
         const held: unknown[] | undefined = (targetEl as any).__sdAll;
+        if (empty) {
+          (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
+        }
         (targetEl as any).__sdAll = empty
           ? [...instructions]
           : held
@@ -1400,6 +1497,7 @@ export default class UIManager extends Manager {
           strokeEl.replaceChildren();
         }
         (targetEl as any).__sdAll = [];
+        (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
       }
     }
     // The letters already on the page appear now, not at the beat's start.
@@ -1499,6 +1597,8 @@ export default class UIManager extends Manager {
     }
     for (const el of targetEls) {
       (el as any).__sdImg = sig;
+      // The subtree it was written over (#1820), as `__sdAllRev`.
+      (el as any).__sdImgRev = (el as any).__sdRev ?? 0;
     }
     const targetEffects: { element: HTMLElement; animations: Animation[] }[] =
       [];
