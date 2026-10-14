@@ -19,6 +19,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import * as run from "./feature-run.mjs";
 import * as cp from "./checkpoint.mjs";
 import * as rc from "./review-checkpoint.mjs";
@@ -37,6 +38,64 @@ const REPO = "acme/widgets", FEATURE = 40, SRC = "src-host", DST = "dst-host";
 const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
 
 try {
+  // --- The final gate's order -------------------------------------------------
+  // Every irreversible call goes through finalGate, which alone orders the
+  // reads in front of it: ownership, a fresh snapshot, the premises on that
+  // snapshot, then main, then the call. The order is checked on the module
+  // itself and on every mutant that reorders or removes one of its four reads,
+  // each of which must fail the same check.
+  const ORDER = ["ownership", "snapshot", "premises", "fetch", "main", "call"];
+  const checkGate = (finalGate) => {
+    const drive = ({ owned = [], blockers = [], main = "m1", call = () => "done" } = {}) => {
+      const log = [];
+      const snap = { observedAt: "now" };
+      const result = finalGate({
+        current: () => ({ revision: 1 }), opId: "op1",
+        ownership: (record, opId) => { log.push("ownership"); assert.deepEqual([record.revision, opId], [1, "op1"]); return owned; },
+        takeSnapshot: () => { log.push("snapshot"); return snap; },
+        premises: (record, snapshot) => { log.push("premises"); assert.equal(snapshot, snap, "the premises are judged on the snapshot the gate just took"); return { blockers }; },
+        git: { fetch: () => log.push("fetch"), main: () => { log.push("main"); return main; } },
+        main: "m1", call: () => { log.push("call"); return call(); },
+      });
+      return { log, result };
+    };
+    const held = drive();
+    assert.deepEqual(held.log, ORDER);
+    assert.deepEqual([held.result.called, held.result.value], [true, "done"]);
+    for (const [name, options, blocker] of [["ownership", { owned: ["taken over"] }, "taken over"], ["a premise", { blockers: ["head moved"] }, "head moved"], ["main", { main: "m2" }, `origin/${ig.TARGET} moved from m1 to m2`]]) {
+      const stopped = drive(options);
+      assert.deepEqual([stopped.result.called, stopped.result.blockers], [false, [blocker]], `${name} stops the call`);
+      assert.deepEqual(stopped.log, ORDER.slice(0, -1), `every read still runs, in order, when ${name} stops the call`);
+    }
+    const thrown = drive({ call: () => { throw new Error("socket closed"); } });
+    assert.deepEqual([thrown.result.called, thrown.result.error?.message], [true, "socket closed"], "a call that throws was made");
+  };
+  checkGate(ig.finalGate);
+  const source = fs.readFileSync(new URL("./integration.mjs", import.meta.url), "utf8");
+  const readLines = ["    owned = ownership(current(), opId);", "    snapshot = takeSnapshot();", "    held = premises(current(), snapshot);", "    now = (git.fetch(), git.main());"];
+  const block = readLines.join("\n");
+  assert.equal(source.split(block).length, 2, "the final gate's four reads appear once, in order");
+  const permutations = (items) => (items.length <= 1 ? [items] : items.flatMap((item, i) => permutations([...items.slice(0, i), ...items.slice(i + 1)]).map((rest) => [item, ...rest])));
+  const mutants = [
+    ...permutations(readLines).filter((p) => p.join("\n") !== block).map((p) => ({ name: `reads in the order ${p.map((l) => readLines.indexOf(l) + 1).join("")}`, lines: p })),
+    ...readLines.map((l, i) => ({ name: `read ${i + 1} removed`, lines: readLines.filter((x) => x !== l) })),
+  ];
+  const here = new URL(".", import.meta.url).href, scripts = new URL("../../../scripts/", import.meta.url).href;
+  const mutantDir = fs.mkdtempSync(path.join(tmp, "gate-mutants-"));
+  const load = async (name, lines) => {
+    const file = path.join(mutantDir, `${name}.mjs`);
+    fs.writeFileSync(file, source.replace(block, lines.join("\n")).replaceAll('from "./', `from "${here}`).replaceAll('from "../../../scripts/', `from "${scripts}`));
+    return (await import(pathToFileURL(file).href)).finalGate;
+  };
+  // An unchanged copy, loaded the same way, passes: a mutant fails for its
+  // change, not for how it was loaded.
+  checkGate(await load("control", readLines));
+  for (const [i, mutant] of mutants.entries()) {
+    const gate = await load(`mutant-${i}`, mutant.lines);
+    assert.throws(() => checkGate(gate), Error, `the order check catches the mutant with ${mutant.name}`);
+  }
+  console.log(`final gate: ${mutants.length} reordered or removed reads, each caught`);
+
   // --- A scratch remote, the coordinator's clone and GitHub's own clone ------
   const remote = path.join(tmp, "remote.git");
   git(tmp, "init", "-q", "--bare", "-b", "main", remote);
@@ -344,7 +403,7 @@ try {
   catchUp();
   const beforeCall = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onFetch = (pr) => { if (pr === undefined) { gh.onFetch = null; advanceMain("before-call.txt", "lands just before the call\n", "feat: a PR merged just before the call"); } }; });
   assert.deepEqual([beforeCall.merged, beforeCall.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], beforeCall.evidence);
-  assert.match(beforeCall.evidence, /not run: main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
+  assert.match(beforeCall.evidence, /not run: origin\/main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
   catchUp();
   // Another coordinator takes the Feature over while the intent is saved: the
   // state branch's owner is read with the last checks, so nothing is called.
@@ -659,7 +718,7 @@ try {
   // more after the snapshot and again before the close call.
   const duringSnapshot = close(final.id, { afterIntent: () => { cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); gh.onSubIssues = () => { gh.onSubIssues = null; advanceMain("during-snapshot.txt", "lands during the snapshot\n", "feat: a PR merged during the closure's snapshot"); }; } });
   assert.deepEqual([duringSnapshot.closed, duringSnapshot.state, gh.closeCalls ?? 0, gh.comments.get(FEATURE).length], [false, "failed", closeCallsBefore, reportsBefore], duringSnapshot.evidence);
-  assert.match(duringSnapshot.evidence, /not run: origin\/main is [0-9a-f]{40}, not the verified/);
+  assert.match(duringSnapshot.evidence, /not run: origin\/main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
   final = verify(doneEvidence);
   const afterReport = close(final.id, { afterIntent: () => { cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); gh.onCreateComment = () => { gh.onCreateComment = null; advanceMain("after-report.txt", "lands after the report\n", "feat: a PR merged after the report was posted"); }; } });
   assert.deepEqual([afterReport.closed, afterReport.state, gh.closeCalls ?? 0, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, "open"], afterReport.evidence);

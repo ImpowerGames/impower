@@ -203,18 +203,8 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
 
 const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.reviewedHead, completedRound: g.completedRound, ...(g.acceptance && { acceptance: g.acceptance }), mergedSince: g.mergedSince, originMain: g.originMain, checks: g.checks.map(({ name, workflow, result }) => ({ name, workflow, result })) });
 
-// --- Merge -------------------------------------------------------------------
+// --- The final gate ----------------------------------------------------------
 
-// Merges an admitted PR. The gate runs on a fresh snapshot and fresh facts,
-// the intent is recorded and saved to the state branch, the gate runs once
-// more on another fresh snapshot, and main is read one last time, so a scope,
-// head or main that changed while the intent was saved stops the merge before
-// GitHub is called. The call names the head the gate admitted, so a push in
-// between makes GitHub refuse it. The outcome is what GitHub reads back
-// afterwards, never what the call said: an unreadable or contradictory result
-// is uncertain and is settled by reconcile-operations before any retry. A
-// merge commit whose first parent is not the main the gate admitted landed on
-// code CI never checked, and the outcome says so.
 // Whether this record's coordinator still owns the Feature on its state
 // branch, with this operation's intent saved there, read from the remote. A
 // takeover, or an intent that never reached the remote, refuses the call.
@@ -226,6 +216,41 @@ export function remoteOwnership(record, opId) {
   return [];
 }
 
+// The one sequence in front of every irreversible GitHub call, which no
+// caller orders itself. It reads ownership of the Feature and this
+// operation's saved intent from the state branch, then a fresh snapshot, then
+// the caller's premises on that snapshot, then main, last; the call is made
+// only when every read holds. `current` reads the run record as it is now. A
+// read that fails leaves the call unmade. A call that throws was made and may
+// still land, so its error is returned for the caller's outcome rule rather
+// than thrown. integration.test.mjs runs every reordering and removal of these
+// four reads and requires each to fail.
+export function finalGate({ current, opId, ownership, takeSnapshot, premises, git, main, call }) {
+  let owned, snapshot, held, now;
+  try {
+    owned = ownership(current(), opId);
+    snapshot = takeSnapshot();
+    held = premises(current(), snapshot);
+    now = (git.fetch(), git.main());
+  } catch (error) { return { called: false, error }; }
+  const blockers = [...owned, ...held.blockers, ...(now === main ? [] : [`origin/${TARGET} moved from ${main} to ${now}`])];
+  if (blockers.length) return { called: false, blockers, held };
+  try { return { called: true, value: call(), held }; }
+  catch (error) { return { called: true, error, held }; }
+}
+
+// --- Merge -------------------------------------------------------------------
+
+// Merges an admitted PR. The gate runs on a fresh snapshot and fresh facts,
+// the intent is recorded and saved to the state branch, and the final gate
+// reads everything again before the call, so a takeover, or a scope, head or
+// main that changed while the intent was saved, stops the merge before GitHub
+// is called. The call names the head the gate admitted, so a push in between
+// makes GitHub refuse it. The outcome is what GitHub reads back afterwards,
+// never what the call said: an unreadable or contradictory result is
+// uncertain and is settled by reconcile-operations before any retry. A merge
+// commit whose first parent is not the main the gate admitted landed on code
+// CI never checked, and the outcome says so.
 export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
@@ -240,26 +265,22 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   const notRun = (reason) => { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); }); };
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
-  let again;
-  let owned;
-  let lastMain;
-  try {
-    // Ownership of the Feature and this intent, from the state branch, comes
-    // first, so no slower read falls between the second gate's scope and the
-    // call; the last read before GitHub is called is main once more.
-    owned = ownership(readRecord(file), op.id);
-    again = admission(readRecord(file), { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record: readRecord(file), pr, client, git }), git, running: op.id });
-    git.fetch();
-    lastMain = git.main();
-  } catch (error) { notRun(`the gate could not be checked again after the intent was saved: ${error.message}`); throw error; }
-  if (owned.length || !again.admitted || again.head !== gate.head || again.originMain !== gate.originMain || lastMain !== gate.originMain) {
-    const why = owned.length ? owned.join("; ") : !again.admitted ? again.blockers.join("; ") : again.head !== gate.head ? `the head moved from ${gate.head} to ${again.head}` : `${TARGET} moved from ${gate.originMain} to ${again.originMain === gate.originMain ? lastMain : again.originMain}`;
+  const final = finalGate({
+    current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, git, main: gate.originMain,
+    premises: (rec, snapshot) => {
+      const again = admission(rec, { ticket, pr, snapshot, facts: gatherFacts({ record: rec, pr, client, git }), git, running: op.id });
+      const blockers = !again.admitted ? again.blockers : again.head !== gate.head ? [`the head moved from ${gate.head} to ${again.head}`] : again.originMain !== gate.originMain ? [`origin/${TARGET} moved from ${gate.originMain} to ${again.originMain}`] : [];
+      return { blockers, again };
+    },
+    call: () => client.merge(pr, gate.head),
+  });
+  if (!final.called && final.error) { notRun(`the gate could not be checked again after the intent was saved: ${final.error.message}`); throw final.error; }
+  if (!final.called) {
+    const why = final.blockers.join("; ");
     notRun(`while the intent was saved, ${why}; run the gate again`);
-    return { admitted: true, merged: false, operation: op.id, state: "failed", evidence: `not run: ${why}`, gate, recheck: again };
+    return { admitted: true, merged: false, operation: op.id, state: "failed", evidence: `not run: ${why}`, gate, recheck: final.held?.again };
   }
-  let call;
-  try { call = client.merge(pr, gate.head); }
-  catch (error) { call = { ok: false, interrupted: true, message: error.message }; }
+  const call = final.error ? { ok: false, interrupted: true, message: final.error.message } : final.value;
   let back = null, readError = null;
   try { back = client.pull(pr); } catch (error) { readError = error.message; }
   // Only GitHub's own refusal shows the request did not apply; a call that was
@@ -389,12 +410,12 @@ export function verifyFeature(record, { snapshot, evidence, mainSha }) {
 // the commit it verified, the Feature has the acceptance section and slices
 // it covered, each slice is still delivered and no operation is unsettled.
 // Every premise is read on a fresh snapshot, with main read last, before the
-// intent is saved, after it is saved, and once more as the last step before
-// the close call, after the final report is posted (or found, if an earlier
-// attempt posted it) and read back. The outcome is the issue state GitHub
-// reads back: a close that was called is failed only on GitHub's own refusal,
-// and every other result short of a closed Feature is uncertain until
-// reconciled, since the request may still land.
+// intent is saved; after it is saved, the final gate stands in front of both
+// GitHub writes, posting the final report (or finding it, if an earlier
+// attempt posted it) and the close call. The outcome is the issue state
+// GitHub reads back: a close that was called is failed only on GitHub's own
+// refusal, and every other result short of a closed Feature is uncertain
+// until reconciled, since the request may still land.
 export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
@@ -402,14 +423,12 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   const v = (record.verifications ?? []).at(-1);
   if (!v || v.id !== id) throw new Error(`Verification ${id} is not the run's latest${v ? ` (${v.id} is)` : ""}; close only on the latest verification`);
   if (v.verdict !== "complete") throw new Error(`Verification ${id} found the Feature incomplete (${[...v.incomplete.map((t) => `#${t.number} ${t.action}`), ...v.criteria.filter((c) => c.status !== "met").map((c) => `unmet: ${c.criterion}`), ...v.unsettled].join("; ")}); the Feature stays open`);
-  const mainMoved = () => { git.fetch(); const now = git.main(); return now === v.mainSha ? [] : [`origin/${TARGET} is ${now}, not the verified ${v.mainSha}`]; };
-  const gapsNow = (rec, running = null) => {
-    const snapshot = takeSnapshot();
+  const gaps = (rec, snapshot, running = null) => {
     if (snapshot.repository !== rec.repository || snapshot.feature?.number !== rec.feature) throw new Error("The snapshot is of another repository or Feature");
-    const gaps = verificationGaps(rec, snapshot, { running });
-    return gaps.length ? gaps : mainMoved();
+    return { blockers: verificationGaps(rec, snapshot, { running }) };
   };
-  const before = gapsNow(record);
+  const before = gaps(record, takeSnapshot()).blockers;
+  if (!before.length) { git.fetch(); const now = git.main(); if (now !== v.mainSha) before.push(`origin/${TARGET} is ${now}, not the verified ${v.mainSha}`); }
   if (before.length) throw new Error(`Verification ${id} no longer holds: ${before.join("; ")}; verify the Feature again`);
   if (client.issue(record.feature).state === "closed") throw new Error(`Feature #${record.feature} is already closed; nothing was recorded`);
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => intent(r, { kind: "close", ticket: r.feature, pr: r.feature, expectHead: v.mainSha, evidence: `verification ${v.id}` }));
@@ -417,33 +436,33 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   const notRun = (reason) => { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); }); };
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
-  let after;
-  try { after = gapsNow(readRecord(file), op.id); }
-  catch (error) { notRun(`the verification could not be checked again after the intent was saved: ${error.message}`); throw error; }
-  if (after.length) {
-    notRun(`while the intent was saved, ${after.join("; ")}; verify the Feature again`);
-    return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${after.join("; ")}`, comment: null };
-  }
-  let comment = null, problem = null, called = false, refused = false;
-  try {
+  const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, git, main: v.mainSha, premises: (rec, snapshot) => gaps(rec, snapshot, op.id), call });
+  // The final report, posted only through the final gate, and read back.
+  const report = gated(() => {
     const existing = client.comments(record.feature).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id)));
     const posted = existing ?? client.createComment(record.feature, v.report);
     const back = client.getComment(posted.id);
     if (norm(back.body) !== norm(v.report)) throw new Error(`comment ${posted.id} does not read back as the report`);
-    comment = { id: back.id, url: back.url, reused: Boolean(existing) };
-  } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
+    return { id: back.id, url: back.url, reused: Boolean(existing) };
+  });
+  if (!report.called && report.error) { notRun(`the verification could not be checked again after the intent was saved: ${report.error.message}`); throw report.error; }
+  if (!report.called) {
+    notRun(`while the intent was saved, ${report.blockers.join("; ")}; verify the Feature again`);
+    return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${report.blockers.join("; ")}`, comment: null };
+  }
+  const comment = report.error ? null : report.value;
+  let problem = report.error ? `the final report was not posted, so the close was not called: ${report.error.message}` : null, called = false, refused = false;
   if (comment) {
-    // The last step before the close call: every premise once more, on a
-    // fresh snapshot with main read last, after the report's GitHub requests.
-    let last;
-    try { last = [...ownership(readRecord(file), op.id), ...gapsNow(readRecord(file), op.id)]; } catch (error) { notRun(`the verification could not be checked again before the close call: ${error.message}`); throw error; }
-    if (last.length) {
-      notRun(`after the report was posted in comment ${comment.id}, ${last.join("; ")}; that report's verification no longer holds, so verify the Feature again`);
-      return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${last.join("; ")}`, comment };
+    // The close call, through the final gate again, after the report's
+    // GitHub requests.
+    const close = gated(() => client.closeIssue(record.feature));
+    if (!close.called && close.error) { notRun(`the verification could not be checked again before the close call: ${close.error.message}`); throw close.error; }
+    if (!close.called) {
+      notRun(`after the report was posted in comment ${comment.id}, ${close.blockers.join("; ")}; that report's verification no longer holds, so verify the Feature again`);
+      return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${close.blockers.join("; ")}`, comment };
     }
     called = true;
-    try { client.closeIssue(record.feature); }
-    catch (error) { refused = GITHUB_REFUSAL.test(`${error.stderr ?? ""} ${error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${error.message}`; }
+    if (close.error) { refused = GITHUB_REFUSAL.test(`${close.error.stderr ?? ""} ${close.error.message}`); problem = `the close call ${refused ? "was refused by GitHub" : "failed without GitHub's answer"}: ${close.error.message}`; }
   }
   let issue = null;
   try { issue = client.issue(record.feature); } catch (error) { problem = `${problem ? `${problem}; ` : ""}the Feature could not be read back: ${error.message}`; }
