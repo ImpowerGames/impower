@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 6,
-  "previous": "e83b8437015b62fa0081862b82891efed24e9d81",
+  "seq": 7,
+  "previous": "0dfc8e47f091ee9d6469cec446525eeff275fad5",
   "snapshotParents": [],
-  "time": "2026-10-14T10:45:25.285Z",
+  "time": "2026-10-14T10:45:44.600Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "check-in",
   "run": {
     "runId": "71e80032-0437-4e45-a74d-5262a900b96b",
-    "recordRevision": 3,
+    "recordRevision": 4,
     "source": {
       "host": "MSI",
       "checkout": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower"
@@ -42,7 +42,17 @@
     "limit": 3,
     "basis": "the smaller of 3 (reviewer slots) and 3 by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer"
   },
-  "checkIn": null,
+  "checkIn": {
+    "interval": 30,
+    "cron": "5,35 * * * *",
+    "prompt": "Orchestrate-feature check-in for Feature #1775, run record C:/Users/Lovelle/AppData/Local/Temp/claude/C--Users-Lovelle-Documents-GitHub-impower/657afe2b-179f-4eb0-a92a-640ec593032a/scratchpad/verify-1775/writer-1775-F2dzpF/run.json: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.",
+    "command": "node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Lovelle/AppData/Local/Temp/claude/C--Users-Lovelle-Documents-GitHub-impower/657afe2b-179f-4eb0-a92a-640ec593032a/scratchpad/verify-1775/writer-1775-F2dzpF/run.json'",
+    "job": null,
+    "none": "this coordinator is a detached claude -p acceptance-verification session whose process exits when its turn ends, so a session-scoped recurring job would never fire; it has no writers to check on and finishes the Feature's closure within this turn",
+    "state": "none",
+    "since": "2026-10-14T10:45:43.535Z",
+    "expires": null
+  },
   "group": null,
   "title": null,
   "tickets": {},
@@ -331,6 +341,12 @@
       "id": "bd024e56",
       "verdict": "incomplete",
       "mainSha": "68544d71bf782f939d0912f5dd78331b3990effe"
+    },
+    {
+      "time": "2026-10-14T10:45:43.536Z",
+      "event": "check-in-scheduled",
+      "job": null,
+      "none": "this coordinator is a detached claude -p acceptance-verification session whose process exits when its turn ends, so a session-scoped recurring job would never fire; it has no writers to check on and finishes the Feature's closure within this turn"
     }
   ]
 }
