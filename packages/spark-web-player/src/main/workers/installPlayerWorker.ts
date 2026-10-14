@@ -240,12 +240,33 @@ export function installPlayerWorker(connection: MessageConnection) {
   let routingTo: { file: string; line: number } | null = null;
 
   compiler.addEventListener("compiler/didCompile", (params) => {
-    if (compiledElsewhere(params.program, params.program.startFrom)) {
-      // Compiled for a script the point the game routes to is not in. The
-      // page does not take it, so the game keeps the story's program and the
-      // display under way is not taken over: on a cold start in VS Code a
-      // compile of each open script would otherwise cancel the first
-      // display, which nothing asks for again (#1874).
+    if (
+      params.produced &&
+      compiledElsewhere(params.program, params.program.startFrom)
+    ) {
+      // Compiled for a script the point it routes to is not in. The game
+      // keeps the program it holds, so the display under way is not taken
+      // over: on a cold start in VS Code a compile of each open script would
+      // otherwise cancel the first display, and the page, which does not take
+      // such a program, would never ask for it again (#1874). The program is
+      // still kept for the page to name: the page judges by its own preview
+      // point, which a selection the author did not make leaves where it was
+      // while the point here moves, so it can take a program judged
+      // elsewhere here. A display or PLAY that names it gives it to the game.
+      const entry: DisplayableProgram = {
+        id: programIdentity(params.program)!,
+        program: params.program,
+        log: new RouteSearchLog(),
+      };
+      if (nameableRealIds.at(-1) !== entry.id) {
+        nameableRealIds.push(entry.id);
+      }
+      if (!displayable.has(entry.id)) {
+        // A compile that changed nothing serves a program already kept,
+        // whose log stays.
+        retain(entry);
+      }
+      releaseUnneeded();
       return;
     }
     routingTo = params.program.startFrom ?? null;

@@ -83,4 +83,47 @@ describe("a compile of a script the story does not include", () => {
       h.dispose();
     }
   }, 120_000);
+
+  it("is still kept for the page, which judges by its own preview point", async () => {
+    // A selection the author did not make (a jump from the Problems panel,
+    // say) moves the point the workspace compiles toward into the other
+    // script, while the page's preview point stays in the story. The story's
+    // next compile is then routed to a point it does not hold. The page
+    // takes it, since it holds the page's point, and must be able to show it.
+    const h = await createPlayerHarness({
+      files: [
+        { uri: MAIN_URI, text: SOURCE },
+        { uri: LOOSE_URI, text: LOOSE },
+      ],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    try {
+      await h.compile();
+      expect(h.overlay.textContent).toContain("The beat with nothing to wait for.");
+
+      const lines = SOURCE.split("\n");
+      await h.edit([
+        {
+          range: {
+            start: { line: FIRST, character: 0 },
+            end: { line: FIRST, character: lines[FIRST]!.length },
+          },
+          text: "    The beat, edited.",
+        },
+      ]);
+      const compiled = await h.page.sendRequest(CompileProgramMessage.type, {
+        textDocument: { uri: MAIN_URI },
+        startFrom: { file: LOOSE_URI, line: 2 },
+      });
+      expect(compiled.program.scripts).not.toHaveProperty([LOOSE_URI]);
+      await h.controller.loadProgram(compiled.program);
+      await settle(40);
+
+      expect(h.controller._program).toBe(compiled.program);
+      expect(h.overlay.textContent).toContain("The beat, edited.");
+      expect(h.controller.getGameState().position).toEqual({ uri: MAIN_URI, line: FIRST });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
 });

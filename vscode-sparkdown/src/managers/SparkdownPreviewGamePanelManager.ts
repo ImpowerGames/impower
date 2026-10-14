@@ -91,6 +91,12 @@ export class SparkdownPreviewGamePanelManager {
    *  the first initialization; a reloaded webview reads them again. */
   protected _workspaceFilesReading?: ReturnType<typeof getWorkspaceFiles>;
 
+  /** Counts the initializations begun, and the panel closing. Requests go to
+   *  whichever webview the panel holds now, so an initialization a newer one
+   *  has overtaken (a webview reloaded while the first read was still under
+   *  way) stops rather than initialize the new player as well. */
+  protected _initializations = 0;
+
   _fileWatchersRegistered = false;
 
   _connection = new Connection({
@@ -195,6 +201,7 @@ export class SparkdownPreviewGamePanelManager {
       this._panel = undefined;
       this._connected = false;
       this._gameRunning = false;
+      this._initializations += 1;
       this._onDidDisposePanel.fire();
     });
     // Read while the webview loads: its player asks for initialization only
@@ -356,9 +363,14 @@ export class SparkdownPreviewGamePanelManager {
     const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
     const settings = JSON.parse(JSON.stringify(sparkdownConfig));
 
+    const initialization = ++this._initializations;
+    const overtaken = () => initialization !== this._initializations;
     const reading = this._workspaceFilesReading ?? getWorkspaceFiles();
     this._workspaceFilesReading = undefined;
     const files = await reading;
+    if (overtaken()) {
+      return;
+    }
     // Only register file watchers once per manager lifetime. This method runs
     // again every time the webview is reloaded (e.g. moved or undocked), and
     // re-creating watchers each time would leak them and duplicate listeners.
@@ -390,6 +402,9 @@ export class SparkdownPreviewGamePanelManager {
       }
     }
     await this.sendRequest(ConnectMessage.type, {});
+    if (overtaken()) {
+      return;
+    }
     await this.sendRequest(InitializeMessage.type, {
       initializationOptions: {
         settings,
@@ -415,6 +430,9 @@ export class SparkdownPreviewGamePanelManager {
       rootUri: null,
       processId: 0,
     });
+    if (overtaken()) {
+      return;
+    }
     // Scripts open in an editor reach the preview as edits, so it must know
     // them as open: their saves are then not mistaken for outside changes to
     // the file, and their text is the editor's, unsaved edits included.
@@ -425,6 +443,9 @@ export class SparkdownPreviewGamePanelManager {
       await this.sendRequest(ResizeGameMessage.type, {
         height: canvasHeight,
       });
+      if (overtaken()) {
+        return;
+      }
     }
     this._connected = true;
     this._onDidConnectPanel.fire();

@@ -13,6 +13,9 @@ const state = vi.hoisted(() => ({
   vscode: null as unknown as FakeVscode,
   errors: [] as string[],
   reads: 0,
+  /** While set, each read waits until its release is called. */
+  holding: false,
+  releases: [] as (() => void)[],
 }));
 
 vi.mock("vscode", async () => {
@@ -37,6 +40,9 @@ vi.mock("vscode", async () => {
 vi.mock("../src/utils/getWorkspaceFiles", () => ({
   getWorkspaceFiles: async () => {
     state.reads++;
+    if (state.holding) {
+      await new Promise<void>((resolve) => state.releases.push(resolve));
+    }
     return [
       { type: "script", uri: "file:///project/main.sd", name: "main", ext: "sd", text: "", version: null, languageId: null },
       { type: "image", uri: "file:///project/bg.png", name: "bg", ext: "png", version: null, languageId: null },
@@ -101,6 +107,8 @@ const open = async (
 beforeEach(() => {
   state.errors = [];
   state.reads = 0;
+  state.holding = false;
+  state.releases = [];
 });
 
 describe("starting the Game Preview's player", () => {
@@ -121,6 +129,24 @@ describe("starting the Game Preview's player", () => {
     await receive(CONNECTED);
 
     expect(initializations()).toHaveLength(2);
+  });
+
+  it("initializes a webview reloaded while the first read is under way once", async () => {
+    // Requests go to whichever webview the panel holds, so an initialization
+    // overtaken by a reload would otherwise initialize the new player too.
+    state.holding = true;
+    const { receive, initializations } = await open();
+
+    const first = receive(CONNECTED);
+    await Promise.resolve();
+    // The tab is moved while the project is still being read: the new
+    // webview's player connects and reads it again.
+    const second = receive(CONNECTED);
+    await Promise.resolve();
+    for (const release of state.releases) release();
+    await Promise.all([first, second]);
+
+    expect(initializations()).toHaveLength(1);
   });
 
   it("answers the webview's empty message once, not every message", async () => {
