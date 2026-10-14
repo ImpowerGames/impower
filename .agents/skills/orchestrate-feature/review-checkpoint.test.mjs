@@ -260,6 +260,23 @@ try {
   formerWriter.tickets[42].owner = null;
   formerWriter.coordinator.session = "local_writer";
   assert.throws(() => rc.decide(formerWriter, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), /local_writer wrote for #42, and is now its coordinator/);
+  // A detached CLI writer is held by its process: its session is the one its
+  // stream names, under that id and as the app shows it once opened, and a
+  // start with no recorded outcome is known by its launch directory.
+  const cliSession = "6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f";
+  const cliStream = (dir) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: cliSession })}\n`); return dir; };
+  const cliHeld = structuredClone(record());
+  cliHeld.tickets[42].owner = { ...cliHeld.tickets[42].owner, route: "claude-cli", handle: { kind: "process", pid: null, host: os.hostname(), launchDir: cliStream(path.join(tmp, "cli-launch-42")) } };
+  const cliPending = structuredClone(record());
+  cliPending.tickets[42].owner = null;
+  cliPending.tickets[42].pending = { operation: "dispatch", route: "claude-cli", launchId: "a1b2c3d4", artifactParent: path.join(tmp, "cli-pending") };
+  cliStream(run.launchDirOf(cliPending.tickets[42].pending, 42));
+  for (const [name, held] of [["held", cliHeld], ["pending", cliPending]]) {
+    for (const session of [cliSession, `local_${cliSession}`]) {
+      assert.throws(() => rc.decide({ ...held, coordinator: { ...held.coordinator, session } }, { ticket: 42, kind: "accept-unreviewed", assessment: acceptance, inspected: e.range.diffSha256, evidence: e }), new RegExp(`${session} wrote for #42, and is now its coordinator`), `a ${name} CLI writer's session ${session} is the ticket's writer`);
+    }
+    assert.ok(!rc.trustedCoordinators({ ...held, previousCoordinators: [{ session: `local_${cliSession}` }] }, 42).includes(`local_${cliSession}`), `a ${name} CLI writer's opened session is never a trusted coordinator`);
+  }
   assert.deepEqual(e.range.commits.map((x) => x.sha), [c.round5, c.final]);
   // Posted but not yet read back, the acceptance applies nowhere: not with
   // the record, and not with that record carried over by a takeover.

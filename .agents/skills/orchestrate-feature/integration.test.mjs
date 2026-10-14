@@ -306,6 +306,14 @@ try {
   const selfWritten = structuredClone(record());
   selfWritten.tickets[41].history.push({ owner: { handle: { kind: "session", id: "local_coord" } }, released: "x" });
   blocked(gate(41, selfWritten), /local_coord wrote for #41, and a writer never merges its own work/, "a coordinator that wrote for the ticket");
+  // A detached CLI writer is known by the session its stream names.
+  const cliDir = path.join(tmp, "cli-launch-41");
+  fs.mkdirSync(cliDir, { recursive: true });
+  fs.writeFileSync(path.join(cliDir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: "6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f" })}\n`);
+  const cliWritten = structuredClone(record());
+  cliWritten.tickets[41].history.push({ owner: { route: "claude-cli", handle: { kind: "process", pid: null, launchDir: cliDir } }, released: "x" });
+  cliWritten.coordinator.session = "local_6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f";
+  blocked(gate(41, cliWritten), /local_6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f wrote for #41, and a writer never merges its own work/, "a coordinator whose session was the ticket's CLI writer, opened in the app");
   assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
 
   // CI: pending, failed, cancelled and a skipped required gate all refuse.

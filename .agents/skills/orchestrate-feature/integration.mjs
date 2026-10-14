@@ -131,7 +131,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   if (!record.checkpoints) blockers.push("checkpoints are not enabled for this run, so a merge's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
   if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-feature and Feature #${record.feature}; only an explicit invocation grants a merge, and discussing the skill is not one`);
   const own = record.tickets[number];
-  if (own && writersOf(own).includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
+  if (own && writersOf(own, number).includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
   // Scope: a sub-issue of this Feature, and its one open PR.
   const t = snapshot.repository === record.repository && snapshot.feature?.number === record.feature ? snapshot.tickets.find((x) => x.number === number) : undefined;
   if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) blockers.push("the snapshot is of another repository or Feature");
