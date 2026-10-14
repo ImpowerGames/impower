@@ -479,6 +479,8 @@ async function main() {
     const store = compiler.chunkStore;
     const passes = { ...store?.passesLastBuild, initializerRuns: (store?.initializerRuns ?? 0) - runsBefore, fallback: compiler.lastProgramBuild?.unsupported?.construct ?? null };
     const resolver = compiler.programResolver?.passesLastResolve;
+    // What the scoping of the user's defines walked and classified (#709).
+    const defineScope = compiler.defineScopeStats ? { ...compiler.defineScopeStats } : undefined;
     const game = workerGame!;
     const before = residueOf(game);
     const checkpoint = searched?.checkpoint;
@@ -509,6 +511,7 @@ async function main() {
       messages: sink.stats(),
       passes,
       ...(resolver ? { resolver } : {}),
+      ...(defineScope ? { defineScope } : {}),
     });
     if (i === config.warmup) heapAfterFirst = heapNow();
     else if ((i - config.warmup + 1) % 50 === 0) heapEvery50.push(heapNow());
@@ -594,6 +597,12 @@ function printReport(report: any) {
     // What the program path's resolver visited, per sample
     // (`ProgramResolver.passesLastResolve`, #1607).
     out.push("", "  resolver passes, per sample:", ...resolves.map((p: any) => `    ${JSON.stringify(p)}`));
+  }
+  const scopes = report.perSample?.map((s: any) => s.defineScope).filter(Boolean);
+  if (scopes?.length) {
+    // The chunks and objects the scoping of the user's defines walked, and
+    // the declarations it classified (`SparkdownCompiler.defineScopeStats`).
+    out.push("", "  define scoping, per sample:", ...scopes.map((p: any) => `    ${JSON.stringify(p)}`));
   }
   const m = report.messages;
   if (m) {
