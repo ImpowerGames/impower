@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 10,
-  "previous": "99da8b4eef3fcfefbe0956ab989ff6a28d63cf5e",
+  "seq": 11,
+  "previous": "a9bd64020c2f7c9698daed6d934966e76486701b",
   "snapshotParents": [],
-  "time": "2026-10-14T11:05:16.234Z",
+  "time": "2026-10-14T11:06:03.497Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "closing the Feature (confirmed)",
   "run": {
     "runId": "71e80032-0437-4e45-a74d-5262a900b96b",
-    "recordRevision": 7,
+    "recordRevision": 8,
     "source": {
       "host": "MSI",
       "checkout": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower"
@@ -67,9 +67,15 @@
       "ticket": 1775,
       "pr": 1775,
       "expectHead": "5fac056828b3288fd533274030c43e9c1a15a834",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-14T11:05:15.190Z",
-      "evidence": "verification 8857639f"
+      "evidence": "Feature #1775 reads back closed, with the final report in comment 6166921853",
+      "settled": "2026-10-14T11:06:02.434Z",
+      "comment": {
+        "id": 6166921853,
+        "url": "https://github.com/ImpowerGames/impower/issues/1775#issuecomment-6166921853",
+        "reused": false
+      }
     }
   ],
   "decisions": [],
@@ -595,6 +601,12 @@
       "id": "389b285d",
       "kind": "close",
       "pr": 1775
+    },
+    {
+      "time": "2026-10-14T11:06:02.434Z",
+      "event": "operation-outcome",
+      "id": "389b285d",
+      "state": "confirmed"
     }
   ]
 }
