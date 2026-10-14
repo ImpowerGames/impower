@@ -24,9 +24,23 @@ export interface DisplayingGame {
   connect(
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
   ): Promise<void>;
+  /** The beat-only display's stand-in for `connect` (#657); a game without
+   *  it connects every display. */
+  redisplay?(
+    send: (message: Message, transfer?: ArrayBuffer[]) => void,
+  ): Promise<void>;
+  /** Why a display at `cursor` must connect, or null when it can be
+   *  beat-only, as far as the game knows (#657). */
+  beatOnlyRefusal?(cursor: ProgramAddress | null | undefined): string | null;
   preview(file: string, line: number): Promise<ProgramAddress | null>;
   module: { ui: { forgetDisplayedImages(): void; sweepReconcile(): void } };
 }
+
+/** How a display went to the page (#657): beat-only, or connected in full
+ *  for the reason `refused` names. */
+export type DisplayPath =
+  | { beatOnly: true }
+  | { beatOnly: false; refused: string };
 
 export interface DisplayRequest {
   /** The program the game holds, which the display is for. */
@@ -42,6 +56,11 @@ export interface DisplayRequest {
    *  save. */
   checkpoint?: string | StoredCheckpoint;
   simulationFailure?: SimulationFailure;
+  /** Whether the worker lets the display be beat-only (#657): `true`, or
+   *  the reason it does not (`classifyDisplay`). Absent, it connects. */
+  beatOnly?: true | string;
+  /** Told how the display goes, once the game has classified it. */
+  onPath?: (path: DisplayPath) => void;
   /** Where the game sends the page what it displays. */
   send: (message: Message, transfer?: ArrayBuffer[]) => void;
   /** A later display, or a compile, took the game over. */
@@ -52,6 +71,11 @@ export interface DisplayRequest {
  * Display a program's preview at a point from the worker's game. Answers
  * whether this display's frame is complete on the page: false when something
  * took it over while it waited, in which case it neither previews nor sweeps.
+ *
+ * A display the worker and the game both let be beat-only (#657) loads the
+ * checkpoint as any display does, then redisplays in place of the connect:
+ * the screen's structure stands and its content is restored, and the
+ * preview and the sweep follow as they do after a connect.
  */
 export async function displayPreviewFrom(
   game: DisplayingGame,
@@ -82,6 +106,11 @@ export async function displayPreviewFrom(
     return true;
   }
 
+  // Classified before anything of the game changes: what the page shows
+  // and what the game last built are what the classification reads.
+  const path = classifyPath(game, request, resolvedPreviewAddress);
+  request.onPath?.(path);
+
   // A suggestion's report is not relayed to the editors, so the game leaves
   // out what only they would read.
   game.reportsExecutedLines = !speculative;
@@ -108,7 +137,11 @@ export async function displayPreviewFrom(
     game.simulation = "fail";
     game.simulationFailure = request.simulationFailure;
   }
-  await game.connect(send);
+  if (path.beatOnly) {
+    await game.redisplay!(send);
+  } else {
+    await game.connect(send);
+  }
   if (superseded()) {
     return false;
   }
@@ -120,4 +153,22 @@ export async function displayPreviewFrom(
   }
   game.module.ui.sweepReconcile();
   return true;
+}
+
+/** How a display goes: beat-only when the worker lets it and the game finds
+ *  nothing against it, and otherwise connected in full, for the first
+ *  reason found. */
+function classifyPath(
+  game: DisplayingGame,
+  request: DisplayRequest,
+  cursor: ProgramAddress | null | undefined,
+): DisplayPath {
+  if (request.beatOnly !== true) {
+    return { beatOnly: false, refused: request.beatOnly ?? "unoffered" };
+  }
+  if (!game.redisplay || !game.beatOnlyRefusal) {
+    return { beatOnly: false, refused: "unoffered" };
+  }
+  const refused = game.beatOnlyRefusal(cursor);
+  return refused ? { beatOnly: false, refused } : { beatOnly: true };
 }

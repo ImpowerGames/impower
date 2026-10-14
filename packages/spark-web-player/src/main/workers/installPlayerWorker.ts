@@ -27,7 +27,8 @@ import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSpa
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import { planPreviewHint, type PreviewHintState } from "../utils/previewHint";
-import { displayPreviewFrom } from "./displayPreviewFrom";
+import { workerBeatOnly, type StandingDisplay } from "./classifyDisplay";
+import { displayPreviewFrom, type DisplayPath } from "./displayPreviewFrom";
 import {
   DisplayPreviewMessage,
   type DisplayPreviewParams,
@@ -82,6 +83,8 @@ export function installPlayerWorker(connection: MessageConnection) {
     /** The identities of the programs the worker keeps to display, which
      *  stay bounded however long the author browses and edits. */
     keptPrograms: (): string[] => [...displayable.keys()],
+    /** How the last display that went through to the game went (#657). */
+    lastDisplayPath: (): DisplayPath | undefined => lastPath,
   };
   // The warm-up is planned before the compiler handles the selection, which
   // can recompile the real documents first, so the fetches start as soon as
@@ -401,6 +404,12 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   let displays = 0;
 
+  /** The display the page shows, once it went up whole (#657); gone while
+   *  one is under way, when one is taken over, and while PLAY holds the
+   *  page. */
+  let standing: StandingDisplay | undefined;
+  let lastPath: DisplayPath | undefined;
+
   /** What the step the display under way runs raises, which its answer
    *  carries with what the route raised, so the page reports the preview's
    *  run whole rather than hearing part of it before it knows the display is
@@ -521,6 +530,16 @@ export function installPlayerWorker(connection: MessageConnection) {
       releaseUnneeded();
       const stepErrors: SimulationError[] = [];
       displayErrors = stepErrors;
+      // Read before the display changes what the page shows; gone until
+      // this display goes up whole (#657).
+      const beatOnly = workerBeatOnly(standing, {
+        game,
+        fresh,
+        speculative: params.speculative,
+        checkpoint: route.checkpoint,
+      });
+      standing = undefined;
+      let path: DisplayPath | undefined;
       const displaying = displayPreviewFrom(game, {
         program: entry.program,
         programChanged,
@@ -529,6 +548,10 @@ export function installPlayerWorker(connection: MessageConnection) {
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
+        beatOnly,
+        onPath: (taken) => {
+          path = taken;
+        },
         send: sendToPage,
         superseded: () =>
           display !== displays ||
@@ -559,10 +582,20 @@ export function installPlayerWorker(connection: MessageConnection) {
         fresh = true;
         continue;
       }
+      const taken: DisplayPath | undefined = path;
+      lastPath = taken;
+      if (displayed) {
+        standing = { game, speculative: params.speculative };
+      }
       return displayed
         ? {
             displayed,
             errors: [...(route.simulationErrors ?? []), ...stepErrors],
+            ...(taken
+              ? taken.beatOnly
+                ? { path: "beat" as const }
+                : { path: "full" as const, refused: taken.refused }
+              : { path: "repeat" as const }),
           }
         : { displayed };
     }
@@ -611,6 +644,8 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  way. */
   const play = (params: PlayParams): PlayResult => {
     displays += 1;
+    // PLAY's game takes the page: the next display connects in full.
+    standing = undefined;
     routingTo = params.startFrom ?? null;
     pageHolds(params.program);
     const entry = displayable.get(params.program);

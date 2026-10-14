@@ -282,8 +282,9 @@ describe("the programs the worker keeps", () => {
         real: held,
       });
       h.workspace.programHeld(programIdentity(newer.program)!);
-      // Nothing on the route or at the line raises anything.
-      expect(await display).toEqual({ displayed: true, errors: [] });
+      // Nothing on the route or at the line raises anything. (The answer
+      // also says how the display went, #657.)
+      expect(await display).toMatchObject({ displayed: true, errors: [] });
     } finally {
       h.dispose();
     }

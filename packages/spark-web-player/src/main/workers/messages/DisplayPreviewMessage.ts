@@ -37,6 +37,12 @@ export interface DisplayPreviewResult {
    *  reports as the preview's run. The display sends the page none of them
    *  as they are raised. */
   errors?: SimulationError[];
+  /** With `displayed`: how the game displayed it (#657). `beat`: the
+   *  screen's structure stood and the beat and the restored content were
+   *  sent; `full`: the game connected, for the reason `refused` names;
+   *  `repeat`: it repeated the preview under way, which it swept. */
+  path?: "beat" | "full" | "repeat";
+  refused?: string;
 }
 
 /**
