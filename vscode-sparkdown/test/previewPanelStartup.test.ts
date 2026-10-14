@@ -16,6 +16,10 @@ const state = vi.hoisted(() => ({
   /** While set, each read waits until its release is called. */
   holding: false,
   releases: [] as (() => void)[],
+  /** Files the project holds beside the two every read finds. */
+  extraFiles: [] as { type: string; uri: string; name: string; ext: string; version: null; languageId: null }[],
+  /** What the preview's file watcher was asked to call on a creation. */
+  onCreate: [] as ((uri: { toString(): string }) => void)[],
 }));
 
 vi.mock("vscode", async () => {
@@ -46,11 +50,21 @@ vi.mock("../src/utils/getWorkspaceFiles", () => ({
     return [
       { type: "script", uri: "file:///project/main.sd", name: "main", ext: "sd", text: "", version: null, languageId: null },
       { type: "image", uri: "file:///project/bg.png", name: "bg", ext: "png", version: null, languageId: null },
+      ...state.extraFiles,
     ];
   },
 }));
 vi.mock("../src/utils/getWorkspaceFileWatchers", () => ({
-  getWorkspaceFileWatchers: () => [],
+  getWorkspaceFileWatchers: () => [
+    {
+      onDidCreate: (listener: (uri: { toString(): string }) => void) => {
+        state.onCreate.push(listener);
+        return { dispose: () => {} };
+      },
+      onDidChange: () => ({ dispose: () => {} }),
+      onDidDelete: () => ({ dispose: () => {} }),
+    },
+  ],
 }));
 
 const CONNECTED = {
@@ -109,6 +123,8 @@ beforeEach(() => {
   state.reads = 0;
   state.holding = false;
   state.releases = [];
+  state.extraFiles = [];
+  state.onCreate = [];
 });
 
 describe("starting the Game Preview's player", () => {
@@ -179,6 +195,32 @@ describe("starting the Game Preview's player", () => {
 
     // Before the player has mounted and asked for anything.
     expect(state.reads).toBe(1);
+  });
+
+  it("gives the player a file created after the early read, before it mounted", async () => {
+    // The project is read as the webview loads. A file an exporter writes
+    // after that read and before the player mounts is in neither the read
+    // nor any change the player could have heard of.
+    const { receive, initializations } = await open();
+    await Promise.resolve();
+    const room = {
+      type: "image",
+      uri: "file:///project/room.png",
+      name: "room",
+      ext: "png",
+      version: null,
+      languageId: null,
+    } as const;
+    state.extraFiles = [room];
+    for (const created of state.onCreate) created({ toString: () => room.uri });
+
+    await receive(CONNECTED);
+
+    expect(
+      initializations()[0].params.initializationOptions.files.map(
+        (file: any) => file.uri,
+      ),
+    ).toContain(room.uri);
   });
 
   it("tells the author when the player cannot be initialized", async () => {
