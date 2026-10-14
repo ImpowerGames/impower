@@ -569,6 +569,32 @@ scene start
 end
 `;
 
+/** A badge showing how many times a function was called: a call counts a
+ *  visit, which no write mark sees (round 2 of #1878). The beat's statement
+ *  calls it. */
+const VISITED = `function f()
+  return ""
+end
+
+layout main with
+  badge {
+    text "{count.visits(-> f)}"
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: {f()}Spoken.
+end
+`;
+
 /** An input whose handler writes nothing: what the viewer types changes
  *  the page, and the worker sends nothing back. */
 const TYPED = `store name = "Zelda"
@@ -1345,6 +1371,18 @@ describe("a display that connects in full", () => {
     expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
 
+  it("(c) connects in full when the beat's own statement calls a function, which counts a visit", async () => {
+    const { a, full } = await twins(VISITED, lineIn(VISITED, "Spoken."), async (p) => {
+      const start = { badge: badge(p), ...after(p) };
+      await p.edit("{f()}Spoken.", "{f()}{f()}Spoken.");
+      return { start, edited: { badge: badge(p), ...after(p) } };
+    });
+    expect(a.start.badge).toBe("1");
+    expectFull(a.edited, "checkpoint");
+    expect(a.edited.badge).toBe("2");
+    expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
   it("(h) connects in full when the page was sent a change after the display went up (a click updated a binding)", async () => {
     const { a, full } = await twins(BADGED_BEFORE, SPEAKS, async (p) => {
       const start = { badge: badge(p), ...after(p) };
@@ -1475,6 +1513,41 @@ describe("a display that connects in full", () => {
     });
     expectFull(a, "bindings");
     expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("(i) connects in full over a tree whose building called a function, which counts a visit", async () => {
+    // A binding calls the function, and the beat's statement does not.
+    const text = VISITED.replace("HERO: {f()}Spoken.", "HERO: Spoken.").replace(
+      'text "{count.visits(-> f)}"',
+      'text "{f()}{count.visits(-> f)}"',
+    );
+    const { a, full } = await twins(text, lineIn(text, "Spoken."), async (p) => {
+      await p.edit("Spoken.", "Edited.");
+      return after(p);
+    });
+    expectFull(a, "bindings");
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("(i) connects in full over a tree whose building showed an object's identity", async () => {
+    const text = READS("tostring({})");
+    const p = await player(text, lineIn(text, "Spoken."));
+    const start = badge(p);
+    after(p);
+    await p.edit("Spoken.", "Edited.");
+    expectFull(after(p), "bindings");
+    // Evaluated again, as a full display evaluates it.
+    expect(start).toMatch(/^table: 0x/);
+    expect(badge(p)).toMatch(/^table: 0x/);
+    expect(badge(p)).not.toBe(start);
+  }, 120_000);
+
+  it("(i) connects in full over a tree whose building added an error", async () => {
+    const text = READS('error("unbound")');
+    const p = await player(text, lineIn(text, "Spoken."));
+    after(p);
+    await p.edit("Spoken.", "Edited.");
+    expectFull(after(p), "bindings");
   }, 120_000);
 
   it("(i) connects in full over a tree whose building drew a random number", async () => {

@@ -325,10 +325,11 @@ export class Game<T extends M = {}> {
    *  it to its end. */
   protected _routeTargetWrote?: boolean;
   /** The reactive changes taken when the watch began, given back when it
-   *  ends, and the story's random state then; set while it runs. */
+   *  ends, and the story's state the write marks do not see then; set
+   *  while it runs. */
   protected _targetWatch?: {
     changes: { globals: Set<string>; tables: Set<object> };
-    random: string;
+    unmarked: string;
   };
 
   protected _executingLocation: ScriptLocation | null = null;
@@ -887,8 +888,8 @@ export class Game<T extends M = {}> {
   }
 
   /** Watch the story's writes from here to the checkpoint at the route's
-   *  target: a global, a table, a closed-over cell, or the random state a
-   *  draw advances. The reactive changes pending now are kept aside and
+   *  target: a global, a table, a closed-over cell, the random state a draw
+   *  advances, or a visit count. The reactive changes pending now are kept aside and
    *  given back when the watch ends, so no binding misses one. A watch that
    *  would share the write marks with another tracker leaves the answer
    *  unknown. */
@@ -899,17 +900,18 @@ export class Game<T extends M = {}> {
     }
     this._targetWatch = {
       changes: vs.takeReactiveChanges(),
-      random: this.randomState(),
+      unmarked: this.unmarkedState(),
     };
     vs.TakeWrites();
     vs.trackWrites = true;
   }
 
-  /** The story's seed and last draw, which every random draw reads and
-   *  advances. */
-  protected randomState(): string {
+  /** The story's state that changes without a write mark: the seed and
+   *  last draw, which every random draw reads and advances, and the visits
+   *  counted, which a function call, a flow entry or a sequence raises. */
+  protected unmarkedState(): string {
     const state = this._story.state;
-    return `${state.storySeed}:${state.previousRandom}`;
+    return `${state.storySeed}:${state.previousRandom}:${state.visitsMade}`;
   }
 
   /** End the watch `watchTargetWrites` began, recording what it saw. */
@@ -928,7 +930,7 @@ export class Game<T extends M = {}> {
       changes.tables.size > 0 ||
       writes.tables.size > 0 ||
       writes.cells.size > 0 ||
-      this.randomState() !== prior.random;
+      this.unmarkedState() !== prior.unmarked;
     vs.restoreReactiveChanges(prior.changes);
     vs.restoreReactiveChanges(changes);
   }

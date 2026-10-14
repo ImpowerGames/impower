@@ -5,7 +5,7 @@ import { ErrorType } from "../../../core/enums/ErrorType";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { hostClock } from "@impower/sparkdown/src/runtime/HostClock";
+import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
   isAttributeProp,
@@ -739,6 +739,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     try {
       return story.EvaluateFunction(exprId, args);
     } catch (e) {
+      if (this._building) {
+        // The error ended the story: building the tree changed its state
+        // (#657).
+        this._building.writes = true;
+      }
       this.reportRuntimeError(
         `Error evaluating \`${binding.source ?? exprId}\``,
         e,
@@ -1055,33 +1060,47 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._restoredEdits = this._screenEdits;
   }
 
-  /** What a watch of the tree's building began from: the story's random
-   *  state and the host clock's reads. */
-  protected _buildWatch?: { random: string; clock: number };
+  /** What a watch of the tree's building began from: the story's state the
+   *  write marks do not see, and the ambient reads made so far. */
+  protected _buildWatch?: { unmarked: string; ambient: number };
 
-  /** Begin watching what building the tree writes, and reads that no story
-   *  state holds, from a clean change set. */
+  /** Begin watching what building the tree writes, and the values it reads
+   *  that no story state holds, from a clean change set. */
   protected watchBuild() {
     const vs = this._game.story.variablesState;
     vs.takeReactiveChanges();
     vs.TakeWrites();
     vs.trackWrites = true;
-    this._buildWatch = { random: this.randomState(), clock: hostClock.reads };
+    this._buildWatch = {
+      unmarked: this.unmarkedState(),
+      ambient: ambientReads.count,
+    };
   }
 
-  /** The story's seed and last draw, which every random draw reads and
-   *  advances. */
-  protected randomState(): string {
-    const state = this._game.story.state;
-    return `${state.storySeed}:${state.previousRandom}`;
+  /** The story's state that changes without a write mark: the seed and
+   *  last draw, which every random draw reads and advances; the visits
+   *  counted, which a call to a function raises; and the errors and
+   *  warnings a failing binding adds or reports. */
+  protected unmarkedState(): string {
+    const story = this._game.story;
+    const state = story.state;
+    return [
+      state.storySeed,
+      state.previousRandom,
+      state.visitsMade,
+      story.currentErrors?.length ?? 0,
+      story.currentWarnings?.length ?? 0,
+      this._game.runtimeErrorsReported,
+    ].join(":");
   }
 
   /** Whether the story's state was written while the tree was being built
-   *  or restored, or the building read the host's clock, which evaluating
-   *  the same bindings again may read otherwise: `changes` is the reactive
-   *  change set taken then. A table a builtin changed in place (`rawset`)
-   *  is in the write marks and not in the change set, and a random draw
-   *  advances the story's random state. */
+   *  or restored, or the building read a value no story state holds (the
+   *  host's clock, an object's identity), which evaluating the same bindings
+   *  again may read otherwise: `changes` is the reactive change set taken
+   *  then. A table a builtin changed in place (`rawset`) is in the write
+   *  marks and not in the change set, and a random draw, a visit and an
+   *  error are in none of them. */
   protected noteBuildWrites(changes: {
     globals: Set<string>;
     tables: Set<object>;
@@ -1100,8 +1119,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       changes.tables.size > 0 ||
       writes.tables.size > 0 ||
       writes.cells.size > 0 ||
-      this.randomState() !== watch.random ||
-      hostClock.reads !== watch.clock
+      this.unmarkedState() !== watch.unmarked ||
+      ambientReads.count !== watch.ambient
     ) {
       building.writes = true;
     }

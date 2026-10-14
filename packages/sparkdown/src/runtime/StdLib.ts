@@ -3,7 +3,7 @@ import { ControlCommand } from "./ControlCommand";
 import { getPluralCategory } from "./PluralRules";
 import { StepLimitExceeded, StoryException } from "./StoryException";
 import { drawStoryRandom } from "./StoryRandom";
-import { hostClock } from "./HostClock";
+import { ambientReads } from "./AmbientReads";
 import { Void } from "./Void";
 import {
   ObjectValue,
@@ -256,6 +256,7 @@ function toUint64(n: number): bigint {
 const pointerIdRegistry = new WeakMap<object, number>();
 let nextPointerId = 1;
 function luauPointerId(o: object): string {
+  ambientReads.count += 1;
   let id = pointerIdRegistry.get(o);
   if (id == null) {
     id = nextPointerId++;
@@ -2851,7 +2852,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // Luau uses `os.time()`-equivalent. Mirroring that here —
         // sparkdown's narrative-fiction runtime doesn't promise
         // determinism across saves when this form is used.
-        hostClock.reads += 1;
+        ambientReads.count += 1;
         seed = Math.floor(Date.now());
       } else {
         const n = coerceNumber(args[0]);
@@ -5603,7 +5604,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "os.clock": {
     arity: 0,
     fn: () => {
-      hostClock.reads += 1;
+      ambientReads.count += 1;
       return typeof performance !== "undefined" && performance.now
         ? performance.now() / 1000
         : Date.now() / 1000;
@@ -5622,7 +5623,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     fn: (story, args) => {
       if (args.length === 0 || args[0] == null || args[0] instanceof NullValue) {
-        hostClock.reads += 1;
+        ambientReads.count += 1;
         return Math.floor(Date.now() / 1000);
       }
       const t = args[0];
@@ -5690,7 +5691,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // `os.date("", -1) == nil` (datetime.luau line 19).
       if (timeArg != null && timeArg < 0) return null;
       if (timeArg == null) {
-        hostClock.reads += 1;
+        ambientReads.count += 1;
       }
       const epochMs = timeArg != null ? Math.trunc(timeArg) * 1000 : Date.now();
       let utc = false;
