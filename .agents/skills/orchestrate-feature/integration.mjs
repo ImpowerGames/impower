@@ -21,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, githubClient } from "./feature-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readFeatureScope, snapshotScope, githubClient } from "./feature-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
 
@@ -219,21 +219,32 @@ export function remoteOwnership(record, opId) {
 // The one sequence in front of every irreversible GitHub call, which no
 // caller orders itself. It reads ownership of the Feature and this
 // operation's saved intent from the state branch, then a fresh snapshot, then
-// the caller's premises on that snapshot, then main, last; the call is made
-// only when every read holds. `current` reads the run record as it is now. A
-// read that fails leaves the call unmade. A call that throws was made and may
-// still land, so its error is returned for the caller's outcome rule rather
-// than thrown. integration.test.mjs runs every reordering and removal of these
-// four reads and requires each to fail.
-export function finalGate({ current, opId, ownership, takeSnapshot, premises, git, main, call }) {
-  let owned, snapshot, held, now;
+// the caller's premises on that snapshot (which may make reads of their own),
+// then the Feature's scope once more (its slices, then its acceptance
+// section), then main, last; the call is made only when every read holds.
+// The scope read catches a slice or criterion that changed while the snapshot
+// and the premises' slower reads ran, which the snapshot alone would miss.
+// `current` reads the run record as it is now. A read that fails leaves the
+// call unmade. A call that throws was made and may still land, so its error
+// is returned for the caller's outcome rule rather than thrown. The caller's
+// call is the GitHub write alone, with any lookup it needs done before the
+// gate. integration.test.mjs runs every reordering and removal of these five
+// reads and requires each to fail.
+export function finalGate({ current, opId, ownership, takeSnapshot, premises, readScope, git, main, call }) {
+  let owned, snapshot, held, scope, now;
   try {
     owned = ownership(current(), opId);
     snapshot = takeSnapshot();
     held = premises(current(), snapshot);
+    scope = readScope();
     now = (git.fetch(), git.main());
   } catch (error) { return { called: false, error }; }
-  const blockers = [...owned, ...held.blockers, ...(now === main ? [] : [`origin/${TARGET} moved from ${main} to ${now}`])];
+  const judged = snapshotScope(snapshot);
+  const moved = [
+    ...(scope.slices.join() === judged.slices.join() ? [] : [`the Feature's slices changed during the final checks, from ${judged.slices.join(", ") || "none"} to ${scope.slices.join(", ") || "none"}`]),
+    ...(scope.acceptanceSha256 === judged.acceptanceSha256 ? [] : ["the Feature's acceptance criteria changed during the final checks"]),
+  ];
+  const blockers = [...owned, ...held.blockers, ...moved, ...(now === main ? [] : [`origin/${TARGET} moved from ${main} to ${now}`])];
   if (blockers.length) return { called: false, blockers, held };
   try { return { called: true, value: call(), held }; }
   catch (error) { return { called: true, error, held }; }
@@ -251,7 +262,7 @@ export function finalGate({ current, opId, ownership, takeSnapshot, premises, gi
 // uncertain and is settled by reconcile-operations before any retry. A merge
 // commit whose first parent is not the main the gate admitted landed on code
 // CI never checked, and the outcome says so.
-export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, client, git, afterIntent, ownership = remoteOwnership }) {
+export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
   const gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, pr, client, git }), git });
@@ -266,7 +277,7 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
   const final = finalGate({
-    current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, git, main: gate.originMain,
+    current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope, git, main: gate.originMain,
     premises: (rec, snapshot) => {
       const again = admission(rec, { ticket, pr, snapshot, facts: gatherFacts({ record: rec, pr, client, git }), git, running: op.id });
       const blockers = !again.admitted ? again.blockers : again.head !== gate.head ? [`the head moved from ${gate.head} to ${again.head}`] : again.originMain !== gate.originMain ? [`origin/${TARGET} moved from ${gate.originMain} to ${again.originMain}`] : [];
@@ -416,7 +427,7 @@ export function verifyFeature(record, { snapshot, evidence, mainSha }) {
 // GitHub reads back: a close that was called is failed only on GitHub's own
 // refusal, and every other result short of a closed Feature is uncertain
 // until reconciled, since the request may still land.
-export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, client, git, afterIntent, ownership = remoteOwnership }) {
+export function closeFeature(file, { coordinator, expectRevision, verification: id, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
   if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run, so the closure's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
@@ -436,22 +447,26 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
   const notRun = (reason) => { updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { outcome(r, { id: op.id, state: "failed", evidence: `not run: ${reason}` }); }); };
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
-  const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, git, main: v.mainSha, premises: (rec, snapshot) => gaps(rec, snapshot, op.id), call });
-  // The final report, posted only through the final gate, and read back.
-  const report = gated(() => {
-    const existing = client.comments(record.feature).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id)));
-    const posted = existing ?? client.createComment(record.feature, v.report);
-    const back = client.getComment(posted.id);
-    if (norm(back.body) !== norm(v.report)) throw new Error(`comment ${posted.id} does not read back as the report`);
-    return { id: back.id, url: back.url, reused: Boolean(existing) };
-  });
+  const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope, git, main: v.mainSha, premises: (rec, snapshot) => gaps(rec, snapshot, op.id), call });
+  // The final report: a copy an earlier attempt posted is looked up before
+  // the final gate, so the gated call is the write alone; the comment is read
+  // back after it.
+  let existing;
+  try { existing = client.comments(record.feature).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id))) ?? null; }
+  catch (error) { notRun(`the Feature's comments could not be read for an earlier copy of the report: ${error.message}`); throw error; }
+  const report = gated(() => existing ?? client.createComment(record.feature, v.report));
   if (!report.called && report.error) { notRun(`the verification could not be checked again after the intent was saved: ${report.error.message}`); throw report.error; }
   if (!report.called) {
     notRun(`while the intent was saved, ${report.blockers.join("; ")}; verify the Feature again`);
     return { closed: false, operation: op.id, state: "failed", evidence: `not run: ${report.blockers.join("; ")}`, comment: null };
   }
-  const comment = report.error ? null : report.value;
-  let problem = report.error ? `the final report was not posted, so the close was not called: ${report.error.message}` : null, called = false, refused = false;
+  let comment = null, problem = null, called = false, refused = false;
+  try {
+    if (report.error) throw report.error;
+    const back = client.getComment(report.value.id);
+    if (norm(back.body) !== norm(v.report)) throw new Error(`comment ${report.value.id} does not read back as the report`);
+    comment = { id: back.id, url: back.url, reused: Boolean(existing) };
+  } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
   if (comment) {
     // The close call, through the final gate again, after the report's
     // GitHub requests.
@@ -571,11 +586,12 @@ const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) thr
 
 // The Feature's snapshot, taken afresh each time a command needs one.
 const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record.repository, record.checkout));
+const liveScope = (record) => () => readFeatureScope({ feature: record.feature }, githubClient(record.repository, record.checkout));
 
-export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot } = {}) {
+export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot, scopeFor = liveScope } = {}) {
   const { command, o } = parse(argv);
   const file = () => abs(o.record, "record");
-  const context = () => { const record = readRecord(file()); return { record, client: clientFor(record.repository, record.checkout), git: gitFor(record.checkout), snapshotNow: snapshotFor(record) }; };
+  const context = () => { const record = readRecord(file()); return { record, client: clientFor(record.repository, record.checkout), git: gitFor(record.checkout), snapshotNow: snapshotFor(record), scopeNow: scopeFor(record) }; };
   const saved = () => ensureSaved(file(), { coordinator: o.coordinator, github });
   const checkpointAfter = (transition) => { const c = autoCheckpoint(file(), { coordinator: o.coordinator, transition, github }); return c ? { checkpoint: c } : {}; };
   switch (command) {
@@ -584,8 +600,8 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       return admission(record, { ticket: int(o.ticket, "ticket"), pr, snapshot: snapshotNow(), facts: gatherFacts({ record, pr, client, git }), git });
     }
     case "merge": {
-      const { client, git, snapshotNow } = context(), pr = int(o.pr, "pr");
-      const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, takeSnapshot: snapshotNow, client, git, afterIntent: saved });
+      const { client, git, snapshotNow, scopeNow } = context(), pr = int(o.pr, "pr");
+      const result = mergeAdmitted(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), ticket: int(o.ticket, "ticket"), pr, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
       return result.admitted ? { ...result, ...checkpointAfter(`the merge of PR #${pr} (${result.state})`) } : result;
     }
     case "criteria": { const { record, client } = context(); return { feature: record.feature, criteria: parseCriteria(client.issue(record.feature).body) }; }
@@ -599,8 +615,8 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
       return { revision: next.revision, id: output.id, verdict: output.verdict, ...(o.out && { report: o.out }), ...checkpointAfter(`feature verification ${output.id} (${output.verdict})`) };
     }
     case "close-feature": {
-      const { client, git, snapshotNow } = context();
-      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, client, git, afterIntent: saved });
+      const { client, git, snapshotNow, scopeNow } = context();
+      const result = closeFeature(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
       return { ...result, ...checkpointAfter(`closing the Feature (${result.state})`) };
     }
     default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-feature|close-feature --option value ...");

@@ -41,19 +41,20 @@ try {
   // --- The final gate's order -------------------------------------------------
   // Every irreversible call goes through finalGate, which alone orders the
   // reads in front of it: ownership, a fresh snapshot, the premises on that
-  // snapshot, then main, then the call. The order is checked on the module
-  // itself and on every mutant that reorders or removes one of its four reads,
-  // each of which must fail the same check.
-  const ORDER = ["ownership", "snapshot", "premises", "fetch", "main", "call"];
+  // snapshot, the Feature's scope once more, then main, then the call. The
+  // order is checked on the module itself and on every mutant that reorders or
+  // removes one of its five reads, each of which must fail the same check.
+  const ORDER = ["ownership", "snapshot", "premises", "scope", "fetch", "main", "call"];
   const checkGate = (finalGate) => {
-    const drive = ({ owned = [], blockers = [], main = "m1", call = () => "done" } = {}) => {
+    const drive = ({ owned = [], blockers = [], scope = { slices: ["#41 open"], acceptanceSha256: "h1" }, main = "m1", call = () => "done" } = {}) => {
       const log = [];
-      const snap = { observedAt: "now" };
+      const snap = { observedAt: "now", tickets: [{ number: 41, state: "open", container: false }, { number: 50, state: "open", container: true }], feature: { acceptanceSha256: "h1" } };
       const result = finalGate({
         current: () => ({ revision: 1 }), opId: "op1",
         ownership: (record, opId) => { log.push("ownership"); assert.deepEqual([record.revision, opId], [1, "op1"]); return owned; },
         takeSnapshot: () => { log.push("snapshot"); return snap; },
         premises: (record, snapshot) => { log.push("premises"); assert.equal(snapshot, snap, "the premises are judged on the snapshot the gate just took"); return { blockers }; },
+        readScope: () => { log.push("scope"); return scope; },
         git: { fetch: () => log.push("fetch"), main: () => { log.push("main"); return main; } },
         main: "m1", call: () => { log.push("call"); return call(); },
       });
@@ -62,7 +63,7 @@ try {
     const held = drive();
     assert.deepEqual(held.log, ORDER);
     assert.deepEqual([held.result.called, held.result.value], [true, "done"]);
-    for (const [name, options, blocker] of [["ownership", { owned: ["taken over"] }, "taken over"], ["a premise", { blockers: ["head moved"] }, "head moved"], ["main", { main: "m2" }, `origin/${ig.TARGET} moved from m1 to m2`]]) {
+    for (const [name, options, blocker] of [["ownership", { owned: ["taken over"] }, "taken over"], ["a premise", { blockers: ["head moved"] }, "head moved"], ["a slice that left", { scope: { slices: [], acceptanceSha256: "h1" } }, "the Feature's slices changed during the final checks, from #41 open to none"], ["a reopened slice", { scope: { slices: ["#41 closed"], acceptanceSha256: "h1" } }, "the Feature's slices changed during the final checks, from #41 open to #41 closed"], ["a changed criterion", { scope: { slices: ["#41 open"], acceptanceSha256: "h2" } }, "the Feature's acceptance criteria changed during the final checks"], ["main", { main: "m2" }, `origin/${ig.TARGET} moved from m1 to m2`]]) {
       const stopped = drive(options);
       assert.deepEqual([stopped.result.called, stopped.result.blockers], [false, [blocker]], `${name} stops the call`);
       assert.deepEqual(stopped.log, ORDER.slice(0, -1), `every read still runs, in order, when ${name} stops the call`);
@@ -72,9 +73,9 @@ try {
   };
   checkGate(ig.finalGate);
   const source = fs.readFileSync(new URL("./integration.mjs", import.meta.url), "utf8");
-  const readLines = ["    owned = ownership(current(), opId);", "    snapshot = takeSnapshot();", "    held = premises(current(), snapshot);", "    now = (git.fetch(), git.main());"];
+  const readLines = ["    owned = ownership(current(), opId);", "    snapshot = takeSnapshot();", "    held = premises(current(), snapshot);", "    scope = readScope();", "    now = (git.fetch(), git.main());"];
   const block = readLines.join("\n");
-  assert.equal(source.split(block).length, 2, "the final gate's four reads appear once, in order");
+  assert.equal(source.split(block).length, 2, "the final gate's five reads appear once, in order");
   const permutations = (items) => (items.length <= 1 ? [items] : items.flatMap((item, i) => permutations([...items.slice(0, i), ...items.slice(i + 1)]).map((rest) => [item, ...rest])));
   const mutants = [
     ...permutations(readLines).filter((p) => p.join("\n") !== block).map((p) => ({ name: `reads in the order ${p.map((l) => readLines.indexOf(l) + 1).join("")}`, lines: p })),
@@ -191,6 +192,7 @@ try {
     onMain: (sha) => { try { execFileSync("git", ["merge-base", "--is-ancestor", sha, "origin/main"], { cwd: dir, stdio: "ignore", windowsHide: true }); return true; } catch { return false; } },
   });
   const snapshotNow = (dir = src) => run.takeSnapshot({ repository: REPO, feature: FEATURE }, snapClient(dir));
+  const scopeNow = (dir = src) => run.readFeatureScope({ feature: FEATURE }, snapClient(dir));
 
   // --- The coordinator starts: invocation, record, checkpoints ---------------
   const srcPrivate = path.join(tmp, "src-private");
@@ -276,7 +278,7 @@ try {
     return ig.admission(rec, { ticket: n, pr, snapshot: snapshotNow(), facts: facts ?? ig.gatherFacts({ record: rec, pr, client, git: g }), git: g });
   };
   const blocked = (result, pattern, why) => assert.ok(!result.admitted && result.blockers.some((b) => pattern.test(b)), `${why}: ${result.blockers.join(" | ")}`);
-  const merge = (n, file = recordFile, coordinator = "local_coord", dir = src, afterIntent = () => cp.ensureSaved(file, { coordinator, github: statusGithub, host: dir === src ? SRC : DST })) => ig.mergeAdmitted(file, { coordinator, expectRevision: run.readRecord(file).revision, ticket: n, pr: 100 + n, takeSnapshot: () => snapshotNow(dir), client, git: gitOf(dir), afterIntent });
+  const merge = (n, file = recordFile, coordinator = "local_coord", dir = src, afterIntent = () => cp.ensureSaved(file, { coordinator, github: statusGithub, host: dir === src ? SRC : DST })) => ig.mergeAdmitted(file, { coordinator, expectRevision: run.readRecord(file).revision, ticket: n, pr: 100 + n, takeSnapshot: () => snapshotNow(dir), readScope: () => scopeNow(dir), client, git: gitOf(dir), afterIntent });
 
   // --- #41: normal reviewed completion ----------------------------------------
   startBranch(41);
@@ -304,7 +306,7 @@ try {
   const selfWritten = structuredClone(record());
   selfWritten.tickets[41].history.push({ owner: { handle: { kind: "session", id: "local_coord" } }, released: "x" });
   blocked(gate(41, selfWritten), /local_coord wrote for #41, and a writer never merges its own work/, "a coordinator that wrote for the ticket");
-  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
+  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
 
   // CI: pending, failed, cancelled and a skipped required gate all refuse.
   for (const [state, pattern] of [["IN_PROGRESS", /still pending .* a merge may not/], ["FAILURE", /test-suite concluded FAILURE/], ["CANCELLED", /test-suite concluded CANCELLED/], ["SKIPPED", /required check Test Suite \/ test-suite was skipped/]]) {
@@ -375,7 +377,7 @@ try {
 
   // A save that fails stops the merge before GitHub is called.
   const callsBeforeSave = gh.mergeCalls.length;
-  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src), afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
+  assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src), afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
   assert.equal(gh.mergeCalls.length, callsBeforeSave, "no merge call without a saved intent");
   assert.deepEqual([record().operations.at(-1).state, record().operations.at(-1).evidence], ["failed", "not run: the remote is unreachable"]);
   // The slice leaves the Feature while the intent is saved: the second gate
@@ -407,21 +409,28 @@ try {
   catchUp();
   // Another coordinator takes the Feature over while the intent is saved: the
   // state branch's owner is read with the last checks, so nothing is called.
-  const disowned = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: () => ["Feature #40 has been taken over: checkpoint 99 names coordinator local_other"] });
+  const disowned = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: () => ["Feature #40 has been taken over: checkpoint 99 names coordinator local_other"] });
   assert.deepEqual([disowned.merged, disowned.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], disowned.evidence);
   assert.match(disowned.evidence, /not run: Feature #40 has been taken over/);
   // The slice leaves the Feature while ownership is read: ownership comes
   // before the second gate's scope, so the scope that admits the call is the
   // one read after every slower read.
-  const leftDuringOwnership = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: (r, id) => { gh.slices.delete(41); return ig.remoteOwnership(r, id); } });
+  const leftDuringOwnership = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: (r, id) => { gh.slices.delete(41); return ig.remoteOwnership(r, id); } });
   gh.slices.add(41);
   assert.deepEqual([leftDuringOwnership.merged, leftDuringOwnership.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], leftDuringOwnership.evidence);
   assert.match(leftDuringOwnership.evidence, /not run: .*#41 is not a sub-issue of Feature #40/);
+  // The slice leaves the Feature after the final snapshot listed it, while
+  // that snapshot and the premises make their slower reads: the gate reads the
+  // Feature's scope again after them, so nothing is called.
+  const leftDuringReads = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onComments = () => { gh.onComments = null; gh.slices.delete(41); }; });
+  gh.slices.add(41);
+  assert.deepEqual([leftDuringReads.merged, leftDuringReads.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], leftDuringReads.evidence);
+  assert.match(leftDuringReads.evidence, /not run: .*the Feature's slices changed during the final checks/);
 
   // The merge, through the public command: intent saved first by the
   // command's own wiring, an expected-head call with no bypass, and the
   // outcome read back from GitHub.
-  const merged41 = ig.main(["merge", "--record", recordFile, "--coordinator", "local_coord", "--expect-revision", String(record().revision), "--ticket", "41", "--pr", "141"], { clientFor: () => client, gitFor: () => gitOf(src), github: statusGithub, snapshotFor: () => () => snapshotNow() });
+  const merged41 = ig.main(["merge", "--record", recordFile, "--coordinator", "local_coord", "--expect-revision", String(record().revision), "--ticket", "41", "--pr", "141"], { clientFor: () => client, gitFor: () => gitOf(src), github: statusGithub, snapshotFor: () => () => snapshotNow(), scopeFor: () => () => scopeNow() });
   trace("merge-41", merged41);
   assert.deepEqual([merged41.merged, merged41.state, merged41.onMain, merged41.baseMoved, merged41.checkpoint?.saved], [true, "confirmed", true, false, true]);
   assert.deepEqual(gh.mergeCalls.at(-1), ["pr", "merge", "141", "--repo", REPO, "--merge", "--match-head-commit", h41n]);
@@ -579,7 +588,7 @@ try {
   // the Feature, and the destination's own intents are read there by id.
   assert.match(ig.remoteOwnership(run.readRecord(recordFile), lost.operation).join(" "), /Feature #40 has been taken over: checkpoint [0-9]+ names coordinator local_dst/);
   assert.match(ig.remoteOwnership(run.readRecord(dstRecord), "no-such-op").join(" "), /operation no-such-op's intent is not on orchestrate-state\/feature-40/);
-  const overUnsettled = ig.mergeAdmitted(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, ticket: 43, pr: 143, takeSnapshot: () => snapshotNow(dst), client, git: gitOf(dst) });
+  const overUnsettled = ig.mergeAdmitted(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, ticket: 43, pr: 143, takeSnapshot: () => snapshotNow(dst), readScope: () => scopeNow(dst), client, git: gitOf(dst) });
   blocked(overUnsettled.gate, /is uncertain; settle it with checkpoint\.mjs reconcile-operations before any new merge/, "the destination does not merge over an unsettled operation");
   const settled = change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst), firstParent: (sha) => git(dst, "rev-parse", `${sha}^1`) }), dstRecord, "local_dst");
   trace("reconcile-43", settled);
@@ -628,7 +637,7 @@ try {
   // Every slice merged, one criterion unmet: the Feature stays open.
   const unmet = verify({ criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission"]), met(criteria[1], ["the final report lists decision on PR #142"]), { criterion: criteria[2], status: "unmet", gap: "the closing run has not been exercised" }] });
   assert.equal(unmet.verdict, "incomplete");
-  const close = (id, extra = {}) => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: id, takeSnapshot: () => snapshotNow(dst), client, git: gitOf(dst), afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }), ...extra });
+  const close = (id, extra = {}) => ig.closeFeature(dstRecord, { coordinator: "local_dst", expectRevision: run.readRecord(dstRecord).revision, verification: id, takeSnapshot: () => snapshotNow(dst), readScope: () => scopeNow(dst), client, git: gitOf(dst), afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }), ...extra });
   assert.throws(() => close(unmet.id), /found the Feature incomplete .*unmet: The Feature closes only/);
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "merged slices with an unmet criterion are not completion");
   // A slice not delivered keeps it open too, whatever the criteria say.
@@ -730,6 +739,24 @@ try {
   assert.deepEqual([duringReport.closed, duringReport.state, gh.closeCalls ?? 0, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, "open"], duringReport.evidence);
   assert.match(run.readRecord(dstRecord).operations.find((o) => o.id === duringReport.operation).evidence, /not run: after the report was posted in comment [0-9]+, the Feature's acceptance criteria changed/);
   gh.issues.get(FEATURE).body = body;
+  final = verify(doneEvidence);
+  // A criterion added while the final snapshot walks the slices, after it read
+  // the Feature's body: the gate reads the Feature's scope again after the
+  // snapshot, so nothing is posted or closed.
+  const reportsBeforeWalk = gh.comments.get(FEATURE).length;
+  const duringWalk = close(final.id, { afterIntent: () => { cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); gh.onSubIssues = () => { gh.onSubIssues = null; gh.issues.get(FEATURE).body = body.replace("## Additional context", "- [ ] A criterion added while the snapshot walks the slices.\n\n## Additional context"); }; } });
+  assert.deepEqual([duringWalk.closed, duringWalk.state, gh.closeCalls ?? 0, gh.comments.get(FEATURE).length, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, reportsBeforeWalk, "open"], duringWalk.evidence);
+  assert.match(duringWalk.evidence, /not run: the Feature's acceptance criteria changed during the final checks/);
+  gh.issues.get(FEATURE).body = body;
+  final = verify(doneEvidence);
+  // Main moves while the closure looks for an earlier copy of its report: the
+  // lookup comes before the final gate, whose own read of main sees the move,
+  // so no report is posted.
+  const reportsBeforeLookup = gh.comments.get(FEATURE).length;
+  const duringLookup = close(final.id, { afterIntent: () => { cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }); gh.onComments = () => { gh.onComments = null; advanceMain("during-lookup.txt", "lands during the report lookup\n", "feat: a PR merged during the report lookup"); }; } });
+  assert.deepEqual([duringLookup.closed, duringLookup.state, gh.closeCalls ?? 0, gh.comments.get(FEATURE).length, gh.issues.get(FEATURE).state], [false, "failed", closeCallsBefore, reportsBeforeLookup, "open"], duringLookup.evidence);
+  assert.match(duringLookup.evidence, /not run: origin\/main is [0-9a-f]{40}, not the verified/);
+  final = verify(doneEvidence);
   gh.closeFail = 1;
   gh.closeError = "HTTP 502 while closing";
   const lostClose = close(final.id, { afterIntent: () => cp.ensureSaved(dstRecord, { coordinator: "local_dst", github: statusGithub, host: DST }) });
@@ -758,7 +785,7 @@ try {
     const op = run.readRecord(dstRecord).operations.filter((o) => o.kind === "close").at(-1);
     gh.closeIntentSeen = cp.fetchState(dst, "origin", REPO, FEATURE).checkpoint.operations.some((o) => o.id === op?.id && o.expectHead === op?.expectHead && o.state === "intent");
   };
-  const closed = ig.main(["close-feature", "--record", dstRecord, "--coordinator", "local_dst", "--expect-revision", String(run.readRecord(dstRecord).revision), "--verification", final.id], { clientFor: () => client, gitFor: () => gitOf(dst), github: statusGithub, snapshotFor: () => () => snapshotNow(dst) });
+  const closed = ig.main(["close-feature", "--record", dstRecord, "--coordinator", "local_dst", "--expect-revision", String(run.readRecord(dstRecord).revision), "--verification", final.id], { clientFor: () => client, gitFor: () => gitOf(dst), github: statusGithub, snapshotFor: () => () => snapshotNow(dst), scopeFor: () => () => scopeNow(dst) });
   gh.beforeClose = null;
   assert.equal(gh.closeIntentSeen, true, "the public command saved the closure's intent on the state branch before the close call");
   assert.deepEqual([closed.closed, closed.state, closed.comment.reused, gh.issues.get(FEATURE).state, closed.checkpoint?.saved], [true, "confirmed", true, "closed", true]);

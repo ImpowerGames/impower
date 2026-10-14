@@ -383,6 +383,26 @@ export function takeSnapshot({ repository, feature }, client) {
   return { repository, feature: { number: feature, state: issue.state, title: issue.title, criteria: parseCriteria(issue.body), acceptanceSha256: acceptanceHash(issue.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
+// The Feature's slices, each with its state, and its acceptance section, read
+// on their own: the sub-issue tree, then the body last. The final gate reads
+// it after every premise and compares it with the snapshot those premises
+// were judged on, so a slice that left, joined or reopened, or a criterion
+// that changed, while the slower reads ran stops the call.
+export function readFeatureScope({ feature }, client) {
+  const slices = [];
+  const visit = (parent, depth) => {
+    for (const sub of client.subIssues(parent)) {
+      const children = client.subIssues(sub.number);
+      if (children.length && depth < MAX_SUB_ISSUE_DEPTH) visit(sub.number, depth + 1);
+      else slices.push(`#${sub.number} ${sub.state}`);
+    }
+  };
+  visit(feature, 1);
+  return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(feature).body) };
+}
+// The same scope as a snapshot holds it.
+export const snapshotScope = (snapshot) => ({ slices: snapshot.tickets.filter((t) => !t.container || t.truncated).map((t) => `#${t.number} ${t.state}`).sort(), acceptanceSha256: snapshot.feature.acceptanceSha256 ?? null });
+
 // --- Admission plan -------------------------------------------------------
 
 // The next action for an adopted start, from its last recorded step.
