@@ -3,45 +3,21 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { efforts, routeVendor, writerEfforts } from "./reviewer-defaults.mjs";
+import { routeVendor, writerEfforts } from "./reviewer-defaults.mjs";
 
 // Decides, before an orchestrator dispatches a batch of writers, whether the
 // chosen writer route can run exactly the requested model at each ticket's
 // effort. A route that cannot is a per-ticket blocker; the preflight never
 // proposes another model or effort in its place.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// Every route a writer may run on. The retired ones, listed with their
+// reasons in .claude/writer-defaults.json, are never dispatched; an existing
+// writer on one is still confirmed against its observed model and effort.
 export const writerRoutes = { "claude-agent": "claude", "claude-desktop": "claude", "claude-adopted": "claude", "claude-cli": "claude", "codex-cli": "codex", "codex-app": "codex" };
+const retiredRoutes = (repo) => JSON.parse(fs.readFileSync(path.join(repo, ".claude", "writer-defaults.json"), "utf8")).retiredRoutes ?? {};
 
 // Each route's check returns an empty result when the host provides the model
 // at that effort, or the reason it does not.
-const frontmatter = (text) => Object.fromEntries((/^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? "").split(/\r?\n/).map((line) => /^(\w+):\s*(.*?)\s*$/.exec(line)).filter(Boolean).map((m) => [m[1], m[2]]));
-
-// The definition on disk pins the model and effort, but a session discovers
-// definitions only when it starts, so the coordinator also lists the agent
-// types its Agent tool offers now.
-function claudeAgentCheck(model, request, repo) {
-  const offered = request.evidence?.agents;
-  if (!Array.isArray(offered) || !offered.every((name) => typeof name === "string")) throw new Error("claude-agent needs evidence.agents, the agent types the coordinator's Agent tool currently offers");
-  const dir = path.join(repo, ".claude", "agents");
-  const writers = fs.readdirSync(dir).filter((f) => f.endsWith(".md")).map((f) => frontmatter(fs.readFileSync(path.join(dir, f), "utf8"))).filter((d) => d.name?.startsWith("writer-"));
-  return (effort) => {
-    const match = writers.find((d) => d.model === model && d.effort === effort);
-    if (!match) return { reason: `no writer definition in .claude/agents pins ${model} at ${effort}; a subagent without one runs at the harness default effort` };
-    return offered.includes(match.name) ? { launch: { subagent_type: match.name } } : { reason: `the coordinator's Agent tool does not offer ${match.name}; a definition added after a session starts is discovered only by a new session` };
-  };
-}
-
-// start_session ignores a model above the coordinator's and an effort above
-// its own, so only the coordinator's model at or below its effort is certain.
-function claudeDesktopCheck(model, request) {
-  const coordinator = request.evidence?.coordinator;
-  if (typeof coordinator?.model !== "string" || !efforts.includes(coordinator?.effort)) throw new Error("claude-desktop needs evidence.coordinator with the model and effort that get_session on self reports");
-  return (effort) => {
-    if (coordinator.model !== model) return { reason: `the coordinator runs ${coordinator.model}; a desktop session it starts is certain to run only that model, not ${model}` };
-    if (efforts.indexOf(effort) > efforts.indexOf(coordinator.effort)) return { reason: `the coordinator runs at ${coordinator.effort}; a session it starts cannot exceed that effort, and ${effort} was requested` };
-    return {};
-  };
-}
 
 // A detached writer process starts without the coordinator's environment, so
 // the probe drops the session's CLAUDE* variables too. Its result names the
@@ -69,13 +45,6 @@ function claudeCliCheck(model, request) {
     const reason = probes.get(effort);
     return reason ? { reason } : {};
   };
-}
-
-// An adopted writer is created by the same CLI and handed to the desktop app,
-// so the CLI probe applies; the handoff has been exercised only on Windows.
-function claudeAdoptedCheck(model, request, repo, { platform = process.platform } = {}) {
-  const probe = claudeCliCheck(model, request);
-  return (effort) => (platform === "win32" ? probe(effort) : { reason: `handing a CLI session to the desktop app is verified only on Windows, not ${platform}` });
 }
 
 // The CLI accepts an effort its model does not support and records it in the
@@ -136,7 +105,7 @@ function codexAppCheck(model, request) {
   };
 }
 
-const checks = { "claude-agent": claudeAgentCheck, "claude-desktop": claudeDesktopCheck, "claude-adopted": claudeAdoptedCheck, "claude-cli": claudeCliCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
+const checks = { "claude-cli": claudeCliCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
 // A Codex rollout records the requested effort even when the model does not
 // support it, so a matching Codex observation still needs the host's list of
 // supported efforts. Claude session metadata reports the effort in force.
@@ -183,6 +152,8 @@ export function preflight(request, repo = root) {
       const { reason } = confirmCheck(effort);
       return reason ? { ticket: number, effort, verdict: "blocked", reason } : { ticket: number, effort, verdict: "confirmed" };
     }
+    const retired = retiredRoutes(repo)[route];
+    if (retired || !checks[route]) return { ticket: number, effort, verdict: "blocked", reason: `${route} is retired as a dispatch route: ${retired ?? "no dispatch check exists for it"}` };
     check ??= checks[route](model, request, repo);
     const { reason, launch } = check(effort);
     return reason ? { ticket: number, effort, verdict: "blocked", reason } : { ticket: number, effort, verdict: "available", ...(launch && { launch }) };

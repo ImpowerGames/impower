@@ -1,0 +1,411 @@
+// Exercises how the coordinator and its writers stay in contact: every
+// route's brief carries the coordinator's recorded session id and its report
+// mechanism from the runner configuration, the coordinator id is a session id
+// or nothing, the writer's acknowledgement confirms the model, effort and
+// permission mode, an unacknowledged brief becomes a delivery to settle after
+// one check-in interval, the periodic check-in is recorded and recreated on
+// takeover, the wake sweep reads only idle writers and flags dead reviewer
+// launches, the Feature's session group is recorded, an idle CLI writer can
+// be opened in the app, and the retired Claude routes are refused. Each
+// scenario reports on its own, so a run shows every one that fails. Runs in
+// a scratch repository under the system temp directory and launches only a
+// stand-in writer.
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
+import { preflight } from "../../../scripts/writer-route-preflight.mjs";
+import * as run from "./feature-run.mjs";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const script = path.join(here, "feature-run.mjs");
+const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "writer-contact-")));
+console.log(`scratch: ${tmp}`);
+const defaults = run.readWriterDefaults();
+const GB = 2 ** 30, MINUTE = 60000;
+const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const waitFor = (test, what, ms = 30000) => { const end = Date.now() + ms; while (!test()) { if (Date.now() > end) throw new Error(`Timed out waiting for ${what}`); sleep(200); } };
+const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
+const COORDINATOR = "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+const CODEX_THREAD = "0199c3a2-7b1e-7c40-9d2a-5e6f7a8b9c0d";
+const WRITER_SESSION = "5e1d2c3b-4a59-4687-8796-a5b4c3d2e1f0";
+const started = [];
+const failed = [];
+const scenario = (name, fn) => {
+  try { fn(); console.log(`PASS  ${name}`); }
+  catch (error) { failed.push(name); console.log(`FAIL  ${name}: ${String(error.message).split("\n").slice(0, 6).join(" ")}`); }
+};
+
+try {
+  const fresh = (name, { feature = 300, harness = "claude", coordinator = COORDINATOR, coordinatorMode = "bypassPermissions", model = harness === "claude" ? "claude-opus-5-5" : "gpt-6.1-sol" } = {}) => {
+    const dir = path.join(tmp, name);
+    fs.mkdirSync(path.join(dir, "artifacts"), { recursive: true });
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "artifacts", "run.json");
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", feature, coordinator, harness, coordinatorModel: model, coordinatorEffort: "high", coordinatorMode, slug: "resumable-feature-orchestration", invocation: `Use orchestrate-feature for #${feature}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    const change = (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator }, fn).output;
+    return { dir, file, artifacts: path.join(dir, "artifacts"), change, coordinator };
+  };
+  const ticket = (number, more = {}) => ({ number, title: `ticket ${number}`, state: "open", parent: 300, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [], ...more });
+  const snapshotOf = (tickets, feature = 300) => ({ repository: "acme/widgets", feature: { number: feature, state: "open" }, originMain: "abc", tickets });
+  const available = (route, model, numbers) => ({ route, model, verdicts: numbers.map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) });
+  const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [], ...more });
+  const entryOf = (plan, n) => plan.tickets.find((t) => t.number === n);
+  const standIn = write("stand-in-writer.mjs", [
+    'import fs from "node:fs";',
+    'const stop = process.argv[process.argv.indexOf("--stop") + 1];',
+    'fs.readFileSync(0, "utf8");',
+    `console.log(JSON.stringify({ type: "system", subtype: "init", session_id: "${WRITER_SESSION}", model: process.argv[process.argv.indexOf("--model") + 1] }));`,
+    'const end = Date.now() + 120000;',
+    'const wait = () => { if (fs.existsSync(stop) || Date.now() > end) process.exit(0); setTimeout(wait, 100); };',
+    "wait();",
+  ].join("\n"));
+  // A claude-cli writer claimed from a plan, briefed and launched as the
+  // stand-in, once its stream has started.
+  const cliWriter = (name, number) => {
+    const f = fresh(name);
+    const snap = snapshotOf([ticket(number)]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [number])];
+    const planFile = write(`${name}-plan.json`, planOf(f, snap, { preflights: pre }));
+    f.change((r) => run.claim(r, { plan: planFile, ticket: number, worktree: path.join(f.dir, `wt-${number}`), branch: `fix/${number}-thing`, artifactParent: f.artifacts }));
+    const prompt = write(`${name}-prompt.txt`, run.brief(run.readRecord(f.file), planFile, number, [], defaults));
+    const stop = path.join(tmp, `stop-${name}`);
+    const args = (mode) => [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", ...(mode ? ["--permission-mode", mode] : []), "--stop", stop];
+    const launch = (mode = "bypassPermissions") => {
+      const launchedAt = Date.now();
+      const owner = f.change((r) => run.launch(r, { ticket: number, executable: process.execPath, args: args(mode), prompt })).owner;
+      started.push({ stop, pid: owner.handle.pid });
+      const out = path.join(owner.handle.launchDir, "out.jsonl");
+      waitFor(() => fs.existsSync(out) && fs.readFileSync(out, "utf8").includes("session_id"), "the stand-in writer's init event");
+      return { owner, out, launchedAt };
+    };
+    const end = (owner) => { fs.writeFileSync(stop, ""); waitFor(() => run.ownerStatus(owner).status === "exited", "the stand-in writer to exit"); };
+    return { f, snap, pre, planFile, prompt, args, launch, end, number };
+  };
+
+  // --- Routes ---------------------------------------------------------------
+
+  scenario("claude-cli is the only Claude dispatch route; retired routes are refused with their reasons", () => {
+    assert.deepEqual(defaults.routes.claude.map((r) => r.route), ["claude-cli"]);
+    assert.deepEqual(Object.keys(defaults.retiredRoutes).sort(), ["claude-adopted", "claude-agent", "claude-desktop"]);
+    assert.deepEqual(run.routeOptions("claude-opus-5-5", defaults).map((r) => r.route), ["claude-cli"]);
+    for (const route of ["claude-desktop", "claude-adopted", "claude-agent"]) {
+      const verdict = preflight({ route, model: "claude-opus-5-5", tickets: [{ number: 1, effort: "high" }] }).verdicts[0];
+      assert.equal(verdict.verdict, "blocked", `${route} is never dispatched`);
+      assert.ok(verdict.reason.includes(defaults.retiredRoutes[route]), `${route}'s refusal names its reason`);
+      assert.equal(preflight({ route, model: "claude-opus-5-5", tickets: [{ number: 1, effort: "high", observed: { model: "claude-opus-5-5", effort: "high" } }] }).verdicts[0].verdict, "confirmed", `an existing ${route} writer can still be confirmed`);
+    }
+    const f = fresh("routes");
+    const p = planOf(f, snapshotOf([ticket(301)]), { preflights: [available("claude-adopted", "claude-opus-5-5", [301]), available("claude-desktop", "claude-opus-5-5", [301])] });
+    assert.equal(entryOf(p, 301).action, "blocked-route");
+    assert.match(entryOf(p, 301).reason, /claude-adopted is retired as a dispatch route: the app resumes an adopted session/);
+    assert.match(entryOf(p, 301).reason, /claude-desktop is retired as a dispatch route: a desktop session starts only/);
+  });
+
+  // --- The coordinator's id, mode and title -----------------------------------
+
+  scenario("init refuses a coordinator id that is not a session id, naming the expected shape", () => {
+    run.checkCoordinatorId("claude", COORDINATOR);
+    run.checkCoordinatorId("codex", CODEX_THREAD);
+    for (const bad of ["C:\\Users\\me\\AppData\\Local\\Temp\\claude\\scratchpad", "scratchpad", "657afe2b-179f-4eb0-a92a-640ec593032a", "local_a", ""]) assert.throws(() => run.checkCoordinatorId("claude", bad), /local_<uuid>/, `claude refuses ${JSON.stringify(bad)}`);
+    assert.throws(() => run.checkCoordinatorId("codex", COORDINATOR), /thread id/);
+    const dir = path.join(tmp, "cli-init");
+    fs.mkdirSync(dir);
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const record = path.join(tmp, "cli-init.json");
+    const cli = (...extra) => spawnSync(process.execPath, [script, "init", "--record", record, "--checkout", dir, "--repo", "acme/widgets", "--feature", "300", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--invocation", "Use orchestrate-feature for #300.", "--merging", "maintainer", ...extra], { encoding: "utf8", windowsHide: true });
+    const scratch = cli("--coordinator", "657afe2b-179f-4eb0-a92a-640ec593032a", "--coordinator-mode", "bypassPermissions", "--slug", "resumable-feature-orchestration");
+    assert.equal(scratch.status, 1);
+    assert.match(scratch.stderr, /local_<uuid>/);
+    assert.ok(!fs.existsSync(record), "a refused id writes no record");
+    assert.match(cli("--coordinator", COORDINATOR, "--slug", "resumable-feature-orchestration").stderr, /--coordinator-mode/);
+    assert.match(cli("--coordinator", COORDINATOR, "--coordinator-mode", "bypassPermissions", "--slug", "Not A Slug").stderr, /--slug/);
+    const made = cli("--coordinator", COORDINATOR, "--coordinator-mode", "bypassPermissions", "--slug", "resumable-feature-orchestration");
+    assert.equal(made.status, 0, made.stderr);
+    const rec = run.readRecord(record);
+    assert.deepEqual([rec.title, rec.coordinator.session, rec.coordinator.permissionMode], ["ORCH #300: resumable feature orchestration", COORDINATOR, "bypassPermissions"]);
+  });
+
+  scenario("a coordinator outside bypass permissions mode dispatches nothing until init records the switch", () => {
+    const f = fresh("mode", { coordinatorMode: "auto" });
+    const snap = snapshotOf([ticket(311)]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [311])];
+    const blocked = entryOf(planOf(f, snap, { preflights: pre }), 311);
+    assert.equal(blocked.action, "blocked-route");
+    assert.match(blocked.reason, /coordinator runs in auto permission mode, not bypassPermissions/);
+    run.initRecord({ record: f.file, checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: f.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    assert.equal(run.readRecord(f.file).coordinator.permissionMode, "bypassPermissions");
+    assert.equal(entryOf(planOf(f, snap, { preflights: pre }), 311).action, "dispatch");
+  });
+
+  scenario("a record without a title takes one when init runs again, and keeps it after", () => {
+    const f = fresh("title-later");
+    const again = (slug) => run.initRecord({ record: f.file, checkout: f.dir, repository: "acme/widgets", feature: 300, coordinator: f.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug, invocation: "Use orchestrate-feature for #300." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    f.change((r) => { delete r.title; });
+    assert.equal(again("later-title").record.title, "ORCH #300: later title");
+    assert.equal(again("another-title").record.title, "ORCH #300: later title", "the Feature keeps the title it was given");
+  });
+
+  // --- Briefs on every route ------------------------------------------------
+
+  scenario("every route's brief carries the recorded coordinator id, its report mechanism or fallback, the verbatim self-check and the dead-launch rule", () => {
+    for (const [harness, coordinator] of [["claude", COORDINATOR], ["codex", CODEX_THREAD]]) {
+      for (const [vendor, routes] of Object.entries(defaults.routes)) {
+        for (const route of routes) {
+          const model = vendor === "claude" ? "claude-opus-5-5" : "gpt-6.1-sol";
+          const f = fresh(`brief-${harness}-${route.route}`, { harness, coordinator });
+          const rec = run.readRecord(f.file);
+          const planFile = write(`brief-${harness}-${route.route}.json`, { runId: rec.runId, repository: rec.repository, feature: rec.feature, revision: rec.revision, coordinator, tickets: [{ number: 321, title: "ticket 321", action: "dispatch", route: route.route, model, effort: "medium" }] });
+          f.change((r) => run.claim(r, { plan: planFile, ticket: 321, worktree: path.join(f.dir, "wt-321"), branch: "fix/321-thing", artifactParent: f.artifacts }));
+          const text = run.brief(run.readRecord(f.file), planFile, 321, [], defaults);
+          const how = route.reports[harness];
+          const label = `${route.route} reporting to a ${harness} coordinator`;
+          assert.ok(text.includes(`coordinator session ${coordinator}`), `${label}: the brief names the recorded coordinator`);
+          assert.ok(text.includes(route.selfCheck), `${label}: the verbatim self-check`);
+          assert.match(text, /If any of them differs, stop and report the mismatch as a blocker/, label);
+          assert.match(text, /read the launcher's exit and its .*\.coordinator\.err\.log at once/, `${label}: the dead-launch rule`);
+          if (how.mechanism) {
+            assert.ok(text.includes(how.mechanism), `${label}: the mechanism comes from the configuration`);
+            assert.match(text, /Your first act after reading this brief: send coordinator session .* an acknowledgement/, label);
+            assert.match(text, /Send every report, blocker and question to coordinator session/, label);
+          } else {
+            assert.ok(text.includes(how.unsupported), `${label}: the brief says why it cannot message`);
+            assert.ok(text.includes(defaults.reportFallback), `${label}: the brief names the transcript sweep as the fallback`);
+            assert.doesNotMatch(text, /SendMessage/, label);
+          }
+          if (vendor === "claude") assert.match(text, /permission mode bypassPermissions/, `${label}: the brief states the mode it was started in`);
+          if (route.route === "claude-cli") assert.ok(text.includes(route.turns) && /Never end a turn waiting on a background task/.test(text), `${label}: a process that exits with its turn never ends one to wait`);
+        }
+      }
+    }
+  });
+
+  // --- A CLI writer from launch to acknowledgement -----------------------------
+
+  scenario("a CLI dispatch records the permission mode it requests, launches only at that mode and keeps the brief it sent", () => {
+    const w = cliWriter("cli-mode", 331);
+    assert.equal(run.readRecord(w.f.file).tickets[331].pending.permissionMode, "bypassPermissions", "the claim records the mode it requests");
+    assert.throws(() => w.f.change((r) => run.launch(r, { ticket: 331, executable: process.execPath, args: w.args(null), prompt: w.prompt })), /exactly one --permission-mode/);
+    assert.throws(() => w.f.change((r) => run.launch(r, { ticket: 331, executable: process.execPath, args: w.args("auto"), prompt: w.prompt })), /--permission-mode must be bypassPermissions/);
+    const { owner } = w.launch();
+    assert.deepEqual([owner.permissionMode, owner.brief.state, owner.brief.text], ["bypassPermissions", "delivered", fs.readFileSync(w.prompt, "utf8")], "the brief went with the start");
+    w.end(owner);
+  });
+
+  scenario("the wake sweep reads no transcript of a running writer, and reads it once the writer's turn has ended", () => {
+    const w = cliWriter("cli-sweep", 332);
+    const { owner, out } = w.launch();
+    const running = planOf(w.f, w.snap, { preflights: w.pre });
+    assert.equal(entryOf(running, 332).action, "observe");
+    assert.equal(entryOf(running, 332).transcript, undefined);
+    assert.deepEqual(running.sweep.read, []);
+    assert.deepEqual(running.sweep.notRead.map((s) => s.ticket), [332]);
+    assert.match(running.sweep.notRead[0].reason, /running; a running writer cannot be waiting on the coordinator/);
+    w.end(owner);
+    const ended = planOf(w.f, w.snap, { preflights: w.pre });
+    assert.deepEqual(ended.sweep.read, [{ ticket: 332, from: out }]);
+    assert.equal(entryOf(ended, 332).transcript.from, out);
+  });
+
+  scenario("a brief unacknowledged after one check-in interval is a delivery failure, settled by an identified resend", () => {
+    const w = cliWriter("cli-ack", 333);
+    const { owner, launchedAt } = w.launch();
+    const at = (ms) => entryOf(planOf(w.f, w.snap, { preflights: w.pre, now: ms }), 333);
+    assert.equal(at(launchedAt + 29 * MINUTE).action, "observe");
+    const overdue = at(launchedAt + 31 * MINUTE);
+    assert.equal(overdue.action, "settle-delivery");
+    assert.match(overdue.reason, new RegExp(`no acknowledgement .* within 30 minutes .* confirm that ${COORDINATOR} is this session's own id`));
+    const resent = w.f.change((r) => run.deliver(r, { ticket: 333, retry: true }));
+    const assignment = run.readRecord(w.f.file).tickets[333].owner.launchId;
+    assert.match(resent.message, new RegExp(`^Assignment ${assignment} \\(delivery \\w+\\)\\. If you have already received assignment ${assignment}, ignore this copy`));
+    assert.ok(resent.message.endsWith(fs.readFileSync(w.prompt, "utf8")), "the retry carries the stored brief exactly");
+    assert.ok(fs.readFileSync(w.prompt, "utf8").includes(`Assignment ${assignment}`), "the first copy already named its assignment");
+    assert.equal(at(Date.now() + 31 * MINUTE).action, "reconcile-pending", "an unconfirmed resend is settled before anything else");
+    w.f.change((r) => run.delivered(r, { ticket: 333, evidence: "sent to the writer's session" }));
+    assert.equal(at(Date.now() + MINUTE).action, "observe", "the clock restarts with the resend");
+    assert.throws(() => w.f.change((r) => run.acknowledged(r, { ticket: 333, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions" })), /--evidence/);
+    w.f.change((r) => run.acknowledged(r, { ticket: 333, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
+    assert.deepEqual(run.readRecord(w.f.file).tickets[333].owner.acknowledged.confirmed, { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions" });
+    assert.equal(at(Date.now() + 90 * MINUTE).action, "observe", "an acknowledged brief is never overdue");
+    w.end(owner);
+  });
+
+  scenario("the acknowledgement and the report carry what the writer confirmed, and a mismatch plans as stop-writer", () => {
+    const w = cliWriter("cli-confirm", 334);
+    const { owner } = w.launch();
+    w.f.change((r) => run.acknowledged(r, { ticket: 334, model: "claude-opus-5-5", effort: "low", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
+    assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 334).action, "stop-writer");
+    assert.match(run.readRecord(w.f.file).tickets[334].owner.mismatch, /confirmed claude-opus-5-5 at low in bypassPermissions, not .* at medium in bypassPermissions/);
+    w.f.change((r) => { delete r.tickets[334].owner.mismatch; });
+    const report = (more) => write(`report-${Date.now()}.json`, { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 901, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, next: "x", ...more });
+    assert.throws(() => w.f.change((r) => run.result(r, { ticket: 334, report: write("no-mode.json", { model: "claude-opus-5-5", effort: "medium", pr: 901, reviewedHead: "f1", rounds: {}, findings: "None", verification: "check", ci: {}, next: "x" }) })), /lacks permissionMode/);
+    w.f.change((r) => run.result(r, { ticket: 334, report: report({ permissionMode: "acceptEdits" }) }));
+    assert.equal(run.readRecord(w.f.file).tickets[334].results.length, 1, "the report is kept");
+    assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 334).action, "stop-writer");
+    assert.match(run.readRecord(w.f.file).tickets[334].owner.mismatch, /reported claude-opus-5-5 at medium in acceptEdits/);
+    w.end(owner);
+  });
+
+  scenario("an idle CLI writer's session opens in the app without changing who the writer is", () => {
+    const w = cliWriter("cli-open", 335);
+    const { owner, out } = w.launch();
+    let handed = null;
+    const open = (runner = (o) => { handed = o.sessionId; return { requested: true, pid: 1 }; }) => run.openWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 335, executable: process.execPath, runner });
+    assert.throws(() => open(), /is live .*; only an idle writer/);
+    w.end(owner);
+    // An open whose outcome was lost is settled from the app's session list,
+    // never run again.
+    open(() => { throw new Error("the reply was lost"); });
+    assert.match(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 335).reason, /uncertain outcome \(the reply was lost\); look for local_.* and never run open again/);
+    assert.throws(() => open(), /already opened \(open uncertain\)/);
+    assert.equal(handed, null);
+    assert.throws(() => w.f.change((r) => run.opened(r, { ticket: 335, session: "local_00000000-0000-4000-8000-000000000000" })), new RegExp(`local_${WRITER_SESSION}`), "the app session is the one the writer's stream names");
+    w.f.change((r) => run.opened(r, { ticket: 335, session: `local_${WRITER_SESSION}` }));
+    // The record keeps the CLI process as the writer: its transcript is still
+    // its stream, and its ended turn still plans as a release.
+    const after = planOf(w.f, w.snap, { preflights: w.pre, observations: { sessions: { [`local_${WRITER_SESSION}`]: { state: "running" } } } });
+    assert.deepEqual([entryOf(after, 335).action, entryOf(after, 335).owner.handle.kind, entryOf(after, 335).transcript.from], ["release", "process", out]);
+    assert.equal(run.readRecord(w.f.file).tickets[335].owner.opened.session, `local_${WRITER_SESSION}`);
+    // A second writer's open runs the handoff with the session its stream names.
+    const v = cliWriter("cli-open-2", 336);
+    const second = v.launch();
+    v.end(second.owner);
+    const opening = run.openWriter(v.f.file, { coordinator: v.f.coordinator, expectRevision: run.readRecord(v.f.file).revision, ticket: 336, executable: process.execPath, runner: (o) => { handed = o.sessionId; return { requested: true, pid: 1 }; } });
+    assert.deepEqual([handed, opening.sessionId, entryOf(planOf(v.f, v.snap, { preflights: v.pre }), 336).action], [WRITER_SESSION, WRITER_SESSION, "reconcile-pending"]);
+  });
+
+  // --- The wake sweep flags a reviewer launch that died before its journal ---
+
+  scenario("the wake sweep flags a reviewer plan with no journal and no live process, with its error log", () => {
+    const f = fresh("dead-launch");
+    const jobs = path.join(tmp, "dead-launch.review-jobs");
+    const round = (n) => { const dir = path.join(jobs, "pr-951", `round-${n}`); fs.mkdirSync(dir, { recursive: true }); return dir; };
+    const planIn = (dir, name) => { const file = path.join(dir, `${name}.json`); fs.writeFileSync(file, JSON.stringify({ worktree: f.dir, pr: 951, journal: path.join(dir, `${name}.journal.jsonl`), steps: { review: {} }, first: "review" })); return file; };
+    const refusedPlan = planIn(round(5), "plan");
+    fs.writeFileSync(path.join(round(5), "plan.coordinator.err.log"), "Error: Supply completedRoundReviews from the journal as a positive integer\n");
+    const journaled = planIn(round(4), "plan");
+    fs.writeFileSync(path.join(round(4), "plan.journal.jsonl"), `${JSON.stringify({ event: "coordinator", processIdentity: { pid: 1, start: "1" } })}\n`);
+    const live = planIn(round(6), "plan");
+    fs.writeFileSync(path.join(round(6), "plan.coordinator.err.log"), "");
+    // A plan still being written has no launcher logs: nothing was launched.
+    const authored = planIn(round(7), "plan");
+    const session = "local_9f8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a";
+    const snap = snapshotOf([ticket(351, { prs: [{ number: 951, state: "OPEN", isDraft: true, branch: "fix/351-thing", head: "h", rounds: 4 }] })]);
+    f.change((r) => run.adopt(r, { plan: write("dead-plan.json", planOf(f, snap)), ticket: 351, handleKind: "session", handle: session, route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt-351") }));
+    const census = () => [{ pid: 77, ppid: 1, cmd: `node scripts/agent-handoff.mjs ${live}` }];
+    const p = planOf(f, snap, { reviewJobs: jobs, census, observations: { sessions: { [session]: { state: "idle" } } } });
+    assert.deepEqual(p.sweep.deadLaunches.map((d) => d.plan), [refusedPlan], "only the launched plan with no journal and no live process is dead");
+    assert.match(p.sweep.deadLaunches[0].error, /Supply completedRoundReviews/);
+    assert.equal(p.sweep.deadLaunches[0].ticket, 351);
+    assert.ok(!p.sweep.deadLaunches.some((d) => [journaled, live, authored].includes(d.plan)));
+    assert.deepEqual(run.deadLaunches(jobs, [{ ticket: 351, pr: 951 }], () => null), [], "a failed census proves no launch dead");
+  });
+
+  // --- The periodic check-in --------------------------------------------------
+
+  scenario("the check-in job is scheduled at 30 minutes, recorded with the command that recreates it, and expires after seven days", () => {
+    const f = fresh("check-in", { feature: 1775 });
+    const snap = snapshotOf([ticket(361)], 1775);
+    const missing = planOf(f, snap);
+    assert.equal(missing.checkIn.state, "missing");
+    assert.match(missing.checkIn.next, /schedule --record/);
+    const spec = run.scheduleSpec(run.readRecord(f.file), f.file, defaults);
+    assert.equal(spec.interval, 30);
+    assert.match(spec.cron, /^\d{1,2},\d{1,2} \* \* \* \*$/);
+    const [a, b] = spec.cron.split(" ")[0].split(",").map(Number);
+    assert.equal(b - a, 30, "the job fires every 30 minutes");
+    assert.ok(spec.prompt.includes(f.file) && spec.prompt.includes("references/writer-reports.md"), "the job's prompt names the record and the wake routine");
+    assert.equal(spec.command, `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record ${f.file}`);
+    assert.ok(spec.capability.includes("CronCreate"), "the capability comes from the runner configuration");
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults }));
+    const recorded = run.readRecord(f.file).checkIn;
+    assert.deepEqual([recorded.job, recorded.command, recorded.interval], ["cron-1", spec.command, 30]);
+    assert.equal(planOf(f, snap).checkIn.state, "scheduled");
+    assert.equal(planOf(f, snap, { now: Date.parse(recorded.since) + 8 * 24 * 60 * MINUTE }).checkIn.state, "expired", "a recurring job expires after seven days and is recreated");
+  });
+
+  scenario("a check-in that finds nothing records the outcome no change", () => {
+    const f = fresh("checked-in");
+    f.change((r) => run.checkedIn(r, { outcome: "no change" }));
+    assert.deepEqual([run.readRecord(f.file).log.at(-1).event, run.readRecord(f.file).log.at(-1).outcome], ["check-in", "no change"]);
+    assert.throws(() => f.change((r) => run.checkedIn(r, {})), /--outcome/);
+  });
+
+  scenario("a coordinator taking over finds the check-in to recreate, and its recorded command schedules a working job", () => {
+    const f = fresh("check-in-takeover", { feature: 1775 });
+    const snap = snapshotOf([ticket(362)], 1775);
+    f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults }));
+    const takeoverFile = path.join(f.artifacts, "takeover.json");
+    const NEXT = "local_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
+    run.initRecord({ record: takeoverFile, checkout: f.dir, repository: "acme/widgets", feature: 1775, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #1775.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    const carried = run.readRecord(takeoverFile);
+    assert.deepEqual([carried.checkIn.job, carried.checkIn.state, carried.title], [null, "recreate on this coordinator's runner", "ORCH #1775: resumable feature orchestration"]);
+    assert.equal(carried.checkIn.command, `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record ${takeoverFile}`);
+    assert.equal(run.planDispatch({ record: carried, snapshot: snap, freeBytes: 100 * GB, defaults, census: () => [] }).checkIn.state, "recreate");
+    const printed = run.main(["schedule", "--record", takeoverFile], { defaults });
+    const scheduled = [];
+    const scheduler = ({ cron, prompt, recurring }) => { if (cron.split(" ").length !== 5 || recurring !== true || !prompt.includes(takeoverFile)) throw new Error("not a working job"); scheduled.push(cron); return "cron-2"; };
+    const job = scheduler({ cron: printed.cron, prompt: printed.prompt, recurring: true });
+    run.updateRecord(takeoverFile, { expectRevision: carried.revision, coordinator: NEXT }, (r) => run.recordCheckIn(r, { job, file: takeoverFile, defaults }));
+    assert.deepEqual([run.readRecord(takeoverFile).checkIn.job, run.readRecord(takeoverFile).checkIn.state, scheduled.length], ["cron-2", "scheduled", 1]);
+  });
+
+  scenario("a runner without a scheduling capability records none and runs the wake routine at every turn", () => {
+    const f = fresh("check-in-codex", { harness: "codex", coordinator: CODEX_THREAD });
+    assert.equal(run.scheduleSpec(run.readRecord(f.file), f.file, defaults).capability, null);
+    assert.throws(() => f.change((r) => run.recordCheckIn(r, { file: f.file, defaults })), /--job .*--none/);
+    f.change((r) => run.recordCheckIn(r, { none: "Codex offers no scheduling capability", file: f.file, defaults }));
+    assert.match(planOf(f, snapshotOf([ticket(371)])).checkIn.next, /wake routine at the start of every turn/);
+  });
+
+  // --- The Feature's session group ---------------------------------------------
+
+  scenario("on a runner with grouping, writers in the app are filed into the Feature's recorded group, and a takeover reuses it", () => {
+    const f = fresh("group", { feature: 1775 });
+    const snap = snapshotOf([ticket(381, { prs: [{ number: 981, state: "OPEN", isDraft: true, branch: "fix/381-thing", head: "h", rounds: 1 }] })], 1775);
+    const first = planOf(f, snap);
+    assert.equal(first.grouping.state, "missing");
+    assert.match(first.grouping.next, /Orchestrate #1775/);
+    f.change((r) => run.recordGroup(r, { id: "group-1775" }));
+    const session = "local_2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e";
+    f.change((r) => run.adopt(r, { plan: write("group-plan.json", planOf(f, snap)), ticket: 381, handleKind: "session", handle: session, route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt-381") }));
+    assert.deepEqual(planOf(f, snap).grouping.file, [{ ticket: 381, session }]);
+    assert.throws(() => f.change((r) => run.filed(r, { ticket: 381, group: "another" })), /group-1775/);
+    f.change((r) => run.filed(r, { ticket: 381, group: "group-1775" }));
+    assert.deepEqual(planOf(f, snap).grouping.file, []);
+    const takeoverFile = path.join(f.artifacts, "takeover.json");
+    run.initRecord({ record: takeoverFile, checkout: f.dir, repository: "acme/widgets", feature: 1775, coordinator: "local_3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #1775.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    assert.deepEqual(run.readRecord(takeoverFile).group, { name: "Orchestrate #1775", id: "group-1775" });
+  });
+
+  scenario("a runner without grouping records none and continues dispatching", () => {
+    const f = fresh("group-codex", { harness: "codex", coordinator: CODEX_THREAD });
+    const snap = snapshotOf([ticket(391)]);
+    assert.match(planOf(f, snap).grouping.next, /group --none/);
+    f.change((r) => run.recordGroup(r, { none: "Codex has no session grouping" }));
+    const p = planOf(f, snap, { preflights: [available("codex-cli", "gpt-6.1-sol", [391])] });
+    assert.deepEqual([p.grouping.state, entryOf(p, 391).action], ["none", "dispatch"]);
+  });
+
+  // --- Shared skill text names no harness tool -----------------------------------
+
+  scenario("the shared skill text names no harness tool", () => {
+    const tools = ["SendMessage", "CronCreate", "CronDelete", "ListAgents", "get_session", "list_sessions", "start_session", "list_events", "export_transcript", "set_session_title", "set_session_effort", "set_thread_title", "Agent tool", "Skill tool"];
+    const shared = [path.join(here, "SKILL.md"), ...fs.readdirSync(path.join(here, "references")).map((n) => path.join(here, "references", n))];
+    const found = shared.flatMap((file) => tools.filter((tool) => fs.readFileSync(file, "utf8").includes(tool)).map((tool) => `${path.relative(here, file)}: ${tool}`));
+    assert.deepEqual(found, [], "the runner table carries tool names");
+  });
+
+  if (failed.length) throw new Error(`${failed.length} scenario${failed.length === 1 ? "" : "s"} failed: ${failed.join("; ")}`);
+  console.log("PASS: CLI-only Claude dispatch, coordinator id and mode, per-route briefs with report mechanisms, acknowledgement and delivery settlement, idle-only transcript sweep, dead reviewer launches, periodic check-in and its takeover, session groups, opening an idle writer, and tool-free skill text");
+} finally {
+  for (const { stop } of started) fs.writeFileSync(stop, "");
+  for (const { pid } of started) { try { waitFor(() => !processIdentity(pid), `stand-in ${pid} to exit`, 15000); } catch (error) { console.error(error.message); } }
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (error) { console.error(`scratch not removed: ${error.message}`); }
+}

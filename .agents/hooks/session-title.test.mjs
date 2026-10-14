@@ -259,6 +259,49 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   }
 }
 
+// A Feature's coordinator: the init or takeover that writes its run record records the title the record holds,
+// every shell command of that session is refused until the rename, and a coordinator resumed on a session that
+// already carries the title is not gated again.
+{
+  const records = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-orch-"));
+  const record = path.join(records, "run.json");
+  const title = "ORCH #1775: resumable feature orchestration";
+  const init = `node .agents/skills/orchestrate-feature/feature-run.mjs init --record "${record}" --checkout C:/work/impower --repo acme/widgets --feature 1775 --coordinator local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d --harness claude --coordinator-mode bypassPermissions --slug resumable-feature-orchestration`;
+  const at = (session, command, cwd = repo) => ({ ...shell(session, command), cwd });
+  assert.equal(afterTool(at("orch", init), "claude"), null, "an init that wrote no record records nothing");
+  assert.equal(gate(at("orch", "git status"), "claude"), null);
+  fs.writeFileSync(record, JSON.stringify({ version: 1, revision: 1, feature: 1775, title, coordinator: { session: "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" } }));
+  assert.equal(afterTool(at("orch", `node .agents/skills/orchestrate-feature/feature-run.mjs plan --record "${record}" --snapshot s.json`), "claude"), null, "only the command that writes the record names the title");
+  const told = afterTool(at("orch", init), "claude");
+  assert.match(told, new RegExp(title));
+  assert.match(told, /set_session_title/);
+  for (const [command, cwd] of [["git status", repo], ["Get-ChildItem", os.tmpdir()], [`node .agents/skills/orchestrate-feature/feature-run.mjs plan --record "${record}"`, repo]]) {
+    assert.match(gate(at("orch", command, cwd), "claude"), new RegExp(title), `${command} in ${cwd} waits for the rename`);
+  }
+  assert.equal(gate(at("not-orch", "git status"), "claude"), null, "another session is unaffected");
+  assert.match(afterTool(rename("orch", "ORCH #1775: something else"), "claude"), new RegExp(title));
+  assert.equal(afterTool(rename("orch", title), "claude"), null);
+  assert.equal(gate(at("orch", "git status"), "claude"), null, "the rename clears the gate");
+  assert.equal(afterTool(at("orch", init), "claude"), null, "a resumed coordinator on the titled session is not asked again");
+  assert.equal(gate(at("orch", "git status", os.tmpdir()), "claude"), null);
+  // A takeover in a new session records the carried title; without a rename tool the acknowledgement clears it.
+  const resume = `node .agents/skills/orchestrate-feature/checkpoint.mjs resume --record ${record.replaceAll("\\", "/")} --checkout C:/work/impower --repo acme/widgets --feature 1775`;
+  const codexTold = afterTool(at("orch-next", resume), "codex");
+  assert.match(codexTold, new RegExp(title));
+  const orchAck = codexTold.match(/`(node [^`]+ confirm [^`]+)`/)?.[1];
+  assert.ok(orchAck, codexTold);
+  assert.ok(gate(at("orch-next", "git status"), "codex"));
+  assert.equal(gate(at("orch-next", orchAck), "codex"), null, "the acknowledgement itself is let through");
+  const acked = spawnSync(process.execPath, [path.join(root, ".agents/hooks/session-title.mjs"), ...orchAck.split(" ").slice(2)], { encoding: "utf8", env: process.env, windowsHide: true });
+  assert.equal(acked.status, 0, acked.stderr);
+  assert.equal(gate(at("orch-next", "git status"), "codex"), null);
+  assert.equal(afterTool(at("orch-next", resume), "codex"), null, "an acknowledged title is not asked again");
+  // A record without an orchestration title records nothing.
+  fs.writeFileSync(record, JSON.stringify({ version: 1, revision: 1, feature: 1775, coordinator: { session: "x" } }));
+  assert.equal(afterTool(at("orch-plain", init), "claude"), null);
+  fs.rmSync(records, { recursive: true, force: true });
+}
+
 // Native hook configuration reaches the shared source on both runners.
 const bash = process.platform === "win32" ? testShell() : "bash";
 const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8"));

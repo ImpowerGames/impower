@@ -8,10 +8,10 @@
 //
 //   node .agents/skills/orchestrate-feature/feature-run.mjs <command> --option value ...
 //
-// Commands: init, snapshot, plan, claim, launch, create, settle-create,
-// handoff, launched, deliver, delivered, request, relay, answer, answered,
-// adopt, reconcile, withdraw, verify, release, result, disk-recovery, brief,
-// recover-lock.
+// Commands: init, snapshot, plan, claim, launch, launched, acknowledged,
+// deliver, delivered, request, relay, answer, answered, adopt, reconcile,
+// withdraw, verify, release, result, open, opened, schedule, check-in,
+// checked-in, group, filed, disk-recovery, brief, recover-lock.
 // Every command that changes the record takes --record, --coordinator and
 // --expect-revision, prints the new record revision, and refuses a stale
 // revision or another coordinator's session.
@@ -47,18 +47,44 @@ export function resolveWriterModel(harness, override, defaults) {
   return { model: entry.model, source: `${harness} orchestrator default` };
 }
 
-// The writer routes for a model in preference order, each marked with whether
-// the current turn may start it. A route that starts only during a turn the
-// user's own message began can merely be proposed from an event-driven turn.
-export function routeOptions(model, turn, defaults) {
-  if (turn !== "user" && turn !== "event") throw new Error("--turn must be user (the user's own message began this turn) or event (a session note, CI event or timer began it)");
+// The dispatch routes for a model in preference order. A coordinator runs
+// unattended, so a route that needs a user-begun turn, an approval card or the
+// coordinator's own session is retired and never dispatched.
+export function routeOptions(model, defaults) {
   const routes = defaults.routes[routeVendor(model)];
   if (!routes) throw new Error(`No writer routes for ${model}`);
   return routes.map((r) => {
     if (!Object.hasOwn(writerRoutes, r.route)) throw new Error(`Writer default route ${r.route} is unknown to the route preflight`);
-    const blocked = r.userTurnOnly && turn === "event";
-    return { route: r.route, dispatchable: !blocked, ...(blocked && { reason: "starts only during a turn the user's own message began; this turn can only propose it" }), ...(r.endsWithCoordinator && { endsWithCoordinator: true }), selfCheck: r.selfCheck };
+    if (defaults.retiredRoutes?.[r.route]) throw new Error(`Writer default route ${r.route} is also listed as retired`);
+    return { route: r.route, selfCheck: r.selfCheck };
   });
+}
+export const retiredReason = (route, defaults) => (defaults.retiredRoutes?.[route] ? `${route} is retired as a dispatch route: ${defaults.retiredRoutes[route]}` : null);
+
+// The permission modes a Claude session reports. Writers launch in the
+// coordinator's own mode, and writers on agent-launch tooling need bypass
+// permissions, so dispatch waits until the coordinator runs in it.
+export const PERMISSION_MODES = ["default", "acceptEdits", "plan", "auto", "bypassPermissions"];
+export const BYPASS = "bypassPermissions";
+const modeBlock = (record) => (record.coordinator.permissionMode === BYPASS ? null : `the coordinator runs in ${record.coordinator.permissionMode ?? "an unrecorded"} permission mode, not ${BYPASS}: writers launch in the coordinator's own mode, and writers on agent-launch tooling need bypass because auto mode's classifier refuses their edits; switch this session to bypass permissions, then record it with init --coordinator-mode ${BYPASS}`);
+
+// Writers message the coordinator by its session id, so init accepts only an
+// id of the coordinator's own runner: a path, a directory name or a
+// scratchpad id reaches no session.
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const COORDINATOR_IDS = { claude: [new RegExp(`^local_${UUID}$`, "i"), "the desktop app's session id, local_<uuid>"], codex: [new RegExp(`^${UUID}$`, "i"), "the Codex thread id, a bare <uuid>"] };
+export function checkCoordinatorId(harness, id) {
+  const [shape, name] = COORDINATOR_IDS[harness] ?? [];
+  if (!shape) throw new Error(`--harness must be one of ${Object.keys(COORDINATOR_IDS).join(", ")}`);
+  if (!shape.test(id ?? "")) throw new Error(`--coordinator must be this session's own id, ${name}, which its writers message; ${JSON.stringify(id ?? "")} is not one, and a path, a directory name or a scratchpad id reaches no session`);
+}
+
+// The coordinator's session title, like a writer's, comes from a slug of two
+// to four lowercase words; the title hook reads it from the run record.
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){1,3}$/;
+export function orchestrationTitle(feature, slug) {
+  if (!SLUG.test(slug ?? "")) throw new Error(`--slug must be two to four lowercase words from the Feature's title joined by hyphens, such as resumable-feature-orchestration; ${JSON.stringify(slug ?? "")} is not`);
+  return `ORCH #${feature}: ${slug.replaceAll("-", " ")}`;
 }
 
 // Ticket Effort is an organization issue field; its option names map onto the
@@ -212,6 +238,104 @@ export function applyInvocation(file, { coordinator, invocation, merging }) {
   return { record: next, changed: true };
 }
 
+// The coordinator's permission mode as it reads it now, and a title for a
+// record that has none; running init again in the same session records a
+// switch of mode, and a record's title, once set, stays the Feature's.
+export function applyCoordinatorMode(file, { coordinator, permissionMode, title }) {
+  const record = readRecord(file);
+  const switched = permissionMode !== undefined && record.coordinator.permissionMode !== permissionMode, titled = title !== undefined && !record.title;
+  if (!switched && !titled) return record;
+  return updateRecord(file, { expectRevision: record.revision, coordinator }, (r) => {
+    if (switched) r.log.push({ time: new Date().toISOString(), event: "coordinator-mode", from: r.coordinator.permissionMode ?? null, to: permissionMode });
+    if (switched) r.coordinator.permissionMode = permissionMode;
+    if (titled) r.title = title;
+  }).record;
+}
+
+// --- Periodic check-in and session group ------------------------------------
+
+// The coordinator checks in every 30 minutes: its prompt cache lasts an hour,
+// and the scheduler fires a recurring job up to 10 percent late, so an hourly
+// job can miss the cache and re-read the whole context at full price, which
+// costs more than the two cheaper check-ins it replaces. The job is a fallback
+// for a lost message or a dead writer; writers still message at every
+// decision point.
+export const CHECK_IN_MINUTES = 30;
+export const scheduleCommand = (file) => `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record ${file}`;
+// The job to create with the runner's scheduling capability. Its minutes are
+// spread by Feature number, so several coordinators do not all wake at once.
+export function scheduleSpec(record, file, defaults) {
+  const capability = defaults.orchestrators[record.coordinator.harness]?.checkIn ?? null;
+  const minute = record.feature % CHECK_IN_MINUTES;
+  return {
+    interval: CHECK_IN_MINUTES, cron: `${minute},${minute + CHECK_IN_MINUTES} * * * *`, recurring: true,
+    prompt: `Orchestrate-feature check-in for Feature #${record.feature}, run record ${file}: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.`,
+    command: scheduleCommand(file), capability: capability?.capability ?? null, expiresAfterDays: capability?.expiresAfterDays ?? null,
+  };
+}
+export function recordCheckIn(record, { job, none, file, defaults }) {
+  if (Boolean(job) === Boolean(none)) throw new Error("Record the check-in with --job <the job id the runner returned>, or with --none <why the runner cannot schedule one>");
+  const spec = scheduleSpec(record, file, defaults), since = new Date();
+  const days = job ? spec.expiresAfterDays : null;
+  record.checkIn = { interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: job ?? null, none: none ?? null, state: job ? "scheduled" : "none", since: since.toISOString(), expires: days ? new Date(since.getTime() + days * 86400000).toISOString() : null };
+  log(record, "check-in-scheduled", { job: job ?? null, none: none ?? null });
+}
+// A check-in whose sweep found nothing to act on records that too.
+export function checkedIn(record, { outcome }) {
+  if (!outcome) throw new Error("--outcome must say what the check-in did, or \"no change\"");
+  log(record, "check-in", { outcome });
+}
+// What the next plan says about the check-in job.
+function checkInStatus(record, now) {
+  const c = record.checkIn;
+  if (!c) return { state: "missing", next: `schedule the periodic check-in now: run feature-run.mjs schedule --record <this run record>, create the job it prints with your runner's scheduling capability, and record it with check-in --job <id>, or --none <reason> when the runner has none` };
+  if (c.state === "none") return { state: "none", next: `the runner schedules no check-in (${c.none}); run the wake routine at the start of every turn` };
+  if (!c.job) return { state: "recreate", next: `the check-in ended with the previous coordinator; recreate it with ${c.command} and record it with check-in --job <id>` };
+  if (c.expires && now > Date.parse(c.expires)) return { state: "expired", next: `job ${c.job} expired at ${c.expires}; create it again with ${c.command} and record the new job with check-in --job <id>` };
+  return { state: "scheduled", job: c.job, interval: c.interval };
+}
+
+// The Feature's sessions share one group on a runner that offers grouping, so
+// they stay together in its session list; the group id is recorded so a
+// resuming coordinator files new writers into the same group.
+export const groupName = (feature) => `Orchestrate #${feature}`;
+export function recordGroup(record, { id, none }) {
+  if (Boolean(id) === Boolean(none)) throw new Error("Record the group with --id <the group's id>, or with --none <why the runner offers no grouping>");
+  if (record.group?.id && id !== record.group.id) throw new Error(`Feature #${record.feature}'s group is already ${record.group.id}; reuse it`);
+  record.group = id ? { name: groupName(record.feature), id } : { name: groupName(record.feature), id: null, none };
+  log(record, "group", { id: id ?? null, none: none ?? null });
+}
+// A writer's session in the app: an existing session adopted with its work,
+// or a CLI writer's session once it was opened.
+const appSession = (owner) => owner?.opened?.session ?? (owner?.handle?.kind === "session" ? owner.handle.id : null);
+export function filed(record, { ticket: number, group }) {
+  if (!record.group?.id) throw new Error(`Feature #${record.feature} has no recorded group; record it with group --id first`);
+  if (group !== record.group.id) throw new Error(`--group must be the Feature's group ${record.group.id}`);
+  const owner = ticketOf(record, number).owner;
+  if (!appSession(owner)) throw new Error(`#${number}'s writer has no session in the app to file`);
+  owner.group = group;
+  log(record, "filed", { ticket: number, session: appSession(owner), group });
+}
+function groupingStatus(record, defaults) {
+  const file = record.group?.id ? Object.entries(record.tickets).filter(([, t]) => appSession(t.owner) && t.owner.group !== record.group.id).map(([n, t]) => ({ ticket: Number(n), session: appSession(t.owner) })) : [];
+  if (record.group?.id) return { state: "recorded", id: record.group.id, file, ...(file.length && { next: `file each listed session into group ${record.group.id} and record it with filed --ticket <N> --group ${record.group.id}` }) };
+  if (record.group) return { state: "none", file };
+  const capability = defaults.orchestrators[record.coordinator.harness]?.grouping;
+  return { state: "missing", file, next: capability ? `file this session into the group ${groupName(record.feature)} with ${capability}, reusing it when it exists, then record its id with group --id <id>` : "the runner offers no session grouping; record that with group --none <reason>" };
+}
+
+// What a takeover carries of the check-in, the group and the title: the job
+// ended with the previous coordinator's session, so it is recreated for the
+// new record; the group and title stay the Feature's.
+export function carriedRun(prev, { file, record, defaults }) {
+  const spec = scheduleSpec(record, file, defaults);
+  return {
+    ...(prev.checkIn && { checkIn: { ...prev.checkIn, interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: null, state: "recreate on this coordinator's runner", since: null, expires: null } }),
+    ...(prev.group && { group: prev.group }),
+    ...(prev.title && { title: prev.title }),
+  };
+}
+
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
   const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
@@ -221,6 +345,8 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   if (!invocation) throw new Error("--invocation must quote the user's request that invoked the skill");
   const merging = mergingFor(invocation, options.merging);
   if (!options.coordinatorModel || !writerEfforts(options.coordinatorModel).includes(options.coordinatorEffort)) throw new Error("--coordinator-model and --coordinator-effort must be the coordinator's own metadata");
+  if (options.coordinatorMode !== undefined && !PERMISSION_MODES.includes(options.coordinatorMode)) throw new Error(`--coordinator-mode must be the coordinator's own permission mode: ${PERMISSION_MODES.join(", ")}`);
+  const title = options.slug === undefined ? undefined : orchestrationTitle(feature, options.slug);
   const writer = resolveWriterModel(harness, options.writerModel, defaults);
   let concurrency = defaultConcurrency({ totalMemory });
   const diskAdmits = Math.floor((freeBytes ?? freeBytesAt(checkout)) / WRITER_DISK);
@@ -229,12 +355,13 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     concurrency = { limit: options.concurrency, basis: `invocation override (default would be ${concurrency.limit}: ${concurrency.basis})` };
   }
   const pointer = pointerFile(checkout, repository, feature);
-  const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since: new Date().toISOString() };
+  const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, ...(options.coordinatorMode !== undefined && { permissionMode: options.coordinatorMode }), since: new Date().toISOString() };
   const fresh = (carried = {}) => ({
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout, coordinator: self,
     invocation: { text: invocation, merging, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: authorityFor(merging),
     writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [],
+    ...(title && { title }), ...carried.run,
     log: [{ time: self.since, event: carried.tickets ? "takeover" : "init", coordinator, writer: writer.model, concurrency: concurrency.limit }],
   });
   fs.mkdirSync(path.dirname(pointer), { recursive: true });
@@ -250,7 +377,10 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
       return { action: "init", record: readRecord(file), pointer, diskAdmits };
     }
-    if (existing.coordinator === coordinator && existing.record === file) return { action: "resume", record: applyInvocation(file, { coordinator, invocation, merging }).record, pointer };
+    if (existing.coordinator === coordinator && existing.record === file) {
+      applyInvocation(file, { coordinator, invocation, merging });
+      return { action: "resume", record: applyCoordinatorMode(file, { coordinator, permissionMode: options.coordinatorMode, title }), pointer };
+    }
     if (!options.takeover) throw new Error(`Feature #${feature} already has coordinator ${existing.coordinator} on ${existing.host} (record ${existing.record}); a second coordinator would duplicate writers. Continue in that session, or confirm it ended and run init --takeover with an observation of it`);
     const prior = ownerStatus({ handle: { kind: "session", id: existing.coordinator } }, options.observations ?? {}, { host, identify });
     if (prior.status !== "exited") throw new Error(`Takeover refused: the previous coordinator ${existing.coordinator} is ${prior.status} (${prior.reason})`);
@@ -259,7 +389,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     const releaseOld = acquire(existing.record, identify);
     try {
       const old = readRecord(existing.record);
-      writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }] }));
+      writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }], run: carriedRun(old, { file, record: { feature, coordinator: self }, defaults }) }));
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
     } finally { releaseOld(); }
     return { action: "takeover", record: readRecord(file), pointer };
@@ -405,22 +535,60 @@ export const snapshotScope = (snapshot) => ({ slices: snapshot.tickets.filter((t
 
 // --- Admission plan -------------------------------------------------------
 
-// The next action for an adopted start, from its last recorded step.
-function adoptedNext(pending) {
-  const last = lastStep(pending);
-  const at = last ? `${last.step} ${last.state}` : "none";
-  const next = {
-    none: ["dispatch-step", "claimed; run create"],
-    "create intent": ["reconcile-pending", "create has no recorded outcome, so a session may exist; look for it and record what you find with settle-create (--session <id> or --absent), never run create again"],
-    "create uncertain": ["reconcile-pending", `create may have made a session (${last?.reason}); look for it and record what you find with settle-create (--session <id> or --absent), never run create again`],
-    "create failed": ["reconcile-pending", `create failed (${last?.reason}); withdraw with that evidence`],
-    "create confirmed": ["dispatch-step", `session ${last?.sessionId} was created; run handoff`],
-    "handoff intent": ["reconcile-pending", "handoff has no recorded outcome; look for the session in the app's list and record it with launched --handle-kind session if it is there, or withdraw with evidence that it is not; never run handoff again"],
-    "handoff uncertain": ["reconcile-pending", `handoff may have run (${last?.reason}); look for the session in the app's list and record it with launched --handle-kind session if it is there, or withdraw with evidence that it is not; never run handoff again`],
-    "handoff failed": ["reconcile-pending", `handoff failed (${last?.reason}); withdraw with that evidence`],
-    "handoff requested": ["reconcile-pending", `confirm session ${last?.sessionId} in the app's session list and record it with launched --handle-kind session`],
-  }[at];
-  return next ?? ["reconcile-pending", `unexpected adopted step ${at}`];
+// An open of an idle CLI writer whose outcome is not yet settled from the
+// app's session list; null once it is confirmed, or when it failed and nothing
+// was handed over.
+function openPending(owner) {
+  const o = owner.opened, last = o?.steps?.at(-1);
+  if (!o || o.session || !last || last.state === "failed") return null;
+  const app = `local_${o.sessionId}`;
+  if (last.state === "requested") return `the open of session ${o.sessionId} was requested; confirm ${app} in the app's session list and record it with opened --session ${app}`;
+  return `the open of session ${o.sessionId} has ${last.state === "intent" ? "no recorded outcome" : `an uncertain outcome (${last.reason})`}; look for ${app} in the app's session list and record it with opened if it is there, and never run open again`;
+}
+
+// Where the coordinator reads a writer's own record of what it said.
+function transcriptOf(owner) {
+  const handle = owner.handle;
+  if (handle.kind === "process") return handle.launchDir ? path.join(handle.launchDir, "out.jsonl") : `process ${handle.pid}'s output`;
+  return `${handle.kind} ${handle.id}`;
+}
+
+// Reviewer launches that died before their journal existed: a plan whose
+// launcher logs exist, so start-coordinator ran, with no journal and no
+// process naming the plan. A launcher refused at validation writes its error
+// only to the plan's .coordinator.err.log, so nothing else would show it. A
+// failed process census proves no launch dead.
+const launcherLog = (plan, kind) => path.join(path.dirname(plan), `${path.basename(plan, path.extname(plan))}.coordinator.${kind}.log`);
+function launchPlans(dir) {
+  const plans = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) { if (![".git", "node_modules"].includes(entry.name)) plans.push(...launchPlans(file)); continue; }
+    if (!entry.isFile() || !entry.name.endsWith(".json") || fs.statSync(file).size > 4 * 2 ** 20) continue;
+    let plan;
+    try { plan = readJson(file); } catch { continue; }
+    if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.push({ file, journal: path.resolve(dir, plan.journal) });
+  }
+  return plans;
+}
+export function deadLaunches(jobRoot, prs, census = processCensus) {
+  const dead = [];
+  let list;
+  for (const { ticket, pr } of prs) {
+    const dir = path.join(jobRoot, `pr-${pr}`);
+    if (!fs.existsSync(dir)) continue;
+    for (const { file, journal } of launchPlans(dir)) {
+      const started = ["out", "err"].some((kind) => fs.existsSync(launcherLog(file, kind)));
+      if (!started || (fs.existsSync(journal) && fs.statSync(journal).size > 0)) continue;
+      if (list === undefined) { try { list = census(); } catch { list = null; } }
+      if (!Array.isArray(list)) return [];
+      if (usersOf(file, list, process.pid).length) continue;
+      const errLog = launcherLog(file, "err");
+      const error = fs.existsSync(errLog) ? fs.readFileSync(errLog, "utf8").trim().split(/\r?\n/).slice(-5).join("\n") : "";
+      dead.push({ ticket, pr, plan: file, journal, errLog, error });
+    }
+  }
+  return dead;
 }
 
 // The Feature's "Acceptance criteria" section: every line under that heading
@@ -531,30 +699,33 @@ function readyAction(record, pr, why = "") {
 // continuation whose claim recorded the previous writer's end and never ran.
 const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
 
-export function planDispatch({ record, snapshot, observations = {}, turn, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity }) {
+export function planDispatch({ record, snapshot, observations = {}, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity, now = Date.now(), reviewJobs = `${record.checkout}.review-jobs`, census = processCensus }) {
   if (snapshot.repository !== record.repository || snapshot.feature.number !== record.feature) throw new Error("The snapshot is of another repository or Feature");
   const model = record.writer.model;
-  const routes = routeOptions(model, turn, defaults);
+  const routes = routeOptions(model, defaults);
   const tickets = [], eligible = [], existingWork = [];
+  const sweep = { read: [], notRead: [], deadLaunches: [] }, reviewed = [];
+  const interval = (record.checkIn?.interval ?? CHECK_IN_MINUTES) * 60000;
   let active = 0;
   const add = (ticket, action, reason, extra = {}) => { const entry = { number: ticket.number, title: ticket.title, effort: writerEffortOf(ticket.effort), action, reason, ...extra }; tickets.push(entry); return entry; };
-  // The first route that runs the writer model at the ticket's effort, or the
-  // one this turn may only propose, with the reasons the others were passed over.
+  // The first route that runs the writer model at the ticket's effort, with
+  // the reasons the others, and any retired route a preflight was run for,
+  // were passed over.
   const chooseRoute = (t) => {
     const effort = writerEffortOf(t.effort);
     const verdictOf = (route) => preflights.filter((p) => p.route === route && p.model === model).flatMap((p) => p.verdicts).find((v) => v.ticket === t.number && v.effort === effort);
     const reasons = [];
-    let proposable = null;
     for (const r of routes) {
       const v = verdictOf(r.route);
       if (!v) { reasons.push(`${r.route}: no preflight result for ${model} at ${effort}`); continue; }
       if (v.verdict !== "available" && v.verdict !== "confirmed") { reasons.push(`${r.route}: ${v.reason}`); continue; }
-      if (!r.dispatchable) { proposable ??= r; reasons.push(`${r.route}: ${r.reason}`); continue; }
       return { effort, chosen: { ...r, launch: v.launch }, reasons };
     }
-    return { effort, chosen: null, proposable, reasons };
+    for (const route of new Set(preflights.map((p) => p.route))) if (retiredReason(route, defaults)) reasons.push(retiredReason(route, defaults));
+    return { effort, chosen: null, reasons };
   };
-  const startWith = (choice) => ({ route: choice.chosen.route, model, effort: choice.effort, ...(choice.chosen.launch && { launch: choice.chosen.launch }), ...(choice.chosen.endsWithCoordinator && { endsWithCoordinator: true }) });
+  const startWith = (choice) => ({ route: choice.chosen.route, model, effort: choice.effort, ...(choice.chosen.launch && { launch: choice.chosen.launch }) });
+  const unlaunchable = modeBlock(record);
   const undelivered = (t) => t.blockers.filter((b) => !b.delivered);
   const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
   // Sub-issues of a container whose own writer is still held wait until that
@@ -598,36 +769,37 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
       active++;
       const p = own.pending;
       if (p.host && p.host !== host) { add(t, "blocked-owner-unknown", `${p.operation} ${p.launchId} on ${p.route} was claimed on ${p.host} and has no recorded outcome; settle it on that host (reconcile there, or withdraw --observed-on ${p.host} with what was observed there) before any retry`, { pending: p }); continue; }
-      const heldParent = heldAncestor(t);
-      if (p.route === "claude-adopted" && p.operation === "dispatch") {
-        const [action, reason] = adoptedNext(p);
-        if (heldParent !== null && action === "dispatch-step") add(t, "wait-dependency", `its parent #${heldParent} is still held by a writer; the pending start stays recorded, but run none of its steps until that writer is settled`, { pending: p, waitingFor: [heldParent] });
-        else add(t, action, reason, { pending: p });
-        continue;
-      }
-      if (heldParent !== null && p.operation === "proposed") { add(t, "wait-dependency", `its parent #${heldParent} is still held by a writer; withdraw the proposal, or record it with launched if it was started anyway`, { pending: p, waitingFor: [heldParent] }); continue; }
-      add(t, "reconcile-pending", p.operation === "proposed" ? `a ${p.route} start was proposed and awaits the user; record its start with launched, or withdraw it once declined` : `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : "find the started writer and record it with launched, or withdraw with evidence that none started"} before any retry`, { pending: p });
+      const retired = retiredReason(p.route, defaults);
+      add(t, "reconcile-pending", `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : `find the started writer and record it with launched, or withdraw with evidence that none started${retired ? `, and never retry it there, since ${retired}` : ""}`} before any retry`, { pending: p });
       continue;
     }
     if (own.owner) {
       const s = ownerStatus(own.owner, observations, { host, identify });
-      const extra = { owner: { route: own.owner.route, handle: own.owner.handle, status: s.status }, ...(open.length === 1 && { pr: open[0].number, rounds: open[0].rounds }) };
+      // The sweep reads a writer's transcript only when its turn has ended:
+      // a running writer cannot be waiting on the coordinator.
+      const transcript = ["waiting", "exited"].includes(s.status) ? { from: transcriptOf(own.owner) } : null;
+      if (transcript) sweep.read.push({ ticket: t.number, ...transcript });
+      else sweep.notRead.push({ ticket: t.number, reason: s.status === "live" ? "running; a running writer cannot be waiting on the coordinator" : s.reason });
+      reviewed.push(...open.map((p) => ({ ticket: t.number, pr: p.number })));
+      const extra = { owner: { route: own.owner.route, handle: own.owner.handle, status: s.status }, ...(transcript && { transcript }), ...(open.length === 1 && { pr: open[0].number, rounds: open[0].rounds }) };
       if (own.owner.mismatch) { active++; add(t, "stop-writer", `the writer does not run the requested route: ${own.owner.mismatch}; stop it and keep its evidence, never substitute`, extra); continue; }
+      const opening = openPending(own.owner);
+      if (opening) { active++; add(t, "reconcile-pending", opening, extra); continue; }
       const asked = openRequests(own);
       if (asked.length && s.status !== "exited") { active++; add(t, "answer-request", asked.map(requestNext).join("; "), { ...extra, requests: asked }); continue; }
-      // Only a writer this coordinator launched awaits its first brief; an
-      // existing writer adopted with its work already has its assignment.
-      if (own.owner.brief !== undefined && own.owner.brief?.state !== "delivered" && s.status !== "exited") {
-        active++;
-        if (!own.owner.brief && heldAncestor(t) !== null) add(t, "wait-dependency", `its parent #${heldAncestor(t)} is still held by a writer; do not brief session ${own.owner.handle.id} until that writer is settled`, { ...extra, waitingFor: [heldAncestor(t)] });
-        else if (!own.owner.brief) add(t, "deliver-brief", `the app adopted session ${own.owner.handle.id}; once its first turn has ended, record deliver --plan (it prints the brief), send that text by message, then record delivered`, extra);
-        else add(t, "reconcile-pending", `brief delivery ${own.owner.brief.deliveryId} of assignment ${own.owner.launchId} to session ${own.owner.handle.id} has no recorded outcome and may still be queued; if the writer's transcript shows the assignment, record delivered with that evidence; otherwise wait, or resend with deliver --retry, which the brief tells the writer to ignore once a copy has arrived`, extra);
-        continue;
+      // A brief sent with the writer's start is acknowledged by the writer's
+      // first message; without one after a check-in interval, the delivery
+      // failed or the coordinator id was wrong, so it is settled now rather
+      // than waited out. A resend with no recorded outcome is settled first.
+      const brief = own.owner.brief;
+      if (brief && !own.owner.acknowledged && s.status !== "exited") {
+        if (brief.state === "intent") { active++; add(t, "reconcile-pending", `brief delivery ${brief.deliveryId} of assignment ${own.owner.launchId} has no recorded outcome and may still be queued; if the writer's transcript shows the assignment, record delivered with that evidence; otherwise wait, or resend with deliver --retry, which the brief tells the writer to ignore once a copy has arrived`, extra); continue; }
+        if (now - Date.parse(brief.time) > interval) { active++; add(t, "settle-delivery", `no acknowledgement of assignment ${own.owner.launchId} arrived within ${interval / 60000} minutes of brief delivery ${brief.deliveryId}: confirm that ${record.coordinator.session} is this session's own id, read the writer's transcript at ${transcriptOf(own.owner)} and record acknowledged if it shows one; otherwise resend with deliver --retry, send that copy to the writer, and record delivered`, extra); continue; }
       }
       if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { const [action, reason] = readyAction(record, open[0], `; ${s.reason}`); add(t, action, reason, extra); continue; }
       active++;
       const action = { live: "observe", waiting: "collect-report", unknown: "blocked-owner-unknown", exited: "release" }[s.status];
-      const advice = { live: "", waiting: "", unknown: "; establish its state before any replacement", exited: "; record release with that evidence before a new writer continues" }[s.status];
+      const advice = { live: "", waiting: "", unknown: "; establish its state before any replacement", exited: "; read its transcript, then record release with that evidence before a new writer continues" }[s.status];
       add(t, action, s.reason + advice, extra);
       continue;
     }
@@ -679,37 +851,38 @@ export function planDispatch({ record, snapshot, observations = {}, turn, prefli
     const choice = chooseRoute(t);
     const others = active - (reserves ? 1 : 0);
     if (!choice.chosen) entry.continueBlocked = choice.reasons.join("; ");
+    else if (unlaunchable) entry.continueBlocked = unlaunchable;
     else if (others >= room) entry.continueBlocked = `${others} other writers, held or possibly running on existing work, fill the limit of ${record.concurrency.limit}`;
     else entry.continueWith = startWith(choice);
   }
   const capacityNow = Math.max(0, room - active);
   let capacity = capacityNow;
   for (const t of eligible.sort((a, b) => a.number - b.number)) {
-    const choice = chooseRoute(t), { effort, chosen, proposable, reasons } = choice;
-    if (!chosen && !proposable) { add(t, "blocked-route", `no supported route runs ${model} at ${effort}: ${reasons.join("; ")}`); continue; }
+    const choice = chooseRoute(t), { effort, chosen, reasons } = choice;
+    if (!chosen) { add(t, "blocked-route", `no supported route runs ${model} at ${effort}: ${reasons.join("; ")}`); continue; }
+    if (unlaunchable) { add(t, "blocked-route", unlaunchable); continue; }
     if (capacity <= 0) { add(t, "wait-capacity", capacityNow === 0 && Math.floor(free / WRITER_DISK) <= active ? "free disk does not admit another writer; the coordinator may run the bounded disk recovery" : `${active} writers already hold tickets against a limit of ${record.concurrency.limit}`); continue; }
     capacity--;
-    if (chosen) add(t, "dispatch", `every blocker's deliverable is on origin/main`, startWith(choice));
-    else add(t, "propose", `only ${proposable.route} is available and this turn cannot start it; propose it and record the proposal with claim --operation proposed`, { route: proposable.route, model, effort, reasons });
+    add(t, "dispatch", `every blocker's deliverable is on origin/main`, startWith(choice));
   }
-  // A planned handoff admits no new work: nothing starts, no claimed start
-  // takes its next step, no new writer is briefed, and existing work is not
-  // continued, until the next coordinator plans.
+  // A planned handoff admits no new work: nothing starts and existing work is
+  // not continued until the next coordinator plans.
   if (record.handoff) {
     const why = `a planned handoff stopped new dispatch at ${record.handoff.since}`;
     for (const t of tickets) {
-      if (["dispatch", "propose", "dispatch-step", "deliver-brief"].includes(t.action)) Object.assign(t, { action: "wait-handoff", reason: why });
+      if (t.action === "dispatch") Object.assign(t, { action: "wait-handoff", reason: why });
       if (t.continueWith) { delete t.continueWith; t.continueBlocked = why; }
     }
   }
+  sweep.deadLaunches = deadLaunches(reviewJobs, reviewed, census);
   tickets.sort((a, b) => a.number - b.number);
   // The Feature is complete only once its acceptance criteria were verified
   // on main and every ticket is still delivered.
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
   return {
-    repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session, turn,
+    repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow },
-    routes, tickets, remaining: remainingFor(record, complete), complete,
+    routes, tickets, sweep, checkIn: checkInStatus(record, now), grouping: groupingStatus(record, defaults), remaining: remainingFor(record, complete), complete,
   };
 }
 
@@ -736,9 +909,11 @@ function assertFree(ticket, number) {
 // A claim records the intent to start a writer before anything starts. A
 // continuation claims existing work (a draft PR or a found worktree) for a new
 // writer once the coordinator has evidence that the previous one ended; it
-// keeps the branch, worktree and the PR's started review rounds.
-const CLAIM_ACTIONS = { dispatch: ["dispatch"], proposed: ["propose"], continue: ["adopt-pr", "adopt-worktree"] };
-export function claim(record, { plan, ticket: number, worktree, branch, artifactParent, operation = "dispatch", evidence, host = os.hostname() }) {
+// keeps the branch, worktree and the PR's started review rounds. A Claude
+// writer is claimed in the coordinator's own permission mode, which its
+// launch must name.
+const CLAIM_ACTIONS = { dispatch: ["dispatch"], continue: ["adopt-pr", "adopt-worktree"] };
+export function claim(record, { plan, ticket: number, worktree, branch, artifactParent, operation = "dispatch", evidence, host = os.hostname(), defaults = readWriterDefaults() }) {
   if (!Object.hasOwn(CLAIM_ACTIONS, operation)) throw new Error(`--operation must be ${Object.keys(CLAIM_ACTIONS).join(", ")}`);
   const entry = planEntry(plan, record, number, CLAIM_ACTIONS[operation]);
   if (!path.isAbsolute(worktree ?? "") || !path.isAbsolute(artifactParent ?? "")) throw new Error("--worktree and --artifact-parent must be absolute paths");
@@ -759,10 +934,12 @@ export function claim(record, { plan, ticket: number, worktree, branch, artifact
   }
   const sameTree = Object.entries(record.tickets).find(([n, t]) => Number(n) !== number && [t.owner, t.pending].some((o) => o && path.resolve(o.worktree) === path.resolve(worktree)));
   if (sameTree) throw new Error(`${worktree} is assigned to #${sameTree[0]}`);
+  if (retiredReason(start.route, defaults)) throw new Error(`${retiredReason(start.route, defaults)}; plan again`);
   const ticket = ticketOf(record, number);
   assertFree(ticket, number);
-  ticket.pending = { operation: operation === "proposed" ? "proposed" : "dispatch", launchId: randomUUID(), route: start.route, model: start.model, effort: start.effort, worktree, branch, artifactParent, host, ...(continues && { continues }), time: new Date().toISOString() };
-  log(record, { dispatch: "dispatch-intent", proposed: "proposed", continue: "continue-intent" }[operation], { ticket: number, route: start.route, launchId: ticket.pending.launchId, ...(continues && { continues }) });
+  const permissionMode = routeVendor(start.model) === "claude" ? record.coordinator.permissionMode ?? null : null;
+  ticket.pending = { operation: "dispatch", launchId: randomUUID(), route: start.route, model: start.model, effort: start.effort, ...(permissionMode && { permissionMode }), worktree, branch, artifactParent, host, ...(continues && { continues }), time: new Date().toISOString() };
+  log(record, { dispatch: "dispatch-intent", continue: "continue-intent" }[operation], { ticket: number, route: start.route, launchId: ticket.pending.launchId, ...(continues && { continues }) });
   return ticket.pending;
 }
 
@@ -770,7 +947,10 @@ export function claim(record, { plan, ticket: number, worktree, branch, artifact
 // established: a continuation's evidence that the previous writer ended.
 const settledStart = (pending, fields) => ({ pending, ...fields, ...(pending.continues && { priorEnded: pending.continues.evidence }) });
 
-const ownerFrom = (pending, handle) => ({ route: pending.route, model: pending.model, effort: pending.effort, worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
+// A started writer has its brief already: it went with the start. The brief
+// counts as delivered from then, and the writer's acknowledgement confirms it.
+const sentBrief = (via, text) => ({ state: "delivered", via, ...(text !== undefined && { text }), deliveryId: randomUUID().slice(0, 8), attempts: 1, time: new Date().toISOString() });
+const ownerFrom = (pending, handle, brief) => ({ route: pending.route, model: pending.model, effort: pending.effort, ...(pending.permissionMode && { permissionMode: pending.permissionMode }), worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(brief && { brief }), ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
 
 // A start runs only on the host that claimed it, and only while the run admits
 // work: another host's start is run or settled there, and a planned handoff
@@ -792,17 +972,8 @@ export function launched(record, { ticket: number, handleKind, handle, observedO
   assertObservedOn(ticket.pending, number, host, observedOn, "confirm");
   if (ticket.pending.route === "claude-cli") throw new Error("A detached CLI writer is started with launch and confirmed with reconcile");
   if (!["session", "task"].includes(handleKind) || !handle) throw new Error("--handle-kind must be session or task, with --handle naming it");
-  const adopted = ticket.pending.route === "claude-adopted";
-  if (adopted) {
-    // A handoff whose outcome was lost is settled by finding the session in
-    // the app's list; the handoff itself is never run twice.
-    const last = lastStep(ticket.pending);
-    if (handleKind !== "session" || last?.step !== "handoff" || !["requested", "intent", "uncertain"].includes(last.state)) throw new Error(`An adopted writer is confirmed as a session found in the app's list after its handoff ran; #${number} is at ${last ? `${last.step} ${last.state}` : "no step"}`);
-    step(ticket.pending, "adopt", "confirmed", { handle, ...(last.state !== "requested" && { after: `handoff ${last.state}` }) });
-  }
   // The writer runs where its start was claimed.
-  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host });
-  if (adopted) { ticket.owner.steps = ticket.pending.steps; ticket.owner.brief = null; }
+  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host }, sentBrief("start"));
   log(record, "launched", { ticket: number, launchId: ticket.pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return ticket.owner;
@@ -836,7 +1007,7 @@ export function adopt(record, { plan, ticket: number, handleKind, handle, pid, r
 export function withdraw(record, { ticket: number, evidence, observedOn, host = os.hostname() }) {
   const ticket = ticketOf(record, number);
   if (!ticket.pending) throw new Error(`#${number} has nothing pending`);
-  if (!evidence) throw new Error("--evidence must say why no writer started (a declined proposal, or the observation that found none)");
+  if (!evidence) throw new Error("--evidence must say why no writer started (the observation that found none)");
   // A start claimed on another host left its traces there; only an
   // observation made there can show that nothing started.
   assertObservedOn(ticket.pending, number, host, observedOn, "withdraw");
@@ -873,7 +1044,31 @@ export function release(record, { ticket: number, observations, evidence, host =
   log(record, "released", { ticket: number, reason: s.reason, ...(closed.length && { closedRequests: closed.map((r) => r.id) }) });
 }
 
-export const REPORT_FIELDS = ["model", "effort", "pr", "reviewedHead", "rounds", "findings", "verification", "ci", "next"];
+export const REPORT_FIELDS = ["model", "effort", "permissionMode", "pr", "reviewedHead", "rounds", "findings", "verification", "ci", "next"];
+
+// What a writer read from its own metadata, against what it was started as;
+// null when they agree. A writer started without a recorded permission mode
+// (an existing writer adopted with its work, or a Codex writer) is judged on
+// its model and effort alone.
+function confirmationGap(owner, { model, effort, permissionMode }, wantedEffort = owner.effort) {
+  const wantedMode = owner.permissionMode ?? null;
+  if (model === owner.model && effort === wantedEffort && (!wantedMode || permissionMode === wantedMode)) return null;
+  return `${model} at ${effort}${permissionMode ? ` in ${permissionMode}` : ""}, not ${owner.model} at ${wantedEffort}${wantedMode ? ` in ${wantedMode}` : ""}`;
+}
+
+// The writer's first message acknowledges its brief with the model, effort and
+// permission mode it confirmed from its own metadata. It is recorded with
+// where it was read; a mismatch plans as stop-writer.
+export function acknowledged(record, { ticket: number, model, effort, permissionMode, evidence }) {
+  const owner = ticketOf(record, number).owner;
+  if (!owner) throw new Error(`#${number} has no writer to have acknowledged`);
+  if (!model || !effort || !evidence) throw new Error("--model and --effort must give what the writer confirmed from its own metadata, and --evidence where its acknowledgement was read");
+  const confirmed = { model, effort, permissionMode: permissionMode ?? null };
+  owner.acknowledged = { time: new Date().toISOString(), confirmed, evidence, ...(owner.brief && { deliveryId: owner.brief.deliveryId }) };
+  const gap = confirmationGap(owner, confirmed, owner.requestedEffort ?? owner.effort);
+  if (gap) owner.mismatch = `the writer confirmed ${gap}`;
+  log(record, "acknowledged", { ticket: number, confirmed, ...(gap && { mismatch: owner.mismatch }) });
+}
 
 // A writer's request for a decision is recorded with the writer that asked
 // it, so a restarted coordinator finds what is still owed and to whom. An
@@ -933,9 +1128,12 @@ export function result(record, { ticket: number, report: file }) {
   const missing = REPORT_FIELDS.filter((f) => report?.[f] === undefined);
   if (missing.length) throw new Error(`The writer's report lacks ${missing.join(", ")}; ask the writer for them`);
   const ticket = ticketOf(record, number);
-  if (ticket.owner && (report.model !== ticket.owner.model || report.effort !== ticket.owner.effort)) throw new Error(`The report names ${report.model} at ${report.effort}, but #${number}'s writer was started as ${ticket.owner.model} at ${ticket.owner.effort}`);
   ticket.results.push({ time: new Date().toISOString(), report });
-  log(record, "result", { ticket: number, pr: report.pr, reviewedHead: report.reviewedHead });
+  // The report carries what the writer's metadata confirmed; one that differs
+  // from the start is kept as evidence and stops the writer.
+  const gap = ticket.owner && confirmationGap(ticket.owner, report);
+  if (gap) ticket.owner.mismatch = `the writer reported ${gap}`;
+  log(record, "result", { ticket: number, pr: report.pr, reviewedHead: report.reviewedHead, ...(gap && { mismatch: ticket.owner.mismatch }) });
 }
 
 export function diskRecovery(record, { removed, branch, classifier }) {
@@ -954,6 +1152,8 @@ export function checkLaunchArgs(args, pending) {
   const only = (flag) => { const at = args.flatMap((a, i) => (a === flag ? [i] : [])); if (at.length !== 1) throw new Error(`The launch needs exactly one ${flag}`); return args[at[0] + 1]; };
   if (only("--model") !== pending.model) throw new Error(`The launch's --model must be ${pending.model}`);
   if (only("--effort") !== pending.effort) throw new Error(`The launch's --effort must be ${pending.effort}`);
+  if (!pending.permissionMode) throw new Error("The claim recorded no permission mode; withdraw it and claim again");
+  if (only("--permission-mode") !== pending.permissionMode) throw new Error(`The launch's --permission-mode must be ${pending.permissionMode}, the mode the claim requested`);
 }
 
 // Creates a process through WMI, outside the caller's process tree, and
@@ -1017,96 +1217,51 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
     return { started: false, reason: outcome.reason };
   }
   const identity = identify(outcome.pid);
-  ticket.owner = ownerFrom(pending, { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir });
+  ticket.owner = ownerFrom(pending, { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir }, sentBrief("prompt", fs.readFileSync(path.join(launchDir, "prompt.txt"), "utf8")));
   log(record, "launched", { ticket: number, launchId: pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return { started: true, owner: ticket.owner };
 }
 
-// --- Adopted desktop writer -----------------------------------------------
+// --- Opening an idle CLI writer in the app ----------------------------------
 
-// An adopted writer is a session the CLI creates and the desktop app then
-// resumes, so it starts from a turn that could not start a desktop session
-// itself. Each step records its intent before the side effect and its
-// outcome after, so an interrupted step is visible as an intent with no
+// The maintainer may want to read, or talk to, a CLI writer whose turn has
+// ended. `open` hands the session its stream names to the desktop app, which
+// adopts it into its session list. It changes nothing about who the writer is
+// or how it runs: the record keeps the CLI process as the writer, and the
+// coordinator resumes that writer by its CLI session id, never through the
+// app session. The maintainer answers any prompt the app shows when they
+// choose to talk to it. The open records its intent before the side effect and
+// its outcome after, so an interrupted open is visible as an intent with no
 // outcome rather than as nothing.
-const lastStep = (pending) => pending.steps?.at(-1) ?? null;
-function adoptedPending(record, number, expected) {
-  const ticket = ticketOf(record, number), pending = ticket.pending;
-  if (!pending || pending.operation !== "dispatch" || pending.route !== "claude-adopted") throw new Error(`#${number} has no pending claude-adopted dispatch`);
-  const last = lastStep(pending);
-  const at = last ? `${last.step} ${last.state}` : "none";
-  const allowed = [expected].flat();
-  if (!allowed.includes(at)) throw new Error(`#${number}'s adopted start is at step ${at}, not ${allowed.join(" or ")}`);
-  return pending;
-}
-const step = (pending, name, state, detail = {}) => { (pending.steps ??= []).push({ step: name, state, time: new Date().toISOString(), ...detail }); };
+const step = (holder, name, state, detail = {}) => { (holder.steps ??= []).push({ step: name, state, time: new Date().toISOString(), ...detail }); };
+const lastOpenStep = (owner) => owner?.opened?.steps?.at(-1) ?? null;
 
-// The first turn is a one-line prompt; the brief follows by message once the
-// app has adopted the session, because the app does not move a session that
-// is mid-turn.
-export function runCreate({ executable, model, effort, permissionMode, cwd }) {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^CLAUDE/i.test(key)));
-  return createOutcome(spawnSync(executable, ["-p", "--model", model, "--effort", effort, "--permission-mode", permissionMode, "--output-format", "json"], { cwd, env, input: "Reply with the single word ready. Your instructions arrive in the next message.", encoding: "utf8", timeout: 300000, maxBuffer: 64 * 1024 * 1024, windowsHide: true }), model);
+// The session id the CLI writer's stream reports in its init line.
+export function streamSession(launchDir) {
+  const out = path.join(launchDir ?? "", "out.jsonl");
+  if (!launchDir || !fs.existsSync(out)) throw new Error(`No stream at ${out}; only a detached CLI writer's session can be opened`);
+  for (const line of fs.readFileSync(out, "utf8").split(/\r?\n/)) {
+    let row;
+    try { row = JSON.parse(line); } catch { continue; }
+    if (row?.type === "system" && row.subtype === "init") {
+      if (!new RegExp(`^${UUID}$`, "i").test(row.session_id ?? "")) throw new Error(`The init line of ${out} names no session id`);
+      return row.session_id;
+    }
+  }
+  throw new Error(`${out} has no init line naming the writer's session`);
 }
 
-// The created session's id, provided the CLI answered without error and with
-// the requested model.
-export function createOutcome(result, model) {
-  // A run stopped by the timeout or a signal may already have made a session.
-  if (result.error?.code === "ETIMEDOUT" || result.signal) return { created: false, uncertain: true, reason: `the CLI was stopped (${result.error?.code ?? result.signal}) before it answered` };
-  if (result.error) return { created: false, reason: `the CLI could not run: ${result.error.message}` };
-  let answer;
-  try { answer = JSON.parse(result.stdout); } catch { answer = undefined; }
-  if (result.status !== 0 || answer?.is_error !== false || typeof answer?.session_id !== "string") return { created: false, reason: `the CLI exited ${result.status}${answer?.result ? `: ${answer.result}` : ""}`, sessionId: answer?.session_id ?? null };
-  if (!Object.hasOwn(answer.modelUsage ?? {}, model)) return { created: false, reason: `the session answered with ${Object.keys(answer.modelUsage ?? {}).join(", ") || "no model"}, not ${model}`, sessionId: answer.session_id };
-  return { created: true, sessionId: answer.session_id };
-}
-
-const PERMISSION_MODES = ["default", "acceptEdits", "plan", "auto", "bypassPermissions"];
-// An adopted step's intent is recorded, then `afterIntent` (the checkpoint
-// save) runs before the side effect. If it fails, the step is recorded as not
-// run, so a recovered record never shows the step as untried or uncertain.
-function savedIntent(file, coordinator, intent, number, name, afterIntent) {
+// The intent is recorded, then `afterIntent` (the checkpoint save) runs before
+// the side effect. If it fails, the step is recorded as not run, so a recovered
+// record never shows the step as untried or uncertain.
+function savedIntent(file, coordinator, intent, number, afterIntent) {
   if (!afterIntent) return;
   try { afterIntent(); }
   catch (error) {
-    updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => { step(adoptedPending(r, number, `${name} intent`), name, "failed", { reason: `not run: ${error.message}` }); });
+    updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => { step(ticketOf(r, number).owner.opened, "open", "failed", { reason: `not run: ${error.message}` }); });
     throw error;
   }
-}
-
-export function createAdopted(file, { coordinator, expectRevision, ticket: number, executable, permissionMode, runner = runCreate, host = os.hostname(), afterIntent }) {
-  if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable)) throw new Error("--executable must be the absolute Claude CLI path");
-  if (!PERMISSION_MODES.includes(permissionMode)) throw new Error(`--permission-mode must be the coordinator's own mode: ${PERMISSION_MODES.join(", ")}`);
-  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => { const p = adoptedPending(r, number, "none"); assertStartable(r, p, host); step(p, "create", "intent", { permissionMode }); });
-  savedIntent(file, coordinator, intent, number, "create", afterIntent);
-  const pending = intent.record.tickets[number].pending;
-  let outcome;
-  try { outcome = runner({ executable, model: pending.model, effort: pending.effort, permissionMode, cwd: intent.record.checkout }); }
-  catch (error) { outcome = { created: false, uncertain: true, reason: error.message }; }
-  const done = updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => {
-    const p = adoptedPending(r, number, "create intent");
-    if (outcome.created) step(p, "create", "confirmed", { sessionId: outcome.sessionId });
-    else step(p, "create", outcome.uncertain ? "uncertain" : "failed", { reason: outcome.reason, sessionId: outcome.sessionId ?? null });
-    log(r, "create", { ticket: number, created: outcome.created, sessionId: outcome.sessionId ?? null });
-  });
-  return { revision: done.record.revision, ...outcome };
-}
-
-// A create whose outcome was lost or stopped is settled by evidence, never by
-// running it again: the session the coordinator found, or what shows that
-// none was made.
-export function settleCreate(record, { ticket: number, session, absent = false, evidence, observedOn, host = os.hostname() }) {
-  if (!evidence) throw new Error("--evidence must say where the session was found, or how its absence was established");
-  const pending = adoptedPending(record, number, ["create intent", "create uncertain"]);
-  assertObservedOn(pending, number, host, observedOn, "settle");
-  if (absent) step(pending, "create", "failed", { reason: `settled: ${evidence}` });
-  else {
-    if (!/^[0-9a-f-]{36}$/i.test(session ?? "")) throw new Error("--session must be the found session's id, or pass --absent");
-    step(pending, "create", "confirmed", { sessionId: session, settled: evidence });
-  }
-  log(record, "create-settled", { ticket: number, sessionId: absent ? null : session, evidence });
 }
 
 // The app refuses a resume whose output is redirected, so the handoff runs in
@@ -1118,50 +1273,67 @@ export function runHandoff({ executable, sessionId, cwd }, { exec = execFileSync
   return code === 0 ? { requested: true, pid } : { requested: false, reason: `Win32_Process.Create returned ${code}` };
 }
 
-export function handoffAdopted(file, { coordinator, expectRevision, ticket: number, executable, runner = runHandoff, host = os.hostname(), afterIntent }) {
+export function openWriter(file, { coordinator, expectRevision, ticket: number, executable, runner = runHandoff, host = os.hostname(), identify = processIdentity, census = processCensus, afterIntent }) {
   if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable)) throw new Error("--executable must be the absolute Claude CLI path");
-  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => { const p = adoptedPending(r, number, "create confirmed"); assertStartable(r, p, host); step(p, "handoff", "intent"); });
-  savedIntent(file, coordinator, intent, number, "handoff", afterIntent);
-  const sessionId = intent.record.tickets[number].pending.steps.find((s) => s.step === "create" && s.state === "confirmed").sessionId;
-  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw new Error(`Session id ${sessionId} is not a UUID`);
+  const intent = updateRecord(file, { expectRevision, coordinator }, (r) => {
+    if (r.handoff) throw new Error(`A planned handoff stopped new work at ${r.handoff.since}; nothing was opened`);
+    const owner = ticketOf(r, number).owner;
+    if (owner?.route !== "claude-cli" || owner.handle.kind !== "process") throw new Error(`#${number} has no detached claude-cli writer to open`);
+    if (owner.handle.host && owner.handle.host !== host) throw new Error(`#${number}'s writer runs on ${owner.handle.host}; open it there`);
+    const s = ownerStatus(owner, {}, { host, identify, census });
+    if (s.status !== "exited") throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only an idle writer, whose turn has ended, is opened in the app`);
+    const last = lastOpenStep(owner);
+    if (last && last.state !== "failed") throw new Error(`#${number}'s writer was already opened (open ${last.state}); settle that open, and never run it twice`);
+    owner.opened = { sessionId: streamSession(owner.handle.launchDir), steps: owner.opened?.steps ?? [] };
+    step(owner.opened, "open", "intent");
+  });
+  savedIntent(file, coordinator, intent, number, afterIntent);
+  const sessionId = intent.record.tickets[number].owner.opened.sessionId;
   let outcome;
   try { outcome = runner({ executable, sessionId, cwd: intent.record.checkout }); }
   catch (error) { outcome = { requested: false, uncertain: true, reason: error.message }; }
   const done = updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => {
-    const p = adoptedPending(r, number, "handoff intent");
-    step(p, "handoff", outcome.requested ? "requested" : outcome.uncertain ? "uncertain" : "failed", outcome.requested ? { sessionId } : { reason: outcome.reason });
-    log(r, "handoff", { ticket: number, sessionId, requested: !!outcome.requested });
+    const opened = ticketOf(r, number).owner.opened;
+    step(opened, "open", outcome.requested ? "requested" : outcome.uncertain ? "uncertain" : "failed", outcome.requested ? {} : { reason: outcome.reason });
+    log(r, "open", { ticket: number, sessionId, requested: Boolean(outcome.requested) });
   });
   return { revision: done.record.revision, sessionId, ...outcome };
 }
 
-// The coordinator sends the brief by message. `deliver` builds the brief,
-// stores its text with the intent and prints it to send; `delivered` records
-// the outcome. A message can arrive late, so an unconfirmed send is settled
-// from the writer's transcript or resent only as an identified retry of the
-// stored text: every copy names the assignment, carries the same
-// instructions, and tells the writer to act on the first copy it receives.
-function briefedOwner(record, number) {
-  const owner = ticketOf(record, number).owner;
-  if (!owner || owner.brief === undefined) throw new Error(`#${number} has no newly launched adopted writer awaiting a brief; an existing writer adopted with its work already has its assignment`);
-  return owner;
+// The app lists an adopted session as local_<session id>; an open whose
+// outcome was lost is settled the same way, by finding it there.
+export function opened(record, { ticket: number, session }) {
+  const owner = ticketOf(record, number).owner, last = lastOpenStep(owner);
+  if (!last || !["requested", "intent", "uncertain"].includes(last.state) || owner.opened.session) throw new Error(`#${number} has no open to confirm${last ? ` (open ${last.state})` : ""}`);
+  const expected = `local_${owner.opened.sessionId}`;
+  if (session !== expected) throw new Error(`--session must be ${expected}, the app's id for the session that was opened`);
+  owner.opened.session = session;
+  step(owner.opened, "open", "confirmed", { session, ...(last.state !== "requested" && { after: `open ${last.state}` }) });
+  log(record, "opened", { ticket: number, session });
 }
-export function deliver(record, { ticket: number, retry = false, plan, decisions = [], defaults = readWriterDefaults() }) {
-  const owner = briefedOwner(record, number);
-  if (record.handoff) throw new Error(`A planned handoff stopped new starts at ${record.handoff.since}; the brief that starts #${number}'s writer waits for the next coordinator`);
-  if (owner.brief?.state === "delivered") throw new Error(`#${number}'s brief was delivered at ${owner.brief.time}`);
-  if (owner.brief?.state === "intent" && !retry) throw new Error(`#${number}'s brief ${owner.brief.deliveryId} is already at intent with no recorded outcome; settle it from the writer's transcript, or resend with --retry`);
-  if (!owner.brief && retry) throw new Error(`#${number}'s brief has not been sent; record deliver without --retry`);
-  if (retry && (plan || decisions.length)) throw new Error("A retry resends the stored brief; it takes no plan or decisions");
-  if (!retry && !plan) throw new Error("--plan must name the plan the brief is built from");
-  const text = retry ? owner.brief.text : briefBody(record, plan, number, decisions, defaults);
-  owner.brief = { state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief?.attempts ?? 0) + 1, time: new Date().toISOString(), text };
+
+// A brief went with the writer's start; a copy is resent only as an
+// identified retry of the stored text, when no acknowledgement arrived. A
+// message can arrive late, so an unconfirmed resend is settled from the
+// writer's transcript or resent again: every copy names the assignment,
+// carries the same instructions, and tells the writer to act on the first
+// copy it receives.
+export function deliver(record, { ticket: number, retry = false }) {
+  const owner = ticketOf(record, number).owner;
+  if (record.handoff) throw new Error(`A planned handoff stopped new starts at ${record.handoff.since}; the brief to #${number}'s writer waits for the next coordinator`);
+  if (!retry) throw new Error("The brief went with the writer's start; resend it with deliver --retry");
+  if (!owner?.brief) throw new Error(`#${number} has no writer this coordinator briefed; an existing writer adopted with its work already has its assignment`);
+  if (owner.acknowledged) throw new Error(`#${number}'s writer acknowledged its brief at ${owner.acknowledged.time}`);
+  owner.brief = { ...owner.brief, state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief.attempts ?? 1) + 1, time: new Date().toISOString() };
   log(record, "brief-intent", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId, attempt: owner.brief.attempts });
-  return { message: `${assignmentHeader(owner)}\n${text}` };
+  // A start through another route's own means kept no copy of the prompt, so
+  // that route resends it.
+  if (typeof owner.brief.text !== "string") return { message: null, resend: `the start kept no copy of the brief; send the writer its start prompt again by its route's own means, naming assignment ${owner.launchId}, then record delivered` };
+  return { message: `${assignmentHeader(owner)}\n${owner.brief.text}` };
 }
 export function delivered(record, { ticket: number, evidence }) {
-  const owner = briefedOwner(record, number);
-  if (owner.brief?.state !== "intent") throw new Error(`#${number}'s brief is at ${owner.brief?.state ?? "no step"}; record deliver before sending it`);
+  const owner = ticketOf(record, number).owner;
+  if (owner?.brief?.state !== "intent") throw new Error(`#${number}'s brief is at ${owner?.brief?.state ?? "no step"}; record deliver before sending it`);
   owner.brief = { ...owner.brief, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
   log(record, "brief-delivered", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId });
 }
@@ -1189,7 +1361,8 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
     const writer = users.find((p) => !users.some((q) => q.pid === p.ppid)) ?? users[0];
     const identity = identify(writer.pid);
     if (!identity) throw new Error(`Process ${writer.pid} names the launch but exited during the census; reconcile again`);
-    ticket.owner = ownerFrom(pending, { kind: "process", ...identity, host, launchDir });
+    const prompt = path.join(launchDir, "prompt.txt");
+    ticket.owner = ownerFrom(pending, { kind: "process", ...identity, host, launchDir }, sentBrief("prompt", fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined));
     log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome: "running", handle: ticket.owner.handle });
     ticket.pending = null;
     return { outcome: "running", owner: ticket.owner };
@@ -1218,29 +1391,49 @@ function briefBody(record, planFile, number, decisions, defaults) {
   const plan = readJson(planFile), entry = plan.tickets.find((t) => t.number === number);
   const ticket = record.tickets[number], work = ticket?.pending ?? ticket?.owner;
   if (!entry || !work) throw new Error(`#${number} has no claimed or owned work to brief`);
-  const route = defaults.routes[routeVendor(work.model)].find((r) => r.route === work.route);
+  // An existing writer adopted with its work may run on a retired route; it
+  // reads its own metadata as the runner notes describe, and reports the way
+  // its vendor's dispatch route does.
+  const vendorRoutes = defaults.routes[routeVendor(work.model)] ?? [];
+  const route = vendorRoutes.find((r) => r.route === work.route) ?? (ticket.owner?.adopted && vendorRoutes[0] ? { ...vendorRoutes[0], route: work.route, selfCheck: "read your own model, effort and permission mode as .agents/skills/RUNNERS.md describes for your runner" } : null);
+  if (!route) throw new Error(`${retiredReason(work.route, defaults) ?? `${work.route} is not a configured route for ${work.model}`}; it has no brief`);
   const adopted = ticket.owner?.adopted ?? work.continues;
   const place = !work.continues || work.continues.worktreeExists ? `in ${work.worktree}` : `on a worktree at ${work.worktree} checked out from the existing origin branch`;
+  // Each route's way of reaching the coordinator comes from the runner
+  // configuration, keyed by the coordinator's harness; a route that cannot
+  // message it reports through its transcript, which the coordinator's
+  // check-in reads.
+  const coordinator = `coordinator session ${record.coordinator.session}`;
+  const how = route.reports?.[record.coordinator.harness] ?? { unsupported: `no message from ${work.route} to a ${record.coordinator.harness} coordinator is configured` };
+  const mode = work.permissionMode ? ` in permission mode ${work.permissionMode}` : "";
+  const confirmed = work.permissionMode ? "model, effort and permission mode" : "model and effort";
   return [
-    `You are the writer for ${record.repository} ticket #${number} (${entry.title}), a slice of Feature #${record.feature}. The coordinator is session ${record.coordinator.session} on ${record.coordinator.host}; it answers by message.`,
-    `Route: ${work.route}, model ${work.model} at effort ${work.effort}. Before any work and before building any reviewer plan, confirm your own model and effort: ${route.selfCheck}. If either differs, stop and report the mismatch as a blocker; never substitute another model or effort.`,
+    `${work.launchId ? `Assignment ${work.launchId}. ` : ""}You are the writer for ${record.repository} ticket #${number} (${entry.title}), a slice of Feature #${record.feature}, coordinated by ${coordinator} on ${record.coordinator.host}.`,
+    `Route: ${work.route}, model ${work.model} at effort ${work.effort}${mode}. Before any work and before building any reviewer plan, confirm your own ${confirmed}: ${route.selfCheck}. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.`,
+    how.mechanism
+      ? `Your first act after reading this brief: send ${coordinator} an acknowledgement naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed (${how.mechanism}). A brief left unacknowledged for one check-in interval is treated as undelivered.`
+      : `You cannot message ${coordinator}: ${how.unsupported}. Write your acknowledgement, naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed, as your first message instead; ${defaults.reportFallback}.`,
+    ...(route.turns ? [route.turns] : []),
     `Run the resolve-issue skill for #${number} exactly as written.`,
     adopted ? `Continue the existing work ${place} on branch ${work.branch}${adopted.pr ? ` and its PR #${adopted.pr}, which has started ${adopted.rounds} review rounds; the count continues from there and never resets` : ""}.` : `Create your worktree at ${work.worktree} on branch ${work.branch} from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.`,
     `Allocate your private artifact directory with resolve-issue's allocator under ${work.artifactParent ?? "a scratch parent of your own"}, and keep every artifact in it.`,
     `Settled decisions:${decisions.length ? "" : " none beyond the ticket and its parent Feature's Proposed solution."}`,
     ...decisions.map((d) => `- ${d}`),
-    "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, end your turn with a checkpoint report addressed to the coordinator: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
+    "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
+    "After every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, beside the plan in the round's job directory: a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.",
     "The coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.",
     "Your review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.",
     "Never merge, and never mark the PR ready before the review gates pass.",
-    `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model and effort as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.`,
-    ...(route.reportsByMessage ? [`This session is not linked to the coordinator, so nothing you end a turn with reaches it. Send every report, blocker and question to coordinator session ${record.coordinator.session} as a cross-session message (SendMessage with to set to that id), then end your turn.`] : []),
+    `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.`,
+    how.mechanism
+      ? `Send every report, blocker and question to ${coordinator} as a cross-session message (${how.mechanism}), then end your turn: what you end a turn with does not reach it.`
+      : `Since you cannot message ${coordinator}, end each decision point with the report, blocker or question as your turn's last message; ${defaults.reportFallback}.`,
   ].join("\n");
 }
 
 // --- Command line ---------------------------------------------------------
 
-const FLAGS = new Set(["takeover", "retry", "absent"]);
+const FLAGS = new Set(["takeover", "retry"]);
 export function parseArgs(argv) {
   const [command, ...rest] = argv, options = {};
   for (let i = 0; i < rest.length; i++) {
@@ -1261,10 +1454,11 @@ const integer = (value, name) => { const n = Number(value); if (!Number.isSafeIn
 const absolute = (value, name) => { if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`); return value; };
 const readOptional = (file) => (file ? readJson(absolute(file, "file")) : undefined);
 
-// Commands whose side effect starts a writer: with checkpoints enabled, the
-// intent they act on must already be saved remotely, so an interruption
-// leaves a recorded intent rather than an untracked writer.
-const SIDE_EFFECTS = new Set(["launch", "create", "handoff"]);
+// Commands whose side effect starts a writer or hands a session to the app:
+// with checkpoints enabled, the intent they act on must already be saved
+// remotely, so an interruption leaves a recorded intent rather than an
+// untracked writer.
+const SIDE_EFFECTS = new Set(["launch", "open"]);
 
 export function main(argv, { defaults = readWriterDefaults(), github, runners = {} } = {}) {
   const { command, options: o } = parseArgs(argv);
@@ -1280,11 +1474,17 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
   const number = () => integer(o.ticket, "ticket");
   switch (command) {
     case "init": {
-      // The command line always records who merges; it is never left to a default.
+      // The command line always records who merges, the coordinator's own
+      // session id and permission mode, and the slug of its session title;
+      // none of them is left to a default.
       if (!o.merging) throw new Error(`--merging must record who merges: ${MERGING.join(" or ")}`);
+      checkCoordinatorId(o.harness, o.coordinator);
+      if (!PERMISSION_MODES.includes(o.coordinatorMode)) throw new Error(`--coordinator-mode must be this session's own permission mode: ${PERMISSION_MODES.join(", ")}`);
+      orchestrationTitle(o.feature, o.slug);
       const done = initRecord({ ...o, feature: integer(o.feature, "feature"), repository: o.repo, concurrency: o.concurrency === undefined ? undefined : integer(o.concurrency, "concurrency"), observations: readOptional(o.observations) }, { defaults });
-      return { action: done.action, revision: done.record.revision, pointer: done.pointer, writer: done.record.writer, concurrency: done.record.concurrency, ...(done.diskAdmits !== undefined && { diskAdmitsNow: done.diskAdmits }) };
+      return { action: done.action, revision: done.record.revision, pointer: done.pointer, title: done.record.title ?? null, permissionMode: done.record.coordinator.permissionMode, writer: done.record.writer, concurrency: done.record.concurrency, ...(done.diskAdmits !== undefined && { diskAdmitsNow: done.diskAdmits }), ...(modeBlock(done.record) && { dispatchBlocked: modeBlock(done.record) }) };
     }
+    case "schedule": { const file = absolute(o.record, "record"); return scheduleSpec(readRecord(file), file, defaults); }
     case "snapshot": {
       const record = readRecord(absolute(o.record, "record"));
       const snap = takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record.repository, record.checkout));
@@ -1293,7 +1493,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     }
     case "plan": {
       const record = readRecord(absolute(o.record, "record"));
-      const plan = planDispatch({ record, snapshot: readJson(absolute(o.snapshot, "snapshot")), observations: readOptional(o.observations), turn: o.turn, preflights: (o.preflight ? o.preflight.split(",") : []).map((f) => readJson(absolute(f, "preflight"))), freeBytes: freeBytesAt(record.checkout), defaults });
+      const plan = planDispatch({ record, snapshot: readJson(absolute(o.snapshot, "snapshot")), observations: readOptional(o.observations), preflights: (o.preflight ? o.preflight.split(",") : []).map((f) => readJson(absolute(f, "preflight"))), freeBytes: freeBytesAt(record.checkout), defaults });
       if (o.out) fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(plan, null, 2) + "\n");
       // With checkpoints, a plan whose summary changed becomes the status the
       // Feature's comment shows: done and remaining work, blockers and actions.
@@ -1302,16 +1502,20 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     }
     case "claim": return mutate((r) => claim(r, { plan: absolute(o.plan, "plan"), ticket: number(), worktree: o.worktree, branch: o.branch, artifactParent: o.artifactParent, operation: o.operation, evidence: o.evidence }));
     case "launch": return mutate((r) => launch(r, { ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt }));
-    case "create": return { ...createAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, permissionMode: o.permissionMode, afterIntent: saveIntent, runner: runners.create }), ...checkpointAfter(absolute(o.record, "record")) };
-    case "handoff": return { ...handoffAdopted(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, afterIntent: saveIntent, runner: runners.handoff }), ...checkpointAfter(absolute(o.record, "record")) };
-    case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry), plan: o.plan ? absolute(o.plan, "plan") : undefined, decisions: o.decision ?? [], defaults }));
+    case "open": return { ...openWriter(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, afterIntent: saveIntent, runner: runners.open }), ...checkpointAfter(absolute(o.record, "record")) };
+    case "opened": return mutate((r) => opened(r, { ticket: number(), session: o.session }));
+    case "acknowledged": return mutate((r) => acknowledged(r, { ticket: number(), model: o.model, effort: o.effort, permissionMode: o.permissionMode, evidence: o.evidence }));
+    case "deliver": return mutate((r) => deliver(r, { ticket: number(), retry: Boolean(o.retry) }));
     case "delivered": return mutate((r) => delivered(r, { ticket: number(), evidence: o.evidence }));
     case "request": return mutate((r) => request(r, { ticket: number(), text: o.text, source: o.source }));
     case "relay": return mutate((r) => relay(r, { ticket: number(), request: o.request, to: o.to }));
     case "answer": return mutate((r) => answer(r, { ticket: number(), request: o.request, text: o.text, retry: Boolean(o.retry) }));
     case "answered": return mutate((r) => answered(r, { ticket: number(), request: o.request, evidence: o.evidence }));
-    case "settle-create": return mutate((r) => settleCreate(r, { ticket: number(), session: o.session, absent: Boolean(o.absent), evidence: o.evidence, observedOn: o.observedOn }));
     case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle, observedOn: o.observedOn }));
+    case "check-in": { const file = absolute(o.record, "record"); return mutate((r) => recordCheckIn(r, { job: o.job, none: o.none, file, defaults })); }
+    case "checked-in": return mutate((r) => checkedIn(r, { outcome: o.outcome }));
+    case "group": return mutate((r) => recordGroup(r, { id: o.id, none: o.none }));
+    case "filed": return mutate((r) => filed(r, { ticket: number(), group: o.group }));
     case "adopt": return mutate((r) => adopt(r, { plan: absolute(o.plan, "plan"), ticket: number(), handleKind: o.handleKind, handle: o.handle, pid: o.pid, route: o.route, model: o.model, effort: o.effort, worktree: o.worktree, branch: o.branch }));
     case "reconcile": return mutate((r) => reconcile(r, { ticket: number() }));
     case "withdraw": return mutate((r) => withdraw(r, { ticket: number(), evidence: o.evidence, observedOn: o.observedOn }));
@@ -1321,7 +1525,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|create|handoff|launched|settle-create|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|release|result|disk-recovery|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|release|result|open|opened|schedule|check-in|checked-in|group|filed|disk-recovery|brief|recover-lock --option value ...");
   }
 }
 
