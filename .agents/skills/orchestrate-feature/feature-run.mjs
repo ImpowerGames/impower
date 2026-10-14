@@ -564,9 +564,12 @@ function transcriptOf(owner) {
 // Reviewer launches that died before their journal existed: a plan whose
 // launcher logs exist, so start-coordinator ran, with no journal and no
 // process naming the plan. A launcher refused at validation writes its error
-// only to the plan's .coordinator.err.log, so nothing else would show it. A
-// failed process census proves no launch dead.
-const launcherLog = (plan, kind) => path.join(path.dirname(plan), `${path.basename(plan, path.extname(plan))}.coordinator.${kind}.log`);
+// only to the plan's .coordinator.err.log, so nothing else would show it.
+// start-coordinator writes those logs into the job directory it is given,
+// which the review workflow makes the plan's own directory or its journal's
+// launch-state directory, so both are searched. A failed process census
+// proves no launch dead.
+const launcherLogs = (plan, journal, kind) => [...new Set([path.dirname(plan), path.dirname(journal)])].map((dir) => path.join(dir, `${path.basename(plan, path.extname(plan))}.coordinator.${kind}.log`));
 function launchPlans(dir) {
   const plans = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -588,12 +591,13 @@ export function deadLaunches(jobRoot, prs, census = processCensus) {
     const dir = path.join(jobRoot, `pr-${pr}`);
     if (!fs.existsSync(dir)) continue;
     for (const { file, journal } of launchPlans(dir)) {
-      const started = ["out", "err"].some((kind) => fs.existsSync(launcherLog(file, kind)));
+      const started = ["out", "err"].some((kind) => launcherLogs(file, journal, kind).some((log) => fs.existsSync(log)));
       if (!started || (fs.existsSync(journal) && fs.statSync(journal).size > 0)) continue;
       if (list === undefined) { try { list = census(); } catch { list = null; } }
       if (!Array.isArray(list)) return [];
       if (usersOf(file, list, process.pid).length) continue;
-      const errLog = launcherLog(file, "err");
+      const errLogs = launcherLogs(file, journal, "err");
+      const errLog = errLogs.find((log) => fs.existsSync(log)) ?? errLogs[0];
       const error = fs.existsSync(errLog) ? fs.readFileSync(errLog, "utf8").trim().split(/\r?\n/).slice(-5).join("\n") : "";
       dead.push({ ticket, pr, plan: file, journal, errLog, error });
     }
@@ -739,6 +743,12 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   };
   const startWith = (choice) => ({ route: choice.chosen.route, model, effort: choice.effort, ...(choice.chosen.launch && { launch: choice.chosen.launch }) });
   const unlaunchable = modeBlock(record);
+  // How a start with no recorded outcome is settled.
+  const pendingNext = (p) => {
+    if (p.host && p.host !== host) return `${p.operation} ${p.launchId} on ${p.route} was claimed on ${p.host} and has no recorded outcome; settle it on that host (reconcile there, or withdraw --observed-on ${p.host} with what was observed there) before any retry`;
+    const retired = retiredReason(p.route, defaults);
+    return `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : `find the started writer and record it with launched, or withdraw with evidence that none started${retired ? `, and never retry it there, since ${retired}` : ""}`} before any retry`;
+  };
   const undelivered = (t) => t.blockers.filter((b) => !b.delivered);
   const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
   // Sub-issues of a container whose own writer is still held wait until that
@@ -771,6 +781,9 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
     if (t.state === "closed") {
       if (own.owner || own.pending) active++;
+      // A start with no recorded outcome may have a writer that ran; it is
+      // settled before the ticket counts as done, whatever its state.
+      if (own.pending) { add(t, "reconcile-pending", `closed, but ${pendingNext(own.pending)}`, { pending: own.pending }); continue; }
       // A merge or a closed issue does not show the writer ended: one whose
       // worktree remains on this host, and whom the record has not settled,
       // keeps its place until it is adopted and released, or until the merged
@@ -788,9 +801,8 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (own.pending) {
       active++;
       const p = own.pending;
-      if (p.host && p.host !== host) { add(t, "blocked-owner-unknown", `${p.operation} ${p.launchId} on ${p.route} was claimed on ${p.host} and has no recorded outcome; settle it on that host (reconcile there, or withdraw --observed-on ${p.host} with what was observed there) before any retry`, { pending: p }); continue; }
-      const retired = retiredReason(p.route, defaults);
-      add(t, "reconcile-pending", `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : `find the started writer and record it with launched, or withdraw with evidence that none started${retired ? `, and never retry it there, since ${retired}` : ""}`} before any retry`, { pending: p });
+      if (p.host && p.host !== host) { add(t, "blocked-owner-unknown", pendingNext(p), { pending: p }); continue; }
+      add(t, "reconcile-pending", pendingNext(p), { pending: p });
       continue;
     }
     if (own.owner) {
@@ -806,6 +818,16 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const asked = openRequests(own);
       const resumable = s.status === "exited" && own.owner.route === "claude-cli" && own.owner.handle.kind === "process";
       if (asked.length && (s.status !== "exited" || resumable)) { active++; add(t, "answer-request", `${asked.map((r) => requestNext(r, ["waiting", "exited"].includes(s.status))).join("; ")}${resumable ? `; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered` : ""}`, { ...extra, requests: asked }); continue; }
+      // A writer briefed by an earlier coordinator still reports there: tell
+      // it this coordinator's id before anything else reaches it, a brief
+      // resend included, since a writer that already has its assignment
+      // ignores a resent copy.
+      if (own.owner.coordinator && own.owner.coordinator !== record.coordinator.session && s.status !== "exited") {
+        active++;
+        const c = own.owner.contact;
+        add(t, c?.state === "intent" ? "reconcile-pending" : "update-contact", c?.state === "intent" ? `contact notice ${c.deliveryId} to the writer has no recorded outcome and may still be queued; ${s.status === "waiting" ? "if its transcript shows it, record contacted with that evidence; otherwise " : ""}wait, or resend with contact --retry` : `the writer was briefed to report to ${own.owner.coordinator}, not this coordinator ${record.coordinator.session}; record contact, send the notice it prints, then record contacted`, extra);
+        continue;
+      }
       // A brief sent with the writer's start is acknowledged by the writer's
       // first message; without one after a check-in interval, the delivery
       // failed or the coordinator id was wrong, so it is settled now rather
@@ -821,14 +843,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
           add(t, "settle-delivery", `no acknowledgement of assignment ${own.owner.launchId} arrived within ${interval / 60000} minutes of brief delivery ${brief.deliveryId}: confirm that ${record.coordinator.session} is this session's own id; ${check} with deliver --retry, send that copy to the writer, and record delivered`, extra);
           continue;
         }
-      }
-      // A writer briefed by an earlier coordinator still reports there: tell
-      // it this coordinator's id before anything else reaches it.
-      if (own.owner.coordinator && own.owner.coordinator !== record.coordinator.session && s.status !== "exited") {
-        active++;
-        const c = own.owner.contact;
-        add(t, c?.state === "intent" ? "reconcile-pending" : "update-contact", c?.state === "intent" ? `contact notice ${c.deliveryId} to the writer has no recorded outcome and may still be queued; ${s.status === "waiting" ? "if its transcript shows it, record contacted with that evidence; otherwise " : ""}wait, or resend with contact --retry` : `the writer was briefed to report to ${own.owner.coordinator}, not this coordinator ${record.coordinator.session}; record contact, send the notice it prints, then record contacted`, extra);
-        continue;
       }
       if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { const [action, reason] = readyAction(record, open[0], `; ${s.reason}`); add(t, action, reason, extra); continue; }
       // A CLI writer's turn can end without its final report: on a request
@@ -1448,7 +1462,6 @@ export function delivered(record, { ticket: number, evidence }) {
   const owner = ticketOf(record, number).owner;
   if (owner?.brief?.state !== "intent") throw new Error(`#${number}'s brief is at ${owner?.brief?.state ?? "no step"}; record deliver before sending it`);
   owner.brief = { ...owner.brief, state: "delivered", time: new Date().toISOString(), ...(evidence && { evidence }) };
-  if (owner.coordinator && owner.brief.to) moveContact(owner, owner.brief.to);
   log(record, "brief-delivered", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId });
 }
 
@@ -1642,7 +1655,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
     `Settled decisions:${decisions.length ? "" : " none beyond the ticket and its parent Feature's Proposed solution."}`,
     ...decisions.map((d) => `- ${d}`),
     "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
-    "After every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, beside the plan in the round's job directory: a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.",
+    "After every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.",
     "The coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.",
     "Your review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.",
     "Never merge, and never mark the PR ready before the review gates pass.",

@@ -449,6 +449,36 @@ try {
     assert.deepEqual(run.deadLaunches(path.join(tmp, "dead-launch-named.review-jobs"), [{ ticket: 383, pr: 983 }], () => []).map((d) => [d.plan, d.error]), [[plan, "Error: the review step's prompt is missing"]]);
   });
 
+  scenario("the dead-launch sweep finds the launcher's logs in the journal's launch-state directory too", () => {
+    const f = fresh("dead-launch-state-dir");
+    const round = path.join(tmp, "dead-launch-state-dir.review-jobs", "pr-984", "round-1");
+    const state = path.join(round, "launch-a-1");
+    fs.mkdirSync(state, { recursive: true });
+    const plan = path.join(round, "review.plan");
+    fs.writeFileSync(plan, JSON.stringify({ worktree: f.dir, pr: 984, journal: path.join(state, "journal.jsonl"), steps: { review: {} }, first: "review" }));
+    // start-coordinator was given the launch-state directory as its job directory.
+    fs.writeFileSync(path.join(state, "review.coordinator.out.log"), "");
+    fs.writeFileSync(path.join(state, "review.coordinator.err.log"), "Supply reviewedHead from the journal\n");
+    const dead = run.deadLaunches(path.join(tmp, "dead-launch-state-dir.review-jobs"), [{ ticket: 384, pr: 984 }], () => []);
+    assert.deepEqual(dead.map((d) => [d.plan, d.errLog, d.error]), [[plan, path.join(state, "review.coordinator.err.log"), "Supply reviewedHead from the journal"]]);
+  });
+
+  scenario("a start with no recorded outcome is settled before its closed ticket counts as done", () => {
+    const w = cliWriter("cli-closed-pending", 385);
+    const launchDir = run.launchDirOf(run.readRecord(w.f.file).tickets[385].pending, 385);
+    fs.mkdirSync(launchDir, { recursive: true });
+    fs.copyFileSync(w.prompt, path.join(launchDir, "prompt.txt"));
+    fs.writeFileSync(path.join(launchDir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: WRITER_SESSION, model: "claude-opus-5-5" })}\n`);
+    const closed = snapshotOf([ticket(385, { state: "closed", delivered: true })]);
+    const entry = entryOf(planOf(w.f, closed, { preflights: w.pre }), 385);
+    assert.equal(entry.action, "reconcile-pending", "not done while a writer that ran is unsettled");
+    assert.match(entry.reason, /closed, but launch .* has no confirmed outcome; run reconcile/);
+    assert.equal(w.f.change((r) => run.reconcile(r, { ticket: 385, census: () => [] })).outcome, "started and ended");
+    const after = planOf(w.f, closed, { preflights: w.pre });
+    assert.equal(entryOf(after, 385).action, "release");
+    assert.deepEqual(after.sweep.read, [{ ticket: 385, from: path.join(launchDir, "out.jsonl") }]);
+  });
+
   scenario("a confirmed preflight never clears a mismatch the writer's acknowledgement showed", () => {
     const w = cliWriter("cli-verify", 372);
     const { owner } = w.launch();
@@ -465,7 +495,17 @@ try {
     const w = cliWriter("cli-takeover-brief", 373);
     const { owner } = w.launch();
     const t = takeOver(w);
-    const overdue = t.plan(373, Date.now() + 31 * MINUTE);
+    // The contact notice comes first and on its own: a resent brief's header
+    // tells a writer that already has its assignment to ignore the copy.
+    assert.equal(t.plan(373, Date.now() + 31 * MINUTE).action, "update-contact");
+    const resentFirst = t.change((r) => run.deliver(r, { ticket: 373, retry: true })).message;
+    assert.match(resentFirst, /ignore this copy/);
+    t.change((r) => run.delivered(r, { ticket: 373, evidence: "sent" }));
+    assert.equal(run.readRecord(t.file).tickets[373].owner.coordinator, COORDINATOR, "a resend the writer may ignore never counts as telling it the new coordinator");
+    assert.equal(t.plan(373, Date.now() + 31 * MINUTE).action, "update-contact");
+    t.change((r) => run.contact(r, { ticket: 373, defaults }));
+    t.change((r) => run.contacted(r, { ticket: 373, evidence: "sent" }));
+    const overdue = t.plan(373, Date.now() + 62 * MINUTE);
     assert.equal(overdue.action, "settle-delivery");
     assert.match(overdue.reason, new RegExp(`confirm that ${NEXT} is this session's own id; it is running, so its transcript is not read: resend`));
     assert.doesNotMatch(overdue.reason, /read its transcript/);
@@ -475,7 +515,6 @@ try {
     assert.ok(resent.includes(`coordinator session ${NEXT}`), "the resent brief names the new coordinator");
     assert.ok(!resent.includes(COORDINATOR), "and no longer the previous one");
     t.change((r) => run.delivered(r, { ticket: 373, evidence: "sent" }));
-    assert.equal(run.readRecord(t.file).tickets[373].owner.coordinator, NEXT);
     assert.equal(t.plan(373).action, "observe");
     w.end(owner);
   });
