@@ -131,7 +131,9 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   if (!record.checkpoints) blockers.push("checkpoints are not enabled for this run, so a merge's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
   if (!invokes(record)) blockers.push(`the recorded invocation "${record.invocation?.text ?? ""}" does not name orchestrate-feature and Feature #${record.feature}; only an explicit invocation grants a merge, and discussing the skill is not one`);
   const own = record.tickets[number];
-  if (own && writersOf(own).includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
+  let writers = [];
+  if (own) { try { writers = writersOf(own, number); } catch (error) { writers = null; blockers.push(error.message); } }
+  if (writers?.includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
   // Scope: a sub-issue of this Feature, and its one open PR.
   const t = snapshot.repository === record.repository && snapshot.feature?.number === record.feature ? snapshot.tickets.find((x) => x.number === number) : undefined;
   if (snapshot.repository !== record.repository || snapshot.feature?.number !== record.feature) blockers.push("the snapshot is of another repository or Feature");
@@ -149,7 +151,8 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   // Review: every planned reviewer exited and every report is adjudicated,
   // read through the same accounting as the review checkpoints; then the
   // head is the last reviewed one, or a published acceptance covers it.
-  const trusted = trustedCoordinators(record, number);
+  // With the ticket's writers unknown, no decision is trusted.
+  const trusted = writers === null ? [] : trustedCoordinators(record, number);
   const e = checkpointEvidence({ pr, state, pull: { ...pull, checks: [] }, comments, git, trusted, record, firstRound: 1, ci: false });
   blockers.push(...e.blockers, ...e.audit.map((a) => `review audit: ${a}`));
   const decisions = restore(comments, { trusted, record, pr });

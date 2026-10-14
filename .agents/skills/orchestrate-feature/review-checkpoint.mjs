@@ -19,13 +19,14 @@
 // acceptance-check.
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
-import { branchTicket, readRecord, updateRecord } from "./feature-run.mjs";
+import { branchTicket, launchDirOf, readRecord, streamSession, updateRecord } from "./feature-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -348,7 +349,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   if (!KINDS.includes(kind)) throw new Error(`--kind must be one of ${KINDS.join(", ")}`);
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
-  if (writersOf(ticket).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
+  if (writersOf(ticket, number).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
   if (e.completedRound < FIRST_CHECKPOINT_ROUND) throw new Error(`No formal checkpoint before round ${FIRST_CHECKPOINT_ROUND}: round ${e.completedRound} is the last complete round, and the writer's ordinary review continues`);
   if (kind !== "maintainer" && !e.due) throw new Error(`No checkpoint is due on PR #${e.pr}: ${[...e.blockers, ...e.audit].join("; ")}`);
   const earlier = ticket.checkpoints ?? [];
@@ -462,14 +463,52 @@ export function abandon(record, { ticket: number, id, evidence }) {
 // reading the PR. Neither this coordinator's own session nor any session
 // that wrote for the ticket is ever a trusted predecessor.
 // Every session that wrote for a ticket: its owner, its released or ended
-// writers, and a pending start.
-export const writersOf = (ticket) => [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].map((o) => o?.handle?.id).filter(Boolean);
+// writers, and a pending start. A writer held by its process is known by its
+// session, recorded on the owner or named by its stream, under that id and
+// as the app shows it once opened. A session that is neither recorded nor
+// readable here is unknown, never absent: this throws, so an action that
+// depends on who wrote waits until the session is recorded.
+export const writersOf = (ticket, number) => [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].flatMap((o) => {
+  if (!o) return [];
+  const session = o.sessionId ?? o.opened?.sessionId ?? processSession(o, o === ticket.pending, number);
+  return [o.handle?.id, o.opened?.session, ...(session ? [session, `local_${session}`] : [])];
+}).filter(Boolean);
+
+// The session a process-held writer's stream names, or null when its stream
+// was read and shows that none started. A stream that exists but cannot be
+// read leaves the session unknown, as a missing one does.
+function processSession(o, pending, number) {
+  if (pending ? o.route !== "claude-cli" || !o.artifactParent : o.handle?.kind !== "process") return null;
+  const dir = pending ? launchDirOf(o, number) : o.handle.launchDir;
+  const out = dir ? path.join(dir, "out.jsonl") : null;
+  let unreadable = null;
+  if (out && fs.existsSync(out)) {
+    try { return initSession(fs.readFileSync(out, "utf8")); } catch (error) { unreadable = `its stream ${out} cannot be read here (${error.code ?? error.message})`; }
+  } else if (pending && !fs.existsSync(dir) && (!o.host || o.host === os.hostname())) return null; // a start claimed on this host whose launch directory was never made never ran
+  const which = pending ? `pending start ${o.launchId}` : `writer ${o.launchId ?? `process ${o.handle.pid}`}`;
+  const where = unreadable ?? (out ? `its stream ${out} cannot be read here` : "no stream was recorded for it");
+  const fix = pending ? `settle the start with feature-run.mjs reconcile or withdraw on ${o.host ?? "its host"}` : `record its session with feature-run.mjs writer-session --ticket ${number} --writer ${o.launchId ?? o.handle.pid} --session <id> --evidence <where it was read>`;
+  throw new Error(`#${number}'s ${which} has no recorded session and ${where}, so whether its session wrote for the ticket is unknown; ${fix} first`);
+}
+
+// The session a stream's init line names; null when the stream has no init
+// line, so no session started. A malformed init line is an error.
+function initSession(text) {
+  for (const line of text.split(/\r?\n/)) {
+    let row;
+    try { row = JSON.parse(line); } catch { continue; }
+    if (row?.type !== "system" || row.subtype !== "init") continue;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.session_id ?? "")) throw new Error("its init line names no session id");
+    return row.session_id;
+  }
+  return null;
+}
 
 export function trustPredecessor(record, { ticket: number, session, source }) {
   if (!present(session) || !present(source)) throw new Error("--session must name the predecessor coordinator, and --source where the Feature names it (its status comment)");
   const ticket = (record.tickets[number] ??= { owner: null, pending: null, history: [], results: [] });
   if (session === record.coordinator.session) throw new Error(`${session} is this coordinator; its own decisions are verified by its record`);
-  if (writersOf(ticket).includes(session)) throw new Error(`${session} wrote for #${number}; a writer never decides its own review checkpoint`);
+  if (writersOf(ticket, number).includes(session)) throw new Error(`${session} wrote for #${number}; a writer never decides its own review checkpoint`);
   if ((ticket.trustedPredecessors ?? []).some((p) => p.session === session)) throw new Error(`${session} is already a trusted predecessor for #${number}`);
   ticket.trustedPredecessors = [...(ticket.trustedPredecessors ?? []), { session, source, time: new Date().toISOString() }];
   record.log.push({ time: new Date().toISOString(), event: "checkpoint-predecessor", ticket: number, session, source });
@@ -481,7 +520,7 @@ export function trustPredecessor(record, { ticket: number, session, source }) {
 // trusted here.
 export const trustedCoordinators = (record, number = null) => {
   const ticket = number === null ? null : record.tickets[number];
-  const writers = ticket ? writersOf(ticket) : [];
+  const writers = ticket ? writersOf(ticket, number) : [];
   return [record.coordinator.session, ...(record.previousCoordinators ?? []).map((c) => c.session), ...(ticket?.trustedPredecessors ?? []).map((p) => p.session)].filter((s) => !writers.includes(s));
 };
 

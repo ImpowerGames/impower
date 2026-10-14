@@ -205,7 +205,7 @@ try {
   assert.throws(() => run.main(["init", "--invocation", invocation]), /--merging must record who merges: coordinator or maintainer/);
   assert.throws(() => run.mergingFor(invocation, "maybe"), /--merging must be coordinator or maintainer/);
   for (const text of ["Use orchestrate-feature for #40, but stop at ready PRs.", "Use orchestrate-feature for #40 and do not merge anything.", "Use orchestrate-feature for #40 --stop-at-ready."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);
-  run.initRecord({ record: recordFile, checkout: src, repository: REPO, feature: FEATURE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
+  run.initRecord({ record: recordFile, checkout: src, repository: REPO, feature: FEATURE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.1-sol", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   assert.deepEqual([run.readRecord(recordFile).invocation.merging, run.readRecord(recordFile).authority.merge], ["coordinator", run.MERGE_GRANT], "an explicit invocation, recorded as such, grants the coordinator the scoped merge");
   assert.equal(run.coordinatorMerges(run.readRecord(recordFile)), true);
   assert.equal(cp.enable(recordFile, { coordinator: "local_coord", expectRevision: 1, github: statusGithub, host: SRC }).checkpoint.saved, true);
@@ -225,13 +225,13 @@ try {
   const stopFile = path.join(tmp, "stop-checkout");
   git(tmp, "clone", "-q", remote, stopFile);
   const stopRecordFile = path.join(srcPrivate, "stop.json");
-  run.initRecord({ record: stopRecordFile, checkout: stopFile, repository: REPO, feature: FEATURE, coordinator: "local_stop", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `${invocation} Stop at ready PRs.`, merging: "maintainer" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
+  run.initRecord({ record: stopRecordFile, checkout: stopFile, repository: REPO, feature: FEATURE, coordinator: "local_stop", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.1-sol", invocation: `${invocation} Stop at ready PRs.`, merging: "maintainer" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   const stopRecord = run.readRecord(stopRecordFile);
   assert.deepEqual([stopRecord.invocation.merging, stopRecord.authority.merge, run.coordinatorMerges(stopRecord)], ["maintainer", run.AUTHORITY.merge, false]);
 
   // --- Dispatch: plan, claim and confirm the writers --------------------------
-  const preflights = [{ route: "claude-desktop", model: "claude-opus-5-5", verdicts: [41, 42, 43].map((n) => ({ ticket: n, effort: "high", verdict: "available" })) }];
-  const plan = (rec = record(), snapshot = snapshotNow()) => run.planDispatch({ record: rec, snapshot, turn: "user", preflights, freeBytes: 100 * GB, defaults, host: SRC });
+  const preflights = [{ route: "codex-cli", model: "gpt-6.1-sol", verdicts: [41, 42, 43].map((n) => ({ ticket: n, effort: "high", verdict: "available" })) }];
+  const plan = (rec = record(), snapshot = snapshotNow()) => run.planDispatch({ record: rec, snapshot, preflights, freeBytes: 100 * GB, defaults, host: SRC });
   const actions = (p) => Object.fromEntries(p.tickets.map((t) => [t.number, t.action]));
   let p = plan();
   assert.deepEqual(actions(p), { 41: "dispatch", 42: "wait-dependency", 43: "dispatch" });
@@ -271,7 +271,7 @@ try {
     return { dir, report };
   };
   const reviewed = (pr, round, head) => { const j = journal(pr, round, "undirected", ["undirected"], { head, completed: { undirected: 1 } }); post(pr, `### Adjudication of review ${j.report.id}\n\nEvery finding accepted and fixed, or rejected with evidence.`); return j; };
-  const report = (n, reviewedHead, findings = "None") => change((r) => run.result(r, { ticket: n, report: write(`report-${n}-${clock}.json`, { model: "claude-opus-5-5", effort: "high", pr: 100 + n, reviewedHead, rounds: { "gpt-6.1-sol": 1 }, findings, verification: "red/green regression and tooling checks", ci: "all passed", next: "await the coordinator's merge" }) }));
+  const report = (n, reviewedHead, findings = "None") => change((r) => run.result(r, { ticket: n, report: write(`report-${n}-${clock}.json`, { model: "gpt-6.1-sol", effort: "high", permissionMode: null, pr: 100 + n, reviewedHead, rounds: { "claude-opus-5-5": 1 }, findings, verification: "red/green regression and tooling checks", ci: "all passed", next: "await the coordinator's merge" }) }));
   const snapshotFile = (s = snapshotNow()) => write(`snapshot-${clock}.json`, s);
   const gate = (n, rec = record(), facts) => {
     const pr = 100 + n, g = gitOf(src);
@@ -306,6 +306,17 @@ try {
   const selfWritten = structuredClone(record());
   selfWritten.tickets[41].history.push({ owner: { handle: { kind: "session", id: "local_coord" } }, released: "x" });
   blocked(gate(41, selfWritten), /local_coord wrote for #41, and a writer never merges its own work/, "a coordinator that wrote for the ticket");
+  // A detached CLI writer is known by the session its stream names.
+  const cliDir = path.join(tmp, "cli-launch-41");
+  fs.mkdirSync(cliDir, { recursive: true });
+  fs.writeFileSync(path.join(cliDir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: "6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f" })}\n`);
+  const cliWritten = structuredClone(record());
+  cliWritten.tickets[41].history.push({ owner: { route: "claude-cli", handle: { kind: "process", pid: null, launchDir: cliDir } }, released: "x" });
+  cliWritten.coordinator.session = "local_6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f";
+  blocked(gate(41, cliWritten), /local_6f1e2d3c-4b5a-4968-8778-9a8b7c6d5e4f wrote for #41, and a writer never merges its own work/, "a coordinator whose session was the ticket's CLI writer, opened in the app");
+  const unknownWriter = structuredClone(record());
+  unknownWriter.tickets[41].history.push({ owner: { route: "claude-cli", handle: { kind: "process", pid: 4242, start: "1" } }, released: "x" });
+  blocked(gate(41, unknownWriter), /#41's writer process 4242 has no recorded session and no stream was recorded for it, so whether its session wrote for the ticket is unknown/, "a writer whose session is unknown never counts as not having written");
   assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_w41", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src) }), /coordinated by local_coord; local_w41 may not merge/, "a writer session cannot use the coordinator's exception");
 
   // CI: pending, failed, cancelled and a skipped required gate all refuse.
@@ -581,7 +592,7 @@ try {
   const dstRecord = path.join(dstPrivate, "run.json");
   const found = cp.discover({ repository: REPO, feature: FEATURE, checkout: dst, github: statusGithub });
   assert.ok(cp.limitations(found.checkpoint).some((l) => l.kind === "operation" && l.ticket === 43), "the destination is told the merge is unsettled");
-  const taken = cp.resume({ record: dstRecord, checkout: dst, repository: REPO, feature: FEATURE, coordinator: "local_dst", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: `Use orchestrate-feature for #${FEATURE}; take over from the exhausted account.`, merging: "coordinator", evidence: "the maintainer reports the source account reached its usage limit" }, { github: statusGithub, host: DST, defaults, totalMemory: 64 * GB });
+  const taken = cp.resume({ record: dstRecord, checkout: dst, repository: REPO, feature: FEATURE, coordinator: "local_dst", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: `Use orchestrate-feature for #${FEATURE}; take over from the exhausted account.`, merging: "coordinator", evidence: "the maintainer reports the source account reached its usage limit" }, { github: statusGithub, host: DST, defaults, totalMemory: 64 * GB });
   assert.equal(taken.action, "takeover");
   assert.equal(run.coordinatorMerges(run.readRecord(dstRecord)), true, "the new coordinator's own invocation grants the merge");
   // The state branch now names the destination: the source no longer owns

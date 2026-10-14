@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import { writeExclusive, readJson, currentIdentity, alive } from "../../../scripts/review-job-store.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
-import { RECORD_VERSION, applyInvocation, authorityFor, mergingFor, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
+import { RECORD_VERSION, PERMISSION_MODES, applyInvocation, applyCoordinatorMode, authorityFor, carriedRun, checkCoordinatorId, mergingFor, orchestrationTitle, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus } from "./feature-run.mjs";
 
 export const CHECKPOINT_VERSION = 1;
 export const stateBranch = (feature) => `orchestrate-state/feature-${feature}`;
@@ -530,7 +530,7 @@ export function buildCheckpoint(record, { seq, previous, snapshotParents = [], k
     run: { runId: record.runId, recordRevision: record.revision, source: { host, checkout: record.checkout } },
     coordinator: record.coordinator, previousCoordinators: record.previousCoordinators,
     invocation: record.invocation, authority: record.authority, writer: record.writer, concurrency: record.concurrency,
-    checkIn: record.checkIn ?? null,
+    checkIn: record.checkIn ?? null, group: record.group ?? null, title: record.title ?? null,
     tickets: portableTickets(record.tickets, host),
     operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries, verifications: record.verifications ?? [],
     work: work ?? {}, snapshots,
@@ -745,10 +745,12 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     const own = readRecord(file);
     if (own.runId !== prev.run.runId || own.coordinator.session !== coordinator) throw new Error(`Checkpoint ${prev.seq} names run ${prev.run.runId}, but ${file} holds run ${own.runId}; inspect both before continuing`);
     const pointer = installPointer(checkout, repository, feature, { record: file, coordinator, host, since: own.coordinator.since });
-    // This session's request, as it is now, decides who merges; a changed
-    // request is saved before the session acts on it.
+    // This session's request, as it is now, decides who merges, and its
+    // permission mode as it reads it now is recorded; a change is saved before
+    // the session acts on it.
     const applied = applyInvocation(file, { coordinator, invocation, merging });
-    const checkpoint = applied.changed ? ensureSaved(file, { coordinator, host, github }) : undefined;
+    const switched = applyCoordinatorMode(file, { coordinator, permissionMode: options.coordinatorMode, title: options.slug === undefined ? undefined : orchestrationTitle(feature, options.slug) }).revision !== applied.record.revision;
+    const checkpoint = applied.changed || switched ? ensureSaved(file, { coordinator, host, github }) : undefined;
     return { action: "resume", seq: prev.seq, commit: found.commit, pointer, ...(checkpoint && { checkpoint }), limitations: limitations(prev, { host }) };
   }
   if (!evidence) throw new Error(`--evidence must say why ${prev.coordinator.session} on ${prev.coordinator.host} no longer coordinates (for example, the maintainer's statement that its account reached its usage limit)`);
@@ -771,9 +773,15 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   let concurrency = defaultConcurrency({ totalMemory });
   if (options.concurrency !== undefined) concurrency = { limit: options.concurrency, basis: `invocation override (default would be ${concurrency.limit})` };
   const since = new Date().toISOString();
+  if (options.coordinatorMode !== undefined && !PERMISSION_MODES.includes(options.coordinatorMode)) throw new Error(`--coordinator-mode must be the coordinator's own permission mode: ${PERMISSION_MODES.join(", ")}`);
+  const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, ...(options.coordinatorMode !== undefined && { permissionMode: options.coordinatorMode }), since };
+  // The Feature's title, group and check-in carry over; a checkpoint from
+  // before titles were recorded takes the title from this session's slug.
+  const run = carriedRun(prev, { file, record: { feature, coordinator: self }, defaults });
+  if (!run.title && options.slug !== undefined) run.title = orchestrationTitle(feature, options.slug);
   const record = {
     version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout,
-    coordinator: { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, since },
+    coordinator: self,
     invocation: { text: invocation, merging, ...(writerModel !== undefined && { writerModel }), ...(options.writerModel === undefined && carried !== undefined && { writerModelFrom: prev.invocation.writerModelFrom ?? prev.coordinator.session }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: authorityFor(merging), writer, concurrency,
     tickets: structuredClone(prev.tickets), diskRecoveries: prev.diskRecoveries, operations: prev.operations ?? [], decisionRefs: prev.decisions ?? [], verifications: prev.verifications ?? [],
@@ -781,7 +789,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
     // coordinator. The work inventory needs no copy: every location passes
     // through the takeover checkpoint from the one it is built on.
     snapshots: structuredClone(prev.snapshots ?? {}),
-    ...(prev.checkIn && { checkIn: { ...prev.checkIn, state: "recreate on this coordinator's runner" } }),
+    ...run,
     previousCoordinators: [...prev.previousCoordinators, { ...prev.coordinator, record: `checkpoint ${prev.seq} (${found.commit})`, invocation: prev.invocation, authority: prev.authority, ended: evidence }],
     checkpoints: { remote, branch: stateBranch(feature) },
     log: [{ time: since, event: "takeover", coordinator, from: prev.coordinator.session, checkpoint: { seq: prev.seq, commit: found.commit }, evidence, writer: writer.model }],
@@ -1045,7 +1053,17 @@ export function main(argv, { github: injected } = {}) {
     case "publish": { const { file, github } = fromRecord(); return publish(file, { coordinator: o.coordinator, transition: o.transition ?? "an explicit publish", plan: o.plan ? readJson(abs(o.plan, "plan")) : undefined, github }); }
     case "sync-summary": { const checkout = abs(o.checkout, "checkout"), feature = int(o.feature, "feature"); return syncSummary({ repository: o.repo, feature, checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); }
     case "discover": { const checkout = abs(o.checkout, "checkout"); const found = discover({ repository: o.repo, feature: int(o.feature, "feature"), checkout, remote: o.remote ?? DEFAULT_REMOTE, github: githubFor(o.repo, checkout) }); return found.found ? { ...found, limitations: limitations(found.checkpoint) } : found; }
-    case "resume": { const checkout = abs(o.checkout, "checkout"); return resume({ record: o.record, checkout, repository: o.repo, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, merging: o.merging ?? "(missing)", concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote: o.remote }, { github: githubFor(o.repo, checkout) }); }
+    case "resume": {
+      // Like init, the command line records the coordinator's own session id,
+      // permission mode and title slug, never a default.
+      checkCoordinatorId(o.harness, o.coordinator);
+      if (!PERMISSION_MODES.includes(o.coordinatorMode)) throw new Error(`--coordinator-mode must be this session's own permission mode: ${PERMISSION_MODES.join(", ")}`);
+      // The slug gives the session title to a checkpoint that carries none; a
+      // carried title stays.
+      orchestrationTitle(int(o.feature, "feature"), o.slug);
+      const checkout = abs(o.checkout, "checkout");
+      return resume({ record: o.record, checkout, repository: o.repo, feature: int(o.feature, "feature"), coordinator: o.coordinator, harness: o.harness, coordinatorModel: o.coordinatorModel, coordinatorEffort: o.coordinatorEffort, coordinatorMode: o.coordinatorMode, slug: o.slug, invocation: o.invocation, evidence: o.evidence, writerModel: o.writerModel, merging: o.merging ?? "(missing)", concurrency: o.concurrency === undefined ? undefined : int(o.concurrency, "concurrency"), remote: o.remote }, { github: githubFor(o.repo, checkout) });
+    }
     case "prepare-handoff": { const { file, github } = fromRecord(); return prepareHandoff(file, { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), step: o.step, observations: o.observations ? readJson(abs(o.observations, "observations")) : {}, github }); }
     case "retrieve": return retrieve({ repository: o.repo, feature: int(o.feature, "feature"), checkout: abs(o.checkout, "checkout"), remote: o.remote, ticket: int(o.ticket, "ticket"), worktree: o.worktree });
     case "intent": return mutate((r) => intent(r, { kind: o.kind, ticket: int(o.ticket, "ticket"), pr: int(o.pr, "pr"), expectHead: o.expectHead, evidence: o.evidence }), `the intent to ${o.kind} PR #${o.pr}`);

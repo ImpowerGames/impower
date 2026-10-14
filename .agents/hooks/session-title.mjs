@@ -65,6 +65,36 @@ export function deriveWorktree(command) {
 
 export const deriveTitle = (command) => deriveWorktree(command)?.title ?? null;
 
+// A Feature's coordinator is titled from its run record: the orchestrate-feature
+// command that writes the record (feature-run.mjs init, or checkpoint.mjs resume
+// for a takeover) names it with --record, and the record holds the title
+// `ORCH #<N>: <slug words>`. Returns the record path the command names.
+const RECORD_WRITERS = [["feature-run.mjs", "init"], ["checkpoint.mjs", "resume"]];
+export function deriveRunRecord(command) {
+  for (let words of simpleCommands(String(command))) {
+    while (LEADING.has(words[0])) words = words.slice(1);
+    if (!/^node(?:\.exe)?$/i.test(path.basename(words[0] ?? ""))) continue;
+    const script = words[1]?.replaceAll("\\", "/") ?? "";
+    if (!RECORD_WRITERS.some(([file, sub]) => script.endsWith(`orchestrate-feature/${file}`) && words[2] === sub)) continue;
+    const at = words.indexOf("--record");
+    if (at > 0 && words[at + 1]) return words[at + 1];
+  }
+  return null;
+}
+const ORCH_TITLE = /^ORCH #\d+: [a-z0-9]+(?: [a-z0-9]+){1,3}$/;
+function recordTitle(cwd, record) {
+  try {
+    const title = JSON.parse(fs.readFileSync(path.resolve(cwd, record), "utf8"))?.title;
+    return typeof title === "string" && ORCH_TITLE.test(title) ? title : null;
+  } catch { return null; }
+}
+// A coordinator's title belongs to the whole session, so its entry has no
+// worktree and gates every shell command. Once renamed it stays recorded as
+// acknowledged, so a coordinator resumed on the same session is not asked
+// again.
+const titleId = (title) => createHash("sha256").update(`session-title:${title}`).digest("hex").slice(0, 16);
+const forSession = (entry) => entry.worktree === null;
+
 // Real paths expand Windows 8.3 short names and symbolic links, which Git
 // reports in their long form; a path that does not exist matches nothing.
 const realPath = (p) => { try { return fs.realpathSync.native(path.resolve(p)); } catch { return null; } };
@@ -164,23 +194,41 @@ function modify(file, sessionId, change) {
   }
 }
 
-export const ackCommand = (sessionId, worktree) => `node "${self.replaceAll("\\", "/")}" confirm ${sessionKey(sessionId)} ${worktreeId(worktree)}`;
+const ackFor = (sessionId, id) => `node "${self.replaceAll("\\", "/")}" confirm ${sessionKey(sessionId)} ${id}`;
+export const ackCommand = (sessionId, worktree) => ackFor(sessionId, worktreeId(worktree));
 
 function instruction(entry, sessionId, harness) {
   const { title } = entry;
   const call = harness === "claude"
     ? `Load the set_session_title tool through tool search (its full name ends in __set_session_title), then call it with session_id "self" and title "${title}".`
     : `Call set_thread_title with title "${title}" when the host offers it.`;
-  return `This session creates the worktree for "${title}" at ${entry.worktree}. Rename the session to exactly that title before running further shell commands in that worktree. ${call} Only if this runner offers no rename tool, run \`${ackCommand(sessionId, entry.worktree)}\` instead.`;
+  const what = forSession(entry)
+    ? `This session coordinates a Feature as "${title}", the title its run record holds. Rename the session to exactly that title before running further shell commands.`
+    : `This session creates the worktree for "${title}" at ${entry.worktree}. Rename the session to exactly that title before running further shell commands in that worktree.`;
+  return `${what} ${call} Only if this runner offers no rename tool, run \`${ackFor(sessionId, entry.id)}\` instead.`;
 }
 
-// PostToolUse: record the title after worktree creation; clear it after the rename.
+// A renamed coordinator title stays recorded as acknowledged; a worktree's
+// title is dropped once renamed.
+const settle = (entries, done) => (forSession(done) ? entries.map((entry) => (entry === done ? { ...entry, acknowledged: true } : entry)) : entries.filter((entry) => entry !== done));
+const open = (entries) => entries.filter((entry) => !entry.acknowledged);
+
+// PostToolUse: record the title after worktree creation or a coordinator's
+// run-record write; clear it after the rename.
 export function afterTool(payload, harness) {
   const sessionId = sessionOf(payload);
   const tool = String(payload.tool_name ?? "");
   if (SHELLS.has(tool.toLowerCase())) {
     const cwd = payload.cwd || process.cwd();
-    const created = deriveWorktree(payload.tool_input?.command ?? "");
+    const command = payload.tool_input?.command ?? "";
+    const record = deriveRunRecord(command);
+    const title = record && recordTitle(cwd, record);
+    if (title) {
+      const entry = { id: titleId(title), title, worktree: null };
+      const asked = modify(statePath(sessionId), sessionId, (entries) => (entries.some((other) => other.id === entry.id) ? { entries, value: !entries.find((other) => other.id === entry.id).acknowledged } : { entries: [...entries, entry], value: true }));
+      return asked ? instruction(entry, sessionId, harness) : null;
+    }
+    const created = deriveWorktree(command);
     if (!created || !worktreeCreated(cwd, created)) return null;
     const worktree = path.resolve(cwd, created.target);
     const entry = { id: worktreeId(worktree), title: created.title, worktree };
@@ -188,25 +236,34 @@ export function afterTool(payload, harness) {
     return instruction(entry, sessionId, harness);
   }
   if (RENAME.test(tool)) {
-    return modify(statePath(sessionId), sessionId, (entries) => {
-      if (!entries.length) return { entries };
-      // A rename issued from inside one pending worktree can acknowledge only that worktree's title.
-      const from = payload.cwd ? entries.find((entry) => touches(entry, { cwd: payload.cwd })) : undefined;
-      const match = entries.find((entry) => entry.title === payload.tool_input?.title && (!from || entry === from));
-      // A rename aimed at another session does not rename this one.
+    return modify(statePath(sessionId), sessionId, (stored) => {
+      // A coordinator title stays acknowledged only while the session still
+      // carries it: renaming this session to anything else forgets it, so a
+      // later init or takeover asks again.
       const target = payload.tool_input?.session_id;
-      if (!match || (target !== undefined && target !== "self" && target !== sessionId)) {
-        const entry = match ?? from ?? entries[0];
+      const self = target === undefined || target === "self" || target === sessionId;
+      const entries = self ? stored.filter((entry) => !(entry.acknowledged && entry.title !== payload.tool_input?.title)) : stored;
+      const pendingEntries = open(entries);
+      if (!pendingEntries.length) return { entries };
+      // A rename issued from inside one pending worktree can acknowledge only that worktree's title; a coordinator's
+      // title belongs to the whole session, wherever the rename runs.
+      const from = payload.cwd ? pendingEntries.find((entry) => !forSession(entry) && touches(entry, { cwd: payload.cwd })) : undefined;
+      const match = pendingEntries.find((entry) => entry.title === payload.tool_input?.title && (forSession(entry) || !from || entry === from));
+      // A rename aimed at another session does not rename this one.
+      if (!match || !self) {
+        const entry = match ?? from ?? pendingEntries[0];
         return { entries, value: `The session title must be exactly "${entry.title}". ${instruction(entry, sessionId, harness)}` };
       }
-      return { entries: entries.filter((entry) => entry !== match) };
+      return { entries: settle(entries, match) };
     }) ?? null;
   }
   return null;
 }
 
-// Whether the command runs in, or names, the entry's worktree.
+// Whether the command runs in, or names, the entry's worktree. A coordinator's
+// title covers every command of its session.
 function touches(entry, payload) {
+  if (forSession(entry)) return true;
   const worktree = canonical(entry.worktree);
   const within = (p) => { const c = canonical(p); return c === worktree || c.startsWith(worktree + "/"); };
   if (payload.cwd && within(payload.cwd)) return true;
@@ -233,7 +290,7 @@ export function gate(payload, harness) {
   const tool = String(payload?.tool_name ?? "").toLowerCase();
   if (!SHELLS.has(tool)) return null;
   const sessionId = sessionOf(payload);
-  const entry = pending(sessionId).find((candidate) => touches(candidate, payload));
+  const entry = open(pending(sessionId)).find((candidate) => touches(candidate, payload));
   if (!entry) return null;
   return isAck(payload.tool_input?.command, sessionId, entry) ? null : instruction(entry, sessionId, harness);
 }
@@ -270,8 +327,8 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href.toLowerCase() === imp
   } else {
     const file = keyPath(key);
     const match = fs.existsSync(file) ? modify(file, null, (entries) => {
-      const found = entries.find((entry) => entry.id === id);
-      return { entries: found ? entries.filter((entry) => entry !== found) : entries, value: found };
+      const found = open(entries).find((entry) => entry.id === id);
+      return { entries: found ? settle(entries, found) : entries, value: found };
     }) : undefined;
     if (!match) {
       console.error(`No pending session title for ${key} ${id}.`);

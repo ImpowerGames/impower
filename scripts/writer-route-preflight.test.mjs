@@ -12,25 +12,16 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "writer-route-preflight-"));
 const only = (result) => result.verdicts.map(({ ticket, verdict }) => `${ticket}:${verdict}`).join(" ");
 
 try {
-  // Agent tool: a pinned writer definition at exactly that model and effort,
-  // which the coordinator's Agent tool also offers (a definition added after
-  // the session started is on disk but not offered).
-  const agents = ["claude", "writer-opus-5-5-medium", "writer-opus-5-5-high"];
-  const agent = preflight({ route: "claude-agent", model: "claude-opus-5-5", tickets: [{ number: 1, effort: "medium" }, { number: 2, effort: "xhigh" }, { number: 34, effort: "low" }], evidence: { agents } });
-  assert.equal(only(agent), "1:available 2:blocked 34:blocked");
-  assert.deepEqual(agent.verdicts[0].launch, { subagent_type: "writer-opus-5-5-medium" });
-  assert.match(agent.verdicts[1].reason, /no writer definition .* claude-opus-5-5 at xhigh/);
-  assert.equal(agent.verdicts[1].launch, undefined, "a blocked ticket names no substitute launch");
-  assert.match(agent.verdicts[2].reason, /Agent tool does not offer writer-opus-5-5-low/, "a definition on disk that the session has not discovered is blocked");
-  assert.equal(agent.verdicts[2].launch, undefined);
-  assert.throws(() => preflight({ route: "claude-agent", model: "claude-opus-5-5", tickets: [{ number: 35, effort: "medium" }] }), /evidence\.agents/);
-
-  // Desktop session: the coordinator's own model at or below its own effort.
-  const coordinator = { model: "claude-opus-5-5", effort: "high" };
-  assert.equal(only(preflight({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 3, effort: "low" }, { number: 4, effort: "high" }, { number: 5, effort: "max" }], evidence: { coordinator } })), "3:available 4:available 5:blocked");
-  const otherModel = preflight({ route: "claude-desktop", model: "claude-sonnet-5-5", tickets: [{ number: 6, effort: "low" }], evidence: { coordinator } });
-  assert.match(otherModel.verdicts[0].reason, /coordinator runs claude-opus-5-5/);
-  assert.throws(() => preflight({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 7, effort: "low" }] }), /evidence\.coordinator/);
+  // The retired Claude routes need a user-begun turn, an approval card or the
+  // coordinator's own session, so every ticket on them is blocked with the
+  // reason the runner configuration gives, whatever evidence comes with it.
+  const retired = JSON.parse(fs.readFileSync(path.join(here, "..", ".claude", "writer-defaults.json"), "utf8")).retiredRoutes;
+  for (const route of ["claude-agent", "claude-desktop", "claude-adopted"]) {
+    const result = preflight({ route, model: "claude-opus-5-5", tickets: [{ number: 1, effort: "medium" }, { number: 2, effort: "high" }], evidence: { agents: ["writer-opus-5-5-medium"], coordinator: { model: "claude-opus-5-5", effort: "high" } } });
+    assert.equal(only(result), "1:blocked 2:blocked", route);
+    assert.equal(result.verdicts[0].reason, `${route} is retired as a dispatch route: ${retired[route]}`);
+    assert.equal(result.verdicts[0].launch, undefined, "a blocked ticket names no substitute launch");
+  }
 
   // App collaboration: the host's advertised models and efforts, read from the
   // model parameter description of the captured host fixture.
@@ -102,13 +93,6 @@ try {
     assert.match(substituted.verdicts[0].reason, /answered with claude-sonnet-5-5, not claude-fable-5-1/, "a probe answered by another model is blocked");
     assert.match(preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 44, effort: "low" }], evidence: { claude: path.join(tmp, "missing-claude") } }).verdicts[0].reason, /probe could not run/);
     assert.equal(only(preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 45, effort: "high", observed: { model: "claude-opus-5-5", effort: "high" } }, { number: 46, effort: "high", observed: { model: "claude-opus-5-5", effort: "low" } }] })), "45:confirmed 46:blocked", "a launched CLI writer is confirmed from its own model and shell effort");
-    // An adopted writer is created by the same CLI, so the same probe decides
-    // it, on the one platform where the desktop handoff has been exercised.
-    const adopted = preflight({ route: "claude-adopted", model: "claude-opus-5-5", tickets: [{ number: 47, effort: "high" }, { number: 48, effort: "max" }], evidence: { claude } });
-    if (process.platform === "win32") {
-      assert.equal(only(adopted), "47:available 48:blocked");
-      assert.match(adopted.verdicts[1].reason, /Claude CLI probe exited 1/);
-    } else assert.match(adopted.verdicts[0].reason, /verified only on Windows/);
   } finally { delete process.env.CLAUDE_EFFORT; }
 
   // After launch: the writer's own metadata or rollout confirms the route. A
@@ -122,6 +106,8 @@ try {
   const confirmed = preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 17, effort: "high", observed: { rollout } }, { number: 18, effort: "medium", observed: { rollout } }], evidence: { modelParameter } });
   assert.equal(only(confirmed), "17:confirmed 18:blocked", "the latest turn_context row is current");
   assert.match(confirmed.verdicts[1].reason, /runs gpt-6-astra at high, not gpt-6-astra at medium/);
+  // An existing writer on a retired route, adopted with its work, is still
+  // confirmed against what it runs.
   assert.equal(only(preflight({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 19, effort: "medium", observed: { model: "claude-opus-5-5", effort: "medium" } }, { number: 20, effort: "medium", observed: { model: "claude-sonnet-5-5", effort: "medium" } }] })), "19:confirmed 20:blocked");
   // A live writer may be mid-append: an unfinished last record is ignored.
   const active = path.join(tmp, "active.jsonl");
@@ -165,10 +151,10 @@ try {
     fs.writeFileSync(file, JSON.stringify(request));
     return spawnSync(process.execPath, [script, file], { encoding: "utf8", windowsHide: true });
   };
-  const ok = run({ route: "claude-agent", model: "claude-opus-5-5", tickets: [{ number: 24, effort: "low" }], evidence: { agents: ["writer-opus-5-5-low"] } });
+  const ok = run({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 24, effort: "ultra" }], evidence: { modelParameter } });
   assert.equal(ok.status, 0, ok.stderr);
   assert.equal(JSON.parse(ok.stdout).verdicts[0].verdict, "available");
-  const blocked = run({ route: "claude-agent", model: "claude-opus-5-5", tickets: [{ number: 25, effort: "max" }], evidence: { agents } });
+  const blocked = run({ route: "claude-agent", model: "claude-opus-5-5", tickets: [{ number: 25, effort: "max" }] });
   assert.equal(blocked.status, 1);
   assert.equal(JSON.parse(blocked.stdout).verdicts[0].verdict, "blocked");
   const malformed = run({ route: "claude-agent" });
