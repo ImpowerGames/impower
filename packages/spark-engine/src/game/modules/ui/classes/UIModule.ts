@@ -3795,6 +3795,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         (name === "loading" && !this._loading)
       ) {
         mounted?.();
+        // An open the story called off holds the layout's fonts for nothing
+        // once no instance of the layout is mounted and no other open of it
+        // waits (#1820).
+        if (
+          pendingOpen.cancelled &&
+          !this._mountedLayouts.has(name) &&
+          !this._pendingOpens.get(name)?.size
+        ) {
+          this._game.module.assets?.releaseLayout(name);
+        }
         return;
       }
     }
@@ -4194,7 +4204,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** Apply a beat's `[[open/close/navigate]]` directives (Coordinator fan-out),
    *  mirroring `image.write`/`audio.schedule`. Awaits all transitions so a beat
-   *  with a `wait` directive can hold advance until they settle. */
+   *  with a `wait` directive can hold advance until they settle. In a composed
+   *  beat (#1820) it awaits only the mounts: each transition plays from the
+   *  beat's commit, and nothing here waits for it (`openLayout`,
+   *  `closeLayout`). */
   async applyLayoutInstructions(
     instructions: LayoutInstruction[],
     instant: boolean,
@@ -4551,8 +4564,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // children and drives the reveal from each instruction's after/over
         // timing. `await` here preserves the prior `await animateElements()`
         // lifecycle: the write completes only once the reveal has finished.
-        // Flush pending create/update ops first so the target exists before the
-        // (awaited) write arrives.
+        // In a composed beat (#1820) it completes once the write is part of the
+        // beat: the page reveals it from the beat's commit, and nothing here
+        // waits for that. Flush pending create/update ops first so the target
+        // exists before the (awaited) write arrives.
         $.flushUIBatch();
         await $.emitSettled(
           WriteTextMessage.type.request({
@@ -4949,8 +4964,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // children and drives the enter/exit/destroy lifecycle. `await` here
         // preserves the prior `await animateElements()` lifecycle: the write
         // completes only once the crossfade animations have finished (so
-        // auto-advance still waits on the reveal). Flush pending create/update
-        // ops first so the target exists before the (awaited) write arrives.
+        // auto-advance still waits on the reveal). In a composed beat (#1820)
+        // it completes once the write is part of the beat: the page plays the
+        // crossfade from the beat's commit, and nothing here waits for that.
+        // Flush pending create/update ops first so the target exists before
+        // the (awaited) write arrives.
         $.flushUIBatch();
         await $.emitSettled(
           WriteImageMessage.type.request({

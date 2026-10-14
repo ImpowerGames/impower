@@ -679,3 +679,39 @@ describe("the retirement path, round 3 of PR #1865", () => {
     }
   });
 });
+
+describe("the retirement path, round 4 of PR #1865", () => {
+  test("an open a close calls off lets go of the layout's fonts", async () => {
+    // R4-3: the open waits on the hud's font; a close calls it off before the
+    // font arrives. Nothing of the hud is mounted, and its fonts are no
+    // longer pinned for it.
+    const h = createHarness(hudStory("[[open hud]]"), 0, {
+      assets: FONTS,
+      holdAssets: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    h.reset();
+    const ui: any = h.game.module.ui;
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.openLayout("hud"));
+    void ui.endCompose({ time: 100 });
+    await flushMicrotasks(20);
+    expect(ui.beginCompose()).toBe(true);
+    ui.composeWait(ui.closeLayout("hud"));
+    void ui.endCompose({ time: 200 });
+
+    await releaseFonts(h);
+
+    expect(ui._mountedLayouts.has("hud")).toBe(false);
+    const assets: any = h.game.module.assets;
+    expect(assets._layoutPins.has("hud")).toBe(false);
+    const pinned = h.messages.findIndex((m: any) => m.method === "assets/load" && m.params?.pin === "layout:hud");
+    const released = h.messages.findIndex(
+      (m: any) => m.method === "assets/release" && m.params?.pins?.includes("layout:hud"),
+    );
+    expect(pinned).toBeGreaterThan(-1);
+    expect(released).toBeGreaterThan(pinned);
+  });
+});

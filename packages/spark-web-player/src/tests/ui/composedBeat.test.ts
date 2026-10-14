@@ -923,3 +923,124 @@ describe("the retirement path on the page, round 3 of PR #1865", () => {
     expect(await outcome(unfinished)).toMatchObject({ error: { code: DISCONNECTED } });
   });
 });
+
+describe("one decision per beat, round 4 of PR #1865", () => {
+  const ids = (h: { overlay: HTMLElement }) => ({
+    leaf: (h.overlay.querySelector(".dialogue > .text") as any).__sdId as string,
+    shown: JSON.parse((h.overlay.querySelector(".dialogue") as any).__sdTxt),
+    name: JSON.parse((h.overlay.querySelector(".character_name") as any).__sdTxt),
+  });
+
+  /** The dialogue's write, played: its first letter 100 ms into the beat. */
+  const played = (instructions: { text?: string }[]) =>
+    instructions.map((e, i) => ({ ...e, after: 0.1 + i * 0.01 }));
+
+  test("the commit instant and the apply take the same decision for every write", async () => {
+    // R4-1: a structural change in the dialogue before its clear keeps the
+    // clear, so its identical write reveals again and the beat commits at
+    // that write's first letter. The unchanged name reveals nothing and is
+    // left as it is.
+    const { h, dialogue } = await showing();
+    const { leaf, shown, name } = ids(h);
+    const nameLeaf = h.overlay.querySelector(".character_name > .text")!;
+    const nameLetters = Array.from(nameLeaf.childNodes);
+    const line = dialogue();
+    // The dialogue's line as a played write, held once on the page.
+    h.ui.onReceiveNotification(beat({ text: [write("dialogue", played(shown))] }));
+    await flushMicrotasks(10);
+    const time = controlTime(h);
+    try {
+      h.ui.onReceiveNotification(
+        beat({
+          text: [
+            write("character_name", name, { instant: false, time: 1_100 }),
+            [UpdateElementMessage.type.request({ element: leaf, style: { color: "red" } } as any)],
+            write("dialogue", played(shown), { instant: false, time: 1_100 }),
+          ],
+          time: 1_100,
+        }),
+      );
+      await time.at(1_199);
+      expect(time.changedAt()).toBeUndefined();
+      expect(dialogue()).toBe(line);
+
+      await time.at(1_200);
+      expect(time.changedAt()).toBe(1_200);
+      expect(time.firstReveal()).toBe(1_200);
+      expect(dialogue()).toBe(line);
+      expect(Array.from(nameLeaf.childNodes)).toEqual(nameLetters);
+    } finally {
+      time.restore();
+    }
+  });
+
+  test("an identical text write with no clear, after a structural change in its target, is written again and commits at its first letter", async () => {
+    // The leaf's content is replaced before the write: left as it was, the
+    // dialogue would stay empty.
+    const { h, dialogue } = await showing();
+    const { leaf, shown } = ids(h);
+    const line = dialogue();
+    h.ui.onReceiveNotification(beat({ text: [write("dialogue", played(shown))] }));
+    await flushMicrotasks(10);
+    const time = controlTime(h);
+    try {
+      h.ui.onReceiveNotification(
+        beat({
+          text: [
+            [UpdateElementMessage.type.request({ element: leaf, content: { text: "" } } as any)],
+            [
+              WriteTextMessage.type.request({
+                target: "dialogue",
+                instructions: played(shown) as any,
+                instant: false,
+                time: 1_100,
+              }),
+            ],
+          ],
+          time: 1_100,
+        }),
+      );
+      await time.at(1_199);
+      expect(time.changedAt()).toBeUndefined();
+
+      await time.at(1_200);
+      expect(time.changedAt()).toBe(1_200);
+      expect(time.firstReveal()).toBe(1_200);
+      expect(dialogue()).toBe(line);
+    } finally {
+      time.restore();
+    }
+  });
+
+  test("an identical picture with no clear, after its target gains a mask, is painted in it", async () => {
+    // R4-2: a played beat writes the picture its target shows without
+    // clearing it first, as the Coordinator does for a picture the beat
+    // writes.
+    const { h } = await showing();
+    apply(
+      h,
+      CreateElementMessage.type.request({ parent: null, element: "probe-portrait", type: "div", name: "probe_portrait" }),
+      CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-image", type: "span", name: "image" }),
+    );
+    const picture = () =>
+      WriteImageMessage.type.request({
+        target: "probe_portrait",
+        instructions: [
+          {
+            control: "show",
+            content: { background: 'url("a.png")', imageNames: "a", src: "a.png", srcs: ["a.png"] },
+          },
+        ],
+        instant: true,
+      } as any);
+    h.ui.onReceiveNotification(beat({ image: [picture()] }));
+    await flushMicrotasks(10);
+    expect(h.overlay.querySelector(".probe_portrait > .image")?.children.length).toBe(1);
+
+    apply(h, CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-mask", type: "span", name: "mask" }));
+    h.ui.onReceiveNotification(beat({ image: [picture()] }));
+    await flushMicrotasks(10);
+
+    expect(h.overlay.querySelector(".probe_portrait > .mask")?.children.length).toBeGreaterThan(0);
+  });
+});
