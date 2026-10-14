@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1775,
-  "seq": 4,
-  "previous": "7a1f569a49585d2a04d54cb96c8d07bf93d42c5b",
+  "seq": 5,
+  "previous": "e0f8ae2f7c3902e3bea9ff5aa4884765da1e17ec",
   "snapshotParents": [],
-  "time": "2026-10-14T04:00:39.715Z",
+  "time": "2026-10-14T04:16:10.602Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "feature verification bd024e56 (incomplete)",
   "run": {
     "runId": "71e80032-0437-4e45-a74d-5262a900b96b",
-    "recordRevision": 2,
+    "recordRevision": 3,
     "source": {
       "host": "MSI",
       "checkout": "C:\\Users\\Lovelle\\Documents\\GitHub\\impower"
@@ -47,7 +47,225 @@
   "operations": [],
   "decisions": [],
   "diskRecoveries": [],
-  "verifications": [],
+  "verifications": [
+    {
+      "id": "bd024e56",
+      "time": "2026-10-14T04:16:09.207Z",
+      "coordinator": "c2d3cf90-22d1-4084-9c43-e32dd7e64ced",
+      "mainSha": "68544d71bf782f939d0912f5dd78331b3990effe",
+      "snapshotAt": "2026-10-14T04:16:07.824Z",
+      "verdict": "incomplete",
+      "criteria": [
+        {
+          "index": 1,
+          "criterion": "An explicit invocation discovers an existing Feature and its incomplete descendants and continues valid PR/worktree/review state without duplicating work or resetting review counts.",
+          "status": "met",
+          "evidence": [
+            "Live, this run on main 68544d71b: checkpoint.mjs discover found no checkpoint; feature-run.mjs init (coordinator c2d3cf90-22d1-4084-9c43-e32dd7e64ced) and snapshot read 5 sub-issues; plan (event turn) gave #1776, #1777, #1778 and #1779 \"done\" (closed with merged deliverable on origin/main, each leftover worktree keeping its writer's place) and the incomplete descendant #1814 blocked-route without a preflight, then wait-capacity with a claude-agent preflight. After the coordinator removed the merged worktrees, a fresh plan released those places (active 1, capacity 2) and gave #1814 adopt-worktree for the worktree feat/1814-coordinator-message-checkin that the coordinator's hand-dispatched writer holds, so the plan refuses a second writer. Nothing was claimed, adopted or dispatched by this run.",
+            "feature-run.test.mjs: adoption of existing PRs and worktrees (adopt-pr, adopt-worktree, claim --operation continue keeping the PR's started rounds), and 'existing work is adopted, never claimed for a second writer' (line 465).",
+            "PR #1803 recorded workflow exercise against the live #1775 at e77607bc2: #1776 planned adopt-worktree, dependents waited, complete false."
+          ]
+        },
+        {
+          "index": 2,
+          "criterion": "Supported writer routes verify the requested model and ticket Effort before useful work; unsupported routes produce an actionable per-ticket blocker and no silent substitution.",
+          "status": "met",
+          "evidence": [
+            "scripts/writer-route-preflight.mjs with scripts/writer-route-preflight.test.mjs (drivers tier, run here: 3 run, 0 failed (agent-handoff-lock.test.mjs, review-supervisor.test.mjs, writer-route-preflight.test.mjs)).",
+            "feature-run.test.mjs: route choice by turn without model substitution, the preflight's observed verdict through verify, and 'a mismatched writer is stopped, never substituted' (stop-writer).",
+            "Live, this run: with no preflight the plan gave #1814 blocked-route with a per-route reason ('no preflight result for claude-opus-5-5 at medium'); the claude-agent preflight then returned available with subagent_type writer-opus-5-5-medium.",
+            "PR #1803: real route smoke checks (claude-desktop, claude-agent, claude-cli, codex-cli) and a live claude-adopted run whose writer read its own model and effort before work."
+          ]
+        },
+        {
+          "index": 3,
+          "criterion": "Unspecified models resolve to Opus 5.5 for a Claude orchestrator and Sol 6.1 for a Codex orchestrator. Cross-harness takeover preserves historical identities and active writers while configuring new/replacement writers honestly and honoring explicit model overrides.",
+          "status": "met",
+          "evidence": [
+            ".claude/writer-defaults.json: orchestrators.claude.model claude-opus-5-5, orchestrators.codex.model gpt-6.1-sol; an explicit --writer-model override wins (resolveWriterModel).",
+            "Live, this run: init resolved writer claude-opus-5-5 with source 'claude orchestrator default'.",
+            "feature-run.test.mjs: writer defaults per harness and explicit override. checkpoint.test.mjs: takeover keeps owners' recorded model and effort, uses the new harness's default for new writers, and carries an explicit override across two takeovers (Feature 500, line 902, line 930)."
+          ]
+        },
+        {
+          "index": 4,
+          "criterion": "Dependency admission, exclusive coordinator/ticket ownership, bounded concurrency, isolated writer artifacts and preservation of existing reviewer/test reservations are exercised through focused checks.",
+          "status": "met",
+          "evidence": [
+            "feature-run.test.mjs: dependency admission over a 12-ticket fixture, one coordinator per Feature (pointer refusal and serialized takeover), exclusive and revision-bound claims, one worktree per writer, concurrency bound by memory and reviewer slots with free-disk admission, claims carrying an artifact parent, and the reviewer launcher's worktree freeze coexisting with the coordinator's record lock (lines 457-481). The machine-wide test reservation is preserved by construction (the coordinator runs no tests) and checked only as brief text ('machine-wide reviewer and test reservations', line 313).",
+            "Live, this run: a second init for #1775 under another coordinator identity was refused ('already has coordinator c2d3cf90-... a second coordinator would duplicate writers') and wrote no record; concurrency 3 with its basis reported before any dispatch.",
+            "Per-writer artifact isolation is the merged prerequisite #1457 (PR #1782) used through the allocator."
+          ]
+        },
+        {
+          "index": 5,
+          "criterion": "Interrupted and uncertain worker launches, live prior owners, duplicate invocations, and resumption reconcile authoritative state before replacement or retry. A destination never treats a foreign PID's absence locally as source-process exit.",
+          "status": "met",
+          "evidence": [
+            "feature-run.test.mjs: uncertain launches settled by census, a writer outliving its wrapper, live, exited, cross-host, absent and cancel-requested owners, duplicate claims and stale revisions refused, lost create/handoff/delivery outcomes never re-run.",
+            "checkpoint.test.mjs: foreign-host evidence stays unknown (a session absent locally, a wrong-host observation, a local PID present or absent, a reused start); reconcile, withdraw, launched, launch and create of the source's start refused on the destination; release only with an observation made on the source host.",
+            "Live, this run: duplicate init refused (criterion 4 above)."
+          ]
+        },
+        {
+          "index": 6,
+          "criterion": "Automatic progress records and prepare-handoff both produce remotely discoverable checkpoints. A new machine can start from the Feature number and retrieve the agreed state, code and necessary evidence without the old conversation or private harness directory.",
+          "status": "met",
+          "evidence": [
+            "Live, this run: checkpoint.mjs enable and every later record change published checkpoints 1 to 3 on orchestrate-state/feature-1775 (latest 7a1f569a4) with status comment 6160110454 rewritten and read back; discover run from a fresh blob-less clone with none of this session's private files found checkpoint 3, its coordinator, brief and a non-stale summary.",
+            "checkpoint.test.mjs: discovery from the Feature number on a separate clone after the source's private directory is moved out of reach (Feature 500); planned handoff publishes snapshots, inventory and brief (Feature 700); offline-first handoff discovered and retrieved on a fresh clone (Feature 760)."
+          ]
+        },
+        {
+          "index": 7,
+          "criterion": "A two-clone/scratch-remote check exercises stale or competing checkpoint updates, an interrupted summary update, pending dispatch/merge outcomes, and discovery from an outdated human summary. Recovery preserves the latest durable state and does not blindly repeat the side effect.",
+          "status": "met",
+          "evidence": [
+            "checkpoint.test.mjs against a real bare scratch remote with several clones: interrupted summary update repaired by sync-summary and by takeover, a stale comment beaten by the branch head, a pre-push race (Feature 900) and a remote moving between read and push (Feature 910) both keeping the rival, an outdated record copy refused, the superseded source refused with CoordinatorChanged, pending dispatch intents and an uncertain merge settled from GitHub without repeating the side effect."
+          ]
+        },
+        {
+          "index": 8,
+          "criterion": "Planned handoff preserves relevant unfinished work in a retrievable snapshot without modifying frozen review heads or destroying the source working tree/index. Abrupt loss with unpublished source edits produces an accurate per-ticket limitation, not false recovery or silent discard.",
+          "status": "met",
+          "evidence": [
+            "checkpoint.test.mjs Feature 700: prepare-handoff snapshot made in a copy of the index; the frozen worktree's freeze marker, assertFrozen, status, head, branch and index bytes unchanged; retrieval byte for byte on a core.autocrlf clone.",
+            "checkpoint.test.mjs Feature 500 (abrupt loss), 720 and 770 (credential refusals), 780 and 790: unpublished work reported per location as possibly existing only on its host; nothing is ever reported as covered by a snapshot (assertNoCoverage)."
+          ]
+        },
+        {
+          "index": 9,
+          "criterion": "Existing review reports and accounting survive a new account/harness/machine. Original-session continuation claims are not forged; guarded release/new-plan paths preserve review counts, and ambiguous live ownership remains explicit.",
+          "status": "met",
+          "evidence": [
+            "checkpoint.test.mjs: an adopted PR's completed round awaiting adjudication, a later blocked attempt and a stale handoff lock survive the takeover and are reported as limitations; a continuation keeps the PR's posted rounds.",
+            "review-checkpoint.test.mjs: a takeover keeps decisions and trust; trust-predecessor gives round accounting but never a verified acceptance; a restarted count and a changed plan are audit violations.",
+            "scripts/review-supervisor.test.mjs (claim verifies the originating native configuration) and scripts/agent-handoff-lock.test.mjs (#962's guarded lock recovery), both run here: 3 run, 0 failed (agent-handoff-lock.test.mjs, review-supervisor.test.mjs, writer-route-preflight.test.mjs). #1464 (PR #1791) per-reviewer round counting is on main.",
+            "Live: PR #1856 comment 6158734477 records two round-5 recovery plans refused by the launcher until they carried round 4's completed-round record, so the count was preserved."
+          ]
+        },
+        {
+          "index": 10,
+          "criterion": "Each writer follows resolve-issue, retains its own review-job ownership, never merges, and reports its PR, reviewed head, rounds, findings, verification and CI accurately.",
+          "status": "met",
+          "evidence": [
+            "feature-run.test.mjs: the brief names resolve-issue, the worktree, branch, artifact directory, review cap, checkpoint report, reservations and 'Never merge', and result refuses a report missing any REPORT_FIELDS or with another model or effort.",
+            "Live run: each slice writer opened its own PR, posted its round states and adjudications, kept its review jobs under impower.review-jobs/pr-<P>, and reported the PR, last reviewed head, rounds per reviewer route, findings and CI in the PR body (#1803, #1818, #1819, #1856); none merged its own PR. The reports were exchanged by message and are not stored with result, since the run had no run record until this verification."
+          ]
+        },
+        {
+          "index": 11,
+          "criterion": "The first formal checkpoint follows round 3's verified fixes and another follows every later round's verified fixes. A workflow trace demonstrates all planned reviewers exit and all reports are adjudicated before the decision.",
+          "status": "met",
+          "evidence": [
+            "review-checkpoint.test.mjs: no checkpoint before round 3; a pending planned reviewer, a launch without an exited row, an unfinished launcher, an unadjudicated report and failed CI each hold it; ten recorded decisions (PR #1819 comments 6137547395 and 6145328570) are recorded only after every planned reviewer exited and every report was adjudicated.",
+            "Live trace, this verification, from PR #1856's nine real launch journals read through reviewAccounting: round 3 reviewers exited 21:27:45 and 22:05:59, adjudications 21:50:20 and 22:26:01, coordinator decision 22:27:49; round 4 exits 22:47:22 and 23:46:28, adjudications 23:30:18 and 00:18:01, decision 00:41:38; round 5 exit 01:31:54, adjudication 01:57:55, acceptance 02:39:20 (UTC, 2026-10-13/14). The decisions themselves were applied by hand by the coordinator; review-checkpoint.mjs evidence correctly audits rounds 4 and 5 as launched without a published extension."
+          ]
+        },
+        {
+          "index": 12,
+          "criterion": "Checkpoint evidence covers recurring defect mechanisms, correction-induced failures, broader repair options, remaining risk, expected benefit and the selected next action. Scenario evaluation checks the quality of that judgment; helper tests do not merely require words in a prose field.",
+          "status": "met",
+          "evidence": [
+            "review-checkpoint.mjs decide requires mechanisms, regressions, repairOptions, residualRisk, coverage, nextRoundValue, rationale, next, agreedBehavior, architecture and a finding list covering every report (review-checkpoint.test.mjs refuses each missing one), and states that a filled field proves nothing about the reasoning.",
+            "Scenario evaluation, done in this verification by reading all ten recorded decisions on PR #1819: each next action follows from its evidence. The shared-mechanism shapes choose a repair over another instance round (01, 06, 09), extensions name what one more round establishes (02, 03, 07, 08, 10), changed semantics go to the maintainer (04), and acceptance comes only after the class stopped recurring with a small verified remainder (05). No scenario accepts with open findings or extends without a stated purpose.",
+            "Live decisions on PR #1856 (6156561677, 6158273163, 6159662213) and #1818 (6147816298) carry the same assessment content, written by hand."
+          ]
+        },
+        {
+          "index": 13,
+          "criterion": "Necessary root-cause repairs preserve agreed behavior and gain appropriate verification; changed behavior or major architectural commitments produce a maintainer decision request while independent work can continue.",
+          "status": "met",
+          "evidence": [
+            "review-checkpoint.test.mjs: a repair records scope and verificationChange and keeps the round count; a changed agreed behavior or major architecture is refused under every kind but maintainer, and the maintainer scenario records that the ticket waits while independent tickets continue. integration.test.mjs: a maintainer question in force holds that PR's merge only.",
+            "Live: PR #1819's shared journal reader and record-order supersession and PR #1856's shared finalGate were root-cause repairs that kept agreed behavior and added verification (agreement regression; 74 mutants; 124 read-order mutants)."
+          ]
+        },
+        {
+          "index": 14,
+          "criterion": "Extensions preserve genuine invocation authorization and round counts across scope changes and restarts; the existing ten-round ceiling is enforced and never treated as automatic readiness.",
+          "status": "met",
+          "evidence": [
+            "review-checkpoint.test.mjs: extension limit above the completed round and at most ten, refused at round ten, never granting acceptance; the launcher fields pass validateReviewRecovery; repairs, takeovers and new journals never reset the count; a hidden round 6, a self-declared limit, a restarted count and a withdrawn extension are audit violations; ordinary review refuses limit 4 without authorization.",
+            "checkpoint.test.mjs and feature-run.test.mjs: the invocation is quoted verbatim and carried through takeover. Live: PR #1856's round 4 and 5 plans carried extendedReviewAuthorization verbatim."
+          ]
+        },
+        {
+          "index": 15,
+          "criterion": "An accepted-unreviewed decision is coordinator-only, bound to the exact final head and unreviewed range, published and read back with rationale and evidence. Ordinary review-pr behavior remains strict, and a new push invalidates the prior decision for merging.",
+          "status": "met",
+          "evidence": [
+            "review-checkpoint.test.mjs: accept-unreviewed refuses pending CI, a wrong diff hash, an open finding, empty verification, an empty range, and a coordinator that wrote for the ticket; published refuses a read-back that differs; a posted but unread-back acceptance applies nowhere; a new push or later decision ends it; forged, writer-authored, edited and copied blocks are inert.",
+            "integration.test.mjs: an accepted-unreviewed PR is refused before read-back, admitted after, and refused again after a later push. review-pr/references/later-rounds.md keeps ordinary readiness strict.",
+            "Live: the run's acceptances (#1803 6135614128, #1818 6147816298, #1856 6159662213) were written by hand, named the exact reviewed commit and range, and were not recorded through the helper."
+          ]
+        },
+        {
+          "index": 16,
+          "criterion": "Merge admission requires the agreed authority, resolved findings, suitable review disposition, verification and required CI on the relevant current code, completed reviewer processes, and branch-policy compliance. Failed or uncertain merge operations do not create false completion or blind retries.",
+          "status": "met",
+          "evidence": [
+            "integration.test.mjs: authority, scope, review, CI (pending, failed, cancelled, skipped required gate, missing required check, no CI) and integration refusals; merge saves its intent before the call, uses --match-head-commit without --admin or --auto, records failed for GitHub's refusal and uncertain otherwise; an unsettled merge blocks the next one and reconcile-operations settles it from GitHub, including after a takeover on a second clone; finalGate's read order is checked against 124 mutants.",
+            "Live: none of the four slices was merged through the gate (they were merged by hand before the gate existed on main; this run's record shows them as merged outside the gate). PR #1856 ran the gate read-only against merged PR #1818 with real adapters, which refused it."
+          ]
+        },
+        {
+          "index": 17,
+          "criterion": "AGENTS.md, the skill and supporting checks agree that explicit orchestrate-feature invocation grants only the scoped coordinator merge exception; ordinary writers and ordinary resolve-issue sessions retain maintainer-only merging, and discussion of the skill does not invoke it.",
+          "status": "met",
+          "evidence": [
+            "AGENTS.md:13 (the one exception, only through the merge gate, unless the invocation stops at ready; writers and resolve-issue sessions never merge) and AGENTS.md:28 (discussing, filing or reviewing the skill is not an invocation and grants no merge); SKILL.md description and Authority section say the same.",
+            "integration.test.mjs: a discussion of the skill grants nothing (line 305), stop-at-ready requests refuse a coordinator grant, a coordinator that wrote for the ticket and a writer session are refused; feature-run.test.mjs: the brief says 'Never merge'.",
+            "Live, this run: init with a request containing 'do not merge' accepted only --merging maintainer."
+          ]
+        },
+        {
+          "index": 18,
+          "criterion": "The coordinator verifies the integrated Feature's acceptance criteria before closing the parent; a set of merged PRs with an unmet parent criterion remains incomplete.",
+          "status": "met",
+          "evidence": [
+            "integration.test.mjs: every slice merged with one criterion unmet stays incomplete and close-feature refuses; an undelivered slice keeps it incomplete; a verification stops holding when a criterion is added, an operation is unsettled or main moves.",
+            "Live, this run: verify-feature on main records an incomplete verdict while #1814 is an open slice of #1775, and close-feature refuses to close the Feature."
+          ]
+        },
+        {
+          "index": 19,
+          "criterion": "Focused scratch-repository and injected GitHub/host scenarios cover dependencies, existing PR takeover, worker failure, stale review/acceptance, failed CI, uncertain merge results and explicit resumption. The affected tooling checks and skill discovery/portability checks pass; no real production PR needs to be merged to prove failure handling.",
+          "status": "met",
+          "evidence": [
+            "node scripts/check-agent-tooling.mjs --tier skills on main 68544d71b: 30 run, 0 failed, 0 not run, 0 timed out (discovery 68 checks; checkpoint.test.mjs 380 s, feature-run.test.mjs 52 s, integration.test.mjs 288 s, review-checkpoint.test.mjs 26 s, plus context-loading, portability, link-paths and mechanism-counts).",
+            "Selected drivers-tier checks on main: 3 run, 0 failed (agent-handoff-lock.test.mjs, review-supervisor.test.mjs, writer-route-preflight.test.mjs).",
+            "The four orchestrate-feature suites cover dependencies, existing PR takeover, worker failure, stale review and acceptance, failed CI, uncertain merge results and explicit resumption against scratch repositories and injected GitHub and host adapters; no production PR was merged to prove failure handling."
+          ]
+        },
+        {
+          "index": 20,
+          "criterion": "The final handoff distinguishes normal reviewed completion, accepted unreviewed corrections, and incomplete work, with evidence and next actions. Optional notifications are emitted by the coordinator using the existing notifier.",
+          "status": "met",
+          "evidence": [
+            "integration.mjs verify-feature writes the final report separating each slice's integration (reviewed through the gate, accepted under a named decision, or merged outside the gate), every published acceptance with its range, each criterion with evidence or gap, incomplete work and the next action; integration.test.mjs checks a slice merged outside the gate is reported as such.",
+            "SKILL.md step 7 routes the optional alert through the existing notify-user skill. No notification was emitted by this verification; the coordinator session sends its own at its handoff."
+          ]
+        }
+      ],
+      "acceptanceSha256": "be5c80dd7135b56a69d2afab3873a655b68449f5595fb1116bdc29ba8961410b",
+      "incomplete": [
+        {
+          "number": 1814,
+          "action": "open with no merged PR"
+        }
+      ],
+      "unsettled": [],
+      "tickets": [
+        1776,
+        1777,
+        1778,
+        1779,
+        1814
+      ],
+      "report": "<!-- orchestrate-feature final report: verification bd024e56 -->\n## Final report: Feature #1775\n\nVerdict: incomplete. Verified on main at `68544d71bf782f939d0912f5dd78331b3990effe` at 2026-10-14T04:16:09.207Z by coordinator `c2d3cf90-22d1-4084-9c43-e32dd7e64ced`, from the snapshot of 2026-10-14T04:16:07.824Z.\n\n### Slices\n\n| Ticket | State | PR | Integration |\n| --- | --- | --- | --- |\n| #1776 | delivered | #1803 | merged as `7535ef336` outside this run's merge gate (by the maintainer or before this run merged) |\n| #1777 | delivered | #1818 | merged as `66eae63da` outside this run's merge gate (by the maintainer or before this run merged) |\n| #1778 | delivered | #1819 | merged as `f9d2c980d` outside this run's merge gate (by the maintainer or before this run merged) |\n| #1779 | delivered | #1856 | merged as `68544d71b` outside this run's merge gate (by the maintainer or before this run merged) |\n| #1814 | open |  | no merged PR |\n\n### Accepted unreviewed corrections\n\nNone.\n\n### Acceptance criteria\n\n- [x] An explicit invocation discovers an existing Feature and its incomplete descendants and continues valid PR/worktree/review state without duplicating work or resetting review counts. Evidence: Live, this run on main 68544d71b: checkpoint.mjs discover found no checkpoint; feature-run.mjs init (coordinator c2d3cf90-22d1-4084-9c43-e32dd7e64ced) and snapshot read 5 sub-issues; plan (event turn) gave #1776, #1777, #1778 and #1779 \"done\" (closed with merged deliverable on origin/main, each leftover worktree keeping its writer's place) and the incomplete descendant #1814 blocked-route without a preflight, then wait-capacity with a claude-agent preflight. After the coordinator removed the merged worktrees, a fresh plan released those places (active 1, capacity 2) and gave #1814 adopt-worktree for the worktree feat/1814-coordinator-message-checkin that the coordinator's hand-dispatched writer holds, so the plan refuses a second writer. Nothing was claimed, adopted or dispatched by this run.; feature-run.test.mjs: adoption of existing PRs and worktrees (adopt-pr, adopt-worktree, claim --operation continue keeping the PR's started rounds), and 'existing work is adopted, never claimed for a second writer' (line 465).; PR #1803 recorded workflow exercise against the live #1775 at e77607bc2: #1776 planned adopt-worktree, dependents waited, complete false.\n- [x] Supported writer routes verify the requested model and ticket Effort before useful work; unsupported routes produce an actionable per-ticket blocker and no silent substitution. Evidence: scripts/writer-route-preflight.mjs with scripts/writer-route-preflight.test.mjs (drivers tier, run here: 3 run, 0 failed (agent-handoff-lock.test.mjs, review-supervisor.test.mjs, writer-route-preflight.test.mjs)).; feature-run.test.mjs: route choice by turn without model substitution, the preflight's observed verdict through verify, and 'a mismatched writer is stopped, never substituted' (stop-writer).; Live, this run: with no preflight the plan gave #1814 blocked-route with a per-route reason ('no preflight result for claude-opus-5-5 at medium'); the claude-agent preflight then returned available with subagent_type writer-opus-5-5-medium.; PR #1803: real route smoke checks (claude-desktop, claude-agent, claude-cli, codex-cli) and a live claude-adopted run whose writer read its own model and effort before work.\n- [x] Unspecified models resolve to Opus 5.5 for a Claude orchestrator and Sol 6.1 for a Codex orchestrator. Cross-harness takeover preserves historical identities and active writers while configuring new/replacement writers honestly and honoring explicit model overrides. Evidence: .claude/writer-defaults.json: orchestrators.claude.model claude-opus-5-5, orchestrators.codex.model gpt-6.1-sol; an explicit --writer-model override wins (resolveWriterModel).; Live, this run: init resolved writer claude-opus-5-5 with source 'claude orchestrator default'.; feature-run.test.mjs: writer defaults per harness and explicit override. checkpoint.test.mjs: takeover keeps owners' recorded model and effort, uses the new harness's default for new writers, and carries an explicit override across two takeovers (Feature 500, line 902, line 930).\n- [x] Dependency admission, exclusive coordinator/ticket ownership, bounded concurrency, isolated writer artifacts and preservation of existing reviewer/test reservations are exercised through focused checks. Evidence: feature-run.test.mjs: dependency admission over a 12-ticket fixture, one coordinator per Feature (pointer refusal and serialized takeover), exclusive and revision-bound claims, one worktree per writer, concurrency bound by memory and reviewer slots with free-disk admission, claims carrying an artifact parent, and the reviewer launcher's worktree freeze coexisting with the coordinator's record lock (lines 457-481). The machine-wide test reservation is preserved by construction (the coordinator runs no tests) and checked only as brief text ('machine-wide reviewer and test reservations', line 313).; Live, this run: a second init for #1775 under another coordinator identity was refused ('already has coordinator c2d3cf90-... a second coordinator would duplicate writers') and wrote no record; concurrency 3 with its basis reported before any dispatch.; Per-writer artifact isolation is the merged prerequisite #1457 (PR #1782) used through the allocator.\n- [x] Interrupted and uncertain worker launches, live prior owners, duplicate invocations, and resumption reconcile authoritative state before replacement or retry. A destination never treats a foreign PID's absence locally as source-process exit. Evidence: feature-run.test.mjs: uncertain launches settled by census, a writer outliving its wrapper, live, exited, cross-host, absent and cancel-requested owners, duplicate claims and stale revisions refused, lost create/handoff/delivery outcomes never re-run.; checkpoint.test.mjs: foreign-host evidence stays unknown (a session absent locally, a wrong-host observation, a local PID present or absent, a reused start); reconcile, withdraw, launched, launch and create of the source's start refused on the destination; release only with an observation made on the source host.; Live, this run: duplicate init refused (criterion 4 above).\n- [x] Automatic progress records and prepare-handoff both produce remotely discoverable checkpoints. A new machine can start from the Feature number and retrieve the agreed state, code and necessary evidence without the old conversation or private harness directory. Evidence: Live, this run: checkpoint.mjs enable and every later record change published checkpoints 1 to 3 on orchestrate-state/feature-1775 (latest 7a1f569a4) with status comment 6160110454 rewritten and read back; discover run from a fresh blob-less clone with none of this session's private files found checkpoint 3, its coordinator, brief and a non-stale summary.; checkpoint.test.mjs: discovery from the Feature number on a separate clone after the source's private directory is moved out of reach (Feature 500); planned handoff publishes snapshots, inventory and brief (Feature 700); offline-first handoff discovered and retrieved on a fresh clone (Feature 760).\n- [x] A two-clone/scratch-remote check exercises stale or competing checkpoint updates, an interrupted summary update, pending dispatch/merge outcomes, and discovery from an outdated human summary. Recovery preserves the latest durable state and does not blindly repeat the side effect. Evidence: checkpoint.test.mjs against a real bare scratch remote with several clones: interrupted summary update repaired by sync-summary and by takeover, a stale comment beaten by the branch head, a pre-push race (Feature 900) and a remote moving between read and push (Feature 910) both keeping the rival, an outdated record copy refused, the superseded source refused with CoordinatorChanged, pending dispatch intents and an uncertain merge settled from GitHub without repeating the side effect.\n- [x] Planned handoff preserves relevant unfinished work in a retrievable snapshot without modifying frozen review heads or destroying the source working tree/index. Abrupt loss with unpublished source edits produces an accurate per-ticket limitation, not false recovery or silent discard. Evidence: checkpoint.test.mjs Feature 700: prepare-handoff snapshot made in a copy of the index; the frozen worktree's freeze marker, assertFrozen, status, head, branch and index bytes unchanged; retrieval byte for byte on a core.autocrlf clone.; checkpoint.test.mjs Feature 500 (abrupt loss), 720 and 770 (credential refusals), 780 and 790: unpublished work reported per location as possibly existing only on its host; nothing is ever reported as covered by a snapshot (assertNoCoverage).\n- [x] Existing review reports and accounting survive a new account/harness/machine. Original-session continuation claims are not forged; guarded release/new-plan paths preserve review counts, and ambiguous live ownership remains explicit. Evidence: checkpoint.test.mjs: an adopted PR's completed round awaiting adjudication, a later blocked attempt and a stale handoff lock survive the takeover and are reported as limitations; a continuation keeps the PR's posted rounds.; review-checkpoint.test.mjs: a takeover keeps decisions and trust; trust-predecessor gives round accounting but never a verified acceptance; a restarted count and a changed plan are audit violations.; scripts/review-supervisor.test.mjs (claim verifies the originating native configuration) and scripts/agent-handoff-lock.test.mjs (#962's guarded lock recovery), both run here: 3 run, 0 failed (agent-handoff-lock.test.mjs, review-supervisor.test.mjs, writer-route-preflight.test.mjs). #1464 (PR #1791) per-reviewer round counting is on main.; Live: PR #1856 comment 6158734477 records two round-5 recovery plans refused by the launcher until they carried round 4's completed-round record, so the count was preserved.\n- [x] Each writer follows resolve-issue, retains its own review-job ownership, never merges, and reports its PR, reviewed head, rounds, findings, verification and CI accurately. Evidence: feature-run.test.mjs: the brief names resolve-issue, the worktree, branch, artifact directory, review cap, checkpoint report, reservations and 'Never merge', and result refuses a report missing any REPORT_FIELDS or with another model or effort.; Live run: each slice writer opened its own PR, posted its round states and adjudications, kept its review jobs under impower.review-jobs/pr-<P>, and reported the PR, last reviewed head, rounds per reviewer route, findings and CI in the PR body (#1803, #1818, #1819, #1856); none merged its own PR. The reports were exchanged by message and are not stored with result, since the run had no run record until this verification.\n- [x] The first formal checkpoint follows round 3's verified fixes and another follows every later round's verified fixes. A workflow trace demonstrates all planned reviewers exit and all reports are adjudicated before the decision. Evidence: review-checkpoint.test.mjs: no checkpoint before round 3; a pending planned reviewer, a launch without an exited row, an unfinished launcher, an unadjudicated report and failed CI each hold it; ten recorded decisions (PR #1819 comments 6137547395 and 6145328570) are recorded only after every planned reviewer exited and every report was adjudicated.; Live trace, this verification, from PR #1856's nine real launch journals read through reviewAccounting: round 3 reviewers exited 21:27:45 and 22:05:59, adjudications 21:50:20 and 22:26:01, coordinator decision 22:27:49; round 4 exits 22:47:22 and 23:46:28, adjudications 23:30:18 and 00:18:01, decision 00:41:38; round 5 exit 01:31:54, adjudication 01:57:55, acceptance 02:39:20 (UTC, 2026-10-13/14). The decisions themselves were applied by hand by the coordinator; review-checkpoint.mjs evidence correctly audits rounds 4 and 5 as launched without a published extension.\n- [x] Checkpoint evidence covers recurring defect mechanisms, correction-induced failures, broader repair options, remaining risk, expected benefit and the selected next action. Scenario evaluation checks the quality of that judgment; helper tests do not merely require words in a prose field. Evidence: review-checkpoint.mjs decide requires mechanisms, regressions, repairOptions, residualRisk, coverage, nextRoundValue, rationale, next, agreedBehavior, architecture and a finding list covering every report (review-checkpoint.test.mjs refuses each missing one), and states that a filled field proves nothing about the reasoning.; Scenario evaluation, done in this verification by reading all ten recorded decisions on PR #1819: each next action follows from its evidence. The shared-mechanism shapes choose a repair over another instance round (01, 06, 09), extensions name what one more round establishes (02, 03, 07, 08, 10), changed semantics go to the maintainer (04), and acceptance comes only after the class stopped recurring with a small verified remainder (05). No scenario accepts with open findings or extends without a stated purpose.; Live decisions on PR #1856 (6156561677, 6158273163, 6159662213) and #1818 (6147816298) carry the same assessment content, written by hand.\n- [x] Necessary root-cause repairs preserve agreed behavior and gain appropriate verification; changed behavior or major architectural commitments produce a maintainer decision request while independent work can continue. Evidence: review-checkpoint.test.mjs: a repair records scope and verificationChange and keeps the round count; a changed agreed behavior or major architecture is refused under every kind but maintainer, and the maintainer scenario records that the ticket waits while independent tickets continue. integration.test.mjs: a maintainer question in force holds that PR's merge only.; Live: PR #1819's shared journal reader and record-order supersession and PR #1856's shared finalGate were root-cause repairs that kept agreed behavior and added verification (agreement regression; 74 mutants; 124 read-order mutants).\n- [x] Extensions preserve genuine invocation authorization and round counts across scope changes and restarts; the existing ten-round ceiling is enforced and never treated as automatic readiness. Evidence: review-checkpoint.test.mjs: extension limit above the completed round and at most ten, refused at round ten, never granting acceptance; the launcher fields pass validateReviewRecovery; repairs, takeovers and new journals never reset the count; a hidden round 6, a self-declared limit, a restarted count and a withdrawn extension are audit violations; ordinary review refuses limit 4 without authorization.; checkpoint.test.mjs and feature-run.test.mjs: the invocation is quoted verbatim and carried through takeover. Live: PR #1856's round 4 and 5 plans carried extendedReviewAuthorization verbatim.\n- [x] An accepted-unreviewed decision is coordinator-only, bound to the exact final head and unreviewed range, published and read back with rationale and evidence. Ordinary review-pr behavior remains strict, and a new push invalidates the prior decision for merging. Evidence: review-checkpoint.test.mjs: accept-unreviewed refuses pending CI, a wrong diff hash, an open finding, empty verification, an empty range, and a coordinator that wrote for the ticket; published refuses a read-back that differs; a posted but unread-back acceptance applies nowhere; a new push or later decision ends it; forged, writer-authored, edited and copied blocks are inert.; integration.test.mjs: an accepted-unreviewed PR is refused before read-back, admitted after, and refused again after a later push. review-pr/references/later-rounds.md keeps ordinary readiness strict.; Live: the run's acceptances (#1803 6135614128, #1818 6147816298, #1856 6159662213) were written by hand, named the exact reviewed commit and range, and were not recorded through the helper.\n- [x] Merge admission requires the agreed authority, resolved findings, suitable review disposition, verification and required CI on the relevant current code, completed reviewer processes, and branch-policy compliance. Failed or uncertain merge operations do not create false completion or blind retries. Evidence: integration.test.mjs: authority, scope, review, CI (pending, failed, cancelled, skipped required gate, missing required check, no CI) and integration refusals; merge saves its intent before the call, uses --match-head-commit without --admin or --auto, records failed for GitHub's refusal and uncertain otherwise; an unsettled merge blocks the next one and reconcile-operations settles it from GitHub, including after a takeover on a second clone; finalGate's read order is checked against 124 mutants.; Live: none of the four slices was merged through the gate (they were merged by hand before the gate existed on main; this run's record shows them as merged outside the gate). PR #1856 ran the gate read-only against merged PR #1818 with real adapters, which refused it.\n- [x] AGENTS.md, the skill and supporting checks agree that explicit orchestrate-feature invocation grants only the scoped coordinator merge exception; ordinary writers and ordinary resolve-issue sessions retain maintainer-only merging, and discussion of the skill does not invoke it. Evidence: AGENTS.md:13 (the one exception, only through the merge gate, unless the invocation stops at ready; writers and resolve-issue sessions never merge) and AGENTS.md:28 (discussing, filing or reviewing the skill is not an invocation and grants no merge); SKILL.md description and Authority section say the same.; integration.test.mjs: a discussion of the skill grants nothing (line 305), stop-at-ready requests refuse a coordinator grant, a coordinator that wrote for the ticket and a writer session are refused; feature-run.test.mjs: the brief says 'Never merge'.; Live, this run: init with a request containing 'do not merge' accepted only --merging maintainer.\n- [x] The coordinator verifies the integrated Feature's acceptance criteria before closing the parent; a set of merged PRs with an unmet parent criterion remains incomplete. Evidence: integration.test.mjs: every slice merged with one criterion unmet stays incomplete and close-feature refuses; an undelivered slice keeps it incomplete; a verification stops holding when a criterion is added, an operation is unsettled or main moves.; Live, this run: verify-feature on main records an incomplete verdict while #1814 is an open slice of #1775, and close-feature refuses to close the Feature.\n- [x] Focused scratch-repository and injected GitHub/host scenarios cover dependencies, existing PR takeover, worker failure, stale review/acceptance, failed CI, uncertain merge results and explicit resumption. The affected tooling checks and skill discovery/portability checks pass; no real production PR needs to be merged to prove failure handling. Evidence: node scripts/check-agent-tooling.mjs --tier skills on main 68544d71b: 30 run, 0 failed, 0 not run, 0 timed out (discovery 68 checks; checkpoint.test.mjs 380 s, feature-run.test.mjs 52 s, integration.test.mjs 288 s, review-checkpoint.test.mjs 26 s, plus context-loading, portability, link-paths and mechanism-counts).; Selected drivers-tier checks on main: 3 run, 0 failed (agent-handoff-lock.test.mjs, review-supervisor.test.mjs, writer-route-preflight.test.mjs).; The four orchestrate-feature suites cover dependencies, existing PR takeover, worker failure, stale review and acceptance, failed CI, uncertain merge results and explicit resumption against scratch repositories and injected GitHub and host adapters; no production PR was merged to prove failure handling.\n- [x] The final handoff distinguishes normal reviewed completion, accepted unreviewed corrections, and incomplete work, with evidence and next actions. Optional notifications are emitted by the coordinator using the existing notifier. Evidence: integration.mjs verify-feature writes the final report separating each slice's integration (reviewed through the gate, accepted under a named decision, or merged outside the gate), every published acceptance with its range, each criterion with evidence or gap, incomplete work and the next action; integration.test.mjs checks a slice merged outside the gate is reported as such.; SKILL.md step 7 routes the optional alert through the existing notify-user skill. No notification was emitted by this verification; the coordinator session sends its own at its handoff.\n\n### Incomplete work\n\n- #1814: open with no merged PR\n\n### Next action\n\nThe Feature stays open. Resolve the incomplete work and the unmet criteria above, then verify again."
+    }
+  ],
   "work": {},
   "snapshots": {},
   "handoff": null,
@@ -104,6 +322,13 @@
       "time": "2026-10-14T03:18:51.390Z",
       "event": "checkpoints-enabled",
       "remote": "origin"
+    },
+    {
+      "time": "2026-10-14T04:16:09.207Z",
+      "event": "feature-verification",
+      "id": "bd024e56",
+      "verdict": "incomplete",
+      "mainSha": "68544d71bf782f939d0912f5dd78331b3990effe"
     }
   ]
 }
