@@ -1033,7 +1033,7 @@ try {
   mutate(rec800, "local_cli", (r) => { r.log.push({ time: new Date().toISOString(), event: "note" }); });
   cp.autoCheckpoint(rec800, { coordinator: "local_cli", transition: "a note", github });
   assert.ok(cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.observed?.tickets.some((t) => t.number === 803), "the summary keeps the last plan");
-  assert.match(github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec800), "utf8")).summary.commentId).body, /\| #803 \| release \|/);
+  assert.match(github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec800), "utf8")).summary.commentId).body, /\| #803 \| collect-report \|/);
 
   // The ordinary plan command publishes its summary: every ticket, done and
   // waiting ones too, with its action. An unchanged plan publishes nothing.

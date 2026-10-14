@@ -702,6 +702,9 @@ function readyAction(record, pr, why = "") {
   return ["await-maintainer", `PR #${pr.number} is ready at ${pr.head}${why}; the invocation stops at ready, so the maintainer merges it`];
 }
 
+// A report recorded since the writer last started, by launch or resume.
+const reportedSince = (own) => { const started = Date.parse(own.owner.resumes?.at(-1)?.time ?? own.owner.since); return (own.results ?? []).some((r) => Date.parse(r.time) >= started); };
+
 // The record holds no writer for the ticket, and its last one was released
 // after an observed end, settled by a census that found no process, or was a
 // continuation whose claim recorded the previous writer's end and never ran.
@@ -741,6 +744,9 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const parentOf = new Map(snapshot.tickets.map((t) => [t.number, t.parent]));
   const heldContainers = new Set();
   const heldAncestor = (t) => { for (let p = t.parent; p !== undefined && p !== snapshot.feature.number; p = parentOf.get(p)) if (heldContainers.has(p)) return p; return null; };
+  // Each owner is observed once per plan; the sweep below reuses it.
+  const statuses = new Map();
+  const statusOf = (n, owner) => { if (!statuses.has(n)) statuses.set(n, ownerStatus(owner, observations, { host, identify })); return statuses.get(n); };
   for (const t of snapshot.tickets) {
     const own = record.tickets[t.number] ?? {};
     const open = t.prs.filter((p) => p.state === "OPEN");
@@ -748,7 +754,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       if (own.owner || own.pending) {
         heldContainers.add(t.number);
         active++;
-        const held = own.owner ? `writer ${own.owner.handle.id ?? own.owner.handle.pid} (${ownerStatus(own.owner, observations, { host, identify }).status})` : `pending ${own.pending.operation} ${own.pending.launchId}`;
+        const held = own.owner ? `writer ${own.owner.handle.id ?? own.owner.handle.pid} (${statusOf(t.number, own.owner).status})` : `pending ${own.pending.operation} ${own.pending.launchId}`;
         add(t, "decision-needed", `the ticket gained sub-issues while ${held} holds it; settle that writer before its sub-issues are dispatched`);
       } else if (open.length || t.worktrees.length) {
         // Existing work on a ticket that became a container may still have a
@@ -770,6 +776,9 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const lingering = !own.owner && !own.pending && t.worktrees.length > 0 && !writerKnownEnded(own);
       if (lingering) active++;
       const base = t.delivered ? "closed with its merged deliverable on origin/main" : "closed without a merged deliverable on origin/main; confirm whether the ticket is complete";
+      // A writer still held on a closed ticket keeps its place until it is
+      // released; once it has ended, its last report is read and it is let go.
+      if (own.owner && statusOf(t.number, own.owner).status === "exited") { add(t, "release", `${base}; its writer ended (${statusOf(t.number, own.owner).reason}): read its transcript, then record release with that evidence`, { owner: { route: own.owner.route, handle: own.owner.handle, status: "exited" }, transcript: { from: transcriptOf(own.owner) } }); continue; }
       add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, lingering ? { worktrees: t.worktrees, reserves: true } : {});
       continue;
     }
@@ -782,13 +791,8 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       continue;
     }
     if (own.owner) {
-      const s = ownerStatus(own.owner, observations, { host, identify });
-      // The sweep reads a writer's transcript only when its turn has ended:
-      // a running writer cannot be waiting on the coordinator.
+      const s = statusOf(t.number, own.owner);
       const transcript = ["waiting", "exited"].includes(s.status) ? { from: transcriptOf(own.owner) } : null;
-      if (transcript) sweep.read.push({ ticket: t.number, ...transcript });
-      else sweep.notRead.push({ ticket: t.number, reason: s.status === "live" ? "running; a running writer cannot be waiting on the coordinator" : s.reason });
-      reviewed.push(...open.map((p) => ({ ticket: t.number, pr: p.number })));
       const extra = { owner: { route: own.owner.route, handle: own.owner.handle, status: s.status }, ...(transcript && { transcript }), ...(open.length === 1 && { pr: open[0].number, rounds: open[0].rounds }) };
       if (own.owner.mismatch) { active++; add(t, "stop-writer", `the writer does not run the requested route: ${own.owner.mismatch}; stop it and keep its evidence, never substitute`, extra); continue; }
       const opening = openPending(own.owner) ?? (own.owner.resuming && `resume ${own.owner.resuming.id} of session ${own.owner.sessionId} has no recorded outcome (${own.owner.resuming.reason ?? "it may have started"}); run reconcile, which looks for a process naming ${own.owner.resuming.launchDir}, and never resume again before it`);
@@ -824,6 +828,11 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
         continue;
       }
       if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { const [action, reason] = readyAction(record, open[0], `; ${s.reason}`); add(t, action, reason, extra); continue; }
+      // A CLI writer's turn can end without its final report: on a request
+      // (handled above), or stalled on a wait it should have run in the
+      // foreground. Until a report since its last start is recorded, the turn
+      // is read rather than taken as the end of the work.
+      if (resumable && !reportedSince(own)) { active++; add(t, "collect-report", `${s.reason}; its turn ended with no final report recorded since its last start: read its transcript at ${transcriptOf(own.owner)}, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue`, extra); continue; }
       active++;
       const action = { live: "observe", waiting: "collect-report", unknown: "blocked-owner-unknown", exited: "release" }[s.status];
       const advice = { live: "", waiting: "", unknown: "; establish its state before any replacement", exited: "; read its transcript, then record release with that evidence before a new writer continues" }[s.status];
@@ -901,6 +910,17 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       if (t.continueWith) { delete t.continueWith; t.continueBlocked = why; }
     }
   }
+  // The sweep covers every writer the record holds and every open PR,
+  // whatever the ticket's action. A transcript is read only when its
+  // writer's turn has ended: a running writer cannot be waiting on the
+  // coordinator.
+  for (const [n, own] of Object.entries(record.tickets)) {
+    if (!own.owner) continue;
+    const s = statusOf(Number(n), own.owner);
+    if (["waiting", "exited"].includes(s.status)) sweep.read.push({ ticket: Number(n), from: transcriptOf(own.owner) });
+    else sweep.notRead.push({ ticket: Number(n), reason: s.status === "live" ? "running; a running writer cannot be waiting on the coordinator" : s.reason });
+  }
+  for (const t of snapshot.tickets) reviewed.push(...t.prs.filter((p) => p.state === "OPEN").map((p) => ({ ticket: t.number, pr: p.number })));
   sweep.deadLaunches = deadLaunches(reviewJobs, reviewed, census);
   tickets.sort((a, b) => a.number - b.number);
   // The Feature is complete only once its acceptance criteria were verified
@@ -977,7 +997,7 @@ const settledStart = (pending, fields) => ({ pending, ...fields, ...(pending.con
 // A started writer has its brief already: it went with the start. The brief
 // counts as delivered from then, and the writer's acknowledgement confirms it.
 const sentBrief = (via, text) => ({ state: "delivered", via, ...(text !== undefined && { text }), deliveryId: randomUUID().slice(0, 8), attempts: 1, time: new Date().toISOString() });
-const ownerFrom = (pending, handle, brief, coordinator) => ({ route: pending.route, model: pending.model, effort: pending.effort, coordinator, ...(pending.permissionMode && { permissionMode: pending.permissionMode }), worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(brief && { brief }), ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
+const ownerFrom = (pending, handle, brief, coordinator) => ({ route: pending.route, model: pending.model, effort: pending.effort, coordinator, ...(pending.permissionMode && { permissionMode: pending.permissionMode }), worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(brief && { brief: { ...brief, coordinator } }), ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
 
 // A start runs only on the host that claimed it, and only while the run admits
 // work: another host's start is run or settled there, and a planned handoff
@@ -1400,7 +1420,7 @@ export function deliver(record, { ticket: number, retry = false }) {
   // brief named the one that wrote it; everything else stays as first sent.
   const to = record.coordinator.session;
   const text = typeof owner.brief.text === "string" ? namingCoordinator(owner, record, owner.brief.text) : undefined;
-  owner.brief = { ...owner.brief, ...(text !== undefined && { text }), to, state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief.attempts ?? 1) + 1, time: new Date().toISOString() };
+  owner.brief = { ...owner.brief, ...(text !== undefined && { text, coordinator: to }), to, state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief.attempts ?? 1) + 1, time: new Date().toISOString() };
   log(record, "brief-intent", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId, attempt: owner.brief.attempts });
   // A start through another route's own means kept no copy of the prompt, so
   // that route resends it.
@@ -1548,10 +1568,11 @@ export function brief(record, planFile, number, decisions = [], defaults = readW
   return briefBody(record, planFile, number, decisions, defaults);
 }
 
-// A stored brief names the coordinator that wrote it; after a takeover every
-// copy names this coordinator instead, and nothing else changes.
+// A stored brief names the coordinator it was written for, which it keeps
+// beside its text; after a takeover every copy names this coordinator
+// instead, and nothing else changes.
 function namingCoordinator(owner, record, text) {
-  const from = owner.coordinator, to = record.coordinator.session;
+  const from = owner.brief?.coordinator ?? owner.coordinator, to = record.coordinator.session;
   return from && from !== to ? text.split(from).join(to) : text;
 }
 

@@ -47,7 +47,7 @@ It refuses a `--model`, `--effort` or `--permission-mode` other than the claim's
 
 A detached CLI writer's process exits when its turn ends, and nothing wakes it again. Its brief therefore tells it never to end a turn waiting on a background task, a reviewer journal or CI: it waits in the foreground inside one tool call, or repeats foreground checks within the same turn, and ends a turn only for a decision request, a blocker or completion, each sent to the coordinator by message first. Its first message acknowledges the brief with the model, effort and permission mode it confirmed, which the coordinator records with `acknowledged`; the coordinator reads the model from the `init` line of `out.jsonl` too, and both go into the preflight's `observed` confirmation.
 
-A writer that ended its turn with a request is answered by resuming its CLI session, the one its stream's `init` line names, with the answer as the prompt:
+A writer that ended its turn with a request is answered by resuming its CLI session, the one its stream's `init` line names, with the answer as the prompt; one that stopped with work left, on a wait it should have run in the foreground, is resumed the same way with a prompt to continue:
 
 ```sh
 node .agents/skills/orchestrate-feature/feature-run.mjs resume --record <run.json> --coordinator <session> --expect-revision <n> --ticket <N> --executable <absolute claude executable> --prompt <absolute answer file> --arg -p --arg --resume --arg <session-id> --arg --model --arg <id> --arg --effort --arg <effort> --arg --permission-mode --arg <mode> --arg --output-format --arg stream-json --arg --verbose

@@ -269,9 +269,9 @@ try {
     assert.throws(() => w.f.change((r) => run.opened(r, { ticket: 335, session: "local_00000000-0000-4000-8000-000000000000" })), new RegExp(`local_${WRITER_SESSION}`), "the app session is the one the writer's stream names");
     w.f.change((r) => run.opened(r, { ticket: 335, session: `local_${WRITER_SESSION}` }));
     // The record keeps the CLI process as the writer: its transcript is still
-    // its stream, and its ended turn still plans as a release.
+    // its stream, and its ended turn is still read as the CLI writer's.
     const after = planOf(w.f, w.snap, { preflights: w.pre, observations: { sessions: { [`local_${WRITER_SESSION}`]: { state: "running" } } } });
-    assert.deepEqual([entryOf(after, 335).action, entryOf(after, 335).owner.handle.kind, entryOf(after, 335).transcript.from], ["release", "process", out]);
+    assert.deepEqual([entryOf(after, 335).action, entryOf(after, 335).owner.handle.kind, entryOf(after, 335).transcript.from], ["collect-report", "process", out]);
     assert.equal(run.readRecord(w.f.file).tickets[335].owner.opened.session, `local_${WRITER_SESSION}`);
     // A second writer's open runs the handoff with the session its stream names.
     const v = cliWriter("cli-open-2", 336);
@@ -317,7 +317,48 @@ try {
     assert.throws(() => resumeIt(resumeArgs(WRITER_SESSION)), /is live .*only a writer whose turn has ended is resumed/);
     fs.writeFileSync(stop, "");
     waitFor(() => run.ownerStatus(run.readRecord(w.f.file).tickets[371].owner).status === "exited", "the resumed writer to exit");
-    assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).action, "release", "a writer that ended with nothing asked is released");
+    const report = write("cli-resume-report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 971, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 4 }, findings: "None", verification: "check", ci: {}, next: "await the merge" });
+    w.f.change((r) => run.result(r, { ticket: 371, report }));
+    assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).action, "release", "a writer that ended with its final report recorded is released");
+  });
+
+  scenario("a CLI writer whose turn ended with no report or request is read and resumed, never released as finished", () => {
+    const w = cliWriter("cli-stalled", 375);
+    const { owner, out } = w.launch();
+    w.f.change((r) => run.acknowledged(r, { ticket: 375, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
+    // The writer ended its turn on a wait ("I'll pick up when the reviewer exits").
+    w.end(owner);
+    const stalled = entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 375);
+    assert.equal(stalled.action, "collect-report");
+    assert.match(stalled.reason, new RegExp(`no final report recorded since its last start: read its transcript at .*out\\.jsonl.*resume it with a prompt to continue`));
+    assert.ok(stalled.reason.includes(out));
+    const prompt = write("cli-stalled-continue.txt", "Continue: wait for the reviewer in the foreground, then carry on.");
+    const stop = path.join(tmp, "stop-cli-stalled-2");
+    const resumed = run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 375, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop], prompt });
+    started.push({ stop, pid: resumed.pid });
+    assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 375).action, "observe", "the resumed writer carries on");
+    fs.writeFileSync(stop, "");
+    waitFor(() => run.ownerStatus(run.readRecord(w.f.file).tickets[375].owner).status === "exited", "the resumed writer to exit");
+    assert.equal(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 375).action, "collect-report", "the resumed turn's end is read in its turn");
+  });
+
+  scenario("the sweep reads every held writer and checks every open PR, whatever the ticket's action", () => {
+    const w = cliWriter("cli-closed", 376);
+    const { owner, out } = w.launch();
+    w.end(owner);
+    // The ticket closed with its deliverable merged while the writer's last message was lost.
+    const closed = snapshotOf([ticket(376, { state: "closed", delivered: true }), ticket(377, { prs: [{ number: 977, state: "OPEN", isDraft: true, branch: "fix/377-thing", head: "h", rounds: 2 }] })]);
+    const jobs = path.join(tmp, "cli-closed.review-jobs");
+    const dir = path.join(jobs, "pr-977", "round-3");
+    fs.mkdirSync(dir, { recursive: true });
+    const plan = path.join(dir, "plan.json");
+    fs.writeFileSync(plan, JSON.stringify({ worktree: w.f.dir, pr: 977, journal: path.join(dir, "journal.jsonl"), steps: { review: {} }, first: "review" }));
+    fs.writeFileSync(path.join(dir, "plan.coordinator.err.log"), "Error: Supply reviewedHead from the journal\n");
+    const p = planOf(w.f, closed, { preflights: w.pre, reviewJobs: jobs });
+    assert.equal(entryOf(p, 376).action, "release", "a held writer on a closed ticket is read and released, not left holding a place");
+    assert.deepEqual(p.sweep.read, [{ ticket: 376, from: out }]);
+    assert.equal(entryOf(p, 377).action, "adopt-pr");
+    assert.deepEqual(p.sweep.deadLaunches.map((d) => [d.ticket, d.pr, d.plan]), [[377, 977, plan]], "a PR whose writer the record does not hold is checked too");
   });
 
   scenario("a confirmed preflight never clears a mismatch the writer's acknowledgement showed", () => {
@@ -375,6 +416,14 @@ try {
     assert.throws(() => t.change((r) => run.contact(r, { ticket: 374, defaults })), /--retry/);
     t.change((r) => run.contacted(r, { ticket: 374, evidence: "sent" }));
     assert.equal(t.plan(374).action, "observe");
+    // The stored brief keeps naming whoever coordinates now, after the contact
+    // and after a second takeover.
+    const named = (file, id) => { const text = run.brief(run.readRecord(file), null, 374, [], defaults); return text.includes(`coordinator session ${id}`) && !text.includes(COORDINATOR); };
+    assert.ok(named(t.file, NEXT), "after the contact the brief names the new coordinator");
+    const THIRD = "local_5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b";
+    const third = path.join(w.f.artifacts, "second-takeover.json");
+    run.initRecord({ record: third, checkout: w.f.dir, repository: "acme/widgets", feature: 300, coordinator: THIRD, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #300.", takeover: true, observations: { sessions: { [NEXT]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    assert.ok(named(third, THIRD) && !run.brief(run.readRecord(third), null, 374, [], defaults).includes(NEXT), "after a second takeover it names the third");
     w.end(owner);
   });
 
