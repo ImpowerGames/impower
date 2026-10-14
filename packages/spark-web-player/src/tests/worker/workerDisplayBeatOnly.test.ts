@@ -11,7 +11,7 @@
 // the same frames before it. The fixtures of the in-place design that came
 // before this one (PR #1806) are kept, each case it found pinned again here.
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
@@ -509,6 +509,65 @@ const BADGED_BEFORE = BADGED.replace(
   HERO: Spoken.`,
 );
 const SPEAKS = lineIn(BADGED_BEFORE, "HERO: Spoken.");
+
+/** `BADGED` with the flag kept in a stored table, which the beat's
+ *  statement changes in place through `rawset`: the write barrier marks it,
+ *  and the reactive change set does not (round 1 of #1878). */
+const RAWSET = BADGED.replace("store mode = false", "store flags = { mode = false }")
+  .replace("  mode = v\n", '  rawset(flags, "mode", v)\n')
+  .replace('text "{mode}"', 'text "{flags.mode}"');
+
+/** A layout whose binding changes a stored table in place, through
+ *  `rawset`, while the tree is built. */
+const RAWSET_BUILD = `store counter = { n = 0 }
+
+function bump()
+  rawset(counter, "n", counter.n + 1)
+  return ""
+end
+
+layout main with
+  badge {
+    text "{bump()}"
+  }
+  tally {
+    text "{counter.n}"
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: Spoken.
+end
+`;
+
+/** A layout whose binding reads the host's clock, or draws a random
+ *  number: evaluating it again may give another value. */
+const READS = (binding: string) => `layout main with
+  badge {
+    text "{${binding}}"
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: Spoken.
+end
+`;
 
 /** An input whose handler writes nothing: what the viewer types changes
  *  the page, and the worker sends nothing back. */
@@ -1274,6 +1333,18 @@ describe("a display that connects in full", () => {
     expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
 
+  it("(c) connects in full when the beat's own statement changes a stored table in place (rawset)", async () => {
+    const { a, full } = await twins(RAWSET, lineIn(RAWSET, "Spoken."), async (p) => {
+      const start = { badge: badge(p), ...after(p) };
+      await p.edit("set_mode(true)", "set_mode(false)");
+      return { start, edited: { badge: badge(p), ...after(p) } };
+    });
+    expect(a.start.badge).toBe("true");
+    expectFull(a.edited, "checkpoint");
+    expect(a.edited.badge).toBe("false");
+    expect(a.edited.frame).toEqual(full.edited.frame);
+  }, 120_000);
+
   it("(h) connects in full when the page was sent a change after the display went up (a click updated a binding)", async () => {
     const { a, full } = await twins(BADGED_BEFORE, SPEAKS, async (p) => {
       const start = { badge: badge(p), ...after(p) };
@@ -1395,5 +1466,53 @@ describe("a display that connects in full", () => {
     const p = await player(COUNTED, lineIn(COUNTED, "First. > Second."));
     await p.edit("Second.", "Third.");
     expectFull(after(p), "bindings");
+  }, 120_000);
+
+  it("(i) connects in full over a tree whose building changed a stored table in place (rawset)", async () => {
+    const { a, full } = await twins(RAWSET_BUILD, lineIn(RAWSET_BUILD, "Spoken."), async (p) => {
+      await p.edit("Spoken.", "Edited.");
+      return after(p);
+    });
+    expectFull(a, "bindings");
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("(i) connects in full over a tree whose building drew a random number", async () => {
+    const text = READS("math.random(1, 1000000)");
+    // Each story seeds its draws from the time it starts: both twins start
+    // at the same time.
+    vi.useFakeTimers({ toFake: ["Date"], now: 1_700_000_000_000 });
+    try {
+      const { a, full } = await twins(text, lineIn(text, "Spoken."), async (p) => {
+        await p.edit("Spoken.", "Edited.");
+        return after(p);
+      });
+      expectFull(a, "bindings");
+      expect(a.frame).toEqual(full.frame);
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 120_000);
+
+  it("(i) connects in full over a tree whose building read the host's clock, and shows the time a full display shows", async () => {
+    const text = READS("os.time()");
+    const clock = vi.spyOn(Date, "now");
+    try {
+      const { a, full } = await twins(text, lineIn(text, "Spoken."), async (p) => {
+        clock.mockReturnValue(1_700_000_000_000);
+        await p.edit("Spoken.", "Said.");
+        const start = after(p);
+        // A second later, the line is edited again.
+        clock.mockReturnValue(1_700_000_001_000);
+        await p.edit("Said.", "Edited.");
+        return { start, edited: after(p) };
+      });
+      expect(shows(a.start.frame, "1700000000")).toBe(true);
+      expectFull(a.edited, "bindings");
+      expect(shows(a.edited.frame, "1700000001")).toBe(true);
+      expect(a.edited.frame).toEqual(full.edited.frame);
+    } finally {
+      clock.mockRestore();
+    }
   }, 120_000);
 });

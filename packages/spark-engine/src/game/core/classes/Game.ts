@@ -325,8 +325,11 @@ export class Game<T extends M = {}> {
    *  it to its end. */
   protected _routeTargetWrote?: boolean;
   /** The reactive changes taken when the watch began, given back when it
-   *  ends; set while it runs. */
-  protected _targetWatch?: { globals: Set<string>; tables: Set<object> };
+   *  ends, and the story's random state then; set while it runs. */
+  protected _targetWatch?: {
+    changes: { globals: Set<string>; tables: Set<object> };
+    random: string;
+  };
 
   protected _executingLocation: ScriptLocation | null = null;
 
@@ -884,17 +887,29 @@ export class Game<T extends M = {}> {
   }
 
   /** Watch the story's writes from here to the checkpoint at the route's
-   *  target. The reactive changes pending now are kept aside and given back
-   *  when the watch ends, so no binding misses one. A watch that would share
-   *  the write marks with another tracker leaves the answer unknown. */
+   *  target: a global, a table, a closed-over cell, or the random state a
+   *  draw advances. The reactive changes pending now are kept aside and
+   *  given back when the watch ends, so no binding misses one. A watch that
+   *  would share the write marks with another tracker leaves the answer
+   *  unknown. */
   protected watchTargetWrites(): void {
     const vs = this._story.variablesState;
     if (this._targetWatch || vs.trackWrites) {
       return;
     }
-    this._targetWatch = vs.takeReactiveChanges();
+    this._targetWatch = {
+      changes: vs.takeReactiveChanges(),
+      random: this.randomState(),
+    };
     vs.TakeWrites();
     vs.trackWrites = true;
+  }
+
+  /** The story's seed and last draw, which every random draw reads and
+   *  advances. */
+  protected randomState(): string {
+    const state = this._story.state;
+    return `${state.storySeed}:${state.previousRandom}`;
   }
 
   /** End the watch `watchTargetWrites` began, recording what it saw. */
@@ -911,8 +926,10 @@ export class Game<T extends M = {}> {
     this._routeTargetWrote =
       changes.globals.size > 0 ||
       changes.tables.size > 0 ||
-      writes.cells.size > 0;
-    vs.restoreReactiveChanges(prior);
+      writes.tables.size > 0 ||
+      writes.cells.size > 0 ||
+      this.randomState() !== prior.random;
+    vs.restoreReactiveChanges(prior.changes);
     vs.restoreReactiveChanges(changes);
   }
 

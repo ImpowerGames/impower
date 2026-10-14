@@ -5,6 +5,7 @@ import { ErrorType } from "../../../core/enums/ErrorType";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
+import { hostClock } from "@impower/sparkdown/src/runtime/HostClock";
 import {
   BOOLEAN_ATTRIBUTES,
   isAttributeProp,
@@ -1054,22 +1055,53 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._restoredEdits = this._screenEdits;
   }
 
+  /** What a watch of the tree's building began from: the story's random
+   *  state and the host clock's reads. */
+  protected _buildWatch?: { random: string; clock: number };
+
+  /** Begin watching what building the tree writes, and reads that no story
+   *  state holds, from a clean change set. */
+  protected watchBuild() {
+    const vs = this._game.story.variablesState;
+    vs.takeReactiveChanges();
+    vs.TakeWrites();
+    vs.trackWrites = true;
+    this._buildWatch = { random: this.randomState(), clock: hostClock.reads };
+  }
+
+  /** The story's seed and last draw, which every random draw reads and
+   *  advances. */
+  protected randomState(): string {
+    const state = this._game.story.state;
+    return `${state.storySeed}:${state.previousRandom}`;
+  }
+
   /** Whether the story's state was written while the tree was being built
-   *  or restored: `changes` is the reactive change set taken then. */
+   *  or restored, or the building read the host's clock, which evaluating
+   *  the same bindings again may read otherwise: `changes` is the reactive
+   *  change set taken then. A table a builtin changed in place (`rawset`)
+   *  is in the write marks and not in the change set, and a random draw
+   *  advances the story's random state. */
   protected noteBuildWrites(changes: {
     globals: Set<string>;
     tables: Set<object>;
   }) {
     const building = this._building;
+    const watch = this._buildWatch;
+    this._buildWatch = undefined;
     if (!building) {
       return;
     }
     const vs = this._game.story.variablesState;
     const writes = vs.TakeWrites();
     if (
+      !watch ||
       changes.globals.size > 0 ||
       changes.tables.size > 0 ||
-      writes.cells.size > 0
+      writes.tables.size > 0 ||
+      writes.cells.size > 0 ||
+      this.randomState() !== watch.random ||
+      hostClock.reads !== watch.clock
     ) {
       building.writes = true;
     }
@@ -1207,9 +1239,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (this._building) {
               // What this mount writes is part of what the tree's building
               // wrote (#657).
-              vs.takeReactiveChanges();
-              vs.TakeWrites();
-              vs.trackWrites = true;
+              this.watchBuild();
             }
             this.constructLayoutFromAst(layout);
             if (this._building) {
@@ -2302,9 +2332,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._building) {
       // What the mount itself writes is told apart from the load's residue,
       // which the end of the mount discards with it (#657).
-      vs.takeReactiveChanges();
-      vs.TakeWrites();
-      vs.trackWrites = true;
+      this.watchBuild();
     }
     const targetAllLayouts = !structNames || structNames.length === 0;
     // Default: ONLY `main` is mounted/visible from the start (implicit auto-open).
