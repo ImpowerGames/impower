@@ -572,7 +572,9 @@ function launchPlans(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
     if (entry.isDirectory()) { if (![".git", "node_modules"].includes(entry.name)) plans.push(...launchPlans(file)); continue; }
-    if (!entry.isFile() || !entry.name.endsWith(".json") || fs.statSync(file).size > 4 * 2 ** 20) continue;
+    // The launcher takes a plan from any path, so a plan is recognized by its
+    // content, as the review-checkpoint scanner does.
+    if (!entry.isFile() || fs.statSync(file).size === 0 || fs.statSync(file).size > 4 * 2 ** 20) continue;
     let plan;
     try { plan = readJson(file); } catch { continue; }
     if (typeof plan?.journal === "string" && plan.steps && typeof plan.steps === "object") plans.push({ file, journal: path.resolve(dir, plan.journal) });
@@ -778,6 +780,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const base = t.delivered ? "closed with its merged deliverable on origin/main" : "closed without a merged deliverable on origin/main; confirm whether the ticket is complete";
       // A writer still held on a closed ticket keeps its place until it is
       // released; once it has ended, its last report is read and it is let go.
+      if (own.owner?.resuming) { add(t, "reconcile-pending", `${base}; resume ${own.owner.resuming.id} of its writer has no recorded outcome; run reconcile before anything else, since the resumed writer may still run`, { owner: { route: own.owner.route, handle: own.owner.handle, status: statusOf(t.number, own.owner).status } }); continue; }
       if (own.owner && statusOf(t.number, own.owner).status === "exited") { add(t, "release", `${base}; its writer ended (${statusOf(t.number, own.owner).reason}): read its transcript, then record release with that evidence`, { owner: { route: own.owner.route, handle: own.owner.handle, status: "exited" }, transcript: { from: transcriptOf(own.owner) } }); continue; }
       add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, lingering ? { worktrees: t.worktrees, reserves: true } : {});
       continue;
@@ -985,7 +988,7 @@ export function claim(record, { plan, ticket: number, worktree, branch, artifact
   const ticket = ticketOf(record, number);
   assertFree(ticket, number);
   const permissionMode = routeVendor(start.model) === "claude" ? record.coordinator.permissionMode ?? null : null;
-  ticket.pending = { operation: "dispatch", launchId: randomUUID(), route: start.route, model: start.model, effort: start.effort, ...(permissionMode && { permissionMode }), worktree, branch, artifactParent, host, ...(continues && { continues }), time: new Date().toISOString() };
+  ticket.pending = { operation: "dispatch", launchId: randomUUID(), route: start.route, model: start.model, effort: start.effort, coordinator: record.coordinator.session, ...(permissionMode && { permissionMode }), worktree, branch, artifactParent, host, ...(continues && { continues }), time: new Date().toISOString() };
   log(record, { dispatch: "dispatch-intent", continue: "continue-intent" }[operation], { ticket: number, route: start.route, launchId: ticket.pending.launchId, ...(continues && { continues }) });
   return ticket.pending;
 }
@@ -996,6 +999,10 @@ const settledStart = (pending, fields) => ({ pending, ...fields, ...(pending.con
 
 // A started writer has its brief already: it went with the start. The brief
 // counts as delivered from then, and the writer's acknowledgement confirms it.
+// The coordinator a writer was told: the one its sent brief names, or, for a
+// start that kept no copy, the one that claimed it.
+const BRIEFED = /coordinated by coordinator session (\S+?) on /;
+const toldCoordinator = (pending, text, record) => (typeof text === "string" && BRIEFED.exec(text)?.[1]) || pending.coordinator || record.coordinator.session;
 const sentBrief = (via, text) => ({ state: "delivered", via, ...(text !== undefined && { text }), deliveryId: randomUUID().slice(0, 8), attempts: 1, time: new Date().toISOString() });
 const ownerFrom = (pending, handle, brief, coordinator) => ({ route: pending.route, model: pending.model, effort: pending.effort, coordinator, ...(pending.permissionMode && { permissionMode: pending.permissionMode }), worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, handle, verified: false, ...(brief && { brief: { ...brief, coordinator } }), ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
 
@@ -1020,7 +1027,7 @@ export function launched(record, { ticket: number, handleKind, handle, observedO
   if (ticket.pending.route === "claude-cli") throw new Error("A detached CLI writer is started with launch and confirmed with reconcile");
   if (!["session", "task"].includes(handleKind) || !handle) throw new Error("--handle-kind must be session or task, with --handle naming it");
   // The writer runs where its start was claimed.
-  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host }, sentBrief("start"), record.coordinator.session);
+  ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host }, sentBrief("start"), toldCoordinator(ticket.pending, undefined, record));
   log(record, "launched", { ticket: number, launchId: ticket.pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return ticket.owner;
@@ -1083,6 +1090,7 @@ export function verify(record, { ticket: number, preflight: file }) {
 export function release(record, { ticket: number, observations, evidence, host = os.hostname(), identify = processIdentity }) {
   const ticket = ticketOf(record, number), owner = ticket.owner;
   if (!owner) throw new Error(`#${number} has no owner to release`);
+  if (owner.resuming) throw new Error(`Resume ${owner.resuming.id} of #${number}'s writer has no recorded outcome, and the resumed writer may still run; settle it with reconcile before release`);
   const s = ownerStatus(owner, observations, { host, identify });
   if (s.status !== "exited") throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only a writer observed to have ended is released`);
   // A released writer's unanswered requests close with it; a new writer
@@ -1317,7 +1325,8 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
     return { started: false, reason: outcome.reason };
   }
   const identity = identify(outcome.pid);
-  ticket.owner = ownerFrom(pending, { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir }, sentBrief("prompt", fs.readFileSync(path.join(launchDir, "prompt.txt"), "utf8")), record.coordinator.session);
+  const sent = fs.readFileSync(path.join(launchDir, "prompt.txt"), "utf8");
+  ticket.owner = ownerFrom(pending, { kind: "process", pid: outcome.pid, start: identity?.start ?? null, host, launchDir }, sentBrief("prompt", sent), toldCoordinator(pending, sent, record));
   log(record, "launched", { ticket: number, launchId: pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return { started: true, owner: ticket.owner };
@@ -1531,7 +1540,8 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
     const identity = identify(writer.pid);
     if (!identity) throw new Error(`Process ${writer.pid} names the launch but exited during the census; reconcile again`);
     const prompt = path.join(launchDir, "prompt.txt");
-    ticket.owner = ownerFrom(pending, { kind: "process", ...identity, host, launchDir }, sentBrief("prompt", fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined), record.coordinator.session);
+    const sent = fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined;
+    ticket.owner = ownerFrom(pending, { kind: "process", ...identity, host, launchDir }, sentBrief("prompt", sent), toldCoordinator(pending, sent, record));
     log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome: "running", handle: ticket.owner.handle });
     ticket.pending = null;
     return { outcome: "running", owner: ticket.owner };
@@ -1540,7 +1550,8 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   const outcome = fs.existsSync(output) && fs.statSync(output).size > 0 ? "started and ended" : "not running";
   if (outcome === "started and ended") {
     const prompt = path.join(launchDir, "prompt.txt");
-    ticket.owner = ownerFrom(pending, { kind: "process", pid: null, start: null, host, launchDir }, sentBrief("prompt", fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined), record.coordinator.session);
+    const sent = fs.existsSync(prompt) ? fs.readFileSync(prompt, "utf8") : undefined;
+    ticket.owner = ownerFrom(pending, { kind: "process", pid: null, start: null, host, launchDir }, sentBrief("prompt", sent), toldCoordinator(pending, sent, record));
     log(record, "reconciled", { ticket: number, launchId: pending.launchId, outcome, handle: ticket.owner.handle });
     ticket.pending = null;
     return { outcome, owner: ticket.owner };

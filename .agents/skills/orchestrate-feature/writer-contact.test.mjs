@@ -408,6 +408,47 @@ try {
     assert.ok(printed.includes(`coordinator session ${NEXT}`) && !printed.includes(COORDINATOR), "the old-shape brief still prints the current coordinator after the contact moved");
   });
 
+  scenario("a writer recovered from a predecessor's lost launch is recorded as told the predecessor, so the new coordinator still tells it", () => {
+    const w = cliWriter("cli-predecessor-launch", 381);
+    const launchDir = run.launchDirOf(run.readRecord(w.f.file).tickets[381].pending, 381);
+    fs.mkdirSync(launchDir, { recursive: true });
+    fs.copyFileSync(w.prompt, path.join(launchDir, "prompt.txt"));
+    fs.writeFileSync(path.join(launchDir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: WRITER_SESSION, model: "claude-opus-5-5" })}\n`);
+    const t = takeOver(w);
+    assert.equal(t.change((r) => run.reconcile(r, { ticket: 381, census: () => [] })).outcome, "started and ended");
+    const owner = run.readRecord(t.file).tickets[381].owner;
+    assert.deepEqual([owner.coordinator, owner.brief.coordinator], [COORDINATOR, COORDINATOR], "the launch's prompt named the predecessor");
+    const printed = run.brief(run.readRecord(t.file), null, 381, [], defaults);
+    assert.ok(printed.includes(`coordinator session ${NEXT}`) && !printed.includes(COORDINATOR));
+    let spawned = null;
+    run.resumeWriter(t.file, { coordinator: NEXT, expectRevision: run.readRecord(t.file).revision, ticket: 381, executable: process.execPath, args: [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt: write("cli-predecessor-continue.txt", "Continue the work."), spawner: (o) => { spawned = o; return { started: true, pid: process.pid }; } });
+    assert.match(fs.readFileSync(path.join(spawned.launchDir, "prompt.txt"), "utf8"), new RegExp(`Your coordinator is now session ${NEXT}`), "the continuation tells the writer the new coordinator");
+  });
+
+  scenario("a resume with no recorded outcome is settled before any release, on a closed ticket too", () => {
+    const w = cliWriter("cli-resume-closed", 382);
+    const { owner } = w.launch();
+    w.end(owner);
+    const resumeArgs = [standIn, "-p", "--resume", WRITER_SESSION, "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"];
+    assert.equal(run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 382, executable: process.execPath, args: resumeArgs, prompt: write("cli-resume-closed.txt", "Continue."), spawner: () => { throw new Error("the host lost the reply"); } }).uncertain, true);
+    const closed = snapshotOf([ticket(382, { state: "closed", delivered: true })]);
+    const entry = entryOf(planOf(w.f, closed, { preflights: w.pre }), 382);
+    assert.equal(entry.action, "reconcile-pending", "a closed ticket's writer is not released while its resume may run");
+    assert.match(entry.reason, /resume .* has no recorded outcome; run reconcile/);
+    assert.throws(() => w.f.change((r) => run.release(r, { ticket: 382, observations: {} })), /no recorded outcome.*settle it with reconcile before release/);
+  });
+
+  scenario("the dead-launch sweep recognizes a launcher plan by its content, whatever its file name", () => {
+    const f = fresh("dead-launch-named");
+    const dir = path.join(tmp, "dead-launch-named.review-jobs", "pr-983", "round-1");
+    fs.mkdirSync(dir, { recursive: true });
+    const plan = path.join(dir, "review.plan");
+    fs.writeFileSync(plan, JSON.stringify({ worktree: f.dir, pr: 983, journal: path.join(dir, "journal.jsonl"), steps: { review: {} }, first: "review" }));
+    fs.writeFileSync(path.join(dir, "review.coordinator.err.log"), "Error: the review step's prompt is missing\n");
+    fs.writeFileSync(path.join(dir, "notes.txt"), "not a plan");
+    assert.deepEqual(run.deadLaunches(path.join(tmp, "dead-launch-named.review-jobs"), [{ ticket: 383, pr: 983 }], () => []).map((d) => [d.plan, d.error]), [[plan, "Error: the review step's prompt is missing"]]);
+  });
+
   scenario("a confirmed preflight never clears a mismatch the writer's acknowledgement showed", () => {
     const w = cliWriter("cli-verify", 372);
     const { owner } = w.launch();
