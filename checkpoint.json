@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 37,
-  "previous": "77db056ea0c1f57e19e7b60135e71e0c4b347f7c",
+  "seq": 38,
+  "previous": "8f24a04201ec0b3fb77a892321a851c4bdcb43f7",
   "snapshotParents": [],
-  "time": "2026-10-15T22:20:51.445Z",
+  "time": "2026-10-15T22:20:59.688Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 34,
+    "recordRevision": 35,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -265,6 +265,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1708-divert-error-range",
       "branch": "fix/1708-divert-error-range",
       "classifier": "removed  impower.worktrees\\fix\\1708-divert-error-range                   fix/1708-divert-error-range                   1.1 GB     merged into origin/main; origin/fix/1708-divert-error-range still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1708-divert-error-range': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:20:57.419Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1715-divert-target-positions",
+      "branch": "fix/1715-divert-target-positions",
+      "classifier": "removed  impower.worktrees\\fix\\1715-divert-target-positions              fix/1715-divert-target-positions              1.1 GB     merged into origin/main; origin/fix/1715-divert-target-positions still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1715-divert-target-positions': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -274,7 +280,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:20:50.606Z",
+      "observedAt": "2026-10-15T22:20:58.774Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -556,6 +562,11 @@
       "time": "2026-10-15T22:20:49.262Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1708-divert-error-range"
+    },
+    {
+      "time": "2026-10-15T22:20:57.420Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1715-divert-target-positions"
     }
   ]
 }
