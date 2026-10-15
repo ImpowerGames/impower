@@ -142,15 +142,19 @@ export class UnsupportedConstruct extends Error {
   }
 }
 
-/** Any other throw out of a statement's emit, rethrown with the statement it
+/** Any other throw out of a statement's emit, or an error a declaration
+ *  raised when the build ran the declarations, rethrown with the statement it
  *  came from, so the compile that catches it reports an error at that
  *  statement's line. */
-export class StatementEmitFailure extends Error {
+export class StatementFailure extends Error {
   constructor(
     public readonly uri: string,
     /** The line of the statement, counting from 0. */
     public readonly line: number,
     public readonly error: unknown,
+    /** Whether a declaration raised it when it ran, rather than an emit
+     *  throwing it. */
+    public readonly ran = false,
   ) {
     super(error instanceof Error ? error.message : String(error));
   }

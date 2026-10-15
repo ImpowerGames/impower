@@ -129,7 +129,7 @@ import {
 } from "../../program/ProgramResolver";
 import type { ProgramStoryTables } from "../../program/ProgramRoot";
 import type { UnsupportedConstructSite } from "../../program/ChunkStore";
-import { StatementEmitFailure } from "../../program/ProgramEmitter";
+import { StatementFailure } from "../../program/ProgramEmitter";
 import { unsupportedConstructMessage } from "../utils/unsupportedConstructMessage";
 import { MemoizedStatementNeeded, memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import {
@@ -1664,6 +1664,8 @@ export class SparkdownCompiler {
     // nothing but a full re-plan.
     this._changeHazard = false;
     let compileThrew = false;
+    // What the compile threw, reported once the validators have run.
+    let thrown: unknown;
     // What this compile compares with the compile before and records for
     // the next one, which an attempt that meets a statement memo it cannot
     // compile from (`StatementMemoRetry`) puts back, so that the attempt
@@ -1940,6 +1942,7 @@ export class SparkdownCompiler {
       this._prevFlowRuns = this._nextFlowRuns;
     } catch (e) {
       compileThrew = true;
+      thrown = e;
       if (restoreWatch !== undefined) {
         watchStatements(restoreWatch);
       }
@@ -1996,8 +1999,6 @@ export class SparkdownCompiler {
         profile("end", this._profilerId, phase, uri);
       }
       console.error(e);
-      // The compile makes no program, and says so at the statement that threw.
-      this.reportCompileThrow(e, uri, onDiagnostic);
       // A threw compile can leave carried parsed/runtime state half-mutated;
       // drop all reuse records so the next compile rebuilds from scratch.
       this._prevFlowRuns = undefined;
@@ -2039,6 +2040,11 @@ export class SparkdownCompiler {
     if (this._unsupported) {
       this.reportUnsupportedConstruct(this._unsupported, program, onDiagnostic);
       this._unsupported = undefined;
+    }
+    // A compile that threw makes no program, and says so at the statement
+    // that threw.
+    if (compileThrew) {
+      this.reportCompileThrow(thrown, uri, program, onDiagnostic);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -3907,22 +3913,38 @@ export class SparkdownCompiler {
   }
 
   /** Reports a throw the compile caught as an error over the line of the
-   *  statement whose emit threw (`StatementEmitFailure`), or over the first
+   *  statement whose emit or run threw (`StatementFailure`), or over the first
    *  line of the compiled script when no statement is known. */
   protected reportCompileThrow(
     e: unknown,
     uri: string,
+    program: SparkProgram,
     onDiagnostic: (
       message: string,
       type: ErrorType,
       source: SourceMetadata | null,
     ) => void,
   ): void {
-    const site = e instanceof StatementEmitFailure ? e : undefined;
+    const site = e instanceof StatementFailure ? e : undefined;
+    // A statement the compile already reported an error at is in error for
+    // that reason, as `reportUnsupportedConstruct` reads it. So, for the
+    // declarations' run, is a script the compile already reported an error
+    // in: a malformed `store` value cannot run, and a declaration inside a
+    // block runs at the block's line.
+    if (
+      site &&
+      program.diagnostics?.[site.uri]?.some(
+        (d) =>
+          d.severity === DiagnosticSeverity.Error &&
+          (site.ran || d.range.start.line === site.line),
+      )
+    ) {
+      return;
+    }
     const cause = site ? site.error : e;
     const detail = cause instanceof Error ? cause.message : String(cause);
     onDiagnostic(
-      `The compiler failed ${site ? "on this statement" : "on this script"}, so no program was made: ${detail}`,
+      `The compile stopped ${site ? "at this statement" : "in this script"}, so no program was made: ${detail}`,
       ErrorType.Error,
       this.lineSource(site?.uri ?? uri, site?.line ?? 0),
     );

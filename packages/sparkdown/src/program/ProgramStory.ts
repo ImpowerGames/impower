@@ -2336,9 +2336,14 @@ export class ProgramStory implements StoryEngine {
       const first = state.hasError
         ? state.currentErrors![0]!
         : state.currentWarnings![0]!;
-      throw new StoryException(
+      const e = new StoryException(
         `Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: ${first}`,
       );
+      // Where the first issue was raised, which a compile whose declarations
+      // raise it reports the error at (`ChunkStore.build`).
+      const raised = state.hasError ? state.raisedErrors : state.raisedWarnings;
+      e.raisedAddress = raised[0]?.address ?? null;
+      throw e;
     }
   }
 

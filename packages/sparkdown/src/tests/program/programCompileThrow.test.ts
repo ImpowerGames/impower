@@ -29,7 +29,18 @@ describe("a compile whose statement throws", () => {
     const { program } = compileScript(SCRIPT);
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program)).toEqual([
-      [4, "The compiler failed on this statement, so no program was made: emit failed"],
+      [4, "The compile stopped at this statement, so no program was made: emit failed"],
     ]);
+  });
+
+  it("reports a store whose value raises an error when the declarations run at its line", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript("store b = nil\nstore a = 1 // b\n");
+    expect(program.chunks).toBeUndefined();
+    const errors = errorsOf(program);
+    expect(errors.map(([line]) => line)).toEqual([1]);
+    expect(errors[0]![1]).toMatch(
+      /^The compile stopped at this statement, so no program was made: .*perform \/\/ on a nil value/,
+    );
   });
 });

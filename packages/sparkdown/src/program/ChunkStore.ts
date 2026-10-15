@@ -42,7 +42,7 @@ import {
   type StatementMemoEntry,
 } from "../compiler/lower/statementMemo";
 import { MemoizedStatementNeeded } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
-import { StatementEmitFailure, UnsupportedConstruct } from "./ProgramEmitter";
+import { StatementFailure, UnsupportedConstruct } from "./ProgramEmitter";
 import { ProgramStory } from "./ProgramStory";
 import {
   ChunkTable,
@@ -238,9 +238,9 @@ export interface UnsupportedConstructSite {
 const emitFailure = (e: unknown, uri: string, line: number): unknown =>
   e instanceof MemoizedStatementNeeded ||
   e instanceof StatementMemoRetry ||
-  e instanceof StatementEmitFailure
+  e instanceof StatementFailure
     ? e
-    : new StatementEmitFailure(uri, line, e);
+    : new StatementFailure(uri, line, e);
 
 /** What one build of the program did. */
 export interface ProgramCoverage {
@@ -1117,7 +1117,13 @@ export class ChunkStore {
         this._declarationsFailed = raised !== null;
       }
       if (raised) {
-        throw raised;
+        // At the line of the declaration that raised it, when the root names
+        // that line.
+        const at =
+          raised.raisedAddress !== null
+            ? root.locationOf(raised.raisedAddress)
+            : undefined;
+        throw at ? new StatementFailure(at.uri, at.startLine, raised, true) : raised;
       }
     }
     if (commit) {
