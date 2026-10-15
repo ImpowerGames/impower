@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 63,
-  "previous": "8c70e5792afc2324e6d4d6d2df815552c2fd2726",
+  "seq": 64,
+  "previous": "b2a815cceddc925a0d5c889b84a5ac954bcfb64d",
   "snapshotParents": [],
-  "time": "2026-10-15T22:24:22.696Z",
+  "time": "2026-10-15T22:27:45.500Z",
   "kind": "auto",
-  "transition": "disk-recovery",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 60,
@@ -430,18 +430,20 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:24:21.723Z",
+      "observedAt": "2026-10-15T22:27:44.711Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "remoteHead": "7f7ad171c2f05acb746f6384e277411bf594523a",
+      "unpushed": false,
+      "dirty": false,
+      "pr": 1911,
+      "reviewJobs": []
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:02:28.666Z",
+    "at": "2026-10-15T22:27:44.710Z",
     "tickets": [
       {
         "number": 316,
@@ -458,7 +460,7 @@
       {
         "number": 457,
         "action": "observe",
-        "pr": null,
+        "pr": 1911,
         "reason": "process 21264 started 639276977403890485 is running"
       },
       {
@@ -469,27 +471,27 @@
       },
       {
         "number": 1103,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #457 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1299,
+        "action": "dispatch",
+        "pr": null,
+        "reason": "every blocker's deliverable is on origin/main"
+      },
+      {
+        "number": 1325,
         "action": "wait-dependency",
         "pr": null,
         "reason": "waiting for #457 (open)"
       },
       {
-        "number": 1325,
-        "action": "dispatch",
-        "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
-      },
-      {
         "number": 1502,
-        "action": "dispatch",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "waiting for #457 (open)"
       },
       {
         "number": 1617,
@@ -499,15 +501,15 @@
       },
       {
         "number": 1641,
-        "action": "wait-capacity",
-        "pr": null,
-        "reason": "1 writers already hold tickets against a limit of 3"
-      },
-      {
-        "number": 1645,
         "action": "wait-dependency",
         "pr": null,
         "reason": "waiting for #457 (open)"
+      },
+      {
+        "number": 1645,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "1 writers already hold tickets against a limit of 3"
       }
     ],
     "remaining": [
