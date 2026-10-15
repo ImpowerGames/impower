@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 28,
-  "previous": "2e195bb934b0836733af38f7bbce91321dbc314b",
+  "seq": 29,
+  "previous": "a97c76559412e713fce6eaca7d810687b77dc51d",
   "snapshotParents": [],
-  "time": "2026-10-15T22:19:05.527Z",
+  "time": "2026-10-15T22:19:13.774Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 25,
+    "recordRevision": 26,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -232,6 +232,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1724-validation-window-lex",
       "branch": "perf/1724-validation-window-lex",
       "classifier": "removed  impower.worktrees\\perf\\1724-validation-window-lex               perf/1724-validation-window-lex               981.9 MB   merged into origin/main; origin/perf/1724-validation-window-lex still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-"
+    },
+    {
+      "time": "2026-10-15T22:19:11.529Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1750-edit-range-readers",
+      "branch": "perf/1750-edit-range-readers",
+      "classifier": "removed  impower.worktrees\\perf\\1750-edit-range-readers                  perf/1750-edit-range-readers                  982.1 MB   merged into origin/main; origin/perf/1750-edit-range-readers still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-eng"
     }
   ],
   "verifications": [],
@@ -241,19 +247,23 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:19:04.591Z",
+      "observedAt": "2026-10-15T22:19:12.716Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "unpushed": false,
-      "dirty": false
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 50484
+      }
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies": {
       "ticket": 1632,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:19:04.591Z",
+      "observedAt": "2026-10-15T22:19:12.716Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -511,6 +521,11 @@
       "time": "2026-10-15T22:19:03.480Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1724-validation-window-lex"
+    },
+    {
+      "time": "2026-10-15T22:19:11.529Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1750-edit-range-readers"
     }
   ]
 }
