@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 27,
-  "previous": "01d5d316b728b87a4d9e64732564424091265524",
+  "seq": 28,
+  "previous": "a6ce655877ae0c203265ee0be5eff4b4d5813840",
   "snapshotParents": [],
-  "time": "2026-10-15T22:19:22.376Z",
+  "time": "2026-10-15T22:19:31.742Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 24,
+    "recordRevision": 25,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -205,6 +205,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1655-divert-args-one-rule",
       "branch": "fix/1655-divert-args-one-rule",
       "classifier": "removed  impower.worktrees\\fix\\1655-divert-args-one-rule                 fix/1655-divert-args-one-rule                 1.1 GB     merged into origin/main; origin/fix/1655-divert-args-one-rule still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1655-divert-args-one-rule': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:19:29.231Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1662-workbench-breakpoint-uri",
+      "branch": "fix/1662-workbench-breakpoint-uri",
+      "classifier": "removed  impower.worktrees\\fix\\1662-workbench-breakpoint-uri             fix/1662-workbench-breakpoint-uri             108.0 MB   merged into origin/main; origin/fix/1662-workbench-breakpoint-uri still exists; takes 4 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1662-workbench-breakpoint-uri': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -214,7 +220,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:19:21.295Z",
+      "observedAt": "2026-10-15T22:19:30.966Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -446,6 +452,11 @@
       "time": "2026-10-15T22:19:19.875Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1655-divert-args-one-rule"
+    },
+    {
+      "time": "2026-10-15T22:19:29.233Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1662-workbench-breakpoint-uri"
     }
   ]
 }
