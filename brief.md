@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 43 (this commit), 2026-10-15T22:24:49.128Z, after a new plan. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 44 (this commit), 2026-10-15T22:24:57.472Z, after adopt of #1249. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -16,9 +16,13 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1211
 
 - claude-cli claude-opus-5-5 at medium, process 55348 on DESKTOP-726EO47
+
+## #1249
+
+- claude-cli claude-opus-5-5 at medium, process 55348 on DESKTOP-726EO47
 - review job pr-1910/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed f771cccd2, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["undirected"]), last event finished
 
 ## #1632
 
 - claude-cli claude-opus-5-5 at medium, process 11296 on DESKTOP-726EO47
-- as of 2026-10-15T22:24:47.904Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-15T22:24:56.460Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies that may exist only there; recover those bytes there before restarting or overwriting this work

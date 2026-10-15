@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 43,
-  "previous": "af9fc4bf2f82b915299b8b88facd3d330c4b7f1d",
+  "seq": 44,
+  "previous": "35bb07ba780d9c93003f844e3442f8ff875e4abd",
   "snapshotParents": [],
-  "time": "2026-10-15T22:24:49.128Z",
+  "time": "2026-10-15T22:24:57.472Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "adopt of #1249",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 38,
+    "recordRevision": 39,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -128,6 +128,33 @@
           "rounds": 0
         },
         "since": "2026-10-15T22:23:17.484Z"
+      },
+      "pending": null,
+      "history": [],
+      "results": []
+    },
+    "1249": {
+      "owner": {
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "requestedEffort": "medium",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
+        "branch": "test/1201-incremental-cold-parity",
+        "artifactParent": null,
+        "handle": {
+          "kind": "process",
+          "pid": 55348,
+          "start": "639276984318127089",
+          "host": "DESKTOP-726EO47"
+        },
+        "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
+        "verified": false,
+        "adopted": {
+          "pr": 1910,
+          "rounds": 0
+        },
+        "since": "2026-10-15T22:24:55.329Z"
       },
       "pending": null,
       "history": [],
@@ -336,11 +363,11 @@
   "verifications": [],
   "work": {
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity": {
-      "ticket": 1211,
+      "ticket": 1249,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:24:47.904Z",
+      "observedAt": "2026-10-15T22:24:56.460Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -387,7 +414,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:24:47.904Z",
+      "observedAt": "2026-10-15T22:24:56.460Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -710,6 +737,19 @@
       "time": "2026-10-15T22:23:17.485Z",
       "event": "adopted",
       "ticket": 1211,
+      "handle": {
+        "kind": "process",
+        "pid": 55348,
+        "start": "639276984318127089",
+        "host": "DESKTOP-726EO47"
+      },
+      "pr": 1910,
+      "rounds": 0
+    },
+    {
+      "time": "2026-10-15T22:24:55.330Z",
+      "event": "adopted",
+      "ticket": 1249,
       "handle": {
         "kind": "process",
         "pid": 55348,
