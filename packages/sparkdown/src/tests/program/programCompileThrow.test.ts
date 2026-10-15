@@ -43,4 +43,13 @@ describe("a compile whose statement throws", () => {
       /^The compile stopped at this statement, so no program was made: .*perform \/\/ on a nil value/,
     );
   });
+
+  it("reports that store beside an error on another statement", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      "store b = nil\nstore a = 1 // b\n\nmatch 1\n  case 1\n    One.\nend\n",
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line).sort()).toEqual([1, 4, 5]);
+  });
 });

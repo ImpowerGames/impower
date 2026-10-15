@@ -152,9 +152,8 @@ export class StatementFailure extends Error {
     /** The line of the statement, counting from 0. */
     public readonly line: number,
     public readonly error: unknown,
-    /** Whether a declaration raised it when it ran, rather than an emit
-     *  throwing it. */
-    public readonly ran = false,
+    /** The statement's last line, counting from 0. */
+    public readonly endLine = line,
   ) {
     super(error instanceof Error ? error.message : String(error));
   }

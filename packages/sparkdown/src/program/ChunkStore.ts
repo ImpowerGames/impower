@@ -235,12 +235,23 @@ export interface UnsupportedConstructSite {
 /** What a statement's emit threw, other than a construct it has no emit path
  *  for, as the build rethrows it: a memo the compile lowers again as it is,
  *  and any other error with the statement it came from. */
-const emitFailure = (e: unknown, uri: string, line: number): unknown =>
+const emitFailure = (
+  e: unknown,
+  uri: string,
+  statement: StatementSource,
+): unknown =>
   e instanceof MemoizedStatementNeeded ||
   e instanceof StatementMemoRetry ||
   e instanceof StatementFailure
     ? e
-    : new StatementFailure(uri, line, e);
+    : new StatementFailure(uri, statement.firstLine, e, lastLineOf(statement));
+
+/** A statement's last line, counting from 0: its source range's, or its first
+ *  line when it has no range. */
+const lastLineOf = (statement: StatementSource): number =>
+  statement.range
+    ? Math.max(statement.firstLine, statement.range.endLineNumber - 1)
+    : statement.firstLine;
 
 /** What one build of the program did. */
 export interface ProgramCoverage {
@@ -928,7 +939,7 @@ export class ChunkStore {
           );
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
-            throw emitFailure(e, declaration.uri, declaration.firstLine);
+            throw emitFailure(e, declaration.uri, declaration);
           }
           coverage.unsupported[e.construct] =
             (coverage.unsupported[e.construct] ?? 0) + 1;
@@ -1117,13 +1128,27 @@ export class ChunkStore {
         this._declarationsFailed = raised !== null;
       }
       if (raised) {
-        // At the line of the declaration that raised it, when the root names
-        // that line.
+        // At the line that raised it, when the root names that line, within
+        // the declaration statement that holds it.
         const at =
           raised.raisedAddress !== null
             ? root.locationOf(raised.raisedAddress)
             : undefined;
-        throw at ? new StatementFailure(at.uri, at.startLine, raised, true) : raised;
+        if (!at) {
+          throw raised;
+        }
+        const holder = declarations.find(
+          (declaration) =>
+            declaration.uri === at.uri &&
+            declaration.firstLine <= at.startLine &&
+            at.startLine <= lastLineOf(declaration),
+        );
+        throw new StatementFailure(
+          at.uri,
+          at.startLine,
+          raised,
+          holder ? lastLineOf(holder) : at.startLine,
+        );
       }
     }
     if (commit) {
@@ -1938,7 +1963,7 @@ export class ChunkStore {
           chunk = this.emit(statement, (input) => this._writer.write(input));
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
-            throw emitFailure(e, home.uri, statement.firstLine);
+            throw emitFailure(e, home.uri, statement);
           }
           build.coverage.unsupported[e.construct] =
             (build.coverage.unsupported[e.construct] ?? 0) + 1;

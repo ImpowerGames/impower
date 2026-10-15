@@ -3926,17 +3926,17 @@ export class SparkdownCompiler {
     ) => void,
   ): void {
     const site = e instanceof StatementFailure ? e : undefined;
-    // A statement the compile already reported an error at is in error for
-    // that reason, as `reportUnsupportedConstruct` reads it. So, for the
-    // declarations' run, is a script the compile already reported an error
-    // in: a malformed `store` value cannot run, and a declaration inside a
-    // block runs at the block's line.
+    // A statement the compile already reported an error in is in error for
+    // that reason, as `reportUnsupportedConstruct` reads it: a malformed
+    // `store` value cannot run. An error elsewhere in the script says nothing
+    // about it.
     if (
       site &&
       program.diagnostics?.[site.uri]?.some(
         (d) =>
           d.severity === DiagnosticSeverity.Error &&
-          (site.ran || d.range.start.line === site.line),
+          d.range.start.line >= site.line &&
+          d.range.start.line <= site.endLine,
       )
     ) {
       return;
