@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 57,
-  "previous": "5c97925bda333304fbe63355b88b2fc57b4277a6",
+  "seq": 58,
+  "previous": "38f4a8b03b301b4e45f5efdf975e1f3b6efb1527",
   "snapshotParents": [],
-  "time": "2026-10-15T22:43:27.938Z",
+  "time": "2026-10-15T22:46:22.027Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1201",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 48,
+    "recordRevision": 49,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -104,7 +104,26 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-15T22:46:19.528Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1910,
+            "reviewedHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
+            "rounds": "1 of 3; one undirected reviewer, gpt-6.1-sol at high (cross-vendor default) through the codex full-access route; round state 6203448007, report 6203495585 (no findings), adjudication 6203545430",
+            "findings": "None",
+            "verification": "packages/sparkdown/src/tests/program/programIncrementalColdParity.test.ts: replays each ticket's edit sequence through one persistent programCompiler and compares tree, describeRoot chunks and every diagnostic with a cold compile after every edit (#1201 compares the registry's semantics channel; #1201, #1211, #1249, #1295 assert reparsedFrom > 0); test-suite run 12 passed; filtered typecheck of packages/sparkdown clean; red side is each ticket's recorded failure on its base commit, named per ticket in the PR body, not rebuilt. Disclosed: on c47d43421 both compiles of #1628's text give GetCount mid, not GetVar; #1613 and #1628 reparse from offset 0.",
+            "ci": "all 28 checks that ran passed on f771cccd2 (4 sparkdown shards, tsc, typecheck, linked-issue, test-suite); driver-checks, skills-checks, vitest-api-integration and notifier skipped",
+            "next": "none from the writer; PR #1910 is ready and waits for the coordinator's merge gate",
+            "changesAfterReviewedCommit": "none; head equals the reviewed commit",
+            "notes": "hand-over notes folder reported as not found by the writer; coordinator id did not resolve in SendMessage, addressed by session title, feedback on #510 comment 6203550972; reviewer probe clone (about 450 MB) left in review-jobs/pr-1910/round-1",
+            "source": "cross-session message from writer session impower-17 after its turn ended; transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1201-924f2008-1121-474f-9f5f-ff1a78951482/out.jsonl ends with end_turn; PR facts confirmed on GitHub"
+          }
+        }
+      ]
     },
     "1211": {
       "owner": {
@@ -448,7 +467,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:43:26.742Z",
+      "observedAt": "2026-10-15T22:46:21.091Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -495,12 +514,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:43:26.742Z",
+      "observedAt": "2026-10-15T22:46:21.091Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "unpushed": false,
-      "dirty": false
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 56136
+      }
     }
   },
   "snapshots": {},
@@ -908,6 +931,13 @@
       "time": "2026-10-15T22:27:45.410Z",
       "event": "check-in",
       "outcome": "both writers running; draft PR #1910 (unit E) opened at f771ccc with six Closes lines, CI in progress; adopted and verified its writer for #1211 #1249 #1295 #1613 #1628; #1846 waits for capacity; no requests"
+    },
+    {
+      "time": "2026-10-15T22:46:19.529Z",
+      "event": "result",
+      "ticket": 1201,
+      "pr": 1910,
+      "reviewedHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a"
     }
   ]
 }
