@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 82,
-  "previous": "21c9c52966082b9d6af18d537a0d25d4f6410351",
+  "seq": 83,
+  "previous": "f2ae4f5a28130df2d9ec90dc2835d30954502456",
   "snapshotParents": [],
-  "time": "2026-10-15T22:44:13.937Z",
+  "time": "2026-10-15T23:03:54.514Z",
   "kind": "auto",
-  "transition": "answered of #1299",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 73,
@@ -545,12 +545,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:44:12.658Z",
+      "observedAt": "2026-10-15T23:03:53.405Z",
       "held": true,
-      "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
-      "remoteHead": "7f7ad171c2f05acb746f6384e277411bf594523a",
+      "head": "71b26c87a1fc99abc8bdcc226954d6088908a005",
+      "remoteHead": "71b26c87a1fc99abc8bdcc226954d6088908a005",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1911,
       "reviewJobs": []
     },
@@ -559,30 +559,140 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T22:44:12.658Z",
+      "observedAt": "2026-10-15T23:03:53.405Z",
       "held": true,
       "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
       "remoteHead": "f4212693ba4d706f0ded341f4ec0438ca2728265",
       "unpushed": false,
-      "dirty": false
+      "dirty": false,
+      "pr": 1913,
+      "reviewJobs": [
+        {
+          "job": "pr-1913/round-1/launch-gram-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-gram",
+            "reviewerId": "gram",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "undirected"
+            ],
+            "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
+            "completedRoundReviewers": null,
+            "time": "2026-10-15T22:45:04.948Z"
+          },
+          "round": 1,
+          "reviewerId": "gram",
+          "attempt": 1,
+          "reviewedHead": "f4212693ba4d706f0ded341f4ec0438ca2728265",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "gram": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6203916570
+          ]
+        },
+        {
+          "job": "pr-1913/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "undirected"
+            ],
+            "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
+            "completedRoundReviewers": null,
+            "time": "2026-10-15T22:52:41.429Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "f4212693ba4d706f0ded341f4ec0438ca2728265",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "gram"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6204061250
+          ]
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets": {
       "ticket": 1299,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T22:44:12.658Z",
+      "observedAt": "2026-10-15T23:03:53.405Z",
       "held": true,
-      "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
+      "remoteHead": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
+      "unpushed": false,
+      "dirty": true,
+      "pr": 1914,
+      "reviewJobs": [
+        {
+          "job": "pr-1914/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
+            "completedRoundReviewers": null,
+            "time": "2026-10-15T22:49:13.206Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6204009934
+          ]
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:42:56.179Z",
+    "at": "2026-10-15T23:03:53.404Z",
     "tickets": [
       {
         "number": 316,
@@ -611,14 +721,14 @@
       {
         "number": 1103,
         "action": "observe",
-        "pr": null,
-        "reason": "process 51856 started 639277000901603101 is running"
+        "pr": 1913,
+        "reason": "process 36100, 11284, 27932 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1103-8e9ee861-8d52-4a89-b46c-ef9fd66fd4ec"
       },
       {
         "number": 1299,
-        "action": "collect-report",
-        "pr": null,
-        "reason": "process 56752 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1299-2f7eb7c8-d608-490a-a3d6-3cb3c5de9965\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "action": "observe",
+        "pr": 1914,
+        "reason": "process 20144 started 639277010298312198 is running"
       },
       {
         "number": 1325,
