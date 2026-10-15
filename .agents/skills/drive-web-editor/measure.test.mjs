@@ -402,27 +402,40 @@ await check("a structural sample is timed from its compile to the first newer pr
   assert.deepEqual(STRUCTURAL_KEYS, { insert: "insertText", remove: "Backspace" });
 });
 
-await check("the restoring edit is the stretch between the common start and end, as a protocol range", () => {
+await check("the restoring edit replaces whole lines, with a line break no input handler rewrites, as a protocol range", () => {
   assert.equal(restoreSpan("a\nb\n", "a\nb\n"), null);
-  // An inserted line comes out again.
-  assert.deepEqual(restoreSpan("a\n  b\n  x\n  c\n", "a\n  b\n  c\n"), { range: { start: { line: 2, character: 2 }, end: { line: 3, character: 2 } }, text: "" });
+  // An inserted line comes out again, with its break.
+  assert.deepEqual(restoreSpan("a\n  b\n  x\n  c\n", "a\n  b\n  c\n"), { range: { start: { line: 2, character: 0 }, end: { line: 3, character: 0 } }, text: "" });
   // A removed line goes back in.
   assert.deepEqual(restoreSpan("a\nc\n", "a\nb\nc\n"), { range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } }, text: "b\n" });
-  // A change that grew the line is replaced.
-  assert.deepEqual(restoreSpan("say hello there", "say hi there"), { range: { start: { line: 0, character: 5 }, end: { line: 0, character: 9 } }, text: "i" });
+  // A lost bracket is put back as its whole line and break, never as the
+  // bracket alone, which the editor's close-brackets handler would double.
+  assert.deepEqual(restoreSpan("x\n  [hero]]\n  y", "x\n  [[hero]]\n  y"), { range: { start: { line: 1, character: 0 }, end: { line: 2, character: 0 } }, text: "  [[hero]]\n" });
+  // A change on the last line starts from the break before it.
+  assert.deepEqual(restoreSpan("x\nsay hello", "x\nsay hi"), { range: { start: { line: 0, character: 1 }, end: { line: 1, character: 9 } }, text: "\nsay hi" });
+  // With no line shared at either end, the whole document is replaced.
+  assert.deepEqual(restoreSpan("say hello there", "say hi there"), { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 15 } }, text: "say hi there" });
   // Applying it gives the original back, whatever the two are.
   const apply = (text, { range, text: put }) => {
     const lines = text.split("\n");
     const offset = (p) => lines.slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.character;
     return text.slice(0, offset(range.start)) + put + text.slice(offset(range.end));
   };
-  for (const [current, original] of [["", "x"], ["x", ""], ["aaa", "aa"], ["ab\nab", "ab"], ["l1\nl2\nNEW\nl3", "l1\nl2\nl3"]]) assert.equal(apply(current, restoreSpan(current, original)), original);
+  for (const [current, original] of [["", "x"], ["x", ""], ["aaa", "aa"], ["ab\nab", "ab"], ["l1\nl2\nNEW\nl3", "l1\nl2\nl3"], ["l1\nl2", "l1\nl2\nl3\n"], ["l1\nl2\nl3\n", "l1\nl2"], ["a\n[b]]\nc\n", "a\n[[b]]\nc\n"], ["\n\n", "\n"]]) {
+    const span = restoreSpan(current, original);
+    assert.equal(apply(current, span), original, JSON.stringify([current, original]));
+    // Never a short insert an input handler would act on.
+    assert.ok(span.text === "" || span.text.includes("\n") || span.text === original, JSON.stringify(span));
+  }
 });
 
 // A stand-in editor for a structural run: a document the run's selections
 // and keys really edit, and a preview that paints each edit's program at the
 // caret's line, or where `paintAt` says for a given edit. `garble` makes the
-// editor add text of its own to the given edit, as an auto-indent would.
+// editor add text of its own to the given edit, as an auto-indent would, or,
+// as a function, rewrite the document after it. Typed text passes a
+// close-brackets handler shaped like the editor's (vscodeCloseBrackets): a
+// typed opening bracket gains its closing one.
 function structuralPage(lineText, { paintAt = {}, garble = {} } = {}) {
   const uri = "file://local/main.sd";
   let doc = [...Array(3513).fill("x"), lineText, "      (searching his face)", "end"].join("\n");
@@ -438,9 +451,13 @@ function structuralPage(lineText, { paintAt = {}, garble = {} } = {}) {
     edits++;
     const from = Math.min(selection.anchor, selection.head);
     const to = Math.max(selection.anchor, selection.head);
-    const put = text + (garble[edits] ?? "");
+    const closing = { "[": "]", "(": ")", "{": "}", "[[": "]]" };
+    const typed = text in closing ? text + closing[text] : text;
+    const extra = typeof garble[edits] === "string" ? garble[edits] : "";
+    const put = typed + extra;
     doc = doc.slice(0, from) + put + doc.slice(to);
-    selection = { anchor: from + put.length, head: from + put.length };
+    selection = { anchor: from + text.length + extra.length, head: from + text.length + extra.length };
+    if (typeof garble[edits] === "function") doc = garble[edits](doc);
     version++;
     clock += 1000;
     pending.push(
@@ -536,6 +553,18 @@ await check("a structural sample that fails still leaves the document as it foun
   assert.equal(garbled.text(), garbled.original());
   assert.equal(stopped.report.restoredMatches, true);
   assert.equal(stopped.exitCode, 1);
+  // The editor loses one bracket of the measured line after a removal (the
+  // reviewer's case on PR #1882): restoring it must not pass a lone `[`
+  // through the close-brackets handler, which would make it `[]`.
+  const bracket = structuralPage(line, { garble: { 2: (doc) => doc.replace("[[raffles", "[raffles") } });
+  const lost = await runMeasure(["--project", "rb", "--line", "3514", "--structural", "--warmup", "0", "--samples", "4", "--settle", "0"], {
+    withEditor: async (fn) => fn({ page: bracket.page, url: "http://localhost:1", consoleLines: [] }),
+  });
+  assert.ok(lost.report.samples[1].failure, "the removal that lost the bracket fails its sample");
+  assert.equal(bracket.text(), bracket.original());
+  assert.equal(lost.report.restoredMatches, true);
+  assert.equal(lost.report.restored, line);
+  assert.equal(lost.exitCode, 1);
 });
 
 // Keys pressed at 0, 100, ..., 500, each handled 10 ms later and the last 60

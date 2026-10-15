@@ -384,23 +384,40 @@ export function replacedSpan(original, word, current) {
   return { start: before.length, text: current.slice(before.length, current.length - after.length) };
 }
 
-// The one edit that turns `current` back into `original`: the stretch of
-// `current` between their common start and common end, as a protocol range
-// (lines and characters from zero), and the text of `original` that goes
-// there. Null when the two are equal. A structural run puts its document
-// back with it whatever state a failed sample left (#1672).
+// The one edit that turns `current` back into `original`: the whole lines
+// of `current` between the lines the two share at their start and at their
+// end, as a protocol range (lines and characters from zero), and the lines
+// of `original` that go there. Null when the two are equal. A structural run
+// puts its document back with it whatever state a failed sample left
+// (#1672).
+//
+// The run types the text in, and typed text passes the editor's input
+// handlers, which add a closing bracket to a typed opening one. Whole lines
+// with a line break are text no handler rewrites (an opening token never
+// ends in a line break), so the text is never shorter than a line: it is
+// empty, when lines only go, or holds a line break, except when the two
+// documents share no line at either end.
 export function restoreSpan(current, original) {
   if (current === original) return null;
+  const now = current.split("\n");
+  const was = original.split("\n");
   let head = 0;
-  const shorter = Math.min(current.length, original.length);
-  while (head < shorter && current[head] === original[head]) head++;
+  while (head < now.length && head < was.length && now[head] === was[head]) head++;
   let tail = 0;
-  while (tail < shorter - head && current[current.length - 1 - tail] === original[original.length - 1 - tail]) tail++;
-  const position = (offset) => {
-    const before = current.slice(0, offset).split("\n");
-    return { line: before.length - 1, character: before.at(-1).length };
-  };
-  return { range: { start: position(head), end: position(current.length - tail) }, text: original.slice(head, original.length - tail) };
+  while (tail < now.length - head && tail < was.length - head && now[now.length - 1 - tail] === was[was.length - 1 - tail]) tail++;
+  const lines = was.slice(head, was.length - tail);
+  if (tail > 0) {
+    // Each replaced line with the break after it, up to the first shared
+    // line at the end.
+    return { range: { start: { line: head, character: 0 }, end: { line: now.length - tail, character: 0 } }, text: lines.map((l) => `${l}\n`).join("") };
+  }
+  if (head > 0) {
+    // To the end of the document: from the end of the last shared line, so
+    // the text starts with the break.
+    const start = { line: head - 1, character: now[head - 1].length };
+    return { range: { start, end: { line: now.length - 1, character: now.at(-1).length } }, text: lines.map((l) => `\n${l}`).join("") };
+  }
+  return { range: { start: { line: 0, character: 0 }, end: { line: now.length - 1, character: now.at(-1).length } }, text: original };
 }
 
 // ---------------------------------------------------------------- browser ---
