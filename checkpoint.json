@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 73,
-  "previous": "20fa57fd10f83724db626dabd1793ef256934e0e",
+  "seq": 74,
+  "previous": "c2c24c4ed682ae3de1b4138889618a21e408b09d",
   "snapshotParents": [],
-  "time": "2026-10-15T22:29:25.211Z",
+  "time": "2026-10-15T22:29:50.836Z",
   "kind": "auto",
-  "transition": "acknowledged of #1103",
+  "transition": "acknowledged of #1299",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 65,
+    "recordRevision": 66,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -197,7 +197,18 @@
           "time": "2026-10-15T22:28:46.898Z",
           "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
         },
-        "since": "2026-10-15T22:28:46.899Z"
+        "since": "2026-10-15T22:28:46.899Z",
+        "sessionId": "e37f8bfb-7b87-4f9e-8818-efe1125742bd",
+        "acknowledged": {
+          "time": "2026-10-15T22:29:47.780Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer impower-e2 naming assignment 2f7eb7c8, read from its claude.exe command line (--model claude-opus-5-5 --effort medium --permission-mode bypassPermissions) and CLAUDE_EFFORT=medium; out.jsonl init line reports model claude-opus-5-5 and permissionMode bypassPermissions",
+          "deliveryId": "b532fc61"
+        }
       },
       "pending": null,
       "history": [],
@@ -509,7 +520,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:29:24.252Z",
+      "observedAt": "2026-10-15T22:29:49.611Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": "7f7ad171c2f05acb746f6384e277411bf594523a",
@@ -523,7 +534,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T22:29:24.252Z",
+      "observedAt": "2026-10-15T22:29:49.611Z",
       "held": true,
       "exists": false
     },
@@ -532,7 +543,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T22:29:24.252Z",
+      "observedAt": "2026-10-15T22:29:49.611Z",
       "held": true,
       "exists": false
     }
@@ -989,6 +1000,16 @@
       "confirmed": {
         "model": "claude-opus-5-5",
         "effort": "low",
+        "permissionMode": "bypassPermissions"
+      }
+    },
+    {
+      "time": "2026-10-15T22:29:47.782Z",
+      "event": "acknowledged",
+      "ticket": 1299,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
     }
