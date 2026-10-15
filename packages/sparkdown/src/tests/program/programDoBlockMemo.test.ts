@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { memosOf } from "../../compiler/lower/statementMemo";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import { MAIN_URI, programCompiler } from "./programHarness";
+import { MAIN_URI, programCompiler, programSession } from "./programHarness";
 
 function quiet<T>(fn: () => T): T {
   const { warn, error } = console;
@@ -23,11 +23,6 @@ function quiet<T>(fn: () => T): T {
     console.warn = warn;
     console.error = error;
   }
-}
-
-function posAt(text: string, offset: number) {
-  const before = text.slice(0, offset).split("\n");
-  return { line: before.length - 1, character: before.at(-1)!.length };
 }
 
 const diagnosticsOf = (program: SparkProgram): string[] =>
@@ -70,27 +65,15 @@ const ELSEWHERE: [string, string][] = [
  *  with a cold compile's. Returns whether the last compile served a block
  *  statement from its memo, and its diagnostics. */
 function replay(start: string, edits: [string, string][]) {
-  return quiet(() => {
-    const incremental = programCompiler({ [MAIN_URI]: start });
-    incremental.compile();
-    let text = start;
-    let version = 2;
-    let diagnostics: string[] = [];
-    for (const [i, [find, replace]] of edits.entries()) {
-      const from = text.indexOf(find);
-      expect(from, `"${find}" is in the document`).toBeGreaterThanOrEqual(0);
-      const to = from + find.length;
-      incremental.compiler.updateDocument({
-        textDocument: { uri: MAIN_URI, version: version++ },
-        contentChanges: [{ range: { start: posAt(text, from), end: posAt(text, to) }, text: replace }],
-      });
-      text = text.slice(0, from) + replace + text.slice(to);
-      diagnostics = diagnosticsOf(incremental.compile().program);
-      const cold = diagnosticsOf(programCompiler({ [MAIN_URI]: text }).compile().program);
-      expect(diagnostics, `after edit ${i + 1}`).toEqual(cold);
-    }
-    return { served: servesABlockStatement(incremental.compiler), diagnostics };
-  });
+  const session = programSession(start);
+  let diagnostics: string[] = [];
+  for (const [i, [find, replace]] of edits.entries()) {
+    session.edit(find, replace);
+    diagnostics = diagnosticsOf(session.program);
+    const cold = quiet(() => diagnosticsOf(programCompiler({ [MAIN_URI]: session.text }).compile().program));
+    expect(diagnostics, `after edit ${i + 1}`).toEqual(cold);
+  }
+  return { served: servesABlockStatement(session.compiler), diagnostics };
 }
 
 // The body statement's resolution diagnostics, on line 9 of every script.
@@ -113,6 +96,11 @@ describe("a do block served from its memo reports its body's diagnostics (#1846)
     expect(served, "the last compile serves the block from its memo").toBe(true);
     expect(diagnostics).toEqual(expect.arrayContaining(BODY_DIAGNOSTICS));
     expect(diagnostics.filter((d) => d.includes("Unknown global"))).toEqual([]);
+  });
+
+  it("and drops them once a name its body reads is declared", () => {
+    const { diagnostics } = replay(script(" 1, 2 do"), [...ELSEWHERE, ["function reckon()", "store i = 1\nfunction reckon()"]]);
+    expect(diagnostics.filter((d) => d.includes("`i`"))).toEqual([]);
   });
 
   it("as a plain do block", () => {
