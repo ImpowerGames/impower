@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 11,
-  "previous": "b3b7aa5156d12e79a113443f544bc7b14be478f7",
+  "seq": 12,
+  "previous": "955b37753dc67ce694f245586ac32cce440c3aa4",
   "snapshotParents": [],
-  "time": "2026-10-15T22:02:29.655Z",
+  "time": "2026-10-15T22:02:42.171Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #457",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 8,
+    "recordRevision": 9,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -104,7 +104,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "8b85f0af",
+          "owner": "aa2733e6-4028-47ec-981f-f17d4cad4da8",
+          "time": "2026-10-15T22:02:38.968Z",
+          "text": "Two of the four bundled tickets no longer reproduce on origin/main c47d43421 (#705 removed programChunks and the ink JSON serializer): #457 and #1641 already behave as expected, #1325's bare and one-value forms are fixed while store a, b = pair() now lowers wrongly (3 and nil), and #1502 is the one live no-program case. Writer proposes: pipeline commit as briefed; real fixes with red-on-base tests for #1502 and #1325's call spread; pinning tests green on base for #457 and #1641, kept in the PR with their Closes lines and disclosed; alternative is to drop #457 and #1641 from the PR and have the coordinator close them as fixed by #705.",
+          "source": "cross-session message from writer impower-cb, received while its turn continues",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     }
   },
   "operations": [],
@@ -117,7 +128,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:02:28.668Z",
+      "observedAt": "2026-10-15T22:02:41.099Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -263,6 +274,12 @@
       "time": "2026-10-15T21:50:20.543Z",
       "event": "verified",
       "ticket": 457
+    },
+    {
+      "time": "2026-10-15T22:02:38.970Z",
+      "event": "request",
+      "ticket": 457,
+      "id": "8b85f0af"
     }
   ]
 }
