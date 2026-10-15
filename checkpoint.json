@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 59,
-  "previous": "e237f446d4d6b83cfdc04a5cf3ba90fed08eba6e",
+  "seq": 60,
+  "previous": "17b4a77e209451087e9719865e43f58c3f24e450",
   "snapshotParents": [],
-  "time": "2026-10-15T22:48:36.483Z",
+  "time": "2026-10-15T22:49:49.014Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1910 (confirmed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 50,
+    "recordRevision": 51,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -313,9 +313,9 @@
       "ticket": 1201,
       "pr": 1910,
       "expectHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-15T22:48:33.734Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1910 reads back merged as d121f70263a98ec30f6975d4909c0107b0841deb at f771cccd2ca4e6ad4e76403cb9eab185d035183a; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -484,7 +484,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-15T22:49:46.863Z",
+      "mergeCommit": "d121f70263a98ec30f6975d4909c0107b0841deb",
+      "mergedOnto": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -647,7 +652,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:48:35.236Z",
+      "observedAt": "2026-10-15T22:49:48.005Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -694,7 +699,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:48:35.236Z",
+      "observedAt": "2026-10-15T22:49:48.005Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -1125,6 +1130,12 @@
       "id": "a1ddd024",
       "kind": "merge",
       "pr": 1910
+    },
+    {
+      "time": "2026-10-15T22:49:46.863Z",
+      "event": "operation-outcome",
+      "id": "a1ddd024",
+      "state": "confirmed"
     }
   ]
 }

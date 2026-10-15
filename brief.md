@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 59 (this commit), 2026-10-15T22:48:36.483Z, after the intent before a side effect. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 60 (this commit), 2026-10-15T22:49:49.014Z, after the merge of PR #1910 (confirmed). Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -38,7 +38,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 - claude-cli claude-opus-5-5 at medium, process 11296 on DESKTOP-726EO47
 - a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies removes it once its coordinator and child are confirmed gone
-
-## Unsettled operations
-
-- a1ddd024: merge of PR #1910 at f771cccd2ca4e6ad4e76403cb9eab185d035183a, intent; settle it with checkpoint.mjs reconcile-operations before any retry
