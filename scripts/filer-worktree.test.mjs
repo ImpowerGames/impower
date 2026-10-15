@@ -182,13 +182,20 @@ for (const command of [`bash -c 'r''m -f ${bashTarget}'`, `'bash' -c "rm -f '${b
   }
 }
 const slashRepro = reproduction.replaceAll(path.sep, "/");
-// A control that asks `git worktree <subcommand> -h` only has to run. Git
-// answered it with its usage status, 129, through 2.55; Git 2.56.0 on the
-// Windows runner image answers 0. Expect what the Git the controls run
-// answers, asked through the same shell.
+// A control that asks `git worktree <subcommand> -h` has to reach Git and
+// print its usage. Git answered it with its usage status, 129, through 2.55;
+// Git 2.56.0 on the Windows runner image answers 0. Expect what the Git the
+// controls run answers, asked through the same shell, and only once that
+// answer is Git's usage: a shell that cannot run Git (127, say) must fail
+// here rather than become the status the controls are held to.
 const controlShell = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
-const gitHelpStatus = (subcommand) =>
-  spawnSync(controlShell, ["-c", `git worktree ${subcommand} -h`], { cwd: main, encoding: "utf8", windowsHide: true }).status;
+const gitUsage = (subcommand) => new RegExp(`^usage: git worktree ${subcommand}\\b`, "m");
+const gitHelpStatus = (subcommand) => {
+  const help = spawnSync(controlShell, ["-c", `git worktree ${subcommand} -h`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.ok(!help.error && help.signal === null && [0, 129].includes(help.status), `git worktree ${subcommand} -h: ${help.error ?? help.signal ?? help.status} ${help.stderr}`);
+  assert.match(help.stdout + help.stderr, gitUsage(subcommand));
+  return help.status;
+};
 const wrapperAndSelectorCases = [
   ["'env' rm --version", `'env' rm -f '${bashTarget}'`],
   ['"env" rm --version', `"env" rm -f '${bashTarget}'`],
@@ -221,6 +228,9 @@ for (const [control, mutation, expectedStatus = 0] of wrapperAndSelectorCases) {
   const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const actual = spawnSync(executable, ["-c", `pwd; ${control}`], { cwd: main, encoding: "utf8", windowsHide: true });
   assert.equal(actual.status, expectedStatus, actual.stderr); preserved();
+  // The help controls spell the subcommand in quotes ('re''move', $'remove').
+  const help = control.replace(/[$']/g, "").match(/^git worktree (remove|add) -h$/);
+  if (help) assert.match(actual.stdout + actual.stderr, gitUsage(help[1]), `${control} did not reach Git's usage`);
   assert.ok(cleanup(mutation, "bash", main), "supported wrapper or selector literal cannot hide a mutation");
   assert.ok(cleanup(mutation, undefined, main)); preserved();
   verifyAdapters(mutation, "Bash", main, true);
