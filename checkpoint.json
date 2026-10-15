@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 84,
-  "previous": "1b8a50f2fffd0afd030d6090a9af9600cf55e1a7",
+  "seq": 85,
+  "previous": "51e6457c14cf816dbf5c51758da3b966960690f9",
   "snapshotParents": [],
-  "time": "2026-10-15T23:04:44.335Z",
+  "time": "2026-10-15T23:05:52.028Z",
   "kind": "auto",
-  "transition": "result of #1103",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 74,
@@ -570,7 +570,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T23:04:43.285Z",
+      "observedAt": "2026-10-15T23:05:50.912Z",
       "held": true,
       "head": "71b26c87a1fc99abc8bdcc226954d6088908a005",
       "remoteHead": "71b26c87a1fc99abc8bdcc226954d6088908a005",
@@ -584,7 +584,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T23:04:43.285Z",
+      "observedAt": "2026-10-15T23:05:50.912Z",
       "held": true,
       "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
       "remoteHead": "f4212693ba4d706f0ded341f4ec0438ca2728265",
@@ -671,7 +671,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T23:04:43.285Z",
+      "observedAt": "2026-10-15T23:05:50.912Z",
       "held": true,
       "head": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
       "remoteHead": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
@@ -717,7 +717,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T23:03:53.404Z",
+    "at": "2026-10-15T23:05:50.911Z",
     "tickets": [
       {
         "number": 316,
@@ -745,9 +745,9 @@
       },
       {
         "number": 1103,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1913,
-        "reason": "process 36100, 11284, 27932 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1103-8e9ee861-8d52-4a89-b46c-ef9fd66fd4ec"
+        "reason": "PR #1913 is ready at f4212693ba4d706f0ded341f4ec0438ca2728265; process 51856 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1299,
@@ -781,9 +781,9 @@
       },
       {
         "number": 1645,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "3 writers already hold tickets against a limit of 3"
+        "reason": "every blocker's deliverable is on origin/main"
       }
     ],
     "remaining": [
