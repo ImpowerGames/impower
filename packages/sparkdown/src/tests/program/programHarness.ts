@@ -36,9 +36,24 @@ export const scriptFiles = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
+/** Throws when a compile made no program and reported no error to say why:
+ *  the author would see a preview that does nothing and no clue (#1895). */
+export function assertNoSilentNoProgram(program: SparkProgram): void {
+  if (program.chunks) {
+    return;
+  }
+  const errors = Object.values(program.diagnostics ?? {})
+    .flat()
+    .filter((d) => d.severity === 1);
+  if (errors.length === 0) {
+    throw new Error("The compile made no program and reported no error.");
+  }
+}
+
 /** A compiler over `texts`, keyed by uri, and a compile of it: the program,
  *  checked against what the resolver knows from each statement's syntax
- *  (`ProgramResolver.verifyFacts`). */
+ *  (`ProgramResolver.verifyFacts`), and an error reported when it made no
+ *  program (`assertNoSilentNoProgram`). */
 export function programCompiler(
   texts: Record<string, string>,
   config: SparkdownCompilerConfig = {},
@@ -58,6 +73,7 @@ export function programCompiler(
           `ProgramResolver.verifyFacts: ${ProgramResolver.factFailures.join("; ")}`,
         );
       }
+      assertNoSilentNoProgram(program);
       return { program };
     },
   };

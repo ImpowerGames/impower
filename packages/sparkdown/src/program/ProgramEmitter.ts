@@ -141,3 +141,17 @@ export class UnsupportedConstruct extends Error {
     super(`The binary program does not emit ${construct}`);
   }
 }
+
+/** Any other throw out of a statement's emit, rethrown with the statement it
+ *  came from, so the compile that catches it reports an error at that
+ *  statement's line. */
+export class StatementEmitFailure extends Error {
+  constructor(
+    public readonly uri: string,
+    /** The line of the statement, counting from 0. */
+    public readonly line: number,
+    public readonly error: unknown,
+  ) {
+    super(error instanceof Error ? error.message : String(error));
+  }
+}

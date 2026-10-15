@@ -41,7 +41,8 @@ import {
   StatementMemoRetry,
   type StatementMemoEntry,
 } from "../compiler/lower/statementMemo";
-import { UnsupportedConstruct } from "./ProgramEmitter";
+import { MemoizedStatementNeeded } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import { StatementEmitFailure, UnsupportedConstruct } from "./ProgramEmitter";
 import { ProgramStory } from "./ProgramStory";
 import {
   ChunkTable,
@@ -230,6 +231,16 @@ export interface UnsupportedConstructSite {
   /** The line of the statement that holds it, counting from 0. */
   line: number;
 }
+
+/** What a statement's emit threw, other than a construct it has no emit path
+ *  for, as the build rethrows it: a memo the compile lowers again as it is,
+ *  and any other error with the statement it came from. */
+const emitFailure = (e: unknown, uri: string, line: number): unknown =>
+  e instanceof MemoizedStatementNeeded ||
+  e instanceof StatementMemoRetry ||
+  e instanceof StatementEmitFailure
+    ? e
+    : new StatementEmitFailure(uri, line, e);
 
 /** What one build of the program did. */
 export interface ProgramCoverage {
@@ -917,7 +928,7 @@ export class ChunkStore {
           );
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
-            throw e;
+            throw emitFailure(e, declaration.uri, declaration.firstLine);
           }
           coverage.unsupported[e.construct] =
             (coverage.unsupported[e.construct] ?? 0) + 1;
@@ -1921,7 +1932,7 @@ export class ChunkStore {
           chunk = this.emit(statement, (input) => this._writer.write(input));
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
-            throw e;
+            throw emitFailure(e, home.uri, statement.firstLine);
           }
           build.coverage.unsupported[e.construct] =
             (build.coverage.unsupported[e.construct] ?? 0) + 1;

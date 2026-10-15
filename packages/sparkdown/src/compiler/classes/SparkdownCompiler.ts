@@ -129,6 +129,7 @@ import {
 } from "../../program/ProgramResolver";
 import type { ProgramStoryTables } from "../../program/ProgramRoot";
 import type { UnsupportedConstructSite } from "../../program/ChunkStore";
+import { StatementEmitFailure } from "../../program/ProgramEmitter";
 import { unsupportedConstructMessage } from "../utils/unsupportedConstructMessage";
 import { MemoizedStatementNeeded, memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import {
@@ -1995,6 +1996,8 @@ export class SparkdownCompiler {
         profile("end", this._profilerId, phase, uri);
       }
       console.error(e);
+      // The compile makes no program, and says so at the statement that threw.
+      this.reportCompileThrow(e, uri, onDiagnostic);
       // A threw compile can leave carried parsed/runtime state half-mutated;
       // drop all reuse records so the next compile rebuilds from scratch.
       this._prevFlowRuns = undefined;
@@ -3900,15 +3903,42 @@ export class SparkdownCompiler {
     if (reported) {
       return;
     }
-    const text =
-      this.documents.get(unsupported.uri)?.getText().split("\n")[line] ?? "";
-    onDiagnostic(message, ErrorType.Error, {
-      filePath: unsupported.uri,
+    onDiagnostic(message, ErrorType.Error, this.lineSource(unsupported.uri, line));
+  }
+
+  /** Reports a throw the compile caught as an error over the line of the
+   *  statement whose emit threw (`StatementEmitFailure`), or over the first
+   *  line of the compiled script when no statement is known. */
+  protected reportCompileThrow(
+    e: unknown,
+    uri: string,
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+    ) => void,
+  ): void {
+    const site = e instanceof StatementEmitFailure ? e : undefined;
+    const cause = site ? site.error : e;
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    onDiagnostic(
+      `The compiler failed ${site ? "on this statement" : "on this script"}, so no program was made: ${detail}`,
+      ErrorType.Error,
+      this.lineSource(site?.uri ?? uri, site?.line ?? 0),
+    );
+  }
+
+  /** The source of a line's text, its indentation and trailing space left
+   *  out. */
+  protected lineSource(uri: string, line: number): SourceMetadata {
+    const text = this.documents.get(uri)?.getText().split("\n")[line] ?? "";
+    return {
+      filePath: uri,
       startLineNumber: line + 1,
       startCharacterNumber: 1 + (text.length - text.trimStart().length),
       endLineNumber: line + 1,
       endCharacterNumber: 1 + text.trimEnd().length,
-    } as SourceMetadata);
+    } as SourceMetadata;
   }
 
   /** The chunk store of the compiler. */
