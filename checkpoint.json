@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 3,
-  "previous": "a5c0a383656b07e9c4d7a4ce6a52f98c3836ee3e",
+  "seq": 4,
+  "previous": "c58c794a631ea73da9afb557bf8cc2bc6ed4fc1f",
   "snapshotParents": [],
-  "time": "2026-10-15T21:41:06.053Z",
+  "time": "2026-10-15T21:47:17.016Z",
   "kind": "auto",
-  "transition": "group",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 4,
@@ -68,7 +68,95 @@
   "work": {},
   "snapshots": {},
   "handoff": null,
-  "observed": null,
+  "observed": {
+    "at": "2026-10-15T21:47:17.015Z",
+    "tickets": [
+      {
+        "number": 1201,
+        "action": "dispatch",
+        "pr": null,
+        "reason": "every blocker's deliverable is on origin/main"
+      },
+      {
+        "number": 1211,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1249,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1295,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1611,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1613,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1614,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1623,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1627,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1628,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1632,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1638,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      },
+      {
+        "number": 1846,
+        "action": "wait-capacity",
+        "pr": null,
+        "reason": "0 writers already hold tickets against a limit of 2"
+      }
+    ],
+    "remaining": [
+      "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
+      "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main.",
+      "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
+      "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone."
+    ]
+  },
   "log": [
     {
       "time": "2026-10-15T21:40:15.902Z",
