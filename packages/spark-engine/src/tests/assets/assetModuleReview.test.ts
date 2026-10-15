@@ -156,13 +156,18 @@ describe("AssetModule, after review", () => {
     const stepUntil = (text: string) => {
       for (let i = 0; i < 12; i++) {
         const beat = h.nextBeat();
+        // The address of the step the story ran last (the program engine's
+        // `previousAddress`), observed before the beat's load runs, as the
+        // game observes each address as the story reaches it and loads when
+        // it flushes the beat. Observed after it, the divert a load beat
+        // flushes at would leave the scene the load is for. (Until #657, a
+        // layout binding's evaluation left `previousAddress` inside the
+        // binding, outside every scene, which hid that order.)
+        const previous = (h.game.story as any).previousAddress as number;
+        h.game.observeScene(previous >= 0 ? previous : undefined);
         if (beat?.load) {
           assets.runLoad(beat.load);
         }
-        // The address of the step the story ran last (the program engine's
-        // `previousAddress`).
-        const previous = (h.game.story as any).previousAddress as number;
-        h.game.observeScene(previous >= 0 ? previous : undefined);
         const line = Object.values(beat?.text ?? {})
           .flat()
           .map((t: any) => t.text)
