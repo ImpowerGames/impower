@@ -17,15 +17,18 @@ console.log("running game-webview");
 
 declare var acquireVsCodeApi: any;
 
+const vscode = acquireVsCodeApi();
+
+// What a panel vscode restores is handed. Starts from what was saved before,
+// so saving one field does not drop the other until it is reported again.
+const saved = vscode.getState();
 const state: {
   textDocument: { uri: string };
   canvasHeight?: number;
 } = {
-  textDocument: { uri: "" },
-  canvasHeight: undefined,
+  textDocument: { uri: saved?.textDocument?.uri ?? "" },
+  canvasHeight: saved?.canvasHeight,
 };
-
-const vscode = acquireVsCodeApi();
 
 const connection = new WindowMessageConnection((message: any) =>
   vscode.postMessage(message),

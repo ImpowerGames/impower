@@ -11,8 +11,8 @@ const state = vi.hoisted(() => ({
   vscode: null as unknown as FakeVscode,
   /** The documents `openTextDocument` can open, by uri. */
   openable: new Map<string, unknown>(),
-  /** Opening these uris waits until the promise settles. */
-  held: new Map<string, Promise<void>>(),
+  /** Opening these uris says so, then waits until it is released. */
+  held: new Map<string, { opened: () => void; released: Promise<void> }>(),
   /** The panel `createWebviewPanel` hands `Sparkdown: Preview Game`. */
   created: undefined as unknown,
 }));
@@ -33,7 +33,11 @@ vi.mock("vscode", async () => {
         return state.vscode.workspace.textDocuments;
       },
       openTextDocument: async (uri: { toString(): string }) => {
-        await state.held.get(uri.toString());
+        const hold = state.held.get(uri.toString());
+        if (hold) {
+          hold.opened();
+          await hold.released;
+        }
         const document = state.openable.get(uri.toString());
         if (!document) {
           throw new Error(`cannot open ${uri.toString()}`);
@@ -135,6 +139,17 @@ const restore = async (panel: unknown, saved: unknown) => {
   const manager = await freshManager();
   await deserialize(panel, saved);
   return manager;
+};
+
+/** Hold opening `uri`: resolves `opening` once it is asked for, and
+ *  completes it when `release` is called. */
+const hold = (uri: string) => {
+  let opened!: () => void;
+  let release!: () => void;
+  const opening = new Promise<void>((resolve) => (opened = resolve));
+  const released = new Promise<void>((resolve) => (release = resolve));
+  state.held.set(uri, { opened, released });
+  return { opening, release };
 };
 
 /** Show `doc` in the active editor, with the cursor on its first line. */
@@ -241,11 +256,7 @@ describe("restoring the Game Preview when the workspace reopens", () => {
       "file:///project/saved.sd",
       document("file:///project/saved.sd", "Saved."),
     );
-    let release!: () => void;
-    state.held.set(
-      "file:///project/saved.sd",
-      new Promise<void>((resolve) => (release = resolve)),
-    );
+    const { opening, release } = hold("file:///project/saved.sd");
     const first = restoredPanel();
     const second = restoredPanel();
 
@@ -255,6 +266,7 @@ describe("restoring the Game Preview when the workspace reopens", () => {
     const restoring = deserialize(first.panel, {
       textDocument: { uri: "file:///project/saved.sd" },
     });
+    await opening;
     await deserialize(second.panel, undefined);
     release();
     await restoring;
@@ -278,11 +290,7 @@ describe("restoring the Game Preview when the workspace reopens", () => {
       "file:///project/saved.sd",
       document("file:///project/saved.sd", "Saved."),
     );
-    let release!: () => void;
-    state.held.set(
-      "file:///project/saved.sd",
-      new Promise<void>((resolve) => (release = resolve)),
-    );
+    const { opening, release } = hold("file:///project/saved.sd");
     const restored = restoredPanel();
     const opened = restoredPanel();
     state.created = opened.panel;
@@ -291,6 +299,7 @@ describe("restoring the Game Preview when the workspace reopens", () => {
     const restoring = deserialize(restored.panel, {
       textDocument: { uri: "file:///project/saved.sd" },
     });
+    await opening;
     await manager.showPanel(
       { extensionUri: "ext" } as any,
       state.vscode.window.activeTextEditor.document,

@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   /** Every state the webview saved, in order. */
   saved: [] as any[],
+  /** What VS Code hands the webview from its last session. */
+  restored: undefined as unknown,
   /** Delivers a message from the extension to the webview. */
   receive: (_message: unknown) => {},
 }));
@@ -79,45 +81,60 @@ const resized = (height: number) => {
 
 const lastSaved = () => state.saved.at(-1);
 
-beforeEach(async () => {
+/** Load the webview's script, as VS Code does when a panel opens or is
+ *  restored, handing it what `restored` holds. */
+const load = async () => {
   vi.resetModules();
-  state.saved = [];
+  // The scripts of earlier tests still listen on the window, so each load
+  // records into its own list.
+  const saves: unknown[] = [];
+  state.saved = saves;
   (globalThis as any).acquireVsCodeApi = () => ({
     postMessage: () => {},
-    setState: (saved: unknown) =>
-      state.saved.push(JSON.parse(JSON.stringify(saved))),
+    getState: () => state.restored,
+    setState: (saved: unknown) => saves.push(JSON.parse(JSON.stringify(saved))),
   });
   await import("../webviews/game-webview/game-webview");
+};
+
+beforeEach(() => {
+  state.saved = [];
+  state.restored = undefined;
 });
 
 describe("saving the Game Preview's script", () => {
-  it("saves the script the player is initialized with", () => {
+  it("saves the script the player is initialized with", async () => {
+    await load();
     state.receive(initialize("file:///project/main.sd"));
 
     expect(lastSaved()?.textDocument.uri).toBe("file:///project/main.sd");
   });
 
-  it("saves the script the author then selects a line in", () => {
+  it("saves the script the author then selects a line in", async () => {
+    await load();
     state.receive(initialize("file:///project/main.sd"));
     state.receive(select("file:///project/other.sd", true));
 
     expect(lastSaved()?.textDocument.uri).toBe("file:///project/other.sd");
   });
 
-  it("keeps the script when a selection was not the author's", () => {
+  it("keeps the script when a selection was not the author's", async () => {
+    await load();
     state.receive(initialize("file:///project/main.sd"));
     state.receive(select("file:///project/other.sd", false));
 
     expect(lastSaved()?.textDocument.uri).toBe("file:///project/main.sd");
   });
 
-  it("saves nothing for an initialization without a script", () => {
+  it("saves nothing for an initialization without a script", async () => {
+    await load();
     state.receive(initialize());
 
     expect(state.saved).toEqual([]);
   });
 
-  it("keeps the script and the canvas height together", () => {
+  it("keeps the script and the canvas height together", async () => {
+    await load();
     resized(240);
     state.receive(initialize("file:///project/main.sd"));
 
@@ -125,6 +142,34 @@ describe("saving the Game Preview's script", () => {
       textDocument: { uri: "file:///project/main.sd" },
       canvasHeight: 240,
     });
+
+    resized(300);
+
+    expect(lastSaved()).toEqual({
+      textDocument: { uri: "file:///project/main.sd" },
+      canvasHeight: 300,
+    });
+  });
+});
+
+describe("restoring the Game Preview's saved state", () => {
+  const restored = {
+    textDocument: { uri: "file:///project/main.sd" },
+    canvasHeight: 240,
+  };
+
+  it("keeps the restored canvas height when the player is initialized", async () => {
+    state.restored = restored;
+    await load();
+
+    state.receive(initialize("file:///project/main.sd"));
+
+    expect(lastSaved()).toEqual(restored);
+  });
+
+  it("keeps the restored script when the game reports its size first", async () => {
+    state.restored = restored;
+    await load();
 
     resized(300);
 
