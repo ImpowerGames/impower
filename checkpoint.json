@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 8,
-  "previous": "a7104cdb59f4cb149a57f7426f8522d00c4eda48",
+  "seq": 9,
+  "previous": "6f1560b9ff88ed32a3585fdb856e9372963e3243",
   "snapshotParents": [],
-  "time": "2026-10-15T21:59:07.279Z",
+  "time": "2026-10-15T21:59:44.237Z",
   "kind": "auto",
-  "transition": "claim of #1201",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 6,
@@ -110,7 +110,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T21:59:07.279Z",
+      "observedAt": "2026-10-15T21:59:44.237Z",
       "held": true,
       "exists": false
     },
@@ -119,7 +119,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T21:59:07.279Z",
+      "observedAt": "2026-10-15T21:59:44.237Z",
       "held": true,
       "exists": false
     }
@@ -127,13 +127,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T21:58:35.074Z",
+    "at": "2026-10-15T21:59:44.235Z",
     "tickets": [
       {
         "number": 1201,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 924f2008-1121-474f-9f5f-ff1a78951482 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1211,
@@ -205,7 +205,7 @@
         "number": 1846,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "1 writers already hold tickets against a limit of 2"
+        "reason": "2 writers already hold tickets against a limit of 2"
       }
     ],
     "remaining": [
