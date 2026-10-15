@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 25,
-  "previous": "d2562bfe27c350bd9d276c0ab9f2673325a20241",
+  "seq": 26,
+  "previous": "64d8ccfe322e407408b286a553d4cd5f793b418e",
   "snapshotParents": [],
-  "time": "2026-10-15T22:19:05.618Z",
+  "time": "2026-10-15T22:19:13.814Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 22,
+    "recordRevision": 23,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -193,6 +193,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\703-program-engine-default",
       "branch": "feat/703-program-engine-default",
       "classifier": "removed  impower.worktrees\\feat\\703-program-engine-default               feat/703-program-engine-default               986.1 MB   merged into origin/main; origin/feat/703-program-engine-default still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/703-program-engine-default': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:19:11.620Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\704-language-server-program",
+      "branch": "feat/704-language-server-program",
+      "classifier": "removed  impower.worktrees\\feat\\704-language-server-program              feat/704-language-server-program              1.1 GB     merged into origin/main; origin/feat/704-language-server-program still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/704-language-server-program': Directory not empty) and dropped its record; the rest of the directory was removed directly; removed the empty feat\\"
     }
   ],
   "verifications": [],
@@ -202,7 +208,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:19:04.854Z",
+      "observedAt": "2026-10-15T22:19:12.915Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -424,6 +430,11 @@
       "time": "2026-10-15T22:19:03.714Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\703-program-engine-default"
+    },
+    {
+      "time": "2026-10-15T22:19:11.621Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\704-language-server-program"
     }
   ]
 }
