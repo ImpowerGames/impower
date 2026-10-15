@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 7,
-  "previous": "2c4f678c46c025490e868ba78f5120a81710cba5",
+  "seq": 8,
+  "previous": "a7104cdb59f4cb149a57f7426f8522d00c4eda48",
   "snapshotParents": [],
-  "time": "2026-10-15T21:58:35.075Z",
+  "time": "2026-10-15T21:59:07.279Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1201",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 5,
+    "recordRevision": 6,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -61,6 +61,25 @@
   },
   "title": "ORCH #1893: incremental cold compile",
   "tickets": {
+    "1201": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "924f2008-1121-474f-9f5f-ff1a78951482",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
+        "branch": "test/1201-incremental-cold-parity",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-15T21:59:05.606Z"
+      },
+      "history": [],
+      "results": []
+    },
     "1632": {
       "owner": null,
       "pending": {
@@ -86,12 +105,21 @@
   "diskRecoveries": [],
   "verifications": [],
   "work": {
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity": {
+      "ticket": 1201,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
+      "branch": "test/1201-incremental-cold-parity",
+      "observedAt": "2026-10-15T21:59:07.279Z",
+      "held": true,
+      "exists": false
+    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies": {
       "ticket": 1632,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T21:58:35.075Z",
+      "observedAt": "2026-10-15T21:59:07.279Z",
       "held": true,
       "exists": false
     }
@@ -218,6 +246,13 @@
       "ticket": 1632,
       "route": "claude-cli",
       "launchId": "2baa157e-585e-4be9-ac20-b04c4aae5774"
+    },
+    {
+      "time": "2026-10-15T21:59:05.607Z",
+      "event": "dispatch-intent",
+      "ticket": 1201,
+      "route": "claude-cli",
+      "launchId": "924f2008-1121-474f-9f5f-ff1a78951482"
     }
   ]
 }
