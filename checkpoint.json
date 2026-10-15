@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 80,
-  "previous": "e3e9f753105e5cbc9cc8aa7ce01d4622591aa98a",
+  "seq": 81,
+  "previous": "a26c67b906991df90b069a9da9018eea9670cf42",
   "snapshotParents": [],
-  "time": "2026-10-15T22:56:58.597Z",
+  "time": "2026-10-15T23:18:00.301Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 62,
+    "recordRevision": 63,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -733,16 +733,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:56:57.775Z",
+      "observedAt": "2026-10-15T23:17:57.505Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 49864
-      },
       "pr": 1912,
       "reviewJobs": [
         {
@@ -827,7 +823,7 @@
         },
         {
           "job": "pr-1912/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -844,7 +840,27 @@
               "bound": 1
             },
             "time": "2026-10-15T22:52:14.141Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6204168120
+          ]
         }
       ]
     },
@@ -853,9 +869,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T22:56:57.775Z",
+      "observedAt": "2026-10-15T23:17:57.505Z",
       "held": true,
-      "exists": false
+      "head": "d121f70263a98ec30f6975d4909c0107b0841deb",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
@@ -1359,6 +1378,11 @@
       "time": "2026-10-15T22:56:56.344Z",
       "event": "check-in",
       "outcome": "#1846 writer acknowledged and verified; #1632 (PR 1912, round 1, reviewer 3 of 3 running) and #1846 writers running; no requests; nothing eligible to dispatch"
+    },
+    {
+      "time": "2026-10-15T23:17:54.552Z",
+      "event": "check-in",
+      "outcome": "no change: #1632 (PR 1912 round 1, all three reports posted, writer adjudicating) and #1846 writers running; no requests; nothing eligible"
     }
   ]
 }
