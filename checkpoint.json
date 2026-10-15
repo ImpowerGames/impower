@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 61,
-  "previous": "6c48c57b2c405df3e8f89510cbb246321e37c818",
+  "seq": 62,
+  "previous": "531cc20354805783265626b420cbb38aa77088b7",
   "snapshotParents": [],
-  "time": "2026-10-15T22:50:39.391Z",
+  "time": "2026-10-15T22:51:37.758Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1201",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 51,
+    "recordRevision": 52,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -62,48 +62,54 @@
   "title": "ORCH #1893: incremental cold compile",
   "tickets": {
     "1201": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
-        "branch": "test/1201-incremental-cold-parity",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "launchId": "924f2008-1121-474f-9f5f-ff1a78951482",
-        "handle": {
-          "kind": "process",
-          "pid": 55348,
-          "start": "639276984318127089",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1201-924f2008-1121-474f-9f5f-ff1a78951482"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 924f2008-1121-474f-9f5f-ff1a78951482. You are the writer for ImpowerGames/impower ticket #1201 (Incremental annotation leaves a stale semantic token on a distant reference that a cold parse does not emit (distant-reference dependency tracking)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 924f2008-1121-474f-9f5f-ff1a78951482 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1201 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity on branch test/1201-incremental-cold-parity from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit E of umbrella #1893, whose Description and Scope are the design of record. One PR on this branch closes six tickets that no longer reproduce on origin/main: #1201, #1211, #1249, #1295, #1613 and #1628. For each, commit a regression test that compiles the ticket's script incrementally (through the ticket's own edit sequence) and cold, and asserts the same tree, program chunks and diagnostics (for #1201, the same semantics channel through SparkdownDocumentRegistry). Read each ticket's 2026-10-15 root-cause comment first: it names the case to keep, the test shape to reuse, and which filed cases to drop.\n- No code change is expected. A test that comes out red on origin/main is a report, not a fix: do not change compiler, parser or chunk-store code to make it pass. Message the coordinator with the red test's name and output, keep that test committed and skipped with a comment naming the ticket, leave that ticket's Closes line out, and finish the other tickets.\n- PR body: one Closes line per ticket in Summary (Closes #1201, Closes #1211, Closes #1249, Closes #1295, Closes #1613, Closes #1628), since each ticket closes on merge only through its own line. The completion gate's red evidence is each ticket's recorded failure on its base commit, as its root-cause comment cites it; say in Testing and verification that the tests are green on origin/main by design and name that commit per ticket. Do not build old commits to re-run the red side unless it is cheap.\n- Hand-over notes with the probe scripts that reproduced every ticket on 2026-10-15: C:/Users/Brode/AppData/Roaming/Claude/side-session-notes/local_f6397909-b97e-49a8-a27d-cdbf621c7487/incremental-vs-cold/NOTES.md (probe-registry.ts for #1201 and #1249, probe-compiler.ts for #1211 and #1295, probe-program.ts for #1613 and #1628, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe.\n- Scope: only the six tickets above. #1611, #1614, #1623, #1627, #1632, #1638 and #1846 belong to other units with their own writers; add no test for them here. Do not edit packages/sparkdown/src/program/ChunkStore.ts, statementMemo.ts, ProgramResolver.ts or the parser packages; another writer holds ChunkStore.ts now.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files under work> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Put each new test beside the existing shapes under packages/sparkdown/src/tests/program (programIncrementalOracles.test.ts, programDiagnosticsParity.test.ts) or packages/sparkdown/src/tests/incremental, reusing their harnesses.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "a3411359",
-          "attempts": 1,
-          "time": "2026-10-15T22:00:32.141Z",
-          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
-        },
-        "since": "2026-10-15T22:00:32.141Z",
-        "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
-        "acknowledged": {
-          "time": "2026-10-15T22:01:35.845Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
+            "branch": "test/1201-incremental-cold-parity",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+            "launchId": "924f2008-1121-474f-9f5f-ff1a78951482",
+            "handle": {
+              "kind": "process",
+              "pid": 55348,
+              "start": "639276984318127089",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1201-924f2008-1121-474f-9f5f-ff1a78951482"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 924f2008-1121-474f-9f5f-ff1a78951482. You are the writer for ImpowerGames/impower ticket #1201 (Incremental annotation leaves a stale semantic token on a distant reference that a cold parse does not emit (distant-reference dependency tracking)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 924f2008-1121-474f-9f5f-ff1a78951482 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1201 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity on branch test/1201-incremental-cold-parity from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit E of umbrella #1893, whose Description and Scope are the design of record. One PR on this branch closes six tickets that no longer reproduce on origin/main: #1201, #1211, #1249, #1295, #1613 and #1628. For each, commit a regression test that compiles the ticket's script incrementally (through the ticket's own edit sequence) and cold, and asserts the same tree, program chunks and diagnostics (for #1201, the same semantics channel through SparkdownDocumentRegistry). Read each ticket's 2026-10-15 root-cause comment first: it names the case to keep, the test shape to reuse, and which filed cases to drop.\n- No code change is expected. A test that comes out red on origin/main is a report, not a fix: do not change compiler, parser or chunk-store code to make it pass. Message the coordinator with the red test's name and output, keep that test committed and skipped with a comment naming the ticket, leave that ticket's Closes line out, and finish the other tickets.\n- PR body: one Closes line per ticket in Summary (Closes #1201, Closes #1211, Closes #1249, Closes #1295, Closes #1613, Closes #1628), since each ticket closes on merge only through its own line. The completion gate's red evidence is each ticket's recorded failure on its base commit, as its root-cause comment cites it; say in Testing and verification that the tests are green on origin/main by design and name that commit per ticket. Do not build old commits to re-run the red side unless it is cheap.\n- Hand-over notes with the probe scripts that reproduced every ticket on 2026-10-15: C:/Users/Brode/AppData/Roaming/Claude/side-session-notes/local_f6397909-b97e-49a8-a27d-cdbf621c7487/incremental-vs-cold/NOTES.md (probe-registry.ts for #1201 and #1249, probe-compiler.ts for #1211 and #1295, probe-program.ts for #1613 and #1628, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe.\n- Scope: only the six tickets above. #1611, #1614, #1623, #1627, #1632, #1638 and #1846 belong to other units with their own writers; add no test for them here. Do not edit packages/sparkdown/src/program/ChunkStore.ts, statementMemo.ts, ProgramResolver.ts or the parser packages; another writer holds ChunkStore.ts now.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files under work> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Put each new test beside the existing shapes under packages/sparkdown/src/tests/program (programIncrementalOracles.test.ts, programDiagnosticsParity.test.ts) or packages/sparkdown/src/tests/incremental, reusing their harnesses.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "a3411359",
+              "attempts": 1,
+              "time": "2026-10-15T22:00:32.141Z",
+              "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+            },
+            "since": "2026-10-15T22:00:32.141Z",
+            "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
+            "acknowledged": {
+              "time": "2026-10-15T22:01:35.845Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from the writer session (impower-17) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
+              "deliveryId": "a3411359"
+            }
           },
-          "evidence": "cross-session message from the writer session (impower-17) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
-          "deliveryId": "a3411359"
+          "released": "process 55348 is gone and no process names its launch directory; process 55348 is gone and no process names its launch directory; its transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1201-924f2008-1121-474f-9f5f-ff1a78951482/out.jsonl ends with stop_reason end_turn after the final report (PR 1910, reviewed head f771ccc, 1 round, no findings); PR 1910 merged at d121f70263a98ec30f6975d4909c0107b0841deb through the gate",
+          "time": "2026-10-15T22:51:35.380Z"
         }
-      },
-      "pending": null,
-      "history": [],
+      ],
       "results": [
         {
           "time": "2026-10-15T22:46:19.528Z",
@@ -652,7 +658,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:50:38.074Z",
+      "observedAt": "2026-10-15T22:51:36.506Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -699,7 +705,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:50:38.074Z",
+      "observedAt": "2026-10-15T22:51:36.506Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -1198,6 +1204,12 @@
       "event": "operation-outcome",
       "id": "a1ddd024",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-15T22:51:35.381Z",
+      "event": "released",
+      "ticket": 1201,
+      "reason": "process 55348 is gone and no process names its launch directory"
     }
   ]
 }
