@@ -15,12 +15,21 @@ export class SparkdownPreviewGamePanelSerializer
       | { textDocument?: { uri?: string }; canvasHeight?: number }
       | undefined,
   ) {
-    // Always initialize the panel VS Code restored: a restored panel is
-    // given its content and connected only here, so one left alone stays
-    // black for good (#1886). The webview may have saved no state (it saves
-    // only once its game has started or resized), or a script that can no
-    // longer be opened; the preview then starts with the script
-    // `Sparkdown: Preview Game` would use, or with none.
+    // The manager drives one Game Preview. A workspace can hold two, saved
+    // while a black restored tab sat beside one opened with `Sparkdown:
+    // Preview Game`; the later one is closed rather than take the manager
+    // over from the first (#1886).
+    if (SparkdownPreviewGamePanelManager.instance.panel) {
+      panel.dispose();
+      return;
+    }
+    // Otherwise always initialize the panel VS Code restored: a restored
+    // panel is given its content and connected only here, so one left alone
+    // stays black for good (#1886). The webview may have saved no state (it
+    // saves its script once the player is initialized, and builds before
+    // this one never did), or a script that can no longer be opened; the
+    // preview then starts with the script `Sparkdown: Preview Game` would
+    // use, or with none.
     const savedUri = state?.textDocument?.uri;
     const saved = savedUri
       ? await getOpenTextDocument(vscode.Uri.parse(savedUri))

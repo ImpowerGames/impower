@@ -196,6 +196,30 @@ describe("restoring the Game Preview when the workspace reopens", () => {
     expect(resizes.map((m) => m.params.height)).toEqual([240]);
   });
 
+  it("closes a second restored Game Preview rather than start both", async () => {
+    // A workspace saved while the bug left a black tab beside one opened
+    // with `Sparkdown: Preview Game` restores two.
+    const { document } = await import("./fakeVscode");
+    await showInEditor(document("file:///project/main.sd", "Hello."));
+    const first = restoredPanel();
+    const second = restoredPanel();
+
+    const manager = await restore(first.panel, undefined);
+    const { SparkdownPreviewGamePanelSerializer } =
+      await import("../src/managers/SparkdownPreviewGamePanelSerializer");
+    await new SparkdownPreviewGamePanelSerializer({
+      extensionUri: "ext",
+    } as any).deserializeWebviewPanel(second.panel as any, undefined);
+    await first.start();
+
+    expect(second.panel.disposed).toBe(true);
+    expect(second.posted).toEqual([]);
+    expect(first.panel.disposed).toBe(false);
+    expect(manager.panel).toBe(first.panel);
+    expect(first.initializations()).toHaveLength(1);
+    expect(manager.connected).toBe(true);
+  });
+
   it("starts with the active script when the saved one cannot be opened", async () => {
     const { document } = await import("./fakeVscode");
     await showInEditor(document("file:///project/main.sd", "Hello."));
