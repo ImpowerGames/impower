@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 16,
-  "previous": "19b749229c72c07de3dbde243e2c72b803759b64",
+  "seq": 17,
+  "previous": "d02b4a5a654119061da7c7f3bd8bd3bdcdd4d6d5",
   "snapshotParents": [],
-  "time": "2026-10-15T22:17:52.016Z",
+  "time": "2026-10-15T22:18:00.211Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 13,
+    "recordRevision": 14,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -139,6 +139,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1707-runtime-guide",
       "branch": "docs/1707-runtime-guide",
       "classifier": "removed  impower.worktrees\\docs\\1707-runtime-guide                       docs/1707-runtime-guide                       936.5 MB   merged into origin/main; origin/docs/1707-runtime-guide still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/docs/1707-runtime-guide': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:17:57.976Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1712-bypass-profile",
+      "branch": "docs/1712-bypass-profile",
+      "classifier": "removed  impower.worktrees\\docs\\1712-bypass-profile                      docs/1712-bypass-profile                      936.3 MB   merged into origin/main; origin/docs/1712-bypass-profile still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/docs/1712-bypass-profile': Directory not empty) and dropped its record; the rest of the directory was removed directly; removed the empty docs\\"
     }
   ],
   "verifications": [],
@@ -148,7 +154,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:17:51.283Z",
+      "observedAt": "2026-10-15T22:17:59.507Z",
       "held": true,
       "head": "34ddcadf1f86c8ca4481239357ecafb3a8841b65",
       "remoteHead": null,
@@ -325,6 +331,11 @@
       "time": "2026-10-15T22:17:49.607Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1707-runtime-guide"
+    },
+    {
+      "time": "2026-10-15T22:17:57.977Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1712-bypass-profile"
     }
   ]
 }
