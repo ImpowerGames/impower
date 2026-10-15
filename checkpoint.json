@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 60,
-  "previous": "17b4a77e209451087e9719865e43f58c3f24e450",
+  "seq": 61,
+  "previous": "6c48c57b2c405df3e8f89510cbb246321e37c818",
   "snapshotParents": [],
-  "time": "2026-10-15T22:49:49.014Z",
+  "time": "2026-10-15T22:50:39.391Z",
   "kind": "auto",
-  "transition": "the merge of PR #1910 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 51,
@@ -652,7 +652,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:49:48.005Z",
+      "observedAt": "2026-10-15T22:50:38.074Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -699,7 +699,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:49:48.005Z",
+      "observedAt": "2026-10-15T22:50:38.074Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -708,37 +708,99 @@
       "handoffLock": {
         "host": "DESKTOP-726EO47",
         "pid": 35408
-      }
+      },
+      "pr": 1912,
+      "reviewJobs": [
+        {
+          "job": "pr-1912/round-1/launch-bound-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-bound",
+            "reviewerId": "bound",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+            "completedRoundReviewers": {
+              "incr": 1
+            },
+            "time": "2026-10-15T22:47:41.335Z"
+          }
+        },
+        {
+          "job": "pr-1912/round-1/launch-incr-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-incr",
+            "reviewerId": "incr",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+            "completedRoundReviewers": null,
+            "time": "2026-10-15T22:43:49.139Z"
+          },
+          "round": 1,
+          "reviewerId": "incr",
+          "attempt": 1,
+          "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "incr": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6203848869
+          ]
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:43:26.740Z",
+    "at": "2026-10-15T22:50:38.073Z",
     "tickets": [
       {
         "number": 1201,
-        "action": "merge-gate",
-        "pr": 1910,
-        "reason": "PR #1910 is ready at f771cccd2ca4e6ad4e76403cb9eab185d035183a; process 55348 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1211,
-        "action": "merge-gate",
-        "pr": 1910,
-        "reason": "PR #1910 is ready at f771cccd2ca4e6ad4e76403cb9eab185d035183a; process 55348 is gone; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone): read its transcript, then record release with that evidence"
       },
       {
         "number": 1249,
-        "action": "merge-gate",
-        "pr": 1910,
-        "reason": "PR #1910 is ready at f771cccd2ca4e6ad4e76403cb9eab185d035183a; process 55348 is gone; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone): read its transcript, then record release with that evidence"
       },
       {
         "number": 1295,
-        "action": "merge-gate",
-        "pr": 1910,
-        "reason": "PR #1910 is ready at f771cccd2ca4e6ad4e76403cb9eab185d035183a; process 55348 is gone; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone): read its transcript, then record release with that evidence"
       },
       {
         "number": 1611,
@@ -748,9 +810,9 @@
       },
       {
         "number": 1613,
-        "action": "merge-gate",
-        "pr": 1910,
-        "reason": "PR #1910 is ready at f771cccd2ca4e6ad4e76403cb9eab185d035183a; process 55348 is gone; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone): read its transcript, then record release with that evidence"
       },
       {
         "number": 1614,
@@ -772,14 +834,14 @@
       },
       {
         "number": 1628,
-        "action": "merge-gate",
-        "pr": 1910,
-        "reason": "PR #1910 is ready at f771cccd2ca4e6ad4e76403cb9eab185d035183a; process 55348 is gone; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone): read its transcript, then record release with that evidence"
       },
       {
         "number": 1632,
         "action": "observe",
-        "pr": null,
+        "pr": 1912,
         "reason": "process 11296 started 639276984208921192 is running"
       },
       {
@@ -790,9 +852,9 @@
       },
       {
         "number": 1846,
-        "action": "dispatch",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "7 writers already hold tickets against a limit of 2"
       }
     ],
     "remaining": [
