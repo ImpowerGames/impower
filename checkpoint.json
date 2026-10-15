@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 105,
-  "previous": "5beeef016b4b05fe6156373aaf661ad3becfdb31",
+  "seq": 106,
+  "previous": "39849f448f1a87e2a2b18eb80242800f2e58c41d",
   "snapshotParents": [],
-  "time": "2026-10-15T23:43:55.951Z",
+  "time": "2026-10-15T23:46:37.882Z",
   "kind": "auto",
-  "transition": "the merge of PR #1913 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 90,
@@ -896,7 +896,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T23:43:53.883Z",
+      "observedAt": "2026-10-15T23:46:36.116Z",
       "held": true,
       "head": "6a8847302fd821e40e26c8af91095b3910904e42",
       "remoteHead": "6a8847302fd821e40e26c8af91095b3910904e42",
@@ -1016,7 +1016,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T23:43:53.883Z",
+      "observedAt": "2026-10-15T23:46:36.116Z",
       "held": true,
       "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
       "remoteHead": "aadb719c51b8cc92ed65866c6491a401b89f4db2",
@@ -1103,11 +1103,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T23:43:53.883Z",
+      "observedAt": "2026-10-15T23:46:36.116Z",
       "held": true,
       "head": "7144777e7f58448dd38e674fe735ce9efa09043a",
-      "remoteHead": "7144777e7f58448dd38e674fe735ce9efa09043a",
-      "unpushed": false,
+      "remoteHead": "83217dfd4742fdb7e2df0034950015bfcb3edd25",
+      "unpushed": true,
       "dirty": false,
       "pr": 1914,
       "reviewJobs": [
@@ -1184,11 +1184,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-15T23:43:53.883Z",
+      "observedAt": "2026-10-15T23:46:36.116Z",
       "held": true,
       "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
-      "remoteHead": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
-      "unpushed": false,
+      "remoteHead": "08944010cf0084b50e279b64ecffe8536695ef75",
+      "unpushed": true,
       "dirty": false,
       "pr": 1916,
       "reviewJobs": [
@@ -1230,19 +1230,19 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T23:39:52.165Z",
+    "at": "2026-10-15T23:46:36.115Z",
     "tickets": [
       {
         "number": 316,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1103 (open), #1299 (open), #1617 (open), #1645 (open)"
+        "reason": "waiting for #457 (open), #1299 (open), #1617 (open), #1645 (open)"
       },
       {
         "number": 454,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1103 (open), #1299 (open), #1617 (open), #1645 (open)"
+        "reason": "waiting for #457 (open), #1299 (open), #1617 (open), #1645 (open)"
       },
       {
         "number": 457,
@@ -1254,19 +1254,19 @@
         "number": 887,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1103 (open), #1299 (open), #1617 (open), #1645 (open)"
+        "reason": "waiting for #457 (open), #1299 (open), #1617 (open), #1645 (open)"
       },
       {
         "number": 1103,
-        "action": "merge-gate",
-        "pr": 1913,
-        "reason": "PR #1913 is ready at aadb719c51b8cc92ed65866c6491a401b89f4db2; process 51856 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 51856 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1299,
         "action": "merge-gate",
         "pr": 1914,
-        "reason": "PR #1914 is ready at 7144777e7f58448dd38e674fe735ce9efa09043a; process 20144 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "PR #1914 is ready at 83217dfd4742fdb7e2df0034950015bfcb3edd25; process 20144 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1325,
@@ -1296,7 +1296,7 @@
         "number": 1645,
         "action": "merge-gate",
         "pr": 1916,
-        "reason": "PR #1916 is ready at fd81f7e1b15be1e8e277763155aacd54acb86b01; process 21792 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "PR #1916 is ready at 08944010cf0084b50e279b64ecffe8536695ef75; process 21792 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       }
     ],
     "remaining": [
