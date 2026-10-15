@@ -939,34 +939,52 @@ export class AssetModule extends Module<
     // portrait, which shows only with the beat that writes it) is not
     // restored, so its picture is not waited for: the beat's own gate asks
     // for the portrait the beat shows.
-    const names: string[] = [];
-    const ui = this._game.module.ui;
-    const imageState = ui.state.image;
-    if (imageState) {
-      const cleared = new Set(ui.getTransientTargets());
-      for (const [target, events] of Object.entries(imageState)) {
-        if (cleared.has(target)) {
-          continue;
-        }
-        for (const event of events ?? []) {
-          if (event.control === "show" && event.assets?.length) {
-            names.push(...event.assets);
-          }
-        }
-      }
-    }
-    const gate = (list: string[]) =>
-      this.resolveImageItems(list).filter(
-        (item) => this.timed || item.kind !== "video",
-      );
+    await this.gateRestore(this._game.module.ui.restoredPictureNames());
+  }
+
+  /** Hold the restore until `names` are resident, under the `restore` pin
+   *  that `onRestore` lets go. */
+  protected async gateRestore(names: string[]): Promise<void> {
+    const items = this.resolveImageItems(names).filter(
+      (item) => this.timed || item.kind !== "video",
+    );
     this._restorePending = true;
     await this.ensureResident(
-      gate(names),
+      items,
       0,
       "restore",
       this.config.restore_timeout,
       "restore",
     );
+  }
+
+  /**
+   * A beat-only display's part of the redisplay that takes the connect's
+   * place (#657). The cache's sizes are the program's, which the display
+   * leaves as they were. The restore waits only for the pictures it writes
+   * that the page was not showing when the last display went up (`shown`):
+   * those are on the page, so they need no round trip.
+   */
+  async onRedisplay(shown: string[]): Promise<void> {
+    this._destroyed = false;
+    if (this.silent) {
+      return;
+    }
+    const showing = new Set(shown);
+    const names = this._game.module.ui
+      .restoredPictureNames()
+      .filter((name) => !showing.has(name));
+    if (names.length === 0) {
+      return;
+    }
+    await this.gateRestore(names);
+  }
+
+  /** The program's scenes changed under the cursor's scene (#657): the
+   *  prediction window was laid out over the old ones, and the next scene
+   *  entry lays out its own. */
+  onSceneMapChanged(): void {
+    this._previewWindow = null;
   }
 
   override async onRestore(): Promise<void> {
@@ -1070,7 +1088,8 @@ export class AssetModule extends Module<
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
     this._fontNamesByLayout.clear();
-    this._previewWindow = null;
+    // The prediction window stands while the program's scenes do: the game
+    // tells this module when they changed (`onSceneMapChanged`, #657).
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {

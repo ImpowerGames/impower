@@ -198,10 +198,23 @@ export const phaseName = (name) =>
     .filter((part) => !part.includes("://"))
     .join(" ");
 
+// The page's record of how the worker displayed a preview (#657): `beat`, or
+// `full` and the reason the display could not be beat-only.
+const DISPLAY_PATH = /^player displayPreview path (.+)$/;
+
+// How each display the sample's request answered went, in order.
+function pathsBetween(events, from, to) {
+  return events
+    .filter((e) => e.kind === "measure" && e.start >= from - 1 && e.start <= to)
+    .map((e) => DISPLAY_PATH.exec(e.name)?.[1])
+    .filter(Boolean);
+}
+
 function phasesBetween(events, from, to) {
   const phases = {};
   for (const e of events) {
     if (e.kind !== "measure" || e.start < from - 1 || e.start > to) continue;
+    if (DISPLAY_PATH.test(e.name)) continue;
     const name = phaseName(e.name);
     phases[name] = (phases[name] ?? 0) + e.dur;
   }
@@ -234,7 +247,7 @@ export function attributePreviewSample(events, target, key = "ArrowDown") {
   if (answer.completion.status === "unavailable") return { ...base, status: "unavailable", phases, failure: `the preview reported request ${request.request} unavailable` };
   const elsewhere = offTarget(answer.position, target);
   if (elsewhere) return { ...base, status: "showing", phases, failure: `request ${request.request} was painted at ${elsewhere}` };
-  return { ...base, status: "showing", ms: ms(answer.t - press.t), phases, longtasks: longtasksFrom(events, press.t) };
+  return { ...base, status: "showing", ms: ms(answer.t - press.t), phases, paths: pathsBetween(events, press.t, answer.t), longtasks: longtasksFrom(events, press.t) };
 }
 
 // Where a position is, when it is not `target`; null when it is.
@@ -269,6 +282,7 @@ export function attributeEditSample(events, versionBefore, target, key = "Enter"
     msFromKey: ms(painted.t - press.t),
     debounce: ms(compile.start - press.t),
     phases: phasesBetween(events, press.t, painted.t),
+    paths: pathsBetween(events, press.t, painted.t),
     longtasks: longtasksFrom(events, press.t),
   };
 }
@@ -283,10 +297,18 @@ export function summarize(samples) {
   const times = passed.map((s) => s.ms).sort((a, b) => a - b);
   const phaseNames = [...new Set(samples.flatMap((s) => Object.keys(s.phases ?? {})))];
   const clocks = CLOCKS.map((name) => [name, passed.filter((s) => s[name] != null).map((s) => s[name]).sort((a, b) => a - b)]).filter(([, list]) => list.length);
+  // How the display each sample painted went: the last one its answer
+  // carried, counted over the samples that did not fail.
+  const paths = {};
+  for (const s of passed) {
+    const path = s.paths?.at(-1) ?? "unrecorded";
+    paths[path] = (paths[path] ?? 0) + 1;
+  }
   return {
     samples: samples.length,
     failures: samples.filter((s) => s.failure).length,
     ms: stats(times),
+    paths,
     ...Object.fromEntries(clocks.map(([name, list]) => [name, stats(list)])),
     phases: Object.fromEntries(
       phaseNames.map((name) => [

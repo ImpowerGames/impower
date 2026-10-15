@@ -316,12 +316,20 @@ export default class UIManager extends Manager {
   }
 
   /** Start a reconcile pass: adopt every currently-rendered element as a
-   *  reuse-or-sweep candidate. Idempotent; safe to call before each re-render. */
-  beginReconcilePass() {
+   *  reuse-or-sweep candidate. Idempotent; safe to call before each re-render.
+   *
+   *  A content pass (#657), which a beat-only display opens, adopts only the
+   *  written content: the text and pictures writes left are candidates to
+   *  replace or clear, by the same rules as in a full pass, and the elements
+   *  and the insertion cursors stand, since the stream re-emits none of
+   *  them. */
+  beginReconcilePass(content = false) {
     this._staleIds.clear();
     this._staleImageTargets.clear();
     this._staleTextTargets.clear();
-    this._placeCursor.clear();
+    if (!content) {
+      this._placeCursor.clear();
+    }
     const overlay = this.app.overlay;
     if (overlay) {
       // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
@@ -333,7 +341,9 @@ export default class UIManager extends Manager {
         const el = node as HTMLElement;
         const structural = (el as any).__sdId;
         if (structural) {
-          this._staleIds.add(structural);
+          if (!content) {
+            this._staleIds.add(structural);
+          }
           this._elements.set(structural, el);
         }
         // Written image content is keyed by the target node rather than by an
@@ -834,7 +844,11 @@ export default class UIManager extends Manager {
       (passInBeat ? state(el).txt !== undefined : this._staleTextTargets.has(el));
     for (const op of ops) {
       if (BeginReconcileMessage.type.isNotification(op as NotificationMessage)) {
-        cursor.clear();
+        // A content pass (#657) re-emits no element, so the insertion
+        // cursors stand, as they do on the page.
+        if (!(op as NotificationMessage<string, { content?: boolean }>).params?.content) {
+          cursor.clear();
+        }
         passOpen = true;
         passInBeat = true;
         passTouched.clear();
@@ -1454,7 +1468,7 @@ export default class UIManager extends Manager {
     // The game opens a pass at every connect and closes it once the stream
     // has written everything it shows.
     if (BeginReconcileMessage.type.isNotification(msg)) {
-      this.beginReconcilePass();
+      this.beginReconcilePass(msg.params?.content === true);
       this._passBegun = true;
       return;
     }

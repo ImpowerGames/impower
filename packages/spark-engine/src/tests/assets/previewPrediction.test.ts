@@ -1688,8 +1688,12 @@ Line one.
       src("dog"),
     ]);
     h.reset();
-    // Another program: what was sent is forgotten.
+    // Another program with the same scenes: the window stands (#657).
     h.game.module.assets.onProgramUpdate();
+    new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
+    expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
+    // Another program whose scenes changed: what was sent is forgotten.
+    h.game.module.assets.onSceneMapChanged();
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches.map((m) => m.params.priority)).toEqual([2]);

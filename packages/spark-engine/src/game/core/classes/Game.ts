@@ -14,6 +14,7 @@ import {
 } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
+import type { ProgramStoryState } from "@impower/sparkdown/src/program/ProgramStoryState";
 import {
   durableAddress,
   placeDurableAddress,
@@ -30,6 +31,8 @@ import {
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
+import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
+import { storyDraws } from "@impower/sparkdown/src/runtime/StoryRandom";
 import type { CallStack } from "@impower/sparkdown/src/runtime/CallStack";
 import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
@@ -43,6 +46,7 @@ import type {
   WriteWatch,
 } from "@impower/sparkdown/src/runtime/VariablesState";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
+import { beatIndexIn } from "../../modules/assets/utils/previewWindow";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
 import type { DocumentLocation } from "../types/DocumentLocation";
@@ -289,6 +293,61 @@ export class Game<T extends M = {}> {
   get sceneTracker() {
     return this._sceneTracker;
   }
+
+  /** The program whose scenes the tracker last observed (#657). A program
+   *  given since is compared with it at the next observation: the tracker
+   *  and the prediction window stand while its scenes do. */
+  protected _sceneProgram?: SparkProgram;
+
+  /** Counts the programs whose engine ran the declarations rather than
+   *  carrying the run of the engine before it (#1759, #657): two programs
+   *  given under one count define the same tables and the same functions. */
+  protected _declarationsRun = 0;
+  get declarationsRun() {
+    return this._declarationsRun;
+  }
+
+  /** What the last display began from, and what the programs given since
+   *  changed (#657): the program it showed, where its beat starts, the
+   *  route it was replayed along, and the scenes the compiles since emitted
+   *  or dropped a statement in (`""` for a declaration), `unmeasured` when a
+   *  compile was not measured against the program before it. */
+  protected _changesSince?: {
+    program: SparkProgram;
+    beat?: { uri: string; line: number };
+    route?: RoutePlan;
+    targetWrote?: boolean;
+    targetVisits?: string;
+    unrepeatable?: boolean;
+    scenes: Set<string>;
+    unmeasured: boolean;
+  };
+
+  /** Whether the replay of the planned route wrote the story's state from
+   *  the step before its target to the checkpoint taken at the target
+   *  (#657): the checkpoint holds what the target's own statement wrote,
+   *  which the steps before it do not show. Unknown until a replay watched
+   *  it to its end. */
+  protected _routeTargetWrote?: boolean;
+  /** The visits that stretch counted, in order (#657): a call of a
+   *  function the beat's text interpolates counts one in every replay, and
+   *  the checkpoint holds the same counts when two replays counted the same
+   *  visits. Unknown as the writes are. */
+  protected _routeTargetVisits?: string;
+  /** Whether the replay of the planned route, from wherever it began, drew
+   *  from the story's seed or read a value no story state holds (#657): a
+   *  replay from the route's start makes a story state with a seed of its
+   *  own, and a clock reads another time, so the same steps can leave
+   *  another state. Unknown until a replay ran. */
+  protected _routeUnrepeatable?: boolean;
+  /** The reactive changes taken when the watch began, given back when it
+   *  ends, and the story's state the write marks do not see then; set
+   *  while it runs. */
+  protected _targetWatch?: {
+    changes: { globals: Set<string>; tables: Set<object> };
+    unmarked: string;
+    state: ProgramStoryState;
+  };
 
   protected _executingLocation: ScriptLocation | null = null;
 
@@ -793,6 +852,10 @@ export class Game<T extends M = {}> {
       declarations: this.carriedDeclarations(previous, before, program),
     });
     engine.keepBeatImages = true;
+    if (!engine.declarationsCarried) {
+      this._declarationsRun += 1;
+    }
+    this.noteChangedFlows(before, program);
     this._story = engine;
     this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
@@ -818,11 +881,242 @@ export class Game<T extends M = {}> {
       // without this the reconcile pass sweeps the un-re-emitted elements and
       // the preview goes blank until the cursor moves to a different beat.
       this._previewedAddress = undefined;
-      // The scene map may have changed with the program; the next observation
-      // re-enters the current scene and re-requests what it needs.
-      this._sceneTracker?.reset();
+      // The scene map may have changed with the program. The next
+      // observation compares it with the one the tracker observed, and when
+      // it changed, re-enters the current scene and re-requests what it
+      // needs (`settleSceneMap`, #657).
     }
     return this._program;
+  }
+
+  /** A display begins: what changes from here is measured from the program
+   *  it shows, and from where its beat starts. */
+  protected beginChangesSince(): void {
+    const previewing = this._context.system.previewing;
+    this._changesSince = {
+      program: this._program,
+      beat:
+        typeof previewing === "number" ? this.beatStart(previewing) : undefined,
+      route: this.routeOfProgram(),
+      targetWrote: this._routeTargetWrote,
+      targetVisits: this._routeTargetVisits,
+      unrepeatable: this._routeUnrepeatable,
+      scenes: new Set(),
+      unmeasured: false,
+    };
+  }
+
+  /** Watch the story's writes from here to the checkpoint at the route's
+   *  target: a global, a table, a closed-over cell, or the random state a
+   *  draw advances; and log the visits counted. The beat's statement may
+   *  call functions and builtins: it runs again from the checkpoint in a
+   *  beat-only display as in a full one, and what its calls change is what
+   *  the watch sees. The reactive changes pending now are kept aside and
+   *  given back when the watch ends, so no binding misses one. A watch that
+   *  would share the write marks with another tracker leaves the answer
+   *  unknown. */
+  protected watchTargetWrites(): void {
+    const vs = this._story.variablesState;
+    if (this._targetWatch || vs.trackWrites) {
+      return;
+    }
+    this._targetWatch = {
+      changes: vs.takeReactiveChanges(),
+      unmarked: this.unmarkedState(),
+      state: this._story.state,
+    };
+    this._story.state.visitLog = [];
+    vs.TakeWrites();
+    vs.trackWrites = true;
+  }
+
+  /** The story's state that changes without a write mark and the watch
+   *  refuses any change of: the seed and last draw, which every random draw
+   *  reads and advances. Visits are compared between replays instead
+   *  (`_routeTargetVisits`). */
+  protected unmarkedState(): string {
+    const state = this._story.state;
+    return `${state.storySeed}:${state.previousRandom}`;
+  }
+
+  /** End the watch `watchTargetWrites` began, recording what it saw. */
+  protected endTargetWatch(): void {
+    const prior = this._targetWatch;
+    if (!prior) {
+      return;
+    }
+    this._targetWatch = undefined;
+    const vs = this._story.variablesState;
+    const changes = vs.takeReactiveChanges();
+    const writes = vs.TakeWrites();
+    vs.trackWrites = false;
+    // A state made anew during the watch kept no log of what it counted.
+    const log = prior.state === this._story.state ? prior.state.visitLog : null;
+    prior.state.visitLog = null;
+    this._routeTargetVisits = log ? log.join(",") : undefined;
+    this._routeTargetWrote = !log
+      ? undefined
+      : changes.globals.size > 0 ||
+        changes.tables.size > 0 ||
+        writes.tables.size > 0 ||
+        writes.cells.size > 0 ||
+        this.unmarkedState() !== prior.unmarked;
+    vs.restoreReactiveChanges(prior.changes);
+    vs.restoreReactiveChanges(changes);
+  }
+
+  /** The route planned and replayed in the program the game holds, if the
+   *  last one was. */
+  protected routeOfProgram(): RoutePlan | undefined {
+    const route = this._plannedRoute;
+    return route &&
+      this._plannedRouteRoot === this._story.root &&
+      this._simulation === "success"
+      ? route
+      : undefined;
+  }
+
+  /** Whether `route` reaches its target along the steps `before` reached
+   *  its own: from the same flow, through the same statements with the same
+   *  decisions, every step before the target. A chunk the compile kept keeps
+   *  its id, so a step that ran the same statement has the same address. */
+  protected static sameRouteToBeat(before: RoutePlan, route: RoutePlan): boolean {
+    const a = before.steps;
+    const b = route.steps;
+    if (before.from !== route.from || a.length !== b.length || b.length === 0) {
+      return false;
+    }
+    for (let i = 0; i < b.length - 1; i += 1) {
+      if (a[i]!.address !== b[i]!.address || a[i]!.decision !== b[i]!.decision) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Where the beat at `address` starts in its script. */
+  protected beatStart(
+    address: ProgramAddress,
+  ): { uri: string; line: number } | undefined {
+    const at = this.locator.locationOf(address);
+    return at ? { uri: at.uri, line: at.startLine } : undefined;
+  }
+
+  /** Add the flows the compile of `program` changed, measured against
+   *  `before`, to those changed since the last display began. */
+  protected noteChangedFlows(
+    before: SparkProgram | undefined,
+    program: SparkProgram,
+  ): void {
+    const since = this._changesSince;
+    if (!since) {
+      return;
+    }
+    const changes = program.changes;
+    const chunks = changes?.chunks;
+    if (
+      !before ||
+      !chunks ||
+      changes.since === undefined ||
+      changes.since !== before.changes?.id ||
+      !program.chunks ||
+      !before.chunks
+    ) {
+      since.unmeasured = true;
+      return;
+    }
+    const sceneIn = (root: ProgramRoot, id: number) => {
+      const at = root.position(id);
+      return at ? (root.sceneOf(at.sequence) ?? "") : "";
+    };
+    for (const id of chunks.emitted) {
+      since.scenes.add(sceneIn(program.chunks, id));
+    }
+    for (const id of chunks.dropped) {
+      since.scenes.add(sceneIn(before.chunks, id));
+    }
+  }
+
+  /**
+   * Compare the scenes of the program the tracker last observed with the
+   * program now held, once per program given (#657). When they differ, the
+   * tracker starts over, so the observation re-enters the current scene,
+   * and the asset module lays its prediction window out again. They stand
+   * when every flow is the same kind with the same successors and calls,
+   * and holds the same beats with the same assets, except the beat at
+   * `cursor`: that beat is the one the preview runs again, and its pictures
+   * go through the preview's own gate.
+   */
+  protected settleSceneMap(cursor: ProgramAddress | null | undefined): void {
+    const before = this._sceneProgram;
+    if (before === this._program) {
+      return;
+    }
+    this._sceneProgram = this._program;
+    if (before && this.sceneMapChanged(before, cursor)) {
+      this._sceneTracker.reset();
+      this.module.assets?.onSceneMapChanged();
+    }
+  }
+
+  /** Whether the scenes of `before` differ from those of the program now
+   *  held, as `settleSceneMap` compares them. */
+  protected sceneMapChanged(
+    before: SparkProgram,
+    cursor: ProgramAddress | null | undefined,
+  ): boolean {
+    const a = before.sceneAssets ?? {};
+    const b = this._program.sceneAssets ?? {};
+    if (a === b) {
+      return false;
+    }
+    const same = (x: readonly string[] = [], y: readonly string[] = []) =>
+      x === y || (x.length === y.length && x.every((v, i) => v === y[i]));
+    const flows = Object.keys(b);
+    if (flows.length !== Object.keys(a).length) {
+      return true;
+    }
+    const cursorFlow = cursor != null ? this.sceneOf(cursor) : null;
+    for (const flow of flows) {
+      const x = a[flow];
+      const y = b[flow];
+      if (!x || !y) {
+        return true;
+      }
+      if (x === y) {
+        continue;
+      }
+      if (
+        x.kind !== y.kind ||
+        !same(x.successors, y.successors) ||
+        !same(x.calls, y.calls) ||
+        Boolean(x.dynamic) !== Boolean(y.dynamic) ||
+        !same(x.dynamicBases, y.dynamicBases) ||
+        x.beats.length !== y.beats.length
+      ) {
+        return true;
+      }
+      const skip =
+        flow === cursorFlow && cursor != null
+          ? beatIndexIn(y.beats, this.locator, cursor)
+          : -1;
+      for (let i = 0; i < y.beats.length; i += 1) {
+        const p = x.beats[i]!;
+        const q = y.beats[i]!;
+        if (i === skip || p === q) {
+          continue;
+        }
+        if (
+          !same(p.image, q.image) ||
+          !same(p.audio, q.audio) ||
+          !same(p.layouts, q.layouts) ||
+          !same(p.loads, q.loads)
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** Assign the program's channels (defines → character/image/…, assets,
@@ -1103,6 +1397,8 @@ export class Game<T extends M = {}> {
     if (this._destroyed || this._simulation === "simulating") {
       return;
     }
+    // Once per program given: whether its scenes are the ones observed.
+    this.settleSceneMap(address);
     // This runs on every position change in the step loop; the call stack is
     // walked only when the scene actually changes. A call into a function
     // keeps the scene current, as `SceneTracker.observe` rules with the same
@@ -1139,6 +1435,7 @@ export class Game<T extends M = {}> {
     // them, out of the page and out of the module's state, so the choices
     // the last beat presented are gone before the restore.
     this._shownChoices = [];
+    this.beginChangesSince();
     this._connection.connectOutput(send);
     // Everything the connect restores, and whatever it goes on to display,
     // is a new stream: what the last one still had in flight must not land
@@ -1162,6 +1459,122 @@ export class Game<T extends M = {}> {
       return;
     }
     await this.restore();
+    this.module.ui.markRestored();
+  }
+
+  /**
+   * A beat-only display's stand-in for `connect` (#657): the screen the page
+   * shows keeps its structure, and only its content is reconciled. It does
+   * what `connect` does except what the structure needs: the modules do not
+   * connect, the tree, its handlers, the theme and the cache sizes stand,
+   * and the scene is observed against the tracker that stood
+   * (`settleSceneMap`), so a scene whose map is unchanged is not entered
+   * again and nothing is predicted again. The ui module clears the targets a
+   * connect clears, in a content pass, and restores the module state as a
+   * connect does; the asset module waits only for the restored pictures the
+   * page was not showing. The audio module's restore is left out: its
+   * mixers come from the define tables, which stand, and a preview resumes
+   * no channel. The choices the last beat presented are kept, so the
+   * preview's `clearChoices` takes them and their click observers off.
+   *
+   * Only for a display `beatOnlyRefusal` does not refuse.
+   */
+  async redisplay(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
+    this.cancelPreview();
+    this.beginChangesSince();
+    this._connection.connectOutput(send);
+    const epoch = this._connection.beginEpoch();
+    const previewing = this._context.system.previewing;
+    this.observeScene(
+      typeof previewing === "number" ? previewing : this._positions.current(),
+    );
+    // Read before the redisplay begins, which takes the standing screen.
+    const shown = this.module.ui.standing?.pictures ?? [];
+    await Promise.all([
+      this.module.ui.onRedisplay(),
+      this.module.assets.onRedisplay(shown),
+    ]);
+    if (this._connection.epoch !== epoch) {
+      return;
+    }
+    await Promise.all([
+      this.module.ui.onRestore(),
+      this.module.assets.onRestore(),
+    ]);
+    this.module.ui.markRestored();
+  }
+
+  /**
+   * Why the next display of the preview at `cursor` must connect in full,
+   * or null when it can be beat-only (#657), as far as the game knows: the
+   * page shows a screen the game composed (`unshown`), whose last beat
+   * changed only written content (`screen`), over a tree whose building
+   * wrote none of the story's state (`bindings`); the program held runs the
+   * declarations the tree was built under (`declarations`), in a context of
+   * the same base (`context`); it builds the same tree (`layouts`); and its
+   * scenes are those observed, apart from the beat at the cursor
+   * (`scenes`). The worker adds what only it knows: a fresh application,
+   * PLAY, a swap between a suggestion and the real program, and the
+   * checkpoint.
+   */
+  beatOnlyRefusal(cursor: ProgramAddress | null | undefined): string | null {
+    const ui = this.module.ui;
+    const refused = ui.beatOnlyRefusal();
+    if (refused) {
+      return refused;
+    }
+    // The state the beat runs from is the one the display the page shows ran
+    // its beat from: it shows the same beat, and its route reached it along
+    // the same statements with the same decisions. The route's checkpoint is
+    // taken at the beat's first statement in each program, so it is a value
+    // of its own every time and cannot be compared by identity; the route
+    // says what ran before it. What the beat's own statement wrote before the
+    // capture is in the checkpoint too, and the route does not show it, so a
+    // target that wrote the story's state in either replay, or counted other
+    // visits in one than in the other, or one not watched to its end,
+    // connects. So does a replay that drew from the story's seed or read a
+    // value no story state holds: the same steps may have left another
+    // state. The statement may call what it likes: a beat-only display runs
+    // it again from the checkpoint, as a full one does.
+    const since = this._changesSince;
+    const beat = cursor != null ? this.beatStart(cursor) : undefined;
+    const route = this.routeOfProgram();
+    if (
+      !since ||
+      since.program !== ui.standing?.program ||
+      !beat ||
+      !since.beat ||
+      since.beat.uri !== beat.uri ||
+      since.beat.line !== beat.line ||
+      !since.route ||
+      !route ||
+      !Game.sameRouteToBeat(since.route, route)
+    ) {
+      return "checkpoint";
+    }
+    if (
+      since.unrepeatable !== false ||
+      this._routeUnrepeatable !== false ||
+      since.targetWrote !== false ||
+      this._routeTargetWrote !== false ||
+      since.targetVisits === undefined ||
+      since.targetVisits !== this._routeTargetVisits
+    ) {
+      return "checkpoint";
+    }
+    // Only the flow the cursor stands in changed.
+    const cursorScene = this.sceneOf(cursor) ?? "";
+    if (
+      since.unmeasured ||
+      [...since.scenes].some((scene) => scene !== cursorScene)
+    ) {
+      return "flows";
+    }
+    const before = this._sceneProgram;
+    if (!before || this.sceneMapChanged(before, cursor)) {
+      return "scenes";
+    }
+    return null;
   }
 
   /** Where a run from `startFrom` begins: the address of the beat on the
@@ -1689,6 +2102,11 @@ export class Game<T extends M = {}> {
       this._plannedRouteStepMap[step.seq] = i;
     }
     this._plannedRouteStepCursor = fromStep;
+    this._routeTargetWrote = undefined;
+    this._routeTargetVisits = undefined;
+    this._routeUnrepeatable = undefined;
+    const drawn = storyDraws.count;
+    const read = ambientReads.count;
 
     // A replay is not a preview, even on a game that has displayed one: the
     // coordinator shows every beat a previewing game runs as a preview, which
@@ -1704,6 +2122,14 @@ export class Game<T extends M = {}> {
       // The checkpoint's image is restored in place.
       this.replayRoute(route, fromCheckpoint);
     } finally {
+      // A replay that stopped short of its target leaves the answer unknown.
+      if (this._targetWatch) {
+        this.endTargetWatch();
+        this._routeTargetWrote = undefined;
+        this._routeTargetVisits = undefined;
+      }
+      this._routeUnrepeatable =
+        storyDraws.count !== drawn || ambientReads.count !== read;
       this._replaying = false;
       this._context.system.previewing = previewing;
       for (const k of this._moduleNames) {
@@ -1752,6 +2178,10 @@ export class Game<T extends M = {}> {
     this._executingAddress = null;
     this._executingLocation = null;
 
+    if (this._plannedRouteStepCursor >= route.steps.length - 1) {
+      // The replay resumes at the target, or the step before it.
+      this.watchTargetWrites();
+    }
     this.continue(true);
 
     if (this._simulation === "simulating") {
@@ -2817,6 +3247,13 @@ export class Game<T extends M = {}> {
                   step.checkpoint = latestCheckpoint;
                 }
                 this._plannedRouteStepCursor++;
+                if (
+                  this._plannedRouteStepCursor ===
+                  this._plannedRoute.steps.length - 1
+                ) {
+                  // What runs from here to the target is the target's own.
+                  this.watchTargetWrites();
+                }
               }
             }
           }
@@ -2830,6 +3267,7 @@ export class Game<T extends M = {}> {
           this._runtimeState.pathsExecutedThisFrame.has(this._startAddress)
         ) {
           // End simulation
+          this.endTargetWatch();
           this.checkpoint();
           this._simulation = "success";
           return true;

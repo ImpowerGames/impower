@@ -140,6 +140,22 @@ await check("an accepted edit is timed from its compile's start to the first new
   assert.match(attributeEditSample([key(100, "Enter"), measure(320, 400, "player workspace compile x"), state(1000, null, null, { programVersion: 7 })], 7, TARGET).failure, /newer than version 7/);
 });
 
+await check("each sample says how its display went, and the summary counts the paths (#657)", () => {
+  const beat = preview([key(100), request(104, 42), measure(300, 0, "player displayPreview path beat"), state(700, 42, "showing")]);
+  assert.deepEqual(beat.paths, ["beat"]);
+  // The path's own measure is not a phase.
+  assert.deepEqual(beat.phases, {});
+  const full = preview([key(100), request(104, 43), measure(300, 0, "player displayPreview path full swap"), state(700, 43, "showing")]);
+  assert.deepEqual(full.paths, ["full swap"]);
+  const edit = attributeEditSample(
+    [key(100, "Enter"), measure(320, 40, "player workspace compile x"), measure(500, 0, "player displayPreview path full checkpoint"), state(900, null, null, { programVersion: 8 })],
+    7,
+    TARGET,
+  );
+  assert.deepEqual(edit.paths, ["full checkpoint"]);
+  assert.deepEqual(summarize([beat, beat, full, { ms: 5 }, { failure: "x", paths: ["beat"] }]).paths, { beat: 2, "full swap": 1, unrecorded: 1 });
+});
+
 await check("the summary counts failures and takes min, median and max over the rest", () => {
   const summary = summarize([{ ms: 300, phases: { a: 10 } }, { ms: 100, phases: { a: 30 } }, { failure: "x" }, { ms: 200, phases: {} }]);
   assert.equal(summary.samples, 4);

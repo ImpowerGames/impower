@@ -2841,7 +2841,14 @@ export class GamePlayerController {
       this.restoreWorkerDebugger(link);
     }
     const shown = this._completionShown;
-    let result: { displayed: boolean; errors?: SimulationError[] } | undefined;
+    let result:
+      | {
+          displayed: boolean;
+          errors?: SimulationError[];
+          path?: string;
+          refused?: string;
+        }
+      | undefined;
     // A detach or a newer update ends the wait for the answer. After a detach
     // the application the display was for is gone, and the worker may never
     // answer a display whose application no longer tells it that fonts and
@@ -2869,6 +2876,13 @@ export class GamePlayerController {
       return false;
     } finally {
       this._displayWaiters.delete(ended);
+    }
+    if (result.displayed && result.path) {
+      // How the worker displayed it (#657), as a measure of its own that a
+      // timing of the preview reads per sample.
+      const name = `player displayPreview path ${result.path}${result.refused ? ` ${result.refused}` : ""}`;
+      profile("start", name);
+      profile("end", name);
     }
     if (result.displayed && detaches === this._workerDetaches) {
       // The frame reached the application this display was for. A detach

@@ -612,11 +612,22 @@ export class ProgramStoryState {
     if (id < 0) {
       return;
     }
+    this.visitsMade += 1;
+    this.visitLog?.push(id);
     this.growCounts(id);
     this.visits[id] = this.visits[id]! + 1;
     this.turns[id] = this.currentTurnIndex;
     this.images?.count(id);
   }
+
+  /** How many visits this state has counted since it was made: a host
+   *  that watches a stretch of the story for changes to its state compares
+   *  it before and after (#657). Neither saved nor restored. */
+  visitsMade = 0;
+
+  /** The count ids this state visits, in order, while a host keeps a log
+   *  here (#657); null when none does. Neither saved nor restored. */
+  visitLog: number[] | null = null;
 
   /** The write barrier of the engine's images, when it keeps them
    *  (`ProgramImages`): a visit marks its count id. */

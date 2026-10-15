@@ -7,6 +7,7 @@ import {
   executionWatch,
 } from "../runtime/ExecutionWatch";
 import { NativeFunctionCall } from "../runtime/NativeFunctionCall";
+import { storyDraws } from "../runtime/StoryRandom";
 import { InkObject } from "../runtime/Object";
 import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
 import { PushPopType } from "../runtime/PushPop";
@@ -139,6 +140,41 @@ import type { DebugFrame, StoryEngine, StoryErrorHandler } from "./StoryEngine";
 /** What the entry code at `offset` of `chunk` binds: the `SetVar`s it starts
  *  with, the first of which binds the last parameter, and whether that one
  *  is a variadic flow's or function's `...`. */
+/** The natives that are operators, not functions (`NativeFunctionCall`):
+ *  `callsMade` does not count them. */
+const OPERATOR_NATIVES = new Set([
+  NativeFunctionCall.Add,
+  NativeFunctionCall.Subtract,
+  NativeFunctionCall.Divide,
+  NativeFunctionCall.Multiply,
+  NativeFunctionCall.Mod,
+  NativeFunctionCall.Negate,
+  NativeFunctionCall.Equal,
+  NativeFunctionCall.Greater,
+  NativeFunctionCall.Less,
+  NativeFunctionCall.GreaterThanOrEquals,
+  NativeFunctionCall.LessThanOrEquals,
+  NativeFunctionCall.NotEquals,
+  NativeFunctionCall.Not,
+  NativeFunctionCall.And,
+  NativeFunctionCall.Or,
+  NativeFunctionCall.LuauTruthy,
+  NativeFunctionCall.Concat,
+  NativeFunctionCall.Length,
+]);
+
+/** The builtins the compiler calls for what is not a call in the script:
+ *  a line's text and its directives (`display`, `__unjoined`), a plural
+ *  alternator's category, and a declaration's define. `callsMade` does not
+ *  count them; what their arguments call is counted as it runs. */
+const TEXT_BUILTINS = new Set([
+  "display",
+  "__unjoined",
+  "plural.category",
+  "__def",
+  "__defs",
+]);
+
 const entryBindings = (
   chunk: ProgramChunk,
   offset: number,
@@ -453,6 +489,13 @@ export class ProgramStory implements StoryEngine {
   // The native function of each `Native` operand, and the assignment of each
   // `SetVar` operand, made once.
   protected _natives = new Map<number, NativeFunctionCall>();
+
+  /** How many calls the story has evaluated: a call of a function or a
+   *  tunnel, a builtin other than those the compiler calls for text and
+   *  declarations (`TEXT_BUILTINS`), a value called as a function, or a
+   *  native that is not an operator. A host that reuses what a stretch of the story
+   *  evaluated compares it before and after (#657). */
+  callsMade = 0;
   protected _assignments = new Map<number, VariableAssignment>();
   protected _asyncContinueActive = false;
   protected _recursiveContinueCount = 0;
@@ -1510,6 +1553,13 @@ export class ProgramStory implements StoryEngine {
     const outputStreamBefore = [...state.outputStream];
     const lineEnd = state.SuspendLineEnd();
     state.ResetOutput();
+    // Where the story last ran. Every instruction the evaluation runs moves
+    // them, and the story's next choice reads the flow it leaves from
+    // `previousFlow`: an evaluation the host makes between two of the
+    // story's instructions (a layout's binding, refreshed or built) must
+    // leave them as they were, as it leaves the position (#657).
+    const previousFlow = state.previousFlow;
+    const previousAddress = state.previousAddress;
 
     this.enter(
       target,
@@ -1547,6 +1597,8 @@ export class ProgramStory implements StoryEngine {
       }
     } finally {
       this.keepBeatImages = keep;
+      state.previousFlow = previousFlow;
+      state.previousAddress = previousAddress;
     }
     const textOutput = stringOutput.toString();
 
@@ -2646,6 +2698,9 @@ export class ProgramStory implements StoryEngine {
       }
       case Op.Native: {
         const func = this.native(arg, auxOf(w0));
+        if (!OPERATOR_NATIVES.has(func.name) && !TEXT_BUILTINS.has(func.name)) {
+          this.callsMade += 1;
+        }
         const params = state.PopEvaluationStack(func.numberOfParameters);
         state.PushEvaluationStack(
           callNativeFunction(this, func, params) as InkObject,
@@ -2698,6 +2753,7 @@ export class ProgramStory implements StoryEngine {
         this.leave((flags & LEAVE_CONTINUE) !== 0);
         break;
       case Op.Call: {
+        this.callsMade += 1;
         if (flags & CALL_TUNNEL) {
           if (!(flags & JUMP_ARGUMENTS)) {
             this.padVariadicFlow(arg);
@@ -2716,6 +2772,7 @@ export class ProgramStory implements StoryEngine {
         break;
       }
       case Op.CallVar: {
+        this.callsMade += 1;
         if (flags & CALL_TUNNEL) {
           this.callTunnel(
             this.symbolOfVariable(this.root.table.strings[arg]!),
@@ -2733,6 +2790,7 @@ export class ProgramStory implements StoryEngine {
         break;
       }
       case Op.CallValue: {
+        this.callsMade += 1;
         const count = auxOf(w0);
         callValueAsFunction(this, count === CALL_ARGS_UNKNOWN ? -1 : count);
         break;
@@ -2741,6 +2799,9 @@ export class ProgramStory implements StoryEngine {
         this.returnFromFunction();
         break;
       case Op.CallStd:
+        if (!TEXT_BUILTINS.has(this.root.table.strings[arg]!)) {
+          this.callsMade += 1;
+        }
         this.callStd(
           this.root.table.strings[arg]!,
           auxOf(w0),
@@ -3501,6 +3562,7 @@ export class ProgramStory implements StoryEngine {
    *  pushes the arm the alternator `symbol` shuffles to, seeded from its
    *  symbol's name and the story seed (`sequenceShuffleIndex`). */
   protected shuffleIndex(symbol: number): void {
+    storyDraws.count += 1;
     const state = this._state;
     const elements = state.PopEvaluationStack();
     if (!(elements instanceof IntValue) || elements.value === null) {

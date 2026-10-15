@@ -27,6 +27,7 @@
 //     `:keys` / `:values` / `:pairs` rely on.
 
 import { InkObject } from "./Object";
+import { ambientReads } from "./AmbientReads";
 import {
   AbstractValue,
   BoolValue,
@@ -600,6 +601,9 @@ function methodRandom(
   const t = asTable(params[0], "random", "receiver");
   const arr = arrayPortion(t);
   if (arr.length === 0) return NIL();
+  if (!draw) {
+    ambientReads.count += 1;
+  }
   const idx = draw
     ? draw() % arr.length
     : Math.floor(Math.random() * arr.length);

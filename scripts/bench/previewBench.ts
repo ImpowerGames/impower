@@ -25,6 +25,7 @@ import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
 import { searchRouteFor } from "../../packages/spark-web-player/src/main/workers/searchRouteTo";
+import { workerBeatOnly, type StandingDisplay } from "../../packages/spark-web-player/src/main/workers/classifyDisplay";
 import type { StoredCheckpoint } from "../../packages/spark-engine/src/game/core/classes/CheckpointStore";
 import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silenceConsole, stats } from "./benchProject";
 import { totalLength, uncovered } from "./phaseGaps.mjs";
@@ -149,7 +150,16 @@ class PageSink {
   }
 
   connect(game: Game) {
-    return game.connect((sent: any) => {
+    return game.connect(this.send(game));
+  }
+
+  // A beat-only display's stand-in for the connect (#657).
+  redisplay(game: Game) {
+    return game.redisplay(this.send(game));
+  }
+
+  protected send(game: Game) {
+    return (sent: any) => {
       if (!this.open) {
         this.outside[sent.method] = (this.outside[sent.method] ?? 0) + 1;
         return;
@@ -178,7 +188,7 @@ class PageSink {
         this.bytesIn += back.length;
         game.connection.receive(received);
       });
-    });
+    };
   }
 
   // Records any key or string in a message that only the program, the
@@ -316,7 +326,9 @@ async function main() {
   realLog = silenceConsole();
   const compiler = new SparkdownCompiler();
   compiler.profilerId = PROFILER_ID;
-  const system = benchSystem;
+  // The worker's game composes each display into one `ui/beat`, as
+  // `installGameWorker` has it (#1820).
+  const system = { ...benchSystem, composeBeats: true };
 
   // The worker: one game kept across compiles, and the route searched to the
   // cursor after each, as workspace.worker.ts does.
@@ -408,17 +420,25 @@ async function main() {
     if (checkpoint) game.loadCheckpoint(checkpoint);
     return performance.now() - t0;
   };
-  const display = async (game: Game) => {
+  // A display connects, or redisplays when it is beat-only (#657), previews
+  // and sweeps, as `displayPreviewFrom` does.
+  const display = async (game: Game, beatOnly: boolean) => {
     sink.reset();
     sink.open = true;
     const t0 = performance.now();
-    await sink.connect(game);
+    await (beatOnly ? sink.redisplay(game) : sink.connect(game));
     const t1 = performance.now();
     const previewed = await game.preview(mainUri, line0);
+    game.module.ui.sweepReconcile();
     const t2 = performance.now();
+    // The composed display goes once what it realizes is in, a few
+    // microtasks after the sweep; it is counted, not timed.
+    await new Promise((resolve) => setImmediate(resolve));
     sink.open = false;
     return { connect: t1 - t0, preview: t2 - t1, previewed };
   };
+  // The display the page shows, as the worker records it (`classifyDisplay`).
+  let standing: StandingDisplay | undefined;
   // What the route search left on the game the display is from, read before
   // the display prepares it.
   const residueOf = (game: any) => ({
@@ -486,8 +506,15 @@ async function main() {
     const checkpoint = searched?.checkpoint;
     let written: string | undefined;
     lastCheckpoint = () => (written ??= (checkpoint && workerGame?.checkpointJson(checkpoint)) || "");
+    // Classified as the worker classifies it, before anything of the game
+    // changes (#657).
+    const speculative = config.mode === "preview";
+    const offered = workerBeatOnly(standing, { game, fresh: false, speculative, checkpoint });
+    const refused = offered === true ? game.beatOnlyRefusal(searched?.to) : offered;
+    standing = undefined;
     const load = prepare(game, searched?.checkpoint);
-    const shown = await display(game);
+    const shown = await display(game, refused === null);
+    standing = { game, speculative };
     const { sums: phases, intervals } = takeMeasures();
     if (i < config.warmup) continue;
     const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
@@ -497,6 +524,8 @@ async function main() {
     lastStream = sink.stream;
     samples.push({
       option,
+      // How the display went: beat-only, or in full and why (#657).
+      path: refused === null ? "beat" : `full: ${refused}`,
       wall: {
         "worker compile, game and route": t1 - t0,
         "(of which worker game.updateProgram)": workerGameMs,
@@ -538,6 +567,8 @@ async function main() {
     heapEvery50SamplesMB: heapEvery50,
     noFlowReuse: Boolean(config.noFlowReuse),
     ...(parsedProbe ? { parsedProbe } : {}),
+    // How many displays were beat-only, and why each other one was not (#657).
+    paths: samples.reduce((counts: Record<string, number>, s) => ({ ...counts, [s.path]: (counts[s.path] ?? 0) + 1 }), {}),
     wall: Object.fromEntries(Object.keys(samples[0]?.wall ?? {}).map((k) => [k, stats(samples.map((s) => s.wall[k]))])),
     phases: Object.fromEntries(
       [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
@@ -576,6 +607,7 @@ function printReport(report: any) {
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
     ...(report.noFlowReuse ? ["parsed-flow reuse refused on every compile (--no-flow-reuse)"] : []),
     ...(report.parsedProbe ? [`parsed objects alive after the last sample: ${report.parsedProbe.parsedObjects}`] : []),
+    `display paths over the samples: ${Object.entries(report.paths ?? {}).map(([path, n]) => `${path} ${n}`).join(", ") || "-"}`,
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
     ...Object.entries(report.wall).map(([k, s]: any) => row(k, s)),

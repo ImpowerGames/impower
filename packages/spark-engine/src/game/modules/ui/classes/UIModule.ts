@@ -5,6 +5,7 @@ import { ErrorType } from "../../../core/enums/ErrorType";
 import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
+import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import {
   BOOLEAN_ATTRIBUTES,
   isAttributeProp,
@@ -118,6 +119,34 @@ import {
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
 
+/** Whether two values of a program's layout trees hold the same: the same
+ *  object, or plain data of the same shape and values (#657). */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (typeof a !== "object" || typeof b !== "object" || !a || !b) {
+    return false;
+  }
+  if (Array.isArray(a)) {
+    return (
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((v, i) => sameValue(v, b[i]))
+    );
+  }
+  if (Array.isArray(b)) {
+    return false;
+  }
+  const x = a as Record<string, unknown>;
+  const y = b as Record<string, unknown>;
+  const keys = Object.keys(x);
+  return (
+    keys.length === Object.keys(y).length &&
+    keys.every((k) => k in y && sameValue(x[k], y[k]))
+  );
+}
+
 /** A layout a composed close took out of the mounted set, whose element
  *  stays on the page while its exit plays (#1820). */
 interface Retirement {
@@ -147,6 +176,51 @@ interface Composition {
   ending?: boolean;
   time?: number;
   sweep?: boolean;
+  /** For a preview's display, the screen the page shows once it is sent. */
+  standing?: StandingScreen;
+  /** For a beat-only display (#657), the elements known to show no written
+   *  text and no picture on the page, hidden as a clear leaves them: a clear
+   *  that reaches only those changes nothing, and is not sent. Any other
+   *  change to an element takes it out. */
+  empty?: { text: Set<Element>; image: Set<Element> };
+}
+
+/** The layout tree a connect built (#657). */
+interface UITree {
+  build: number;
+  /** The program it was built from. */
+  program: Game["program"];
+  /** The game's run of the declarations it was built under
+   *  (`Game.declarationsRun`). */
+  declarations: number;
+  /** Building it, and the restore after it, evaluated a call: a function,
+   *  a builtin or a native that is not an operator. A display keeps only a
+   *  tree whose bindings read variables and write text (#657). */
+  calls: boolean;
+  /** Building it, and the restore after it, wrote none of the story's
+   *  state: a display that skips them runs the beat from the same state. */
+  pure: boolean;
+  /** What each picture the tree resolved by name resolved to. */
+  pictures: Map<string, string>;
+}
+
+/** The screen the page shows, as the display that composed it left it
+ *  (#657): the tree it stands on, the program it showed, and whether its
+ *  beat changed anything beyond written content. */
+export interface StandingScreen {
+  build: number;
+  program: Game["program"];
+  /** The beat wrote and cleared text and pictures and took choices off,
+   *  and changed nothing else: no element made, destroyed or moved, no
+   *  animation, no layout opened or closed, no binding's update, and no
+   *  layout left retiring or waiting on a font. */
+  contentOnly: boolean;
+  /** The pictures the targets a connect does not clear show. */
+  pictures: string[];
+  /** The targets that hold text or a picture: a target a connect clears
+   *  that is not among them was cleared by the last connect or beat, and
+   *  shows nothing. */
+  holding: { text: string[]; image: string[] };
 }
 
 export interface UIState {
@@ -577,6 +651,42 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   // onStart). Cleared at the end of the next refreshLayouts walk.
   protected _refreshAll = false;
 
+  /** Every change to the screen beyond written content (#657): an element
+   *  made, destroyed or moved, an animation, a layout opened, closed or
+   *  navigated, a loading screen, a binding's update. A display whose beat
+   *  leaves it where its restore did changed only content. */
+  protected _screenEdits = 0;
+
+  /** Whether `refreshLayouts` is applying the bindings' updates. */
+  protected _refreshing = false;
+
+  /** The layout tree the last connect built (#657): the program it was
+   *  built from, the run of the declarations it was built under, whether
+   *  building and restoring it wrote any of the story's state, and what
+   *  each picture it resolved by name resolved to. */
+  protected _tree?: UITree;
+
+  protected _treeBuilds = 0;
+
+  /** The tree a connect is building, until its restore is done. */
+  protected _building?: UITree & { writes: boolean };
+
+  /** `_screenEdits` once the restore of the display being shown was done. */
+  protected _restoredEdits?: number;
+
+  /** The screen the page shows, once the display that composed it has gone
+   *  to the page (#657). */
+  protected _standing?: StandingScreen;
+
+  /** Every message the module has sent the page, or composed for it, and
+   *  every event from the page that reached a handler. */
+  protected _uiOps = 0;
+
+  /** `_uiOps` when the standing screen went to the page: a message sent
+   *  or an event handled since (a click, a binding it updated, an input's
+   *  value) changed the screen it records. */
+  protected _standingOps?: number;
+
   constructor(game: Game) {
     super(game);
     this.initLayouts();
@@ -633,6 +743,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     try {
       return story.EvaluateFunction(exprId, args);
     } catch (e) {
+      if (this._building) {
+        // The error ended the story: building the tree changed its state
+        // (#657).
+        this._building.writes = true;
+      }
       this.reportRuntimeError(
         `Error evaluating \`${binding.source ?? exprId}\``,
         e,
@@ -707,14 +822,323 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  still shows that the stream did not emit again. Sent once the stream's
    *  last write has gone out, after every op still buffered. */
   sweepReconcile() {
+    // What the page shows once this display is up (#657).
+    const standing = this.standingScreen();
     if (this._compose) {
       // The display was composed: the page puts it up whole, and sweeps
-      // with it (#1820).
+      // with it (#1820). It stands once it has gone to the page.
+      this._compose.standing = standing;
       void this.endCompose({ sweep: true });
       return;
     }
     this.flushUIBatch();
     this.emit(SweepReconcileMessage.type.notification({}));
+    this._standing = standing;
+    this._standingOps = this._uiOps;
+  }
+
+  /** The screen the display being swept leaves on the page, read at its
+   *  sweep: none when no connect or redisplay restored it. */
+  protected standingScreen(): StandingScreen | undefined {
+    const tree = this._tree;
+    if (!tree || this._restoredEdits === undefined) {
+      return undefined;
+    }
+    const waiting = [...this._pendingOpens.values()].some((s) => s.size > 0);
+    return {
+      holding: {
+        text: Object.keys(this._state.text ?? {}),
+        image: Object.keys(this._state.image ?? {}),
+      },
+      build: tree.build,
+      program: this._game.program,
+      contentOnly:
+        this._screenEdits === this._restoredEdits &&
+        this._retiring.size === 0 &&
+        !waiting &&
+        this._mountOwners.size === 0,
+      pictures: this.restoredPictureNames(),
+    };
+  }
+
+  /** The screen the page shows: the last display that composed it has gone
+   *  to the page, and no connect or redisplay has begun since (#657). */
+  get standing(): StandingScreen | undefined {
+    return this._standing;
+  }
+
+  /** The pictures a restore writes for the targets a connect does not
+   *  clear: those the module's state shows. A cleared target (a portrait,
+   *  which shows only with the beat that writes it) is not restored. */
+  restoredPictureNames(): string[] {
+    const names: string[] = [];
+    const imageState = this._state.image;
+    if (imageState) {
+      const cleared = new Set(this.getTransientTargets());
+      for (const [target, events] of Object.entries(imageState)) {
+        if (cleared.has(target)) {
+          continue;
+        }
+        for (const event of events ?? []) {
+          if (event.control === "show" && event.assets?.length) {
+            names.push(...event.assets);
+          }
+        }
+      }
+    }
+    return names;
+  }
+
+  /**
+   * Why a display cannot leave the screen's structure standing and redo
+   * only its content (#657), or null when it can, as far as this module
+   * knows: the page shows the screen a display composed, whose beat changed
+   * nothing but written content, and nothing was sent the page since;
+   * building the tree under it, and restoring it, wrote none of the
+   * story's state; and the program now held builds the same tree: the same
+   * layout, screen and component trees, the same style, layout, component
+   * and screen channels, and every picture the tree resolved by name
+   * resolving as it did.
+   */
+  beatOnlyRefusal(): string | null {
+    const standing = this._standing;
+    const tree = this._tree;
+    if (!standing || !tree || standing.build !== tree.build) {
+      return "unshown";
+    }
+    if (!standing.contentOnly || this._uiOps !== this._standingOps) {
+      return "screen";
+    }
+    // The gate: the tree's bindings evaluated no call, so they read
+    // variables and write text. The watches behind it (`bindings`) catch
+    // what bindings with no call could still change or read.
+    if (tree.calls) {
+      return "calls";
+    }
+    if (!tree.pure) {
+      return "bindings";
+    }
+    const before = tree.program;
+    const after = this._game.program;
+    if (tree.declarations !== this._game.declarationsRun) {
+      return "declarations";
+    }
+    // The base of the context; the layer of this compile's implicit
+    // definitions moves with every picture a directive names, and what the
+    // tree resolved of it is checked below.
+    const base = (program: Game["program"]) => {
+      const revision = program?.contextRevision;
+      return revision ? revision.slice(0, revision.lastIndexOf(":")) : undefined;
+    };
+    if (before !== after && (base(before) === undefined || base(before) !== base(after))) {
+      return "context";
+    }
+    // The compiler hands out the same tree for a declaration it did not
+    // lower again, and a structural copy of a built-in one (the prelude's,
+    // copied for every compile), so a tree is the same when it is the same
+    // object or holds the same values.
+    const sameTrees = (
+      a: Record<string, unknown> | undefined,
+      b: Record<string, unknown> | undefined,
+    ) => {
+      if (a === b) {
+        return true;
+      }
+      const keys = Object.keys(a ?? {});
+      return (
+        keys.length === Object.keys(b ?? {}).length &&
+        keys.every((k) => sameValue(a?.[k], b?.[k]))
+      );
+    };
+    if (
+      !sameTrees(before.sparkle?.layouts, after.sparkle?.layouts) ||
+      !sameTrees(before.sparkle?.screens, after.sparkle?.screens) ||
+      !sameTrees(before.sparkle?.components, after.sparkle?.components) ||
+      before.styles !== after.styles ||
+      before.layouts !== after.layouts ||
+      before.components !== after.components ||
+      before.screens !== after.screens
+    ) {
+      return "layouts";
+    }
+    for (const [name, resolved] of tree.pictures) {
+      if (JSON.stringify(this.getImageSrcsByName(name)) !== resolved) {
+        return "layouts";
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A beat-only display's part of the redisplay that takes the connect's
+   * place (#657): the screen's structure stands, and its content goes
+   * through the reconcile a connect's does. What an earlier display composed
+   * and never sent is dropped, the display is composed from here to its
+   * sweep, a content pass opens on the page, and the targets a connect
+   * clears are cleared, as the connect clears them: those that show
+   * something, since the last connect or beat cleared every other one. The
+   * tree, its handlers and the theme stand: `beatOnlyRefusal` holds that a
+   * connect would build them as they are.
+   */
+  async onRedisplay() {
+    const standing = this._standing;
+    this.discardCompose();
+    this._standing = undefined;
+    this._building = undefined;
+    this._restoredEdits = undefined;
+    const previewing = this.context?.system?.previewing;
+    if (previewing != null && previewing !== false) {
+      this.beginCompose("display");
+    }
+    const transient = this.getTransientTargets();
+    const holding = standing?.holding ?? { text: transient, image: transient };
+    const c = this._compose;
+    if (c && standing) {
+      // The targets a connect clears that hold nothing on the screen the
+      // page shows were cleared by the last connect or beat, and nothing has
+      // changed them since: that screen went to the page whole. An element
+      // a target that holds something resolves to is left out, since a
+      // clear of another target there reaches what it holds.
+      const elementsOf = (targets: string[]) =>
+        targets.flatMap((target) => this.findElements(target));
+      const held = new Set([
+        ...elementsOf(holding.text),
+        ...elementsOf(holding.image),
+      ]);
+      const emptyOf = (holds: string[]) =>
+        new Set(
+          elementsOf(transient.filter((t) => !holds.includes(t))).filter(
+            (el) => !held.has(el),
+          ),
+        );
+      c.empty = { text: emptyOf(holding.text), image: emptyOf(holding.image) };
+    }
+    this.flushUIBatch();
+    this.emit(BeginReconcileMessage.type.notification({ content: true }));
+    // The load's residue goes, as a construction discards it, so the beat's
+    // refresh sees what a full display's sees: what the beat changed.
+    this._game.story.variablesState.takeReactiveChanges();
+    await Promise.all([
+      this.text.clearAll(transient.filter((t) => holding.text.includes(t))),
+      this.image.clearAll(transient.filter((t) => holding.image.includes(t))),
+    ]);
+  }
+
+  /** Whether a clear of `elements` would change nothing on the page: a
+   *  beat-only display knows each of them shows nothing (#657). */
+  protected knownEmpty(kind: "text" | "image", elements: Element[]): boolean {
+    const empty = this._compose?.empty?.[kind];
+    return (
+      empty !== undefined &&
+      elements.length > 0 &&
+      elements.every((el) => empty.has(el))
+    );
+  }
+
+  /** `elements` were written to (`empty` false) or cleared. */
+  protected noteContent(
+    kind: "text" | "image",
+    elements: Element[],
+    empty: boolean,
+  ): void {
+    const set = this._compose?.empty?.[kind];
+    if (set) {
+      for (const el of elements) {
+        if (empty) {
+          set.add(el);
+        } else {
+          set.delete(el);
+        }
+      }
+    }
+  }
+
+  /** The connect's or the redisplay's restore is done: what the beat
+   *  changes after it is the beat's own (#657). A connect's tree is built. */
+  markRestored() {
+    const building = this._building;
+    if (building) {
+      this._building = undefined;
+      this._tree = {
+        build: building.build,
+        program: building.program,
+        declarations: building.declarations,
+        calls: building.calls,
+        pure: !building.writes,
+        pictures: building.pictures,
+      };
+    }
+    this._restoredEdits = this._screenEdits;
+  }
+
+  /** What a watch of the tree's building began from: the story's state the
+   *  write marks do not see, and the ambient reads made so far. */
+  protected _buildWatch?: { unmarked: string; ambient: number; calls: number };
+
+  /** Begin watching what building the tree writes, and the values it reads
+   *  that no story state holds, from a clean change set. */
+  protected watchBuild() {
+    const vs = this._game.story.variablesState;
+    vs.takeReactiveChanges();
+    vs.TakeWrites();
+    vs.trackWrites = true;
+    this._buildWatch = {
+      unmarked: this.unmarkedState(),
+      ambient: ambientReads.count,
+      calls: this._game.story.callsMade,
+    };
+  }
+
+  /** The story's state that changes without a write mark: the seed and
+   *  last draw, which every random draw reads and advances; the visits
+   *  counted, which a call to a function raises; and the errors and
+   *  warnings a failing binding adds or reports. */
+  protected unmarkedState(): string {
+    const story = this._game.story;
+    const state = story.state;
+    return [
+      state.storySeed,
+      state.previousRandom,
+      state.visitsMade,
+      story.currentErrors?.length ?? 0,
+      story.currentWarnings?.length ?? 0,
+      this._game.runtimeErrorsReported,
+    ].join(":");
+  }
+
+  /** Whether the story's state was written while the tree was being built
+   *  or restored, or the building read a value no story state holds (the
+   *  host's clock, an object's identity), which evaluating the same bindings
+   *  again may read otherwise: `changes` is the reactive change set taken
+   *  then. A table a builtin changed in place (`rawset`) is in the write
+   *  marks and not in the change set, and a random draw, a visit and an
+   *  error are in none of them. */
+  protected noteBuildWrites(changes: {
+    globals: Set<string>;
+    tables: Set<object>;
+  }) {
+    const building = this._building;
+    const watch = this._buildWatch;
+    this._buildWatch = undefined;
+    if (!building) {
+      return;
+    }
+    const vs = this._game.story.variablesState;
+    const writes = vs.TakeWrites();
+    if (!watch || this._game.story.callsMade !== watch.calls) {
+      building.calls = true;
+    }
+    if (
+      !watch ||
+      changes.globals.size > 0 ||
+      changes.tables.size > 0 ||
+      writes.tables.size > 0 ||
+      writes.cells.size > 0 ||
+      this.unmarkedState() !== watch.unmarked ||
+      ambientReads.count !== watch.ambient
+    ) {
+      building.writes = true;
+    }
   }
 
   override async onConnected() {
@@ -726,6 +1150,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // what an earlier display composed but never sent is dropped: this
     // connect rebuilds the screen from its own state.
     this.discardCompose();
+    this._standing = undefined;
+    this._restoredEdits = undefined;
+    this._tree = undefined;
+    this._building = {
+      build: ++this._treeBuilds,
+      program: this._game.program,
+      declarations: this._game.declarationsRun,
+      calls: false,
+      pure: true,
+      pictures: new Map(),
+      writes: false,
+    };
     const previewing = this.context?.system?.previewing;
     if (previewing != null && previewing !== false) {
       this.beginCompose("display");
@@ -834,7 +1270,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 return;
               }
             }
+            const vs = this._game.story.variablesState;
+            if (this._building) {
+              // What this mount writes is part of what the tree's building
+              // wrote (#657).
+              this.watchBuild();
+            }
             this.constructLayoutFromAst(layout);
+            if (this._building) {
+              this.noteBuildWrites(vs.takeReactiveChanges());
+              vs.trackWrites = false;
+            }
             remounted = true;
           }
         }
@@ -1029,6 +1475,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ...(c.sweep ? { sweep: true } : {}),
       }),
     );
+    if (c.standing) {
+      // The display is on its way to the page, which shows it next (#657).
+      this._standing = c.standing;
+      this._standingOps = this._uiOps;
+    }
     this.runAfterSent(c);
   }
 
@@ -1121,6 +1572,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
     transfer?: ArrayBuffer[],
   ): Promise<R> {
+    this._uiOps += 1;
     const c = this._compose;
     if (c) {
       const captured = this.capture(c, msg);
@@ -1135,6 +1587,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     msg: RequestMessage<M, P, R>,
     transfer?: ArrayBuffer[],
   ): Promise<R | undefined> {
+    this._uiOps += 1;
     const c = this._compose;
     if (c) {
       const captured = this.capture(c, msg);
@@ -1202,6 +1655,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes = state?.attributes;
     const breakpoints = this.context.config?.ui?.breakpoints;
     const el = new Element(parent, id, type, name, before);
+    this._screenEdits += 1;
     const isRootElement = !parent;
     if (isRootElement) {
       this._root = el;
@@ -1250,6 +1704,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected destroyElement(element: Element, retired = false) {
+    this._screenEdits += 1;
     const isRootElement = !element.parent;
     if (isRootElement) {
       this._root = undefined;
@@ -1316,6 +1771,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     parent.moveChildBefore(element, before);
+    this._screenEdits += 1;
     this.enqueueUI(
       MoveElementMessage.type.request({
         element: element.id,
@@ -1329,6 +1785,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style = state?.style;
     const attributes = state?.attributes;
     const breakpoints = this.context.config?.ui?.breakpoints;
+    if (this._refreshing) {
+      // A binding's update: the screen no longer stands as the tree was
+      // built (#657).
+      this._screenEdits += 1;
+    }
+    // An element changed is no longer known to show nothing (#657).
+    const empty = this._compose?.empty;
+    if (empty) {
+      empty.text.delete(element);
+      empty.image.delete(element);
+    }
     this.enqueueUI(
       UpdateElementMessage.type.request({
         element: element.id,
@@ -1346,6 +1813,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (effects.length === 0 || this._game.replaying) {
       return [];
     }
+    this._screenEdits += 1;
     // Flush pending create/update ops so the elements this animation targets
     // exist on the consumer before the animate request arrives.
     this.flushUIBatch();
@@ -1550,7 +2018,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getImageSrcsByName(name: string) {
     const assets = this.getImageAssets("", name);
-    return assets.length ? assets.map((asset) => asset.src) : null;
+    const srcs = assets.length ? assets.map((asset) => asset.src) : null;
+    // What the tree being built resolves stays as it resolved it (#657).
+    this._building?.pictures.set(name, JSON.stringify(srcs));
+    return srcs;
   }
 
   getImageSrcsFromValue(value: unknown) {
@@ -1891,7 +2362,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     // Enable fine-grained dependency tracking for the whole reactive lifetime;
     // mount captures each binding's read deps (Phase 4).
-    this._game.story.variablesState.reactiveDepsEnabled = true;
+    const vs = this._game.story.variablesState;
+    vs.reactiveDepsEnabled = true;
+    if (this._building) {
+      // What the mount itself writes is told apart from the load's residue,
+      // which the end of the mount discards with it (#657).
+      this.watchBuild();
+    }
     const targetAllLayouts = !structNames || structNames.length === 0;
     // Default: ONLY `main` is mounted/visible from the start (implicit auto-open).
     // Every other layout stays unmounted (zero DOM / zero binding cost) until an
@@ -1911,7 +2388,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     // Discard load-time change residue so the first per-turn refresh only sees
     // changes produced after mount.
-    this._game.story.variablesState.takeReactiveChanges();
+    const residue = vs.takeReactiveChanges();
+    if (this._building) {
+      this.noteBuildWrites(residue);
+      vs.trackWrites = false;
+    }
   }
 
   protected constructLayoutFromAst(layout: LayoutNode): Element {
@@ -3274,11 +3755,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const changes = this._game.story.variablesState.takeReactiveChanges();
+    this._refreshing = true;
     try {
       for (const { scope } of this._mountedLayouts.values()) {
         this.refreshScope(scope, changes);
       }
     } finally {
+      this._refreshing = false;
       this._refreshAll = false;
     }
     // Flush this turn's reactive ops synchronously so callers (and tests) see
@@ -3919,6 +4402,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const messages = this._uiBatch;
       this._uiBatch = [];
       if (messages.length > 0) {
+        this._uiOps += 1;
         void super.emit(BatchElementsMessage.type.notification({ messages }));
       }
     }
@@ -4223,6 +4707,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // game can't run the reactive mount primitives below.
     for (const e of instructions) {
       this.saveLayoutState(e);
+    }
+    if (instructions.length > 0) {
+      // The layouts mounted no longer stand as the tree was built (#657).
+      this._screenEdits += 1;
     }
     const run = (e: LayoutInstruction): Promise<void> => {
       const clauses = {
@@ -4544,6 +5032,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // the `text`/`stroke` content children to the consumer via a single
         // `ui/write-text` message per target.
         const targetEls = $.findElements(target);
+        if (!sequence && $.knownEmpty("text", targetEls)) {
+          // A clear that changes nothing on the page (#657).
+          return;
+        }
         for (const targetEl of targetEls) {
           if (targetEl) {
             if (sequence) {
@@ -4563,6 +5055,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
+        $.noteContent("text", targetEls, !sequence);
         if (targetEls.length === 0) {
           return;
         }
@@ -4950,6 +5443,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // realization + animation lifecycle to the consumer via a single
         // `ui/write-image` carrying a fully-resolved `WriteImageInstruction[]`.
         const targetEls = $.findElements(target);
+        if (!sequence && $.knownEmpty("image", targetEls)) {
+          // A clear that changes nothing on the page (#657).
+          return;
+        }
         for (const targetEl of targetEls) {
           if (targetEl) {
             if (sequence) {
@@ -4963,6 +5460,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
+        $.noteContent("image", targetEls, !sequence);
         if (targetEls.length === 0) {
           return;
         }
@@ -5137,6 +5635,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (params.currentTargetId) {
         const callback = this._events[params.type]?.[params.currentTargetId];
         if (callback) {
+          // What the viewer did may have changed the page by itself (an
+          // input's value), whether or not the handler sends anything.
+          this._uiOps += 1;
           callback(params);
         }
       }
