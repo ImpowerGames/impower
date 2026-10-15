@@ -21,10 +21,15 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { totalLength, uncovered, within } from "./phaseGaps.mjs";
-import { imageOptions, parseBenchArgs, tokenAround } from "./preview-bench.mjs";
+import * as bench from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
 import { BYPASS, GAPS } from "./profile-groups.mjs";
+import { STRUCTURAL_TEXT as measureStructuralText } from "../../.agents/skills/drive-web-editor/measure.mjs";
 import { parseShareArgs, profileShares, repositoryPath } from "./profile-shares.mjs";
+
+// Read through the module, so a missing export fails its own check rather
+// than the whole file's import.
+const { imageOptions, parseBenchArgs, tokenAround } = bench;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -117,6 +122,63 @@ await check("the benchmark's arguments and default replacements", () => {
   assert.deepEqual(tokenAround("      [[raffles_concerned:gloves]]", "concerned"), { token: "raffles_concerned", prefix: "raffles_" });
   assert.equal(tokenAround("[[bunny]]", "concerned"), null);
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
+});
+
+// A content change applied to a text, as the compiler's document applies it.
+const applyChange = (text, { range, text: inserted }) => {
+  const offsets = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === "\n") offsets.push(i + 1);
+  const at = (p) => offsets[p.line] + p.character;
+  return text.slice(0, at(range.start)) + inserted + text.slice(at(range.end));
+};
+
+await check("the structural-edit option parses, rejects missing text, and changes the fixture's line count and back (#1672)", () => {
+  assert.equal(typeof bench.structuralEdits, "function", "preview-bench.mjs exports no structuralEdits");
+  // An accepted edit, so the edit mode alone; --word is not needed.
+  assert.deepEqual(parseBenchArgs(["--fixture", "--structural"]), { mode: "edit", samples: 12, warmup: 4, fixture: true, structural: true });
+  assert.deepEqual(parseBenchArgs(["--project", "p", "--line", "3514", "--structural"]), { mode: "edit", samples: 12, warmup: 4, project: "p", line: 3514, structural: true });
+  assert.deepEqual(parseBenchArgs(["--fixture", "--structural", "--text", "Wait."]), { mode: "edit", samples: 12, warmup: 4, fixture: true, structural: true, text: "Wait." });
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--text"]), /--text needs a value/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--text", "   "]), /--text is one line of text/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--text", "one\ntwo"]), /--text is one line of text/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--text", "Wait."]), /--text needs --structural/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--mode", "preview"]), /--structural measures the edit mode alone/);
+  assert.throws(() => parseBenchArgs(["--project", "p", "--structural"]), /--project --structural needs --line/);
+  assert.equal(parseBenchArgs(["--fixture", "--structural", "--indent", "4"]).indent, 4);
+  assert.equal(parseBenchArgs(["--fixture", "--structural", "--indent", "0"]).indent, 0);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--indent", "-1"]), /--indent must be an integer of at least 0/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--indent", "4"]), /--indent needs --structural/);
+
+  const text = files.get("main.sd");
+  const edits = bench.structuralEdits(text, target.line, bench.STRUCTURAL_TEXT);
+  assert.equal(edits.lineText, target.lineText);
+  // A plain dialogue line at the measured line's indentation, on a line of
+  // its own after it.
+  assert.equal(edits.inserted, `      ${bench.STRUCTURAL_TEXT}`);
+  const inserted = applyChange(text, edits.insert);
+  const insertedLines = inserted.split("\n");
+  assert.equal(insertedLines.length, lines.length + 1);
+  assert.equal(insertedLines[target.line - 1], target.lineText);
+  assert.equal(insertedLines[target.line], edits.inserted);
+  assert.deepEqual(insertedLines.slice(target.line + 1), lines.slice(target.line));
+  // The removal puts the document back byte for byte.
+  assert.equal(applyChange(inserted, edits.remove), text);
+  // `--indent` replaces the measured line's indentation: a new option after
+  // the last body line of the fixture's `choose`, at the options' indentation.
+  const optionBody = lines.indexOf("      Everything clatters to the floor.") + 1;
+  const choice = bench.structuralEdits(text, optionBody, "+ [Try again]", 4);
+  assert.equal(choice.inserted, "    + [Try again]");
+  const withChoice = applyChange(text, choice.insert).split("\n");
+  assert.deepEqual(withChoice.slice(optionBody - 2, optionBody + 2), ["    + [Fail...]", "      Everything clatters to the floor.", "    + [Try again]", "  then"]);
+  assert.equal(applyChange(applyChange(text, choice.insert), choice.remove), text);
+  // A CRLF document keeps its line ending.
+  const crlf = "scene A\r\n  HERO:\r\n    Hi.\r\nend\r\n";
+  const crlfEdits = bench.structuralEdits(crlf, 3, "Wait.");
+  assert.equal(applyChange(crlf, crlfEdits.insert), "scene A\r\n  HERO:\r\n    Hi.\r\n    Wait.\r\nend\r\n");
+  assert.equal(applyChange(applyChange(crlf, crlfEdits.insert), crlfEdits.remove), crlf);
+  assert.throws(() => bench.structuralEdits(crlf, 9, "Wait."), /there is no line 9/);
+  // The browser measurement inserts the same line by default.
+  assert.equal(measureStructuralText, bench.STRUCTURAL_TEXT);
 });
 
 await check("unattributed time counts a nested phase once and ignores what lies outside the window", () => {
@@ -389,6 +451,42 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /program, checkpoint or path locations in what was cloned: none/);
     assert.match(run.stdout, /"emitted":1,/);
     assert.match(run.stdout, /"fallback":null/);
+  });
+
+  // A structural edit (#1672): the samples alternate an insert and its
+  // removal, the line count moves with them, each previews at the caret's
+  // line, and the compiler's document ends as it began.
+  await check("the benchmark's structural edit alternates an insert and its removal on the fixture and reports the edit mode's phases", () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-structural-"));
+    try {
+      const json = path.join(scratch, "report");
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--structural", "--samples", "3", "--warmup", "0", "--json", json], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      assert.ok(run.stdout.includes(`mode edit, structural: line ${target.line} ${JSON.stringify(target.lineText)}`), run.stdout);
+      assert.match(run.stdout, /restoredMatches: true/);
+      assert.match(run.stdout, /display paths over the samples: /);
+      const report = JSON.parse(fs.readFileSync(`${json}.edit.json`, "utf8"));
+      assert.equal(report.structural.inserted, `      ${bench.STRUCTURAL_TEXT}`);
+      assert.deepEqual(
+        report.perSample.map((s) => [s.direction, s.lines, s.previewLine]),
+        [
+          ["insert", lines.length + 1, target.line + 1],
+          ["remove", lines.length, target.line],
+          ["insert", lines.length + 1, target.line + 1],
+        ],
+      );
+      assert.equal(report.perSample[1].restored, true);
+      // Three samples end on an insert, which the run takes out again.
+      assert.equal(report.restoredMatches, true);
+      // Each sample's display path, `beat` or `full: <reason>`, as the in-beat
+      // modes report it.
+      for (const s of report.perSample) assert.match(s.path, /^(beat|full: \w+)$/);
+      // The phases the in-beat edit mode reports.
+      for (const phase of ["program/resolve", "program/chunks", "program/changes", "game/setStartFrom", "game/routeResumption"]) assert.ok(report.phases[phase], `no ${phase} among ${Object.keys(report.phases).join(", ")}`);
+      assert.ok(report.wall["worker compile, game and route"] && report.wall["total without the DOM"]);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   await check("the coverage report counts the fixture's statements, all of which the writer emits", () => {

@@ -6,6 +6,7 @@
 //   node scripts/bench/preview-bench.mjs --project <dir> --line <N> --word <text>
 //   node scripts/bench/preview-bench.mjs --fixture
 //   node scripts/bench/preview-bench.mjs --project <dir> --mode coverage
+//   node scripts/bench/preview-bench.mjs --project <dir> --line <N> --structural
 //
 // Options:
 //   --project <dir>     a project directory holding main.sd
@@ -25,6 +26,16 @@
 //                       Or cold: each sample compiles the project on a
 //                       compiler of its own, with no game; --line, when
 //                       given, is where the compile starts from (#1712)
+//   --structural        a structural edit in place of a replacement (#1672):
+//                       the samples alternately insert a dialogue line after
+//                       --line, at that line's indentation, and remove it
+//                       again, each an accepted edit, so the edit mode
+//                       alone; --word is not needed
+//   --text <text>       the line --structural inserts, after the indentation
+//                       (default "Just one more thing.")
+//   --indent <n>        the inserted line's indentation in spaces, in place
+//                       of --line's own, for a statement-level line such as a
+//                       choice after the last line of a speech
 //   --no-flow-reuse     refuse the compiler's parsed-flow reuse on every
 //                       compile (`_disableFlowReuseNextCompile`, #1712)
 //   --heap-probe <file> after the last sample, count the parsed objects alive
@@ -55,6 +66,10 @@ import { bundleBench, count, value } from "./benchLauncher.mjs";
 import { writePreviewFixture } from "./preview-fixture.mjs";
 
 const IMAGE_RE = /\.(png|apng|jpeg|jpg|gif|bmp|svg|webp)$/i;
+// What a structural edit inserts by default: a plain dialogue line, which
+// needs nothing the project defines. `driver.mjs measure --structural` types
+// the same line (#1672).
+export const STRUCTURAL_TEXT = "Just one more thing.";
 
 export function parseBenchArgs(args) {
   const out = { mode: "both", samples: 12, warmup: 4 };
@@ -82,6 +97,16 @@ export function parseBenchArgs(args) {
         out.mode = mode;
         break;
       }
+      case "--structural":
+        out.structural = true;
+        break;
+      case "--text":
+        out.text = value(args, i++, name);
+        if (!out.text.trim() || /[\r\n]/.test(out.text)) throw new Error("--text is one line of text");
+        break;
+      case "--indent":
+        out.indent = count(value(args, i++, name), name, 0);
+        break;
       case "--no-flow-reuse":
         out.noFlowReuse = true;
         break;
@@ -110,8 +135,37 @@ export function parseBenchArgs(args) {
   // and the probe would name the parsed classes differently.
   if (out.heapProbe && out.cpuProf) throw new Error("--heap-probe and --cpu-prof are exclusive");
   if (!out.project && !out.fixture) throw new Error("pass --project <dir> or --fixture");
-  if (out.project && out.mode !== "coverage" && out.mode !== "cold" && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
+  if (out.text != null && !out.structural) throw new Error("--text needs --structural");
+  if (out.indent != null && !out.structural) throw new Error("--indent needs --structural");
+  if (out.structural) {
+    // A suggestion's preview compile never changes the document, so there is
+    // no insert for it to take out again: a structural edit is accepted.
+    if (out.mode !== "both" && out.mode !== "edit") throw new Error("--structural measures the edit mode alone");
+    out.mode = "edit";
+    if (out.project && out.line == null) throw new Error("--project --structural needs --line");
+  } else if (out.project && out.mode !== "coverage" && out.mode !== "cold" && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
   return out;
+}
+
+// A structural edit at `line` (counting from one) of `documentText`: the
+// change that inserts `text` as a line of its own after it, at its
+// indentation or at `indent` spaces when given, and the change that removes
+// that line again, which puts the document back byte for byte. An insert
+// leaves the caret on the new line, and a removal at the end of `line`, which
+// is where each puts the preview (#1672).
+export function structuralEdits(documentText, line, text, indent) {
+  const lines = documentText.split(/\r?\n/);
+  if (line < 1 || line > lines.length) throw new Error(`there is no line ${line}`);
+  const lineText = lines[line - 1];
+  const eol = documentText.includes("\r\n") ? "\r\n" : "\n";
+  const inserted = (indent != null ? " ".repeat(indent) : (/^\s*/.exec(lineText)?.[0] ?? "")) + text;
+  const end = { line: line - 1, character: lineText.length };
+  return {
+    lineText,
+    inserted,
+    insert: { range: { start: end, end }, text: eol + inserted },
+    remove: { range: { start: end, end: { line, character: inserted.length } }, text: "" },
+  };
 }
 
 // The identifier around `word` on `lineText`, and the part of it before the
@@ -175,19 +229,25 @@ async function main(args) {
       process.exitCode = run.status === 0 ? 0 : 1;
       return;
     }
-    const lineText = fs.readFileSync(path.join(project, "main.sd"), "utf8").split(/\r?\n/)[line - 1] ?? "";
-    const around = tokenAround(lineText, word);
-    if (!around) throw new Error(`"${word}" is not on line ${line}: ${JSON.stringify(lineText)}`);
-    const replacements = options.options ?? imageOptions(listFiles(project), around.prefix, around.token);
-    if (!replacements.length) throw new Error(`no image file starts with ${around.prefix}: pass --options`);
     const cpuProf = options.cpuProf && path.resolve(options.cpuProf);
+    const source = fs.readFileSync(path.join(project, "main.sd"), "utf8");
+    const lineText = source.split(/\r?\n/)[line - 1] ?? "";
+    // A structural edit replaces nothing, so it needs no word and no options.
+    const structural = options.structural ? structuralEdits(source, line, options.text ?? STRUCTURAL_TEXT, options.indent) : undefined;
+    let replacements = [];
+    if (!structural) {
+      const around = tokenAround(lineText, word);
+      if (!around) throw new Error(`"${word}" is not on line ${line}: ${JSON.stringify(lineText)}`);
+      replacements = options.options ?? imageOptions(listFiles(project), around.prefix, around.token);
+      if (!replacements.length) throw new Error(`no image file starts with ${around.prefix}: pass --options`);
+    }
     const script = await bundleBench("previewBench.ts", scratch, cpuProf);
     const modes = options.mode === "both" ? ["preview", "edit"] : [options.mode];
     let failed = false;
     for (const mode of modes) {
       const json = options.json ? path.resolve(`${options.json}.${mode}.json`) : path.join(scratch, `${mode}.json`);
       const gaps = cpuProf ? path.join(cpuProf, `${mode}.gaps.json`) : undefined;
-      const config = { project, line, word, options: replacements, mode, samples: options.samples, warmup: options.warmup, json, gaps, noFlowReuse: options.noFlowReuse, heapProbe: heapProbe && `${heapProbe}.${mode}`, windows: cpuProf && path.join(cpuProf, `${mode}.windows.json`) };
+      const config = { project, line, word, options: replacements, structural, mode, samples: options.samples, warmup: options.warmup, json, gaps, noFlowReuse: options.noFlowReuse, heapProbe: heapProbe && `${heapProbe}.${mode}`, windows: cpuProf && path.join(cpuProf, `${mode}.windows.json`) };
       const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
       const run = spawnSync(process.execPath, ["--max-old-space-size=4096", "--expose-gc", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;

@@ -11,6 +11,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+// What a structural edit inserts by default: a plain dialogue line, which
+// needs nothing the project defines. The worker benchmark inserts the same
+// line (`STRUCTURAL_TEXT` in scripts/bench/preview-bench.mjs, which this file
+// does not import so that it runs without scripts/), and
+// preview-fixture.test.mjs holds the two equal (#1672).
+export const STRUCTURAL_TEXT = "Just one more thing.";
+
 export const MEASURE_USAGE = [
   "measure options:",
   "  --project <dir-or-zip>  the project to measure; seeded into a browser profile of this run's own",
@@ -22,7 +29,13 @@ export const MEASURE_USAGE = [
   "  --edit                  accept a suggestion per sample and time the real compile instead",
   "  --burst                 type --text at the end of --line, a key every 80 to 120 ms, per sample, and count",
   "                          the keystroke compiles it caused (--word is not needed)",
-  "  --text <text>           what a burst types (default: a 52-character clause, about five seconds)",
+  "  --structural            insert a dialogue line after --line, at its indentation, then remove it, alternating,",
+  "                          one per sample, and time each like --edit (--word is not needed)",
+  "  --text <text>           what a burst types (default: a 52-character clause, about five seconds), or the",
+  `                          line --structural inserts after the indentation (default "${STRUCTURAL_TEXT}")`,
+  "  --indent <n>            with --structural, the inserted line's indentation in spaces instead of --line's own",
+  "  --screenshots <dir>     with --structural, also write before.png, inserted.png (after the first insert painted)",
+  "                          and restored.png (after the run put the document back) into <dir>",
   "  --timeout <ms>          how long one sample may take before it is a failure (default 20000)",
   "  --settle <ms>           wait after each result so its trailing measures arrive (default 1500)",
   "  --json <file>           also write the full report, with the raw event log of every sample",
@@ -70,6 +83,15 @@ export function parseMeasureArgs(args) {
       case "--burst":
         out.burst = true;
         break;
+      case "--structural":
+        out.structural = true;
+        break;
+      case "--indent":
+        out.indent = integer(value(args, i++, name), name, 0);
+        break;
+      case "--screenshots":
+        out.screenshots = value(args, i++, name);
+        break;
       case "--text":
         out.text = value(args, i++, name);
         break;
@@ -94,10 +116,13 @@ export function parseMeasureArgs(args) {
   }
   if (out.project && out.fixture) throw new Error("--project and --fixture are exclusive");
   if (!out.project && !out.fixture) throw new Error("measure needs --project <dir-or-zip> or --fixture");
-  if (out.edit && out.burst) throw new Error("--edit and --burst are exclusive");
-  if (out.text != null && !out.burst) throw new Error("--text needs --burst");
-  if (out.burst) {
-    if (out.project && out.line == null) throw new Error("--project --burst needs --line");
+  if ([out.edit, out.burst, out.structural].filter(Boolean).length > 1) throw new Error("--edit, --burst and --structural are exclusive");
+  if (out.text != null && !out.burst && !out.structural) throw new Error("--text needs --burst or --structural");
+  if (out.structural && out.text != null && (!out.text.trim() || /[\r\n]/.test(out.text))) throw new Error("--text is one line of text");
+  if (out.screenshots != null && !out.structural) throw new Error("--screenshots needs --structural");
+  if (out.indent != null && !out.structural) throw new Error("--indent needs --structural");
+  if (out.burst || out.structural) {
+    if (out.project && out.line == null) throw new Error(`--project ${out.burst ? "--burst" : "--structural"} needs --line`);
   } else if (out.project && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
   return out;
 }
@@ -287,6 +312,23 @@ export function attributeEditSample(events, versionBefore, target, key = "Enter"
   };
 }
 
+// The key a structural sample's clock starts from: the insert goes in as one
+// `insertText` with no keydown of its own, so the run records this name in
+// the key's place just before it; the removal is a real Backspace (#1672).
+export const STRUCTURAL_KEYS = { insert: "insertText", remove: "Backspace" };
+
+// One structural edit, timed as an accepted edit is. The line count changes
+// with every sample, so the line the paint has to be at is the one the edit
+// left the caret on, which the caller passes as `target`: the inserted line
+// after an insert, the measured line after a removal. A state painted at the
+// line the other direction would have left fails the sample, so a paint of the
+// previous document is never counted as this edit's.
+export function attributeStructuralSample(events, versionBefore, target, direction) {
+  const key = STRUCTURAL_KEYS[direction];
+  if (!key) return { direction, failure: `unknown structural direction ${direction}` };
+  return { direction, ...attributeEditSample(events, versionBefore, target, key) };
+}
+
 // The clocks a sample can carry besides `ms`: an accepted edit's key clock and
 // debounce, and a suggestion's key-to-request time. Each is summarized over the
 // samples that did not fail and carry it, and left out when none does.
@@ -340,6 +382,42 @@ export function replacedSpan(original, word, current) {
   const after = original.slice(at + word.length);
   if (!current.startsWith(before) || !current.endsWith(after) || current.length < before.length + after.length) return null;
   return { start: before.length, text: current.slice(before.length, current.length - after.length) };
+}
+
+// The one edit that turns `current` back into `original`: the whole lines
+// of `current` between the lines the two share at their start and at their
+// end, as a protocol range (lines and characters from zero), and the lines
+// of `original` that go there. Null when the two are equal. A structural run
+// puts its document back with it whatever state a failed sample left
+// (#1672).
+//
+// The run types the text in, and typed text passes the editor's input
+// handlers, which add a closing bracket to a typed opening one. Whole lines
+// with a line break are text no handler rewrites (an opening token never
+// ends in a line break), so the text is never shorter than a line: it is
+// empty, when lines only go, or holds a line break, except when the two
+// documents share no line at either end.
+export function restoreSpan(current, original) {
+  if (current === original) return null;
+  const now = current.split("\n");
+  const was = original.split("\n");
+  let head = 0;
+  while (head < now.length && head < was.length && now[head] === was[head]) head++;
+  let tail = 0;
+  while (tail < now.length - head && tail < was.length - head && now[now.length - 1 - tail] === was[was.length - 1 - tail]) tail++;
+  const lines = was.slice(head, was.length - tail);
+  if (tail > 0) {
+    // Each replaced line with the break after it, up to the first shared
+    // line at the end.
+    return { range: { start: { line: head, character: 0 }, end: { line: now.length - tail, character: 0 } }, text: lines.map((l) => `${l}\n`).join("") };
+  }
+  if (head > 0) {
+    // To the end of the document: from the end of the last shared line, so
+    // the text starts with the break.
+    const start = { line: head - 1, character: now[head - 1].length };
+    return { range: { start, end: { line: now.length - 1, character: now.at(-1).length } }, text: lines.map((l) => `\n${l}`).join("") };
+  }
+  return { range: { start: { line: 0, character: 0 }, end: { line: now.length - 1, character: now.at(-1).length } }, text: original };
 }
 
 // ---------------------------------------------------------------- browser ---
@@ -450,7 +528,7 @@ export async function measure(args, deps) {
     return deps.die([error.message, "", ...MEASURE_USAGE].join("\n"));
   }
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-measure-"));
-  const report = { mode: options.burst ? "burst" : options.edit ? "edit" : "preview", line: options.line, word: options.word, samples: [], warmup: options.warmup };
+  const report = { mode: options.burst ? "burst" : options.structural ? "structural" : options.edit ? "edit" : "preview", line: options.line, word: options.word, samples: [], warmup: options.warmup };
   let pageConsole = [];
   try {
     let project = options.project;
@@ -459,7 +537,7 @@ export async function measure(args, deps) {
       project = path.join(scratch, "fixture");
       const target = writePreviewFixture(project);
       options.line ??= target.line;
-      if (!options.burst) options.word ??= target.word;
+      if (!options.burst && !options.structural) options.word ??= target.word;
       report.line = options.line;
       report.word = options.word;
     }
@@ -490,8 +568,9 @@ export async function measure(args, deps) {
         const lineText = text.split("\n")[options.line - 1];
         report.lineText = lineText ?? null;
         if (lineText == null) throw new Error(`${uri} has no line ${options.line}`);
-        // A burst types at the end of the line and needs no word.
-        const wordAt = options.burst ? lineText.length : lineText.indexOf(options.word);
+        // A burst types at the end of the line, and a structural edit inserts
+        // after it; neither needs a word.
+        const wordAt = options.burst || options.structural ? lineText.length : lineText.indexOf(options.word);
         if (wordAt < 0) throw new Error(`"${options.word}" is not on line ${options.line} of ${uri}: ${JSON.stringify(lineText)}`);
         const target = { uri, line: options.line - 1 };
         report.playerFramesObserved = await instrument(page);
@@ -574,6 +653,98 @@ export async function measure(args, deps) {
             report.restored = await readLine(page, options.line);
             report.restoredMatches = report.restored === lineText;
             if (!report.restoredMatches) throw new Error(`line ${options.line} was not put back after burst ${i + 1}: ${JSON.stringify(report.restored)}`);
+          }
+        } else if (options.structural) {
+          // Each sample inserts a line after the measured one, at its
+          // indentation, or removes it again, alternately (#1672). The
+          // document is compared whole, so `restoredMatches` says it came
+          // back byte for byte, not merely that the line did.
+          const indentation = options.indent != null ? " ".repeat(options.indent) : (/^\s*/.exec(lineText)?.[0] ?? "");
+          const inserted = indentation + (options.text ?? STRUCTURAL_TEXT);
+          report.text = options.text ?? STRUCTURAL_TEXT;
+          report.inserted = inserted;
+          report.linesBefore = text.split("\n").length;
+          const lines = text.split("\n");
+          const withInsert = [...lines.slice(0, options.line), inserted, ...lines.slice(options.line)].join("\n");
+          const end = lineText.length;
+          // The line the edit leaves the caret on, which is where the
+          // preview has to paint: the inserted line, or the measured one.
+          const targets = { insert: { uri, line: options.line }, remove: target };
+          // The insert's range: from the end of the measured line to the end
+          // of the inserted one.
+          const selectInserted = () => notify(page, "editor/select", { textDocument: { uri }, range: { start: at(end), end: { line: options.line, character: inserted.length } }, takeFocus: true });
+          const readText = async () => (await send(page, "editor/read")).textDocument.text;
+          const shoot = async (name) => {
+            if (!options.screenshots) return;
+            fs.mkdirSync(options.screenshots, { recursive: true });
+            const file = path.resolve(options.screenshots, `${name}.png`);
+            await page.screenshot({ path: file, fullPage: false });
+            (report.screenshots ??= []).push(file);
+          };
+          try {
+            for (let i = 0; i < total; i++) {
+              const direction = i % 2 === 0 ? "insert" : "remove";
+              const expected = direction === "insert" ? text : withInsert;
+              const current = await readText();
+              if (current !== expected) throw new Error(`before structural sample ${i + 1} (${direction}) the document is not the one the run left`);
+              // The caret where the edit goes, and the preview settled there
+              // first, so the paint the clock stops at is the edit's own.
+              if (direction === "insert") await select(end, end);
+              else await selectInserted();
+              await page.waitForTimeout(options.settle + 1500);
+              if (i === 0) await shoot("before");
+              const versionBefore = await page.evaluate(() => window.__measureState?.programVersion ?? null);
+              await takeLog(page);
+              if (direction === "insert") {
+                await page.evaluate((key) => window.__measureLog.push({ t: performance.now(), ts: performance.now(), kind: "key", key }), STRUCTURAL_KEYS.insert);
+                await page.keyboard.insertText(`\n${inserted}`);
+              } else {
+                await page.keyboard.press(STRUCTURAL_KEYS.remove);
+              }
+              await waitInPage(page, paintedAfter, versionBefore, options.timeout);
+              await page.waitForTimeout(options.settle);
+              const events = await takeLog(page);
+              if (i === 0) await shoot("inserted");
+              const after = await readText();
+              const sample = { index: i + 1, warmup: i < options.warmup, lines: after.split("\n").length, ...attributeStructuralSample(events, versionBefore, targets[direction], direction), events };
+              if (direction === "remove") sample.restoredMatches = after === text;
+              const wanted = direction === "insert" ? withInsert : text;
+              if (after !== wanted && !sample.failure) sample.failure = direction === "insert" ? "the document after the insert is not the measured one with the line added" : "the removal did not give the document back as it was";
+              report.samples.push(sample);
+              if (after !== wanted) break;
+            }
+          } finally {
+            // Take the inserted line out again whether or not the samples
+            // finished, then compare the whole document with the one the run
+            // found; a restore that fails is reported beside the error that
+            // stopped the run rather than replacing it.
+            try {
+              const span = restoreSpan(await readText(), text);
+              if (span) {
+                await notify(page, "editor/select", { textDocument: { uri }, range: span.range, takeFocus: true });
+                if (span.text) await page.keyboard.insertText(span.text);
+                else await page.keyboard.press("Backspace");
+                await page.waitForTimeout(3000);
+              }
+              const restored = await readText();
+              report.restoredMatches = restored === text;
+              report.linesAfter = restored.split("\n").length;
+              report.restored = await readLine(page, options.line);
+            } catch (error) {
+              report.restoreError = String(error?.message ?? error);
+              report.restoredMatches = false;
+            }
+            if (options.screenshots) {
+              // The caret back where the run started, so the picture shows
+              // the measured line and the preview at it.
+              try {
+                await select(end, end);
+                await page.waitForTimeout(options.settle);
+                await shoot("restored");
+              } catch (error) {
+                report.screenshotError = String(error?.message ?? error);
+              }
+            }
           }
         } else try {
           if (!options.edit) {
@@ -658,6 +829,9 @@ export async function measure(args, deps) {
 
   const measured = report.samples.filter((s) => !s.warmup);
   report.summary = options.burst ? summarizeBurst(measured) : summarize(measured);
+  // An insert and a removal are different edits, so each has its own figures
+  // beside the ones over both (#1672).
+  if (options.structural) report.summary.byDirection = Object.fromEntries(["insert", "remove"].map((d) => [d, summarize(measured.filter((s) => s.direction === d))]));
   report.summary.warmupFailures = report.samples.filter((s) => s.warmup && s.failure).length;
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(report, null, 2));
   const printed = { ...report, samples: report.samples.map(({ events, ...rest }) => rest) };
