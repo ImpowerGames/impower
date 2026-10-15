@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 98 (this commit), 2026-10-15T23:15:55.864Z, after the intent before a side effect. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 99 (this commit), 2026-10-15T23:16:11.873Z, after resume of #1645. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -18,7 +18,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1103
 
 - claude-cli claude-opus-5-5 at low, process 51856 on DESKTOP-726EO47
-- as of 2026-10-15T23:15:52.082Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-15T23:16:09.587Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1913/round-1/launch-gram-1 on DESKTOP-726EO47: round 1 reviewed f4212693b, completed {"gram":1} of planned ["gram","undirected"]; last launched reviewer gram attempt 1 of round 1 (planned ["gram","undirected"]), last event finished
 - review job pr-1913/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed f4212693b, completed {"undirected":1} of planned ["gram","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["gram","undirected"]), last event finished
 
@@ -31,5 +31,5 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1645
 
-- claude-cli claude-opus-5-5 at low, process 12992 on DESKTOP-726EO47
-- as of 2026-10-15T23:15:52.082Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order that may exist only there; recover those bytes there before restarting or overwriting this work
+- claude-cli claude-opus-5-5 at low, process 21792 on DESKTOP-726EO47
+- as of 2026-10-15T23:16:09.587Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order that may exist only there; recover those bytes there before restarting or overwriting this work
