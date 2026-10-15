@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 16 (this commit), 2026-10-15T22:17:22.652Z, after disk-recovery. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 17 (this commit), 2026-10-15T22:17:31.414Z, after disk-recovery. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,9 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1201
 
 - claude-cli claude-opus-5-5 at medium, process 55348 on DESKTOP-726EO47
-- as of 2026-10-15T22:17:21.524Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-15T22:17:30.548Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1632
 
 - claude-cli claude-opus-5-5 at medium, process 11296 on DESKTOP-726EO47
-- as of 2026-10-15T22:17:21.524Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-15T22:17:30.548Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies that may exist only there; recover those bytes there before restarting or overwriting this work
