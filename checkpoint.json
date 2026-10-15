@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 15,
-  "previous": "733297075cc036f7448849ff5492cfe512335d81",
+  "seq": 16,
+  "previous": "19b749229c72c07de3dbde243e2c72b803759b64",
   "snapshotParents": [],
-  "time": "2026-10-15T22:17:43.236Z",
+  "time": "2026-10-15T22:17:52.016Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 12,
+    "recordRevision": 13,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -133,6 +133,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1669-portability-modern-web",
       "branch": "docs/1669-portability-modern-web",
       "classifier": "removed  impower.worktrees\\docs\\1669-portability-modern-web              docs/1669-portability-modern-web              112.0 MB   merged into origin/main; origin/docs/1669-portability-modern-web still exists; takes 3 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/docs/1669-portability-modern-web': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:17:49.606Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1707-runtime-guide",
+      "branch": "docs/1707-runtime-guide",
+      "classifier": "removed  impower.worktrees\\docs\\1707-runtime-guide                       docs/1707-runtime-guide                       936.5 MB   merged into origin/main; origin/docs/1707-runtime-guide still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/docs/1707-runtime-guide': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -142,7 +148,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:17:42.486Z",
+      "observedAt": "2026-10-15T22:17:51.283Z",
       "held": true,
       "head": "34ddcadf1f86c8ca4481239357ecafb3a8841b65",
       "remoteHead": null,
@@ -314,6 +320,11 @@
       "time": "2026-10-15T22:17:41.043Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1669-portability-modern-web"
+    },
+    {
+      "time": "2026-10-15T22:17:49.607Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1707-runtime-guide"
     }
   ]
 }
