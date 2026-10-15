@@ -15,21 +15,12 @@ export class SparkdownPreviewGamePanelSerializer
       | { textDocument?: { uri?: string }; canvasHeight?: number }
       | undefined,
   ) {
-    // The manager drives one Game Preview. A workspace can hold two, saved
-    // while a black restored tab sat beside one opened with `Sparkdown:
-    // Preview Game`; the later one is closed rather than take the manager
-    // over from the first (#1886).
-    if (SparkdownPreviewGamePanelManager.instance.panel) {
-      panel.dispose();
-      return;
-    }
-    // Otherwise always initialize the panel VS Code restored: a restored
-    // panel is given its content and connected only here, so one left alone
-    // stays black for good (#1886). The webview may have saved no state (it
-    // saves its script once the player is initialized, and builds before
-    // this one never did), or a script that can no longer be opened; the
-    // preview then starts with the script `Sparkdown: Preview Game` would
-    // use, or with none.
+    // Always initialize the panel VS Code restored: a restored panel is
+    // given its content and connected only here, so one left alone stays
+    // black for good (#1886). The webview saves the script it last showed,
+    // but may have saved none (builds before this one never did), or one
+    // that can no longer be opened; the preview then starts with the script
+    // `Sparkdown: Preview Game` would use, or with none.
     const savedUri = state?.textDocument?.uri;
     const saved = savedUri
       ? await getOpenTextDocument(vscode.Uri.parse(savedUri))
@@ -37,6 +28,16 @@ export class SparkdownPreviewGamePanelSerializer
     const activeUri = getActiveSparkdownDocument();
     const document =
       saved ?? (activeUri ? getEditor(activeUri)?.document : undefined);
+    // The manager drives one Game Preview. A workspace can hold two, saved
+    // while a black restored tab sat beside one opened with `Sparkdown:
+    // Preview Game`, and the command or another restore can open one while
+    // the script above is looked up. A panel arriving second is closed rather
+    // than take the manager over from the first (#1886). Nothing is awaited
+    // between this check and `initializePanel` taking the panel.
+    if (SparkdownPreviewGamePanelManager.instance.panel) {
+      panel.dispose();
+      return;
+    }
     await SparkdownPreviewGamePanelManager.instance.initializePanel(
       panel,
       this._context,

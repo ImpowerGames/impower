@@ -11,6 +11,10 @@ const state = vi.hoisted(() => ({
   vscode: null as unknown as FakeVscode,
   /** The documents `openTextDocument` can open, by uri. */
   openable: new Map<string, unknown>(),
+  /** Opening these uris waits until the promise settles. */
+  held: new Map<string, Promise<void>>(),
+  /** The panel `createWebviewPanel` hands `Sparkdown: Preview Game`. */
+  created: undefined as unknown,
 }));
 
 vi.mock("vscode", async () => {
@@ -29,6 +33,7 @@ vi.mock("vscode", async () => {
         return state.vscode.workspace.textDocuments;
       },
       openTextDocument: async (uri: { toString(): string }) => {
+        await state.held.get(uri.toString());
         const document = state.openable.get(uri.toString());
         if (!document) {
           throw new Error(`cannot open ${uri.toString()}`);
@@ -45,6 +50,8 @@ vi.mock("vscode", async () => {
         return state.vscode.window.visibleTextEditors;
       },
       showErrorMessage: () => Promise.resolve(undefined),
+      createWebviewPanel: () => state.created,
+      tabGroups: { activeTabGroup: { activeTab: undefined } },
     },
   };
 });
@@ -107,18 +114,27 @@ const restoredPanel = () => {
   return { panel, posted, start, initializations };
 };
 
-const restore = async (panel: unknown, saved: unknown) => {
-  const { SparkdownPreviewGamePanelSerializer } =
-    await import("../src/managers/SparkdownPreviewGamePanelSerializer");
+/** A fresh manager, as after VS Code starts the extension. */
+const freshManager = async () => {
   const { SparkdownPreviewGamePanelManager } =
     await import("../src/managers/SparkdownPreviewGamePanelManager");
-  // A fresh manager each time, as after VS Code starts the extension.
   (SparkdownPreviewGamePanelManager as any)._instance = undefined;
-  const serializer = new SparkdownPreviewGamePanelSerializer({
-    extensionUri: "ext",
-  } as any);
-  await serializer.deserializeWebviewPanel(panel as any, saved as any);
   return SparkdownPreviewGamePanelManager.instance;
+};
+
+/** VS Code handing the extension's serializer a panel it restored. */
+const deserialize = async (panel: unknown, saved: unknown) => {
+  const { SparkdownPreviewGamePanelSerializer } =
+    await import("../src/managers/SparkdownPreviewGamePanelSerializer");
+  await new SparkdownPreviewGamePanelSerializer({
+    extensionUri: "ext",
+  } as any).deserializeWebviewPanel(panel as any, saved as any);
+};
+
+const restore = async (panel: unknown, saved: unknown) => {
+  const manager = await freshManager();
+  await deserialize(panel, saved);
+  return manager;
 };
 
 /** Show `doc` in the active editor, with the cursor on its first line. */
@@ -135,6 +151,8 @@ beforeEach(async () => {
   // Loads the mock, which creates the fake.
   await import("vscode");
   state.openable = new Map();
+  state.held = new Map();
+  state.created = undefined;
   state.vscode.window.activeTextEditor = undefined;
   state.vscode.window.visibleTextEditors = [];
   state.vscode.workspace.textDocuments.length = 0;
@@ -205,11 +223,7 @@ describe("restoring the Game Preview when the workspace reopens", () => {
     const second = restoredPanel();
 
     const manager = await restore(first.panel, undefined);
-    const { SparkdownPreviewGamePanelSerializer } =
-      await import("../src/managers/SparkdownPreviewGamePanelSerializer");
-    await new SparkdownPreviewGamePanelSerializer({
-      extensionUri: "ext",
-    } as any).deserializeWebviewPanel(second.panel as any, undefined);
+    await deserialize(second.panel, undefined);
     await first.start();
 
     expect(second.panel.disposed).toBe(true);
@@ -217,6 +231,78 @@ describe("restoring the Game Preview when the workspace reopens", () => {
     expect(first.panel.disposed).toBe(false);
     expect(manager.panel).toBe(first.panel);
     expect(first.initializations()).toHaveLength(1);
+    expect(manager.connected).toBe(true);
+  });
+
+  it("closes a restored Game Preview that another restore overtook while its script was opened", async () => {
+    const { document } = await import("./fakeVscode");
+    await showInEditor(document("file:///project/main.sd", "Hello."));
+    state.openable.set(
+      "file:///project/saved.sd",
+      document("file:///project/saved.sd", "Saved."),
+    );
+    let release!: () => void;
+    state.held.set(
+      "file:///project/saved.sd",
+      new Promise<void>((resolve) => (release = resolve)),
+    );
+    const first = restoredPanel();
+    const second = restoredPanel();
+
+    // The first restore is still opening its saved script when the second,
+    // which saved none, is adopted.
+    const manager = await freshManager();
+    const restoring = deserialize(first.panel, {
+      textDocument: { uri: "file:///project/saved.sd" },
+    });
+    await deserialize(second.panel, undefined);
+    release();
+    await restoring;
+    await second.start();
+
+    expect(first.panel.disposed).toBe(true);
+    expect(first.posted).toEqual([]);
+    expect(second.panel.disposed).toBe(false);
+    expect(manager.panel).toBe(second.panel);
+    expect(second.initializations()).toHaveLength(1);
+    expect(second.initializations()[0].params.initializationOptions.uri).toBe(
+      "file:///project/main.sd",
+    );
+    expect(manager.connected).toBe(true);
+  });
+
+  it("closes a restored Game Preview that Preview Game overtook while its script was opened", async () => {
+    const { document } = await import("./fakeVscode");
+    await showInEditor(document("file:///project/main.sd", "Hello."));
+    state.openable.set(
+      "file:///project/saved.sd",
+      document("file:///project/saved.sd", "Saved."),
+    );
+    let release!: () => void;
+    state.held.set(
+      "file:///project/saved.sd",
+      new Promise<void>((resolve) => (release = resolve)),
+    );
+    const restored = restoredPanel();
+    const opened = restoredPanel();
+    state.created = opened.panel;
+
+    const manager = await freshManager();
+    const restoring = deserialize(restored.panel, {
+      textDocument: { uri: "file:///project/saved.sd" },
+    });
+    await manager.showPanel(
+      { extensionUri: "ext" } as any,
+      state.vscode.window.activeTextEditor.document,
+    );
+    release();
+    await restoring;
+    await opened.start();
+
+    expect(restored.panel.disposed).toBe(true);
+    expect(restored.posted).toEqual([]);
+    expect(manager.panel).toBe(opened.panel);
+    expect(opened.initializations()).toHaveLength(1);
     expect(manager.connected).toBe(true);
   });
 
