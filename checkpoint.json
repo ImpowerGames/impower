@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 14,
-  "previous": "c54af4e4806cb73db6c90365b37a8bbec14a28e7",
+  "seq": 15,
+  "previous": "733297075cc036f7448849ff5492cfe512335d81",
   "snapshotParents": [],
-  "time": "2026-10-15T22:05:04.952Z",
+  "time": "2026-10-15T22:17:43.236Z",
   "kind": "auto",
-  "transition": "answered of #457",
+  "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 11,
+    "recordRevision": 12,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -127,7 +127,14 @@
   },
   "operations": [],
   "decisions": [],
-  "diskRecoveries": [],
+  "diskRecoveries": [
+    {
+      "time": "2026-10-15T22:17:41.043Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1669-portability-modern-web",
+      "branch": "docs/1669-portability-modern-web",
+      "classifier": "removed  impower.worktrees\\docs\\1669-portability-modern-web              docs/1669-portability-modern-web              112.0 MB   merged into origin/main; origin/docs/1669-portability-modern-web still exists; takes 3 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/docs/1669-portability-modern-web': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    }
+  ],
   "verifications": [],
   "work": {
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics": {
@@ -135,9 +142,9 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:05:03.961Z",
+      "observedAt": "2026-10-15T22:17:42.486Z",
       "held": true,
-      "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
+      "head": "34ddcadf1f86c8ca4481239357ecafb3a8841b65",
       "remoteHead": null,
       "unpushed": true,
       "dirty": true
@@ -302,6 +309,11 @@
       "ticket": 457,
       "id": "8b85f0af",
       "deliveryId": "be895318"
+    },
+    {
+      "time": "2026-10-15T22:17:41.043Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1669-portability-modern-web"
     }
   ]
 }
