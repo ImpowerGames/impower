@@ -40,6 +40,7 @@ import type {
   SourceLocation,
 } from "../../compiler/types/ProgramAddress";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
+import { isSameProgram } from "../../compiler/utils/programSummary";
 import { profile } from "../utils/logging/profile";
 import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
@@ -1125,12 +1126,17 @@ export abstract class SparkdownWorkspace {
       // player rebuilds its whole Game whenever program.version changes -- so
       // detect identity and keep the version stable.
       let programUnchanged = false;
+      // Whether the story compile served the program it served before, by
+      // the fields that survive the trip from the compiler: a host given
+      // summaries, as the player is, gets a new object for every answer.
+      let storyUnchanged = false;
       const mainScriptUri = this.getMainScriptUri(uri);
       try {
         if (mainScriptUri) {
           const previousProgram = this.getProgramState(mainScriptUri).program;
           result = await this.compileDocument(mainScriptUri);
           programUnchanged = result.program === previousProgram;
+          storyUnchanged = isSameProgram(result.program, previousProgram);
           this.getProgramState(mainScriptUri).program = result.program;
           if (result.program.scripts) {
             for (const [uri, version] of Object.entries(result.program.scripts)) {
@@ -1147,6 +1153,17 @@ export abstract class SparkdownWorkspace {
           }
         }
         if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
+          if (
+            this.publishesStoryOfStandaloneCompiles &&
+            mainScriptUri &&
+            result?.program &&
+            !storyUnchanged
+          ) {
+            // The story changed, and the result below replaces it. One the
+            // compile served again is not published: the page would take it
+            // as a new program, and restart PLAY for it.
+            this.publishCompiled(mainScriptUri, result, false);
+          }
           // Target script is not included by main,
           // So it must be parsed on its own to report diagnostics
           const previousProgram = this.getProgramState(uri).program;
@@ -1186,46 +1203,7 @@ export abstract class SparkdownWorkspace {
         throw e;
       }
       if (result?.program) {
-        const state = this.getProgramState(uri);
-        if (!programUnchanged) {
-          result.program.version = state.version;
-        }
-        // With slimProgramNotifications, relay only what the notification's
-        // consumers actually read instead of the whole program (which is ~9MB on
-        // a large project and re-broadcast on EVERY compile; the receiver pays a
-        // structured-clone of all of it per keystroke).
-        //
-        // The impower web editor's main thread needs just `diagnosticsSummary`
-        // (file/tab error+warning colors). Everything else is fetched on demand
-        // or delivered through a dedicated channel:
-        //   - full diagnostics    → textDocument/publishDiagnostics
-        //   - prev/next beat      → sparkdown/offsetSourceLocation
-        // uri/scripts/version ride along because they're small and identify
-        // the compile. `files` is NOT small: it describes every asset of the
-        // project and measured 5.8 MB of JSON on a real one, which cost the
-        // editor a ~40 ms clone per compile result for a field nothing there
-        // reads (#1815). Resist adding heavy fields back here — prefer an
-        // on-demand request.
-        const notificationParams: CompiledProgramParams = this
-          .slimProgramNotifications
-          ? {
-              ...result,
-              program: {
-                uri: result.program.uri,
-                scripts: result.program.scripts,
-                files: {},
-                version: result.program.version,
-              },
-              diagnosticsSummary: summarizeDiagnostics(
-                result.program.diagnostics,
-              ),
-            }
-          : result;
-        this.sendNotification(CompiledProgramMessage.method, notificationParams);
-        this.onCompiledTextDocument({
-          textDocument: { uri },
-          program: result.program,
-        });
+        this.publishCompiled(uri, result, programUnchanged);
       }
       return result?.program;
     } finally {
@@ -1240,6 +1218,62 @@ export abstract class SparkdownWorkspace {
         this.runChangeCompiles();
       }
     }
+  }
+
+  /**
+   * Whether a compile of a script the story does not include also publishes
+   * the story's program, when the story changed. Such a compile compiles the
+   * story first and publishes only the script's own program, so a host that
+   * shows the story would otherwise never hear of the new one. Off here, as
+   * the language server needs only the script's; the player turns it on.
+   */
+  protected publishesStoryOfStandaloneCompiles = false;
+
+  /** Stamp `result`'s program with `uri`'s version, unless the compile
+   *  served the program before, and publish it. */
+  protected publishCompiled(
+    uri: string,
+    result: CompileProgramResult,
+    programUnchanged: boolean,
+  ) {
+    const state = this.getProgramState(uri);
+    if (!programUnchanged) {
+      result.program.version = state.version;
+    }
+    // With slimProgramNotifications, relay only what the notification's
+    // consumers actually read instead of the whole program (which is ~9MB on
+    // a large project and re-broadcast on EVERY compile; the receiver pays a
+    // structured-clone of all of it per keystroke).
+    //
+    // The impower web editor's main thread needs just `diagnosticsSummary`
+    // (file/tab error+warning colors). Everything else is fetched on demand
+    // or delivered through a dedicated channel:
+    //   - full diagnostics    → textDocument/publishDiagnostics
+    //   - prev/next beat      → sparkdown/offsetSourceLocation
+    // uri/scripts/version ride along because they're small and identify
+    // the compile. `files` is NOT small: it describes every asset of the
+    // project and measured 5.8 MB of JSON on a real one, which cost the
+    // editor a ~40 ms clone per compile result for a field nothing there
+    // reads (#1815). Resist adding heavy fields back here — prefer an
+    // on-demand request.
+    const notificationParams: CompiledProgramParams = this
+      .slimProgramNotifications
+      ? {
+          ...result,
+          program: {
+            uri: result.program.uri,
+            scripts: result.program.scripts,
+            files: {},
+            version: result.program.version,
+          },
+          diagnosticsSummary: summarizeDiagnostics(result.program.diagnostics),
+        }
+      : result;
+    this.sendNotification(CompiledProgramMessage.method, notificationParams);
+    this.onCompiledTextDocument({
+      textDocument: { uri },
+      program: result.program,
+    });
   }
 
   stripMarkdown(markdown: string): string {
@@ -1352,6 +1386,13 @@ export abstract class SparkdownWorkspace {
     return this._documentSelected;
   }
 
+  /** Whether a selection moves the point compiles route to
+   *  (`compileStartFrom`). Every selection does here; a host whose preview
+   *  follows only some of them narrows it. */
+  protected movesCompilePoint(_params: { userEvent?: boolean }): boolean {
+    return true;
+  }
+
   program(uri: string) {
     return this.getProgramState(uri).program;
   }
@@ -1429,10 +1470,12 @@ export abstract class SparkdownWorkspace {
     userEvent?: boolean;
   }) {
     const { textDocument, selectedRange } = params;
-    this._documentSelected = {
-      file: textDocument.uri,
-      line: selectedRange.start.line,
-    };
+    if (this.movesCompilePoint(params)) {
+      this._documentSelected = {
+        file: textDocument.uri,
+        line: selectedRange.start.line,
+      };
+    }
     await this.compilerReady();
     let result: SelectCompilerDocumentResult;
     try {

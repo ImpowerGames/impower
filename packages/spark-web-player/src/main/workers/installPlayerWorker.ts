@@ -25,6 +25,7 @@ import {
 } from "@impower/sparkdown/src/runtime/ExecutionWatch";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
+import { compiledElsewhere } from "../../utils/compiledElsewhere";
 import { programIdentity } from "../../utils/programIdentity";
 import { planPreviewHint, type PreviewHintState } from "../utils/previewHint";
 import { displayPreviewFrom } from "./displayPreviewFrom";
@@ -155,8 +156,11 @@ export function installPlayerWorker(connection: MessageConnection) {
   // for one after the next may have compiled; the suggestion the page
   // shows, which a return to it displays again without compiling; the one
   // displayed last, which the page takes as shown once its display answers;
-  // and the one the newest display asks for, from when its request arrives.
-  // The worker keeps each of their programs, whose statement chunks stay as
+  // and the one the newest display asks for, from when its request arrives;
+  // the two newest real programs compiled for a script the point they route
+  // to is not in, which the game is not given but the page can still take
+  // (see `compiler/didCompile`); and the real program the page last said it
+  // holds. The worker keeps each of their programs, whose statement chunks stay as
   // they were built, and the program the game holds, which the game runs
   // until it is given another. Whatever nothing keeps is let go each time
   // that changes: after a compile, a preview compile, a program the page
@@ -171,13 +175,18 @@ export function installPlayerWorker(connection: MessageConnection) {
   // it named.
   const nameableRealIds: string[] = [];
   const newestSuggestionIds: string[] = [];
+  const newestElsewhereIds: string[] = [];
   let shownSuggestionId: string | undefined;
   let displayedId: string | undefined;
   let requestedId: string | undefined;
+  let heldId: string | undefined;
 
   /** The page names `id` as the real program it holds, so none compiled
    *  before it can be named again. */
   const pageHolds = (id: string | undefined) => {
+    if (id) {
+      heldId = id;
+    }
     const at = id ? nameableRealIds.indexOf(id) : -1;
     if (at > 0) {
       nameableRealIds.splice(0, at);
@@ -194,9 +203,11 @@ export function installPlayerWorker(connection: MessageConnection) {
         id !== canonicalId &&
         !nameableRealIds.includes(id) &&
         !newestSuggestionIds.includes(id) &&
+        !newestElsewhereIds.includes(id) &&
         id !== shownSuggestionId &&
         id !== displayedId &&
         id !== requestedId &&
+        id !== heldId &&
         entry.program !== held
       ) {
         displayable.delete(id);
@@ -239,6 +250,41 @@ export function installPlayerWorker(connection: MessageConnection) {
   let routingTo: { file: string; line: number } | null = null;
 
   compiler.addEventListener("compiler/didCompile", (params) => {
+    if (
+      params.produced &&
+      compiledElsewhere(params.program, params.program.startFrom)
+    ) {
+      // Compiled for a script the point it routes to is not in. The game
+      // keeps the program it holds, so the display under way is not taken
+      // over: on a cold start in VS Code a compile of each open script would
+      // otherwise cancel the first display, and the page, which does not take
+      // such a program, would never ask for it again (#1874). The program is
+      // still kept for the page to name: the page judges by its own preview
+      // point, which a selection the author did not make leaves where it was
+      // while the point here moves, so it can take a program judged
+      // elsewhere here. A display or PLAY that names it gives it to the game.
+      // Only the two newest are kept, and the one the page holds: the page
+      // need never take one of them, so none waits for the page to name a
+      // later program before it goes, as the real programs it can name do.
+      const entry: DisplayableProgram = {
+        id: programIdentity(params.program)!,
+        program: params.program,
+        log: new RouteSearchLog(),
+      };
+      if (newestElsewhereIds.at(-1) !== entry.id) {
+        newestElsewhereIds.push(entry.id);
+        if (newestElsewhereIds.length > 2) {
+          newestElsewhereIds.shift();
+        }
+      }
+      if (!displayable.has(entry.id)) {
+        // A compile that changed nothing serves a program already kept,
+        // whose log stays.
+        retain(entry);
+      }
+      releaseUnneeded();
+      return;
+    }
     routingTo = params.program.startFrom ?? null;
     if (!params.produced) {
       // A compile that produced no program that runs, which is one that
@@ -501,7 +547,12 @@ export function installPlayerWorker(connection: MessageConnection) {
     let fresh = params.fresh === true;
     for (;;) {
       const entry = displayable.get(params.program);
-      const game = gameState.game;
+      // Before any compile has given the game a program, the page can still
+      // name one compiled elsewhere (see `compiler/didCompile`), which builds
+      // the game.
+      const game = entry
+        ? (gameState.game ?? createOrUpdateGame(entry.program))
+        : undefined;
       if (!entry || !game) {
         return { displayed: false, missing: true };
       }
@@ -614,7 +665,11 @@ export function installPlayerWorker(connection: MessageConnection) {
     routingTo = params.startFrom ?? null;
     pageHolds(params.program);
     const entry = displayable.get(params.program);
-    const game = gameState.game;
+    // As a display does, PLAY builds the game from a program compiled
+    // elsewhere when no compile has given it one.
+    const game = entry
+      ? (gameState.game ?? createOrUpdateGame(entry.program))
+      : undefined;
     if (!entry || !game) {
       return { built: false };
     }

@@ -43,6 +43,12 @@ import { getWebviewUri } from "../utils/getWebviewUri";
 import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
 
+/** The empty message the game webview posts once its script has loaded. */
+const isWebviewHello = (message: unknown) =>
+  message != null &&
+  typeof message === "object" &&
+  Object.keys(message).length === 0;
+
 export class SparkdownPreviewGamePanelManager {
   private static _instance: SparkdownPreviewGamePanelManager;
   static get instance(): SparkdownPreviewGamePanelManager {
@@ -80,7 +86,21 @@ export class SparkdownPreviewGamePanelManager {
     return this._connected;
   }
 
-  _initialized = false;
+  /** The project's files, read as the panel's webview loads so the player's
+   *  initialization does not wait for the read after it has mounted. Taken by
+   *  the first initialization; a reloaded webview reads them again. */
+  protected _workspaceFilesReading?: ReturnType<typeof getWorkspaceFiles>;
+
+  /** A file was created, changed or deleted since that read began, so what
+   *  it found may be out of date: the initialization reads again. */
+  protected _workspaceFilesStale = false;
+
+  /** Counts the initializations begun, each webview script that loads, and
+   *  the panel closing. Requests go to whichever webview the panel holds
+   *  now, so an initialization overtaken by any of them (a webview reloaded
+   *  while the first read was still under way) stops rather than initialize
+   *  the new player as well. */
+  protected _initializations = 0;
 
   _fileWatchersRegistered = false;
 
@@ -186,26 +206,57 @@ export class SparkdownPreviewGamePanelManager {
       this._panel = undefined;
       this._connected = false;
       this._gameRunning = false;
+      this._initializations += 1;
       this._onDidDisposePanel.fire();
     });
+    // Read while the webview loads: its player asks for initialization only
+    // once it has mounted, and on a large project the read is a few tenths
+    // of a second it would otherwise wait for (#1875). Watching starts first,
+    // so a file that changes meanwhile is not lost.
+    this.registerFileWatchers();
+    this.readWorkspaceFiles();
     panel.webview.html = this.getWebviewContent(panel.webview, context);
-    this._initialized = false;
     panel.webview.onDidReceiveMessage(async (message) => {
+      if (isWebviewHello(message)) {
+        // A webview's script has loaded: on first load, or in place of a
+        // webview vscode reloaded. Its player has not mounted yet, since the
+        // script says so before registering it (`game-webview.ts`), so an
+        // initialization still under way is for the webview this one
+        // replaced, and would otherwise go on to initialize this one's player
+        // before that player asks (#1874): it is overtaken. Answer, so the
+        // panel activates after deserialization. Answering every message
+        // instead doubled the traffic of a cold start, which sends a request
+        // for each of the project's files.
+        this._initializations += 1;
+        panel.webview.postMessage({});
+      }
       if (
         ConnectedPreviewMessage.type.isNotification(message) &&
         message.params.type === "game"
       ) {
-        // The webview (re)connected. This happens on first load and also
-        // whenever the webview is reloaded by vscode (e.g. when its tab is
-        // moved to another editor group or undocked into a new window). Each
-        // reload spins up a fresh webview instance that must be initialized
-        // again, so allow re-initialization here.
-        this._initialized = false;
-      }
-      if (!this._initialized) {
-        this._initialized = true;
+        // The player mounted and asks to be initialized. This happens on
+        // first load and also whenever the webview is reloaded by vscode
+        // (e.g. when its tab is moved to another editor group or undocked
+        // into a new window): each reload spins up a fresh webview instance
+        // that must be initialized again. Nothing else the webview sends
+        // starts an initialization. The empty message it posts when its
+        // script has loaded used to start one too, so the player was
+        // initialized twice at once: it read and compiled the whole project
+        // twice, and the burst of programs that followed could leave the
+        // preview black for good (#1874).
         this._connected = false;
-        await this.connectAndInitializeWebview(document, canvasHeight);
+        try {
+          await this.connectAndInitializeWebview(document, canvasHeight);
+        } catch (e) {
+          // The player waits for this, so a failure would otherwise leave
+          // the panel black with nothing said (#1874).
+          const reason =
+            e instanceof Error ? e.message : (e as any)?.message ?? String(e);
+          console.error("Game Preview could not start", e);
+          vscode.window.showErrorMessage(
+            `Game Preview could not start: ${reason}`,
+          );
+        }
       }
       if (ExecuteCommandMessage.type.isRequest(message)) {
         const params = message.params;
@@ -314,8 +365,6 @@ export class SparkdownPreviewGamePanelManager {
         }
         this._connection.receive(message);
       }
-      // Post an empty message so panel activates after deserialization
-      panel.webview.postMessage({});
     });
   }
 
@@ -327,42 +376,34 @@ export class SparkdownPreviewGamePanelManager {
     const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
     const settings = JSON.parse(JSON.stringify(sparkdownConfig));
 
-    const files = await getWorkspaceFiles();
-    // Only register file watchers once per manager lifetime. This method runs
-    // again every time the webview is reloaded (e.g. moved or undocked), and
-    // re-creating watchers each time would leak them and duplicate listeners.
-    if (!this._fileWatchersRegistered) {
-      this._fileWatchersRegistered = true;
-      const fileWatchers = getWorkspaceFileWatchers();
-      for (const fileWatcher of fileWatchers) {
-        fileWatcher.onDidCreate(async (fileUri) => {
-          this.sendNotification(DidChangeWatchedFilesMessage.type, {
-            changes: [
-              { type: FileChangeType.Created, uri: fileUri.toString() },
-            ],
-          });
-        });
-        fileWatcher.onDidChange(async (fileUri) => {
-          this.sendNotification(DidChangeWatchedFilesMessage.type, {
-            changes: [
-              { type: FileChangeType.Changed, uri: fileUri.toString() },
-            ],
-          });
-        });
-        fileWatcher.onDidDelete(async (fileUri) => {
-          this.sendNotification(DidChangeWatchedFilesMessage.type, {
-            changes: [
-              { type: FileChangeType.Deleted, uri: fileUri.toString() },
-            ],
-          });
-        });
-      }
+    const initialization = ++this._initializations;
+    const overtaken = () => initialization !== this._initializations;
+    this.registerFileWatchers();
+    // The read begun as the webview loaded, unless a file has changed since
+    // it began, when what it found may be out of date.
+    const reading =
+      this._workspaceFilesReading && !this._workspaceFilesStale
+        ? this._workspaceFilesReading
+        : getWorkspaceFiles();
+    this._workspaceFilesReading = undefined;
+    const files = await reading;
+    if (overtaken()) {
+      return;
     }
     await this.sendRequest(ConnectMessage.type, {});
+    if (overtaken()) {
+      return;
+    }
     await this.sendRequest(InitializeMessage.type, {
       initializationOptions: {
         settings,
-        files: Object.values(files),
+        // Each file with the address the webview loads it from, which the
+        // player would otherwise ask for file by file: a request each, before
+        // it could start compiling (#1875).
+        files: Object.values(files).map((file) => ({
+          ...file,
+          src: file.src ?? this.getWebviewSrc(file.uri),
+        })),
         definitions: {
           // builtins now come from the implicitly-imported builtins prelude
           // (useBuiltinsPrelude is the compiler default).
@@ -378,6 +419,9 @@ export class SparkdownPreviewGamePanelManager {
       rootUri: null,
       processId: 0,
     });
+    if (overtaken()) {
+      return;
+    }
     // Scripts open in an editor reach the preview as edits, so it must know
     // them as open: their saves are then not mistaken for outside changes to
     // the file, and their text is the editor's, unsaved edits included.
@@ -388,9 +432,60 @@ export class SparkdownPreviewGamePanelManager {
       await this.sendRequest(ResizeGameMessage.type, {
         height: canvasHeight,
       });
+      if (overtaken()) {
+        return;
+      }
     }
     this._connected = true;
     this._onDidConnectPanel.fire();
+  }
+
+  /** Watch the project's files, once per manager lifetime: initialization
+   *  runs again every time the webview is reloaded (e.g. moved or undocked),
+   *  and re-creating watchers each time would leak them and duplicate
+   *  listeners. Watching starts before the panel's first read of the files,
+   *  so a file created, changed or deleted after that read began is not lost:
+   *  the read is marked out of date, and the initialization reads again
+   *  (#1874). Each change is also sent to the player as it happens; one that
+   *  reaches it before its initialization waits for the project there. */
+  protected registerFileWatchers() {
+    if (this._fileWatchersRegistered) {
+      return;
+    }
+    this._fileWatchersRegistered = true;
+    const notify = (type: FileChangeType, fileUri: vscode.Uri) => {
+      this._workspaceFilesStale = true;
+      this.sendNotification(DidChangeWatchedFilesMessage.type, {
+        changes: [{ type, uri: fileUri.toString() }],
+      });
+    };
+    for (const fileWatcher of getWorkspaceFileWatchers()) {
+      fileWatcher.onDidCreate((fileUri) =>
+        notify(FileChangeType.Created, fileUri),
+      );
+      fileWatcher.onDidChange((fileUri) =>
+        notify(FileChangeType.Changed, fileUri),
+      );
+      fileWatcher.onDidDelete((fileUri) =>
+        notify(FileChangeType.Deleted, fileUri),
+      );
+    }
+  }
+
+  /** Start reading the project's files for the next initialization. */
+  protected readWorkspaceFiles() {
+    this._workspaceFilesStale = false;
+    const reading = getWorkspaceFiles();
+    // Awaited by the initialization, which reports a failure; a panel closed
+    // before its player mounted never takes it.
+    reading.catch(() => {});
+    this._workspaceFilesReading = reading;
+  }
+
+  /** The address the panel's webview loads `uri` from, as
+   *  `sparkdown.getFileSrc` answers it. */
+  protected getWebviewSrc(uri: string) {
+    return this._panel?.webview.asWebviewUri(vscode.Uri.parse(uri)).toString();
   }
 
   getGameConfiguration(editor: vscode.TextEditor) {

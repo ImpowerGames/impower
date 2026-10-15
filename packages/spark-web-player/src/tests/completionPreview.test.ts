@@ -311,7 +311,12 @@ describe("the suggestion preview", () => {
 
       expect(controller._completionSession).toBeNull();
       expect(controller.getGameState().completion).toBeNull();
-      await controller.loadProgram(program("real, other", 2));
+      // The program the selection's compile brings, which holds the other
+      // document: one that does not is compiled for another script, and the
+      // preview does not take it (#1874).
+      const other = program("real, other", 2);
+      other.scripts = { ...other.scripts, "file://proj/other.sd": 1 };
+      await controller.loadProgram(other);
       expect(shown.at(-1)).toMatchObject({ name: "real, other", speculative: false });
     });
 

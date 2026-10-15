@@ -1,0 +1,87 @@
+// The player's page and its worker each judge a compiled program by a point:
+// the page by its preview point, which only the author's selections move
+// (`GamePlayerController.handleSelectedCompilerDocument`), the worker by the
+// point the program was compiled to route to, which the workspace supplies.
+// When a selection the author did not make (a jump from the Problems panel,
+// say) moved the workspace's point into a script the story does not include,
+// the two disagreed: the worker kept, as programs the page could name, a
+// stream of that script's programs the page never took, and dropped story
+// programs the page did take (#1874). The workspace's point now moves only
+// with the author's selections, as the page's does.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../main/workers/workspace.worker", () => ({ default: "" }));
+
+const { installWorkspaceWorker } = await import(
+  "../../main/workers/installWorkspaceWorker"
+);
+
+const MAIN = "file:///local/main.sd";
+const LOOSE = "file:///local/loose.sd";
+
+/** A worker that keeps the port it is handed and answers nothing. */
+class StandInWorker {
+  onerror: unknown;
+  postMessage() {}
+  addEventListener() {}
+  removeEventListener() {}
+  terminate() {}
+}
+
+const g = globalThis as any;
+const originals = { Worker: g.Worker, createObjectURL: URL.createObjectURL };
+
+beforeEach(() => {
+  g.Worker = StandInWorker;
+  URL.createObjectURL = () => "blob:worker";
+});
+
+afterEach(() => {
+  g.Worker = originals.Worker;
+  URL.createObjectURL = originals.createObjectURL;
+});
+
+const createWorkspace = () => {
+  const host = {
+    addEventListener() {},
+    removeEventListener() {},
+    sendResponse() {},
+    request: () => new Promise(() => {}),
+    sendRequest: () => new Promise(() => {}),
+  };
+  return installWorkspaceWorker(host as any).workspace;
+};
+
+const select = (uri: string, line: number, userEvent: boolean) => ({
+  textDocument: { uri },
+  selectedRange: {
+    start: { line, character: 0 },
+    end: { line, character: 0 },
+  },
+  docChanged: false,
+  userEvent,
+});
+
+describe("the point the player's workspace compiles toward (#1874)", () => {
+  it("moves with the author's selections only, as the page's preview point does", () => {
+    const workspace = createWorkspace();
+    // The stand-in worker never answers, so a selection waits for it after
+    // it has recorded its point; only that recording is under test.
+    void workspace.selectTextDocument(select(MAIN, 5, true));
+    expect((workspace as any).compileStartFrom()).toEqual({ file: MAIN, line: 5 });
+
+    void workspace.selectTextDocument(select(LOOSE, 2, false));
+    expect((workspace as any).compileStartFrom()).toEqual({ file: MAIN, line: 5 });
+
+    void workspace.selectTextDocument(select(LOOSE, 2, true));
+    expect((workspace as any).compileStartFrom()).toEqual({ file: LOOSE, line: 2 });
+  });
+
+  it("is published with the story's program when a compile of another script changed the story", () => {
+    // A compile of a script the story does not include compiles the story
+    // first; the page shows the story, so it must hear of the new program
+    // (SparkdownWorkspace's workspaceStandaloneCompile test pins the publish).
+    const workspace = createWorkspace();
+    expect((workspace as any).publishesStoryOfStandaloneCompiles).toBe(true);
+  });
+});
