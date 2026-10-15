@@ -2,6 +2,7 @@ import { Action, Diagnostic, setDiagnostics } from "@codemirror/lint";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
@@ -150,7 +151,9 @@ export function serverDiagnostics(): LSPClientExtension {
     requestHandlers: {
       "workspace/diagnostic/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          updateDocumentDiagnostics(client, file.uri);
+          pullInBackground(client, file.uri, () =>
+            updateDocumentDiagnostics(client, file.uri),
+          );
         }
         return null;
       },
@@ -160,7 +163,9 @@ export function serverDiagnostics(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentDiagnostics(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentDiagnostics(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,

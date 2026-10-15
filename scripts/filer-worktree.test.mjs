@@ -182,6 +182,20 @@ for (const command of [`bash -c 'r''m -f ${bashTarget}'`, `'bash' -c "rm -f '${b
   }
 }
 const slashRepro = reproduction.replaceAll(path.sep, "/");
+// A control that asks `git worktree <subcommand> -h` has to reach Git and
+// print its usage. Git answered it with its usage status, 129, through 2.55;
+// Git 2.56.0 on the Windows runner image answers 0. Expect what the Git the
+// controls run answers, asked through the same shell, and only once that
+// answer is Git's usage: a shell that cannot run Git (127, say) must fail
+// here rather than become the status the controls are held to.
+const controlShell = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+const gitUsage = (subcommand) => new RegExp(`^usage: git worktree ${subcommand}\\b`, "m");
+const gitHelpStatus = (subcommand) => {
+  const help = spawnSync(controlShell, ["-c", `git worktree ${subcommand} -h`], { cwd: main, encoding: "utf8", windowsHide: true });
+  assert.ok(!help.error && help.signal === null && [0, 129].includes(help.status), `git worktree ${subcommand} -h: ${help.error ?? help.signal ?? help.status} ${help.stderr}`);
+  assert.match(help.stdout + help.stderr, gitUsage(subcommand));
+  return help.status;
+};
 const wrapperAndSelectorCases = [
   ["'env' rm --version", `'env' rm -f '${bashTarget}'`],
   ['"env" rm --version', `"env" rm -f '${bashTarget}'`],
@@ -196,8 +210,8 @@ const wrapperAndSelectorCases = [
   [`env '--ch''dir=${slashRepro}' test -f node_modules/tracked.txt`, `env '--ch''dir=${slashRepro}' rm -f node_modules/tracked.txt`],
   ["git 'work''tree' list", `git 'work''tree' remove --force '${slashRepro}'`],
   ["git w\\orktree list", `git w\\orktree remove --force '${slashRepro}'`],
-  ["git worktree 're''move' -h", `git worktree 're''move' --force '${slashRepro}'`, 129],
-  ["git worktree 'ad''d' -h", `git worktree 'ad''d' '${slashRepro}'`, 129],
+  ["git worktree 're''move' -h", `git worktree 're''move' --force '${slashRepro}'`, gitHelpStatus("remove")],
+  ["git worktree 'ad''d' -h", `git worktree 'ad''d' '${slashRepro}'`, gitHelpStatus("add")],
   ["ln '-''s' --help", `ln '-''s' '${external}' '${slashRepro}/new-link'`],
   ["$'rm' --version", `$'rm' -f '${bashTarget}'`],
   ["$'\\162\\155' --version", `$'\\162\\155' -f '${bashTarget}'`],
@@ -205,7 +219,7 @@ const wrapperAndSelectorCases = [
   ['$"rm" --version', `$"rm" -f '${bashTarget}'`],
   ["bash $'-c' 'rm --version'", `bash $'-c' "rm -f '${bashTarget}'"`],
   ["git $'worktree' list", `git $'worktree' remove --force '${slashRepro}'`],
-  ["git worktree $'remove' -h", `git worktree $'remove' --force '${slashRepro}'`, 129],
+  ["git worktree $'remove' -h", `git worktree $'remove' --force '${slashRepro}'`, gitHelpStatus("remove")],
   ["git 'work''tree' $'list'", `git 'work''tree' $'remove' --force '${slashRepro}'`],
   [`git '-''C' '${main.replaceAll(path.sep, "/")}' $'worktree' list`, `git '-''C' '${main.replaceAll(path.sep, "/")}' $'worktree' remove --force '${slashRepro}'`],
   ["ln $'-s' --help", `ln $'-s' '${external}' '${slashRepro}/new-link'`],
@@ -214,6 +228,9 @@ for (const [control, mutation, expectedStatus = 0] of wrapperAndSelectorCases) {
   const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const actual = spawnSync(executable, ["-c", `pwd; ${control}`], { cwd: main, encoding: "utf8", windowsHide: true });
   assert.equal(actual.status, expectedStatus, actual.stderr); preserved();
+  // The help controls spell the subcommand in quotes ('re''move', $'remove').
+  const help = control.replace(/[$']/g, "").match(/^git worktree (remove|add) -h$/);
+  if (help) assert.match(actual.stdout + actual.stderr, gitUsage(help[1]), `${control} did not reach Git's usage`);
   assert.ok(cleanup(mutation, "bash", main), "supported wrapper or selector literal cannot hide a mutation");
   assert.ok(cleanup(mutation, undefined, main)); preserved();
   verifyAdapters(mutation, "Bash", main, true);

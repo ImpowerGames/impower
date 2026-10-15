@@ -14,6 +14,7 @@ import {
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { highlightCode } from "@lezer/highlight";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { escHTML } from "./text";
@@ -124,6 +125,7 @@ export async function updateDocumentSymbols(client: LSPClient, uri: string) {
   if (!view) return;
   const plugin = LSPPlugin.get(view);
   if (!plugin) return;
+  const version = file.version;
   const result = await plugin.client.request<
     lsp.DocumentSymbolParams,
     lsp.DocumentSymbol[] | null,
@@ -131,6 +133,10 @@ export async function updateDocumentSymbols(client: LSPClient, uri: string) {
   >("textDocument/documentSymbol", {
     textDocument: { uri: plugin.uri },
   });
+  // A result for a version the editor has moved past is dropped: the change
+  // that moved it pulled again (#1785).
+  if (client.workspace.getFile(uri)?.version !== version) return;
+  if (LSPPlugin.get(view) !== plugin) return;
   if (result) {
     view.dispatch(
       setDocumentSymbols(
@@ -360,19 +366,25 @@ export function serverDocumentSymbols(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentSymbols(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentSymbols(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentSymbols(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentSymbols(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentSymbols(client, params.uri);
+        pullInBackground(client, params.uri, () =>
+          updateDocumentSymbols(client, params.uri),
+        );
       },
     },
     editorExtension: [

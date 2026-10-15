@@ -13,6 +13,7 @@ import {
 } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { coalesceRequest } from "./requestCoalescer";
@@ -314,7 +315,9 @@ export function serverFolding(): LSPClientExtension {
     requestHandlers: {
       "workspace/foldingRange/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          updateDocumentFoldingRanges(client, file.uri);
+          pullInBackground(client, file.uri, () =>
+            updateDocumentFoldingRanges(client, file.uri),
+          );
         }
         return null;
       },
@@ -324,19 +327,25 @@ export function serverFolding(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentFoldingRanges(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentFoldingRanges(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentFoldingRanges(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentFoldingRanges(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentFoldingRanges(client, params.uri);
+        pullInBackground(client, params.uri, () =>
+          updateDocumentFoldingRanges(client, params.uri),
+        );
       },
     },
     editorExtension: [

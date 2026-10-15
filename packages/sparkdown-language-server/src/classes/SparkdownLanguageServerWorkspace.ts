@@ -491,8 +491,15 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     // compile is lossless. (They used to be sent inside the loop above --
     // 2 x tracked-uris redundant refresh storms per keystroke, each of which
     // made clients re-pull folding/semantic tokens for every visible file.)
-    this.sendRequest(FoldingRangeRefreshRequest.method, {});
-    this.sendRequest(SemanticTokensRefreshRequest.method, {});
+    this.requestRefresh(FoldingRangeRefreshRequest.method);
+    this.requestRefresh(SemanticTokensRefreshRequest.method);
+  }
+
+  /** Asks the client to pull a feature again. A client with no editor open
+   *  yet may refuse it (#1785); a refresh carries no result, so the refusal
+   *  is not a failure. */
+  protected requestRefresh(method: string) {
+    Promise.resolve(this.sendRequest(method, {})).catch(() => {});
   }
 
   override onCreatedFile(file: {

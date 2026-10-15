@@ -11,7 +11,8 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
-import { LSPClient, LSPClientExtension } from "./client";
+import { pullInBackground } from "./backgroundPull";
+import { LSPClient, LSPClientExtension, RequestTimeoutError } from "./client";
 import { LSPPlugin } from "./plugin";
 
 export const CODELENS_WRAPPER_CLASS_NAME = "cm-codeLens-wrapper";
@@ -253,6 +254,7 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
   if (!view) return;
   const plugin = LSPPlugin.get(view);
   if (!plugin) return;
+  const version = file.version;
 
   try {
     const result = await plugin.client.request<
@@ -285,6 +287,10 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
       }),
     );
 
+    // A result for a version the editor has moved past is dropped: the
+    // change that moved it pulled again (#1785).
+    if (client.workspace.getFile(uri)?.version !== version) return;
+    if (LSPPlugin.get(view) !== plugin) return;
     view.dispatch(
       setDocumentCodeLenses(
         view.state,
@@ -292,6 +298,8 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
       ),
     );
   } catch (err) {
+    // A server still starting up is asked again (#1785).
+    if (err instanceof RequestTimeoutError) throw err;
     // If the server does not support codeLens, it will throw an error here, which we can safely ignore
     console.debug("LSP CodeLens Error or Unsupported:", err);
   }
@@ -311,21 +319,27 @@ export function serverCodeLenses(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentCodeLenses(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentCodeLenses(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
         // In a production environment, you might want to debounce this call
-        updateDocumentCodeLenses(client, params.textDocument.uri);
+        pullInBackground(client, params.textDocument.uri, () =>
+          updateDocumentCodeLenses(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
         // Re-request CodeLenses as they often depend on live diagnostics (like reference counts)
-        updateDocumentCodeLenses(client, params.uri);
+        pullInBackground(client, params.uri, () =>
+          updateDocumentCodeLenses(client, params.uri),
+        );
       },
     },
     editorExtension: [codeLensState, codeLensWidgetTheme],

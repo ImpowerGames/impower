@@ -1501,13 +1501,12 @@ function consoleLine(m) {
 // honest: a line that stopped appearing reads as a count of zero rather
 // than disappearing, and a line the list does not know still lands in
 // `consoleErrors` where it can be read. Each pattern names the one resource
-// or method it absorbs: the editor asks a dev server that serves no API for
-// the signed-in account, and the language server answers three requests the
-// client makes that it does not implement.
+// it absorbs: the editor asks a dev server that serves no API for the
+// signed-in account. (The language server's refresh requests, refused as
+// `Unhandled method …/refresh` before the editor's client registers, were
+// absorbed here until #1785 made the server catch the refusal; one appearing
+// again is that bug back, so it is left in `consoleErrors`.)
 const KNOWN_CONSOLE_NOISE = [
-  { name: "semanticTokens/refresh", match: /Unhandled method workspace\/semanticTokens\/refresh/ },
-  { name: "diagnostic/refresh", match: /Unhandled method workspace\/diagnostic\/refresh/ },
-  { name: "foldingRange/refresh", match: /Unhandled method workspace\/foldingRange\/refresh/ },
   { name: "/api/auth/account 404", match: /Failed to load resource: the server responded with a status of 404\b[^\n]*\(https?:\/\/[^/\s)]+\/api\/auth\/account(?:[?#][^\s)]*)?\)$/ },
 ];
 
