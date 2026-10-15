@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 84,
-  "previous": "4e980eafdc7d9ae8328c23caf3f50522252f8ffb",
+  "seq": 85,
+  "previous": "76954f59929cc4349eaec588d1a377a7b691eedd",
   "snapshotParents": [],
-  "time": "2026-10-15T23:26:34.792Z",
+  "time": "2026-10-15T23:26:43.244Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #1632",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 65,
+    "recordRevision": 66,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -309,10 +309,10 @@
         "launchId": "2baa157e-585e-4be9-ac20-b04c4aae5774",
         "handle": {
           "kind": "process",
-          "pid": 11296,
-          "start": "639276984208921192",
+          "pid": 40028,
+          "start": "639277036005706428",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1632-2baa157e-585e-4be9-ac20-b04c4aae5774"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42"
         },
         "verified": true,
         "brief": {
@@ -336,11 +336,13 @@
           "evidence": "cross-session message from the writer session (impower-23) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
           "deliveryId": "4ff786ad"
         },
-        "resuming": {
-          "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42",
-          "time": "2026-10-15T23:26:32.479Z"
-        }
+        "resumes": [
+          {
+            "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
+            "time": "2026-10-15T23:26:40.890Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42"
+          }
+        ]
       },
       "pending": null,
       "history": [],
@@ -757,7 +759,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T23:26:33.716Z",
+      "observedAt": "2026-10-15T23:26:42.317Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -893,7 +895,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T23:26:33.716Z",
+      "observedAt": "2026-10-15T23:26:42.317Z",
       "held": true,
       "head": "a21e382931cfb916f58c4274eefec510df56ad60",
       "remoteHead": "a21e382931cfb916f58c4274eefec510df56ad60",
@@ -1463,6 +1465,19 @@
       "ticket": 1632,
       "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
       "sessionId": "0d9b203c-af40-46b9-9a14-51bc116ba837"
+    },
+    {
+      "time": "2026-10-15T23:26:40.890Z",
+      "event": "resumed",
+      "ticket": 1632,
+      "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
+      "handle": {
+        "kind": "process",
+        "pid": 40028,
+        "start": "639277036005706428",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42"
+      }
     }
   ]
 }
