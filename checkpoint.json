@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 9,
-  "previous": "664247fa649eea4db97ae12367e4d002f8420073",
+  "seq": 10,
+  "previous": "79900aa81a207d15e05c2608d3cf6b605569141b",
   "snapshotParents": [],
-  "time": "2026-10-15T21:50:04.786Z",
+  "time": "2026-10-15T21:50:22.077Z",
   "kind": "auto",
-  "transition": "acknowledged of #457",
+  "transition": "verify of #457",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 7,
+    "recordRevision": 8,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -79,7 +79,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-457-aa2733e6-4028-47ec-981f-f17d4cad4da8"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -117,7 +117,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T21:50:04.785Z",
+      "observedAt": "2026-10-15T21:50:22.077Z",
       "held": true,
       "exists": false
     }
@@ -255,6 +255,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-15T21:50:20.543Z",
+      "event": "verified",
+      "ticket": 457
     }
   ]
 }
