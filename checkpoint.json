@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 82,
-  "previous": "6e7d1c71e5a1ad06a7feb1c44b2c6f58f31acd73",
+  "seq": 83,
+  "previous": "d2414d23c315b1aa5946d785b8678314e96bcbc6",
   "snapshotParents": [],
-  "time": "2026-10-15T23:23:48.428Z",
+  "time": "2026-10-15T23:24:09.005Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1632",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 63,
+    "recordRevision": 64,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -339,7 +339,26 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-15T23:24:06.136Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1912,
+            "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+            "rounds": "1 of 3; three reviewers on the cross-vendor default gpt-6.1-sol at high (native-codex-jsonl, serial): incr report 6203848869, bound report 6203924668, undirected report 6204168120, all no findings, exit 0; round state 6203810427, launch notes 6203872118 and 6203935513, adjudication 6204323250",
+            "findings": "None",
+            "verification": "New packages/sparkdown/src/tests/program/programChunkValidity.test.ts comparing tree, describeRoot chunks and diagnostics incremental against cold for #1632 (ticket case, fuzz reduction, preamble do block, nested if, else branch; controls bodiless choices and label removed), #1611 seeds 10 and 2 with zero untouched re-emissions plus the * Two control, and #1614's call-continuation case asserting chunk contents plus its reverse. Redgreen over the 5 sources: red 9 failed / 3 passed, green 12/12. programIncrementalOracles + programChunkIdentity 94/94; filtered typecheck clean; live web editor insert of the label matches the cold compile (screenshots inspected). Cumulative randomized-edit run replayed from programDifferential.test.ts's last version (deleted by #705) as an uncommitted script: 11/11 seeds pass with the fix (committed seeds plus choose 2 and 10 and function 3); unfixed base fails choose 2 and 10.",
+            "ci": "on 9b9d1b7, 28 checks SUCCESS and 4 SKIPPED (notifier, driver-checks, skills-checks, vitest-api-integration); Test Suite package jobs ran including sparkdown 1-4/4 and the test-suite gate passed",
+            "next": "none from the writer; PR 1912 awaits the merge gate; ChunkStore.ts is free for U1 and U3 once it merges",
+            "changesAfterReviewedCommit": "none; one commit, head equals the reviewed commit",
+            "notes": "(1) #1893's acceptance criterion names programDifferential.test.ts, deleted by #705 in 2a940a750; no committed test runs the sub-issue seeds. (2) The hand-over notes path under AppData/Roaming is not visible from a CLI process; it lives under AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming (packaged-app virtualization). (3) local_ coordinator id not reachable by SendMessage; reached by session title. (4) Reviewer probe clone of 1.4 GB left under review-jobs/pr-1912; reported on #510 as 6204333869. Artifacts under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/writer-1632-I0sJ8k.",
+            "source": "cross-session message from writer session impower-23 after its turn ended; transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1632-2baa157e-585e-4be9-ac20-b04c4aae5774/out.jsonl; PR facts confirmed on GitHub"
+          }
+        }
+      ]
     },
     "1846": {
       "owner": {
@@ -733,7 +752,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T23:23:47.030Z",
+      "observedAt": "2026-10-15T23:24:07.736Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -869,7 +888,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T23:23:47.030Z",
+      "observedAt": "2026-10-15T23:24:07.736Z",
       "held": true,
       "head": "a21e382931cfb916f58c4274eefec510df56ad60",
       "remoteHead": "a21e382931cfb916f58c4274eefec510df56ad60",
@@ -1408,6 +1427,13 @@
       "time": "2026-10-15T23:17:54.552Z",
       "event": "check-in",
       "outcome": "no change: #1632 (PR 1912 round 1, all three reports posted, writer adjudicating) and #1846 writers running; no requests; nothing eligible"
+    },
+    {
+      "time": "2026-10-15T23:24:06.137Z",
+      "event": "result",
+      "ticket": 1632,
+      "pr": 1912,
+      "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0"
     }
   ]
 }
