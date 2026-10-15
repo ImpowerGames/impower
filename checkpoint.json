@@ -2,10 +2,10 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 4,
-  "previous": "02ba04f797b85aa665df352c1b58b324f85137eb",
+  "seq": 5,
+  "previous": "3418943e8fba31e48b70386cf6cf10f95cbc2f25",
   "snapshotParents": [],
-  "time": "2026-10-15T21:44:56.284Z",
+  "time": "2026-10-15T21:47:53.951Z",
   "kind": "auto",
   "transition": "a new plan",
   "run": {
@@ -69,43 +69,43 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T21:44:56.283Z",
+    "at": "2026-10-15T21:47:53.949Z",
     "tickets": [
       {
         "number": 316,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #457 (open), #1103 (open), #1299 (open), #1617 (open), #1645 (open)"
+      },
+      {
+        "number": 454,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #457 (open), #1103 (open), #1299 (open), #1617 (open), #1645 (open)"
+      },
+      {
+        "number": 457,
         "action": "dispatch",
         "pr": null,
         "reason": "every blocker's deliverable is on origin/main"
       },
       {
-        "number": 454,
-        "action": "wait-capacity",
-        "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
-      },
-      {
-        "number": 457,
-        "action": "wait-capacity",
-        "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
-      },
-      {
         "number": 887,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "waiting for #457 (open), #1103 (open), #1299 (open), #1617 (open), #1645 (open)"
       },
       {
         "number": 1103,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "waiting for #457 (open)"
       },
       {
         "number": 1299,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "waiting for #457 (open)"
       },
       {
         "number": 1325,
@@ -121,9 +121,9 @@
       },
       {
         "number": 1617,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "waiting for #457 (open)"
       },
       {
         "number": 1641,
@@ -133,9 +133,9 @@
       },
       {
         "number": 1645,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "waiting for #457 (open)"
       }
     ],
     "remaining": [
