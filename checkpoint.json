@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 39,
-  "previous": "41302d4baba4623a69c941e036ff6619ae66cd21",
+  "seq": 40,
+  "previous": "6cb39320f358010a2c23c90abc7ed57c01b7b750",
   "snapshotParents": [],
-  "time": "2026-10-15T22:20:46.307Z",
+  "time": "2026-10-15T22:20:55.396Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 36,
+    "recordRevision": 37,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -298,6 +298,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\705-migrate-engine-tests-1",
       "branch": "test/705-migrate-engine-tests-1",
       "classifier": "removed  impower.worktrees\\test\\705-migrate-engine-tests-1               test/705-migrate-engine-tests-1               940.9 MB   merged into origin/main; origin/test/705-migrate-engine-tests-1 still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_module"
+    },
+    {
+      "time": "2026-10-15T22:20:52.892Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\705-migrate-engine-tests-3",
+      "branch": "test/705-migrate-engine-tests-3",
+      "classifier": "removed  impower.worktrees\\test\\705-migrate-engine-tests-3               test/705-migrate-engine-tests-3               941.2 MB   merged into origin/main; origin/test/705-migrate-engine-tests-3 still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_module"
     }
   ],
   "verifications": [],
@@ -307,7 +313,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:20:45.355Z",
+      "observedAt": "2026-10-15T22:20:54.119Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -323,7 +329,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:20:45.355Z",
+      "observedAt": "2026-10-15T22:20:54.119Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -636,6 +642,11 @@
       "time": "2026-10-15T22:20:43.951Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\705-migrate-engine-tests-1"
+    },
+    {
+      "time": "2026-10-15T22:20:52.893Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\705-migrate-engine-tests-3"
     }
   ]
 }
