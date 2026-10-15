@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 35,
-  "previous": "e580e60c411e6a703a0f2da29b7deebdcd5e64d4",
+  "seq": 36,
+  "previous": "2045aea03132f1433a4ec604d871e4c9190da472",
   "snapshotParents": [],
-  "time": "2026-10-15T22:20:33.626Z",
+  "time": "2026-10-15T22:20:42.755Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 32,
+    "recordRevision": 33,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -253,6 +253,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1701-checkpoint-record",
       "branch": "fix/1701-checkpoint-record",
       "classifier": "removed  impower.worktrees\\fix\\1701-checkpoint-record                    fix/1701-checkpoint-record                    981.6 MB   merged into origin/main; origin/fix/1701-checkpoint-record still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1701-checkpoint-record': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:20:40.359Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1703-done-end-divert-value",
+      "branch": "fix/1703-done-end-divert-value",
+      "classifier": "removed  impower.worktrees\\fix\\1703-done-end-divert-value                fix/1703-done-end-divert-value                1.1 GB     merged into origin/main; origin/fix/1703-done-end-divert-value still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1703-done-end-divert-value': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -262,7 +268,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:20:32.783Z",
+      "observedAt": "2026-10-15T22:20:41.884Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -534,6 +540,11 @@
       "time": "2026-10-15T22:20:31.570Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1701-checkpoint-record"
+    },
+    {
+      "time": "2026-10-15T22:20:40.360Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1703-done-end-divert-value"
     }
   ]
 }
