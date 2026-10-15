@@ -149,10 +149,11 @@ try {
     // Ask the client to re-request anything it may have asked for while we were
     // still starting up. Initialization loads every project file into the
     // compiler and runs a full compile, and on a large project that takes long
-    // enough that the editor's first semantic-token / diagnostic requests are
-    // rejected outright ("Compiler has not been configured!"). Those requests
-    // are never retried on their own, so without this the features stay dead
-    // until something else happens to trigger a re-request. See #224.
+    // enough that the editor's first semantic-token / diagnostic requests
+    // fail: they used to be rejected outright ("Compiler has not been
+    // configured!", #224), and now wait for the compiler but can outlast the
+    // client's own request timeout (#1785). Without this the features can stay
+    // dead until something else happens to trigger a re-request.
     //
     // A refresh is a hint with no result, and a client with no editor open
     // yet may answer it with an error (#1785): that refusal is not a failure.
