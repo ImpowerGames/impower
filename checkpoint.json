@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 33,
-  "previous": "deb021954523a5713ae1c7860126112d33ce0b95",
+  "seq": 34,
+  "previous": "1c22518862f068c533e7d36f8e71c4ba8ac6f512",
   "snapshotParents": [],
-  "time": "2026-10-15T22:19:50.328Z",
+  "time": "2026-10-15T22:19:59.048Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 30,
+    "recordRevision": 31,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -262,6 +262,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\666-preview-rollback",
       "branch": "perf/666-preview-rollback",
       "classifier": "removed  impower.worktrees\\perf\\666-preview-rollback                     perf/666-preview-rollback                     983.5 MB   merged into origin/main; origin/perf/666-preview-rollback still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine"
+    },
+    {
+      "time": "2026-10-15T22:19:56.240Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1729-untypeable-synthetic-names",
+      "branch": "refactor/1729-untypeable-synthetic-names",
+      "classifier": "removed  impower.worktrees\\refactor\\1729-untypeable-synthetic-names      refactor/1729-untypeable-synthetic-names      936.5 MB   merged into origin/main; origin/refactor/1729-untypeable-synthetic-names still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/no"
     }
   ],
   "verifications": [],
@@ -271,7 +277,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:19:49.266Z",
+      "observedAt": "2026-10-15T22:19:57.691Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -287,7 +293,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:19:49.266Z",
+      "observedAt": "2026-10-15T22:19:57.691Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -570,6 +576,11 @@
       "time": "2026-10-15T22:19:48.061Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\666-preview-rollback"
+    },
+    {
+      "time": "2026-10-15T22:19:56.241Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1729-untypeable-synthetic-names"
     }
   ]
 }
