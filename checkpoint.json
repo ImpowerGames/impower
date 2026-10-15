@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 74,
-  "previous": "c045b26e538e185100152030936aec377fa15a83",
+  "seq": 75,
+  "previous": "562a9cbb63f97fff7e168594f515891f8163c629",
   "snapshotParents": [],
-  "time": "2026-10-15T22:53:40.505Z",
+  "time": "2026-10-15T22:54:34.729Z",
   "kind": "auto",
-  "transition": "claim of #1846",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 58,
@@ -707,7 +707,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:53:38.719Z",
+      "observedAt": "2026-10-15T22:54:33.738Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -827,7 +827,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T22:53:38.719Z",
+      "observedAt": "2026-10-15T22:54:33.738Z",
       "held": true,
       "exists": false
     }
@@ -835,7 +835,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:53:15.328Z",
+    "at": "2026-10-15T22:54:33.736Z",
     "tickets": [
       {
         "number": 1201,
@@ -911,9 +911,9 @@
       },
       {
         "number": 1846,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 01c5d730-a671-44d3-98f5-684890d101cd on claude-cli has no confirmed outcome; run reconcile before any retry"
       }
     ],
     "remaining": [
