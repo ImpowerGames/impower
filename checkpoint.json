@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 18,
-  "previous": "0d4e5de8812da94aa64211257e4b08ec71c6a10c",
+  "seq": 19,
+  "previous": "92ec71eed0701e606d2a2e0623d3d4d856198f70",
   "snapshotParents": [],
-  "time": "2026-10-15T22:17:39.791Z",
+  "time": "2026-10-15T22:17:47.976Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 15,
+    "recordRevision": 16,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -172,6 +172,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1728-scene-parameter-saves",
       "branch": "fix/1728-scene-parameter-saves",
       "classifier": "removed  impower.worktrees\\fix\\1728-scene-parameter-saves                fix/1728-scene-parameter-saves                982.0 MB   merged into origin/main; origin/fix/1728-scene-parameter-saves still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-e"
+    },
+    {
+      "time": "2026-10-15T22:17:45.784Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1741-stack-paging-from-top",
+      "branch": "fix/1741-stack-paging-from-top",
+      "classifier": "removed  impower.worktrees\\fix\\1741-stack-paging-from-top                fix/1741-stack-paging-from-top                1.0 GB     merged into origin/main; origin/fix/1741-stack-paging-from-top still exists; takes 18 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules"
     }
   ],
   "verifications": [],
@@ -181,7 +187,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:17:38.593Z",
+      "observedAt": "2026-10-15T22:17:46.917Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -193,7 +199,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:17:38.593Z",
+      "observedAt": "2026-10-15T22:17:46.917Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -401,6 +407,11 @@
       "time": "2026-10-15T22:17:37.126Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1728-scene-parameter-saves"
+    },
+    {
+      "time": "2026-10-15T22:17:45.785Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1741-stack-paging-from-top"
     }
   ]
 }
