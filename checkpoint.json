@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 2,
-  "previous": "83508207d9ea542936fd91aa456e5639771fc1e0",
+  "seq": 3,
+  "previous": "66f68607038b40348a027c3881ed6fcc9332b5ba",
   "snapshotParents": [],
-  "time": "2026-10-15T21:41:16.430Z",
+  "time": "2026-10-15T21:41:23.339Z",
   "kind": "auto",
-  "transition": "check-in",
+  "transition": "group",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 3,
+    "recordRevision": 4,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -55,7 +55,10 @@
     "since": "2026-10-15T21:41:15.059Z",
     "expires": "2026-10-22T21:41:15.059Z"
   },
-  "group": null,
+  "group": {
+    "name": "Orchestrate #1895",
+    "id": "cg-8d1ca84b-4882-426b-b27c-2fa31e49b2b5"
+  },
   "title": "ORCH #1895: compile without diagnostic",
   "tickets": {},
   "operations": [],
@@ -83,6 +86,12 @@
       "time": "2026-10-15T21:41:15.060Z",
       "event": "check-in-scheduled",
       "job": "921e67e0",
+      "none": null
+    },
+    {
+      "time": "2026-10-15T21:41:22.155Z",
+      "event": "group",
+      "id": "cg-8d1ca84b-4882-426b-b27c-2fa31e49b2b5",
       "none": null
     }
   ]
