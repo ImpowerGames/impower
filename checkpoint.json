@@ -2,10 +2,10 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 4,
-  "previous": "c58c794a631ea73da9afb557bf8cc2bc6ed4fc1f",
+  "seq": 5,
+  "previous": "d67399772447fc58f8c2d6e70be2cb73c429a3ea",
   "snapshotParents": [],
-  "time": "2026-10-15T21:47:17.016Z",
+  "time": "2026-10-15T21:56:51.935Z",
   "kind": "auto",
   "transition": "a new plan",
   "run": {
@@ -69,7 +69,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T21:47:17.015Z",
+    "at": "2026-10-15T21:56:51.933Z",
     "tickets": [
       {
         "number": 1201,
@@ -79,69 +79,69 @@
       },
       {
         "number": 1211,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1201 (open)"
       },
       {
         "number": 1249,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1201 (open)"
       },
       {
         "number": 1295,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1201 (open)"
       },
       {
         "number": 1611,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1632 (open), #1623 (open)"
       },
       {
         "number": 1613,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1201 (open)"
       },
       {
         "number": 1614,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1632 (open)"
       },
       {
         "number": 1623,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1632 (open)"
       },
       {
         "number": 1627,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1623 (open)"
       },
       {
         "number": 1628,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1201 (open)"
       },
       {
         "number": 1632,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1638,
-        "action": "wait-capacity",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "waiting for #1614 (open)"
       },
       {
         "number": 1846,
