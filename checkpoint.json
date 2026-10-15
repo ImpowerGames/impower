@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 57,
-  "previous": "f981f69068f101bcbc0ae41ddf9521c287114d40",
+  "seq": 58,
+  "previous": "3cad94bebeb6d82fd66c6fdf50061f33e03b337b",
   "snapshotParents": [],
-  "time": "2026-10-15T22:23:33.679Z",
+  "time": "2026-10-15T22:23:42.313Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 54,
+    "recordRevision": 55,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -385,6 +385,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-delete-engine-core",
       "branch": "refactor/705-delete-engine-core",
       "classifier": "removed  impower.worktrees\\refactor\\705-delete-engine-core               refactor/705-delete-engine-core               1.1 GB     merged into origin/main; no origin/refactor/705-delete-engine-core; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/705-delete-engine-core': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:23:40.422Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-program-engine-own-state",
+      "branch": "refactor/705-program-engine-own-state",
+      "classifier": "removed  impower.worktrees\\refactor\\705-program-engine-own-state         refactor/705-program-engine-own-state         1.1 GB     merged into origin/main; origin/refactor/705-program-engine-own-state still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/705-program-engine-own-state': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -394,7 +400,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:23:33.023Z",
+      "observedAt": "2026-10-15T22:23:41.639Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -776,6 +782,11 @@
       "time": "2026-10-15T22:23:31.596Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-delete-engine-core"
+    },
+    {
+      "time": "2026-10-15T22:23:40.423Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-program-engine-own-state"
     }
   ]
 }
