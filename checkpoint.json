@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 18,
-  "previous": "4da4f2a68317587539d91c70ef7dc5a4a20dea1f",
+  "seq": 19,
+  "previous": "b81cb123f59ea30eb8cd268e06e299abab335d7a",
   "snapshotParents": [],
-  "time": "2026-10-15T22:18:08.313Z",
+  "time": "2026-10-15T22:18:16.040Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 15,
+    "recordRevision": 16,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -151,6 +151,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1429-save-alignment",
       "branch": "feat/1429-save-alignment",
       "classifier": "removed  impower.worktrees\\feat\\1429-save-alignment                      feat/1429-save-alignment                      986.5 MB   merged into origin/main; origin/feat/1429-save-alignment still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1429-save-alignment': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:18:14.321Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1503-preamble-block-choices",
+      "branch": "feat/1503-preamble-block-choices",
+      "classifier": "removed  impower.worktrees\\feat\\1503-preamble-block-choices              feat/1503-preamble-block-choices              983.8 MB   merged into origin/main; origin/feat/1503-preamble-block-choices still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1503-preamble-block-choices': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -160,7 +166,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:18:07.628Z",
+      "observedAt": "2026-10-15T22:18:15.439Z",
       "held": true,
       "head": "34ddcadf1f86c8ca4481239357ecafb3a8841b65",
       "remoteHead": null,
@@ -347,6 +353,11 @@
       "time": "2026-10-15T22:18:06.131Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1429-save-alignment"
+    },
+    {
+      "time": "2026-10-15T22:18:14.322Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1503-preamble-block-choices"
     }
   ]
 }
