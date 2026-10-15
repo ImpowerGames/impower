@@ -94,9 +94,27 @@ describe("a compile whose statement throws", () => {
     expect(errorsOf(session.program).map(([line]) => line)).toEqual([1]);
   });
 
+  it("reports a store whose value throws a host error at the store", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript('store b = 1\nstore a = string.rep("", math.huge)\n');
+    expect(program.chunks).toBeUndefined();
+    const errors = errorsOf(program);
+    expect(errors.map(([line]) => line)).toEqual([1]);
+    expect(errors[0]![1]).toMatch(/^The compile stopped at this statement, so no program was made: .*Infinity/);
+  });
+
+  it("reports that store below a line of spacing", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript('   \nstore a = string.rep("", math.huge)\n');
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line)).toEqual([1]);
+  });
+
   it("reports a compile whose memo retries run out", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const c = programCompiler({ [MAIN_URI]: "Hello.\n" });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    // The first line holds only spacing, where the error still has a range.
+    const c = programCompiler({ [MAIN_URI]: "   \nHello.\n" });
     const compiler = c.compiler as any;
     vi.spyOn(compiler, "compileStoryOnce").mockImplementation(() => ({
       textDocument: { uri: MAIN_URI, version: 1 },

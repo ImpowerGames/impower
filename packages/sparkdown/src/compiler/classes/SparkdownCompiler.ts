@@ -3976,15 +3976,17 @@ export class SparkdownCompiler {
   }
 
   /** The source of a line's text, its indentation and trailing space left
-   *  out. */
+   *  out, or the whole line when it holds only spacing, whose trimmed range
+   *  would end before it starts and be dropped (`getDiagnostic`). */
   protected lineSource(uri: string, line: number): SourceMetadata {
     const text = this.documents.get(uri)?.getText().split("\n")[line] ?? "";
+    const blank = text.trim() === "";
     return {
       filePath: uri,
       startLineNumber: line + 1,
-      startCharacterNumber: 1 + (text.length - text.trimStart().length),
+      startCharacterNumber: blank ? 1 : 1 + (text.length - text.trimStart().length),
       endLineNumber: line + 1,
-      endCharacterNumber: 1 + text.trimEnd().length,
+      endCharacterNumber: 1 + (blank ? text.length : text.trimEnd().length),
     } as SourceMetadata;
   }
 

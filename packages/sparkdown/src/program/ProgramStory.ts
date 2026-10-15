@@ -476,6 +476,9 @@ export class ProgramStory implements StoryEngine {
    *  chunk without an error or a warning, as one handed on to the next
    *  engine must. */
   protected _declarationsClean = false;
+  /** Told the declaration chunk whose run failed (the constructor's
+   *  `onDeclarationFailure`). */
+  protected _onDeclarationFailure?: (declarationChunk: number) => void;
 
   protected _state!: ProgramStoryState;
   protected _reader: BinaryProgramReader;
@@ -553,8 +556,13 @@ export class ProgramStory implements StoryEngine {
        *  `declarationsFor` gave for this root: the first state takes it over
        *  in place of running the declarations. */
       declarations?: CarriedDeclarations;
+      /** Told the id of the declaration chunk whose run raised an error or
+       *  threw, before the error is reported or rethrown: a compile reports
+       *  it at that declaration (`ChunkStore.build`). */
+      onDeclarationFailure?: (declarationChunk: number) => void;
     } = {},
   ) {
+    this._onDeclarationFailure = options.onDeclarationFailure;
     this._reader = new BinaryProgramReader(root);
     this.history = options.history ?? new BeatHistory(options.rewindBeats ?? 128);
     if (options.rewindBeats !== undefined) {
@@ -3609,10 +3617,10 @@ export class ProgramStory implements StoryEngine {
     const beatLog = this.beatLog;
     this.beatLog = null;
     const depth = state.callStack.elements.length;
-    // The declaration chunk whose run raised the error that stopped the run.
-    let failed: number | null = null;
+    // The declaration chunk running, which an error stops the run at.
+    let running: number | null = null;
     for (const chunk of this.root.initialization) {
-      failed = chunkId(chunk);
+      running = chunkId(chunk);
       const at = this.root.position(chunkId(chunk));
       if (!at) {
         // The root places every declaration chunk it lists. One it cannot
@@ -3647,6 +3655,7 @@ export class ProgramStory implements StoryEngine {
         this.declarationsRun += 1;
       } catch (e) {
         if (!(e instanceof StoryException)) {
+          this._onDeclarationFailure?.(running);
           throw e;
         }
         this.AddError(
@@ -3661,8 +3670,8 @@ export class ProgramStory implements StoryEngine {
         break;
       }
     }
-    if (!state.hasError) {
-      failed = null;
+    if (state.hasError && running !== null) {
+      this._onDeclarationFailure?.(running);
     }
     this.pauseBeforeEvaluatingConditions = pause;
     this.onExecute = onExecute;
@@ -3676,16 +3685,7 @@ export class ProgramStory implements StoryEngine {
     // with a warning is not handed on either: the engine that runs the
     // declarations again for a load (`ownDeclarations`) has no handler.
     this._declarationsClean = !state.hasError && !state.hasWarning;
-    try {
-      this.reportErrors();
-    } catch (e) {
-      // With no handler, the error names the declaration whose run raised
-      // it, which a compile reports the error at (`ChunkStore.build`).
-      if (e instanceof StoryException) {
-        e.declarationChunk = failed;
-      }
-      throw e;
-    }
+    this.reportErrors();
   }
 
   /** Calls a state-aware builtin as the object engine's `RunStdLibFunction`

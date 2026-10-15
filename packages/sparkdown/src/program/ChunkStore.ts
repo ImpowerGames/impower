@@ -1122,25 +1122,26 @@ export class ChunkStore {
     // program, as a story's reset raising it did.
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
-      const raised = this.runDeclarations(root);
+      const failure = this.runDeclarations(root);
       // A preview's run leaves the next compile's decision as it was.
       if (commit) {
-        this._declarationsFailed = raised !== null;
+        this._declarationsFailed = failure !== null;
       }
-      if (raised) {
+      if (failure) {
         // At the declaration statement whose run raised it: at the line that
         // raised it when that line is the statement's own, and at the
         // statement's first line when its value raised it inside a function
-        // it called.
+        // it called, or threw with no line.
+        const raised = failure.error;
         const at =
-          raised.raisedAddress !== null
+          raised instanceof StoryException && raised.raisedAddress !== null
             ? root.locationOf(raised.raisedAddress)
             : undefined;
         const declared =
-          raised.declarationChunk !== null
+          failure.declarationChunk !== null
             ? [...byScript.values()]
                 .flat()
-                .find((entry) => chunkId(entry.chunk) === raised.declarationChunk)
+                .find((entry) => chunkId(entry.chunk) === failure.declarationChunk)
                 ?.source
             : undefined;
         if (declared) {
@@ -1462,16 +1463,25 @@ export class ChunkStore {
   }
 
   /** Runs a root's declarations on a new engine, and returns the error one
-   *  of them raised, or null when they ran without one. */
-  protected runDeclarations(root: ProgramRoot): StoryException | null {
+   *  of them raised or threw, with the declaration chunk whose run it
+   *  stopped, or null when they ran without one. Any other throw is
+   *  rethrown. */
+  protected runDeclarations(
+    root: ProgramRoot,
+  ): { error: unknown; declarationChunk: number | null } | null {
+    let declarationChunk: number | null = null;
     try {
-      new ProgramStory(root);
+      new ProgramStory(root, {
+        onDeclarationFailure: (chunk) => {
+          declarationChunk = chunk;
+        },
+      });
       return null;
-    } catch (e) {
-      if (e instanceof StoryException) {
-        return e;
+    } catch (error) {
+      if (error instanceof StoryException || declarationChunk !== null) {
+        return { error, declarationChunk };
       }
-      throw e;
+      throw error;
     }
   }
 
