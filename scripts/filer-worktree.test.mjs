@@ -182,6 +182,13 @@ for (const command of [`bash -c 'r''m -f ${bashTarget}'`, `'bash' -c "rm -f '${b
   }
 }
 const slashRepro = reproduction.replaceAll(path.sep, "/");
+// A control that asks `git worktree <subcommand> -h` only has to run. Git
+// answered it with its usage status, 129, through 2.55; Git 2.56.0 on the
+// Windows runner image answers 0. Expect what the Git the controls run
+// answers, asked through the same shell.
+const controlShell = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+const gitHelpStatus = (subcommand) =>
+  spawnSync(controlShell, ["-c", `git worktree ${subcommand} -h`], { cwd: main, encoding: "utf8", windowsHide: true }).status;
 const wrapperAndSelectorCases = [
   ["'env' rm --version", `'env' rm -f '${bashTarget}'`],
   ['"env" rm --version', `"env" rm -f '${bashTarget}'`],
@@ -196,8 +203,8 @@ const wrapperAndSelectorCases = [
   [`env '--ch''dir=${slashRepro}' test -f node_modules/tracked.txt`, `env '--ch''dir=${slashRepro}' rm -f node_modules/tracked.txt`],
   ["git 'work''tree' list", `git 'work''tree' remove --force '${slashRepro}'`],
   ["git w\\orktree list", `git w\\orktree remove --force '${slashRepro}'`],
-  ["git worktree 're''move' -h", `git worktree 're''move' --force '${slashRepro}'`, 129],
-  ["git worktree 'ad''d' -h", `git worktree 'ad''d' '${slashRepro}'`, 129],
+  ["git worktree 're''move' -h", `git worktree 're''move' --force '${slashRepro}'`, gitHelpStatus("remove")],
+  ["git worktree 'ad''d' -h", `git worktree 'ad''d' '${slashRepro}'`, gitHelpStatus("add")],
   ["ln '-''s' --help", `ln '-''s' '${external}' '${slashRepro}/new-link'`],
   ["$'rm' --version", `$'rm' -f '${bashTarget}'`],
   ["$'\\162\\155' --version", `$'\\162\\155' -f '${bashTarget}'`],
@@ -205,7 +212,7 @@ const wrapperAndSelectorCases = [
   ['$"rm" --version', `$"rm" -f '${bashTarget}'`],
   ["bash $'-c' 'rm --version'", `bash $'-c' "rm -f '${bashTarget}'"`],
   ["git $'worktree' list", `git $'worktree' remove --force '${slashRepro}'`],
-  ["git worktree $'remove' -h", `git worktree $'remove' --force '${slashRepro}'`, 129],
+  ["git worktree $'remove' -h", `git worktree $'remove' --force '${slashRepro}'`, gitHelpStatus("remove")],
   ["git 'work''tree' $'list'", `git 'work''tree' $'remove' --force '${slashRepro}'`],
   [`git '-''C' '${main.replaceAll(path.sep, "/")}' $'worktree' list`, `git '-''C' '${main.replaceAll(path.sep, "/")}' $'worktree' remove --force '${slashRepro}'`],
   ["ln $'-s' --help", `ln $'-s' '${external}' '${slashRepro}/new-link'`],
