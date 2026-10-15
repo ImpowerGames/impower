@@ -7,11 +7,16 @@ import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import { ErrorType } from "../../../runtime/Error";
+import type {
+  CompiledBlock,
+  InkDiagnostic,
+} from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { findChildByName, lowerArms } from "../utils/alternatorArms";
+import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // match (expr)    →  Conditional(initialCondition=expr,
@@ -80,6 +85,41 @@ export function lowerSparkdownConditionalAlternatorBlock(
 
   const content = findChildByName(nodeRef.node, `${prefix}_content`);
   let arms = lowerArms(content, ctx);
+
+  // An arm starts at its `|`. A line of the block before the first one, such
+  // as `case 1` (#1502), belongs to no arm and would be dropped: it is an
+  // error, and so is a block with no arm at all.
+  const diagnostics: InkDiagnostic[] = [];
+  const name = keyword || "match";
+  if (prefix === "LuauSparkdownConditionalAlternatorBlock") {
+    for (
+      let child = content?.firstChild ?? null;
+      child && child.name !== "LuauAlternatorSeparator";
+      child = child.nextSibling
+    ) {
+      if (
+        child.name === "LuauConditionalAlternatorCondition" ||
+        child.name === "Newline" ||
+        child.name.includes("Whitespace") ||
+        child.name.includes("Comment")
+      ) {
+        continue;
+      }
+      diagnostics.push({
+        message: `This line is in no arm of the \`${name}\`: an arm starts with \`|\`, as in \`| 1 = One.\``,
+        severity: ErrorType.Error,
+        source: statementSource(child, ctx),
+      });
+    }
+  }
+  if (arms.length === 0 && diagnostics.length === 0) {
+    const at = keywordNode ?? nodeRef.node;
+    diagnostics.push({
+      message: `A \`${name}\` needs at least one arm, written \`| value = ...\``,
+      severity: ErrorType.Error,
+      source: statementSource(at, ctx),
+    });
+  }
 
   // Positional plural sugar: when `keyword === "plural"` and every arm
   // is keyless, synthesize CLDR keys from the canonical singular-vs-
@@ -159,5 +199,9 @@ export function lowerSparkdownConditionalAlternatorBlock(
     (condExpr ?? null) as unknown as Expression,
     branches,
   );
-  return wrapInWeave([conditional]);
+  const block = wrapInWeave([conditional]);
+  if (diagnostics.length > 0) {
+    block.diagnostics = [...(block.diagnostics ?? []), ...diagnostics];
+  }
+  return block;
 }
