@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 53,
-  "previous": "06d2455d964404419b5d371eb6df67fcc9213745",
+  "seq": 54,
+  "previous": "d3afb2910d139f6a7c548b2ec52f87295e720598",
   "snapshotParents": [],
-  "time": "2026-10-15T22:23:00.663Z",
+  "time": "2026-10-15T22:23:08.846Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 50,
+    "recordRevision": 51,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -361,6 +361,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\657-beat-only-preview",
       "branch": "perf/657-beat-only-preview",
       "classifier": "removed  impower.worktrees\\perf\\657-beat-only-preview                    perf/657-beat-only-preview                    984.5 MB   merged into origin/main; origin/perf/657-beat-only-preview still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/perf/657-beat-only-preview': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:23:06.538Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1709-program-address-number",
+      "branch": "refactor/1709-program-address-number",
+      "classifier": "removed  impower.worktrees\\refactor\\1709-program-address-number          refactor/1709-program-address-number          981.9 MB   merged into origin/main; origin/refactor/1709-program-address-number still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1709-program-address-number': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -370,7 +376,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:22:59.796Z",
+      "observedAt": "2026-10-15T22:23:08.189Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -732,6 +738,11 @@
       "time": "2026-10-15T22:22:58.231Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\657-beat-only-preview"
+    },
+    {
+      "time": "2026-10-15T22:23:06.539Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1709-program-address-number"
     }
   ]
 }
