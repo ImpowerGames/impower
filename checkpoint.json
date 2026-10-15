@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 22,
-  "previous": "b2742f64e90bff039a323e1d3baca46f936baa06",
+  "seq": 23,
+  "previous": "ff69c8392aefd9bc85e48db5e95d3179fec1f738",
   "snapshotParents": [],
-  "time": "2026-10-15T22:18:14.777Z",
+  "time": "2026-10-15T22:18:23.219Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 19,
+    "recordRevision": 20,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -196,6 +196,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1785-cold-load-timeouts",
       "branch": "fix/1785-cold-load-timeouts",
       "classifier": "removed  impower.worktrees\\fix\\1785-cold-load-timeouts                   fix/1785-cold-load-timeouts                   1.1 GB     merged into origin/main; no origin/fix/1785-cold-load-timeouts; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_mo"
+    },
+    {
+      "time": "2026-10-15T22:18:20.959Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1805-remove-lists-scope",
+      "branch": "fix/1805-remove-lists-scope",
+      "classifier": "removed  impower.worktrees\\fix\\1805-remove-lists-scope                   fix/1805-remove-lists-scope                   1.0 GB     merged into origin/main; origin/fix/1805-remove-lists-scope still exists; takes 18 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, "
     }
   ],
   "verifications": [],
@@ -205,7 +211,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:18:13.867Z",
+      "observedAt": "2026-10-15T22:18:22.232Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -217,7 +223,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:18:13.867Z",
+      "observedAt": "2026-10-15T22:18:22.232Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -445,6 +451,11 @@
       "time": "2026-10-15T22:18:12.205Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1785-cold-load-timeouts"
+    },
+    {
+      "time": "2026-10-15T22:18:20.960Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1805-remove-lists-scope"
     }
   ]
 }
