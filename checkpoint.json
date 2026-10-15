@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 62,
-  "previous": "531cc20354805783265626b420cbb38aa77088b7",
+  "seq": 63,
+  "previous": "09034f76a7ae9a29e01ad58132e6b6dd6c746811",
   "snapshotParents": [],
-  "time": "2026-10-15T22:51:37.758Z",
+  "time": "2026-10-15T22:51:46.441Z",
   "kind": "auto",
-  "transition": "release of #1201",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 52,
@@ -658,7 +658,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:51:36.506Z",
+      "observedAt": "2026-10-15T22:51:45.563Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -705,7 +705,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:51:36.506Z",
+      "observedAt": "2026-10-15T22:51:45.563Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -782,13 +782,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:50:38.073Z",
+    "at": "2026-10-15T22:51:45.562Z",
     "tickets": [
       {
         "number": 1201,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1211,
@@ -860,7 +860,7 @@
         "number": 1846,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "7 writers already hold tickets against a limit of 2"
+        "reason": "6 writers already hold tickets against a limit of 2"
       }
     ],
     "remaining": [
