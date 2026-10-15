@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 49,
-  "previous": "fda400f371265717492327f9ffec25cc5f476ae9",
+  "seq": 50,
+  "previous": "365a69c833443d98665c0ddddf6f5c2b2855f0eb",
   "snapshotParents": [],
-  "time": "2026-10-15T22:22:27.892Z",
+  "time": "2026-10-15T22:22:35.635Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 46,
+    "recordRevision": 47,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -337,6 +337,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1745-line-index-edit",
       "branch": "perf/1745-line-index-edit",
       "classifier": "removed  impower.worktrees\\perf\\1745-line-index-edit                     perf/1745-line-index-edit                     982.0 MB   merged into origin/main; origin/perf/1745-line-index-edit still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/perf/1745-line-index-edit': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:22:33.861Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1757-preview-memo",
+      "branch": "perf/1757-preview-memo",
+      "classifier": "removed  impower.worktrees\\perf\\1757-preview-memo                        perf/1757-preview-memo                        982.2 MB   merged into origin/main; origin/perf/1757-preview-memo still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/perf/1757-preview-memo': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -346,7 +352,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:22:27.308Z",
+      "observedAt": "2026-10-15T22:22:35.050Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -688,6 +694,11 @@
       "time": "2026-10-15T22:22:26.151Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1745-line-index-edit"
+    },
+    {
+      "time": "2026-10-15T22:22:33.862Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1757-preview-memo"
     }
   ]
 }
