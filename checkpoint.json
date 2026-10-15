@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 19,
-  "previous": "b81cb123f59ea30eb8cd268e06e299abab335d7a",
+  "seq": 20,
+  "previous": "5dbd476f18c1ca2e6b2937c3f074565249275ea3",
   "snapshotParents": [],
-  "time": "2026-10-15T22:18:16.040Z",
+  "time": "2026-10-15T22:18:24.863Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 16,
+    "recordRevision": 17,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -157,6 +157,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1503-preamble-block-choices",
       "branch": "feat/1503-preamble-block-choices",
       "classifier": "removed  impower.worktrees\\feat\\1503-preamble-block-choices              feat/1503-preamble-block-choices              983.8 MB   merged into origin/main; origin/feat/1503-preamble-block-choices still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1503-preamble-block-choices': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:18:22.386Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1664-binding-writes",
+      "branch": "feat/1664-binding-writes",
+      "classifier": "removed  impower.worktrees\\feat\\1664-binding-writes                      feat/1664-binding-writes                      1.1 GB     merged into origin/main; origin/feat/1664-binding-writes still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1664-binding-writes': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -166,7 +172,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:18:15.439Z",
+      "observedAt": "2026-10-15T22:18:23.895Z",
       "held": true,
       "head": "34ddcadf1f86c8ca4481239357ecafb3a8841b65",
       "remoteHead": null,
@@ -358,6 +364,11 @@
       "time": "2026-10-15T22:18:14.322Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1503-preamble-block-choices"
+    },
+    {
+      "time": "2026-10-15T22:18:22.387Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1664-binding-writes"
     }
   ]
 }
