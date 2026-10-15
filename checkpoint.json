@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 34,
-  "previous": "1c22518862f068c533e7d36f8e71c4ba8ac6f512",
+  "seq": 35,
+  "previous": "5391b3b9d01380cfa86452ef1c716880d79b42cc",
   "snapshotParents": [],
-  "time": "2026-10-15T22:19:59.048Z",
+  "time": "2026-10-15T22:20:08.484Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 31,
+    "recordRevision": 32,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -268,6 +268,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1729-untypeable-synthetic-names",
       "branch": "refactor/1729-untypeable-synthetic-names",
       "classifier": "removed  impower.worktrees\\refactor\\1729-untypeable-synthetic-names      refactor/1729-untypeable-synthetic-names      936.5 MB   merged into origin/main; origin/refactor/1729-untypeable-synthetic-names still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/no"
+    },
+    {
+      "time": "2026-10-15T22:20:05.850Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1744-shared-cell-retirement",
+      "branch": "refactor/1744-shared-cell-retirement",
+      "classifier": "removed  impower.worktrees\\refactor\\1744-shared-cell-retirement          refactor/1744-shared-cell-retirement          983.4 MB   merged into origin/main; origin/refactor/1744-shared-cell-retirement still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/s"
     }
   ],
   "verifications": [],
@@ -277,7 +283,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:19:57.691Z",
+      "observedAt": "2026-10-15T22:20:07.241Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -293,7 +299,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:19:57.691Z",
+      "observedAt": "2026-10-15T22:20:07.241Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -581,6 +587,11 @@
       "time": "2026-10-15T22:19:56.241Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1729-untypeable-synthetic-names"
+    },
+    {
+      "time": "2026-10-15T22:20:05.851Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1744-shared-cell-retirement"
     }
   ]
 }
