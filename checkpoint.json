@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 1,
-  "previous": null,
+  "seq": 2,
+  "previous": "2075b6a67e5c98eb3b40b0c2f4b5cabdd9756661",
   "snapshotParents": [],
-  "time": "2026-10-15T21:40:26.155Z",
+  "time": "2026-10-15T21:40:58.903Z",
   "kind": "auto",
-  "transition": "checkpoints were enabled",
+  "transition": "check-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 2,
+    "recordRevision": 3,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -44,7 +44,17 @@
     "limit": 2,
     "basis": "invocation override (default would be 3: the smaller of 3 (reviewer slots) and 7 by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer)"
   },
-  "checkIn": null,
+  "checkIn": {
+    "interval": 30,
+    "cron": "3,33 * * * *",
+    "prompt": "Orchestrate-feature check-in for Feature #1893, run record C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/216eacd3-d9ab-45a2-bcdc-cc17e0fdbc97/scratchpad/writer-1893-oEb374/run.json: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.",
+    "command": "node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/216eacd3-d9ab-45a2-bcdc-cc17e0fdbc97/scratchpad/writer-1893-oEb374/run.json'",
+    "job": "e8a7ccb0",
+    "none": null,
+    "state": "scheduled",
+    "since": "2026-10-15T21:40:57.643Z",
+    "expires": "2026-10-22T21:40:57.643Z"
+  },
   "group": null,
   "title": "ORCH #1893: incremental cold compile",
   "tickets": {},
@@ -68,6 +78,12 @@
       "time": "2026-10-15T21:40:25.668Z",
       "event": "checkpoints-enabled",
       "remote": "origin"
+    },
+    {
+      "time": "2026-10-15T21:40:57.644Z",
+      "event": "check-in-scheduled",
+      "job": "e8a7ccb0",
+      "none": null
     }
   ]
 }
