@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 6,
-  "previous": "7e22589738d0cad845ef6651701546aead50b3c7",
+  "seq": 7,
+  "previous": "d13b82446b141921f83c73b3a9abdb2c284bc1d7",
   "snapshotParents": [],
-  "time": "2026-10-15T21:48:01.386Z",
+  "time": "2026-10-15T21:48:41.344Z",
   "kind": "auto",
-  "transition": "claim of #457",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 5,
@@ -91,7 +91,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T21:48:01.385Z",
+      "observedAt": "2026-10-15T21:48:41.343Z",
       "held": true,
       "exists": false
     }
@@ -99,7 +99,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T21:47:53.949Z",
+    "at": "2026-10-15T21:48:41.342Z",
     "tickets": [
       {
         "number": 316,
@@ -115,9 +115,9 @@
       },
       {
         "number": 457,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch aa2733e6-4028-47ec-981f-f17d4cad4da8 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 887,
@@ -141,13 +141,13 @@
         "number": 1325,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       },
       {
         "number": 1502,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       },
       {
         "number": 1617,
@@ -159,7 +159,7 @@
         "number": 1641,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 3"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       },
       {
         "number": 1645,
