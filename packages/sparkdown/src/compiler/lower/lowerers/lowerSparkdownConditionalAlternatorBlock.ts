@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
@@ -50,6 +51,24 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // languages, and we prefer a hard error directing authors to named
 // keys over silently picking a convention.
 
+// What a block holds before its first arm that is not a line of story: the
+// condition, line breaks, spacing and comments.
+const NOT_A_LINE = nodeNameSet([
+  "LuauConditionalAlternatorCondition",
+  "Newline",
+  "Whitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "ExtraWhitespace",
+  "TrailingWhitespace",
+  "SparkdownLineComment",
+  "SparkdownInlineComment",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+]);
+
 export function lowerSparkdownConditionalAlternatorBlock(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -97,12 +116,7 @@ export function lowerSparkdownConditionalAlternatorBlock(
       child && child.name !== "LuauAlternatorSeparator";
       child = child.nextSibling
     ) {
-      if (
-        child.name === "LuauConditionalAlternatorCondition" ||
-        child.name === "Newline" ||
-        child.name.includes("Whitespace") ||
-        child.name.includes("Comment")
-      ) {
+      if (NOT_A_LINE.has(child.name)) {
         continue;
       }
       diagnostics.push({
