@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 79,
-  "previous": "6de7029e39ca0a3934b8b28e8eb733e7ab0eeae4",
+  "seq": 80,
+  "previous": "e3e9f753105e5cbc9cc8aa7ce01d4622591aa98a",
   "snapshotParents": [],
-  "time": "2026-10-15T22:56:49.906Z",
+  "time": "2026-10-15T22:56:58.597Z",
   "kind": "auto",
-  "transition": "verify of #1846",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 61,
+    "recordRevision": 62,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -733,7 +733,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:56:48.903Z",
+      "observedAt": "2026-10-15T22:56:57.775Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -853,7 +853,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T22:56:48.903Z",
+      "observedAt": "2026-10-15T22:56:57.775Z",
       "held": true,
       "exists": false
     }
@@ -1354,6 +1354,11 @@
       "time": "2026-10-15T22:56:47.565Z",
       "event": "verified",
       "ticket": 1846
+    },
+    {
+      "time": "2026-10-15T22:56:56.344Z",
+      "event": "check-in",
+      "outcome": "#1846 writer acknowledged and verified; #1632 (PR 1912, round 1, reviewer 3 of 3 running) and #1846 writers running; no requests; nothing eligible to dispatch"
     }
   ]
 }
