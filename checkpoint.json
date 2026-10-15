@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 83,
-  "previous": "d2414d23c315b1aa5946d785b8678314e96bcbc6",
+  "seq": 84,
+  "previous": "4e980eafdc7d9ae8328c23caf3f50522252f8ffb",
   "snapshotParents": [],
-  "time": "2026-10-15T23:24:09.005Z",
+  "time": "2026-10-15T23:26:34.792Z",
   "kind": "auto",
-  "transition": "result of #1632",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 64,
+    "recordRevision": 65,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -335,6 +335,11 @@
           },
           "evidence": "cross-session message from the writer session (impower-23) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
           "deliveryId": "4ff786ad"
+        },
+        "resuming": {
+          "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42",
+          "time": "2026-10-15T23:26:32.479Z"
         }
       },
       "pending": null,
@@ -752,7 +757,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T23:24:07.736Z",
+      "observedAt": "2026-10-15T23:26:33.716Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -888,21 +893,17 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T23:24:07.736Z",
+      "observedAt": "2026-10-15T23:26:33.716Z",
       "held": true,
       "head": "a21e382931cfb916f58c4274eefec510df56ad60",
       "remoteHead": "a21e382931cfb916f58c4274eefec510df56ad60",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 20920
-      },
+      "dirty": true,
       "pr": 1915,
       "reviewJobs": [
         {
           "job": "pr-1915/round-1/launch-ax-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-ax",
@@ -916,7 +917,28 @@
             "head": "a21e382931cfb916f58c4274eefec510df56ad60",
             "completedRoundReviewers": null,
             "time": "2026-10-15T23:21:12.371Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "a21e382931cfb916f58c4274eefec510df56ad60",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "incr",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "incr",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6204378401
+          ]
         }
       ]
     }
@@ -1434,6 +1456,13 @@
       "ticket": 1632,
       "pr": 1912,
       "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0"
+    },
+    {
+      "time": "2026-10-15T23:26:32.480Z",
+      "event": "resume-intent",
+      "ticket": 1632,
+      "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
+      "sessionId": "0d9b203c-af40-46b9-9a14-51bc116ba837"
     }
   ]
 }
