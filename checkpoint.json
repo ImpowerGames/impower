@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 90,
-  "previous": "e63ae8f764c0f0f864483d4b72f66ff24ef9a633",
+  "seq": 91,
+  "previous": "3629a86ff0c00122219a0ff590691d88d31af418",
   "snapshotParents": [],
-  "time": "2026-10-15T23:10:30.052Z",
+  "time": "2026-10-15T23:10:39.122Z",
   "kind": "auto",
-  "transition": "acknowledged of #1645",
+  "transition": "verify of #1645",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 77,
+    "recordRevision": 78,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -282,7 +282,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1645-1c3efdf9-9604-4363-842d-24c161fa52e8"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -615,7 +615,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T23:10:28.326Z",
+      "observedAt": "2026-10-15T23:10:37.515Z",
       "held": true,
       "head": "71b26c87a1fc99abc8bdcc226954d6088908a005",
       "remoteHead": "71b26c87a1fc99abc8bdcc226954d6088908a005",
@@ -652,7 +652,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T23:10:28.326Z",
+      "observedAt": "2026-10-15T23:10:37.515Z",
       "held": true,
       "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
       "remoteHead": "f4212693ba4d706f0ded341f4ec0438ca2728265",
@@ -739,7 +739,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T23:10:28.326Z",
+      "observedAt": "2026-10-15T23:10:37.515Z",
       "held": true,
       "head": "7144777e7f58448dd38e674fe735ce9efa09043a",
       "remoteHead": "7144777e7f58448dd38e674fe735ce9efa09043a",
@@ -786,7 +786,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-15T23:10:28.326Z",
+      "observedAt": "2026-10-15T23:10:37.515Z",
       "held": true,
       "head": "d121f70263a98ec30f6975d4909c0107b0841deb",
       "remoteHead": null,
@@ -1346,6 +1346,11 @@
         "effort": "low",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-15T23:10:36.147Z",
+      "event": "verified",
+      "ticket": 1645
     }
   ]
 }
