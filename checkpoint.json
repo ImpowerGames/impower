@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 8,
-  "previous": "f6bfc2fbee6f2dc47c15ebb7cb5315a67034cbb2",
+  "seq": 9,
+  "previous": "664247fa649eea4db97ae12367e4d002f8420073",
   "snapshotParents": [],
-  "time": "2026-10-15T21:49:02.212Z",
+  "time": "2026-10-15T21:50:04.786Z",
   "kind": "auto",
-  "transition": "launch of #457",
+  "transition": "acknowledged of #457",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 6,
+    "recordRevision": 7,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -89,7 +89,18 @@
           "time": "2026-10-15T21:49:00.716Z",
           "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
         },
-        "since": "2026-10-15T21:49:00.716Z"
+        "since": "2026-10-15T21:49:00.716Z",
+        "sessionId": "3906b568-1ed4-4cf5-ac78-f977e89dbce9",
+        "acknowledged": {
+          "time": "2026-10-15T21:50:03.336Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from the writer (session impower-cb, pid 55220) received 2026-10-15T21:5x UTC naming assignment aa2733e6 and all three values read from its command line and CLAUDE_EFFORT; out.jsonl init line also reports model claude-opus-5-5 and permissionMode bypassPermissions",
+          "deliveryId": "a23b03b6"
+        }
       },
       "pending": null,
       "history": [],
@@ -106,7 +117,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T21:49:02.212Z",
+      "observedAt": "2026-10-15T21:50:04.785Z",
       "held": true,
       "exists": false
     }
@@ -233,6 +244,16 @@
         "start": "639276977403890485",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-457-aa2733e6-4028-47ec-981f-f17d4cad4da8"
+      }
+    },
+    {
+      "time": "2026-10-15T21:50:03.337Z",
+      "event": "acknowledged",
+      "ticket": 457,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
