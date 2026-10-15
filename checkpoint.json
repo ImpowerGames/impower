@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 67,
-  "previous": "e4c63ce1b6a9629cc0ee1961f273df651cb225fa",
+  "seq": 68,
+  "previous": "109b0904fd07ecec9194664748e51b58db59764a",
   "snapshotParents": [],
-  "time": "2026-10-15T22:52:22.799Z",
+  "time": "2026-10-15T22:52:32.199Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1295",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 54,
+    "recordRevision": 55,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -198,30 +198,36 @@
       "results": []
     },
     "1295": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "requestedEffort": "medium",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
-        "branch": "test/1201-incremental-cold-parity",
-        "artifactParent": null,
-        "handle": {
-          "kind": "process",
-          "pid": 55348,
-          "start": "639276984318127089",
-          "host": "DESKTOP-726EO47"
-        },
-        "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
-        "verified": true,
-        "adopted": {
-          "pr": 1910,
-          "rounds": 0
-        },
-        "since": "2026-10-15T22:25:36.926Z"
-      },
+      "owner": null,
       "pending": null,
-      "history": [],
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "requestedEffort": "medium",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
+            "branch": "test/1201-incremental-cold-parity",
+            "artifactParent": null,
+            "handle": {
+              "kind": "process",
+              "pid": 55348,
+              "start": "639276984318127089",
+              "host": "DESKTOP-726EO47"
+            },
+            "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
+            "verified": true,
+            "adopted": {
+              "pr": 1910,
+              "rounds": 0
+            },
+            "since": "2026-10-15T22:25:36.926Z"
+          },
+          "released": "process 55348 is gone; process 55348 is gone and no process names its launch directory; its transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1201-924f2008-1121-474f-9f5f-ff1a78951482/out.jsonl ends with stop_reason end_turn after the final report (PR 1910, reviewed head f771ccc, 1 round, no findings); PR 1910 merged at d121f70263a98ec30f6975d4909c0107b0841deb through the gate",
+          "time": "2026-10-15T22:52:29.843Z"
+        }
+      ],
       "results": []
     },
     "1613": {
@@ -670,7 +676,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:52:21.565Z",
+      "observedAt": "2026-10-15T22:52:31.291Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -717,7 +723,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:52:21.565Z",
+      "observedAt": "2026-10-15T22:52:31.291Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -1275,6 +1281,12 @@
       "time": "2026-10-15T22:52:10.509Z",
       "event": "released",
       "ticket": 1249,
+      "reason": "process 55348 is gone"
+    },
+    {
+      "time": "2026-10-15T22:52:29.844Z",
+      "event": "released",
+      "ticket": 1295,
       "reason": "process 55348 is gone"
     }
   ]
