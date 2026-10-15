@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 2,
-  "previous": "2075b6a67e5c98eb3b40b0c2f4b5cabdd9756661",
+  "seq": 3,
+  "previous": "a5c0a383656b07e9c4d7a4ce6a52f98c3836ee3e",
   "snapshotParents": [],
-  "time": "2026-10-15T21:40:58.903Z",
+  "time": "2026-10-15T21:41:06.053Z",
   "kind": "auto",
-  "transition": "check-in",
+  "transition": "group",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 3,
+    "recordRevision": 4,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -55,7 +55,10 @@
     "since": "2026-10-15T21:40:57.643Z",
     "expires": "2026-10-22T21:40:57.643Z"
   },
-  "group": null,
+  "group": {
+    "name": "Orchestrate #1893",
+    "id": "cg-771cbaca-b272-4288-84e0-40bb5c30257a"
+  },
   "title": "ORCH #1893: incremental cold compile",
   "tickets": {},
   "operations": [],
@@ -83,6 +86,12 @@
       "time": "2026-10-15T21:40:57.644Z",
       "event": "check-in-scheduled",
       "job": "e8a7ccb0",
+      "none": null
+    },
+    {
+      "time": "2026-10-15T21:41:04.709Z",
+      "event": "group",
+      "id": "cg-771cbaca-b272-4288-84e0-40bb5c30257a",
       "none": null
     }
   ]
