@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 13,
-  "previous": "787d478b83d34b5edbf844e6381c2ef87665a76e",
+  "seq": 14,
+  "previous": "9905061382e56d56ad87559f12433f31ffd79bed",
   "snapshotParents": [],
-  "time": "2026-10-15T22:01:27.578Z",
+  "time": "2026-10-15T22:01:38.213Z",
   "kind": "auto",
-  "transition": "verify of #1632",
+  "transition": "acknowledged of #1201",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 10,
+    "recordRevision": 11,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -89,7 +89,18 @@
           "time": "2026-10-15T22:00:32.141Z",
           "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
         },
-        "since": "2026-10-15T22:00:32.141Z"
+        "since": "2026-10-15T22:00:32.141Z",
+        "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
+        "acknowledged": {
+          "time": "2026-10-15T22:01:35.845Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from the writer session (impower-17) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
+          "deliveryId": "a3411359"
+        }
       },
       "pending": null,
       "history": [],
@@ -151,7 +162,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:01:27.577Z",
+      "observedAt": "2026-10-15T22:01:38.213Z",
       "held": true,
       "exists": false
     },
@@ -160,7 +171,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:01:27.577Z",
+      "observedAt": "2026-10-15T22:01:38.213Z",
       "held": true,
       "exists": false
     }
@@ -335,6 +346,16 @@
       "time": "2026-10-15T22:01:25.735Z",
       "event": "verified",
       "ticket": 1632
+    },
+    {
+      "time": "2026-10-15T22:01:35.846Z",
+      "event": "acknowledged",
+      "ticket": 1201,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
+      }
     }
   ]
 }
