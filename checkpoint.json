@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 77,
-  "previous": "23edb7f055d380d7067f9f0085d1ec0343794359",
+  "seq": 78,
+  "previous": "f5e990aaf4a13ff12591084403d1e81207e35e78",
   "snapshotParents": [],
-  "time": "2026-10-15T22:42:57.371Z",
+  "time": "2026-10-15T22:43:06.212Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1299",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 68,
+    "recordRevision": 69,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -212,7 +212,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "8f092886",
+          "owner": "2f7eb7c8-d608-490a-a3d6-3cb3c5de9965",
+          "time": "2026-10-15T22:43:03.513Z",
+          "text": "The #1299 defect no longer reproduces on origin/main c47d43421: PR #1324 (#1287, merged 2026-10-02) rewrote lowerReassignment to read the converter AST, and a 14-case test the writer wrote passes unchanged on main, while inexpressible targets already get a parser or converter Error. The test cannot go red on main; red is possible only against the pre-#1324 parent 87feec963. Options: (A) test-only draft PR pinning the behaviour with Closes #1299 and a red run in a scratch worktree at 87feec963; (B) the same pin PR without the pre-#1324 red run, disclosed; (C) no PR, close #1299 as fixed by #1324.",
+          "source": "cross-session message from writer impower-e2",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     }
   },
   "operations": [],
@@ -520,7 +531,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:42:56.181Z",
+      "observedAt": "2026-10-15T22:43:04.876Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": "7f7ad171c2f05acb746f6384e277411bf594523a",
@@ -534,7 +545,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T22:42:56.181Z",
+      "observedAt": "2026-10-15T22:43:04.876Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -546,7 +557,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T22:42:56.181Z",
+      "observedAt": "2026-10-15T22:43:04.876Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -1028,6 +1039,12 @@
       "time": "2026-10-15T22:30:06.810Z",
       "event": "verified",
       "ticket": 1299
+    },
+    {
+      "time": "2026-10-15T22:43:03.514Z",
+      "event": "request",
+      "ticket": 1299,
+      "id": "8f092886"
     }
   ]
 }
