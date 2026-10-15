@@ -1553,6 +1553,13 @@ export class ProgramStory implements StoryEngine {
     const outputStreamBefore = [...state.outputStream];
     const lineEnd = state.SuspendLineEnd();
     state.ResetOutput();
+    // Where the story last ran. Every instruction the evaluation runs moves
+    // them, and the story's next choice reads the flow it leaves from
+    // `previousFlow`: an evaluation the host makes between two of the
+    // story's instructions (a layout's binding, refreshed or built) must
+    // leave them as they were, as it leaves the position (#657).
+    const previousFlow = state.previousFlow;
+    const previousAddress = state.previousAddress;
 
     this.enter(
       target,
@@ -1590,6 +1597,8 @@ export class ProgramStory implements StoryEngine {
       }
     } finally {
       this.keepBeatImages = keep;
+      state.previousFlow = previousFlow;
+      state.previousAddress = previousAddress;
     }
     const textOutput = stringOutput.toString();
 

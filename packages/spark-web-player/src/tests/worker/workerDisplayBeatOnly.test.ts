@@ -644,6 +644,49 @@ scene start
 end
 `;
 
+/** A menu kept on the page under a badge bound to a variable, whose option
+ *  says how many times its scene was entered (round 3 of #1878): a full
+ *  display evaluates the badge, and the choice counts the scene it leaves by
+ *  where the story last ran. An untaken branch before the menu holds the
+ *  edit. */
+const RETAINED = `store stamp = 7
+store skip = false
+
+layout main with
+  badge {
+    text "{stamp}"
+  }
+  choices {
+    choice.0 {
+      text
+    }
+  }
+  textbox {
+    dialogue {
+      text
+    }
+    action {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  if skip then
+    Taken branch.
+  else
+    Never said.
+  end
+  choose
+    * Go on
+      The scene was visited {count.visits(-> start)} times.
+  end
+end
+`;
+
 /** An input whose handler writes nothing: what the viewer types changes
  *  the page, and the worker sends nothing back. */
 const TYPED = `store name = "Zelda"
@@ -1064,6 +1107,23 @@ describe("a beat-only display", () => {
     expect(a.edited.frame).toEqual(full.edited.frame);
     expect(a.clicked.frame).toEqual(a.edited.frame);
     expect(a.clicked.sent).toEqual([]);
+  }, 120_000);
+
+  it("leaves a kept menu's story where a full display leaves it, though the full display evaluated the badge's binding", async () => {
+    const { a, full } = await twins(RETAINED, lineIn(RETAINED, "  choose"), async (p) => {
+      // An edit the route never runs, so the menu, one statement with its
+      // options, stays the route's.
+      await p.edit("Never said.", "Never, ever said.");
+      const edited = after(p);
+      const state: any = (p.game.story as any).state;
+      // Where the story last ran: a choice reads the flow it leaves from it,
+      // and counts the flows it enters by it. A preview runs on past no
+      // choice, so a played game's continuation is the engine's own test
+      // (bindingEvaluationKeepsChoiceFlow).
+      return { edited, at: [state.previousFlow, state.previousAddress] };
+    });
+    expectBeatOnly(a.edited);
+    expect(a.at).toEqual(full.at);
   }, 120_000);
 
   it("starts no sound, so the scene's music does not start again", async () => {
