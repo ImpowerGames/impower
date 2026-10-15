@@ -189,6 +189,84 @@ describe("a compile with statement chunks", () => {
     ]);
   });
 
+  // #1645: the beats of a choose block's choices, its then clause and the
+  // content after it read in document order, not with the choices' content
+  // after the rest of the scene.
+  it("reads a choose block's bodies, its then clause and the content after it in document order", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[intro]] Intro.",
+      "  choose",
+      "    + [A] [[option_a]] A.",
+      "      [[body_a]] Body A.",
+      "    + [B] [[option_b]] B.",
+      "      [[body_b]] Body B.",
+      "  then",
+      "    [[joined]] Joined.",
+      "  end",
+      "  [[outro]] Outro.",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    const images = program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
+    expect(images).toEqual([
+      "intro",
+      "option_a",
+      "body_a",
+      "option_b",
+      "body_b",
+      "joined",
+      "outro",
+    ]);
+  });
+
+  // #1645: a choose block nested in a choice's body reads its beats where it
+  // stands, before the next choice of the block around it.
+  it("reads a choose block nested in a choice's body before the next choice", () => {
+    const text = [
+      "-> MAIN",
+      "",
+      "scene MAIN",
+      "  [[intro]] Intro.",
+      "  choose",
+      "    + [A] [[option_a]] A.",
+      "      choose",
+      "        + [A1] [[option_a1]] A1.",
+      "          [[body_a1]] Body A1.",
+      "        + [A2] [[option_a2]] A2.",
+      "      end",
+      "      [[after_a]] After A.",
+      "    + [B] [[option_b]] B.",
+      "  end",
+      "  [[outro]] Outro.",
+      "end",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN_URI]: text }, {
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+    } as never);
+    const program = quiet(() => c.compile()).program;
+    const images = program.sceneAssets!["MAIN"]!.beats.flatMap((beat) => beat.image ?? []);
+    expect(images).toEqual([
+      "intro",
+      "option_a",
+      "option_a1",
+      "body_a1",
+      "option_a2",
+      "after_a",
+      "option_b",
+      "outro",
+    ]);
+  });
+
   // Round 1 of the review of #1618 (report 6026971997): an interpolation
   // splits a beat's text into several literals, each of which named the
   // beat's address in a record of its own.
