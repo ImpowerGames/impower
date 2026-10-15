@@ -1,4 +1,6 @@
 import {
+  DiagnosticRefreshRequest,
+  SemanticTokensRefreshRequest,
   type InitializeResult,
   type ServerCapabilities,
 } from "vscode-languageserver";
@@ -151,12 +153,16 @@ try {
     // rejected outright ("Compiler has not been configured!"). Those requests
     // are never retried on their own, so without this the features stay dead
     // until something else happens to trigger a re-request. See #224.
-    try {
-      connection.languages.semanticTokens.refresh();
-      connection.languages.diagnostics.refresh();
-    } catch (e) {
-      console.error("failed to request client refresh after initialize", e);
-    }
+    //
+    // A refresh is a hint with no result, and a client with no editor open
+    // yet may answer it with an error (#1785): that refusal is not a failure.
+    // (Sent directly: `languages.*.refresh()` returns the request's promise
+    // but is typed `void`.)
+    const ignoreRefusal = () => {};
+    connection
+      .sendRequest(SemanticTokensRefreshRequest.type)
+      .catch(ignoreRefusal);
+    connection.sendRequest(DiagnosticRefreshRequest.type).catch(ignoreRefusal);
   });
 
   // Clients re-pull folding ranges and semantic tokens after every change AND

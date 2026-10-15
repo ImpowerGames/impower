@@ -29,7 +29,13 @@ export async function coalesceRequest(
   try {
     do {
       state.rerun = false;
-      await run();
+      try {
+        await run();
+      } catch (err) {
+        // A pull asked for while this one was in flight (a refresh once the
+        // server is ready, say) still runs when this one fails (#1785).
+        if (!state.rerun) throw err;
+      }
     } while (state.rerun);
   } finally {
     pending.delete(key);

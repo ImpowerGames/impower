@@ -14,6 +14,7 @@ import {
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { highlightCode } from "@lezer/highlight";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { escHTML } from "./text";
@@ -360,19 +361,23 @@ export function serverDocumentSymbols(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentSymbols(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentSymbols(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentSymbols(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentSymbols(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentSymbols(client, params.uri);
+        pullInBackground(() => updateDocumentSymbols(client, params.uri));
       },
     },
     editorExtension: [

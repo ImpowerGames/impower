@@ -8,6 +8,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
@@ -383,19 +384,23 @@ export function serverColorDecorations(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentColors(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentColors(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentColors(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentColors(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentColors(client, params.uri);
+        pullInBackground(() => updateDocumentColors(client, params.uri));
       },
     },
     editorExtension: [colorPickerPlugin, colorPickerWidgetTheme],

@@ -13,6 +13,7 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
@@ -285,19 +286,23 @@ export function serverDocumentLinks(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentLinks(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentLinks(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentLinks(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentLinks(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentLinks(client, params.uri);
+        pullInBackground(() => updateDocumentLinks(client, params.uri));
       },
     },
     editorExtension: [

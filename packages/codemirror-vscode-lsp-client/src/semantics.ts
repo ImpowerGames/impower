@@ -8,6 +8,7 @@ import {
 } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { coalesceRequest } from "./requestCoalescer";
@@ -257,7 +258,9 @@ export function serverSemanticHighlighting(
     requestHandlers: {
       "workspace/semanticTokens/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          updateDocumentSemanticHighlighting(client, file.uri);
+          pullInBackground(() =>
+            updateDocumentSemanticHighlighting(client, file.uri),
+          );
         }
         return null;
       },
@@ -267,19 +270,25 @@ export function serverSemanticHighlighting(
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentSemanticHighlighting(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentSemanticHighlighting(client, params.textDocument.uri),
+        );
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentSemanticHighlighting(client, params.textDocument.uri);
+        pullInBackground(() =>
+          updateDocumentSemanticHighlighting(client, params.textDocument.uri),
+        );
       },
       "textDocument/publishDiagnostics": (
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        updateDocumentSemanticHighlighting(client, params.uri);
+        pullInBackground(() =>
+          updateDocumentSemanticHighlighting(client, params.uri),
+        );
       },
     },
     editorExtension: [
