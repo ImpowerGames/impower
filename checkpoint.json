@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 101,
-  "previous": "3a4c91294da912ad443d6e078e74c5f456e0f746",
+  "seq": 102,
+  "previous": "8ee2c14d847cc534b8086ea22b0589c7e2e52df9",
   "snapshotParents": [],
-  "time": "2026-10-15T23:38:11.124Z",
+  "time": "2026-10-15T23:38:20.012Z",
   "kind": "auto",
-  "transition": "result of #1299",
+  "transition": "result of #1645",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 87,
+    "recordRevision": 88,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -361,7 +361,29 @@
       },
       "pending": null,
       "history": [],
-      "results": [],
+      "results": [
+        {
+          "time": "2026-10-15T23:38:17.089Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions",
+            "pr": 1916,
+            "reviewedHead": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
+            "rounds": {
+              "gpt-5.6-terra (cross-vendor Codex route)": 1,
+              "cap": 3,
+              "round1": "one undirected reviewer; round state 6204323842, report 6204378456 (no findings), adjudication 6204395272"
+            },
+            "findings": "None",
+            "verification": "Test-only PR (option b): two new cases in programLocations.test.ts, (1) choose with option bodies, then a then clause, then outro; (2) a choose nested in an option body; 7/7 green on the branch. Red evidence from scratch worktree scratch/1645-pre-1618-probe at 513af8254 (parent of the sort commit 173ec7fe7): with programChunks false the ticket's shape and both new shapes fail (ticket shape received intro, outro, option_a, body_a, option_b, body_b); all pass with programChunks true; reproduced independently by the reviewer. Green on origin/main by design, disclosed in the PR body, which names #1618 (rounds 2-3) and #705 as the fix and cites programLocations.test.ts:123 and :153 as the existing pins. Scratch worktree removed through clean-worktrees --remove.",
+            "ci": "On fd81f7e1b when marked ready: build, tsc, typecheck, linked-issue and the light package jobs passed; sparkdown 1-4, spark-engine 1-2, spark-web-player 1-2 and sparkdown-document-views pending; driver-checks, skills-checks, notifier and vitest-api-integration skipped; no failures.",
+            "next": "None from the writer unless a pending CI job fails; merge is the coordinator's.",
+            "changesAfterReviewedCommit": "none",
+            "source": "cross-session message from writer impower-b5 (resumed session 56d978c5-39e1-4939-ae9e-7df24a76df9a), final report for assignment 1c3efdf9"
+          }
+        }
+      ],
       "requests": [
         {
           "id": "cd9cd4a0",
@@ -687,7 +709,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T23:38:09.744Z",
+      "observedAt": "2026-10-15T23:38:18.229Z",
       "held": true,
       "head": "a18f82340198e364118a5d2497d757623754ad22",
       "remoteHead": "a18f82340198e364118a5d2497d757623754ad22",
@@ -782,7 +804,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T23:38:09.744Z",
+      "observedAt": "2026-10-15T23:38:18.229Z",
       "held": true,
       "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
       "remoteHead": "aadb719c51b8cc92ed65866c6491a401b89f4db2",
@@ -869,7 +891,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T23:38:09.744Z",
+      "observedAt": "2026-10-15T23:38:18.229Z",
       "held": true,
       "head": "7144777e7f58448dd38e674fe735ce9efa09043a",
       "remoteHead": "7144777e7f58448dd38e674fe735ce9efa09043a",
@@ -950,12 +972,47 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-15T23:38:09.744Z",
+      "observedAt": "2026-10-15T23:38:18.229Z",
       "held": true,
       "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
       "remoteHead": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
       "unpushed": false,
-      "dirty": false
+      "dirty": false,
+      "pr": 1916,
+      "reviewJobs": [
+        {
+          "job": "pr-1916/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
+            "completedRoundReviewers": null,
+            "time": "2026-10-15T23:21:01.126Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6204378456
+          ]
+        }
+      ]
     }
   },
   "snapshots": {},
@@ -1584,6 +1641,13 @@
       "ticket": 1299,
       "pr": 1914,
       "reviewedHead": "7144777e7f58448dd38e674fe735ce9efa09043a"
+    },
+    {
+      "time": "2026-10-15T23:38:17.090Z",
+      "event": "result",
+      "ticket": 1645,
+      "pr": 1916,
+      "reviewedHead": "fd81f7e1b15be1e8e277763155aacd54acb86b01"
     }
   ]
 }
