@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 66,
-  "previous": "070bf6db6712dedf6412fc6dc565a2ffecc33746",
+  "seq": 67,
+  "previous": "e4c63ce1b6a9629cc0ee1961f273df651cb225fa",
   "snapshotParents": [],
-  "time": "2026-10-15T22:52:13.121Z",
+  "time": "2026-10-15T22:52:22.799Z",
   "kind": "auto",
-  "transition": "release of #1249",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 54,
@@ -670,7 +670,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:52:11.907Z",
+      "observedAt": "2026-10-15T22:52:21.565Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -717,12 +717,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:52:11.907Z",
+      "observedAt": "2026-10-15T22:52:21.565Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 49864
+      },
       "pr": 1912,
       "reviewJobs": [
         {
@@ -804,6 +808,27 @@
           "commentIds": [
             6203848869
           ]
+        },
+        {
+          "job": "pr-1912/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+            "completedRoundReviewers": {
+              "incr": 1,
+              "bound": 1
+            },
+            "time": "2026-10-15T22:52:14.141Z"
+          }
         }
       ]
     }
@@ -811,7 +836,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:52:02.312Z",
+    "at": "2026-10-15T22:52:21.564Z",
     "tickets": [
       {
         "number": 1201,
@@ -827,9 +852,9 @@
       },
       {
         "number": 1249,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55348 is gone): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1295,
@@ -889,7 +914,7 @@
         "number": 1846,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "5 writers already hold tickets against a limit of 2"
+        "reason": "4 writers already hold tickets against a limit of 2"
       }
     ],
     "remaining": [
