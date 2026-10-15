@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 63,
-  "previous": "09034f76a7ae9a29e01ad58132e6b6dd6c746811",
+  "seq": 64,
+  "previous": "9994cb81f8415bec1977a5e883869d5a2c6244eb",
   "snapshotParents": [],
-  "time": "2026-10-15T22:51:46.441Z",
+  "time": "2026-10-15T22:51:54.036Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1211",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 52,
+    "recordRevision": 53,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -132,30 +132,36 @@
       ]
     },
     "1211": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "requestedEffort": "medium",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
-        "branch": "test/1201-incremental-cold-parity",
-        "artifactParent": null,
-        "handle": {
-          "kind": "process",
-          "pid": 55348,
-          "start": "639276984318127089",
-          "host": "DESKTOP-726EO47"
-        },
-        "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
-        "verified": true,
-        "adopted": {
-          "pr": 1910,
-          "rounds": 0
-        },
-        "since": "2026-10-15T22:23:17.484Z"
-      },
+      "owner": null,
       "pending": null,
-      "history": [],
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "requestedEffort": "medium",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
+            "branch": "test/1201-incremental-cold-parity",
+            "artifactParent": null,
+            "handle": {
+              "kind": "process",
+              "pid": 55348,
+              "start": "639276984318127089",
+              "host": "DESKTOP-726EO47"
+            },
+            "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
+            "verified": true,
+            "adopted": {
+              "pr": 1910,
+              "rounds": 0
+            },
+            "since": "2026-10-15T22:23:17.484Z"
+          },
+          "released": "process 55348 is gone; process 55348 is gone and no process names its launch directory; its transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1201-924f2008-1121-474f-9f5f-ff1a78951482/out.jsonl ends with stop_reason end_turn after the final report (PR 1910, reviewed head f771ccc, 1 round, no findings); PR 1910 merged at d121f70263a98ec30f6975d4909c0107b0841deb through the gate",
+          "time": "2026-10-15T22:51:51.899Z"
+        }
+      ],
       "results": []
     },
     "1249": {
@@ -658,7 +664,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:51:45.563Z",
+      "observedAt": "2026-10-15T22:51:53.077Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -705,21 +711,17 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:51:45.563Z",
+      "observedAt": "2026-10-15T22:51:53.077Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 35408
-      },
       "pr": 1912,
       "reviewJobs": [
         {
           "job": "pr-1912/round-1/launch-bound-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-bound",
@@ -735,7 +737,28 @@
               "incr": 1
             },
             "time": "2026-10-15T22:47:41.335Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "bound",
+          "attempt": 1,
+          "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6203924668
+          ]
         },
         {
           "job": "pr-1912/round-1/launch-incr-1",
@@ -1210,6 +1233,12 @@
       "event": "released",
       "ticket": 1201,
       "reason": "process 55348 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-15T22:51:51.900Z",
+      "event": "released",
+      "ticket": 1211,
+      "reason": "process 55348 is gone"
     }
   ]
 }
