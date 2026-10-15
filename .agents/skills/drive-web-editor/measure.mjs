@@ -33,6 +33,7 @@ export const MEASURE_USAGE = [
   "                          one per sample, and time each like --edit (--word is not needed)",
   "  --text <text>           what a burst types (default: a 52-character clause, about five seconds), or the",
   `                          line --structural inserts after the indentation (default "${STRUCTURAL_TEXT}")`,
+  "  --indent <n>            with --structural, the inserted line's indentation in spaces instead of --line's own",
   "  --screenshots <dir>     with --structural, also write before.png, inserted.png (after the first insert painted)",
   "                          and restored.png (after the run put the document back) into <dir>",
   "  --timeout <ms>          how long one sample may take before it is a failure (default 20000)",
@@ -85,6 +86,9 @@ export function parseMeasureArgs(args) {
       case "--structural":
         out.structural = true;
         break;
+      case "--indent":
+        out.indent = integer(value(args, i++, name), name, 0);
+        break;
       case "--screenshots":
         out.screenshots = value(args, i++, name);
         break;
@@ -116,6 +120,7 @@ export function parseMeasureArgs(args) {
   if (out.text != null && !out.burst && !out.structural) throw new Error("--text needs --burst or --structural");
   if (out.structural && out.text != null && (!out.text.trim() || /[\r\n]/.test(out.text))) throw new Error("--text is one line of text");
   if (out.screenshots != null && !out.structural) throw new Error("--screenshots needs --structural");
+  if (out.indent != null && !out.structural) throw new Error("--indent needs --structural");
   if (out.burst || out.structural) {
     if (out.project && out.line == null) throw new Error(`--project ${out.burst ? "--burst" : "--structural"} needs --line`);
   } else if (out.project && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
@@ -637,7 +642,8 @@ export async function measure(args, deps) {
           // indentation, or removes it again, alternately (#1672). The
           // document is compared whole, so `restoredMatches` says it came
           // back byte for byte, not merely that the line did.
-          const inserted = (/^\s*/.exec(lineText)?.[0] ?? "") + (options.text ?? STRUCTURAL_TEXT);
+          const indentation = options.indent != null ? " ".repeat(options.indent) : (/^\s*/.exec(lineText)?.[0] ?? "");
+          const inserted = indentation + (options.text ?? STRUCTURAL_TEXT);
           report.text = options.text ?? STRUCTURAL_TEXT;
           report.inserted = inserted;
           report.linesBefore = text.split("\n").length;

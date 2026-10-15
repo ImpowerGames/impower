@@ -33,6 +33,9 @@
 //                       alone; --word is not needed
 //   --text <text>       the line --structural inserts, after the indentation
 //                       (default "Just one more thing.")
+//   --indent <n>        the inserted line's indentation in spaces, in place
+//                       of --line's own, for a statement-level line such as a
+//                       choice after the last line of a speech
 //   --no-flow-reuse     refuse the compiler's parsed-flow reuse on every
 //                       compile (`_disableFlowReuseNextCompile`, #1712)
 //   --heap-probe <file> after the last sample, count the parsed objects alive
@@ -101,6 +104,9 @@ export function parseBenchArgs(args) {
         out.text = value(args, i++, name);
         if (!out.text.trim() || /[\r\n]/.test(out.text)) throw new Error("--text is one line of text");
         break;
+      case "--indent":
+        out.indent = count(value(args, i++, name), name, 0);
+        break;
       case "--no-flow-reuse":
         out.noFlowReuse = true;
         break;
@@ -130,6 +136,7 @@ export function parseBenchArgs(args) {
   if (out.heapProbe && out.cpuProf) throw new Error("--heap-probe and --cpu-prof are exclusive");
   if (!out.project && !out.fixture) throw new Error("pass --project <dir> or --fixture");
   if (out.text != null && !out.structural) throw new Error("--text needs --structural");
+  if (out.indent != null && !out.structural) throw new Error("--indent needs --structural");
   if (out.structural) {
     // A suggestion's preview compile never changes the document, so there is
     // no insert for it to take out again: a structural edit is accepted.
@@ -142,16 +149,16 @@ export function parseBenchArgs(args) {
 
 // A structural edit at `line` (counting from one) of `documentText`: the
 // change that inserts `text` as a line of its own after it, at its
-// indentation, and the change that removes that line again, which puts the
-// document back byte for byte. An insert leaves the caret on the new line,
-// and a removal at the end of `line`, which is where each puts the preview
-// (#1672).
-export function structuralEdits(documentText, line, text) {
+// indentation or at `indent` spaces when given, and the change that removes
+// that line again, which puts the document back byte for byte. An insert
+// leaves the caret on the new line, and a removal at the end of `line`, which
+// is where each puts the preview (#1672).
+export function structuralEdits(documentText, line, text, indent) {
   const lines = documentText.split(/\r?\n/);
   if (line < 1 || line > lines.length) throw new Error(`there is no line ${line}`);
   const lineText = lines[line - 1];
   const eol = documentText.includes("\r\n") ? "\r\n" : "\n";
-  const inserted = (/^\s*/.exec(lineText)?.[0] ?? "") + text;
+  const inserted = (indent != null ? " ".repeat(indent) : (/^\s*/.exec(lineText)?.[0] ?? "")) + text;
   const end = { line: line - 1, character: lineText.length };
   return {
     lineText,
@@ -226,7 +233,7 @@ async function main(args) {
     const source = fs.readFileSync(path.join(project, "main.sd"), "utf8");
     const lineText = source.split(/\r?\n/)[line - 1] ?? "";
     // A structural edit replaces nothing, so it needs no word and no options.
-    const structural = options.structural ? structuralEdits(source, line, options.text ?? STRUCTURAL_TEXT) : undefined;
+    const structural = options.structural ? structuralEdits(source, line, options.text ?? STRUCTURAL_TEXT, options.indent) : undefined;
     let replacements = [];
     if (!structural) {
       const around = tokenAround(lineText, word);

@@ -144,6 +144,10 @@ await check("the structural-edit option parses, rejects missing text, and change
   assert.throws(() => parseBenchArgs(["--fixture", "--text", "Wait."]), /--text needs --structural/);
   assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--mode", "preview"]), /--structural measures the edit mode alone/);
   assert.throws(() => parseBenchArgs(["--project", "p", "--structural"]), /--project --structural needs --line/);
+  assert.equal(parseBenchArgs(["--fixture", "--structural", "--indent", "4"]).indent, 4);
+  assert.equal(parseBenchArgs(["--fixture", "--structural", "--indent", "0"]).indent, 0);
+  assert.throws(() => parseBenchArgs(["--fixture", "--structural", "--indent", "-1"]), /--indent must be an integer of at least 0/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--indent", "4"]), /--indent needs --structural/);
 
   const text = files.get("main.sd");
   const edits = bench.structuralEdits(text, target.line, bench.STRUCTURAL_TEXT);
@@ -159,6 +163,14 @@ await check("the structural-edit option parses, rejects missing text, and change
   assert.deepEqual(insertedLines.slice(target.line + 1), lines.slice(target.line));
   // The removal puts the document back byte for byte.
   assert.equal(applyChange(inserted, edits.remove), text);
+  // `--indent` replaces the measured line's indentation: a new option after
+  // the last body line of the fixture's `choose`, at the options' indentation.
+  const optionBody = lines.indexOf("      Everything clatters to the floor.") + 1;
+  const choice = bench.structuralEdits(text, optionBody, "+ [Try again]", 4);
+  assert.equal(choice.inserted, "    + [Try again]");
+  const withChoice = applyChange(text, choice.insert).split("\n");
+  assert.deepEqual(withChoice.slice(optionBody - 2, optionBody + 2), ["    + [Fail...]", "      Everything clatters to the floor.", "    + [Try again]", "  then"]);
+  assert.equal(applyChange(applyChange(text, choice.insert), choice.remove), text);
   // A CRLF document keeps its line ending.
   const crlf = "scene A\r\n  HERO:\r\n    Hi.\r\nend\r\n";
   const crlfEdits = bench.structuralEdits(crlf, 3, "Wait.");

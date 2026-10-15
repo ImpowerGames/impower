@@ -366,6 +366,9 @@ await check("a structural run needs a line but no word, takes one line of text, 
   assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--edit"]), /exclusive/);
   assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--burst"]), /exclusive/);
   assert.throws(() => parseMeasureArgs(["--fixture", "--screenshots", "shots"]), /--screenshots needs --structural/);
+  assert.equal(parseMeasureArgs(["--fixture", "--structural", "--indent", "4"]).indent, 4);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--indent", "-2"]), /--indent must be an integer of at least 0/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--indent", "4"]), /--indent needs --structural/);
 });
 
 await check("a structural sample is timed from its compile to the first newer program painted at the caret's line", () => {
@@ -501,6 +504,14 @@ await check("a structural run alternates an insert and its removal, and leaves t
   assert.equal(run.report.summary.byDirection.insert.samples, 1);
   assert.equal(run.report.summary.byDirection.remove.samples, 1);
   assert.notEqual(run.exitCode, 1);
+  // `--indent` gives the inserted line an indentation of its own.
+  const indented = structuralPage(line);
+  const choice = await runMeasure(["--project", "rb", "--line", "3514", "--structural", "--indent", "4", "--text", "+ [Ask]", "--warmup", "0", "--samples", "1", "--settle", "0"], {
+    withEditor: async (fn) => fn({ page: indented.page, url: "http://localhost:1", consoleLines: [] }),
+  });
+  assert.equal(choice.report.inserted, "    + [Ask]");
+  assert.equal(choice.report.samples[0].failure, undefined);
+  assert.equal(indented.text(), indented.original());
 });
 
 await check("a structural sample that fails still leaves the document as it found it, and fails the run", async () => {
