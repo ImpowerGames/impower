@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 62,
-  "previous": "fded3365a63aef03b5b27051ab2d2d5a3bdc6188",
+  "seq": 63,
+  "previous": "8c70e5792afc2324e6d4d6d2df815552c2fd2726",
   "snapshotParents": [],
-  "time": "2026-10-15T22:24:14.250Z",
+  "time": "2026-10-15T22:24:22.696Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 59,
+    "recordRevision": 60,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -415,6 +415,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs (removed pr-* directories of closed PRs)",
       "branch": null,
       "classifier": "97 job directories: 53 removable, 44 kept."
+    },
+    {
+      "time": "2026-10-15T22:24:20.354Z",
+      "removed": "C:\\Users\\Brode\\AppData\\Local\\Temp\\redgreen-* (removed red/green snapshots)",
+      "branch": null,
+      "classifier": "305 directories: 230 removable (44.3 MB), 75 kept."
     }
   ],
   "verifications": [],
@@ -424,7 +430,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:24:13.390Z",
+      "observedAt": "2026-10-15T22:24:21.723Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -831,6 +837,11 @@
       "time": "2026-10-15T22:24:11.910Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs (removed pr-* directories of closed PRs)"
+    },
+    {
+      "time": "2026-10-15T22:24:20.355Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\AppData\\Local\\Temp\\redgreen-* (removed red/green snapshots)"
     }
   ]
 }
