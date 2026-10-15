@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 29,
-  "previous": "907a8bf82d69253175f6b38ef6e4cdce2caf3782",
+  "seq": 30,
+  "previous": "af8e6e940a918b6b73326846488196041229e7d2",
   "snapshotParents": [],
-  "time": "2026-10-15T22:19:40.876Z",
+  "time": "2026-10-15T22:19:48.905Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 26,
+    "recordRevision": 27,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -217,6 +217,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1677-beat-navigation-stops",
       "branch": "fix/1677-beat-navigation-stops",
       "classifier": "removed  impower.worktrees\\fix\\1677-beat-navigation-stops                fix/1677-beat-navigation-stops                1.1 GB     merged into origin/main; origin/fix/1677-beat-navigation-stops still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1677-beat-navigation-stops': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-15T22:19:47.055Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1686-caption-beat-executed",
+      "branch": "fix/1686-caption-beat-executed",
+      "classifier": "removed  impower.worktrees\\fix\\1686-caption-beat-executed                fix/1686-caption-beat-executed                982.1 MB   merged into origin/main; origin/fix/1686-caption-beat-executed still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1686-caption-beat-executed': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -226,7 +232,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:19:39.930Z",
+      "observedAt": "2026-10-15T22:19:48.166Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": null,
@@ -468,6 +474,11 @@
       "time": "2026-10-15T22:19:38.615Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1677-beat-navigation-stops"
+    },
+    {
+      "time": "2026-10-15T22:19:47.055Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1686-caption-beat-executed"
     }
   ]
 }
