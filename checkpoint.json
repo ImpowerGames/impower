@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 48,
-  "previous": "ae5af2247a07c2674a3eb8c7807d950b62a31d03",
+  "seq": 49,
+  "previous": "e77adcd1702e0b248749adbbe41e719395db84eb",
   "snapshotParents": [],
-  "time": "2026-10-15T22:26:12.207Z",
+  "time": "2026-10-15T22:26:36.602Z",
   "kind": "auto",
-  "transition": "adopt of #1613",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 41,
@@ -421,7 +421,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:26:11.054Z",
+      "observedAt": "2026-10-15T22:26:35.765Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -468,7 +468,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:26:11.054Z",
+      "observedAt": "2026-10-15T22:26:35.765Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -479,7 +479,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:26:02.122Z",
+    "at": "2026-10-15T22:26:35.764Z",
     "tickets": [
       {
         "number": 1201,
@@ -513,9 +513,9 @@
       },
       {
         "number": 1613,
-        "action": "adopt-pr",
+        "action": "observe",
         "pr": 1910,
-        "reason": "draft PR #1910 at f771cccd2ca4e6ad4e76403cb9eab185d035183a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "process 55348 started 639276984318127089 is running"
       },
       {
         "number": 1614,
