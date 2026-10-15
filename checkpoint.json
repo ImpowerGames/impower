@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 86,
-  "previous": "2e4681cd15c6ef9490a98d9435cdf7aae5850aa1",
+  "seq": 87,
+  "previous": "807d26b740f21e11d544a5e4bb99d572662f7183",
   "snapshotParents": [],
-  "time": "2026-10-15T23:47:56.071Z",
+  "time": "2026-10-15T23:48:21.388Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 66,
+    "recordRevision": 67,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -759,7 +759,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T23:47:55.088Z",
+      "observedAt": "2026-10-15T23:48:20.507Z",
       "held": true,
       "head": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
       "remoteHead": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
@@ -895,7 +895,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T23:47:55.088Z",
+      "observedAt": "2026-10-15T23:48:20.507Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1566,6 +1566,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42"
       }
+    },
+    {
+      "time": "2026-10-15T23:48:19.351Z",
+      "event": "check-in",
+      "outcome": "no change: #1632 resumed writer waiting on CI for PR 1912 head 20045cf5e (shards in progress); #1846 writer running with draft PR 1915 at a9838d7; no requests"
     }
   ]
 }
