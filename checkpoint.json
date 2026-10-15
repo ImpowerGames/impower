@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 81,
-  "previous": "a26c67b906991df90b069a9da9018eea9670cf42",
+  "seq": 82,
+  "previous": "6e7d1c71e5a1ad06a7feb1c44b2c6f58f31acd73",
   "snapshotParents": [],
-  "time": "2026-10-15T23:18:00.301Z",
+  "time": "2026-10-15T23:23:48.428Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 63,
@@ -733,7 +733,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T23:17:57.505Z",
+      "observedAt": "2026-10-15T23:23:47.030Z",
       "held": true,
       "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
       "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -869,18 +869,43 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T23:17:57.505Z",
+      "observedAt": "2026-10-15T23:23:47.030Z",
       "held": true,
-      "head": "d121f70263a98ec30f6975d4909c0107b0841deb",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "a21e382931cfb916f58c4274eefec510df56ad60",
+      "remoteHead": "a21e382931cfb916f58c4274eefec510df56ad60",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 20920
+      },
+      "pr": 1915,
+      "reviewJobs": [
+        {
+          "job": "pr-1915/round-1/launch-ax-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "incr",
+              "undirected"
+            ],
+            "head": "a21e382931cfb916f58c4274eefec510df56ad60",
+            "completedRoundReviewers": null,
+            "time": "2026-10-15T23:21:12.371Z"
+          }
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:56:15.497Z",
+    "at": "2026-10-15T23:23:47.028Z",
     "tickets": [
       {
         "number": 1201,
@@ -944,9 +969,9 @@
       },
       {
         "number": 1632,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1912,
-        "reason": "process 11296 started 639276984208921192 is running"
+        "reason": "PR #1912 is ready at 9b9d1b7943a3675ca4d14f545b0725e1ae2909a0; process 11296 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1638,
@@ -957,7 +982,7 @@
       {
         "number": 1846,
         "action": "observe",
-        "pr": null,
+        "pr": 1915,
         "reason": "process 53964 started 639277016822063214 is running"
       }
     ],
