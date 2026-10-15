@@ -10,6 +10,7 @@ import {
   setWorkspace,
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
+import { initializedDocumentUri } from "./initializedDocumentUri";
 import { revealsPreview } from "./revealsPreview";
 
 console.log("running game-webview");
@@ -38,6 +39,12 @@ connection.addEventListener("message", async (e: MessageEvent) => {
   if (isMessage(message)) {
     // Forward protocol messages from vscode extension to window
     sendProtocolMessage(message);
+  }
+  const uri = initializedDocumentUri(message);
+  if (uri) {
+    // Save the script so a panel vscode restores resumes it (#1886)
+    state.textDocument.uri = uri;
+    vscode.setState(state);
   }
 });
 
