@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 76,
-  "previous": "db3d3b1fa76954137f81e73dc622130a5a80866d",
+  "seq": 77,
+  "previous": "23edb7f055d380d7067f9f0085d1ec0343794359",
   "snapshotParents": [],
-  "time": "2026-10-15T22:30:09.001Z",
+  "time": "2026-10-15T22:42:57.371Z",
   "kind": "auto",
-  "transition": "verify of #1299",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 68,
@@ -520,7 +520,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:30:08.287Z",
+      "observedAt": "2026-10-15T22:42:56.181Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": "7f7ad171c2f05acb746f6384e277411bf594523a",
@@ -534,24 +534,30 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T22:30:08.287Z",
+      "observedAt": "2026-10-15T22:42:56.181Z",
       "held": true,
-      "exists": false
+      "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets": {
       "ticket": 1299,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T22:30:08.287Z",
+      "observedAt": "2026-10-15T22:42:56.181Z",
       "held": true,
-      "exists": false
+      "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T22:28:57.675Z",
+    "at": "2026-10-15T22:42:56.179Z",
     "tickets": [
       {
         "number": 316,
@@ -585,9 +591,9 @@
       },
       {
         "number": 1299,
-        "action": "observe",
+        "action": "collect-report",
         "pr": null,
-        "reason": "process 56752 started 639277001265199654 is running"
+        "reason": "process 56752 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1299-2f7eb7c8-d608-490a-a3d6-3cb3c5de9965\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1325,
