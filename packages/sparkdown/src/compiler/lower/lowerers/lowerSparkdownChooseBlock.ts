@@ -210,6 +210,7 @@ export function lowerSparkdownChooseBlock(
           items,
           holdsChoice,
           (obj) => obj instanceof Choice,
+          (obj) => obj instanceof Gather,
         );
       }
     } finally {

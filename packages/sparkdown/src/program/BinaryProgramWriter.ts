@@ -161,8 +161,8 @@ export interface EmittedStatement {
   chunk: ProgramChunk;
   /** The values the emission recorded with `recordRead`, in order. */
   reads: readonly string[];
-  /** The resolutions the emission recorded with `recordResolution`,
-   *  sorted. */
+  /** The resolutions the emission recorded with `recordResolution`, each
+   *  once, sorted. */
   resolutions: readonly string[];
   /** The names of the facts the code read about each symbol it refers to
    *  (`fact`), which its reference table row hashes with the values read. */
@@ -373,7 +373,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return {
       chunk,
       reads: this._reads,
-      resolutions: this._resolutions.sort(),
+      // Each once: the code can write an object more than once (an
+      // unbracketed choice label is the choice's text and the chosen line),
+      // and `resolutionsOf` reads each object once.
+      resolutions: [...new Set(this._resolutions)].sort(),
       facts,
     };
   }
