@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 1,
-  "previous": null,
+  "seq": 2,
+  "previous": "83508207d9ea542936fd91aa456e5639771fc1e0",
   "snapshotParents": [],
-  "time": "2026-10-15T21:38:15.864Z",
+  "time": "2026-10-15T21:41:16.430Z",
   "kind": "auto",
-  "transition": "checkpoints were enabled",
+  "transition": "check-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 2,
+    "recordRevision": 3,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -44,7 +44,17 @@
     "limit": 3,
     "basis": "invocation override (default would be 3: the smaller of 3 (reviewer slots) and 7 by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer)"
   },
-  "checkIn": null,
+  "checkIn": {
+    "interval": 30,
+    "cron": "5,35 * * * *",
+    "prompt": "Orchestrate-feature check-in for Feature #1895, run record C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/0210ef10-d559-4c5a-ab4b-33c82aca336d/scratchpad/writer-1895-UjKcSO/run.json: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.",
+    "command": "node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/0210ef10-d559-4c5a-ab4b-33c82aca336d/scratchpad/writer-1895-UjKcSO/run.json'",
+    "job": "921e67e0",
+    "none": null,
+    "state": "scheduled",
+    "since": "2026-10-15T21:41:15.059Z",
+    "expires": "2026-10-22T21:41:15.059Z"
+  },
   "group": null,
   "title": "ORCH #1895: compile without diagnostic",
   "tickets": {},
@@ -68,6 +78,12 @@
       "time": "2026-10-15T21:38:15.377Z",
       "event": "checkpoints-enabled",
       "remote": "origin"
+    },
+    {
+      "time": "2026-10-15T21:41:15.060Z",
+      "event": "check-in-scheduled",
+      "job": "921e67e0",
+      "none": null
     }
   ]
 }
