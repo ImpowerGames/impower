@@ -257,6 +257,7 @@ export async function updateDocumentLinks(client: LSPClient, uri: string) {
   if (!view) return;
   const plugin = LSPPlugin.get(view);
   if (!plugin) return;
+  const version = file.version;
   const result = await plugin.client.request<
     lsp.DocumentLinkParams,
     lsp.DocumentLink[] | null,
@@ -264,6 +265,10 @@ export async function updateDocumentLinks(client: LSPClient, uri: string) {
   >("textDocument/documentLink", {
     textDocument: { uri: plugin.uri },
   });
+  // A result for a version the editor has moved past is dropped: the change
+  // that moved it pulled again (#1785).
+  if (client.workspace.getFile(uri)?.version !== version) return;
+  if (LSPPlugin.get(view) !== plugin) return;
   view.dispatch(
     setDocumentLinks(
       view.state,
@@ -286,7 +291,7 @@ export function serverDocumentLinks(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentLinks(client, params.textDocument.uri),
         );
       },
@@ -294,7 +299,7 @@ export function serverDocumentLinks(): LSPClientExtension {
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentLinks(client, params.textDocument.uri),
         );
       },
@@ -302,7 +307,9 @@ export function serverDocumentLinks(): LSPClientExtension {
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        pullInBackground(() => updateDocumentLinks(client, params.uri));
+        pullInBackground(client, params.uri, () =>
+          updateDocumentLinks(client, params.uri),
+        );
       },
     },
     editorExtension: [

@@ -315,7 +315,9 @@ export function serverFolding(): LSPClientExtension {
     requestHandlers: {
       "workspace/foldingRange/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          pullInBackground(() => updateDocumentFoldingRanges(client, file.uri));
+          pullInBackground(client, file.uri, () =>
+            updateDocumentFoldingRanges(client, file.uri),
+          );
         }
         return null;
       },
@@ -325,7 +327,7 @@ export function serverFolding(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentFoldingRanges(client, params.textDocument.uri),
         );
       },
@@ -333,7 +335,7 @@ export function serverFolding(): LSPClientExtension {
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentFoldingRanges(client, params.textDocument.uri),
         );
       },
@@ -341,7 +343,9 @@ export function serverFolding(): LSPClientExtension {
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        pullInBackground(() => updateDocumentFoldingRanges(client, params.uri));
+        pullInBackground(client, params.uri, () =>
+          updateDocumentFoldingRanges(client, params.uri),
+        );
       },
     },
     editorExtension: [

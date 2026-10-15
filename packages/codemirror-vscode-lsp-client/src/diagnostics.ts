@@ -151,7 +151,9 @@ export function serverDiagnostics(): LSPClientExtension {
     requestHandlers: {
       "workspace/diagnostic/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          pullInBackground(() => updateDocumentDiagnostics(client, file.uri));
+          pullInBackground(client, file.uri, () =>
+            updateDocumentDiagnostics(client, file.uri),
+          );
         }
         return null;
       },
@@ -161,7 +163,7 @@ export function serverDiagnostics(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentDiagnostics(client, params.textDocument.uri),
         );
       },

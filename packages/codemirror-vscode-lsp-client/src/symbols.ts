@@ -125,6 +125,7 @@ export async function updateDocumentSymbols(client: LSPClient, uri: string) {
   if (!view) return;
   const plugin = LSPPlugin.get(view);
   if (!plugin) return;
+  const version = file.version;
   const result = await plugin.client.request<
     lsp.DocumentSymbolParams,
     lsp.DocumentSymbol[] | null,
@@ -132,6 +133,10 @@ export async function updateDocumentSymbols(client: LSPClient, uri: string) {
   >("textDocument/documentSymbol", {
     textDocument: { uri: plugin.uri },
   });
+  // A result for a version the editor has moved past is dropped: the change
+  // that moved it pulled again (#1785).
+  if (client.workspace.getFile(uri)?.version !== version) return;
+  if (LSPPlugin.get(view) !== plugin) return;
   if (result) {
     view.dispatch(
       setDocumentSymbols(
@@ -361,7 +366,7 @@ export function serverDocumentSymbols(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentSymbols(client, params.textDocument.uri),
         );
       },
@@ -369,7 +374,7 @@ export function serverDocumentSymbols(): LSPClientExtension {
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentSymbols(client, params.textDocument.uri),
         );
       },
@@ -377,7 +382,9 @@ export function serverDocumentSymbols(): LSPClientExtension {
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        pullInBackground(() => updateDocumentSymbols(client, params.uri));
+        pullInBackground(client, params.uri, () =>
+          updateDocumentSymbols(client, params.uri),
+        );
       },
     },
     editorExtension: [

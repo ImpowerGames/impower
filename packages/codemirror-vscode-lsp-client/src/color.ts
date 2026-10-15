@@ -360,6 +360,7 @@ export async function updateDocumentColors(client: LSPClient, uri: string) {
   if (!view) return;
   const plugin = LSPPlugin.get(view);
   if (!plugin) return;
+  const version = file.version;
   const result = await plugin.client.request<
     lsp.DocumentColorParams,
     lsp.ColorInformation[],
@@ -367,6 +368,10 @@ export async function updateDocumentColors(client: LSPClient, uri: string) {
   >("textDocument/documentColor", {
     textDocument: { uri },
   });
+  // A result for a version the editor has moved past is dropped: the change
+  // that moved it pulled again (#1785).
+  if (client.workspace.getFile(uri)?.version !== version) return;
+  if (LSPPlugin.get(view) !== plugin) return;
   view.dispatch(
     setDocumentColors(view.state, convertFromServerColors(plugin, result)),
   );
@@ -384,7 +389,7 @@ export function serverColorDecorations(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentColors(client, params.textDocument.uri),
         );
       },
@@ -392,7 +397,7 @@ export function serverColorDecorations(): LSPClientExtension {
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentColors(client, params.textDocument.uri),
         );
       },
@@ -400,7 +405,9 @@ export function serverColorDecorations(): LSPClientExtension {
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        pullInBackground(() => updateDocumentColors(client, params.uri));
+        pullInBackground(client, params.uri, () =>
+          updateDocumentColors(client, params.uri),
+        );
       },
     },
     editorExtension: [colorPickerPlugin, colorPickerWidgetTheme],

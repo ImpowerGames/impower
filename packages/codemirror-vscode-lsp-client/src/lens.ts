@@ -254,6 +254,7 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
   if (!view) return;
   const plugin = LSPPlugin.get(view);
   if (!plugin) return;
+  const version = file.version;
 
   try {
     const result = await plugin.client.request<
@@ -286,6 +287,10 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
       }),
     );
 
+    // A result for a version the editor has moved past is dropped: the
+    // change that moved it pulled again (#1785).
+    if (client.workspace.getFile(uri)?.version !== version) return;
+    if (LSPPlugin.get(view) !== plugin) return;
     view.dispatch(
       setDocumentCodeLenses(
         view.state,
@@ -314,7 +319,7 @@ export function serverCodeLenses(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentCodeLenses(client, params.textDocument.uri),
         );
       },
@@ -323,7 +328,7 @@ export function serverCodeLenses(): LSPClientExtension {
         params: lsp.DidChangeTextDocumentParams,
       ) => {
         // In a production environment, you might want to debounce this call
-        pullInBackground(() =>
+        pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentCodeLenses(client, params.textDocument.uri),
         );
       },
@@ -332,7 +337,9 @@ export function serverCodeLenses(): LSPClientExtension {
         params: lsp.PublishDiagnosticsParams,
       ) => {
         // Re-request CodeLenses as they often depend on live diagnostics (like reference counts)
-        pullInBackground(() => updateDocumentCodeLenses(client, params.uri));
+        pullInBackground(client, params.uri, () =>
+          updateDocumentCodeLenses(client, params.uri),
+        );
       },
     },
     editorExtension: [codeLensState, codeLensWidgetTheme],
