@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 27,
-  "previous": "843d72035e54c44e0de400bcfcd44dfebddbdf32",
+  "seq": 28,
+  "previous": "2e195bb934b0836733af38f7bbce91321dbc314b",
   "snapshotParents": [],
-  "time": "2026-10-15T22:18:57.824Z",
+  "time": "2026-10-15T22:19:05.527Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 24,
+    "recordRevision": 25,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -226,6 +226,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1683-loops-choose-memo",
       "branch": "perf/1683-loops-choose-memo",
       "classifier": "removed  impower.worktrees\\perf\\1683-loops-choose-memo                   perf/1683-loops-choose-memo                   981.8 MB   merged into origin/main; origin/perf/1683-loops-choose-memo still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engi"
+    },
+    {
+      "time": "2026-10-15T22:19:03.480Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1724-validation-window-lex",
+      "branch": "perf/1724-validation-window-lex",
+      "classifier": "removed  impower.worktrees\\perf\\1724-validation-window-lex               perf/1724-validation-window-lex               981.9 MB   merged into origin/main; origin/perf/1724-validation-window-lex still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-"
     }
   ],
   "verifications": [],
@@ -235,7 +241,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:18:56.810Z",
+      "observedAt": "2026-10-15T22:19:04.591Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -247,7 +253,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:18:56.810Z",
+      "observedAt": "2026-10-15T22:19:04.591Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -500,6 +506,11 @@
       "time": "2026-10-15T22:18:55.427Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1683-loops-choose-memo"
+    },
+    {
+      "time": "2026-10-15T22:19:03.480Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1724-validation-window-lex"
     }
   ]
 }
