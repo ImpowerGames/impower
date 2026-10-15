@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 6,
-  "previous": "65a2be5c0eb044fa6fbfa803e2297087d00b18e7",
+  "seq": 7,
+  "previous": "2c4f678c46c025490e868ba78f5120a81710cba5",
   "snapshotParents": [],
-  "time": "2026-10-15T21:57:45.504Z",
+  "time": "2026-10-15T21:58:35.075Z",
   "kind": "auto",
-  "transition": "claim of #1632",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 5,
@@ -91,7 +91,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T21:57:45.503Z",
+      "observedAt": "2026-10-15T21:58:35.075Z",
       "held": true,
       "exists": false
     }
@@ -99,7 +99,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T21:56:51.933Z",
+    "at": "2026-10-15T21:58:35.074Z",
     "tickets": [
       {
         "number": 1201,
@@ -163,9 +163,9 @@
       },
       {
         "number": 1632,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 2baa157e-585e-4be9-ac20-b04c4aae5774 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1638,
@@ -177,7 +177,7 @@
         "number": 1846,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "0 writers already hold tickets against a limit of 2"
+        "reason": "1 writers already hold tickets against a limit of 2"
       }
     ],
     "remaining": [
