@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 68,
-  "previous": "5d4e2839be14146ac3b1ebdd7450850a230c9efc",
+  "seq": 69,
+  "previous": "cf58c55d92787a885a0cd7dbe38ff0c80a23e195",
   "snapshotParents": [],
-  "time": "2026-10-15T22:28:21.659Z",
+  "time": "2026-10-15T22:28:30.243Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1299",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 62,
+    "recordRevision": 63,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -155,6 +155,25 @@
         "since": "2026-10-15T22:28:10.511Z"
       },
       "pending": null,
+      "history": [],
+      "results": []
+    },
+    "1299": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "2f7eb7c8-d608-490a-a3d6-3cb3c5de9965",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
+        "branch": "fix/1299-multiple-assignment-targets",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-15T22:28:28.087Z"
+      },
       "history": [],
       "results": []
     }
@@ -464,12 +483,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:28:20.837Z",
+      "observedAt": "2026-10-15T22:28:29.504Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1911,
       "reviewJobs": []
     },
@@ -478,7 +497,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T22:28:20.837Z",
+      "observedAt": "2026-10-15T22:28:29.504Z",
+      "held": true,
+      "exists": false
+    },
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets": {
+      "ticket": 1299,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
+      "branch": "fix/1299-multiple-assignment-targets",
+      "observedAt": "2026-10-15T22:28:29.504Z",
       "held": true,
       "exists": false
     }
@@ -907,6 +935,13 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1103-8e9ee861-8d52-4a89-b46c-ef9fd66fd4ec"
       }
+    },
+    {
+      "time": "2026-10-15T22:28:28.090Z",
+      "event": "dispatch-intent",
+      "ticket": 1299,
+      "route": "claude-cli",
+      "launchId": "2f7eb7c8-d608-490a-a3d6-3cb3c5de9965"
     }
   ]
 }
