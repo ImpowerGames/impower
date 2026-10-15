@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 7,
-  "previous": "d13b82446b141921f83c73b3a9abdb2c284bc1d7",
+  "seq": 8,
+  "previous": "f6bfc2fbee6f2dc47c15ebb7cb5315a67034cbb2",
   "snapshotParents": [],
-  "time": "2026-10-15T21:48:41.344Z",
+  "time": "2026-10-15T21:49:02.212Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #457",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 5,
+    "recordRevision": 6,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -62,10 +62,7 @@
   "title": "ORCH #1895: compile without diagnostic",
   "tickets": {
     "457": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "aa2733e6-4028-47ec-981f-f17d4cad4da8",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "medium",
@@ -74,9 +71,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
         "branch": "fix/457-no-program-diagnostics",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-15T21:48:00.002Z"
+        "launchId": "aa2733e6-4028-47ec-981f-f17d4cad4da8",
+        "handle": {
+          "kind": "process",
+          "pid": 21264,
+          "start": "639276977403890485",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-457-aa2733e6-4028-47ec-981f-f17d4cad4da8"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment aa2733e6-4028-47ec-981f-f17d4cad4da8. You are the writer for ImpowerGames/impower ticket #457 (An unresolved divert-target literal in an expression aborts serialization and leaves the compile with no program), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment aa2733e6-4028-47ec-981f-f17d4cad4da8 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #457 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics on branch fix/457-no-program-diagnostics from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: you resolve four tickets in ONE pull request on this branch: #457 (the anchor), #1325, #1502 and #1641. They are the no-program compiles of parent #1895 and share the compile pipeline. The PR body carries four lines, Closes #457, Closes #1325, Closes #1502 and Closes #1641, one per line in Summary, and the title names all four numbers. Run resolve-issue once for the bundle: reproduce all four before fixing any, one regression test per ticket that fails before its fix, then the fixes.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895 (a Task umbrella, not a Feature; it has no Proposed solution section). Two of its criteria are yours: (1) add a harness assertion over the compiler fixtures (the program harness compileScript fixtures and the compile snapshot fixtures under packages/sparkdown/src/tests) that a compile which yields no program carries at least one Error diagnostic; it must fail on origin/main for these four reproductions and pass after your fixes; (2) no lowerer or serializer swallows a thrown error: the catch in SparkdownCompiler.compile that today only console.errors the throw from compileStory (packages/sparkdown/src/compiler/classes/SparkdownCompiler.ts, near line 1997) turns a thrown error into an Error diagnostic at the statement position, in both compile modes.\n- #457: either the compile refuses an unresolved divert-target literal in an expression (-> nowhere, -> game) with an Error at the literal, or the literal serializes to a value the runtime can report; in both cases program.compiled is produced or an Error says why not. JsonSerialisation.WriteRuntimeObject must not throw NullException on a null divert target. Both compile modes.\n- #1325: a store with more names than values declares each valueless name holding nil, as a bare store a does, and store a, b = pair() gives a and b the function results where the lowering can express it; where it cannot, an Error on the statement. Never no program with no diagnostic.\n- #1502: a match whose arms this language does not accept (case 1 rather than the | arm syntax) reports a diagnostic on the arm or on the match with no arms; Conditional.GenerateRuntimeObject never dereferences a missing first branch. Look at the parse to see why the case lines yield no branches before choosing between accepting and rejecting them.\n- #1641: an onward return with arguments to a variable target (->-> goal(\"onward\")) compiles with programChunks off and plays In the tunnel. then After by onward., as the program engine already does with programChunks on since PR #1620.\n- Collisions: three more writers (#1103, #1299, #1617, #1645, wrong-lowering fixes) start once your draft PR is open and the coordinator has read which files it touches. Keep the shared pipeline change (the compile catch and the harness assertion) small and self-contained, commit it separately from the four fixes, and in the message that reports your draft PR list every file the PR touches.\n- Tickets you file: any new ticket filed from your sweep that belongs to this class gets #1895 as its parent and the milestone Compilation robustness; one that does not belong gets no parent here. Read each filed ticket back. The eight engine-sweep bugs closed on 2026-10-15 are not to be reopened.\n- Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable per ticket; ask through your checkpoint report and launch a further round only under the published extension, exactly as the brief above says.\n- Practical rules on this machine, learned from earlier runs: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue instead of waiting for it; keep every scratch file under your allocated artifact directory, never under a shared scratchpad; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, refuses a dirty package-lock.json left by the install, and refuses camelCase delegated operation IDs; a fresh worktree install has once come out incomplete with preflight still passing, so check node_modules before the first test run. Disk is tight on this machine (about 11 GB free when you start, cleanup of merged worktrees runs beside you): if preflight fails on headroom, report it to the coordinator as a blocker rather than cleaning anything yourself.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "a23b03b6",
+          "attempts": 1,
+          "time": "2026-10-15T21:49:00.716Z",
+          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+        },
+        "since": "2026-10-15T21:49:00.716Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     }
@@ -91,7 +106,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T21:48:41.343Z",
+      "observedAt": "2026-10-15T21:49:02.212Z",
       "held": true,
       "exists": false
     }
@@ -206,6 +221,19 @@
       "ticket": 457,
       "route": "claude-cli",
       "launchId": "aa2733e6-4028-47ec-981f-f17d4cad4da8"
+    },
+    {
+      "time": "2026-10-15T21:49:00.716Z",
+      "event": "launched",
+      "ticket": 457,
+      "launchId": "aa2733e6-4028-47ec-981f-f17d4cad4da8",
+      "handle": {
+        "kind": "process",
+        "pid": 21264,
+        "start": "639276977403890485",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-457-aa2733e6-4028-47ec-981f-f17d4cad4da8"
+      }
     }
   ]
 }
