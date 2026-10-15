@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 41,
-  "previous": "c0bb8bcfb20740920a5096231db03d844a81294b",
+  "seq": 42,
+  "previous": "8233e4ccf98359e00ad8e79b5d8068647067565a",
   "snapshotParents": [],
-  "time": "2026-10-15T22:22:49.078Z",
+  "time": "2026-10-15T22:23:20.366Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "adopt of #1211",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 37,
+    "recordRevision": 38,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -101,6 +101,33 @@
           "evidence": "cross-session message from the writer session (impower-17) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
           "deliveryId": "a3411359"
         }
+      },
+      "pending": null,
+      "history": [],
+      "results": []
+    },
+    "1211": {
+      "owner": {
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "requestedEffort": "medium",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
+        "branch": "test/1201-incremental-cold-parity",
+        "artifactParent": null,
+        "handle": {
+          "kind": "process",
+          "pid": 55348,
+          "start": "639276984318127089",
+          "host": "DESKTOP-726EO47"
+        },
+        "sessionId": "bc642192-0794-4f5b-ad29-5b2384bbdae6",
+        "verified": false,
+        "adopted": {
+          "pr": 1910,
+          "rounds": 0
+        },
+        "since": "2026-10-15T22:23:17.484Z"
       },
       "pending": null,
       "history": [],
@@ -309,25 +336,21 @@
   "verifications": [],
   "work": {
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity": {
-      "ticket": 1201,
+      "ticket": 1211,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:22:47.915Z",
+      "observedAt": "2026-10-15T22:23:19.151Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 50484
-      },
       "pr": 1910,
       "reviewJobs": [
         {
           "job": "pr-1910/round-1/launch-undirected-1",
-          "lastEvent": "exited",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -339,7 +362,23 @@
             "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
             "completedRoundReviewers": null,
             "time": "2026-10-15T22:19:11.072Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6203495585
+          ]
         }
       ]
     },
@@ -348,7 +387,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:22:47.915Z",
+      "observedAt": "2026-10-15T22:23:19.151Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -666,6 +705,19 @@
       "time": "2026-10-15T22:20:52.893Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\705-migrate-engine-tests-3"
+    },
+    {
+      "time": "2026-10-15T22:23:17.485Z",
+      "event": "adopted",
+      "ticket": 1211,
+      "handle": {
+        "kind": "process",
+        "pid": 55348,
+        "start": "639276984318127089",
+        "host": "DESKTOP-726EO47"
+      },
+      "pr": 1910,
+      "rounds": 0
     }
   ]
 }
