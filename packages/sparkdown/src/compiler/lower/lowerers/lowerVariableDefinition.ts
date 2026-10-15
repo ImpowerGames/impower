@@ -4,6 +4,8 @@ import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHi
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import {
+  AstExprCall,
+  AstExprVarargs,
   AstStatLocal,
   AstStatSparkdownStore,
 } from "../../typecheck/Ast";
@@ -115,10 +117,24 @@ export function lowerVariableDefinition(
   //   Globals don't emit procedural runtime objects — they register
   //   at the story level and the story evaluates each expression at
   //   init time, so the `MultiVariableAssignment` Pack/Unpack flow
-  //   doesn't apply. Single-RHS multi-return into multi-target globals
-  //   (`store a, b = f()`) takes only f()'s first value — to fully
-  //   unpack, authors should use a local intermediate.
+  //   doesn't apply. A store whose last value is a call or `...` with
+  //   names left after it (`store a, b = f()`) would give those names
+  //   nil where Luau gives them the call's further values, so it is an
+  //   error on the statement (#1325).
   if (targets.length > 1) {
+    const last = stat.values[stat.values.length - 1];
+    if (
+      scope === "store" &&
+      stat.values.length < targets.length &&
+      (last instanceof AstExprCall || last instanceof AstExprVarargs)
+    ) {
+      ctx.diagnostics?.push({
+        message:
+          "A `store` takes one value for each name: a call or `...` gives a store only its first value",
+        severity: ErrorType.Error,
+        source: statementSource(rangeOf(stat.location, ctx), ctx),
+      });
+    }
     if (scope === "local") {
       // No value (`local a, b`, or `local a, b =` whose value the parser
       // could not read, which the type checker reports): give UnpackTuple
