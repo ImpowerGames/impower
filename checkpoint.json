@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 14,
-  "previous": "9905061382e56d56ad87559f12433f31ffd79bed",
+  "seq": 15,
+  "previous": "0df2d625a2d99f93080ad29a1ae5217a5999b1e7",
   "snapshotParents": [],
-  "time": "2026-10-15T22:01:38.213Z",
+  "time": "2026-10-15T22:01:48.644Z",
   "kind": "auto",
-  "transition": "acknowledged of #1201",
+  "transition": "verify of #1201",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 11,
+    "recordRevision": 12,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -79,7 +79,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1201-924f2008-1121-474f-9f5f-ff1a78951482"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -162,7 +162,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:01:38.213Z",
+      "observedAt": "2026-10-15T22:01:48.644Z",
       "held": true,
       "exists": false
     },
@@ -171,7 +171,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:01:38.213Z",
+      "observedAt": "2026-10-15T22:01:48.644Z",
       "held": true,
       "exists": false
     }
@@ -356,6 +356,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-15T22:01:46.731Z",
+      "event": "verified",
+      "ticket": 1201
     }
   ]
 }
