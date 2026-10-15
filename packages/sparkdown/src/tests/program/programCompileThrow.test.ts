@@ -1,8 +1,15 @@
 // A throw the compile catches is an error at the statement that threw, and the
 // compile makes no program (#1895): it is never only a line on the console.
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { StatementMemoRetry } from "../../compiler/lower/statementMemo";
 import { Conditional } from "../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
-import { compileScript, errorsOf } from "./programHarness";
+import {
+  MAIN_URI,
+  compileScript,
+  errorsOf,
+  programCompiler,
+  programSession,
+} from "./programHarness";
 
 const SCRIPT = [
   "store k = 1",
@@ -51,5 +58,60 @@ describe("a compile whose statement throws", () => {
     );
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program).map(([line]) => line).sort()).toEqual([1, 4, 5]);
+  });
+
+  it("reports a store whose value raises inside a function it calls at the store", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      'function fail()\n  error("bad")\n  return 0\nend\n\nstore a = fail()\n',
+    );
+    expect(program.chunks).toBeUndefined();
+    const errors = errorsOf(program);
+    expect(errors.map(([line]) => line)).toEqual([5]);
+    expect(errors[0]![1]).toMatch(/^The compile stopped at this statement, so no program was made: .*bad/);
+  });
+
+  it("reports such a store in the included script that holds it", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const MAIN = "file://proj/main.sd";
+    const INCLUDED = "file://proj/includes/values.sd";
+    const program = programCompiler({
+      [MAIN]: 'include includes/values.sd\nfunction fail()\n  error("bad")\n  return 0\nend\nHello.\n',
+      [INCLUDED]: "store b = 1\nstore a = fail()\n",
+    }).compile(MAIN).program;
+    expect(program.chunks).toBeUndefined();
+    const errorLines = (uri: string) =>
+      (program.diagnostics?.[uri] ?? []).filter((d) => d.severity === 1).map((d) => d.range.start.line);
+    expect(errorLines(MAIN)).toEqual([]);
+    expect(errorLines(INCLUDED)).toEqual([1]);
+  });
+
+  it("reports the store again when the next compile, after an edit elsewhere, still cannot run it", () => {
+    const session = programSession("store b = nil\nstore a = 1 // b\nHello.\n");
+    expect(errorsOf(session.program).map(([line]) => line)).toEqual([1]);
+    session.edit("Hello.", "Hello there.");
+    expect(session.program.chunks).toBeUndefined();
+    expect(errorsOf(session.program).map(([line]) => line)).toEqual([1]);
+  });
+
+  it("reports a compile whose memo retries run out", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const c = programCompiler({ [MAIN_URI]: "Hello.\n" });
+    const compiler = c.compiler as any;
+    vi.spyOn(compiler, "compileStoryOnce").mockImplementation(() => ({
+      textDocument: { uri: MAIN_URI, version: 1 },
+      program: {},
+      produced: false,
+      memoRetry: new StatementMemoRetry([], "a test"),
+    }));
+    vi.spyOn(compiler, "relowerMemos").mockImplementation(() => {});
+    const { program } = c.compile();
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program)).toEqual([
+      [
+        0,
+        "The compile stopped in this script, so no program was made: A statement served from its memo has to be lowered again: a test",
+      ],
+    ]);
   });
 });

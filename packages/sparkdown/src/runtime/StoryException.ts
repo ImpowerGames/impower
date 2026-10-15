@@ -12,6 +12,11 @@ export class StoryException extends Error {
    *  instruction as the error unwinds through it. Null while the running
    *  instruction is still the one that raised it. */
   public raisedAddress: number | null = null;
+  /** On the program engine, the id of the declaration chunk whose run raised
+   *  the error, when the declarations' run raised it with no handler set. An
+   *  initializer that calls a function raises it at an instruction of the
+   *  function (`raisedAddress`), outside the declaration. */
+  public declarationChunk: number | null = null;
   public override message: string;
   public override name: string;
 

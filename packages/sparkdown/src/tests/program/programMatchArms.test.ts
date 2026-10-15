@@ -35,6 +35,15 @@ describe("a match", () => {
     ]);
   });
 
+  it("reports an inline match with no arm in a display line", () => {
+    const noArm: [number, string] = [1, "A `match` needs at least one arm, written `| value = ...`"];
+    const { program } = compileScript("store k = 1\nBefore {match (k) end} After.\n");
+    expect(errorsOf(program)).toEqual([noArm]);
+    // The glued form's own parse reports the missing arm's value as well.
+    const glued = compileScript("store k = 1\nBefore .. match (k) .. After.\n").program;
+    expect(errorsOf(glued)).toContainEqual(noArm);
+  });
+
   it("still plays a match whose arms are `|` arms, a comment before them", () => {
     const { program } = compileScript(
       'store k = "b"\nmatch (k)\n// the key\n| a = Ay.\n| b = Bee.\nend\n',

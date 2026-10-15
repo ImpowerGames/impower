@@ -1128,27 +1128,36 @@ export class ChunkStore {
         this._declarationsFailed = raised !== null;
       }
       if (raised) {
-        // At the line that raised it, when the root names that line, within
-        // the declaration statement that holds it.
+        // At the declaration statement whose run raised it: at the line that
+        // raised it when that line is the statement's own, and at the
+        // statement's first line when its value raised it inside a function
+        // it called.
         const at =
           raised.raisedAddress !== null
             ? root.locationOf(raised.raisedAddress)
             : undefined;
-        if (!at) {
-          throw raised;
+        const declared =
+          raised.declarationChunk !== null
+            ? [...byScript.values()]
+                .flat()
+                .find((entry) => chunkId(entry.chunk) === raised.declarationChunk)
+                ?.source
+            : undefined;
+        if (declared) {
+          const last = lastLineOf(declared);
+          const own =
+            at !== undefined &&
+            at.uri === declared.uri &&
+            at.startLine >= declared.firstLine &&
+            at.startLine <= last;
+          throw new StatementFailure(
+            declared.uri,
+            own ? at.startLine : declared.firstLine,
+            raised,
+            last,
+          );
         }
-        const holder = declarations.find(
-          (declaration) =>
-            declaration.uri === at.uri &&
-            declaration.firstLine <= at.startLine &&
-            at.startLine <= lastLineOf(declaration),
-        );
-        throw new StatementFailure(
-          at.uri,
-          at.startLine,
-          raised,
-          holder ? lastLineOf(holder) : at.startLine,
-        );
+        throw at ? new StatementFailure(at.uri, at.startLine, raised) : raised;
       }
     }
     if (commit) {

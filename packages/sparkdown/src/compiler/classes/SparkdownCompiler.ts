@@ -1457,6 +1457,30 @@ export class SparkdownCompiler {
         // compile that still meets one has met a defect: it is reported as
         // a compile that threw.
         console.error(memoRetry);
+        const program = result.program;
+        this.reportCompileThrow(
+          memoRetry,
+          result.textDocument.uri,
+          program,
+          (message, _type, source) => {
+            const diagnosticUri = source?.filePath || result.textDocument.uri;
+            const diagnostic = source
+              ? this.getDiagnostic(
+                  message,
+                  DiagnosticSeverity.Error,
+                  diagnosticUri,
+                  source.startLineNumber - 1,
+                  source.startCharacterNumber - 1,
+                  source.endLineNumber - 1,
+                  source.endCharacterNumber - 1,
+                )
+              : null;
+            if (diagnostic) {
+              program.diagnostics ??= {};
+              (program.diagnostics[diagnosticUri] ??= []).push(diagnostic);
+            }
+          },
+        );
         return result;
       }
       this.relowerMemos(memoRetry, attempt > 0);
@@ -1998,7 +2022,8 @@ export class SparkdownCompiler {
       ]) {
         profile("end", this._profilerId, phase, uri);
       }
-      console.error(e);
+      // What threw, without the statement the build wrapped it with.
+      console.error(e instanceof StatementFailure ? e.error : e);
       // A threw compile can leave carried parsed/runtime state half-mutated;
       // drop all reuse records so the next compile rebuilds from scratch.
       this._prevFlowRuns = undefined;

@@ -3609,7 +3609,10 @@ export class ProgramStory implements StoryEngine {
     const beatLog = this.beatLog;
     this.beatLog = null;
     const depth = state.callStack.elements.length;
+    // The declaration chunk whose run raised the error that stopped the run.
+    let failed: number | null = null;
     for (const chunk of this.root.initialization) {
+      failed = chunkId(chunk);
       const at = this.root.position(chunkId(chunk));
       if (!at) {
         // The root places every declaration chunk it lists. One it cannot
@@ -3658,6 +3661,9 @@ export class ProgramStory implements StoryEngine {
         break;
       }
     }
+    if (!state.hasError) {
+      failed = null;
+    }
     this.pauseBeforeEvaluatingConditions = pause;
     this.onExecute = onExecute;
     this.executedLog = executedLog;
@@ -3670,7 +3676,16 @@ export class ProgramStory implements StoryEngine {
     // with a warning is not handed on either: the engine that runs the
     // declarations again for a load (`ownDeclarations`) has no handler.
     this._declarationsClean = !state.hasError && !state.hasWarning;
-    this.reportErrors();
+    try {
+      this.reportErrors();
+    } catch (e) {
+      // With no handler, the error names the declaration whose run raised
+      // it, which a compile reports the error at (`ChunkStore.build`).
+      if (e instanceof StoryException) {
+        e.declarationChunk = failed;
+      }
+      throw e;
+    }
   }
 
   /** Calls a state-aware builtin as the object engine's `RunStdLibFunction`
