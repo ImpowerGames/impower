@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 37,
-  "previous": "8a793910172e5d597a5e0328c347dac566d28d69",
+  "seq": 38,
+  "previous": "0bab349cfe19ebbbb1dd494db5d493953ca0c5a4",
   "snapshotParents": [],
-  "time": "2026-10-15T22:20:28.850Z",
+  "time": "2026-10-15T22:20:37.538Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 34,
+    "recordRevision": 35,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -286,6 +286,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-delete-object-engine",
       "branch": "refactor/705-delete-object-engine",
       "classifier": "removed  impower.worktrees\\refactor\\705-delete-object-engine             refactor/705-delete-object-engine             1.0 GB     merged into origin/main; origin/refactor/705-delete-object-engine still exists; takes 18 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modu"
+    },
+    {
+      "time": "2026-10-15T22:20:34.832Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-program-path-without-generation",
+      "branch": "refactor/705-program-path-without-generation",
+      "classifier": "removed  impower.worktrees\\refactor\\705-program-path-without-generation  refactor/705-program-path-without-generation  1.1 GB     merged into origin/main; origin/refactor/705-program-path-without-generation still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, pa"
     }
   ],
   "verifications": [],
@@ -295,7 +301,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:20:27.327Z",
+      "observedAt": "2026-10-15T22:20:36.123Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -311,7 +317,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:20:27.327Z",
+      "observedAt": "2026-10-15T22:20:36.123Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -614,6 +620,11 @@
       "time": "2026-10-15T22:20:25.059Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-delete-object-engine"
+    },
+    {
+      "time": "2026-10-15T22:20:34.833Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-program-path-without-generation"
     }
   ]
 }
