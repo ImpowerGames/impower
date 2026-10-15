@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 25,
-  "previous": "70e6a29167e4be7d15ec894ea9162b6de8b413c0",
+  "seq": 26,
+  "previous": "b5e90397edd5a6f087f50f2277af092452e886dd",
   "snapshotParents": [],
-  "time": "2026-10-15T22:18:41.023Z",
+  "time": "2026-10-15T22:18:49.873Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 22,
+    "recordRevision": 23,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -214,6 +214,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1886-restored-preview-black",
       "branch": "fix/1886-restored-preview-black",
       "classifier": "removed  impower.worktrees\\fix\\1886-restored-preview-black               fix/1886-restored-preview-black               1.0 GB     merged into origin/main; no origin/fix/1886-restored-preview-black; takes 18 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packag"
+    },
+    {
+      "time": "2026-10-15T22:18:47.336Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1607-program-resolver",
+      "branch": "perf/1607-program-resolver",
+      "classifier": "removed  impower.worktrees\\perf\\1607-program-resolver                    perf/1607-program-resolver                    940.6 MB   merged into origin/main; origin/perf/1607-program-resolver still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, p"
     }
   ],
   "verifications": [],
@@ -223,7 +229,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1201-incremental-cold-parity",
       "branch": "test/1201-incremental-cold-parity",
-      "observedAt": "2026-10-15T22:18:40.109Z",
+      "observedAt": "2026-10-15T22:18:48.708Z",
       "held": true,
       "head": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
       "remoteHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a",
@@ -235,7 +241,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T22:18:40.109Z",
+      "observedAt": "2026-10-15T22:18:48.708Z",
       "held": true,
       "head": "c47d4342159d004e423eeaf0ee651ea1c5d33c1e",
       "remoteHead": null,
@@ -478,6 +484,11 @@
       "time": "2026-10-15T22:18:38.701Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1886-restored-preview-black"
+    },
+    {
+      "time": "2026-10-15T22:18:47.337Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1607-program-resolver"
     }
   ]
 }
