@@ -595,6 +595,55 @@ scene start
 end
 `;
 
+/** A beat whose statement interpolates `call` (none when empty), and a
+ *  badge whose binding is `bound`, with a user function `shout` that writes
+ *  nothing. */
+const CALLING = (call: string, bound: string) => `function shout(s)
+  return s
+end
+
+layout main with
+  badge {
+    text "{${bound}}"
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  Before.
+  HERO: ${call ? `{${call}}` : ""}Spoken.
+end
+`;
+
+/** A stored value the scene sets, before the cursor's beat, from what no
+ *  story state holds: the route's own steps read it (round 2 of #1878). */
+const STAMPED = (value: string) => `store stamp = 0
+
+layout main with
+  badge {
+    text "{stamp}"
+  }
+  textbox {
+    dialogue {
+      text
+    }
+  }
+end
+
+-> start
+
+scene start
+  stamp = ${value}
+  HERO: Spoken.
+end
+`;
+
 /** An input whose handler writes nothing: what the viewer types changes
  *  the page, and the worker sends nothing back. */
 const TYPED = `store name = "Zelda"
@@ -851,6 +900,11 @@ const after = (p: Player) => {
     answers: sent
       .filter((m) => m?.result && typeof m.result === "object" && "displayed" in m.result)
       .map((m) => m.result),
+    /** What the watches behind the `calls` gate found: whether the last
+     *  replay's target wrote the story's state, and whether the tree the
+     *  game holds was built without writing it or reading an ambient value. */
+    targetWrote: (p.game as any)._routeTargetWrote as boolean | undefined,
+    treePure: (p.game.module.ui as any)._tree?.pure as boolean | undefined,
   };
   p.watched.reset();
   return step;
@@ -1256,7 +1310,9 @@ describe("the classes the in-place design found (#1806)", () => {
       await p.edit("Second.", "Third.");
       return after(p);
     });
-    expectFull(a, "bindings");
+    expectFull(a, "calls");
+    // The watch behind the gate finds the tree impure too.
+    expect(a.treePure).toBe(false);
     expect(a.frame).toEqual(full.frame);
   }, 120_000);
 
@@ -1266,7 +1322,9 @@ describe("the classes the in-place design found (#1806)", () => {
       await p.edit("Second.", "Third.");
       return after(p);
     });
-    expectFull(a, "bindings");
+    expectFull(a, "calls");
+    // The watch behind the gate finds the tree impure too.
+    expect(a.treePure).toBe(false);
     expect(a.frame).toEqual(full.frame);
   }, 120_000);
 
@@ -1354,7 +1412,9 @@ describe("a display that connects in full", () => {
       return { start, edited: { badge: badge(p), ...after(p) } };
     });
     expect(a.start.badge).toBe("true");
+    // The statement may call a function; the watch sees what it wrote.
     expectFull(a.edited, "checkpoint");
+    expect(a.edited.targetWrote).toBe(true);
     expect(a.edited.badge).toBe("false");
     expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
@@ -1366,19 +1426,23 @@ describe("a display that connects in full", () => {
       return { start, edited: { badge: badge(p), ...after(p) } };
     });
     expect(a.start.badge).toBe("true");
+    // The statement may call a function; the watch sees what it wrote.
     expectFull(a.edited, "checkpoint");
+    expect(a.edited.targetWrote).toBe(true);
     expect(a.edited.badge).toBe("false");
     expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
 
-  it("(c) connects in full when the beat's own statement calls a function, which counts a visit", async () => {
+  it("(c) connects in full when the beat's own statement calls a function more times than before, which counts other visits", async () => {
     const { a, full } = await twins(VISITED, lineIn(VISITED, "Spoken."), async (p) => {
       const start = { badge: badge(p), ...after(p) };
       await p.edit("{f()}Spoken.", "{f()}{f()}Spoken.");
       return { start, edited: { badge: badge(p), ...after(p) } };
     });
     expect(a.start.badge).toBe("1");
+    // The call writes nothing; the two replays counted other visits.
     expectFull(a.edited, "checkpoint");
+    expect(a.edited.targetWrote).toBe(false);
     expect(a.edited.badge).toBe("2");
     expect(a.edited.frame).toEqual(full.edited.frame);
   }, 120_000);
@@ -1426,6 +1490,95 @@ describe("a display that connects in full", () => {
     expect(after(p).sent).toEqual([]);
     await p.edit("Spoken.", "Edited.");
     expectFull(after(p), "screen");
+  }, 120_000);
+
+  it.each([
+    { what: "a user function", call: 'shout("Hey. ")' },
+    { what: "a builtin", call: 'string.upper("hey. ")' },
+  ])("(calls) stays beat-only when the beat's statement calls $what, which runs again from the checkpoint as on a full display", async ({ call }) => {
+    const text = CALLING(call, '"steady"');
+    const { a, full } = await twins(text, lineIn(text, "Spoken."), async (p) => {
+      await p.edit("Spoken.", "Edited.");
+      return after(p);
+    });
+    expectBeatOnly(a);
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it.each([
+    { what: "a user function", bound: 'shout("steady")' },
+    { what: "a builtin", bound: 'string.upper("steady")' },
+  ])("(calls) connects in full when a binding of the tree calls $what", async ({ bound }) => {
+    const text = CALLING("", bound);
+    const { a, full } = await twins(text, lineIn(text, "Spoken."), async (p) => {
+      await p.edit("Spoken.", "Edited.");
+      return after(p);
+    });
+    expectFull(a, "calls");
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("stays beat-only for a portrait changed in a dialogue whose text interpolates a user function", async () => {
+    const text = `define HAPPY as image with
+  src = "https://example.com/happy.png"
+end
+
+define SAD as image with
+  src = "https://example.com/sad.png"
+end
+
+function shout(s)
+  return s
+end
+
+-> start
+
+scene start
+  Before.
+  HERO:
+    [[show portrait HAPPY]]
+    {shout("Hey.")} The line.
+end
+`;
+    const { a, full } = await twins(text, lineIn(text, "The line."), async (p) => {
+      await p.edit("portrait HAPPY]]", "portrait SAD]]");
+      return after(p);
+    });
+    expectBeatOnly(a);
+    expect(shows(a.frame, "sad.png")).toBe(true);
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it("(calls) stays beat-only when the beat's statement and the tree's bindings read variables and write text", async () => {
+    const text = CALLING("", "stamp").replace("function shout(s)", "store stamp = 7\n\nfunction shout(s)");
+    const { a, full } = await twins(text, lineIn(text, "Spoken."), async (p) => {
+      await p.edit("Spoken.", "Edited, at {stamp}.");
+      return after(p);
+    });
+    expectBeatOnly(a);
+    expect(shows(a.frame, "7")).toBe(true);
+    expect(a.frame).toEqual(full.frame);
+  }, 120_000);
+
+  it.each([
+    { what: "reads the host's clock", value: "os.time()" },
+    { what: "draws a random number", value: "math.random(1, 1000000)" },
+  ])("(c) connects in full when a statement the route replays before the beat $what", async ({ value }) => {
+    const text = STAMPED(value);
+    const clock = vi.useFakeTimers({ toFake: ["Date"], now: 1_700_000_000_000 });
+    try {
+      const { a, full } = await twins(text, lineIn(text, "Spoken."), async (p) => {
+        const start = after(p);
+        // A second later, the beat's line is edited.
+        clock.setSystemTime(1_700_000_001_000);
+        await p.edit("Spoken.", "Edited.");
+        return { start, edited: after(p) };
+      });
+      expectFull(a.edited, "checkpoint");
+      expect(a.edited.frame).toEqual(full.edited.frame);
+    } finally {
+      vi.useRealTimers();
+    }
   }, 120_000);
 
   it("(c) connects in full when the cursor moves to another beat", async () => {
@@ -1503,7 +1656,10 @@ describe("a display that connects in full", () => {
   it("(i) connects in full over a tree whose building wrote the story's state", async () => {
     const p = await player(COUNTED, lineIn(COUNTED, "First. > Second."));
     await p.edit("Second.", "Third.");
-    expectFull(after(p), "bindings");
+    const refused = after(p);
+    expectFull(refused, "calls");
+    // The watch behind the gate finds the tree impure too.
+    expect(refused.treePure).toBe(false);
   }, 120_000);
 
   it("(i) connects in full over a tree whose building changed a stored table in place (rawset)", async () => {
@@ -1511,7 +1667,9 @@ describe("a display that connects in full", () => {
       await p.edit("Spoken.", "Edited.");
       return after(p);
     });
-    expectFull(a, "bindings");
+    expectFull(a, "calls");
+    // The watch behind the gate finds the tree impure too.
+    expect(a.treePure).toBe(false);
     expect(a.frame).toEqual(full.frame);
   }, 120_000);
 
@@ -1525,7 +1683,9 @@ describe("a display that connects in full", () => {
       await p.edit("Spoken.", "Edited.");
       return after(p);
     });
-    expectFull(a, "bindings");
+    expectFull(a, "calls");
+    // The watch behind the gate finds the tree impure too.
+    expect(a.treePure).toBe(false);
     expect(a.frame).toEqual(full.frame);
   }, 120_000);
 
@@ -1535,7 +1695,10 @@ describe("a display that connects in full", () => {
     const start = badge(p);
     after(p);
     await p.edit("Spoken.", "Edited.");
-    expectFull(after(p), "bindings");
+    const refused = after(p);
+    expectFull(refused, "calls");
+    // The watch behind the gate finds the tree impure too.
+    expect(refused.treePure).toBe(false);
     // Evaluated again, as a full display evaluates it.
     expect(start).toMatch(/^table: 0x/);
     expect(badge(p)).toMatch(/^table: 0x/);
@@ -1547,7 +1710,10 @@ describe("a display that connects in full", () => {
     const p = await player(text, lineIn(text, "Spoken."));
     after(p);
     await p.edit("Spoken.", "Edited.");
-    expectFull(after(p), "bindings");
+    const refused = after(p);
+    expectFull(refused, "calls");
+    // The watch behind the gate finds the tree impure too.
+    expect(refused.treePure).toBe(false);
   }, 120_000);
 
   it("(i) connects in full over a tree whose building drew a random number", async () => {
@@ -1560,7 +1726,9 @@ describe("a display that connects in full", () => {
         await p.edit("Spoken.", "Edited.");
         return after(p);
       });
-      expectFull(a, "bindings");
+      expectFull(a, "calls");
+      // The watch behind the gate finds the tree impure too.
+      expect(a.treePure).toBe(false);
       expect(a.frame).toEqual(full.frame);
     } finally {
       vi.useRealTimers();
@@ -1581,7 +1749,9 @@ describe("a display that connects in full", () => {
         return { start, edited: after(p) };
       });
       expect(shows(a.start.frame, "1700000000")).toBe(true);
-      expectFull(a.edited, "bindings");
+      expectFull(a.edited, "calls");
+      // The watch behind the gate finds the tree impure too.
+      expect(a.edited.treePure).toBe(false);
       expect(shows(a.edited.frame, "1700000001")).toBe(true);
       expect(a.edited.frame).toEqual(full.edited.frame);
     } finally {

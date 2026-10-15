@@ -193,6 +193,10 @@ interface UITree {
   /** The game's run of the declarations it was built under
    *  (`Game.declarationsRun`). */
   declarations: number;
+  /** Building it, and the restore after it, evaluated a call: a function,
+   *  a builtin or a native that is not an operator. A display keeps only a
+   *  tree whose bindings read variables and write text (#657). */
+  calls: boolean;
   /** Building it, and the restore after it, wrote none of the story's
    *  state: a display that skips them runs the beat from the same state. */
   pure: boolean;
@@ -905,6 +909,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!standing.contentOnly || this._uiOps !== this._standingOps) {
       return "screen";
     }
+    // The gate: the tree's bindings evaluated no call, so they read
+    // variables and write text. The watches behind it (`bindings`) catch
+    // what bindings with no call could still change or read.
+    if (tree.calls) {
+      return "calls";
+    }
     if (!tree.pure) {
       return "bindings";
     }
@@ -1053,6 +1063,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         build: building.build,
         program: building.program,
         declarations: building.declarations,
+        calls: building.calls,
         pure: !building.writes,
         pictures: building.pictures,
       };
@@ -1062,7 +1073,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** What a watch of the tree's building began from: the story's state the
    *  write marks do not see, and the ambient reads made so far. */
-  protected _buildWatch?: { unmarked: string; ambient: number };
+  protected _buildWatch?: { unmarked: string; ambient: number; calls: number };
 
   /** Begin watching what building the tree writes, and the values it reads
    *  that no story state holds, from a clean change set. */
@@ -1074,6 +1085,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._buildWatch = {
       unmarked: this.unmarkedState(),
       ambient: ambientReads.count,
+      calls: this._game.story.callsMade,
     };
   }
 
@@ -1113,6 +1125,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const vs = this._game.story.variablesState;
     const writes = vs.TakeWrites();
+    if (!watch || this._game.story.callsMade !== watch.calls) {
+      building.calls = true;
+    }
     if (
       !watch ||
       changes.globals.size > 0 ||
@@ -1142,6 +1157,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       build: ++this._treeBuilds,
       program: this._game.program,
       declarations: this._game.declarationsRun,
+      calls: false,
       pure: true,
       pictures: new Map(),
       writes: false,

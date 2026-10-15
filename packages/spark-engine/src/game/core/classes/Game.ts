@@ -14,6 +14,7 @@ import {
 } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
+import type { ProgramStoryState } from "@impower/sparkdown/src/program/ProgramStoryState";
 import {
   durableAddress,
   placeDurableAddress,
@@ -30,6 +31,8 @@ import {
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
+import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
+import { storyDraws } from "@impower/sparkdown/src/runtime/StoryRandom";
 import type { CallStack } from "@impower/sparkdown/src/runtime/CallStack";
 import { InkObject } from "@impower/sparkdown/src/runtime/Object";
 import { PushPopType } from "@impower/sparkdown/src/runtime/PushPop";
@@ -314,6 +317,8 @@ export class Game<T extends M = {}> {
     beat?: { uri: string; line: number };
     route?: RoutePlan;
     targetWrote?: boolean;
+    targetVisits?: string;
+    unrepeatable?: boolean;
     scenes: Set<string>;
     unmeasured: boolean;
   };
@@ -324,12 +329,24 @@ export class Game<T extends M = {}> {
    *  which the steps before it do not show. Unknown until a replay watched
    *  it to its end. */
   protected _routeTargetWrote?: boolean;
+  /** The visits that stretch counted, in order (#657): a call of a
+   *  function the beat's text interpolates counts one in every replay, and
+   *  the checkpoint holds the same counts when two replays counted the same
+   *  visits. Unknown as the writes are. */
+  protected _routeTargetVisits?: string;
+  /** Whether the replay of the planned route, from wherever it began, drew
+   *  from the story's seed or read a value no story state holds (#657): a
+   *  replay from the route's start makes a story state with a seed of its
+   *  own, and a clock reads another time, so the same steps can leave
+   *  another state. Unknown until a replay ran. */
+  protected _routeUnrepeatable?: boolean;
   /** The reactive changes taken when the watch began, given back when it
    *  ends, and the story's state the write marks do not see then; set
    *  while it runs. */
   protected _targetWatch?: {
     changes: { globals: Set<string>; tables: Set<object> };
     unmarked: string;
+    state: ProgramStoryState;
   };
 
   protected _executingLocation: ScriptLocation | null = null;
@@ -882,14 +899,19 @@ export class Game<T extends M = {}> {
         typeof previewing === "number" ? this.beatStart(previewing) : undefined,
       route: this.routeOfProgram(),
       targetWrote: this._routeTargetWrote,
+      targetVisits: this._routeTargetVisits,
+      unrepeatable: this._routeUnrepeatable,
       scenes: new Set(),
       unmeasured: false,
     };
   }
 
   /** Watch the story's writes from here to the checkpoint at the route's
-   *  target: a global, a table, a closed-over cell, the random state a draw
-   *  advances, or a visit count. The reactive changes pending now are kept aside and
+   *  target: a global, a table, a closed-over cell, or the random state a
+   *  draw advances; and log the visits counted. The beat's statement may
+   *  call functions and builtins: it runs again from the checkpoint in a
+   *  beat-only display as in a full one, and what its calls change is what
+   *  the watch sees. The reactive changes pending now are kept aside and
    *  given back when the watch ends, so no binding misses one. A watch that
    *  would share the write marks with another tracker leaves the answer
    *  unknown. */
@@ -901,17 +923,20 @@ export class Game<T extends M = {}> {
     this._targetWatch = {
       changes: vs.takeReactiveChanges(),
       unmarked: this.unmarkedState(),
+      state: this._story.state,
     };
+    this._story.state.visitLog = [];
     vs.TakeWrites();
     vs.trackWrites = true;
   }
 
-  /** The story's state that changes without a write mark: the seed and
-   *  last draw, which every random draw reads and advances, and the visits
-   *  counted, which a function call, a flow entry or a sequence raises. */
+  /** The story's state that changes without a write mark and the watch
+   *  refuses any change of: the seed and last draw, which every random draw
+   *  reads and advances. Visits are compared between replays instead
+   *  (`_routeTargetVisits`). */
   protected unmarkedState(): string {
     const state = this._story.state;
-    return `${state.storySeed}:${state.previousRandom}:${state.visitsMade}`;
+    return `${state.storySeed}:${state.previousRandom}`;
   }
 
   /** End the watch `watchTargetWrites` began, recording what it saw. */
@@ -925,12 +950,17 @@ export class Game<T extends M = {}> {
     const changes = vs.takeReactiveChanges();
     const writes = vs.TakeWrites();
     vs.trackWrites = false;
-    this._routeTargetWrote =
-      changes.globals.size > 0 ||
-      changes.tables.size > 0 ||
-      writes.tables.size > 0 ||
-      writes.cells.size > 0 ||
-      this.unmarkedState() !== prior.unmarked;
+    // A state made anew during the watch kept no log of what it counted.
+    const log = prior.state === this._story.state ? prior.state.visitLog : null;
+    prior.state.visitLog = null;
+    this._routeTargetVisits = log ? log.join(",") : undefined;
+    this._routeTargetWrote = !log
+      ? undefined
+      : changes.globals.size > 0 ||
+        changes.tables.size > 0 ||
+        writes.tables.size > 0 ||
+        writes.cells.size > 0 ||
+        this.unmarkedState() !== prior.unmarked;
     vs.restoreReactiveChanges(prior.changes);
     vs.restoreReactiveChanges(changes);
   }
@@ -1500,8 +1530,12 @@ export class Game<T extends M = {}> {
     // of its own every time and cannot be compared by identity; the route
     // says what ran before it. What the beat's own statement wrote before the
     // capture is in the checkpoint too, and the route does not show it, so a
-    // target that wrote the story's state in either replay, or one not
-    // watched to its end, connects.
+    // target that wrote the story's state in either replay, or counted other
+    // visits in one than in the other, or one not watched to its end,
+    // connects. So does a replay that drew from the story's seed or read a
+    // value no story state holds: the same steps may have left another
+    // state. The statement may call what it likes: a beat-only display runs
+    // it again from the checkpoint, as a full one does.
     const since = this._changesSince;
     const beat = cursor != null ? this.beatStart(cursor) : undefined;
     const route = this.routeOfProgram();
@@ -1514,9 +1548,17 @@ export class Game<T extends M = {}> {
       since.beat.line !== beat.line ||
       !since.route ||
       !route ||
+      !Game.sameRouteToBeat(since.route, route)
+    ) {
+      return "checkpoint";
+    }
+    if (
+      since.unrepeatable !== false ||
+      this._routeUnrepeatable !== false ||
       since.targetWrote !== false ||
       this._routeTargetWrote !== false ||
-      !Game.sameRouteToBeat(since.route, route)
+      since.targetVisits === undefined ||
+      since.targetVisits !== this._routeTargetVisits
     ) {
       return "checkpoint";
     }
@@ -2061,6 +2103,10 @@ export class Game<T extends M = {}> {
     }
     this._plannedRouteStepCursor = fromStep;
     this._routeTargetWrote = undefined;
+    this._routeTargetVisits = undefined;
+    this._routeUnrepeatable = undefined;
+    const drawn = storyDraws.count;
+    const read = ambientReads.count;
 
     // A replay is not a preview, even on a game that has displayed one: the
     // coordinator shows every beat a previewing game runs as a preview, which
@@ -2080,7 +2126,10 @@ export class Game<T extends M = {}> {
       if (this._targetWatch) {
         this.endTargetWatch();
         this._routeTargetWrote = undefined;
+        this._routeTargetVisits = undefined;
       }
+      this._routeUnrepeatable =
+        storyDraws.count !== drawn || ambientReads.count !== read;
       this._replaying = false;
       this._context.system.previewing = previewing;
       for (const k of this._moduleNames) {
