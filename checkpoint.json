@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 88,
-  "previous": "0a2a56f034da194187008cffcba72b8db36c8cfb",
+  "seq": 89,
+  "previous": "e1867386f8fa57fc3639c4001fd5b326b18738bc",
   "snapshotParents": [],
-  "time": "2026-10-15T23:07:30.945Z",
+  "time": "2026-10-15T23:08:23.230Z",
   "kind": "auto",
-  "transition": "launch of #1645",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 76,
@@ -604,7 +604,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T23:07:29.900Z",
+      "observedAt": "2026-10-15T23:08:21.763Z",
       "held": true,
       "head": "71b26c87a1fc99abc8bdcc226954d6088908a005",
       "remoteHead": "71b26c87a1fc99abc8bdcc226954d6088908a005",
@@ -618,7 +618,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T23:07:29.900Z",
+      "observedAt": "2026-10-15T23:08:21.763Z",
       "held": true,
       "head": "f4212693ba4d706f0ded341f4ec0438ca2728265",
       "remoteHead": "f4212693ba4d706f0ded341f4ec0438ca2728265",
@@ -705,7 +705,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T23:07:29.900Z",
+      "observedAt": "2026-10-15T23:08:21.763Z",
       "held": true,
       "head": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
       "remoteHead": "65e1bf0c39691daa5fb759e53c01b3b582fee5ea",
@@ -752,7 +752,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-15T23:07:29.900Z",
+      "observedAt": "2026-10-15T23:08:21.763Z",
       "held": true,
       "exists": false
     }
@@ -760,7 +760,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T23:07:19.544Z",
+    "at": "2026-10-15T23:08:21.760Z",
     "tickets": [
       {
         "number": 316,
@@ -824,9 +824,9 @@
       },
       {
         "number": 1645,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 1c3efdf9-9604-4363-842d-24c161fa52e8 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 12992 started 639277024479694561 is running"
       }
     ],
     "remaining": [
