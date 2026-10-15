@@ -16,7 +16,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { analyzeBurst, attributeEditSample, attributePreviewSample, measure as measureCommand, parseMeasureArgs, runFailed, phaseName, replacedSpan, summarize, summarizeBurst } from "./measure.mjs";
+import * as measureModule from "./measure.mjs";
+
+// Read through the module, so a missing export fails its own check rather
+// than the whole file's import.
+const { analyzeBurst, attributeEditSample, attributePreviewSample, measure: measureCommand, parseMeasureArgs, runFailed, phaseName, replacedSpan, summarize, summarizeBurst } = measureModule;
+const { STRUCTURAL_KEYS, STRUCTURAL_TEXT } = measureModule;
+const attributeStructuralSample = (...args) => measureModule.attributeStructuralSample(...args);
+const restoreSpan = (...args) => measureModule.restoreSpan(...args);
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -342,6 +349,182 @@ await check("a burst needs a line but no word, and excludes --edit", () => {
   assert.throws(() => parseMeasureArgs(["--project", "rb", "--burst"]), /--burst needs --line/);
   assert.throws(() => parseMeasureArgs(["--fixture", "--burst", "--edit"]), /exclusive/);
   assert.throws(() => parseMeasureArgs(["--fixture", "--text", "x"]), /--text needs --burst/);
+});
+
+await check("a structural run needs a line but no word, takes one line of text, and excludes --edit and --burst (#1672)", () => {
+  const parsed = parseMeasureArgs(["--project", "rb", "--line", "3514", "--structural"]);
+  assert.equal(parsed.structural, true);
+  assert.equal(parsed.word, undefined);
+  assert.equal(parsed.text, undefined, "the default text is applied by the run");
+  assert.equal(STRUCTURAL_TEXT, "Just one more thing.");
+  assert.equal(parseMeasureArgs(["--fixture", "--structural", "--text", "Wait."]).text, "Wait.");
+  assert.equal(parseMeasureArgs(["--fixture", "--structural", "--screenshots", "shots"]).screenshots, "shots");
+  assert.throws(() => parseMeasureArgs(["--project", "rb", "--structural"]), /--project --structural needs --line/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--text"]), /--text needs a value/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--text", "  "]), /--text is one line of text/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--text", "a\nb"]), /--text is one line of text/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--edit"]), /exclusive/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--structural", "--burst"]), /exclusive/);
+  assert.throws(() => parseMeasureArgs(["--fixture", "--screenshots", "shots"]), /--screenshots needs --structural/);
+});
+
+await check("a structural sample is timed from its compile to the first newer program painted at the caret's line", () => {
+  // The insert has no keydown: the run records its own `insertText` mark.
+  const insert = attributeStructuralSample(
+    [
+      { t: 100, ts: 100, kind: "key", key: "insertText" },
+      measure(200, 40, "player workspace compile x"),
+      measure(260, 0, "player displayPreview path full scenes"),
+      state(300, null, null, { programVersion: 8, position: { uri: "file:///main.sd", line: 3515 } }),
+    ],
+    7,
+    { uri: "file:///main.sd", line: 3515 },
+    "insert",
+  );
+  assert.equal(insert.failure, undefined);
+  assert.equal(insert.direction, "insert");
+  assert.equal(insert.ms, 100);
+  assert.equal(insert.msFromKey, 200);
+  assert.equal(insert.debounce, 100);
+  assert.deepEqual(insert.paths, ["full scenes"]);
+  const remove = attributeStructuralSample([key(100, "Backspace"), measure(200, 40, "player workspace compile x"), state(300, null, null, { programVersion: 9 })], 8, TARGET, "remove");
+  assert.equal(remove.direction, "remove");
+  assert.equal(remove.ms, 100);
+  // The line count moves with every sample, so a paint at the line the
+  // other direction leaves is not this edit's.
+  const stale = attributeStructuralSample([key(100, "Backspace"), measure(200, 40, "player workspace compile x"), state(300, null, null, { programVersion: 9, position: { uri: "file:///main.sd", line: 3515 } })], 8, TARGET, "remove");
+  assert.match(stale.failure, /painted at file:\/\/\/main\.sd line 3516, not file:\/\/\/main\.sd line 3515/);
+  assert.match(attributeStructuralSample([key(100, "Enter")], 7, TARGET, "insert").failure, /no insertText keydown/);
+  assert.match(attributeStructuralSample([], 7, TARGET, "sideways").failure, /unknown structural direction sideways/);
+  assert.deepEqual(STRUCTURAL_KEYS, { insert: "insertText", remove: "Backspace" });
+});
+
+await check("the restoring edit is the stretch between the common start and end, as a protocol range", () => {
+  assert.equal(restoreSpan("a\nb\n", "a\nb\n"), null);
+  // An inserted line comes out again.
+  assert.deepEqual(restoreSpan("a\n  b\n  x\n  c\n", "a\n  b\n  c\n"), { range: { start: { line: 2, character: 2 }, end: { line: 3, character: 2 } }, text: "" });
+  // A removed line goes back in.
+  assert.deepEqual(restoreSpan("a\nc\n", "a\nb\nc\n"), { range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } }, text: "b\n" });
+  // A change that grew the line is replaced.
+  assert.deepEqual(restoreSpan("say hello there", "say hi there"), { range: { start: { line: 0, character: 5 }, end: { line: 0, character: 9 } }, text: "i" });
+  // Applying it gives the original back, whatever the two are.
+  const apply = (text, { range, text: put }) => {
+    const lines = text.split("\n");
+    const offset = (p) => lines.slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.character;
+    return text.slice(0, offset(range.start)) + put + text.slice(offset(range.end));
+  };
+  for (const [current, original] of [["", "x"], ["x", ""], ["aaa", "aa"], ["ab\nab", "ab"], ["l1\nl2\nNEW\nl3", "l1\nl2\nl3"]]) assert.equal(apply(current, restoreSpan(current, original)), original);
+});
+
+// A stand-in editor for a structural run: a document the run's selections
+// and keys really edit, and a preview that paints each edit's program at the
+// caret's line, or where `paintAt` says for a given edit. `garble` makes the
+// editor add text of its own to the given edit, as an auto-indent would.
+function structuralPage(lineText, { paintAt = {}, garble = {} } = {}) {
+  const uri = "file://local/main.sd";
+  let doc = [...Array(3513).fill("x"), lineText, "      (searching his face)", "end"].join("\n");
+  const original = doc;
+  let selection = { anchor: 0, head: 0 };
+  let clock = 0;
+  let version = 7;
+  let edits = 0;
+  let pending = [];
+  const offset = (p) => doc.split("\n").slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.character;
+  const lineOf = (at) => doc.slice(0, at).split("\n").length - 1;
+  const edit = (text) => {
+    edits++;
+    const from = Math.min(selection.anchor, selection.head);
+    const to = Math.max(selection.anchor, selection.head);
+    const put = text + (garble[edits] ?? "");
+    doc = doc.slice(0, from) + put + doc.slice(to);
+    selection = { anchor: from + put.length, head: from + put.length };
+    version++;
+    clock += 1000;
+    pending.push(
+      { t: clock + 100, kind: "measure", name: "player workspace compile file://local/main.sd", start: clock + 100, dur: 40 },
+      { t: clock + 150, kind: "measure", name: "player displayPreview path beat", start: clock + 150, dur: 0 },
+      { t: clock + 200, kind: "state", completion: null, position: { uri, line: paintAt[edits] ?? lineOf(selection.head) }, programVersion: version },
+    );
+  };
+  const page = {
+    evaluate: async (fn, arg) => {
+      const source = String(fn);
+      if (arg?.method === "editor/read") return { textDocument: { uri, text: doc } };
+      if (arg?.method === "editor/select") {
+        selection = { anchor: offset(arg.params.range.start), head: offset(arg.params.range.end) };
+        return undefined;
+      }
+      if (arg?.method) return undefined;
+      if (source.includes("PerformanceObserver")) return 1;
+      if (source.includes("splice")) return pending.splice(0);
+      if (source.includes("__measureState")) return version;
+      if (source.includes("push")) {
+        pending.push({ t: clock + 1, ts: clock + 1, kind: "key", key: arg });
+        return undefined;
+      }
+      throw new Error(`unexpected evaluate: ${source.slice(0, 80)}`);
+    },
+    waitForTimeout: async () => {},
+    waitForFunction: async () => {},
+    screenshot: async () => {},
+    keyboard: {
+      type: async () => {},
+      insertText: async (text) => edit(text),
+      press: async (k) => {
+        if (k !== "Backspace") return;
+        pending.push({ t: clock + 1, ts: clock + 1, kind: "key", key: k });
+        if (selection.anchor === selection.head) selection.anchor -= 1;
+        edit("");
+      },
+    },
+  };
+  return { page, original: () => original, text: () => doc };
+}
+
+await check("a structural run alternates an insert and its removal, and leaves the document as it found it", async () => {
+  const line = "      [[raffles_inquisitive:gloves]]";
+  const editor = structuralPage(line);
+  const run = await runMeasure(["--project", "rb", "--line", "3514", "--structural", "--warmup", "1", "--samples", "2", "--settle", "0"], {
+    withEditor: async (fn) => fn({ page: editor.page, url: "http://localhost:1", consoleLines: [] }),
+  });
+  assert.equal(run.report.error, undefined, run.report.error);
+  assert.equal(run.report.mode, "structural");
+  assert.equal(run.report.inserted, `      ${STRUCTURAL_TEXT}`);
+  assert.deepEqual(run.report.samples.map((s) => [s.direction, s.lines, s.failure]), [["insert", 3517, undefined], ["remove", 3516, undefined], ["insert", 3517, undefined]]);
+  assert.equal(run.report.samples[1].restoredMatches, true);
+  assert.deepEqual(run.report.samples.map((s) => s.ms), [100, 100, 100]);
+  assert.deepEqual(run.report.samples.map((s) => s.paths), [["beat"], ["beat"], ["beat"]]);
+  // The run ended on an insert, so it took the line out again.
+  assert.equal(editor.text(), editor.original());
+  assert.equal(run.report.restoredMatches, true);
+  assert.equal(run.report.linesAfter, run.report.linesBefore);
+  assert.equal(run.report.summary.byDirection.insert.samples, 1);
+  assert.equal(run.report.summary.byDirection.remove.samples, 1);
+  assert.notEqual(run.exitCode, 1);
+});
+
+await check("a structural sample that fails still leaves the document as it found it, and fails the run", async () => {
+  const line = "      [[raffles_inquisitive:gloves]]";
+  // The second insert paints at the measured line instead of the new one.
+  const misplaced = structuralPage(line, { paintAt: { 3: 3513 } });
+  const painted = await runMeasure(["--project", "rb", "--line", "3514", "--structural", "--warmup", "0", "--samples", "4", "--settle", "0"], {
+    withEditor: async (fn) => fn({ page: misplaced.page, url: "http://localhost:1", consoleLines: [] }),
+  });
+  assert.match(painted.report.samples[2].failure, /painted at file:\/\/local\/main\.sd line 3514, not file:\/\/local\/main\.sd line 3515/);
+  assert.equal(misplaced.text(), misplaced.original());
+  assert.equal(painted.report.restoredMatches, true);
+  assert.equal(painted.exitCode, 1);
+  // The editor adds text of its own to the first insert: the sample fails,
+  // the run stops, and the document is still put back byte for byte.
+  const garbled = structuralPage(line, { garble: { 1: "  " } });
+  const stopped = await runMeasure(["--project", "rb", "--line", "3514", "--structural", "--warmup", "0", "--samples", "4", "--settle", "0"], {
+    withEditor: async (fn) => fn({ page: garbled.page, url: "http://localhost:1", consoleLines: [] }),
+  });
+  assert.equal(stopped.report.samples.length, 1);
+  assert.match(stopped.report.samples[0].failure, /not the measured one with the line added/);
+  assert.equal(garbled.text(), garbled.original());
+  assert.equal(stopped.report.restoredMatches, true);
+  assert.equal(stopped.exitCode, 1);
 });
 
 // Keys pressed at 0, 100, ..., 500, each handled 10 ms later and the last 60

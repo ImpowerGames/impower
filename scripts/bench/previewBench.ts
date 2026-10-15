@@ -13,7 +13,8 @@
 //
 // Run through preview-bench.mjs, which bundles this file with esbuild and runs
 // one configuration per process; it passes the configuration as one JSON
-// argument: { project, line, word, options, mode, samples, warmup, json, gaps }.
+// argument: { project, line, word, options, structural, mode, samples, warmup,
+// json, gaps }.
 import * as fs from "node:fs";
 import * as v8 from "node:v8";
 import { performance } from "node:perf_hooks";
@@ -35,6 +36,11 @@ interface BenchConfig {
   line: number;
   word: string;
   options: string[];
+  // A structural edit in place of a replacement (#1672): the samples
+  // alternately apply `insert`, which adds `inserted` as a line after `line`,
+  // and `remove`, which takes it out again (`structuralEdits` in
+  // preview-bench.mjs).
+  structural?: { lineText: string; inserted: string; insert: ContentChange; remove: ContentChange };
   // `cold`: each sample compiles the project on a compiler of its own, with
   // no game (#1712).
   mode: "preview" | "edit" | "cold";
@@ -55,6 +61,11 @@ interface BenchConfig {
   // measured sample's compile, so that a profile leaves out the warm-up and
   // the first compile (#1712).
   windows?: string;
+}
+
+interface ContentChange {
+  range: { start: { line: number; character: number }; end: { line: number; character: number } };
+  text: string;
 }
 
 function writeWindows(file: string, clockOriginUs: number, windows: [number, number][]) {
@@ -312,16 +323,29 @@ async function main() {
   if (!mainFile) throw new Error(`${config.project} has no main.sd`);
   const line0 = config.line - 1;
   const lineText: string = mainFile.text.split(/\r?\n/)[line0] ?? "";
-  const wordAt = lineText.indexOf(config.word);
-  if (wordAt < 0) throw new Error(`"${config.word}" is not on line ${config.line}: ${JSON.stringify(lineText)}`);
-  // The whole identifier the word belongs to is what a suggestion replaces.
-  let start = wordAt;
-  let end = wordAt + config.word.length;
-  while (start > 0 && /\w/.test(lineText[start - 1]!)) start--;
-  while (end < lineText.length && /\w/.test(lineText[end]!)) end++;
-  const token = lineText.slice(start, end);
-  const options = config.options.filter((o) => o !== token);
-  if (!options.length) throw new Error(`no replacement for ${token}: pass --options`);
+  const structural = config.structural;
+  let start = 0;
+  let token = "";
+  let options: string[] = [];
+  if (!structural) {
+    const wordAt = lineText.indexOf(config.word);
+    if (wordAt < 0) throw new Error(`"${config.word}" is not on line ${config.line}: ${JSON.stringify(lineText)}`);
+    // The whole identifier the word belongs to is what a suggestion replaces.
+    start = wordAt;
+    let end = wordAt + config.word.length;
+    while (start > 0 && /\w/.test(lineText[start - 1]!)) start--;
+    while (end < lineText.length && /\w/.test(lineText[end]!)) end++;
+    token = lineText.slice(start, end);
+    options = config.options.filter((o) => o !== token);
+    if (!options.length) throw new Error(`no replacement for ${token}: pass --options`);
+  } else if (structural.lineText !== lineText) {
+    throw new Error(`line ${config.line} changed since the structural edit was made for it: ${JSON.stringify(lineText)}`);
+  }
+  // The document's text as the compiler holds it, which every structural
+  // removal has to give back byte for byte. The compiler's documents hold
+  // line breaks as `\n` whatever the file has, so the text to compare with is
+  // the compiler's own from before the first sample, not the file's.
+  const documentText = () => compiler.documents.get(mainUri)?.getText();
 
   realLog = silenceConsole();
   const compiler = new SparkdownCompiler();
@@ -395,6 +419,7 @@ async function main() {
   const startFrom = { file: mainUri, line: line0 };
   configurePlayerCompiler(compiler, files, startFrom);
   compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
+  const originalText = documentText();
 
   // A preview's display, in the order the worker's display runs it
   // (`displayPreviewFrom`): declare the preview, drop the last preview's
@@ -422,13 +447,13 @@ async function main() {
   };
   // A display connects, or redisplays when it is beat-only (#657), previews
   // and sweeps, as `displayPreviewFrom` does.
-  const display = async (game: Game, beatOnly: boolean) => {
+  const display = async (game: Game, beatOnly: boolean, line: number) => {
     sink.reset();
     sink.open = true;
     const t0 = performance.now();
     await (beatOnly ? sink.redisplay(game) : sink.connect(game));
     const t1 = performance.now();
-    const previewed = await game.preview(mainUri, line0);
+    const previewed = await game.preview(mainUri, line);
     game.module.ui.sweepReconcile();
     const t2 = performance.now();
     // The composed display goes once what it realizes is in, a few
@@ -475,9 +500,18 @@ async function main() {
   let current = token;
   let residue: any;
   let lastStream: string[] = [];
+  let restoredMatches: boolean | undefined;
   for (let i = 0; i < config.warmup + config.samples; i++) {
-    const option = options[i % options.length]!;
-    const contentChanges = [{ range: { start: { line: line0, character: start }, end: { line: line0, character: start + current.length } }, text: option }];
+    // A structural sample inserts the line or removes it, alternately, and
+    // previews where the editor leaves the caret: on the inserted line after
+    // an insert, on the measured line after a removal (#1672).
+    const direction = structural ? (i % 2 === 0 ? "insert" : "remove") : undefined;
+    const option = direction ?? options[i % options.length]!;
+    const contentChanges = direction
+      ? [structural![direction]]
+      : [{ range: { start: { line: line0, character: start }, end: { line: line0, character: start + current.length } }, text: option }];
+    const previewLine = direction === "insert" ? line0 + 1 : line0;
+    const startFrom = { file: mainUri, line: previewLine };
     workerGameMs = 0;
     workerGameIntervals = [];
     // The store counts the declarations' runs over its lifetime; a sample
@@ -494,6 +528,14 @@ async function main() {
       compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
     }
     const t1 = performance.now();
+    // The document's line count after the edit, and after a removal whether
+    // it is the document as it was before the first sample.
+    let edited: { lines: number; restored?: boolean } | undefined;
+    if (direction) {
+      const text = documentText() ?? "";
+      edited = { lines: text.split(/\r?\n/).length };
+      if (direction === "remove") restoredMatches = edited.restored = text === originalText;
+    }
     // What each pass of the chunk store and of the program resolver visited
     // for this sample's compile.
     const store = compiler.chunkStore;
@@ -513,7 +555,7 @@ async function main() {
     const refused = offered === true ? game.beatOnlyRefusal(searched?.to) : offered;
     standing = undefined;
     const load = prepare(game, searched?.checkpoint);
-    const shown = await display(game, refused === null);
+    const shown = await display(game, refused === null, previewLine);
     standing = { game, speculative };
     const { sums: phases, intervals } = takeMeasures();
     if (i < config.warmup) continue;
@@ -524,6 +566,7 @@ async function main() {
     lastStream = sink.stream;
     samples.push({
       option,
+      ...(direction ? { direction, previewLine: previewLine + 1, ...edited } : {}),
       // How the display went: beat-only, or in full and why (#657).
       path: refused === null ? "beat" : `full: ${refused}`,
       wall: {
@@ -545,6 +588,15 @@ async function main() {
     if (i === config.warmup) heapAfterFirst = heapNow();
     else if ((i - config.warmup + 1) % 50 === 0) heapEvery50.push(heapNow());
   }
+  if (structural) {
+    // A run that ended on an insert takes it out again, untimed, so the
+    // document the run leaves is the one it found.
+    if ((config.warmup + config.samples) % 2 === 1) {
+      version += 1;
+      compiler.updateDocument({ textDocument: { uri: mainUri, version }, contentChanges: [structural.remove] } as any);
+    }
+    restoredMatches = documentText() === originalText;
+  }
   const heapAtEnd = heapNow();
   const parsedProbe = config.heapProbe ? probeParsedObjects() : undefined;
 
@@ -557,6 +609,7 @@ async function main() {
     lineText,
     token,
     options,
+    ...(structural ? { structural: { inserted: structural.inserted, linesBefore: (originalText ?? "").split("\n").length }, restoredMatches } : {}),
     warmup: config.warmup,
     samples: samples.length,
     routeSteps,
@@ -596,18 +649,34 @@ async function main() {
   if (config.windows) writeWindows(config.windows, clockOriginUs, windowsBySample);
   if (config.json) fs.writeFileSync(config.json, JSON.stringify(report, null, 2));
   printReport(report);
+  if (structural && !restoredMatches) throw new Error("the structural removals did not give the document back as it was");
 }
 
 function printReport(report: any) {
   const row = (label: string, s: { min: number; median: number; max: number }) =>
     `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
+  const s = report.structural;
   const out = [
-    `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
+    s
+      ? `mode ${report.mode}, structural: line ${report.line} ${JSON.stringify(report.lineText)}, inserting ${JSON.stringify(s.inserted)} after it and removing it, alternately`
+      : `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
     ...(report.noFlowReuse ? ["parsed-flow reuse refused on every compile (--no-flow-reuse)"] : []),
     ...(report.parsedProbe ? [`parsed objects alive after the last sample: ${report.parsedProbe.parsedObjects}`] : []),
     `display paths over the samples: ${Object.entries(report.paths ?? {}).map(([path, n]) => `${path} ${n}`).join(", ") || "-"}`,
+    ...(s
+      ? [
+          // Each sample's edit, the document's line count after it, where it
+          // previewed, how the display went and the worker's time.
+          `structural samples (main.sd had ${s.linesBefore} lines):`,
+          ...report.perSample.map(
+            (p: any, i: number) =>
+              `  ${String(i + 1).padStart(3)} ${p.direction.padEnd(6)} ${p.lines} lines, preview at line ${p.previewLine}, ${p.path}, worker ${p.wall["worker compile, game and route"].toFixed(1)} ms, total without the DOM ${p.wall["total without the DOM"].toFixed(1)} ms${p.restored === false ? ", NOT RESTORED" : ""}`,
+          ),
+          `restoredMatches: ${report.restoredMatches} (the compiler's document after the run against its text before the first sample; main.sd itself is never written)`,
+        ]
+      : []),
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
     ...Object.entries(report.wall).map(([k, s]: any) => row(k, s)),
