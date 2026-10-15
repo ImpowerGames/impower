@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 85,
-  "previous": "76954f59929cc4349eaec588d1a377a7b691eedd",
+  "seq": 86,
+  "previous": "2e4681cd15c6ef9490a98d9435cdf7aae5850aa1",
   "snapshotParents": [],
-  "time": "2026-10-15T23:26:43.244Z",
+  "time": "2026-10-15T23:47:56.071Z",
   "kind": "auto",
-  "transition": "resume of #1632",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 66,
@@ -759,10 +759,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T23:26:42.317Z",
+      "observedAt": "2026-10-15T23:47:55.088Z",
       "held": true,
-      "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
-      "remoteHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
+      "head": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
+      "remoteHead": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
       "unpushed": false,
       "dirty": false,
       "pr": 1912,
@@ -895,12 +895,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T23:26:42.317Z",
+      "observedAt": "2026-10-15T23:47:55.088Z",
       "held": true,
-      "head": "a21e382931cfb916f58c4274eefec510df56ad60",
-      "remoteHead": "a21e382931cfb916f58c4274eefec510df56ad60",
+      "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
+      "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1915,
       "reviewJobs": [
         {
@@ -941,6 +941,88 @@
           "commentIds": [
             6204378401
           ]
+        },
+        {
+          "job": "pr-1915/round-1/launch-incr-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-incr",
+            "reviewerId": "incr",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "incr",
+              "undirected"
+            ],
+            "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-15T23:29:02.760Z"
+          },
+          "round": 1,
+          "reviewerId": "incr",
+          "attempt": 1,
+          "reviewedHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "incr": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "incr",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6204545717
+          ]
+        },
+        {
+          "job": "pr-1915/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "incr",
+              "undirected"
+            ],
+            "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
+            "completedRoundReviewers": {
+              "ax": 1,
+              "incr": 1
+            },
+            "time": "2026-10-15T23:39:13.773Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "incr": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "incr",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6204612025
+          ]
         }
       ]
     }
@@ -948,7 +1030,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T23:23:47.028Z",
+    "at": "2026-10-15T23:47:55.087Z",
     "tickets": [
       {
         "number": 1201,
@@ -1012,9 +1094,9 @@
       },
       {
         "number": 1632,
-        "action": "merge-gate",
+        "action": "observe",
         "pr": 1912,
-        "reason": "PR #1912 is ready at 9b9d1b7943a3675ca4d14f545b0725e1ae2909a0; process 11296 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "process 40028 started 639277036005706428 is running"
       },
       {
         "number": 1638,
@@ -1027,6 +1109,12 @@
         "action": "observe",
         "pr": 1915,
         "reason": "process 53964 started 639277016822063214 is running"
+      },
+      {
+        "number": 1917,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1614 (open), #1623 (open), #1627 (open), #1846 (open)"
       }
     ],
     "remaining": [
