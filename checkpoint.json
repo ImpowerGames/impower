@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 74,
-  "previous": "c2c24c4ed682ae3de1b4138889618a21e408b09d",
+  "seq": 75,
+  "previous": "f08e48d32442e21dc394383f1ad8cd3a77e15142",
   "snapshotParents": [],
-  "time": "2026-10-15T22:29:50.836Z",
+  "time": "2026-10-15T22:30:00.211Z",
   "kind": "auto",
-  "transition": "acknowledged of #1299",
+  "transition": "verify of #1103",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 66,
+    "recordRevision": 67,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -142,7 +142,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1103-8e9ee861-8d52-4a89-b46c-ef9fd66fd4ec"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -520,7 +520,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-15T22:29:49.611Z",
+      "observedAt": "2026-10-15T22:29:59.410Z",
       "held": true,
       "head": "7f7ad171c2f05acb746f6384e277411bf594523a",
       "remoteHead": "7f7ad171c2f05acb746f6384e277411bf594523a",
@@ -534,7 +534,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1103-whole-line-conditional-nil",
       "branch": "fix/1103-whole-line-conditional-nil",
-      "observedAt": "2026-10-15T22:29:49.611Z",
+      "observedAt": "2026-10-15T22:29:59.410Z",
       "held": true,
       "exists": false
     },
@@ -543,7 +543,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1299-multiple-assignment-targets",
       "branch": "fix/1299-multiple-assignment-targets",
-      "observedAt": "2026-10-15T22:29:49.611Z",
+      "observedAt": "2026-10-15T22:29:59.410Z",
       "held": true,
       "exists": false
     }
@@ -1012,6 +1012,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-15T22:29:57.951Z",
+      "event": "verified",
+      "ticket": 1103
     }
   ]
 }
