@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 1,
-  "previous": null,
+  "seq": 2,
+  "previous": "9aa537694a28f1ecde56ff030fefceb58cda8eab",
   "snapshotParents": [],
-  "time": "2026-10-16T03:41:59.486Z",
+  "time": "2026-10-16T03:42:22.641Z",
   "kind": "auto",
-  "transition": "checkpoints were enabled",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 22,
+    "recordRevision": 23,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -239,7 +239,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T03:41:58.868Z",
+      "observedAt": "2026-10-16T03:42:22.048Z",
       "held": true,
       "head": "192b2f2dab673911ea2b397c7d852a2899563e3f",
       "remoteHead": null,
@@ -411,6 +411,11 @@
       "time": "2026-10-16T03:41:58.297Z",
       "event": "checkpoints-enabled",
       "remote": "origin"
+    },
+    {
+      "time": "2026-10-16T03:42:21.016Z",
+      "event": "check-in",
+      "outcome": "#1909 final report stored and writer released; PR #1925 gate refused on missing checkpoints and main moved (#1919); checkpoints enabled (seq 1) and the PR branch updated with main through GitHub; merge gate re-runs once CI finishes on the new head"
     }
   ]
 }
