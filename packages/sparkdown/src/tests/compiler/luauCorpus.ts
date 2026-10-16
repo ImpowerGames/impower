@@ -10,55 +10,33 @@
 //   the gate captures them there, so a source built in TypeScript is read as
 //   the port builds it. Definition files (`declare`) are not Luau statements
 //   and are left out.
-// - `lint/<file>/<case>`: the snippets of the ports of Luau's linter tests
-//   (`../luau-conformance/Lint*.test.ts`), each a literal handed to a helper
-//   that places it in a function (`lintInFunction` and the like) in a group
+// - `lint/<file>/<case>`: the snippets the ports of Luau's linter tests
+//   (`../luau-conformance/Lint*.test.ts`) hand to their harness in the groups
 //   marked `// Luau: <case>`. Groups marked as Sparkdown's own are left out.
-// - `autocomplete/<file>/<case>`: the documents of the cases the language
-//   server's autocomplete tests port verbatim (`ported` in
-//   `autocompleteUpstreamCases.ts`), with the `@N` cursor markers removed.
-//   Upstream writes them at the top of a module, and the ports place them in
-//   a function, so the input is that function, the first at column 0 through
-//   the first `end` at column 0, without any Sparkdown declarations around
-//   it. It is its own Luau. A document with no such function is not read.
+// - `autocomplete/<file>/<case>`: the documents the language server's
+//   autocomplete ports hand to their harness in the cases ported verbatim
+//   (`ported` in `autocompleteUpstreamCases.ts`), with the `@N` cursor
+//   markers removed.
+//   `luauPortCapture.ts` runs those port files to read them, and reports a
+//   call it could not reach.
 //
-// Every other snippet is placed in a function as the conformance harness
-// places a fixture (`wrapConformanceSource`), with the same Luau handed to
-// the official parser (`conformanceLuau`). The conformance files keep the
-// harness's `function run()`. A type-checker or linter snippet is a module,
-// whose chunk takes `...`, so its function is `function run(...)`.
-//
-// The lint and autocomplete ports are test files that register tests as they
-// load, so their snippets are read from the files' syntax: only a literal
-// argument is a snippet, and a literal with `${}` substitutions is not read.
+// A port's whole document gets its `store` lines back as the upstream
+// `local`s they stand for. Each snippet once per case, in any form, is placed
+// in a function as the conformance harness places a fixture
+// (`wrapConformanceSource`), with the same Luau handed to the official parser
+// (`conformanceLuau`). The conformance files keep the harness's
+// `function run()`. Every other snippet is a module, whose chunk takes `...`,
+// so its function is `function run(...)`.
 
-import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import ts from "typescript";
 import { wrapConformanceSource } from "../luau-conformance/conformanceTestHarness";
 import type { PortedCase } from "../luau-conformance/typecheck/portedCases";
-import { UPSTREAM_CASES as AUTOCOMPLETE_CASES } from "../../../../sparkdown-language-server/src/tests/providers/autocompleteUpstreamCases";
 import { conformanceLuau, luauInputs } from "./luauFixtures";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const LINT_ROOT = join(__dirname, "..", "luau-conformance");
-const AUTOCOMPLETE_ROOT = join(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "..",
-  "sparkdown-language-server",
-  "src",
-  "tests",
-  "providers",
-);
+import type { CapturedSnippet } from "./luauPortCapture";
 
 export type CorpusSource = "conformance" | "typecheck" | "lint" | "autocomplete";
 
 export interface CorpusInput {
-  /** `<source>/<file>/<case>`, with `#N` when a name recurs. */
+  /** `<source>/<file>/<case>`, with ` (N)` when a name recurs. */
   name: string;
   source: CorpusSource;
   /** The document Sparkdown compiles. */
@@ -79,8 +57,8 @@ export interface CorpusInput {
 export const CORPUS_INVENTORY: Record<CorpusSource, number> = {
   conformance: 54,
   typecheck: 851,
-  lint: 71,
-  autocomplete: 43,
+  lint: 76,
+  autocomplete: 77,
 };
 
 export type CorpusCheck = "incomplete" | "extent" | "syntax";
@@ -90,14 +68,17 @@ export interface KnownCorpusFailure {
   input: string;
   check: CorpusCheck;
   /** The open Bug that explains it. */
-  issue: number;
+  issue?: number;
+  /** Or the section of `docs/runtime/DIVERGENCES.md` that documents it. */
+  divergence?: string;
   reason: string;
 }
 
 /**
- * The inputs the gate knows to fail, each with its open Bug. An entry must
- * still fail until the fix removes it. A conformance file's syntax agreement
- * is `luauSyntaxAgreement`'s, against `KNOWN_DISAGREEMENTS`.
+ * The inputs the gate knows to fail, each with its open Bug or documented
+ * divergence. An entry must still fail until the fix removes it. A
+ * conformance file's syntax agreement is `luauSyntaxAgreement`'s, against
+ * `KNOWN_DISAGREEMENTS`.
  */
 export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
   ...failing(879, "incomplete", "a call to `require` is read as a terminator keyword", [
@@ -137,6 +118,22 @@ export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
   ]),
   ...failing(1985, "incomplete", "an unclosed `(`", ["typecheck/TypeInfer.test.cpp/visit_error_nodes_in_lvalue"]),
   ...failing(1989, "incomplete", "a keyword as a method name after `:`", ["autocomplete/autocompleteMembers.test.ts/keyword_methods"]),
+  ...failing(1989, "extent", "a keyword as a method name after `:` opens a block that takes the function's `end`", [
+    "autocomplete/autocompleteMembers.test.ts/keyword_methods",
+  ]),
+  ...failing(1997, "incomplete", "a `while` or `for` without `do`, or a `repeat` without `until`, before an `end`", [
+    "autocomplete/autocompleteKeywords.test.ts/autocomplete_while_middle_keywords (2)",
+    "autocomplete/autocompleteKeywords.test.ts/autocomplete_while_middle_keywords (3)",
+    "autocomplete/autocompleteKeywords.test.ts/autocomplete_while_middle_keywords (5)",
+    "autocomplete/autocompleteKeywords.test.ts/stop_at_first_stat_when_recommending_keywords",
+    "autocomplete/autocompleteMembers.test.ts/autocomplete_method_in_unfinished_repeat_body_eof",
+    "autocomplete/autocompleteMembers.test.ts/autocomplete_method_in_unfinished_repeat_body_not_eof",
+  ]),
+  ...failing(1998, "extent", "a string or interpolation left open on its line runs to the end of the input", [
+    "typecheck/TypeInfer.test.cpp/fuzzer_missing_follow_in_function_call",
+    "autocomplete/autocompleteComments.test.ts/autocomplete_interpolated_string_expression_with_comments",
+    "autocomplete/autocompleteComments.test.ts/autocomplete_interpolated_string_expression_with_comments (2)",
+  ]),
   ...failing(1987, "syntax", "Luau rejects a function with no valid name; Sparkdown reports nothing", [
     "typecheck/TypeInfer.test.cpp/tc_after_error_recovery_no_assert",
     "typecheck/TypeInfer.test.cpp/tc_after_error_recovery_no_replacement_name_in_error check 4",
@@ -214,99 +211,30 @@ export function typecheckInputs(ports: Map<string, PortedCase[]>): CorpusInput[]
   return found;
 }
 
-function parse(file: string): ts.SourceFile {
-  return ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
-}
-
-/** A string or substitution-free template literal's text, otherwise `undefined`. */
-function literal(node: ts.Node | undefined): string | undefined {
-  return node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : undefined;
-}
-
-function calleeName(call: ts.CallExpression): string | undefined {
-  const callee = call.expression;
-  if (ts.isIdentifier(callee)) return callee.text;
-  if (ts.isPropertyAccessExpression(callee)) return callee.name.text;
-  return undefined;
-}
-
-function forEachCall(node: ts.Node, visit: (call: ts.CallExpression) => void): void {
-  if (ts.isCallExpression(node)) visit(node);
-  ts.forEachChild(node, (child) => forEachCall(child, visit));
-}
-
-const LUAU_CASE = /^\/\/ Luau: (.+)$/m;
-
-/** The linter ports' snippets: literals handed to a helper that places them in a function, in a `// Luau:` group. */
-function lintInputs(): CorpusInput[] {
-  const found: CorpusInput[] = [];
-  const files = readdirSync(LINT_ROOT)
-    .filter((f) => /^Lint.*\.test\.ts$/.test(f))
-    .sort();
-  for (const file of files) {
-    const source = parse(join(LINT_ROOT, file));
-    const name = namer();
-    for (const statement of source.statements) {
-      const comments = ts.getLeadingCommentRanges(source.text, statement.pos) ?? [];
-      const marked = comments
-        .map((range) => LUAU_CASE.exec(source.text.slice(range.pos, range.end)))
-        .find((match) => match);
-      if (!marked) continue;
-      forEachCall(statement, (call) => {
-        const snippet = literal(call.arguments[0]);
-        if (snippet === undefined || !calleeName(call)?.endsWith("InFunction")) return;
-        found.push(wrapped(name(`lint/${file}/${marked[1]!.trim()}`), "lint", snippet));
-      });
-    }
-  }
-  return found;
-}
-
 const CURSOR = /@\d/g;
-const AUTOCOMPLETE_HELPERS = new Set(["labelsAt", "labelsTypedAt", "complete", "cursorsWithin"]);
+// A port writes an upstream top-level `local` that the rest of the snippet
+// reads as a global as a `store` (autocompleteScope.test.ts). The same length
+// keeps every line and column.
+const STORE = /^store /gm;
 
-/** The autocomplete ports' documents, from the cases ported verbatim. */
-function autocompleteInputs(): CorpusInput[] {
+/** The linter and autocomplete ports' snippets, each text once per case, in capture order. */
+export function portInputs(snippets: CapturedSnippet[]): CorpusInput[] {
   const found: CorpusInput[] = [];
-  const files = readdirSync(AUTOCOMPLETE_ROOT)
-    .filter((f) => /^autocomplete.*\.test\.ts$/.test(f))
-    .sort();
-  for (const file of files) {
-    const source = parse(join(AUTOCOMPLETE_ROOT, file));
-    const name = namer();
-    forEachCall(source, (call) => {
-      // `upstreamCase(name, title, body)` or `upstreamCase.bug(bug, name, title, body)`.
-      const callee = call.expression;
-      const bug = ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === "upstreamCase";
-      if (!bug && !(ts.isIdentifier(callee) && callee.text === "upstreamCase")) return;
-      const caseName = literal(call.arguments[bug ? 1 : 0]);
-      if (caseName === undefined || AUTOCOMPLETE_CASES[caseName]?.status !== "ported") return;
-      const body = call.arguments[call.arguments.length - 1];
-      if (!body) return;
-      forEachCall(body, (inner) => {
-        const document = literal(inner.arguments[0]);
-        if (document === undefined || !AUTOCOMPLETE_HELPERS.has(calleeName(inner) ?? "")) return;
-        // The port's function, without the Sparkdown declarations around it.
-        const plain = document.replace(CURSOR, "");
-        const start = plain.search(/^function /m);
-        const end = plain.slice(start).search(/^end\b/m);
-        if (start < 0 || end < 0) return;
-        const text = `${plain.slice(start, start + end + "end".length)}\n`;
-        found.push({
-          name: name(`autocomplete/${file}/${caseName}`),
-          source: "autocomplete",
-          text,
-          luau: text,
-          functionStart: 0,
-          functionEnd: text.length - 1,
-        });
-      });
-    });
+  const seen = new Set<string>();
+  const names = new Map<string, (name: string) => string>();
+  for (const snippet of snippets) {
+    const plain = snippet.source === "autocomplete" ? snippet.text.replace(CURSOR, "") : snippet.text;
+    const text = snippet.kind === "document" ? plain.replace(STORE, "local ") : plain;
+    const key = `${snippet.source}/${snippet.file}/${snippet.scope}`;
+    if (seen.has(`${key}\n${text}`)) continue;
+    seen.add(`${key}\n${text}`);
+    if (!names.has(snippet.file)) names.set(snippet.file, namer());
+    found.push(wrapped(names.get(snippet.file)!(key), snippet.source, text));
   }
   return found;
 }
 
-/** Every input of the corpus, conformance files first, each source in name order. */
-export function corpusInputs(ports: Map<string, PortedCase[]>): CorpusInput[] {
-  return [...conformanceInputs(), ...typecheckInputs(ports), ...lintInputs(), ...autocompleteInputs()];
+/** Every input of the corpus: the conformance files, then the type-checker, linter and autocomplete ports. */
+export function corpusInputs(ports: Map<string, PortedCase[]>, snippets: CapturedSnippet[]): CorpusInput[] {
+  return [...conformanceInputs(), ...typecheckInputs(ports), ...portInputs(snippets)];
 }
