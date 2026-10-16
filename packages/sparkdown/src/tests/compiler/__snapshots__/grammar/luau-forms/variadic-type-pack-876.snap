@@ -1,4 +1,4 @@
-sparkdown [0..189]
+sparkdown [0..223]
  ├─ LuauFunctionDefinition [0..188]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
@@ -359,4 +359,118 @@ sparkdown [0..189]
  │       │       └─ OptionalWhitespace 185
  │       └─ LuauFunctionDefinition_end_c2 [185..188]
  │           └─ LuauEndKeyword [185..188]: "end"
- └─ Newline [188..189]: "\n"
+ ├─ Newline [188..189]: "\n"
+ ├─ LuauSparkdownExplicitStatement [189..215]
+ │   ├─ LuauSparkdownExplicitStatement_begin [189..191]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 189
+ │   │   │   └─ OptionalWhitespace 189
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [189..190]
+ │   │   │   └─ LuauExplicitStatementMark [189..190]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [190..191]
+ │   │       └─ RequiredWhitespace [190..191]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [191..215]
+ │   │   └─ LuauSparkdownExplicitDataTypeDeclaration [191..215]
+ │   │       ├─ LuauSparkdownExplicitDataTypeDeclaration_begin [191..196]
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c1 191
+ │   │       │   │   └─ OptionalWhitespace 191
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c2 191
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c3 191
+ │   │       │   ├─ LuauSparkdownExplicitDataTypeDeclaration_begin_c4 [191..195]
+ │   │       │   │   └─ LuauTypeKeyword [191..195]: "type"
+ │   │       │   └─ LuauSparkdownExplicitDataTypeDeclaration_begin_c5 [195..196]
+ │   │       │       └─ OptionalWhitespace [195..196]: " "
+ │   │       ├─ LuauSparkdownExplicitDataTypeDeclaration_content [196..215]
+ │   │       │   ├─ LuauSparkdownExplicitTypeLiteral [196..198]
+ │   │       │   │   ├─ LuauSparkdownExplicitTypeLiteral_begin 196
+ │   │       │   │   ├─ LuauSparkdownExplicitTypeLiteral_content [196..198]
+ │   │       │   │   │   └─ LuauSparkdownExplicitNamedTypeReference [196..198]
+ │   │       │   │   │       ├─ LuauSparkdownExplicitNamedTypeReference_begin [196..198]
+ │   │       │   │   │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c1 [196..197]
+ │   │       │   │   │       │   │   └─ LuauTypeName [196..197]
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c1 196
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c2 196
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c3 [196..197]: "G"
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c4 197
+ │   │       │   │   │       │   │       ├─ LuauTypeName_c5 197
+ │   │       │   │   │       │   │       └─ LuauTypeName_c6 197
+ │   │       │   │   │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c2 [197..198]
+ │   │       │   │   │       │   │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c2 [197..198]
+ │   │       │   │   │       │   │       └─ OptionalWhitespace [197..198]: " "
+ │   │       │   │   │       │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c3 198
+ │   │       │   │   │       └─ LuauSparkdownExplicitNamedTypeReference_end 198
+ │   │       │   │   └─ LuauSparkdownExplicitTypeLiteral_end 198
+ │   │       │   └─ LuauSparkdownExplicitTypeAssignment [198..215]
+ │   │       │       ├─ LuauSparkdownExplicitTypeAssignment_begin [198..200]
+ │   │       │       │   ├─ LuauSparkdownExplicitTypeAssignment_begin_c1 [198..199]: "="
+ │   │       │       │   └─ LuauSparkdownExplicitTypeAssignment_begin_c2 [199..200]
+ │   │       │       │       └─ LuauSparkdownExplicitTypeAssignment_begin_c2 [199..200]
+ │   │       │       │           └─ OptionalWhitespace [199..200]: " "
+ │   │       │       ├─ LuauSparkdownExplicitTypeAssignment_content [200..215]
+ │   │       │       │   └─ LuauSparkdownExplicitTypeLiteral [200..215]
+ │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_begin 200
+ │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_content [200..215]
+ │   │       │       │       │   ├─ LuauSparkdownExplicitTypeFunctionParameters [200..203]
+ │   │       │       │       │   │   ├─ LuauSparkdownExplicitTypeFunctionParameters_begin [200..201]
+ │   │       │       │       │   │   │   └─ LuauSparkdownExplicitTypeFunctionParameters_begin_c1 [200..201]
+ │   │       │       │       │   │   │       └─ PunctuationParenOpen [200..201]: "("
+ │   │       │       │       │   │   └─ LuauSparkdownExplicitTypeFunctionParameters_end [201..203]
+ │   │       │       │       │   │       ├─ LuauSparkdownExplicitTypeFunctionParameters_end_c1 [201..202]
+ │   │       │       │       │   │       │   └─ PunctuationParenClose [201..202]: ")"
+ │   │       │       │       │   │       ├─ LuauSparkdownExplicitTypeFunctionParameters_end_c2 [202..203]
+ │   │       │       │       │   │       │   └─ LuauSparkdownExplicitTypeFunctionParameters_end_c2 [202..203]
+ │   │       │       │       │   │       │       └─ OptionalWhitespace [202..203]: " "
+ │   │       │       │       │   │       └─ LuauSparkdownExplicitTypeFunctionParameters_end_c3 203
+ │   │       │       │       │   └─ LuauSparkdownExplicitTypeBinaryOperation [203..215]
+ │   │       │       │       │       ├─ LuauSparkdownExplicitTypeBinaryOperation_begin 203
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitTypeBinaryOperation_begin_c1 203
+ │   │       │       │       │       │       └─ OptionalWhitespace 203
+ │   │       │       │       │       ├─ LuauSparkdownExplicitTypeBinaryOperation_content [203..215]
+ │   │       │       │       │       │   ├─ LuauSparkdownExplicitTypeBinaryOperator [203..206]
+ │   │       │       │       │       │   │   ├─ LuauSparkdownExplicitTypeBinaryOperator_begin [203..206]
+ │   │       │       │       │       │   │   │   ├─ LuauSparkdownExplicitTypeBinaryOperator_begin_c1 203
+ │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 203
+ │   │       │       │       │       │   │   │   ├─ LuauSparkdownExplicitTypeBinaryOperator_begin_c2 [203..205]: "->"
+ │   │       │       │       │       │   │   │   └─ LuauSparkdownExplicitTypeBinaryOperator_begin_c3 [205..206]
+ │   │       │       │       │       │   │   │       └─ LuauSparkdownExplicitTypeBinaryOperator_begin_c3 [205..206]
+ │   │       │       │       │       │   │   │           └─ OptionalWhitespace [205..206]: " "
+ │   │       │       │       │       │   │   └─ LuauSparkdownExplicitTypeBinaryOperator_end 206
+ │   │       │       │       │       │   └─ LuauSparkdownExplicitTypeLiteral [206..215]
+ │   │       │       │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_begin 206
+ │   │       │       │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_content [206..215]
+ │   │       │       │       │       │       │   ├─ LuauVariadicTypePack [206..209]: "..."
+ │   │       │       │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference [209..215]
+ │   │       │       │       │       │       │       ├─ LuauSparkdownExplicitNamedTypeReference_begin [209..215]
+ │   │       │       │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c1 [209..215]
+ │   │       │       │       │       │       │       │   │   └─ LuauPrimitiveType [209..215]
+ │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c1 [209..215]: "number"
+ │   │       │       │       │       │       │       │   │       ├─ LuauPrimitiveType_c2 215
+ │   │       │       │       │       │       │       │   │       └─ LuauPrimitiveType_c3 215
+ │   │       │       │       │       │       │       │   ├─ LuauSparkdownExplicitNamedTypeReference_begin_c2 215
+ │   │       │       │       │       │       │       │   └─ LuauSparkdownExplicitNamedTypeReference_begin_c3 215
+ │   │       │       │       │       │       │       └─ LuauSparkdownExplicitNamedTypeReference_end 215
+ │   │       │       │       │       │       └─ LuauSparkdownExplicitTypeLiteral_end 215
+ │   │       │       │       │       └─ LuauSparkdownExplicitTypeBinaryOperation_end 215
+ │   │       │       │       └─ LuauSparkdownExplicitTypeLiteral_end 215
+ │   │       │       └─ LuauSparkdownExplicitTypeAssignment_end 215
+ │   │       └─ LuauSparkdownExplicitDataTypeDeclaration_end 215
+ │   └─ LuauSparkdownExplicitStatement_end 215
+ ├─ Newline [215..216]: "\n"
+ ├─ ImplicitAction [216..222]
+ │   ├─ ImplicitAction_begin 216
+ │   │   └─ ImplicitAction_begin_c1 216
+ │   │       └─ OptionalWhitespace 216
+ │   ├─ ImplicitAction_content [216..222]
+ │   │   └─ ActionLineEnd [216..222]
+ │   │       ├─ ActionLineEnd_begin 216
+ │   │       │   └─ ActionLineEnd_begin_c1 216
+ │   │       │       └─ OptionalWhitespace 216
+ │   │       ├─ ActionLineEnd_content [216..222]
+ │   │       │   └─ TextChunk [216..222]
+ │   │       │       ├─ TextChunk_begin 216
+ │   │       │       ├─ TextChunk_content [216..222]
+ │   │       │       │   ├─ Word [216..221]: "Hello"
+ │   │       │       │   └─ Punctuation [221..222]: "."
+ │   │       │       └─ TextChunk_end 222
+ │   │       └─ ActionLineEnd_end 222
+ │   └─ ImplicitAction_end 222
+ └─ Newline [222..223]: "\n"

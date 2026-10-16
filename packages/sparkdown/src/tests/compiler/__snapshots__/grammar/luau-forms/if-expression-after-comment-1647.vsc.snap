@@ -1,4 +1,4 @@
-text.source.sparkdown [0..213]
+text.source.sparkdown [0..223]
  ├─ meta.function.luau [0..13]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -122,13 +122,13 @@ text.source.sparkdown [0..213]
  │       ├─ punctuation.whitespace.optional.sd [158..159]: " "
  │       └─ constant.numeric.decimal.luau [159..160]: "2"
  ├─ Newline [160..161]: "\n"
- ├─ meta.function.luau [161..189]
- │   └─ meta.function.body.luau [161..189]
- │       └─ meta.function.luau [161..189]
+ ├─ meta.function.luau [161..199]
+ │   └─ meta.function.body.luau [161..199]
+ │       └─ meta.function.luau [161..199]
  │           ├─ punctuation.whitespace.optional.sd [161..163]: "  "
  │           ├─ keyword.control.luau [163..169]: "return"
  │           ├─ punctuation.whitespace.optional.sd [169..170]: " "
- │           ├─ comment.block.luau [170..180]
+ │           ├─ comment.block.luau [170..190]
  │           │   ├─ comment.luau [170..173]: "--["
  │           │   ├─ comment.luau [173..174]: "["
  │           │   ├─ punctuation.definition.comment.content.sd [174..175]: " "
@@ -136,31 +136,39 @@ text.source.sparkdown [0..213]
  │           │   ├─ punctuation.definition.comment.content.sd [176..177]: " "
  │           │   ├─ comment.luau [177..178]: "]"
  │           │   ├─ comment.luau [178..179]: "]"
- │           │   └─ punctuation.whitespace.optional.sd [179..180]: " "
- │           ├─ keyword.control.if.luau [180..182]: "if"
- │           ├─ punctuation.whitespace.optional.sd [182..183]: " "
- │           ├─ variable.other.readwrite.luau [183..184]: "c"
- │           ├─ punctuation.whitespace.optional.sd [184..185]: " "
- │           └─ keyword.control.then.luau [185..189]: "then"
- ├─ Newline [189..190]: "\n"
- ├─ meta.function.luau [190..195]
- │   └─ meta.function.body.luau [190..195]
- │       └─ meta.function.luau [190..195]
- │           ├─ punctuation.whitespace.extra.sd [190..194]: "    "
- │           └─ variable.other.readwrite.luau [194..195]: "x"
- ├─ Newline [195..196]: "\n"
- ├─ meta.function.luau [196..208]
- │   └─ meta.function.body.luau [196..208]
- │       └─ meta.function.luau [196..208]
- │           ├─ punctuation.whitespace.required.sd [196..198]: "  "
- │           ├─ keyword.control.else.luau [198..202]: "else"
- │           ├─ punctuation.whitespace.optional.sd [202..203]: " "
- │           ├─ variable.other.readwrite.luau [203..204]: "y"
- │           ├─ punctuation.whitespace.optional.sd [204..205]: " "
- │           ├─ keyword.operator.arithmetic.luau [205..206]: "+"
- │           ├─ punctuation.whitespace.optional.sd [206..207]: " "
- │           └─ variable.other.readwrite.luau [207..208]: "z"
- ├─ Newline [208..209]: "\n"
- ├─ meta.function.luau [209..212]
- │   └─ keyword.control.end.luau [209..212]: "end"
- └─ Newline [212..213]: "\n"
+ │           │   ├─ punctuation.whitespace.optional.sd [179..180]: " "
+ │           │   ├─ comment.luau [180..183]: "--["
+ │           │   ├─ comment.luau [183..184]: "["
+ │           │   ├─ punctuation.definition.comment.content.sd [184..185]: " "
+ │           │   ├─ punctuation.definition.comment.content.sd [185..186]: "d"
+ │           │   ├─ punctuation.definition.comment.content.sd [186..187]: " "
+ │           │   ├─ comment.luau [187..188]: "]"
+ │           │   ├─ comment.luau [188..189]: "]"
+ │           │   └─ punctuation.whitespace.optional.sd [189..190]: " "
+ │           ├─ keyword.control.if.luau [190..192]: "if"
+ │           ├─ punctuation.whitespace.optional.sd [192..193]: " "
+ │           ├─ variable.other.readwrite.luau [193..194]: "c"
+ │           ├─ punctuation.whitespace.optional.sd [194..195]: " "
+ │           └─ keyword.control.then.luau [195..199]: "then"
+ ├─ Newline [199..200]: "\n"
+ ├─ meta.function.luau [200..205]
+ │   └─ meta.function.body.luau [200..205]
+ │       └─ meta.function.luau [200..205]
+ │           ├─ punctuation.whitespace.extra.sd [200..204]: "    "
+ │           └─ variable.other.readwrite.luau [204..205]: "x"
+ ├─ Newline [205..206]: "\n"
+ ├─ meta.function.luau [206..218]
+ │   └─ meta.function.body.luau [206..218]
+ │       └─ meta.function.luau [206..218]
+ │           ├─ punctuation.whitespace.required.sd [206..208]: "  "
+ │           ├─ keyword.control.else.luau [208..212]: "else"
+ │           ├─ punctuation.whitespace.optional.sd [212..213]: " "
+ │           ├─ variable.other.readwrite.luau [213..214]: "y"
+ │           ├─ punctuation.whitespace.optional.sd [214..215]: " "
+ │           ├─ keyword.operator.arithmetic.luau [215..216]: "+"
+ │           ├─ punctuation.whitespace.optional.sd [216..217]: " "
+ │           └─ variable.other.readwrite.luau [217..218]: "z"
+ ├─ Newline [218..219]: "\n"
+ ├─ meta.function.luau [219..222]
+ │   └─ keyword.control.end.luau [219..222]: "end"
+ └─ Newline [222..223]: "\n"

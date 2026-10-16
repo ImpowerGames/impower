@@ -830,6 +830,12 @@ variables:
   # attributes, and SparkdownStatement owns any other top-level line that
   # begins with `@`; only the function on the line tells them apart.
   LUAU_FUNCTION_ATTRIBUTES_AHEAD: "{{WS}}*{{LUAU_ATTRIBUTES_ON_LINE}}{{WS}}+{{LUAU_LOCAL_PREFIX}}?function\\b"
+  # The end of the line, or a line comment that runs to it.
+  #
+  # lookaround: LuauBlockComment owns a `--[[` comment, which can close
+  # before more code on its line, so only a line comment leaves the line to
+  # LuauAttributedFunctionValue.
+  LUAU_LINE_END_OR_LINE_COMMENT: (?:$|--(?!\[=*\[))
   # One or more attributes side by side on a line.
   LUAU_ATTRIBUTES_ON_LINE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}(?:{{WS}}*{{LUAU_ATTRIBUTE_ON_LINE}})*)
   # The text between a regex literal's slashes (`@/x/`), shared by
@@ -906,7 +912,7 @@ variables:
   # lets a space precede (`function`, `function t.g`, `function t:m`,
   # `function f<T>`, `function f <T>`). `LuauFunctionParameters` opens its
   # `(` only right after one, and `LuauFunctionBody` never opens there.
-  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{LUAU_HEADER_NAME_GAP}}(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:{{WS}}*<[^<>\n]*>)?)
+  LUAU_FUNCTION_HEADER: (?:(?:\b{{LUAU_HEADER_KEYWORDS}}\b{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_HEADER_KEYWORDS}}\b{{LUAU_HEADER_COMMENTS}})(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:{{WS}}*<[^<>\n]*>)?)
   # A token that a declaration's comma line break (`LuauCommaLineBreak`)
   # can reach but that begins a statement rather than a value: a statement
   # keyword or a type declaration. An `if` there is an if expression, as in
@@ -1007,32 +1013,53 @@ variables:
   # A `:` that is not the start of `::`.
   LUAU_SINGLE_COLON: '[:](?![:])'
   # Just after a token an inline `if` expression can follow: a line start,
-  # an operator, an opening bracket, a comma, `..` or a keyword, with a block
-  # comment after it on its line or not (`local x = --[[c]] if c then`).
-  AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*{{LUAU_PLAIN_BLOCK_COMMENT}}{{WS}}*)
+  # an operator, an opening bracket, a comma, `..` or a keyword, with block
+  # comments after it on its line or not (`local x = --[[c]] if c then`).
+  #
+  # lookaround: LuauIfBlock and LuauSparkdownIfBlock own an `if` that begins
+  # a statement, and LuauTernaryExpression one that begins a value. Both
+  # begin at the `if`, and a body tries the statement rules first, so only
+  # what comes before the `if` tells them apart: a token no statement ends
+  # with can only be followed by a value. The parent's end cannot carry the
+  # choice, and splitting the rules leaves the same `if` to both. A comment
+  # between the token and the `if` leaves the token the one the `if` follows.
+  AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{LUAU_PLAIN_BLOCK_COMMENTS}})
   # A block comment of level up to three that closes on its line, for a
   # lookbehind. A lookbehind holds no lookaround in VS Code's regex engine,
-  # so this is `LUAU_BLOCK_COMMENT_ON_LINE` spelled without one: each level's
-  # text takes a `]` only together with the character after it when that
-  # character does not go on to the level's close (`--[[a]b]]`,
-  # `--[=[a]]b]=]`), so the comment closes only at brackets of its own level
-  # and never runs on past its close into the text after it. Text that ends
-  # with a `]` right before the close (`--[=[a]]=]`) is not one, and the rule
-  # after it reads on as it does after any other text.
+  # so this is `LUAU_BLOCK_COMMENT_ON_LINE` spelled without one, with the
+  # same limit of three levels: each level's text takes a `]` only together
+  # with the character after it when that character does not go on to the
+  # level's close (`--[[a]b]]`, `--[=[a]]b]=]`), and may end with the part of
+  # the close a longer close holds (`--[=[a]]=]`, `--[==[a]=]==]`). So the
+  # comment closes only at brackets of its own level and never runs on past
+  # its close into the text after it.
   LUAU_PLAIN_BLOCK_COMMENT: (?:--\[(?:{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_0}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_1}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_2}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3}}))
   # A comment character other than a `]`, or a `]` the next character keeps
   # from closing a level-0 comment.
   LUAU_PLAIN_COMMENT_CHAR: (?:[^\]\r\n])
   LUAU_PLAIN_BLOCK_COMMENT_LEVEL_0: \[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\]{{LUAU_PLAIN_COMMENT_CHAR}})*\]\]
-  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_1: =\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]={{LUAU_PLAIN_COMMENT_CHAR}})*\]=\]
-  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_2: ==\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]=[^=\r\n]|\]=={{LUAU_PLAIN_COMMENT_CHAR}})*\]==\]
-  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3: ===\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]=[^=\r\n]|\]==[^=\r\n]|\]==={{LUAU_PLAIN_COMMENT_CHAR}})*\]===\]
-  # The space between a header keyword and the name after it: whitespace,
-  # and block comments that close on the keyword's line (`style --[[ note ]]
-  # banner with`, `function --[[ c ]] f(x)`). A comment that spans lines
-  # there still hides the name: a lookbehind sees no further back than its
-  # line in VS Code.
-  LUAU_HEADER_NAME_GAP: (?:{{WS}}*(?:{{LUAU_PLAIN_BLOCK_COMMENT}}{{WS}}*)*)
+  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_1: =\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]={{LUAU_PLAIN_COMMENT_CHAR}})*\]?\]=\]
+  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_2: ==\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]=[^=\r\n]|\]=={{LUAU_PLAIN_COMMENT_CHAR}})*(?:\]=?)?\]==\]
+  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3: ===\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]=[^=\r\n]|\]==[^=\r\n]|\]==={{LUAU_PLAIN_COMMENT_CHAR}})*(?:\]={0,2})?\]===\]
+  # One or more such comments, with the whitespace around them.
+  LUAU_PLAIN_BLOCK_COMMENTS: (?:{{WS}}*(?:{{LUAU_PLAIN_BLOCK_COMMENT}}{{WS}}*)+)
+  # Block comments between a header keyword and its name, when the keyword
+  # begins its line (`style --[[ note ]] banner with`,
+  # `local function --[[ c ]] f(x)`). Only then: a keyword written inside a
+  # comment of a body line (`--[[style --[[note]] accidental`) is no header,
+  # and the name rules are tried again at every position of the body. A
+  # comment that spans lines still hides the name, since a lookbehind sees
+  # no further back than its line in VS Code.
+  LUAU_HEADER_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}})
+  # The start of the line a header keyword begins, with the modifiers a
+  # declaration's keyword may follow (`local function`, `export type function`).
+  LUAU_HEADER_LINE_START: (?:^{{WS}}*{{LUAU_DECLARATION_MODIFIER}}*)
+  LUAU_DECLARATION_MODIFIER: (?:{{LUAU_DECLARATION_MODIFIER_WORDS}}\b{{WS}}*)
+  LUAU_DECLARATION_MODIFIER_WORDS: (?:local|export|type)
+  # The keywords that declare a function's name.
+  LUAU_DECLARATION_KEYWORDS: (?:function|external)
+  # The keywords that begin a header whose parameter list follows its name.
+  LUAU_HEADER_KEYWORDS: (?:function|scene|branch|external|component)
   # A token an inline `if` expression can follow, other than a line start.
   LUAU_TERNARY_PRECEDING_TOKEN: (?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_TERNARY_PRECEDING_KEYWORDS}})
   # An `if` whose line holds an `else`, `elseif` or `}` before any lone `=`.
@@ -4068,7 +4095,7 @@ repository:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
       - { include: "#LuauParenthetical" }
-      - { include: "#LuauAttributeLineBreak" }
+      - { include: "#LuauAttributedFunctionValue" }
       - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
@@ -4480,9 +4507,10 @@ repository:
   # tried before it takes `x` and `if` from a body line that begins at
   # column 0 (fixture luau-declaration/define-column-0-body). The lookbehind
   # passes over block comments that close on the keyword's line
-  # (`LUAU_HEADER_NAME_GAP`); the cost: one that spans lines hides the name.
+  # when the keyword begins its line (`LUAU_HEADER_COMMENTS`); the cost: one
+  # that spans lines hides the name.
   LuauDefineNameAndInheritance:
-    begin: (?<=define\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
+    begin: (?<=define\b{{WS}}*|{{LUAU_HEADER_LINE_START}}define\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4737,9 +4765,10 @@ repository:
   # test "a word after a comment in a block body declares nothing"). Nothing
   # but the text before it tells the header's name from that word. The
   # lookbehind passes over block comments that close on the keyword's line
-  # (`LUAU_HEADER_NAME_GAP`); the cost: one that spans lines hides the name.
+  # when the keyword begins its line (`LUAU_HEADER_COMMENTS`); the cost: one
+  # that spans lines hides the name.
   LuauStyleNameAndInheritance:
-    begin: (?<=style\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
+    begin: (?<=style\b{{WS}}*|{{LUAU_HEADER_LINE_START}}style\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4766,7 +4795,7 @@ repository:
   # lookaround: as in `LuauStyleNameAndInheritance` (fixture
   # struct/column-0-brace-lines has an `animation` brace line at column 0).
   LuauAnimationThemeNameAndInheritance:
-    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
+    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7033,7 +7062,7 @@ repository:
   # or last: the declarationAnnotator test's `screen menu` declares `extra`
   # without the lookbehind.
   LuauScreenNameHeader:
-    begin: (?<=screen\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
+    begin: (?<=screen\b{{WS}}*|{{LUAU_HEADER_LINE_START}}screen\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7095,7 +7124,7 @@ repository:
   # column 0 are `LuauSparkleControlBlock` (`if`, `for`, `match`) and
   # `LuauSparkleBlockLine` (fixture sparkle/column-0-body-lines).
   LuauLayoutNameAndInheritance:
-    begin: (?<=layout\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
+    begin: (?<=layout\b{{WS}}*|{{LUAU_HEADER_LINE_START}}layout\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7124,7 +7153,7 @@ repository:
   # lookaround: as in `LuauLayoutNameAndInheritance` (fixture
   # sparkle/column-0-body-lines has a component body at column 0).
   LuauComponentNameAndInheritance:
-    begin: (?<=component\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
+    begin: (?<=component\b{{WS}}*|{{LUAU_HEADER_LINE_START}}component\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7650,7 +7679,7 @@ repository:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
       - { include: "#LuauParenthetical" }
-      - { include: "#LuauAttributeLineBreak" }
+      - { include: "#LuauAttributedFunctionValue" }
       - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
@@ -8544,7 +8573,7 @@ repository:
   LuauSparkdownExplicitTypeLiteral:
     # lookaround: LuauExpression owns non-type keywords and values; this type scope opens only at a valid type introducer.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
+    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:]|[.][.][.])"
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -8557,6 +8586,7 @@ repository:
       - { include: "#LuauBoolean" }
       - { include: "#LuauSparkdownExplicitTypeofFunction" }
       - { include: "#LuauVariadicType" }
+      - { include: "#LuauVariadicTypePack" }
       - { include: "#LuauSparkdownExplicitQualifiedTypeReference" }
       - { include: "#LuauSparkdownExplicitNamedTypeReference" }
       - { include: "#LuauPrimitiveType" }
@@ -11625,10 +11655,11 @@ repository:
   # same identifier, so no tightened variable separates them; and a name
   # has no end that could stop before a `.` it has not reached. Only the
   # character after the name tells the two apart. The lookbehind passes over
-  # block comments that close on the keyword's line (`LUAU_HEADER_NAME_GAP`);
-  # the cost: one that spans lines hides the name.
+  # block comments that close on the keyword's line when the keyword begins
+  # its line (`LUAU_HEADER_COMMENTS`); the cost: one that spans lines hides
+  # the name.
   LuauFunctionDeclarationName:
-    match: (?<=(?:function|external)\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: (?<={{LUAU_DECLARATION_KEYWORDS}}\b{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:
@@ -13244,10 +13275,10 @@ repository:
   # (keywordLookbehinds.test.ts asserts the one name directly). Tried after
   # `LuauBlockBody`, the rule would never meet its name.
   # The lookbehind passes over block comments that close on the keyword's
-  # line (`LUAU_HEADER_NAME_GAP`); the cost: one that spans lines hides the
-  # name.
+  # line when the keyword begins its line (`LUAU_HEADER_COMMENTS`); the cost:
+  # one that spans lines hides the name.
   LuauTypeFunctionName:
-    match: (?<=\bfunction\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    match: (?<=\bfunction\b{{WS}}*|{{LUAU_HEADER_LINE_START}}function\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})\b({{WS}}*)
     captures:
       1:
         tag: typeName
@@ -14228,34 +14259,43 @@ repository:
     name: storage.type.attribute.luau
     match: ({{LUAU_IDENTIFIER}})
 
-  # Attributes that end their line, with the line break after them, which
-  # Luau reads past to the function they mark (`local f = @native` or
-  # `store f = @[native]`, then `function() ... end`). A value that ends at
-  # its line's end would otherwise end before that function. On the next
-  # line it takes the indentation before a function or another attribute,
-  # and ends at any other line's start, which the value then ends at too.
-  # Blank and comment lines between them are read on.
+  # A function value whose attributes end the line before it, the
+  # attributes and the function read as one value as Luau reads them
+  # (`local f = @native` or `store f = @[native]`, then
+  # `function() ... end` on a later line, at any indentation). A value
+  # ends at its line's end, so without this it would end between them. It
+  # reads blank and comment lines and further attributes between them, and
+  # ends after the function's `end`, or at the start of a line that goes on
+  # with neither, where the value then ends too. Attributes that begin their
+  # line are a function statement's, which a body reads line by line.
   #
-  # lookaround: LuauAttribute and LuauAttributeList read the attributes; the
-  # begin opens only where nothing but them is left on the line, which the
-  # value's line-end end (LuauAssignmentOperation, LuauVariableDefinition)
-  # would otherwise close at, and no order of the value's patterns can keep
-  # its own end from being tried there first. The end's lookaheads leave the
-  # function and the next attribute to LuauFunctionDefinition and the
-  # attribute rules, and a blank or comment line to this rule's patterns.
-  LuauAttributeLineBreak:
-    begin: (?={{LUAU_ATTRIBUTES_ON_LINE}}{{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
+  # lookaround: LuauAttribute and LuauAttributeList read attributes
+  # wherever they stand, and LuauAssignmentOperation's and
+  # LuauVariableDefinition's line-end ends close a value before the next
+  # line. Those ends are tried before the value's patterns, so no order of
+  # them reaches the function; the begin opens instead where only the
+  # attributes and a line comment are left on a line that something comes
+  # before, a value's position, and the rule holds the function itself, so
+  # an unindented function line does not end the value. The end's
+  # `(?<!--…)` keeps a line comment that ends with the word `end` from
+  # ending it, and its line-start alternative steps aside for the blank and
+  # comment lines, attributes and function this rule reads.
+  LuauAttributedFunctionValue:
+    begin: (?<=\S{{WS}}*)({{LUAU_ATTRIBUTES_ON_LINE}})(?={{WS}}*{{LUAU_LINE_END_OR_LINE_COMMENT}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauAttributeList" }
+          - { include: "#LuauAttribute" }
+          - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauAttributeList" }
-      - { include: "#LuauAttribute" }
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|^({{WS}}*)(?=@|{{LUAU_LOCAL_PREFIX}}?function\b)|^(?!{{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
+      - { include: "#LuauAttributeList" }
+      - { include: "#LuauAttribute" }
+      - { include: "#LuauFunctionDefinition" }
+    end: (?={{BEAT}})|(?<=\bend)(?<!--[^\r\n]*)|^(?!{{WS}}*(?:$|--|@|{{LUAU_LOCAL_PREFIX}}?function\b))
 
   # Attributes before a function on its line at the top level of a script
   # (`@native function f() return 7 end`). Elsewhere at the top level a line
@@ -14266,7 +14306,11 @@ repository:
   # owns that function, so the rule opens only before the attributes and
   # closes where they stop.
   LuauFunctionAttributes:
-    begin: (?={{LUAU_FUNCTION_ATTRIBUTES_AHEAD}})
+    begin: ({{WS}}*)(?={{LUAU_FUNCTION_ATTRIBUTES_AHEAD}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }

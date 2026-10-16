@@ -8,7 +8,7 @@ function f(c)
   local z = 1 + --[[ c ]] if c then
     1
   else 2
-  return --[[ c ]] if c then
+  return --[[ c ]] --[[ d ]] if c then
     x
   else y + z
 end

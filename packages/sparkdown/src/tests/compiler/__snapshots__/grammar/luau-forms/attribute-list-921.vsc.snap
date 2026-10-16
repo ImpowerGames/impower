@@ -30,8 +30,8 @@ text.source.sparkdown [0..191]
  ├─ Newline [41..42]: "\n"
  ├─ meta.function.luau [42..62]
  │   └─ meta.function.body.luau [42..62]
- │       ├─ punctuation.whitespace.extra.sd [42..44]: "  "
- │       └─ meta.function.luau [44..62]
+ │       └─ meta.function.luau [42..62]
+ │           ├─ punctuation.whitespace.optional.sd [42..44]: "  "
  │           ├─ storage.modifier.scope.luau [44..49]: "local"
  │           ├─ punctuation.whitespace.optional.sd [49..50]: " "
  │           ├─ keyword.control.luau [50..58]: "function"
@@ -79,8 +79,8 @@ text.source.sparkdown [0..191]
  ├─ Newline [113..114]: "\n"
  ├─ meta.function.luau [114..132]
  │   └─ meta.function.body.luau [114..132]
- │       ├─ punctuation.whitespace.extra.sd [114..116]: "  "
- │       └─ meta.function.luau [116..132]
+ │       └─ meta.function.luau [114..132]
+ │           ├─ punctuation.whitespace.optional.sd [114..116]: "  "
  │           ├─ keyword.control.luau [116..124]: "function"
  │           ├─ punctuation.whitespace.optional.sd [124..125]: " "
  │           ├─ entity.name.function.luau [125..126]: "h"

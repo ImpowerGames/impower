@@ -1,2 +1,3 @@
-Value {f()}.
+Value {f()} {k()}.
 @native function f() return 7 end
+  @native function k() return 1 end

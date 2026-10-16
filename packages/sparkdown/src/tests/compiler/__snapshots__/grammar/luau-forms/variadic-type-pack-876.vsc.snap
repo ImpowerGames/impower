@@ -1,4 +1,4 @@
-text.source.sparkdown [0..189]
+text.source.sparkdown [0..223]
  ├─ meta.function.luau [0..12]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -107,4 +107,24 @@ text.source.sparkdown [0..189]
  ├─ Newline [184..185]: "\n"
  ├─ meta.function.luau [185..188]
  │   └─ keyword.control.end.luau [185..188]: "end"
- └─ Newline [188..189]: "\n"
+ ├─ Newline [188..189]: "\n"
+ ├─ keyword.other.statement.explicit.luau.mark.sd [189..190]: "&"
+ ├─ punctuation.whitespace.required.sd [190..191]: " "
+ ├─ storage.type.luau [191..195]: "type"
+ ├─ punctuation.whitespace.optional.sd [195..196]: " "
+ ├─ entity.name.type.luau [196..197]: "G"
+ ├─ punctuation.whitespace.optional.sd [197..198]: " "
+ ├─ keyword.operator.assignment.luau [198..199]: "="
+ ├─ punctuation.whitespace.optional.sd [199..200]: " "
+ ├─ punctuation.definition.template-expression.begin.sd [200..201]: "("
+ ├─ punctuation.definition.template-expression.end.sd [201..202]: ")"
+ ├─ punctuation.whitespace.optional.sd [202..203]: " "
+ ├─ keyword.operator.type.luau [203..205]: "->"
+ ├─ punctuation.whitespace.optional.sd [205..206]: " "
+ ├─ variable.parameter.function.varargs.luau [206..209]: "..."
+ ├─ support.type.primitive.luau [209..215]: "number"
+ ├─ Newline [215..216]: "\n"
+ ├─ string.display.text.chunk.sd [216..222]
+ │   ├─ markup.raw.text.sd [216..221]: "Hello"
+ │   └─ markup.raw.punctuation.sd [221..222]: "."
+ └─ Newline [222..223]: "\n"

@@ -114,14 +114,24 @@ const FORMS: Record<string, Form> = {
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["f", FUNCTION_NAME],
+      // indented
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["k", FUNCTION_NAME],
     ],
-    output: "Value 7.\n",
+    output: "Value 7 1.\n",
   },
-  "#1329 attributes that end their line before the function they mark": {
+  "#1329 attributes that end their line before the function value they mark": {
     fixture: "attribute-line-break-1329",
     scopes: [
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["@", ATTRIBUTE_OPERATOR],
+      ["checked", ATTRIBUTE],
       ["function", FUNCTION],
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
@@ -133,11 +143,29 @@ const FORMS: Record<string, Form> = {
       ["function", FUNCTION],
     ],
     within: [
-      ["@[native]\n  function", "LuauSparkdownVariableDefinition"],
+      // an unindented function line
+      ["@[native]\nfunction", "LuauSparkdownVariableDefinition"],
+      // past a line comment that ends with the word `end`
+      ["@checked\n  function", "LuauSparkdownVariableDefinition"],
       ["@native\n    function", "LuauVariableDefinition"],
       ["@checked function", "LuauVariableDefinition"],
     ],
-    output: "Value 9 15.\n",
+    output: "Value 9 3 15.\n",
+  },
+  "#921 attributes on their own line before a function statement, and a block comment after an attribute": {
+    fixture: "attribute-statement-lines-921",
+    scopes: [
+      ["@", ATTRIBUTE_OPERATOR],
+      ["[", OPEN],
+      ["deprecated", ATTRIBUTE],
+      ["]", CLOSE],
+      ["function", FUNCTION],
+      ["hello", FUNCTION_NAME],
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+    ],
+    output: "Value 10.\n",
   },
   "#1329 an attribute before a stored function": {
     fixture: "attribute-store-1329",
@@ -167,6 +195,10 @@ const FORMS: Record<string, Form> = {
       ["<<", OPEN],
       ["number...", VARARGS],
       [">>", CLOSE],
+      // in a narrative `&` line
+      ["->", TYPE_OPERATOR],
+      ["...", VARARGS],
+      ["number", PRIMITIVE],
     ],
   },
   "#1370 a generic alias as an array element": {
@@ -273,6 +305,11 @@ const FORMS: Record<string, Form> = {
       ["other", DEFINE_NAME],
       ["with", WITH],
       ["blue", "string.unquoted.identifier.sd"],
+      // a comment whose text ends with a `]` right before its close
+      ["third", DEFINE_NAME],
+      ["green", "string.unquoted.identifier.sd"],
+      ["h", FUNCTION_NAME],
+      ["x", PARAMETER],
     ],
   },
   "#1343 a block comment between the other header keywords and their names": {
@@ -357,6 +394,7 @@ const FORMS: Record<string, Form> = {
       ["if", "keyword.control.if.luau"],
       ["then", "keyword.control.then.luau"],
       ["else", "keyword.control.else.luau"],
+      // after two comments
       ["if", "keyword.control.if.luau"],
       ["then", "keyword.control.then.luau"],
       ["else", "keyword.control.else.luau"],
@@ -478,6 +516,19 @@ test("an invalid attribute list before a top-level function reports Luau's error
   expect(compile("@[native; deprecated] function first()\n  return 7\nend\nValue: {first()}.\n")).toContain(
     "Expected ']' (to close '[' at column 2), got ';'",
   );
+});
+
+// A header keyword written inside a comment in a block's body is no header,
+// so the word after the comment declares nothing.
+test("a header keyword inside a body line's comment declares no name (#1924)", () => {
+  const source = "style banner with\n  --[[style --[[note]] accidental\nend\nHello.\n";
+  const names: string[] = [];
+  parseSource(source).iterate({
+    enter: (node) => {
+      if (node.name === "LuauDefineName") names.push(source.slice(node.from, node.to));
+    },
+  });
+  expect(names).toEqual(["banner"]);
 });
 
 // Forms that already ran correctly, whose tree still held an unfinished node

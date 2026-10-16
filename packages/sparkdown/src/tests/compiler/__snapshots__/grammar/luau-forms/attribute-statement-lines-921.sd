@@ -1,0 +1,9 @@
+function run()
+@[deprecated]
+function hello(x: number, y: number): number
+  return x + y
+end
+  local f = @native --[[c]] function() return 7 end
+  return hello(1, 2) + f()
+end
+Value {run()}.
