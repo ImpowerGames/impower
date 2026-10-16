@@ -1448,13 +1448,15 @@ export abstract class SparkdownWorkspace {
     return this._pendingChangeCompileUris.has(uri);
   }
 
-  // The selections in the order they arrived, and the last one whose answer
-  // was published. An answer is published only when no later selection's
-  // has been: one the compiler answers can come back after a later one the
-  // workspace answered at once, and the page takes each as the author's
-  // current point (#1881).
+  // The selections in the order they arrived, and the last one moving the
+  // compile point whose answer was published. An answer is published only
+  // when no later such selection's has been: one the compiler answers can
+  // come back after a later one the workspace answered at once, and the page
+  // takes each of the author's as the author's current point (#1881). A
+  // selection that does not move the point, which the page does not take,
+  // supersedes nothing.
   protected _selectionsReceived = 0;
-  protected _selectionPublished = 0;
+  protected _pointSelectionPublished = 0;
 
   /** Number a selection as it arrives, for `publishSelection`. */
   protected receiveSelection() {
@@ -1462,15 +1464,19 @@ export abstract class SparkdownWorkspace {
   }
 
   /** Tell the page of the answer to selection `received`, unless the answer
-   *  to a later selection has been published already. */
+   *  to a later selection that moved the compile point has been published
+   *  already. */
   protected publishSelection(
     received: number,
     result: SelectCompilerDocumentResult,
+    movesCompilePoint: boolean,
   ) {
-    if (received < this._selectionPublished) {
+    if (received < this._pointSelectionPublished) {
       return;
     }
-    this._selectionPublished = received;
+    if (movesCompilePoint) {
+      this._pointSelectionPublished = received;
+    }
     this.sendNotification(SelectedCompilerDocumentMessage.method, result);
   }
 
@@ -1595,7 +1601,7 @@ export abstract class SparkdownWorkspace {
         ...params,
         programOutdated: true,
       };
-      this.publishSelection(received, result);
+      this.publishSelection(received, result, movesCompilePoint);
       return result;
     }
     await this.compilerReady();
@@ -1614,7 +1620,7 @@ export abstract class SparkdownWorkspace {
       // it from that compile.
       return { ...params };
     }
-    this.publishSelection(received, result);
+    this.publishSelection(received, result, movesCompilePoint);
     return result;
   }
 

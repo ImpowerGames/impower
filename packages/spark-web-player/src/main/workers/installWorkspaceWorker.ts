@@ -188,11 +188,12 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       // The worker routes to a selection as it arrives, and a route to this
       // point is what stopped it answering: the selection is the author's,
       // but the worker is not asked to route to it until the project changes.
-      if (this.movesCompilePoint(params)) {
+      const movesCompilePoint = this.movesCompilePoint(params);
+      if (movesCompilePoint) {
         this._documentSelected = point;
       }
       const result: SelectCompilerDocumentResult = { ...params };
-      this.publishSelection(received, result);
+      this.publishSelection(received, result, movesCompilePoint);
       return result;
     }
 

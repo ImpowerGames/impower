@@ -109,4 +109,35 @@ describe("the point the player's workspace compiles toward (#1874)", () => {
     edit(3, 9, false);
     expect((workspace as any).compileStartFrom()).toEqual({ file: MAIN, line: 6 });
   });
+
+  it("is published for the author's selection when a later one the author did not make is answered first (#1881)", async () => {
+    const workspace: any = createWorkspace();
+    const published: any[] = [];
+    workspace.sendNotification = async (_method: string, params: any) => {
+      published.push(params);
+    };
+    workspace.compilerReady = async () => {};
+    // The compiler answers the author's selection late.
+    const held: (() => void)[] = [];
+    workspace._compilerChannelConnection = {
+      sendRequest: (_type: unknown, params: any) =>
+        new Promise((resolve) => held.push(() => resolve({ ...params }))),
+    };
+    // A point set aside after the worker stopped answering there, which the
+    // workspace answers itself.
+    workspace._setAside.add({ file: MAIN, line: 9 });
+    const author = workspace.selectTextDocument(select(MAIN, 5, true));
+    await workspace.selectTextDocument(select(MAIN, 9, false));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(held).toHaveLength(1);
+    for (const answer of held.splice(0)) answer();
+    await author;
+    // The page takes only the author's selections, so the one it was not
+    // given cannot supersede the author's.
+    expect(
+      published
+        .filter((p) => p.userEvent)
+        .map((p) => p.selectedRange.start.line),
+    ).toEqual([5]);
+  });
 });
