@@ -832,9 +832,9 @@ function inheritedRepo(text, envRepo) {
   return /GH_REPO/i.test(text) ? null : envRepo;
 }
 
-function guardReason(what, hint) {
+function guardReason(what, hint, where = `on ${repos.code}`) {
   return [
-    `Public-repository guard: ${what} on ${repos.code} is refused.`,
+    `Public-repository guard: ${what} ${where} is refused.`,
     `Tickets and every comment, review and discussion live in ${repos.internal}. On ${repos.code} an agent opens a pull request as a draft, pushes to it and marks it ready or back to draft, nothing else, and reads only a pull request's number, title, body, draft, merge state and checks, CI runs, files, commits, branches, rulesets and other git data.`,
     hint,
   ].join("\n");
@@ -849,7 +849,7 @@ const GUARD = {
   prList: () => guardReason("gh pr list without --author", "Find pull requests by author and branch: gh pr list --author @me --head <branch>"),
   search: () => guardReason("a search of issues or pull requests", `Scope the search to the internal repository: gh search issues <query> --repo ${repos.internal}`),
   api: () => guardReason("an issue, comment, review or discussion API call", `Call the same endpoint on repos/${repos.internal} instead.`),
-  graphql: () => guardReason("a GraphQL query for issues, comments, reviews or discussions", `Query repository(owner, name) of ${repos.internal} instead.`),
+  graphql: () => guardReason("a GraphQL query for issues, comments, reviews or discussions", `Read tickets with gh issue <command> -R ${repos.internal}, or the REST API on repos/${repos.internal}, instead.`, "of any repository"),
   discussion: () => guardReason("a gh discussion command", `Name the internal repository: gh discussion <command> -R ${repos.internal}`),
   web: () => guardReason("a web page of issues, pull request conversations or discussions", "Read the pull request's permitted fields through gh pr view --json or the API instead."),
 };
@@ -891,9 +891,10 @@ function checkGhGuarded(invocation, envRepo) {
 
 /**
  * True when a search names at least one repository, by flag or by `repo:`
- * qualifier, none of them is the code repository, and no `org:`, `user:` or
- * `owner:` qualifier names the code repository's owner, which an `OR` could
- * widen to it. An unscoped search covers the code repository too.
+ * qualifier, none of them is the code repository, no `org:`, `user:` or
+ * `owner:` qualifier names the code repository's owner, and no `OR` joins
+ * a branch that could lack a repository of its own. An unscoped search
+ * covers the code repository too.
  */
 function searchScoped(text, named = []) {
   let decoded = text;
@@ -907,7 +908,10 @@ function searchScoped(text, named = []) {
   const all = [...named, ...qualifier("repo")];
   const owner = repos.code.split("/")[0].toLowerCase();
   const ownerNamed = qualifier("(?:org|user|owner)").some((o) => o.toLowerCase() === owner);
-  return all.length > 0 && !all.some(isCodeRepo) && !ownerNamed;
+  // An OR branch without its own repository searches everywhere, so a
+  // boolean OR is never proven scoped.
+  const or = /(^|[\s(])OR([\s)]|$)/.test(decoded);
+  return all.length > 0 && !all.some(isCodeRepo) && !ownerNamed && !or;
 }
 
 /**
@@ -957,64 +961,27 @@ function guardedPath(path) {
 }
 
 /**
- * True when GraphQL text names the code repository, as an `owner/name` slug
- * or as its owner and name words, together with anything that reads issues,
- * comments, reviews, discussions or a timeline. The field test matches inside
- * camel-case names (`closingIssuesReferences`, `IssueComment`,
- * `PullRequestReview`, `timeline`), so a query for pull request state that
- * also names `reviewDecision` is refused too. Operation names, aliases,
- * argument names, variables and the keys of gh's field flags (`query
- * ReviewTitle`, `reviewish: title`, `$reviewId`, `-F reviewId=1`) are left
- * out of it; string values and comments stay in, because the query itself
- * may sit inside a JSON string.
+ * True when GraphQL text reads issues, comments, reviews, discussions or a
+ * timeline, of any repository. With the switch on, GraphQL may not read
+ * them at all: a selection can reach the code repository from any starting
+ * point (an owner's repositories, a fork's parent or head repository, a
+ * pull request's closing references, a timeline's cross-references, a
+ * node ID, a search), so naming another repository proves nothing. The
+ * internal repository's tickets are read through gh issue or REST instead.
+ * The field test matches inside camel-case names (`closingIssuesReferences`,
+ * `IssueComment`, `PullRequestReview`, `reviewDecision`). Operation names,
+ * aliases, argument names, variables and the keys of gh's field flags
+ * (`query ReviewTitle`, `reviewish: title`, `$reviewId`, `-F reviewId=1`)
+ * are left out of it; string values and comments stay in, because the query
+ * itself may sit inside a JSON string.
  */
-function graphqlReadsCode(text) {
-  const [owner, name] = repos.code.toLowerCase().split("/");
-  const words = new Set(text.toLowerCase().split(/[^\w.-]+/));
-  const slug = new RegExp(`(^|[^\\w.-])${repos.code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.-])`, "i");
-  const named = slug.test(text) || (words.has(owner) && words.has(name));
+function graphqlReadsText(text) {
   const selections = text
     .replace(/\b(query|mutation|subscription|fragment)\s+[A-Za-z_]\w*/g, "$1")
     .replace(/\$[A-Za-z_]\w*/g, "$")
     .replace(/\b[A-Za-z_]\w*\s*:/g, ":")
     .replace(/(^|\n)[A-Za-z_][\w[\]]*=/g, "$1=");
-  if (!/issue|comment|review|discussion|timeline/i.test(selections)) return false;
-  if (named) return true;
-  // Without naming the code repository, a query still reaches its issues
-  // through anything that is not one named repository: a root entry point
-  // (a node ID, the viewer, a user, an organization, a mutation on an
-  // object by ID), a field that leaves the repository for its owner, its
-  // network or another issue (`owner`, `repositories`, `parent`, `source`,
-  // `subject`), or a search scoped more widely than named repositories.
-  // Only `repository(...)` entries with no such field, and searches scoped
-  // as REST searches must be, pass. A connection's `nodes { ... }` and an
-  // edge's `node { ... }` are not entry points; arguments with a name were
-  // already left out, so `owner:` in `repository(owner: ...)` is not a field.
-  if (/\b(node|nodes|user|organization|repositoryOwner|enterprise|resource)\s*\(|\b(viewer|owner|repositories|parent|source|forks|templateRepository|subject|canonical|duplicateOf)\b/.test(selections)) return true;
-  if (/\bsearch\s*\(/.test(selections)) return !graphqlSearchScoped(text);
-  return !/\brepository\s*\(/.test(selections);
-}
-
-/**
- * True when every GraphQL `search(...)` in the text has a query argument,
- * given literally or through a variable whose value the command carries
- * (a gh field flag `name=value` or a JSON `"name": "value"`), and each such
- * query is scoped to named repositories other than the code repository.
- */
-function graphqlSearchScoped(text) {
-  const searches = [...text.matchAll(/\bsearch\s*\(([^)]*)\)/g)];
-  if (searches.length === 0) return false;
-  return searches.every(([, args]) => {
-    const literal = args.match(/\bquery\s*:\s*\\?"((?:[^"\\]|\\[^"])*)\\?"/);
-    if (literal) return searchScoped(literal[1]);
-    const variable = args.match(/\bquery\s*:\s*\$([A-Za-z_]\w*)/);
-    if (!variable) return false;
-    const name = variable[1];
-    const field = text.match(new RegExp(String.raw`(?:^|\n)${name}=([^\n]*)`));
-    const json = text.match(new RegExp(String.raw`\\?"${name}\\?"\s*:\s*\\?"((?:[^"\\]|\\[^"])*)\\?"`));
-    const value = field?.[1] ?? json?.[1];
-    return value !== undefined && searchScoped(value);
-  });
+  return /issue|comment|review|discussion|timeline/i.test(selections);
 }
 
 /**
@@ -1023,7 +990,7 @@ function graphqlSearchScoped(text) {
  * effective `q` of a REST search, since other fields do not scope it.
  */
 function checkGuardedRequest(endpoint, text, searchQuery) {
-  if (endpoint === "graphql") return graphqlReadsCode(text) ? GUARD.graphql() : null;
+  if (endpoint === "graphql") return graphqlReadsText(text) ? GUARD.graphql() : null;
   if (endpoint === "search/issues") return searchScoped(searchQuery ?? "") ? null : GUARD.search();
   return guardedEndpoint(endpoint) ? GUARD.api() : null;
 }
@@ -1308,85 +1275,60 @@ const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?
 const HTTP_URL = /^(?:-uri:|-url:|--url=)?(?:https?:\/\/)?(?:[^@/\s"']*@)?(api\.github\.com|(?:www\.)?github\.com)(?::\d+)?\/([^\s"']*)$/i;
 
 /**
- * The URLs curl requests for one URL argument: its `{a,b}` sets and `[x-y]`
- * ranges expanded, as curl does unless globbing is off. A range stands for
- * its first value, which is enough for a path segment the guard reads by
- * name. Null when the expansion would exceed 64 URLs, which the guard
- * refuses rather than reads.
- */
-function curlGlob(url) {
-  let urls = [url];
-  for (;;) {
-    const next = [];
-    let expanded = false;
-    for (const u of urls) {
-      const m = u.match(/\{([^{}]*)\}|\[([^\][]*)\]/);
-      if (!m) {
-        next.push(u);
-        continue;
-      }
-      expanded = true;
-      const options = m[1] !== undefined ? m[1].split(",") : [m[2].split("-")[0]];
-      for (const o of options) next.push(u.slice(0, m.index) + o + u.slice(m.index + m[0].length));
-    }
-    if (next.length > 64) return null;
-    urls = next;
-    if (!expanded) return urls;
-  }
-}
-
-/**
  * The guard's reason for an HTTP client invocation whose request URL reaches
  * a guarded API path or a web page of the code repository's issues, pull
  * request conversations or discussions, or null. Every argument that is
  * wholly such a URL counts as a destination, whichever flag precedes it,
  * since telling a flag's value from the URL would mean modelling every
  * option of every client; a link inside a body is part of a longer argument
- * and does not count. curl's URL globs are expanded unless `-g` or
- * `--globoff` turns them off. The request text the GraphQL check reads is
- * every argument; a REST search is scoped only by its effective `q`.
+ * and does not count. A curl argument that names GitHub and holds a URL glob
+ * (`{a,b}`, `[x-y]`, in the host or the path) is refused outright: curl
+ * expands it unless globbing is off, and reading the expansion and curl's
+ * option clusters soundly is not worth the guard's complexity. The request
+ * text the GraphQL check reads is every argument; a REST search is scoped
+ * only by its effective `q`.
  */
 function checkGuardedUrl(args, curl) {
   const texts = args.map((a) => a.text);
   const text = texts.join("\n");
-  const globbing = curl && !texts.some((t) => t === "--globoff" || /^-[A-Za-z0-9]*g[A-Za-z0-9]*$/.test(t));
+  // A body (JSON, prose) carries quotes or spaces, which a URL argument does not.
+  if (curl && texts.some((t) => /github/i.test(t) && /[{}[\]]/.test(t) && !/["\s]/.test(t))) return GUARD.api();
   for (const arg of texts) {
-    if (!HTTP_URL.test(arg)) continue;
-    const urls = globbing ? curlGlob(arg) : [arg];
-    if (urls === null) return GUARD.api();
-    for (const u of urls) {
-      const m = u.match(HTTP_URL);
-      if (!m) continue;
-      if (/^api\./i.test(m[1])) {
-        const reason = checkGuardedRequest(canonicalEndpoint(m[2]), text, searchQueryOf(m[2], texts));
-        if (reason) return reason;
-        continue;
-      }
-      const page = canonicalEndpoint(m[2]).match(/^([^/]+\/[^/]+)\/(issues|pull|pulls|discussions)(\/|$)/);
-      if (page && isCodeRepo(page[1]) && page[2] !== "pulls") return GUARD.web();
+    const m = arg.match(HTTP_URL);
+    if (!m) continue;
+    if (/^api\./i.test(m[1])) {
+      const reason = checkGuardedRequest(canonicalEndpoint(m[2]), text, searchQueryOf(m[2], texts));
+      if (reason) return reason;
+      continue;
     }
+    const page = canonicalEndpoint(m[2]).match(/^([^/]+\/[^/]+)\/(issues|pull|pulls|discussions)(\/|$)/);
+    if (page && isCodeRepo(page[1]) && page[2] !== "pulls") return GUARD.web();
   }
   return null;
 }
 
 /**
  * The repository whose issue collection an HTTP client's arguments post to,
- * for the typed-creation rule, or null. With the switch on the destination
- * is read as the guard reads it (user information, port, escapes, dot
- * segments); with it off, exactly as before.
+ * for the typed-creation rule, or null. With the switch on, every
+ * destination counts, since curl sends the method and body to each URL it
+ * is given, and each is read as the guard reads it (user information, port,
+ * escapes, dot segments); the first that is a typed repository is returned,
+ * else the first collection. With the switch off, exactly as before: the
+ * first argument holding an issue collection URL.
  */
 function collectionRepo(args) {
   if (!repos.cutover) {
     const token = args.find((a) => COLLECTION_URL.test(a.text));
     return token ? token.text.match(COLLECTION_URL)[1] : null;
   }
+  const found = [];
   for (const a of args) {
     const m = a.text.match(HTTP_URL);
     if (!m || !/^api\./i.test(m[1])) continue;
     const c = canonicalEndpoint(m[2]).match(/^repos\/([^/]+\/[^/]+)\/issues$/);
-    if (c) return c[1];
+    if (c) found.push(c[1]);
   }
-  return null;
+  return found.find(isTypedRepo) ?? found[0] ?? null;
 }
 
 function checkCurl(args) {
