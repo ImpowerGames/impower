@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 113,
-  "previous": "333489f83a8d4c33eadf6db73b81aa6e95d3816b",
+  "seq": 114,
+  "previous": "bf5de466c2faa1eb3a44d88e97dc19ccf75d6a84",
   "snapshotParents": [],
-  "time": "2026-10-16T01:27:55.009Z",
+  "time": "2026-10-16T01:48:31.272Z",
   "kind": "auto",
-  "transition": "resume of #1846",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 86,
@@ -1074,34 +1074,101 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:27:53.415Z",
+      "observedAt": "2026-10-16T01:48:29.524Z",
       "held": true,
-      "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "6cd26291eafeb05b9149785cadaee9ff64ffb481",
+      "remoteHead": "6cd26291eafeb05b9149785cadaee9ff64ffb481",
+      "unpushed": false,
+      "dirty": true,
+      "pr": 1919,
+      "reviewJobs": [
+        {
+          "job": "pr-1919/round-1/launch-incr-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-incr",
+            "reviewerId": "incr",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "6cd26291eafeb05b9149785cadaee9ff64ffb481",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T01:43:26.130Z"
+          },
+          "round": 1,
+          "reviewerId": "incr",
+          "attempt": 1,
+          "reviewedHead": "6cd26291eafeb05b9149785cadaee9ff64ffb481",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "incr": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6206157836
+          ]
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment": {
       "ticket": 1623,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:27:53.415Z",
+      "observedAt": "2026-10-16T01:48:29.524Z",
       "held": true,
-      "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "ebdaaacb00109edecda42519a352456125186a77",
+      "remoteHead": "ebdaaacb00109edecda42519a352456125186a77",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 19928
+      },
+      "pr": 1918,
+      "reviewJobs": [
+        {
+          "job": "pr-1918/round-1/launch-incr-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-incr",
+            "reviewerId": "incr",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "ebdaaacb00109edecda42519a352456125186a77",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T01:42:09.380Z"
+          }
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally": {
       "ticket": 1846,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:27:53.415Z",
+      "observedAt": "2026-10-16T01:48:29.524Z",
       "held": true,
-      "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
-      "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
+      "head": "bc305a65aa40d9a69b2ff5a6ac896ce25bc35c0e",
+      "remoteHead": "bc305a65aa40d9a69b2ff5a6ac896ce25bc35c0e",
       "unpushed": false,
       "dirty": false,
       "pr": 1915,
@@ -1233,7 +1300,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T01:18:08.038Z",
+    "at": "2026-10-16T01:48:29.523Z",
     "tickets": [
       {
         "number": 1201,
@@ -1261,9 +1328,9 @@
       },
       {
         "number": 1611,
-        "action": "wait-dependency",
-        "pr": null,
-        "reason": "waiting for #1623 (open)"
+        "action": "adopt-pr",
+        "pr": 1918,
+        "reason": "draft PR #1918 at ebdaaacb00109edecda42519a352456125186a77 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1613,
@@ -1274,13 +1341,13 @@
       {
         "number": 1614,
         "action": "observe",
-        "pr": null,
+        "pr": 1919,
         "reason": "process 11208 started 639277093053655172 is running"
       },
       {
         "number": 1623,
         "action": "observe",
-        "pr": null,
+        "pr": 1918,
         "reason": "process 40848 started 639277092958357626 is running"
       },
       {
@@ -1303,15 +1370,15 @@
       },
       {
         "number": 1638,
-        "action": "wait-dependency",
-        "pr": null,
-        "reason": "waiting for #1614 (open)"
+        "action": "adopt-pr",
+        "pr": 1919,
+        "reason": "draft PR #1919 at 6cd26291eafeb05b9149785cadaee9ff64ffb481 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1846,
-        "action": "merge-gate",
+        "action": "observe",
         "pr": 1915,
-        "reason": "PR #1915 is ready at a9838d7553f0e90c0ace7bb226c6f1f7e25fe198; process 53964 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "process 59960 started 639277108713379831 is running"
       },
       {
         "number": 1917,
