@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1904
 
-Checkpoint 35 (this commit), 2026-10-16T12:18:07.766Z, after acknowledged of #1905. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
+Checkpoint 36 (this commit), 2026-10-16T12:20:04.004Z, after a new plan. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,4 +12,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1905
 
 - claude-cli claude-opus-5-5 at high, process 20964 on DESKTOP-726EO47
-- as of 2026-10-16T12:18:06.993Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens that may exist only there; recover those bytes there before restarting or overwriting this work
