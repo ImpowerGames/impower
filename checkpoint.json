@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 69,
-  "previous": "2b1ccf165478520a4fc5886954c3aa8ef4e780ae",
+  "seq": 70,
+  "previous": "6a6fd1397ba3f28768e7d6fa8434e0bdced506cb",
   "snapshotParents": [],
-  "time": "2026-10-16T19:29:30.011Z",
+  "time": "2026-10-16T19:33:00.335Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1927 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 78,
+    "recordRevision": 79,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1113,9 +1113,9 @@
       "ticket": 1905,
       "pr": 1927,
       "expectHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T19:29:28.006Z",
-      "evidence": "admitted as accepted-unreviewed",
+      "evidence": "PR #1927 reads back merged as bdba348d58275f65d3a05a7daae00309bf0c0e42 at 77fcc6ed63a764a85a71d5569838241ccf5c1438; the merge commit is on origin/main; it landed on e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e, while its CI covered main 2d5f7cc10e55da6f2fba81c289da7513cac8a095, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "accepted-unreviewed",
         "reviewedHead": "0a820cb1f43026402f8affa25240491729ee5eee",
@@ -1307,7 +1307,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T19:32:58.438Z",
+      "mergeCommit": "bdba348d58275f65d3a05a7daae00309bf0c0e42",
+      "mergedOnto": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -1330,7 +1335,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T19:29:29.333Z",
+      "observedAt": "2026-10-16T19:32:59.629Z",
       "held": true,
       "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
       "remoteHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
@@ -2366,6 +2371,12 @@
       "id": "9834267a",
       "kind": "merge",
       "pr": 1927
+    },
+    {
+      "time": "2026-10-16T19:32:58.438Z",
+      "event": "operation-outcome",
+      "id": "9834267a",
+      "state": "confirmed"
     }
   ]
 }
