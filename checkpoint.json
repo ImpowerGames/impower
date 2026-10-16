@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 98,
-  "previous": "24fc75a12dfa5a1ba6af2939cf0abd4c86573650",
+  "seq": 99,
+  "previous": "179e0b10d328975414e08cce0bff1e33dbeb2032",
   "snapshotParents": [],
-  "time": "2026-10-16T00:57:30.015Z",
+  "time": "2026-10-16T00:57:57.395Z",
   "kind": "auto",
-  "transition": "release of #1632",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 75,
@@ -977,7 +977,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T00:57:29.096Z",
+      "observedAt": "2026-10-16T00:57:56.690Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1112,7 +1112,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T00:57:19.571Z",
+    "at": "2026-10-16T00:57:56.689Z",
     "tickets": [
       {
         "number": 1201,
@@ -1158,9 +1158,9 @@
       },
       {
         "number": 1623,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "1 writers already hold tickets against a limit of 2"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1627,
@@ -1176,9 +1176,9 @@
       },
       {
         "number": 1632,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 50480 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1638,
