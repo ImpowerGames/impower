@@ -396,8 +396,11 @@ variables:
   # `#x` there: the end would close the rule empty where it began and the
   # tokenizer would loop to its empty-match backstop (#1614). This is the
   # parent's own end already, there is no Switch to split, and the text
-  # before the run is outside anything `NOT_TAG_HASH` can match.
-  NOT_TAG_HASH_AFTER_TEXT: (?<=\S)(?={{NOT_TAG_HASH}})
+  # before the run is outside anything `NOT_TAG_HASH` can match. Text is a
+  # non-space character other than `.`, with at most the `..` after it: the
+  # leading glue a begin takes (`^: ..#x`, `..#x`) is not text. Each
+  # alternative has a fixed width, which VS Code's Oniguruma requires.
+  NOT_TAG_HASH_AFTER_TEXT: (?<=[^\s.]|[^\s.][.]|[^\s.][.][.])(?={{NOT_TAG_HASH}})
   COMMENT_START: (?:[-][-])
   # A `>` in display text, which may touch the words around it (`A>B`), and
   # each `>` of `>>` is one. The marks that hold a `>` are matched before it:

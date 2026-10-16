@@ -51,6 +51,14 @@ describe("a line that starts with a `#` run that is not a tag (#1614)", () => {
     "@ Bob\n  #x",
     "scene A\n  #x\nend",
     't("end\n#", .. .)\n    local step = 3',
+    // After the leading glue a line's begin takes.
+    "..#x",
+    "  ..#x",
+    "Hi\n..#x",
+    "^: ..#x",
+    "$: ..#x",
+    "%: ..#x",
+    "@ Bob\n..#x",
   ];
 
   it.each(LINES)("parses %j with no empty-match backstop and no zero-width line", (text) => {
@@ -66,6 +74,8 @@ describe("a line that starts with a `#` run that is not a tag (#1614)", () => {
     ["$: #x", "InlineHeading 0..5"],
     ["%: #x", "InlineTransitional 0..5"],
     [": #x", "InlineAction 0..4"],
+    ["..#x", "InlineAction 0..4"],
+    ["^: ..#x", "InlineTitle 0..7"],
   ])("keeps %j on its line rule, as text", (text, line) => {
     const { tree } = parseWatched(() => getParser().parse(text));
     const top: string[] = [];
