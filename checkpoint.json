@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 237,
-  "previous": "994ecfabdc322f502784cdd15b400094327565cf",
+  "seq": 238,
+  "previous": "bfff34153afc2c41e413b79dd6c1fd43b459113a",
   "snapshotParents": [],
-  "time": "2026-10-16T15:19:46.085Z",
+  "time": "2026-10-16T15:20:07.583Z",
   "kind": "auto",
-  "transition": "the intent to ready PR #1928",
+  "transition": "the outcome of operation 02611c11",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 197,
+    "recordRevision": 198,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2856,8 +2856,10 @@
       "ticket": 887,
       "pr": 1928,
       "expectHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
-      "state": "intent",
-      "time": "2026-10-16T15:19:37.406Z"
+      "state": "confirmed",
+      "time": "2026-10-16T15:19:37.406Z",
+      "evidence": "gh pr view 1928 reads back isDraft false at head 950ebc2d0de11eea19e757c82b4663637fea5de3 after gh pr ready; readiness comment posted naming decision 51ff191a",
+      "settled": "2026-10-16T15:20:02.942Z"
     }
   ],
   "decisions": [
@@ -3195,7 +3197,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:19:42.161Z",
+      "observedAt": "2026-10-16T15:20:05.723Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3443,7 +3445,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:19:42.161Z",
+      "observedAt": "2026-10-16T15:20:05.723Z",
       "held": true,
       "head": "2fc0ccfd7e7ad0500bc32b4b05cb217353b85cb6",
       "remoteHead": "2fc0ccfd7e7ad0500bc32b4b05cb217353b85cb6",
@@ -3455,7 +3457,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T15:19:42.161Z",
+      "observedAt": "2026-10-16T15:20:05.723Z",
       "held": true,
       "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
       "remoteHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
@@ -3823,12 +3825,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:22:03.549Z",
-      "event": "request",
-      "ticket": 457,
-      "id": "9f80c2cb"
-    },
     {
       "time": "2026-10-16T01:22:36.922Z",
       "event": "answer-intent",
@@ -4537,6 +4533,12 @@
       "id": "02611c11",
       "kind": "ready",
       "pr": 1928
+    },
+    {
+      "time": "2026-10-16T15:20:02.942Z",
+      "event": "operation-outcome",
+      "id": "02611c11",
+      "state": "confirmed"
     }
   ]
 }
