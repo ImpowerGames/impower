@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 187,
-  "previous": "a282861b65638289b9cbd34dc6997944a8859c24",
+  "seq": 188,
+  "previous": "ae03feeee1a132ff98d9a7f977f20064cca1ed5e",
   "snapshotParents": [],
-  "time": "2026-10-16T06:47:38.382Z",
+  "time": "2026-10-16T06:47:46.323Z",
   "kind": "auto",
-  "transition": "relay of #454",
+  "transition": "request of #887",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 151,
+    "recordRevision": 152,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -610,6 +610,15 @@
             "time": "2026-10-16T05:57:50.491Z",
             "to": "local_bede5658-a16d-4558-858b-9a8d10696a23"
           }
+        },
+        {
+          "id": "d8a61713",
+          "owner": "6944980d-0e0e-4dfc-bfbc-6851e5e74f98",
+          "time": "2026-10-16T06:47:44.094Z",
+          "text": "Writer stopped by the account's weekly usage limit (resets Oct 19, 1am America/New_York) while waiting on round-3 reviewer inc's journal for PR #1928 (head 3c1986e10, CI green; the inc report 6209677385 is posted and not yet adjudicated); worktree clean. No writer can be resumed or relaunched on this account until the limit resets; the maintainer decides whether to wait or change account or writer model.",
+          "source": "writer transcript resume-887 out.jsonl, last result line is_error true with the weekly-limit text",
+          "relayed": null,
+          "answer": null
         }
       ]
     },
@@ -2493,7 +2502,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T06:47:37.437Z",
+      "observedAt": "2026-10-16T06:47:45.366Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2629,7 +2638,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T06:47:37.437Z",
+      "observedAt": "2026-10-16T06:47:45.366Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2872,11 +2881,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:23:15.127Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1739-numeric-site-keys"
-    },
     {
       "time": "2026-10-15T22:23:22.980Z",
       "event": "disk-recovery",
@@ -3591,6 +3595,12 @@
       "ticket": 454,
       "id": "5b339599",
       "to": "the maintainer"
+    },
+    {
+      "time": "2026-10-16T06:47:44.094Z",
+      "event": "request",
+      "ticket": 887,
+      "id": "d8a61713"
     }
   ]
 }
