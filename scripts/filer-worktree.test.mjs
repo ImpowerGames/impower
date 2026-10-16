@@ -997,7 +997,7 @@ for (const command of ["rm -rf $target", "Remove-Item -Recurse $p", "$item.Delet
 assert.ok(cleanup(`Set-Location '${scratch}'; Remove-Item -Recurse $unknown`, "powershell", owned.tree));
 const fixtureHookDir = path.join(main, ".agents", "hooks");
 fs.mkdirSync(fixtureHookDir, { recursive: true });
-for (const name of ["worktree-cleanup.mjs", "typed-issue-hook.mjs"]) fs.copyFileSync(path.join(root, ".agents", "hooks", name), path.join(fixtureHookDir, name));
+for (const name of ["hooks/worktree-cleanup.mjs", "hooks/typed-issue-hook.mjs", "repos.mjs"]) fs.copyFileSync(path.join(root, ".agents", name), path.join(main, ".agents", name));
 for (const [command, refused] of [[`Remove-Item -Recurse '${owned.tree}'`, true], [`Remove-Item -Recurse '${sibling}'`, false]]) {
   const payload = JSON.stringify({ tool_name: "PowerShell", cwd: scratch, tool_input: { command } });
   const r = spawnSync(process.execPath, [path.join(fixtureHookDir, "worktree-cleanup.mjs")], { cwd: scratch, input: payload, encoding: "utf8", windowsHide: true });

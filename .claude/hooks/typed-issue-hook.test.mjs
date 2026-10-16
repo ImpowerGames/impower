@@ -2,18 +2,46 @@
 // decide() directly, and a set of payloads run through the literal
 // PreToolUse "command" string that .claude/settings.json ships, under bash
 // and, when one is installed, under dash as a plain POSIX shell, with
-// CLAUDE_PROJECT_DIR set, so the wiring is covered as well as the logic. Run:
+// CLAUDE_PROJECT_DIR set, so the wiring is covered as well as the logic.
+// Both positions of the cutover switch in .agents/repos.json are covered:
+// the original tables pin the off position, and the public-repository guard
+// table runs the hook script with the switch on, from fixture checkouts that
+// carry their own repos file. Run:
 //   node .claude/hooks/typed-issue-hook.test.mjs
 
 import { testShell } from "../../.agents/skills/drive-web-editor/redgreen.mjs";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { decide } from "./typed-issue-hook.mjs";
+import { readRepos } from "../../.agents/repos.mjs";
+import { decide as decideWith } from "./typed-issue-hook.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const OFF = { ...readRepos(), cutover: false };
+const ON = { ...readRepos(), cutover: true };
+const decide = (command, shell) => decideWith(command, shell, { repos: OFF });
 let failed = 0;
+
+// A checkout holding only the hook, its re-export and a repos file, so the
+// hook can run as the harness runs it with either position of the switch
+// without touching the committed file.
+const scratch = mkdtempSync(join(tmpdir(), "typed-issue-hook-"));
+function fixture(name, reposText) {
+  const dir = join(scratch, name);
+  for (const file of [".claude/hooks/typed-issue-hook.mjs", ".agents/hooks/typed-issue-hook.mjs", ".agents/repos.mjs"]) {
+    mkdirSync(dirname(join(dir, file)), { recursive: true });
+    copyFileSync(join(root, file), join(dir, file));
+  }
+  writeFileSync(join(dir, ".agents/repos.json"), reposText);
+  return dir;
+}
+const fixtures = {
+  off: fixture("off", JSON.stringify(OFF)),
+  on: fixture("on", JSON.stringify(ON)),
+  broken: fixture("broken", JSON.stringify({ ...OFF, cutover: "yes" })),
+};
 
 function check(ok, label, detail) {
   if (ok) console.log(`PASS: ${label}`);
@@ -643,7 +671,7 @@ for (const [label, command, shell] of allows) {
         windowsHide: true,
         input: payload,
         encoding: "utf8",
-        env: { ...process.env, CLAUDE_PROJECT_DIR: root, ...env },
+        env: { ...process.env, CLAUDE_PROJECT_DIR: fixtures.off, ...env },
       });
     const wire = (label, payload, expectDeny, env) => {
       const r = run(payload, env);
@@ -730,8 +758,264 @@ for (const [label, command, shell] of allows) {
       const r2 = run(payload("Bash", { command: "npm test" }), { CLAUDE_PROJECT_DIR: resolve(root, "does-not-exist") });
       check(r2.status === 0 && !(r2.stderr ?? "").trim() && !r2.stdout, `[${shell}] wrong CLAUDE_PROJECT_DIR is silent on an unrelated command`, `status=${r2.status} stderr=${JSON.stringify(r2.stderr)}`);
     }
+
+    // The same wiring with the switch on: the guard refuses, its allowances
+    // pass, and an unparseable payload naming a guarded gh command is refused.
+    {
+      const onEnv = { CLAUDE_PROJECT_DIR: fixtures.on };
+      const wireOn = (label, body, expectDeny) => wire(`switch on: ${label}`, body, expectDeny, onEnv);
+      wireOn("gh issue view with no repository", payload("Bash", { command: "gh issue view 12" }), true);
+      wireOn("gh pr comment", payload("PowerShell", { command: "gh pr comment 12 --body-file r.md" }), true);
+      wireOn("curl read of issue comments", payload("Bash", { command: "curl https://api.github.com/repos/ImpowerGames/impower/issues/12/comments" }), true);
+      wireOn("irm read of a review", payload("PowerShell", { command: "irm https://api.github.com/repos/ImpowerGames/impower/pulls/12/reviews" }), true);
+      wireOn("gh pr view of permitted fields", payload("Bash", { command: "gh pr view 12 --json number,title,body,isDraft,mergeStateStatus" }), false);
+      wireOn("typed create on the internal repository", payload("Bash", { command: "gh issue create --title x --body y --type Task --repo ImpowerGames/impower-internal" }), false);
+      wireOn("unparseable payload mentioning gh pr", "{not json gh pr comment 12", true);
+      wireOn("unparseable payload without gh", "{not json", false);
+    }
+
+    // A repos file the loader rejects fails the check, and the wiring turns
+    // that into a refusal of the gh command rather than a pass.
+    {
+      const r = run(payload("Bash", { command: "gh pr view 12 --json number" }), { CLAUDE_PROJECT_DIR: fixtures.broken });
+      check(r.status === 2 && /check itself failed/.test(r.stderr ?? ""), `[${shell}] a malformed repos file refuses a gh command`, `status=${r.status} stderr=${JSON.stringify(r.stderr)}`);
+    }
+
+    // The committed checkout decides these the same in either position.
+    {
+      const rootEnv = { CLAUDE_PROJECT_DIR: root };
+      wire("committed repos file: untyped create with no repository", payload("Bash", { command: "gh issue create --title x" }), true, rootEnv);
+      wire("committed repos file: gh pr create", payload("Bash", { command: "gh pr create --draft --title x --body-file b.md" }), false, rootEnv);
+    }
   }
 }
+
+// The repos file and its loader.
+{
+  const committed = readRepos();
+  check(committed.code === "ImpowerGames/impower" && committed.internal === "ImpowerGames/impower-internal" && committed.autolinkPrefix === "I-" && typeof committed.cutover === "boolean", "the repos file names the code and internal repositories, the autolink prefix and the cutover switch", JSON.stringify(committed));
+  const bad = (label, text, field) => {
+    const file = join(scratch, "bad-repos.json");
+    writeFileSync(file, text);
+    let message = "";
+    try {
+      readRepos(file);
+    } catch (error) {
+      message = error.message;
+    }
+    check(message.includes(`"${field}"`), `the loader rejects ${label}`, JSON.stringify(message));
+  };
+  bad("a missing cutover switch", JSON.stringify({ ...OFF, cutover: undefined }), "cutover");
+  bad("a cutover switch that is not a boolean", JSON.stringify({ ...OFF, cutover: "false" }), "cutover");
+  bad("a code value that is not a slug", JSON.stringify({ ...OFF, code: "impower" }), "code");
+  bad("an internal repository equal to the code repository", JSON.stringify({ ...OFF, internal: "impowergames/IMPOWER" }), "internal");
+  bad("an autolink prefix without its dash", JSON.stringify({ ...OFF, autolinkPrefix: "I" }), "autolinkPrefix");
+}
+
+// The public-repository guard, with the switch on. Every row runs the hook
+// script itself as the harness would, with a JSON payload on stdin, and
+// asserts its exit code and the first line of the reason. The same text must
+// decide the same in-process under both shell readings, and with the switch
+// off no row reaches the guard.
+{
+  const guard = (what) => `Public-repository guard: ${what} on ImpowerGames/impower is refused.`;
+  const lines = {
+    issue: guard("a gh issue command"),
+    prComment: guard("gh pr comment"),
+    prReview: guard("gh pr review"),
+    prEdit: guard("a gh pr edit of labels, assignees, reviewers or projects"),
+    prView: guard("a gh pr view of comments or reviews"),
+    prList: guard("gh pr list without --author"),
+    search: guard("a search of issues or pull requests"),
+    api: guard("an issue, comment, review or discussion API call"),
+    graphql: guard("a GraphQL query for issues, comments, reviews or discussions"),
+  };
+  // Typed-creation refusals keep their wording; with the switch on their
+  // recipe names the internal repository.
+  const internalRecipe = "gh api -X POST repos/ImpowerGames/impower-internal/issues ";
+  const typed = {
+    typedIssue: "gh issue create without --type leaves the issue untyped, and every ticket here carries one (Bug, Feature, or Task).",
+    typedApi: "This creates an issue without an issue type, and every ticket here carries one (Bug, Feature, or Task).",
+    typedHttp: "This creates an issue without an issue type (or from a body the hook cannot read).",
+    createIssue: "This GraphQL mutation creates an issue, and the hook cannot see whether it sets an issue type.",
+  };
+  const code = "ImpowerGames/impower";
+  const internal = "ImpowerGames/impower-internal";
+  const refusals = [
+    // gh issue: every subcommand, named, by placeholder, by URL, by GH_REPO, or with no repository.
+    ["gh issue create with no repository", "gh issue create --title x --body y --type Task", "issue"],
+    ["gh issue create naming the code repository", `gh issue create --title x --body y --type Task --repo ${code}`, "issue"],
+    ["gh issue view with no repository", "gh issue view 12", "issue"],
+    ["gh issue view naming the code repository after the number", `gh issue view 12 -R ${code}`, "issue"],
+    ["gh issue list naming the code repository before the subcommand", `gh -R ${code} issue list`, "issue"],
+    ["gh issue comment", "gh issue comment 12 --body-file c.md", "issue"],
+    ["gh issue edit", "gh issue edit 12 --add-label bug", "issue"],
+    ["gh issue close", "gh issue close 12", "issue"],
+    ["gh issue view by the code repository's URL", `gh issue view https://github.com/${code}/issues/12`, "issue"],
+    ["gh issue view with an empty --repo", 'gh issue view 12 --repo ""', "issue"],
+    ["gh issue view by a .git URL", `gh issue view 12 --repo https://github.com/${code}.git`, "issue"],
+    ["gh issue view with GH_REPO naming the code repository", `GH_REPO=${code} gh issue view 12`, "issue"],
+    ["gh issue view with an empty GH_REPO", "GH_REPO= gh issue view 12", "issue"],
+    ["gh issue create whose title holds an internal -R", `gh issue create --title "-R ${internal} x" --type Task`, "issue"],
+    ["gh issue view inside bash -c", "bash -c 'gh issue view 12'", "issue"],
+    ["gh issue view in a substitution", 'T="$(gh issue view 12 --json title)"', "issue"],
+    // gh pr
+    ["gh pr comment", "gh pr comment 12 --body-file r.md", "prComment"],
+    ["gh pr comment naming the code repository", `gh pr comment 12 -R ${code} --body x`, "prComment"],
+    ["gh pr review", "gh pr review 12 --approve", "prReview"],
+    ["gh pr edit --add-label", "gh pr edit 12 --add-label bug", "prEdit"],
+    ["gh pr edit --add-label=", "gh pr edit 12 --add-label=bug", "prEdit"],
+    ["gh pr edit --remove-label", "gh pr edit 12 --remove-label bug", "prEdit"],
+    ["gh pr edit --add-assignee", "gh pr edit 12 --add-assignee @me", "prEdit"],
+    ["gh pr edit --add-reviewer", "gh pr edit 12 --add-reviewer someone", "prEdit"],
+    ["gh pr edit --add-project", 'gh pr edit 12 --add-project "Language & Engine"', "prEdit"],
+    ["gh pr edit --title with --add-label", "gh pr edit 12 --title x --add-label bug", "prEdit"],
+    ["gh pr view without --json", "gh pr view 12", "prView"],
+    ["gh pr view --comments", "gh pr view 12 --comments", "prView"],
+    ["gh pr view -c", "gh pr view 12 -c", "prView"],
+    ["gh pr view --json with --comments", "gh pr view 12 --json title --comments", "prView"],
+    ["gh pr view --json comments", "gh pr view 12 --json comments", "prView"],
+    ["gh pr view --json with reviews among fields", "gh pr view 12 --json number,reviews", "prView"],
+    ["gh pr view --json latestReviews", "gh pr view 12 --json latestReviews", "prView"],
+    ["gh pr view --json= reviewRequests", "gh pr view 12 --json=title,reviewRequests", "prView"],
+    ["gh pr list", "gh pr list", "prList"],
+    ["gh pr list by head branch only", "gh pr list --head feat/1962-x --json number", "prList"],
+    // gh search
+    ["gh search issues with no repository", "gh search issues parser crash", "search"],
+    ["gh search prs naming the code repository", `gh search prs fix --repo ${code}`, "search"],
+    ["gh search issues by repo: qualifier", `gh search issues "repo:${code} crash"`, "search"],
+    ["gh search issues by owner only", "gh search issues crash --owner ImpowerGames", "search"],
+    ["gh search prs naming both repositories", `gh search prs fix --repo ${internal} --repo ${code}`, "search"],
+    // gh api, every method
+    ["gh api issue comments, paginated", `gh api repos/${code}/issues/12/comments --paginate`, "api"],
+    ["gh api issues collection", `gh api repos/${code}/issues`, "api"],
+    ["gh api one issue", `gh api repos/${code}/issues/12`, "api"],
+    ["gh api PATCH of an issue", `gh api -X PATCH repos/${code}/issues/12 -f state=closed`, "api"],
+    ["gh api typed create on the code repository", `gh api -X POST repos/${code}/issues -f title=x -f type=Bug`, "api"],
+    ["gh api DELETE of an issue comment", `gh api -X DELETE repos/${code}/issues/comments/5`, "api"],
+    ["gh api pull request review comments", `gh api repos/${code}/pulls/12/comments`, "api"],
+    ["gh api pull request reviews", `gh api repos/${code}/pulls/12/reviews`, "api"],
+    ["gh api one review's comments", `gh api repos/${code}/pulls/12/reviews/3/comments`, "api"],
+    ["gh api review request", `gh api -X POST repos/${code}/pulls/12/requested_reviewers -f "reviewers[]=x"`, "api"],
+    ["gh api discussions", `gh api repos/${code}/discussions`, "api"],
+    ["gh api discussion comments", `gh api repos/${code}/discussions/3/comments`, "api"],
+    ["gh api by the {owner}/{repo} placeholder", "gh api repos/{owner}/{repo}/issues/12/comments", "api"],
+    ["gh api by absolute URL", `gh api https://api.github.com/repos/${code}/issues/12`, "api"],
+    ["gh api search/issues by q field", `gh api search/issues -f q="repo:${code} is:open"`, "search"],
+    ["gh api search/issues by query string", `gh api "search/issues?q=repo:${code}+crash"`, "search"],
+    // GraphQL
+    ["GraphQL issues by owner and name", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { issues(first: 5) { nodes { title } } } }'`, "graphql"],
+    ["GraphQL pull request comments by variables", "gh api graphql -f owner=ImpowerGames -f name=impower -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { pullRequest(number: 1) { comments(first: 5) { nodes { body } } } } }'", "graphql"],
+    ["GraphQL search by repo qualifier", `gh api graphql -f query='query { search(query: "repo:${code} crash", type: ISSUE, first: 5) { nodes { ... on Issue { title } } } }'`, "graphql"],
+    ["GraphQL discussions", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { discussions(first: 1) { nodes { body } } } }'`, "graphql"],
+    // curl, Invoke-RestMethod, irm, Invoke-WebRequest, iwr
+    ["curl read of issue comments", `curl https://api.github.com/repos/${code}/issues/12/comments`, "api"],
+    ["curl review POST", `curl -X POST https://api.github.com/repos/${code}/pulls/12/reviews -d '{"event":"APPROVE"}'`, "api"],
+    ["curl issues search", `curl "https://api.github.com/search/issues?q=repo:${code}+crash"`, "search"],
+    ["curl GraphQL issues", `curl -X POST https://api.github.com/graphql -d '{"query":"query { repository(owner: \\"ImpowerGames\\", name: \\"impower\\") { issues(first: 1) { nodes { title } } } }"}'`, "graphql", "bash"],
+    ["Invoke-RestMethod read of an issue", `Invoke-RestMethod -Uri https://api.github.com/repos/${code}/issues/12`, "api"],
+    ["irm read of discussions", `irm https://api.github.com/repos/${code}/discussions`, "api"],
+    ["Invoke-WebRequest read of review requests", `Invoke-WebRequest -Uri https://api.github.com/repos/${code}/pulls/12/requested_reviewers`, "api"],
+    ["iwr read of the issues collection", `iwr https://api.github.com/repos/${code}/issues`, "api"],
+    ["Invoke-RestMethod GraphQL reviews", `Invoke-RestMethod -Method Post -Uri https://api.github.com/graphql -Body (@{query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1) { reviews(first: 5) { nodes { body } } } } }'} | ConvertTo-Json)`, "graphql"],
+    // Typed creation, now scoped to the internal repository.
+    ["gh issue create on the internal repository without --type", `gh issue create --title x --body y --repo ${internal}`, "typedIssue"],
+    ["gh issue create with -R internal before the subcommand without --type", `gh -R ${internal} issue create --title x`, "typedIssue"],
+    ["gh issue create with GH_REPO internal without --type", `GH_REPO=${internal} gh issue create --title x`, "typedIssue"],
+    ["gh api create on the internal repository without type", `gh api -X POST repos/${internal}/issues -f title=x -F body=@b.md`, "typedApi"],
+    ["curl create on the internal repository without type", `curl -X POST https://api.github.com/repos/${internal}/issues -d '{"title":"x"}'`, "typedHttp"],
+    ["irm create on the internal repository without type", `irm -Method Post -Uri https://api.github.com/repos/${internal}/issues -Body @{title='x'}`, "typedHttp"],
+    ["GraphQL createIssue on the internal repository", "gh api graphql -f query='mutation { createIssue(input: {repositoryId: \"x\", title: \"y\"}) { issue { id } } }'", "createIssue"],
+  ];
+  const allowances = [
+    ["gh pr create --draft", "gh pr create --draft --title x --body-file b.md"],
+    ["gh pr ready", "gh pr ready 12"],
+    ["gh pr ready --undo", "gh pr ready 12 --undo"],
+    ["gh pr checks", "gh pr checks 12"],
+    ["gh pr diff", "gh pr diff 12"],
+    ["gh pr merge", "gh pr merge 12 --squash"],
+    ["gh pr list --author", "gh pr list --author @me --head feat/1962-x --json number,url"],
+    ["gh pr list -A", "gh pr list -A @me"],
+    ["gh pr view --json of permitted fields", "gh pr view 12 --json number,title,body,isDraft,mergeStateStatus"],
+    ["gh pr view --json= of a permitted field", "gh pr view 12 --json=headRefName"],
+    ["gh pr edit --title", "gh pr edit 12 --title x"],
+    ["gh pr edit --body", "gh pr edit 12 --body x"],
+    ["gh pr edit --body-file", "gh pr edit 12 --body-file b.md"],
+    ["gh run list", "gh run list --branch feat/1962-x"],
+    ["gh run view --log-failed", "gh run view 5 --log-failed"],
+    ["gh api one pull request", `gh api repos/${code}/pulls/12 --jq .body`],
+    ["gh api pull request files", `gh api repos/${code}/pulls/12/files`],
+    ["gh api commits", `gh api repos/${code}/commits/abc123`],
+    ["gh api branches", `gh api repos/${code}/branches/main/protection`],
+    ["gh api rulesets", `gh api repos/${code}/rulesets`],
+    ["gh api Actions", `gh api repos/${code}/actions/runs/5/jobs`],
+    ["gh api git data", `gh api repos/${code}/git/refs/heads/main`],
+    ["gh api contents", `gh api repos/${code}/contents/README.md`],
+    ["gh api one pull request by placeholder", "gh api repos/{owner}/{repo}/pulls/12"],
+    ["curl Actions runs", `curl https://api.github.com/repos/${code}/actions/runs`],
+    ["irm one pull request", `irm https://api.github.com/repos/${code}/pulls/12`],
+    ["gh issue view on the internal repository", `gh issue view 12 -R ${internal}`],
+    ["gh issue list on the internal repository", `gh issue list --repo ${internal} --label bug`],
+    ["gh issue comment on the internal repository", `gh issue comment 12 -R ${internal} --body-file c.md`],
+    ["gh issue view by the internal repository's URL", `gh issue view https://github.com/${internal}/issues/12`],
+    ["gh issue view with GH_REPO naming the internal repository", `GH_REPO=${internal} gh issue view 12`],
+    ["typed gh issue create on the internal repository", `gh issue create --title x --body y --type Task --repo ${internal}`],
+    ["typed gh api create on the internal repository", `gh api -X POST repos/${internal}/issues -f title=x -F body=@b.md -f type=Task`],
+    ["gh api comments on the internal repository", `gh api repos/${internal}/issues/12/comments --paginate`],
+    ["gh search issues on the internal repository", `gh search issues crash --repo ${internal}`],
+    ["gh search issues by internal repo: qualifier", `gh search issues "repo:${internal} crash"`],
+    ["GraphQL issues on the internal repository", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower-internal") { issues(first: 5) { nodes { title } } } }'`],
+    ["GraphQL pull request state on the code repository", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1) { title isDraft } } }'`],
+    ["untyped create on another repository", "gh api -X POST repos/SomeOther/repo/issues -f title=x"],
+    ["gh repo view", "gh repo view --json name"],
+    ["a commit message naming a guarded command", 'git commit -m "docs: never run gh issue view 12 here"'],
+  ];
+
+  const script = join(fixtures.on, ".claude/hooks/typed-issue-hook.mjs");
+  const runHook = (command, shell) =>
+    spawnSync(process.execPath, [script], {
+      windowsHide: true,
+      input: JSON.stringify({ tool_name: shell === "powershell" ? "PowerShell" : "Bash", tool_input: { command } }),
+      encoding: "utf8",
+    });
+  const reasonOf = (r) => {
+    try {
+      return JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason;
+    } catch {
+      return null;
+    }
+  };
+  const firstLine = (reason) => (typeof reason === "string" ? reason.split("\n")[0] : reason);
+  const expectLine = (key, line) =>
+    key in lines ? line === lines[key] : typeof line === "string" && line.startsWith(typed[key]) && (key === "createIssue" || line.includes(internalRecipe));
+  const covered = new Set();
+  for (const [label, command, key, shell] of refusals) {
+    covered.add(key);
+    const r = runHook(command, shell);
+    const line = firstLine(reasonOf(r));
+    check(r.status === 0 && !(r.stderr ?? "").trim() && expectLine(key, line), `switch on, refused (${key}): ${label}`, `status=${r.status} stderr=${JSON.stringify(r.stderr)} first line=${JSON.stringify(line)}`);
+    const both = firstLine(decideWith(command, shell, { repos: ON }));
+    check(both === line, `switch on, the in-process decision matches the hook: ${label}`, JSON.stringify(both));
+    const off = decideWith(command, shell, { repos: OFF });
+    check(!(typeof off === "string" && off.startsWith("Public-repository guard")), `switch off, no guard: ${label}`, JSON.stringify(off));
+  }
+  check(Object.keys(lines).every((k) => covered.has(k)) && Object.keys(typed).every((k) => covered.has(k)), "every refusal reason has a row");
+  for (const [label, command, shell] of allowances) {
+    const r = runHook(command, shell);
+    check(r.status === 0 && !(r.stderr ?? "").trim() && r.stdout === "", `switch on, allowed: ${label}`, `status=${r.status} stderr=${JSON.stringify(r.stderr)} stdout=${JSON.stringify(r.stdout)}`);
+    check(decideWith(command, shell, { repos: ON }) === null, `switch on, allowed in-process under both readings: ${label}`);
+  }
+  // The detail lines name the internal repository and the public contract.
+  const reason = decideWith("gh issue view 12", "bash", { repos: ON });
+  check(reason.includes(`live in ${internal}`) && /opens a pull request as a draft, pushes to it and marks it ready or back to draft, nothing else/.test(reason) && reason.includes(`-R ${internal}`), "the guard's reason names the internal repository and the public contract", JSON.stringify(reason));
+  // With the switch off, the commands the guard would refuse pass as today.
+  for (const command of ["gh issue view 12", "gh pr comment 12 --body x", "gh pr view 12 --comments", `gh api repos/${code}/issues/12/comments --paginate`, `gh issue create --title x --body y --type Task --repo ${code}`]) {
+    check(decideWith(command, undefined, { repos: OFF }) === null, `switch off, allowed as today: ${command}`);
+  }
+  check(typeof decideWith(`gh api -X POST repos/${internal}/issues -f title=x`, undefined, { repos: OFF }) !== "string", "switch off, an untyped create on the internal repository passes as today");
+}
+
+rmSync(scratch, { recursive: true, force: true });
 
 if (failed) {
   console.log(`${failed} check(s) failed`);

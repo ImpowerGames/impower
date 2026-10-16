@@ -25,18 +25,40 @@
 // stdin with `<<<` is analysed as a command of its own, as is a `$(...)` or
 // backquote substitution inside double quotes.
 //
-// This is a guardrail against forgetting the type, not against evasion: an
-// endpoint or method built from a shell variable, a gh alias, or a wrapper
-// script is not seen.
+// The repositories come from .agents/repos.json. While its cutover switch is
+// off, the typed-creation rule applies to the code repository and every
+// other repository passes. While it is on, the rule applies to the internal
+// repository, and the hook is also the public-repository guard: on the code
+// repository, named, given as `{owner}/{repo}`, or implied by a gh command
+// that names no repository, it refuses every `gh issue` command, `gh pr
+// comment`, `gh pr review`, label, assignee, reviewer and project edits, a
+// `gh pr view` that reads comments or reviews, `gh pr list` without
+// `--author`, `gh search issues` and `gh search prs`, the issue, pull request
+// comment and review, review request and discussion endpoints, and a GraphQL
+// query that names the code repository with issue, comment, review or
+// discussion fields, through gh api, curl, and Invoke-RestMethod or
+// Invoke-WebRequest alike. Pull requests, checks, CI runs and git data stay
+// open to it.
+//
+// This is a guardrail against forgetting the type or the repository, not
+// against evasion: an endpoint or method built from a shell variable, a
+// GraphQL query read from a file, a gh alias, or a wrapper script is not
+// seen.
 //
 // Decision tables and runner wiring checks exercise this shared policy.
 
 import { pathToFileURL } from "node:url";
+import { readRepos } from "../repos.mjs";
 
-const RECIPE =
-  'gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=<label>"   # type is Bug, Feature, or Task; repeat labels[] per label';
+// The repositories the command under analysis is checked against, set by
+// decide() from the repos file or from the caller's override.
+let repos = null;
+let defaultRepos = null;
 
-const THIS_REPO = "impowergames/impower";
+function recipe() {
+  const target = repos.cutover ? repos.internal : repos.code;
+  return `gh api -X POST repos/${target}/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=<label>"   # type is Bug, Feature, or Task; repeat labels[] per label`;
+}
 
 // gh api flags that take a value which is not a request field.
 const GH_API_VALUE_FLAGS = new Set(["-H", "--header", "-p", "--preview", "-q", "--jq", "-t", "--template", "--cache", "--hostname"]);
@@ -604,9 +626,15 @@ function normalizeRepo(value) {
   return m ? m[1] : v;
 }
 
-function isThisRepo(repo) {
+/** True for the code repository, by name or by gh's placeholders for the checkout's repository. */
+function isCodeRepo(repo) {
   const r = normalizeRepo(repo);
-  return r === THIS_REPO || r === "{owner}/{repo}" || r === ":owner/:repo";
+  return r === repos.code.toLowerCase() || r === "{owner}/{repo}" || r === ":owner/:repo";
+}
+
+/** True for the repository whose issue creation must carry a type. */
+function isTypedRepo(repo) {
+  return repos.cutover ? normalizeRepo(repo) === repos.internal.toLowerCase() : isCodeRepo(repo);
 }
 
 /** Reads `--flag value`, `--flag=value`, `-Xvalue`, `-X=value`; returns [value, tokensConsumed]. */
@@ -630,12 +658,12 @@ function takesNextToken(t, name) {
 }
 
 /**
- * Reads the arguments after `gh`: the subcommand words (`api`, or `issue`
- * plus its action), the remaining tokens in order, and a repo given by
- * `-R`/`--repo` before the action. gh accepts those flags before the
- * subcommand, so `gh -R o/r issue create` and `gh issue -R o/r create` both
- * resolve here; `--hostname` is consumed the same way so its value is not
- * mistaken for a subcommand.
+ * Reads the arguments after `gh`: the subcommand words (`api`, or `issue`,
+ * `pr` or `search` plus its action), the remaining tokens in order, and a
+ * repo given by `-R`/`--repo` before the action. gh accepts those flags
+ * before the subcommand, so `gh -R o/r issue create` and `gh issue -R o/r
+ * create` both resolve here; `--hostname` is consumed the same way so its
+ * value is not mistaken for a subcommand.
  */
 function ghInvocation(args) {
   const words = [];
@@ -643,7 +671,7 @@ function ghInvocation(args) {
   let repo = null;
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
-    const wantWord = words.length === 0 || (words.length === 1 && words[0] === "issue");
+    const wantWord = words.length === 0 || (words.length === 1 && ["issue", "pr", "search"].includes(words[0]));
     if (wantWord && t.startsWith("-")) {
       const name = flagName(t);
       if (name === "-R" || name === "--repo" || name === "--hostname") {
@@ -683,11 +711,162 @@ function checkGhIssueCreate(args, presetRepo) {
     }
     if (GH_ISSUE_CREATE_VALUE_FLAGS.has(name) && takesNextToken(t, name)) i++;
   }
-  if (typed || (repo !== null && !isThisRepo(repo))) return null;
+  if (typed || (repo !== null && !isTypedRepo(repo))) return null;
   return (
     "gh issue create without --type leaves the issue untyped, and every ticket here carries one (Bug, Feature, or Task). " +
-    "Add --type Bug (or Feature, or Task), or create the issue with one typed REST call instead: " + RECIPE
+    "Add --type Bug (or Feature, or Task), or create the issue with one typed REST call instead: " + recipe()
   );
+}
+
+// gh issue, pr and search flags that take a value, so the value is never
+// read as a repository flag or a positional argument.
+const GH_VALUE_FLAGS = new Set([
+  ...GH_ISSUE_CREATE_VALUE_FLAGS,
+  "-A", "--author", "-B", "--base", "-H", "--head", "-r", "--reviewer", "-q", "--jq", "--json", "-S", "--search",
+  "-s", "--state", "-L", "--limit",
+  "--add-label", "--remove-label", "--add-assignee", "--remove-assignee", "--add-reviewer", "--remove-reviewer",
+  "--add-project", "--remove-project", "--owner", "--app", "--assignee", "--mention", "--milestone", "--sort", "--order",
+  "--match", "--language", "--created", "--updated", "--closed", "--merged", "--commenter", "--involves", "--reason",
+  "--duplicate-of", "--subject", "--match-head-commit", "--body-file", "--template",
+]);
+
+/**
+ * The flags and positional words of a gh issue, pr or search invocation:
+ * `flags` maps each lower-cased long name or short name to its values (an
+ * empty string for a flag without one), and `positional` holds the rest.
+ */
+function ghArgs(args) {
+  const flags = new Map();
+  const positional = [];
+  const add = (name, value) => flags.set(name, [...(flags.get(name) ?? []), value]);
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i].text;
+    if (t === "--") {
+      positional.push(...args.slice(i + 1).map((a) => a.text));
+      break;
+    }
+    // A quoted word with a space is a value, never a flag.
+    const name = /\s/.test(t) ? null : flagName(t);
+    if (name === null) {
+      positional.push(t);
+      continue;
+    }
+    if (GH_VALUE_FLAGS.has(name) && takesNextToken(t, name)) {
+      add(name, args[i + 1]?.text ?? "");
+      i++;
+      continue;
+    }
+    add(name, t.length > name.length ? flagValue(args, i)[0] : "");
+  }
+  return { flags, positional };
+}
+
+/**
+ * The repository a gh issue, pr or search invocation targets: the last
+ * `-R`/`--repo`, else an issue or pull request URL argument, else a
+ * `GH_REPO` assignment before the command, else null for the checkout's own
+ * repository, which is the code repository. An empty value names nothing.
+ */
+function ghTargetRepo(invocation, parsed, envRepo) {
+  const named = [...(parsed.flags.get("-R") ?? []), ...(parsed.flags.get("--repo") ?? [])].filter((r) => r.trim() !== "");
+  if (named.length) return named[named.length - 1];
+  if (invocation.repo) return invocation.repo;
+  for (const word of parsed.positional) {
+    const m = word.match(/github\.com\/([^/\s]+\/[^/\s]+)\/(?:issues|pull|discussions)\/\d/i);
+    if (m) return m[1];
+  }
+  return envRepo?.trim() ? envRepo : null;
+}
+
+function guardReason(what, hint) {
+  return [
+    `Public-repository guard: ${what} on ${repos.code} is refused.`,
+    `Tickets and every comment, review and discussion live in ${repos.internal}. On ${repos.code} an agent opens a pull request as a draft, pushes to it and marks it ready or back to draft, nothing else, and reads only a pull request's number, title, body, draft, merge state and checks, CI runs, files, commits, branches, rulesets and other git data.`,
+    hint,
+  ].join("\n");
+}
+
+const GUARD = {
+  issue: () => guardReason("a gh issue command", `Name the internal repository: gh issue <command> -R ${repos.internal}`),
+  prComment: () => guardReason("gh pr comment", `Post it as a comment on the ticket in ${repos.internal} instead.`),
+  prReview: () => guardReason("gh pr review", `Post the review on the ticket in ${repos.internal} instead.`),
+  prEdit: () => guardReason("a gh pr edit of labels, assignees, reviewers or projects", "Only --title, --body and --body-file may change on a public pull request."),
+  prView: () => guardReason("a gh pr view of comments or reviews", "Read permitted fields only: gh pr view <n> --json number,title,body,isDraft,mergeStateStatus"),
+  prList: () => guardReason("gh pr list without --author", "Find pull requests by author and branch: gh pr list --author @me --head <branch>"),
+  search: () => guardReason("a search of issues or pull requests", `Scope the search to the internal repository: gh search issues <query> --repo ${repos.internal}`),
+  api: () => guardReason("an issue, comment, review or discussion API call", `Call the same endpoint on repos/${repos.internal} instead.`),
+  graphql: () => guardReason("a GraphQL query for issues, comments, reviews or discussions", `Query repository(owner, name) of ${repos.internal} instead.`),
+};
+
+/** The guard's reason for a gh issue, pr or search invocation, or null. */
+function checkGhGuarded(invocation, envRepo) {
+  const [command, action] = invocation.words;
+  if (command !== "issue" && command !== "pr" && command !== "search") return null;
+  const parsed = ghArgs(invocation.rest);
+  if (command === "search") {
+    if (action !== "issues" && action !== "prs") return null;
+    const named = [invocation.repo, ...(parsed.flags.get("-R") ?? []), ...(parsed.flags.get("--repo") ?? [])].filter((r) => r !== null);
+    return searchScoped([...named, ...parsed.positional].join(" "), named) ? null : GUARD.search();
+  }
+  const target = ghTargetRepo(invocation, parsed, envRepo);
+  if (target !== null && !isCodeRepo(target)) return null;
+  if (command === "issue") return GUARD.issue();
+  const has = (...names) => names.some((n) => parsed.flags.has(n));
+  if (action === "comment") return GUARD.prComment();
+  if (action === "review") return GUARD.prReview();
+  if (action === "edit") return has("--add-label", "--remove-label", "--add-assignee", "--add-reviewer", "--add-project") ? GUARD.prEdit() : null;
+  if (action === "view") {
+    if (has("--comments", "-c") || !parsed.flags.has("--json")) return GUARD.prView();
+    const fields = parsed.flags.get("--json").join(",").toLowerCase().split(/[\s,]+/);
+    return fields.some((f) => ["comments", "reviews", "latestreviews", "reviewrequests"].includes(f)) ? GUARD.prView() : null;
+  }
+  if (action === "list") return has("--author", "-A") ? null : GUARD.prList();
+  return null;
+}
+
+/**
+ * True when a search names at least one repository, by flag or by `repo:`
+ * qualifier, and none of them is the code repository. An unscoped search
+ * covers the code repository too.
+ */
+function searchScoped(text, named = []) {
+  let decoded = text;
+  try {
+    decoded = decodeURIComponent(text.replace(/\+/g, " "));
+  } catch {
+    // A malformed escape: read the text as it is.
+  }
+  const qualified = [...decoded.matchAll(/(?:^|[\s"'&=(])repo:([^\s"'&)]+)/gi)].map((m) => m[1]);
+  const all = [...named, ...qualified];
+  return all.length > 0 && !all.some(isCodeRepo);
+}
+
+/** True when an API path (after the host, lower-cased) reaches outsider-writable text on the code repository. */
+function guardedEndpoint(endpoint) {
+  const m = endpoint.match(/^repos\/([^/]+\/[^/]+)(?:\/(.*))?$/);
+  if (!m || !isCodeRepo(m[1])) return false;
+  const path = m[2] ?? "";
+  return /^issues(\/|$)/.test(path) || /^pulls\/[^/]+\/(comments|reviews|requested_reviewers)(\/|$)/.test(path) || /^discussion/.test(path);
+}
+
+/**
+ * True when GraphQL text names the code repository, as an `owner/name` slug
+ * or as its owner and name words, together with issue, comment, review or
+ * discussion fields.
+ */
+function graphqlReadsCode(text) {
+  const [owner, name] = repos.code.toLowerCase().split("/");
+  const words = new Set(text.toLowerCase().split(/[^\w.-]+/));
+  const slug = new RegExp(`(^|[^\\w.-])${repos.code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.-])`, "i");
+  const named = slug.test(text) || (words.has(owner) && words.has(name));
+  return named && /\b(issues?|issueOrPullRequest|comments|reviews|reviewThreads|latestReviews|reviewRequests|discussions?|timelineItems)\b/i.test(text);
+}
+
+/** The guard's reason for an API URL path and the request text around it, or null. */
+function checkGuardedRequest(endpoint, text) {
+  if (endpoint === "graphql") return graphqlReadsCode(text) ? GUARD.graphql() : null;
+  if (endpoint === "search/issues") return searchScoped(text) ? null : GUARD.search();
+  return guardedEndpoint(endpoint) ? GUARD.api() : null;
 }
 
 function normalizeEndpoint(raw) {
@@ -744,18 +923,20 @@ function checkGhApi(args) {
   }
   const endpoint = normalizeEndpoint(positional[0] ?? "");
 
-  if (endpoint === "graphql") {
-    if (fields.some((f) => /createissue/i.test(f.value))) {
-      return (
-        "This GraphQL mutation creates an issue, and the hook cannot see whether it sets an issue type. " +
-        "Use the REST call instead: " + RECIPE
-      );
-    }
-    return null;
+  if (endpoint === "graphql" && fields.some((f) => /createissue/i.test(f.value))) {
+    return (
+      "This GraphQL mutation creates an issue, and the hook cannot see whether it sets an issue type. " +
+      "Use the REST call instead: " + recipe()
+    );
   }
+  if (repos.cutover) {
+    const guarded = checkGuardedRequest(endpoint, [positional[0] ?? "", ...fields.map((f) => f.value)].join("\n"));
+    if (guarded) return guarded;
+  }
+  if (endpoint === "graphql") return null;
 
   const m = endpoint.match(/^repos\/([^/]+\/[^/]+)\/issues$/);
-  if (!m || !isThisRepo(m[1])) return null;
+  if (!m || !isTypedRepo(m[1])) return null;
 
   const creates = method === null ? fields.length > 0 || input : method === "POST";
   if (!creates) return null;
@@ -763,7 +944,7 @@ function checkGhApi(args) {
   if (input) {
     return (
       "This creates an issue from a request body file, and the hook cannot see whether the body sets an issue type " +
-      "(field flags next to --input go to the query string, not the body). Use field flags instead: " + RECIPE
+      "(field flags next to --input go to the query string, not the body). Use field flags instead: " + recipe()
     );
   }
   // -F converts true, false, null, and integers to JSON values and reads
@@ -776,7 +957,7 @@ function checkGhApi(args) {
   if (typed) return null;
   return (
     "This creates an issue without an issue type, and every ticket here carries one (Bug, Feature, or Task). " +
-    "Add -f type=Bug, -f type=Feature, or -f type=Task to the same call: " + RECIPE
+    "Add -f type=Bug, -f type=Feature, or -f type=Task to the same call: " + recipe()
   );
 }
 
@@ -940,9 +1121,22 @@ function unwrapBody(body) {
 const CURL_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
+const API_URL = /api\.github\.com\/[^\s"'#]*/gi;
+
+/** The guard's reason for an HTTP client invocation that reaches a guarded API path, or null. */
+function checkGuardedUrl(args) {
+  const text = args.map((a) => a.text).join("\n");
+  for (const [url] of text.matchAll(API_URL)) {
+    const endpoint = normalizeEndpoint(url.replace(/^api\.github\.com\//i, ""));
+    const reason = checkGuardedRequest(endpoint, text);
+    if (reason) return reason;
+  }
+  return null;
+}
+
 function checkCurl(args) {
   const urlIndex = args.findIndex((a) => COLLECTION_URL.test(a.text));
-  if (urlIndex < 0 || !isThisRepo(args[urlIndex].text.match(COLLECTION_URL)[1])) return null;
+  if (urlIndex < 0 || !isTypedRepo(args[urlIndex].text.match(COLLECTION_URL)[1])) return null;
   let method = null;
   const bodies = [];
   let get = false;
@@ -979,7 +1173,7 @@ function checkCurl(args) {
   if (bodies.some((b) => bodyHasTypeField(b))) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
-    "Use the gh recipe instead: " + RECIPE
+    "Use the gh recipe instead: " + recipe()
   );
 }
 
@@ -1000,7 +1194,7 @@ function bodyText(seg) {
 
 function checkInvokeRestMethod(args) {
   const urlToken = args.find((a) => COLLECTION_URL.test(a.text));
-  if (!urlToken || !isThisRepo(urlToken.text.match(COLLECTION_URL)[1])) return null;
+  if (!urlToken || !isTypedRepo(urlToken.text.match(COLLECTION_URL)[1])) return null;
   const joined = args.map((a) => a.text).join(" ");
   const body = bodyText(args);
   const posts = /(^|\s)-method\s+post\b/i.test(joined) || body !== null;
@@ -1008,7 +1202,7 @@ function checkInvokeRestMethod(args) {
   if (body !== null && bodyHasTypeField(body)) return null;
   return (
     "This creates an issue without an issue type (or from a body the hook cannot read). " +
-    "Use the gh recipe instead: " + RECIPE
+    "Use the gh recipe instead: " + recipe()
   );
 }
 
@@ -1148,14 +1342,21 @@ export { baseName, isShellCommandString, programBefore };
  * "powershell" or "bash"; when omitted the command is read both ways and
  * refused if either reading refuses it. Substitutions and -c strings are
  * analysed to a depth of three; a create nested deeper is not seen.
+ * `options.repos` replaces the repos file, so a test can decide under
+ * either position of the cutover switch.
  */
-export function decide(command, shell, depth = 0) {
+export function decide(command, shell, options = {}) {
+  repos = options.repos ?? (defaultRepos ??= readRepos());
+  return decideAt(command, shell, 0);
+}
+
+function decideAt(command, shell, depth) {
   if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
-  if (shell !== "powershell" && shell !== "bash") return decide(command, "bash", depth) ?? decide(command, "powershell", depth);
+  if (shell !== "powershell" && shell !== "bash") return decideAt(command, "bash", depth) ?? decideAt(command, "powershell", depth);
   const { segments, subs } = readCommand(command, shell);
   const outerShell = shell;
   for (const sub of subs) {
-    const inner = decide(sub, outerShell, depth + 1);
+    const inner = decideAt(sub, outerShell, depth + 1);
     currentShell = outerShell;
     if (inner) return inner;
   }
@@ -1167,7 +1368,7 @@ export function decide(command, shell, depth = 0) {
         // A string handed to a shell's -c is written for that shell.
         const program = programBefore(seg, i - 1);
         const innerShell = program >= 0 && /^(pwsh|powershell)$/.test(baseName(seg[program])) ? "powershell" : program >= 0 ? "bash" : outerShell;
-        const inner = decide(tok.text, innerShell, depth + 1);
+        const inner = decideAt(tok.text, innerShell, depth + 1);
         currentShell = outerShell;
         if (inner) return inner;
       }
@@ -1175,13 +1376,23 @@ export function decide(command, shell, depth = 0) {
       const base = baseName(tok);
       let reason = null;
       if (base === "gh") {
-        const { words, rest, repo } = ghInvocation(seg.slice(i + 1));
+        const invocation = ghInvocation(seg.slice(i + 1));
+        const { words, rest } = invocation;
+        let repo = invocation.repo;
+        if (repos.cutover) {
+          // gh reads GH_REPO when no flag names a repository.
+          const env = seg.slice(0, i).reverse().find((t) => /^GH_REPO=/.test(t.text));
+          const envRepo = env ? env.text.slice("GH_REPO=".length) : null;
+          reason = checkGhGuarded(invocation, envRepo);
+          if (repo === null && words[0] === "issue") repo = ghTargetRepo(invocation, ghArgs(rest), envRepo);
+        }
+        if (reason) return reason;
         if (words[0] === "issue" && words[1] === "create") reason = checkGhIssueCreate(rest, repo);
         else if (words[0] === "api") reason = checkGhApi(rest);
       } else if (base === "curl") {
-        reason = checkCurl(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkCurl(seg.slice(i + 1));
       } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
-        reason = checkInvokeRestMethod(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkInvokeRestMethod(seg.slice(i + 1));
       }
       if (reason) return reason;
     }
@@ -1239,9 +1450,13 @@ export async function main() {
     shell = tool === "powershell" ? "powershell" : tool === "bash" ? "bash" : undefined;
   } catch {
     // An unparseable payload is refused only when it looks like it carries a
-    // gh call, so a broken harness cannot let an untyped create through and
-    // cannot block unrelated commands either.
-    if (/\bgh\s+(issue|api)\b/i.test(raw)) deny("The typed-issue hook could not parse the tool payload, so it cannot tell whether this command creates an untyped issue. File it with: " + RECIPE);
+    // gh call the hook checks, so a broken harness cannot let an untyped
+    // create or a guarded call through and cannot block unrelated commands
+    // either.
+    repos = defaultRepos ??= readRepos();
+    const checked = repos.cutover ? /\bgh\s+(issue|api|pr|search)\b/i : /\bgh\s+(issue|api)\b/i;
+    const risk = repos.cutover ? `creates an untyped issue or reaches issues, comments or reviews on ${repos.code}` : "creates an untyped issue";
+    if (checked.test(raw)) deny(`The typed-issue hook could not parse the tool payload, so it cannot tell whether this command ${risk}. File it with: ${recipe()}`);
     return;
   }
   const reason = decide(command, shell);
