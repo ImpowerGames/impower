@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 269,
-  "previous": "9bdfec35d700449acde41ddfe14511369d8a3d70",
+  "seq": 270,
+  "previous": "e5c28c679c3f502ab72d3938af04bea788716b25",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:10.409Z",
+  "time": "2026-10-16T16:09:18.771Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 228,
+    "recordRevision": 229,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4050,6 +4050,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\887-run-file-twice",
       "branch": "fix/887-run-file-twice",
       "classifier": "removed  impower.worktrees\\fix\\887-run-file-twice                        fix/887-run-file-twice                            1.1 GB     merged into origin/main; origin/fix/887-run-file-twice still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-16T16:09:16.577Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1909-fixed-misparse-closures",
+      "branch": "test/1909-fixed-misparse-closures",
+      "classifier": "removed  impower.worktrees\\test\\1909-fixed-misparse-closures             test/1909-fixed-misparse-closures                 939.0 MB   merged into origin/main; origin/test/1909-fixed-misparse-closures still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1909-fixed-misparse-closures': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -4059,7 +4065,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:09:09.558Z",
+      "observedAt": "2026-10-16T16:09:17.958Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4304,12 +4310,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:27:02.449Z",
-      "event": "operation-outcome",
-      "id": "76097f85",
-      "state": "confirmed"
-    },
     {
       "time": "2026-10-16T04:30:17.008Z",
       "event": "released",
@@ -5006,6 +5006,11 @@
       "time": "2026-10-16T16:09:08.104Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\887-run-file-twice"
+    },
+    {
+      "time": "2026-10-16T16:09:16.578Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1909-fixed-misparse-closures"
     }
   ]
 }
