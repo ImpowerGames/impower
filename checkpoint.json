@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 92,
-  "previous": "4160bcc6c81839d353ed12d72813f8cbf4214abe",
+  "seq": 93,
+  "previous": "51f4d16533b77c954212568cb81b1241f8eab9b6",
   "snapshotParents": [],
-  "time": "2026-10-16T19:36:16.221Z",
+  "time": "2026-10-16T19:36:25.631Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1974",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 72,
+    "recordRevision": 73,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -368,6 +368,25 @@
         }
       },
       "pending": null,
+      "history": [],
+      "results": []
+    },
+    "1974": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "3950b896-bf27-4a2c-b9ff-a936c1dec179",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
+        "branch": "fix/1974-carried-memo-resolution",
+        "artifactParent": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T19:36:23.188Z"
+      },
       "history": [],
       "results": []
     }
@@ -1107,12 +1126,21 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:36:15.534Z",
+      "observedAt": "2026-10-16T19:36:24.849Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
       "unpushed": true,
       "dirty": true
+    },
+    "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution": {
+      "ticket": 1974,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
+      "branch": "fix/1974-carried-memo-resolution",
+      "observedAt": "2026-10-16T19:36:24.849Z",
+      "held": true,
+      "exists": false
     }
   },
   "snapshots": {},
@@ -1634,6 +1662,13 @@
       "event": "operation-outcome",
       "id": "2db22ebc",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T19:36:23.189Z",
+      "event": "dispatch-intent",
+      "ticket": 1974,
+      "route": "claude-cli",
+      "launchId": "3950b896-bf27-4a2c-b9ff-a936c1dec179"
     }
   ]
 }
