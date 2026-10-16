@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 188,
-  "previous": "5b6145b2ccf33f2b4fde93c4cdbcc34a929167e8",
+  "seq": 189,
+  "previous": "7742e87ac6a02ce1beeeff1372bf00dbb563bcb2",
   "snapshotParents": [],
-  "time": "2026-10-16T12:16:59.110Z",
+  "time": "2026-10-16T12:17:33.554Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 139,
+    "recordRevision": 140,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -769,7 +769,12 @@
             "time": "2026-10-16T12:15:05.974Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1917-92387613-a3f8-4ae5-adcd-5deffdb94a85"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "262d49e2-7b15-49b7-baa4-017198a902c1",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1917-262d49e2-7b15-49b7-baa4-017198a902c1",
+          "time": "2026-10-16T12:17:31.445Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -2055,7 +2060,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:16:58.420Z",
+      "observedAt": "2026-10-16T12:17:32.943Z",
       "held": true,
       "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
       "remoteHead": null,
@@ -2161,19 +2166,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:25:36.927Z",
-      "event": "adopted",
-      "ticket": 1295,
-      "handle": {
-        "kind": "process",
-        "pid": 55348,
-        "start": "639276984318127089",
-        "host": "DESKTOP-726EO47"
-      },
-      "pr": 1910,
-      "rounds": 0
-    },
     {
       "time": "2026-10-15T22:26:09.802Z",
       "event": "adopted",
@@ -2861,6 +2853,13 @@
       "time": "2026-10-16T12:16:56.977Z",
       "event": "check-in",
       "outcome": "resumed the #1917 writer at the maintainer's word that usage was restored; it ended at once on the weekly-limit answer again, and CLI probes of claude-opus-5-5 and claude-sonnet-5-5 at 08:16 EDT both still report the limit (resets Oct 19 1am ET); maintainer informed; checkout updated to 45e2dd1e (relaxed gate)"
+    },
+    {
+      "time": "2026-10-16T12:17:31.446Z",
+      "event": "resume-intent",
+      "ticket": 1917,
+      "id": "262d49e2-7b15-49b7-baa4-017198a902c1",
+      "sessionId": "afe55743-8c0d-4e48-a695-94ad91a2d381"
     }
   ]
 }
