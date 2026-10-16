@@ -23,9 +23,7 @@ import { findChildByName } from "../../utils/findChildByName";
 import { isTrivia } from "../../lint/luauTree";
 import { reportSyntaxErrors } from "../expression/lowerFunction";
 import { readExpressionAst } from "./luauAst";
-
-// The leaves of `LuauUnreadToken`: a token no rule of the arm read.
-const UNREAD_TOKENS = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter"]);
+import { containsUnreadToken } from "../../utils/unreadTokens";
 
 // The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
 // a literal, a name or path, a parenthesized value, a table, a divert
@@ -100,10 +98,11 @@ export function lowerArms(
   let current: AlternatorArm | null = null;
   // The nodes of the current arm. The type checker reads an alternator as a
   // value of any type, not its arms, so an arm holding a token no rule read
-  // (`cycle "a" | ! end`) has the errors of its reading as an expression.
+  // (`cycle "a" | ! end`, `cycle "a" | (!b) end`) has the errors of its
+  // reading as an expression.
   let armNodes: SyntaxNode[] = [];
   const reportUnreadArm = () => {
-    if (armNodes.some((node) => UNREAD_TOKENS.has(node.name))) {
+    if (armNodes.some(containsUnreadToken)) {
       reportSyntaxErrors(readExpressionAst(armNodes, ctx)?.source.errors ?? [], ctx);
     }
     armNodes = [];

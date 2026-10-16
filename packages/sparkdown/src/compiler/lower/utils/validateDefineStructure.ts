@@ -4,6 +4,7 @@ import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
+import { UNREAD_TOKENS } from "../../utils/unreadTokens";
 
 // Structural checks for a `define` block, none of which is a parse error:
 //
@@ -91,8 +92,6 @@ export function lineTextSpan(
   };
 }
 
-// The leaves of `LuauUnreadToken`: a token no rule of the define's body read.
-const UNREAD_TOKENS = new Set(["LuauUnreadName", "LuauUnreadCharacter"]);
 
 const WITH_FORM = "`define hero as character with` … `end`";
 const NAME_RULE =

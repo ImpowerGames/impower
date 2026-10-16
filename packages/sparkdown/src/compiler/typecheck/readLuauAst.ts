@@ -125,6 +125,7 @@ import { Location, Position } from "./Location";
 import { breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
+import { UNREAD_TOKENS } from "../utils/unreadTokens";
 
 // ---------------------------------------------------------------------------
 // Results
@@ -204,6 +205,12 @@ export interface LuauAstUnit {
   hotcomments: HotComment[];
   /** The statements of the unit's own block (a flow's function body), each with the tree nodes it was read from. */
   statements: LuauStatementSource[];
+  /**
+   * Not part of Luau: the document ranges, first token to last, of the
+   * statements at any depth whose errors are Luau's reading's to report
+   * (`LuauSyntaxError.unread`), which the validator leaves to it.
+   */
+  unreadStatements?: readonly { from: number; to: number }[];
   /** A flow's header: its scene, or its branch outside any scene. */
   header?: TreeNodeRef;
   /**
@@ -479,9 +486,6 @@ interface Token {
   unread?: true;
 }
 
-// The leaves of `LuauUnreadToken` that hold the tokens no rule of a body or
-// a bracket read: a name, or a symbol or character.
-const UNREAD_TOKENS: ReadonlySet<string> = new Set(["LuauUnreadName", "LuauUnreadCharacter"]);
 
 const KEYWORDS = new Set([
   "and",
@@ -1318,6 +1322,8 @@ class Parser {
   // token the grammar left unread (see `markUnreadErrors`).
   private readonly statementSpans: StatementSpan[][] = [];
   private readonly errorsAtUnread = new Set<number>();
+  /** Not part of Luau: the document ranges of the statements whose errors are Luau's to report (`markUnreadErrors`). */
+  readonly unreadStatements: { from: number; to: number }[] = [];
 
   /** The block depth whose statements are recorded in `statements`, with the tokens each was read from. */
   recordDepth = -1;
@@ -1490,6 +1496,8 @@ class Parser {
     if (after?.unread && last && after.location.begin.line === last.location.end.line) unread = true;
     if (unread) {
       for (let e = span.errorsFrom; e < span.errorsTo; e++) if (own(e)) this.errors[e]!.unread = true;
+      const first = span.tokens[span.first];
+      if (first && last) this.unreadStatements.push({ from: first.from, to: last.to });
     }
     this.statementSpans[this.statementSpans.length - 1]?.push(span);
     return unread;
@@ -3715,7 +3723,7 @@ function readUnit(
     }
     return { statement, nodes: [...seen].sort((a, b) => a - b).map((i) => nodes[i]!) };
   });
-  const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements };
+  const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements, unreadStatements: parser.unreadStatements };
   if (lines) {
     unit.lines = lines;
     unit.key = unitKey(tokenizer, start, eof, parser.sourceDependencies);
@@ -4424,7 +4432,7 @@ export function luauPositionOffset(position: Position, documentText: string): nu
  * its name left out. The lints read it (`collectLuauLints.ts`), and so does
  * the define lowerer, for the body's errors (`lowerDefineMethod`).
  */
-export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauMethod(node: SyntaxNode, documentText: string): ReturnType<typeof parseLoneTokens> {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const name = findDescendant(node, "LuauFunctionName");
@@ -4460,7 +4468,11 @@ export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: s
 }
 
 /** The one expression a tokenizer's tokens hold (`readLuauExpression`, `readLuauMethod`, `readLuauStatements`). */
-function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: LineIndex): { expr: AstExpr; errors: LuauSyntaxError[] } {
+function parseLoneTokens(
+  tokenizer: Tokenizer,
+  documentText: string,
+  index: LineIndex,
+): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[] } {
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
@@ -4472,5 +4484,5 @@ function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: Line
     parser.errors.push(error);
     expr = new AstExprError(error.location, [], parser.errors.length - 1);
   }
-  return { expr, errors: parser.errors };
+  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements };
 }

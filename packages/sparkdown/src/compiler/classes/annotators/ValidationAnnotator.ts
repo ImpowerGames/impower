@@ -19,9 +19,10 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
-import { luauPositionOffset, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
+import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod } from "../../typecheck/readLuauAst";
+import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -450,9 +451,6 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
-// The leaves of `LuauUnreadToken` that hold a token no rule of a pure-Luau
-// body or bracket read.
-const UNREAD_TOKENS = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter"]);
 // The bodies of the pure-Luau blocks (the rules that hold `LuauBlockBody`),
 // whose children are the blocks' statements.
 const PURE_LUAU_BODY_CONTENT = nodeNameSet([
@@ -473,27 +471,48 @@ const PURE_LUAU_BODY_CONTENT = nodeNameSet([
   "LuauFunctionTypeDeclaration_content",
 ]);
 
-/**
- * Whether a statement holds a token the grammar left unread among its own
- * tokens. One in a block nested in it (`local x: = function() @ end`) is
- * the nested block's statement's, as the converter counts it
- * (`markUnreadErrors`).
- */
-function holdsUnreadToken(node: SyntaxNode): boolean {
-  if (UNREAD_TOKENS.has(node.name)) return true;
-  const cursor = node.cursor();
-  if (!cursor.firstChild()) return false;
-  for (;;) {
-    if (UNREAD_TOKENS.has(cursor.name)) return true;
-    if (!cursor.next(!PURE_LUAU_BODY_CONTENT.has(cursor.name)) || cursor.from >= node.to) return false;
+// The alternator bodies among them. The type checker reads an alternator as
+// a value of any type, not its arms, so an arm that holds an unread token is
+// the alternator lowerer's to report (`lowerArms`).
+const ALTERNATOR_CONTENT = nodeNameSet([
+  "LuauConditionalAlternatorBlock_content",
+  "LuauSequentialAlternatorBlock_content",
+]);
+// The bodies whose statements are read one member or one closure at a time:
+// a define's (its members, each a method, a function or a property) and a
+// sparkle handler's closure's (read whole, as `lowerSparkleBody.ts` reads it).
+const MEMBER_CONTENT = nodeNameSet(["LuauDefine_content", "LuauSparkleHandlerClosure_content"]);
+
+/** Whether the arm of an alternator that a statement of its body is in holds a token the grammar left unread. */
+function armHoldsUnreadToken(statement: SyntaxNode): boolean {
+  let first = statement;
+  while (first.prevSibling && first.prevSibling.name !== "LuauAlternatorSeparator") first = first.prevSibling;
+  for (let node: SyntaxNode | null = first; node && node.name !== "LuauAlternatorSeparator"; node = node.nextSibling) {
+    if (containsUnreadToken(node)) return true;
   }
+  return false;
 }
 
-/** The sibling beside a node, before or after it, past whitespace and comments but not past a line break. */
-function besideOnLine(node: SyntaxNode, step: "prevSibling" | "nextSibling"): SyntaxNode | null {
-  let beside = node[step];
-  while (beside && beside.name !== "Newline" && isTrivia(beside)) beside = beside[step];
-  return beside && beside.name !== "Newline" ? beside : null;
+/** The statement of a pure-Luau body a node is in: its nearest ancestor (or itself) that is a child of such a body. */
+function bodyStatementOf(node: SyntaxNode | null): SyntaxNode | null {
+  while (node && !PURE_LUAU_BODY_CONTENT.has(node.parent?.name ?? "")) node = node.parent;
+  return node;
+}
+
+/**
+ * The outermost Luau statement around a statement of a pure-Luau body, which
+ * the converter reads whole as the type checker or a lowerer reads it: up to
+ * a define's member or a closure's statement, and no further than Luau runs
+ * (a scene's body, Sparkdown's own constructs).
+ */
+function outermostStatementOf(statement: SyntaxNode): SyntaxNode {
+  let top = statement;
+  for (let parent = statement.parent; parent?.parent; parent = parent.parent) {
+    if (MEMBER_CONTENT.has(parent.name)) break;
+    if (!parent.name.startsWith("Luau") || parent.name.startsWith("LuauSparkdown") || SPARKDOWN_ONLY.has(parent.name)) break;
+    top = parent;
+  }
+  return top;
 }
 
 // NOTE: This annotator previously also validated property selectors
@@ -518,54 +537,63 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
   private diagnosticDocument?: { text: Text; source: string };
-  // Whether each statement of a pure-Luau body, by its range, is one Luau's
-  // reading reports (`ownedByUnreadReading`).
-  private unreadStatements = new Map<string, boolean>();
+  // For each outermost statement around a pure-Luau body's statements, by
+  // its range, the statements in it whose errors Luau's reading reports
+  // (`ownedByUnreadReading`), by theirs.
+  private unreadReadings = new Map<string, ReadonlySet<string>>();
 
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
-    this.unreadStatements.clear();
+    this.unreadReadings.clear();
     super.update(tree, text, uri);
   }
 
   /**
    * Whether `node` is in a statement of a pure-Luau body whose errors Luau's
-   * reading reports, as the converter marks them (`LuauSyntaxError.unread`,
-   * `markUnreadErrors`): one that holds a token the grammar left unread
-   * (`LuauUnreadToken`), one that such a token follows on the line where it
-   * ends (`x = (if c) --[[ c ]] then`), and one Luau's recovery from such a
-   * statement reads after it on its line (`x = 1` in `@ x = 1`). None of
-   * their errors is reported from the tree.
+   * reading reports, which the converter marks (`LuauSyntaxError.unread`,
+   * `markUnreadErrors`): one that holds a token the grammar left unread,
+   * one such a token follows on its line, and one Luau's recovery from such
+   * a statement reads. None of their errors is reported from the tree. The
+   * converter reads the statement's outermost statement for them, only when
+   * that holds an unread token. An alternator's arm that holds one is the
+   * alternator lowerer's to report, and a define's property-level statement
+   * that is one is the define lowerer's.
    */
   private ownedByUnreadReading(node: SyntaxNode): boolean {
-    let statement: SyntaxNode | null = node;
-    while (statement && !PURE_LUAU_BODY_CONTENT.has(statement.parent?.name ?? "")) statement = statement.parent;
-    return !!statement && this.statementOwnedByUnreadReading(statement);
-  }
-
-  private statementOwnedByUnreadReading(statement: SyntaxNode): boolean {
-    const key = `${statement.name}:${statement.from}:${statement.to}`;
-    let owned = this.unreadStatements.get(key);
-    if (owned === undefined) {
-      owned = holdsUnreadToken(statement);
-      if (!owned) {
-        const next = besideOnLine(statement, "nextSibling");
-        owned = !!next && UNREAD_TOKENS.has(next.name) && this.onOneLine(statement.to - 1, next.from);
-      }
-      if (!owned) {
-        const before = besideOnLine(statement, "prevSibling");
-        owned = !!before && this.onOneLine(before.to - 1, statement.from) && this.statementOwnedByUnreadReading(before);
-      }
-      this.unreadStatements.set(key, owned);
+    const statement = bodyStatementOf(node);
+    if (!statement) return false;
+    if (ALTERNATOR_CONTENT.has(statement.parent!.name)) return armHoldsUnreadToken(statement);
+    const top = outermostStatementOf(statement);
+    if (top.parent?.name === "LuauDefine_content" && top.name !== "LuauMethodDefinition" && top.name !== "LuauFunctionDefinition") {
+      return UNREAD_TOKENS.has(statement.name);
     }
-    return owned;
+    return this.unreadStatementsIn(top).has(`${statement.from}:${statement.to}`);
   }
 
-  /** Whether two offsets of the document are on one line. */
-  private onOneLine(a: number, b: number): boolean {
-    const text = this.text;
-    if (!text) return false;
-    return text.lineAt(Math.max(a, 0)).number === text.lineAt(b).number;
+  /** The statements in an outermost statement whose errors the converter marks as Luau's, by range. */
+  private unreadStatementsIn(top: SyntaxNode): ReadonlySet<string> {
+    const key = `${top.name}:${top.from}:${top.to}`;
+    let owned = this.unreadReadings.get(key);
+    if (owned) return owned;
+    const found = new Set<string>();
+    if (containsUnreadToken(top)) {
+      const text = this.statementDocumentText();
+      const closure = top.parent?.name === "LuauSparkleHandlerClosure_content" ? top.parent : null;
+      const siblings: SyntaxNode[] = [];
+      for (let child = closure?.firstChild ?? null; child; child = child.nextSibling) siblings.push(child);
+      const ranges = top.name === "LuauMethodDefinition"
+        ? readLuauMethod(top, text).unreadStatements
+        : readLuauBlock(closure ? siblings : [top], text).unreadStatements ?? [];
+      // Each range begins with its statement's first token: the statement is
+      // the body statement there.
+      const root = closure ?? top;
+      for (const range of ranges) {
+        const statement = bodyStatementOf(root.resolveInner(range.from, 1));
+        if (statement) found.add(`${statement.from}:${statement.to}`);
+      }
+    }
+    this.unreadReadings.set(key, found);
+    return found;
   }
 
   // CodeMirror Text is immutable. A replacement or edit supplies a new Text

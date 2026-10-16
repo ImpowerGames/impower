@@ -1,5 +1,6 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { luauStatementError } from "../../utils/luauStatementError";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { followsDanglingDot, followsMissingValue } from "../utils/statementBefore";
@@ -141,9 +142,6 @@ const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
   "LuauInterpolatedString", "LuauBoolean", "LuauNil", "LuauTable",
   "LuauLengthOperation", "LuauLogicalOperation", "LuauParenthetical", "LuauUnitKeywords",
 ]);
-
-// The leaves of `LuauUnreadToken`: a token no rule of the body read.
-const UNREAD_TOKENS = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter"]);
 
 // Define bodies lower members only, but still report expressions that Luau
 // cannot read as statements. A property's continuation is consumed first.

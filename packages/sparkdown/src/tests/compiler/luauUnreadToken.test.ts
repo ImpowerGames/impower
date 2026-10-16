@@ -342,6 +342,29 @@ describe("each error has one reader", () => {
     // The type checker reads an alternator as a value of any type, not its
     // arms; before, this line reported only a malformed interpolation.
     expect(read('Value {cycle "a" | ! | "b" end}.\n').errors).toContain("0:19-0:20 Unexpected '!'; did you mean 'not'?");
+    // Inside a bracket of the arm too.
+    for (const arm of ["(!true)", "{!true}", "tostring(!true)"]) {
+      const at = `Value {cycle "a" | ${arm} | "b" end}.\n`.indexOf("!");
+      expect(read(`Value {cycle "a" | ${arm} | "b" end}.\n`).errors).toContain(`0:${at}-0:${at + 1} Unexpected '!'; did you mean 'not'?`);
+    }
+  });
+
+  it("a statement after Luau's recovery has ended keeps its own errors", () => {
+    // Luau's recovery from the attribute ends with `x = 1`, which it reads
+    // with no error, so the declaration after it reports what it reports
+    // written alone.
+    const alone = read("function f(c)\n         local y = (if c)\nend\n").errors;
+    expect(alone).toHaveLength(1);
+    for (const before of ["@ x = 1; ", "@ x = 1  "]) {
+      const errors = read(`function f(c)\n${before}local y = (if c)\nend\nAfter.\n`).errors;
+      expect(errors).toContain(alone[0]);
+      expect(errors.filter((e) => e.includes("Attribute name is missing"))).toEqual(["1:0-1:1 Attribute name is missing"]);
+    }
+    // In a define's method too.
+    const method = (line: string) => read(`define X with\n  greet(c)\n    ${line}\n  end\nend\n`).errors;
+    const typeError = method("         local y: = 2");
+    expect(typeError).toEqual(["2:21-2:23 Expected type, got '='"]);
+    expect(method("@ x = 1; local y: = 2")).toContain(typeError[0]);
   });
 
   it("a comment before the unread token that follows a statement, and a statement read in recovery, are Luau's", () => {
