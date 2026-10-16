@@ -171,6 +171,15 @@ describe("text a block header cannot read", () => {
     }
   }
 
+  test("a morph name that starts with a digit is an error on the readable header", () => {
+    const unreadable = errors("morph 2m with\n  x = 1\nend\n\nHi.\n").filter((e) =>
+      e.message.includes(UNREADABLE),
+    );
+    expect(unreadable).toHaveLength(1);
+    expect(unreadable[0]!.message).toContain("`morph`");
+    expect(unreadable[0]).toMatchObject({ startLine: 0, startCharacter: 0, endCharacter: 5 });
+  });
+
   test("a dotted style name is an error on the readable header", () => {
     const unreadable = errors("style s.t with\n  color = red\nend\n\nHi.\n").filter(
       (e) => e.message.includes(UNREADABLE),
