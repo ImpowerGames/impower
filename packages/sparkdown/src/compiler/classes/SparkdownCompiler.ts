@@ -4544,7 +4544,9 @@ export class SparkdownCompiler {
   }
 
   /** Let a project define REPLACE a same-named builtin (`define slate_80 as
-   *  color`, `define ui as config`) instead of colliding with it.
+   *  color`, `define ui as config`, or a type root's own `define game with
+   *  … end`, whose prelude values are the type's `$default`) instead of
+   *  colliding with it.
    *
    *  The builtins prelude is source-injected FIRST, and
    *  `FlowBase.AddNewVariableDeclaration` is first-writer-wins, so every such
@@ -4627,8 +4629,14 @@ export class SparkdownCompiler {
     va: ParsedVariableAssignment,
     preludeContext: Record<string, any>,
   ): void {
-    const type = va.structDefinition?.type?.name;
-    const name = va.structDefinition?.name?.name;
+    // A root define (`define game with … end`, #454) declares its type, and
+    // the prelude's values for it are the type's `$default` entry.
+    const type = va.structDefinition
+      ? va.structDefinition.type?.name
+      : va.identifier?.name;
+    const name = va.structDefinition
+      ? va.structDefinition.name?.name
+      : "$default";
     if (!type || !name) {
       return;
     }

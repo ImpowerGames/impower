@@ -5,6 +5,7 @@ import type { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHiera
 import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import {
   classifyDefine,
+  isRootDefine,
   isScopedDefine,
   scopedDefineKey,
 } from "./scopeDefineInstances";
@@ -179,7 +180,8 @@ export class DefineScopeRecord {
     return overlay;
   }
 
-  /** The define declarations `block` holds. */
+  /** The define declarations `block` holds. Its root defines are held too,
+   *  for the builtin-override pass, though they keep their bare key. */
   protected walk(block: CompiledBlock): VariableAssignment[] {
     const found: VariableAssignment[] = [];
     const seen = new Set<ParsedObject>();
@@ -197,7 +199,7 @@ export class DefineScopeRecord {
       }
       seen.add(obj);
       this.stats.objectsVisited++;
-      if (isScopedDefine(obj)) {
+      if (isScopedDefine(obj) || isRootDefine(obj)) {
         found.push(obj);
       }
       const content = obj.content;
@@ -237,7 +239,7 @@ export class DefineScopeRecord {
     const stack: ParsedObject[] = [story];
     while (stack.length > 0) {
       const obj = stack.pop()!;
-      if (isScopedDefine(obj) && !skip.has(obj)) {
+      if ((isScopedDefine(obj) || isRootDefine(obj)) && !skip.has(obj)) {
         inStory.add(obj);
         const desired = scopedDefineKey(obj, typeNames);
         if (desired !== undefined && obj.identifier?.name !== desired) {

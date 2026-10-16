@@ -761,11 +761,37 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         !varDecl.isPreludeDeclaration &&
         varDecl.isDefineDeclaration
       ) {
-        this.variableDeclarations.delete(varName);
         // A declaration-only marker of an unseeded compile
         // (Story.DeclareBuiltinGlobals) has no parsed node and nothing to
         // generate, so it is simply dropped rather than re-registered.
         const incumbentIsMarker = !varab.expression && !varab.structDefinition;
+        // A ROOT define overriding the prelude's root define of that type
+        // (`define game with … end`, #454) takes the incumbent's place in
+        // the init order rather than the end: the prelude's instances of the
+        // type (`define red as color`) are declared after their root, and
+        // each registers into whatever table holds the type's name when its
+        // `__def` runs. Appended last, the authored table replaced the type
+        // only after they had registered into the prelude's, and every
+        // builtin instance (`color.red`, `config.ui`) vanished from it.
+        const later: [string, VariableAssignment][] = [];
+        if (
+          !incumbentIsMarker &&
+          !varab.structDefinition &&
+          !varDecl.structDefinition
+        ) {
+          let found = false;
+          for (const entry of this.variableDeclarations) {
+            if (found) {
+              later.push(entry);
+            } else if (entry[0] === varName) {
+              found = true;
+            }
+          }
+          for (const [key] of later) {
+            this.variableDeclarations.delete(key);
+          }
+        }
+        this.variableDeclarations.delete(varName);
         if (!incumbentIsMarker) {
           const shadowKey = `$prelude_${varName}`;
           if (!this.variableDeclarations.has(shadowKey)) {
@@ -773,6 +799,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           }
         }
         this.variableDeclarations.set(varName, varDecl);
+        for (const [key, decl] of later) {
+          this.variableDeclarations.set(key, decl);
+        }
         return;
       }
 
