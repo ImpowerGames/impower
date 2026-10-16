@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 6,
-  "previous": "2bdde088b02fe36e8fc767ad629eb10e4d2059ac",
+  "seq": 7,
+  "previous": "80b9486381df7be52ea61f17b17aeedafb8ef27d",
   "snapshotParents": [],
-  "time": "2026-10-16T04:20:07.082Z",
+  "time": "2026-10-16T04:48:16.304Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 25,
@@ -239,7 +239,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T04:20:06.488Z",
+      "observedAt": "2026-10-16T04:48:15.581Z",
       "held": true,
       "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
       "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
@@ -252,7 +252,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:18:11.634Z",
+    "at": "2026-10-16T04:48:15.579Z",
     "tickets": [
       {
         "number": 984,
@@ -270,7 +270,7 @@
         "number": 1093,
         "action": "merge-gate",
         "pr": 1925,
-        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1102,
@@ -324,13 +324,13 @@
         "number": 1205,
         "action": "merge-gate",
         "pr": 1925,
-        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1206,
         "action": "merge-gate",
         "pr": 1925,
-        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1207,
@@ -348,7 +348,7 @@
         "number": 1243,
         "action": "merge-gate",
         "pr": 1925,
-        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1247,
@@ -396,7 +396,7 @@
         "number": 1293,
         "action": "merge-gate",
         "pr": 1925,
-        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1318,
@@ -486,7 +486,7 @@
         "number": 1909,
         "action": "merge-gate",
         "pr": 1925,
-        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1924,
