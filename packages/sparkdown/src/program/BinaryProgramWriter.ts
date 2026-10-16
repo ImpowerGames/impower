@@ -306,15 +306,41 @@ export class BinaryProgramWriter implements ProgramEmitter {
 
   /** A declaration statement's chunk: each global's initializer, then its
    *  declaration as a global under the name the object engine's `global
-   *  decl` container assigns it. */
+   *  decl` container assigns it. A store's call that spreads to the names
+   *  after it (`spreadTo`) is evaluated once and unpacked, and its values
+   *  declare its own global and then each of those names, in order; a name
+   *  the statement does not declare (one the story refused as a duplicate)
+   *  drops its value. */
   writeDeclaration(input: DeclarationInput): EmittedStatement {
     this.begin(input);
-    for (const { name, assignment } of input.globals) {
+    const { globals } = input;
+    for (let i = 0; i < globals.length; i += 1) {
+      const { name, assignment } = globals[i]!;
       if (!assignment.expression) {
         this.unsupported(assignment.typeName);
       }
       this.emitObject(assignment.expression);
+      const spread = assignment.spreadTo;
+      if (spread.length > 0) {
+        this.emit(Op.Unpack, spread.length + 1);
+      }
       this.emit(Op.SetVar, this.variable(name), 0, SET_DECLARE | SET_GLOBAL);
+      for (const target of spread) {
+        const next = globals[i + 1];
+        if (next?.assignment === target) {
+          this.emit(
+            Op.SetVar,
+            this.variable(next.name),
+            0,
+            SET_DECLARE | SET_GLOBAL,
+          );
+          i += 1;
+        } else if (globals.some((g) => g.assignment === target)) {
+          this.unsupported("a store whose names its call gives values to are apart");
+        } else {
+          this.emit(Op.Pop);
+        }
+      }
     }
     return this.finish(input);
   }
