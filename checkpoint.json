@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 194,
-  "previous": "ccbd674939db80774007920275c101248e0e19bb",
+  "seq": 195,
+  "previous": "a78918925ac25c00b03c9074d6fa08400ba45879",
   "snapshotParents": [],
-  "time": "2026-10-16T12:48:28.593Z",
+  "time": "2026-10-16T12:49:59.296Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 143,
@@ -2060,7 +2060,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:48:27.805Z",
+      "observedAt": "2026-10-16T12:49:58.538Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2071,7 +2071,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T12:47:43.436Z",
+    "at": "2026-10-16T12:49:58.536Z",
     "tickets": [
       {
         "number": 1201,
@@ -2159,15 +2159,15 @@
       },
       {
         "number": 1933,
-        "action": "blocked-route",
+        "action": "dispatch",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1934,
-        "action": "blocked-route",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+        "reason": "1 writers already hold tickets against a limit of 2"
       }
     ],
     "remaining": [
