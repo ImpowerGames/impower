@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 28,
-  "previous": "f038ad1d7f79a2a95f8a331b33ac8d0d3908b974",
+  "seq": 29,
+  "previous": "d3da0003fd21b75a762d3731c63e9d66858f0eeb",
   "snapshotParents": [],
-  "time": "2026-10-16T22:53:33.695Z",
+  "time": "2026-10-16T22:54:59.904Z",
   "kind": "auto",
-  "transition": "the outcome of operation 3000849c",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 29,
+    "recordRevision": 30,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1165,6 +1165,153 @@
       "time": "2026-10-16T22:53:06.428Z",
       "evidence": "gh pr ready 1975 succeeded; gh pr view read back isDraft false at head 041d28169100232e321ebdc166009aa3dbd853e6; ready comment posted",
       "settled": "2026-10-16T22:53:31.312Z"
+    },
+    {
+      "id": "dde965b3",
+      "kind": "merge",
+      "ticket": 1962,
+      "pr": 1975,
+      "expectHead": "041d28169100232e321ebdc166009aa3dbd853e6",
+      "state": "intent",
+      "time": "2026-10-16T22:54:58.132Z",
+      "evidence": "admitted as accepted-unreviewed",
+      "gate": {
+        "disposition": "accepted-unreviewed",
+        "reviewedHead": "5415ccea549dc6631fed6412162345fa6af13210",
+        "completedRound": 4,
+        "acceptance": {
+          "id": "40630f59",
+          "comment": 6226188254,
+          "head": "041d28169100232e321ebdc166009aa3dbd853e6",
+          "range": {
+            "from": "5415ccea549dc6631fed6412162345fa6af13210",
+            "to": "041d28169100232e321ebdc166009aa3dbd853e6",
+            "base": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+            "commits": [
+              "041d28169100232e321ebdc166009aa3dbd853e6"
+            ],
+            "diffSha256": "506bae7ad9a194c657362a757879420215d79410e34d182230f752e101c12235"
+          }
+        },
+        "mergedSince": [],
+        "originMain": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+        "ciMain": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+        "containsMain": true,
+        "mainCi": {
+          "verdict": "green",
+          "head": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+          "run": 38956000621,
+          "conclusion": "success",
+          "url": "https://github.com/ImpowerGames/impower/actions/runs/38956000621"
+        },
+        "checks": [
+          {
+            "name": "changes / detect",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "linked-issue",
+            "workflow": "Check Linked Issue",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "notifier",
+            "workflow": "Agent Notification Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+            "workflow": "Test Suite",
+            "result": "skipped"
+          },
+          {
+            "name": "driver-changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "tsc",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "notifier-tests",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks (ubuntu-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "test-suite",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "typecheck",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks (windows-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks (ubuntu-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks (windows-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (windows-latest, 2.1.9)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (windows-latest, 3.2.6)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "hook-tests",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          }
+        ]
+      }
     }
   ],
   "decisions": [
@@ -1197,7 +1344,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:53:33.008Z",
+      "observedAt": "2026-10-16T22:54:59.258Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1722,6 +1869,13 @@
       "event": "operation-outcome",
       "id": "3000849c",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T22:54:58.132Z",
+      "event": "operation-intent",
+      "id": "dde965b3",
+      "kind": "merge",
+      "pr": 1975
     }
   ]
 }
