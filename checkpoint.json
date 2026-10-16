@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 105,
-  "previous": "bcb2705b0202bbb32656cafc05f8bcb996321c00",
+  "seq": 106,
+  "previous": "cb2793f7a98b60c686595a107aa3e3cd13476229",
   "snapshotParents": [],
-  "time": "2026-10-16T22:18:40.696Z",
+  "time": "2026-10-16T22:19:07.007Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1881",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 81,
+    "recordRevision": 82,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -369,7 +369,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "921e3b3a",
+          "owner": "3dcfbdc3-6df9-4d2e-b876-2ffdb15ae348",
+          "time": "2026-10-16T22:19:04.347Z",
+          "text": "Final report after 2 of 3 rounds: PR #1983 marked ready at 2cd5a71ce, which is a comment-only commit (docs: the clock assumption on scheduleChangeCompile) after the last independently reviewed head f0639071e, disclosed under review-pr's non-behavioural exception (adjudication 6225739846). Rounds: ordering on f5af54535 (6223851126 / 6224449266), undirected on 1ce9d144f (6224656264 / 6225181494), round 2 undirected on f0639071e (6225585759 / 6225739846). Findings none outstanding; measurements at line 3514: debounce 117-120 to 52-58 ms, msFromKey 219-239 to 124-141 ms, suggestion path unchanged, timer kept at 50 ms; CI 33 passed, 2 Windows checks pending. Implicitly asks: merge, or decide otherwise.",
+          "source": "cross-session message from the writer (peer impower-f3) at ~22:00Z, confirmed in launch-1881 out.jsonl (3187 lines, success, 303 turns)",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     },
     "1974": {
       "owner": {
@@ -1152,7 +1163,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T22:18:39.410Z",
+      "observedAt": "2026-10-16T22:19:05.923Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1275,12 +1286,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T22:18:39.410Z",
+      "observedAt": "2026-10-16T22:19:05.923Z",
       "held": true,
       "head": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
       "remoteHead": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1984,
       "reviewJobs": [
         {
@@ -1986,6 +1997,12 @@
       "time": "2026-10-16T21:51:44.792Z",
       "event": "check-in",
       "outcome": "no change: #1881 (draft PR #1983, head f0639071e) and #1974 (draft PR #1984, head 00e52531f) writers running in review round 1; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T22:19:04.349Z",
+      "event": "request",
+      "ticket": 1881,
+      "id": "921e3b3a"
     }
   ]
 }
