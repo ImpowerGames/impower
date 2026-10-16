@@ -18,6 +18,7 @@ const noArm = (name: string, line: number): [number, string] => [
 describe("an alternator keyword with no arms (#1617)", () => {
   it.each([
     ["shuffle done at the top level", "shuffle done\n", undefined, "shuffle", 0],
+    ["shuffle, done with a comma for an arm separator", "shuffle, done\n", undefined, "shuffle", 0],
     ["shuffle on its own line in a scene", "scene A\n  shuffle\n  done\nend\n", "A", "shuffle", 1],
     ["shuffle cycle x", "scene A\n  shuffle cycle x\nend\n", "A", "shuffle cycle", 1],
     ["shuffle once x", "scene A\n  shuffle once x\nend\n", "A", "shuffle", 1],
