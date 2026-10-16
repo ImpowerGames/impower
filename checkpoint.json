@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 213,
-  "previous": "139ccb22d1c4872418ce875fd196c49fbb9acbe8",
+  "seq": 214,
+  "previous": "c94b9f3e5116c8c5a3a6fece61e61bf076ae26b1",
   "snapshotParents": [],
-  "time": "2026-10-16T14:17:43.873Z",
+  "time": "2026-10-16T14:47:13.970Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 156,
+    "recordRevision": 157,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2512,12 +2512,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T14:17:43.039Z",
+      "observedAt": "2026-10-16T14:47:13.239Z",
       "held": true,
       "head": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": false
+      "remoteHead": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 9936
+      }
     }
   },
   "snapshots": {},
@@ -2630,12 +2634,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:53:04.889Z",
-      "event": "released",
-      "ticket": 1628,
-      "reason": "process 55348 is gone"
-    },
     {
       "time": "2026-10-15T22:53:35.526Z",
       "event": "dispatch-intent",
@@ -3330,6 +3328,11 @@
       "time": "2026-10-16T14:17:41.698Z",
       "event": "check-in",
       "outcome": "no change: #1933 writer has its fix verified (cumulative full run 24 passed, 1 skipped for #1934; seed 12 now runs) and is drafting the PR body, no PR yet; #1934 blocked behind #1933; no requests"
+    },
+    {
+      "time": "2026-10-16T14:47:11.929Z",
+      "event": "check-in",
+      "outcome": "no change: #1933 draft PR in review round 1 (second reviewer bound running); GitHub GraphQL rate limit hit for the gh user during this check-in (PR listing failed; REST snapshot fine); #1934 blocked behind #1933; no requests"
     }
   ]
 }
