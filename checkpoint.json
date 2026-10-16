@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 12,
-  "previous": "068a2b3c5ad3fe5c5d9cb289d443a89c4038d120",
+  "seq": 13,
+  "previous": "0bc07eece2ab3bf5e21eb2e28838248b88de9664",
   "snapshotParents": [],
-  "time": "2026-10-16T19:24:03.825Z",
+  "time": "2026-10-16T19:53:42.353Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 9,
+    "recordRevision": 10,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -112,16 +112,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T19:24:03.094Z",
+      "observedAt": "2026-10-16T19:53:41.665Z",
       "held": true,
-      "head": "1af512a07d459d13f6355e468fe37a2b85b9cfd8",
-      "remoteHead": "1af512a07d459d13f6355e468fe37a2b85b9cfd8",
+      "head": "adf7b8307018398b9cfa394ca8f587522ba43a22",
+      "remoteHead": "adf7b8307018398b9cfa394ca8f587522ba43a22",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 15404
-      },
       "pr": 1975,
       "reviewJobs": [
         {
@@ -162,7 +158,7 @@
         },
         {
           "job": "pr-1975/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -177,7 +173,64 @@
               "guard": 1
             },
             "time": "2026-10-16T19:18:01.244Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "1af512a07d459d13f6355e468fe37a2b85b9cfd8",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "guard": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "guard",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6223054405
+          ]
+        },
+        {
+          "job": "pr-1975/round-2/launch-fidelity-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-fidelity",
+            "reviewerId": "fidelity",
+            "attempt": 1,
+            "plannedReviewers": [
+              "fidelity",
+              "undirected"
+            ],
+            "head": "90b72d67e7d1f328dbd0e3c27d5839feba2d6cfb",
+            "completedRoundReviewers": {
+              "guard": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T19:31:58.964Z"
+          },
+          "round": 2,
+          "reviewerId": "fidelity",
+          "attempt": 1,
+          "reviewedHead": "90b72d67e7d1f328dbd0e3c27d5839feba2d6cfb",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "fidelity": 1
+          },
+          "plannedRoundReviewers": [
+            "fidelity",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6223383016
+          ]
         }
       ]
     }
@@ -294,6 +347,11 @@
       "time": "2026-10-16T19:24:01.809Z",
       "event": "check-in",
       "outcome": "no change: #1962 writer running, draft PR #1975 at 1af512a07 with review round 1 (undirected reviewer) in progress and CI green so far"
+    },
+    {
+      "time": "2026-10-16T19:53:40.403Z",
+      "event": "check-in",
+      "outcome": "no change: #1962 writer running, PR #1975 round 1 reviewed at 90b72d67e with hook-tests and driver-checks (windows) red on that head; writer is committing corrections for the round 1 findings"
     }
   ]
 }
