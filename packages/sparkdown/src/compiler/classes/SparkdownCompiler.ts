@@ -157,12 +157,7 @@ import {
   type StatementWatch,
 } from "../../program/StatementWatch";
 import { debugFileName } from "../utils/debugFileName";
-import {
-  runCallText,
-  runCallUri,
-  runWrapperText,
-  runWrapperUri,
-} from "../utils/runWrapper";
+import { runWrapperText, runWrapperUri } from "../utils/runWrapper";
 import {
   programFlows,
   type StatementRecord,
@@ -730,6 +725,11 @@ export class SparkdownCompiler {
     ParsedObject,
     { uri: string; line: number; block: object }
   >();
+  // The number each `run` statement's compiled block gives the wrapper of
+  // the file it runs, kept while a compile carries the block, so the
+  // statement compiles the same document in every compile.
+  protected _runSites = new WeakMap<object, number>();
+  protected _lastRunSite = 0;
   // The keys the program listing gives the statements that end included
   // scripts' content, by their syntax, so they keep their chunks from one
   // compile to the next for as long as this compiler lives
@@ -2775,36 +2775,23 @@ export class SparkdownCompiler {
             sourceMetadata,
           );
         } else {
-          // One wrapper function per file in a compile. It joins the
-          // story at the first `run` of the file the compile reaches,
-          // which names it after its path: identifier-safe, since
-          // Sparkdown identifiers are `[A-Za-z_][A-Za-z0-9_]*`, and
-          // numbered when another file's wrapper already has the
-          // name (`helper.luau` and `lib/helper.luau`, both run as
-          // "helper"). Each later `run` of the file, by any path, is
-          // compiled from a document of its own holding only the
-          // call, so the body runs at every `run` site. A document's
-          // chunks are the same objects however often it is parsed,
-          // so two sites can never share one.
-          const runWrappers = state.fileResolutionState
-            ? (state.fileResolutionState.runWrappers ??= new Map())
-            : undefined;
-          let wrapper = runWrappers?.get(resolvedFilePath);
-          if (wrapper) {
-            wrapper.sites += 1;
-          } else {
-            const base = `__run_${run.replace(/[^A-Za-z0-9_]/g, "_")}`;
-            const taken = new Set(
-              [...(runWrappers?.values() ?? [])].map((w) => w.name),
-            );
-            let name = base;
-            for (let n = 2; taken.has(name); n++) {
-              name = `${base}_${n}`;
-            }
-            wrapper = { name, sites: 1 };
-            runWrappers?.set(resolvedFilePath, wrapper);
+          const rawContent = fileHandler.LoadInkFileContents(resolvedFilePath);
+          // Sanitize: identifier-safe name derived from the path.
+          // Sparkdown identifiers are `[A-Za-z_][A-Za-z0-9_]*`. Each
+          // `run` statement gets a wrapper of its own, numbered by the
+          // statement (`_runSites`). A document's chunks are the same
+          // objects however often it is parsed, so two `run`s of one
+          // file must not share a document; and a statement compiles
+          // the same document from compile to compile, so a flow a
+          // later compile keeps never reaches objects another
+          // statement now holds.
+          const sanitized = run.replace(/[^A-Za-z0-9_]/g, "_");
+          let site = this._runSites.get(compiledBlock);
+          if (site === undefined) {
+            site = ++this._lastRunSite;
+            this._runSites.set(compiledBlock, site);
           }
-          const { name: wrapperName, sites: site } = wrapper;
+          const wrapperName = `__run_${sanitized}_${site}`;
           // The wrapper has TWO parts:
           //   `& <wrapperName>()`  → top-level statement, gets
           //                          spliced inline by IncludedFile
@@ -2815,28 +2802,19 @@ export class SparkdownCompiler {
           // Together: the parent calls the wrapper at the run-site,
           // and the wrapper definition lives at the end where it
           // doesn't terminate the parent's main flow.
-          //
+          const wrapped = runWrapperText(wrapperName, rawContent);
           // Stash the wrapped content under a virtual URI derived
           // from the .luau file's URI. The `?run` query suffix
           // keeps it distinct from any raw .luau document registered
           // separately. The compiler treats it as a normal `.sd`
           // source from this point on.
-          const virtualUri =
-            site === 1
-              ? runWrapperUri(resolvedFilePath, wrapperName)
-              : runCallUri(resolvedFilePath, wrapperName, site);
+          const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
           this.documents.add({
             textDocument: {
               uri: virtualUri,
               languageId: "sparkdown",
               version: 1,
-              text:
-                site === 1
-                  ? runWrapperText(
-                      wrapperName,
-                      fileHandler.LoadInkFileContents(resolvedFilePath),
-                    )
-                  : runCallText(wrapperName),
+              text: wrapped,
             },
           });
           if (state.fileResolutionState) {

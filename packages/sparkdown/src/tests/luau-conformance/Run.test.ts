@@ -8,11 +8,6 @@ import {
   testStory,
   withTestExternals,
 } from "../engineUnderTest";
-import {
-  runCallUri,
-  runWrapperName,
-  runWrapperUri,
-} from "../../compiler/utils/runWrapper";
 
 function compileWithFiles(files: Array<{ uri: string; text: string }>) {
   const compiler = testCompiler();
@@ -95,6 +90,8 @@ done
   // calls it from each place.
   function recordedRun(chunks: unknown) {
     const story = testStory(chunks as any);
+    // A story that loops fails the test instead of hanging it.
+    story.stepLimit = 20000;
     const recorded: unknown[] = [];
     story.BindExternalFunction("harness_record", (v: unknown) => {
       recorded.push(v);
@@ -178,45 +175,65 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([...recorded, 1]);
   });
 
-  test("runs two files run by one path when an edit swaps which is reached first", () => {
-    const mainWith = (lines: string) =>
-      `external harness_record(v)\n${lines}run "helper"\ndone\n`;
-    const { compiler, result: first } = compileWithFiles([
+  // Every reordering of a script that runs three files from three
+  // directories, by several paths each, compiles incrementally to what a
+  // cold compile of the same text gives (round 2 of PR #1928's review).
+  test("runs files from several directories alike, cold and after each reordering", () => {
+    const sections = [
+      `run "helper"\nrun "./helper"\n`,
+      `include a/chapter.sd\n`,
+      `include b/chapter.sd\n`,
+      `run "a/helper"\n`,
+    ];
+    const files = [
       {
-        uri: "inmemory:///main.sd",
-        text: mainWith(`include lib/chapter.sd\nrun "helper"\n`),
+        uri: "inmemory:///a/chapter.sd",
+        text: `run "helper"\nrun "../helper"\nrun "./helper"\n`,
       },
-      { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
-      { uri: "inmemory:///helper.luau", text: `& harness_record(1)\n` },
-      { uri: "inmemory:///lib/helper.luau", text: `& harness_record(2)\n` },
+      {
+        uri: "inmemory:///b/chapter.sd",
+        text: `run "helper"\nrun "../a/helper"\nrun "../helper"\nrun "./helper"\n`,
+      },
+      ...["helper", "a/helper", "b/helper"].map((name, i) => ({
+        uri: `inmemory:///${name}.luau`,
+        text: `& harness_record(${i})\n`,
+      })),
+    ];
+    const mainWith = (order: number[]) =>
+      `external harness_record(v)\n${order.map((i) => sections[i]).join("")}done\n`;
+    const orders = (rest: number[]): number[][] =>
+      rest.length === 0
+        ? [[]]
+        : rest.flatMap((i) =>
+            orders(rest.filter((j) => j !== i)).map((o) => [i, ...o]),
+          );
+    const all = orders([0, 1, 2, 3]);
+    const cold = (order: number[]) => {
+      const { result, errs } = compileWithFiles([
+        { uri: "inmemory:///main.sd", text: mainWith(order) },
+        ...files,
+      ]);
+      expect(errs).toEqual([]);
+      return recordedRun(result.program.chunks);
+    };
+    const { compiler } = compileWithFiles([
+      { uri: "inmemory:///main.sd", text: mainWith(all[0]!) },
+      ...files,
     ]);
-    expect(recordedRun(first.program.chunks)).toEqual([2, 1, 1]);
     let version = 1;
-    for (const [lines, recorded] of [
-      [`run "helper"\ninclude lib/chapter.sd\n`, [1, 2, 1]],
-      [`include lib/chapter.sd\nrun "helper"\n`, [2, 1, 1]],
-    ] as const) {
+    for (const order of [...all, all[0]!]) {
       compiler.updateDocument({
         textDocument: { uri: "inmemory:///main.sd", version: ++version },
-        contentChanges: [{ text: withTestExternals(mainWith(lines)) }],
+        contentChanges: [{ text: withTestExternals(mainWith(order)) }],
       });
       const result = compiler.compile({
         textDocument: { uri: "inmemory:///main.sd" },
       });
       expect(messagesOf(result).errs).toEqual([]);
-      expect(recordedRun(result.program.chunks)).toEqual(recorded);
+      expect(recordedRun(result.program.chunks), order.join(",")).toEqual(
+        cold(order),
+      );
     }
-  });
-
-  test("names the wrapper of a run's call document as of its wrapper document", () => {
-    const file = "inmemory:///helper.luau";
-    expect(runWrapperName(runWrapperUri(file, "__run_helper"))).toBe(
-      "__run_helper",
-    );
-    expect(runWrapperName(runCallUri(file, "__run_helper", 2))).toBe(
-      "__run_helper",
-    );
-    expect(runWrapperName(file)).toBeUndefined();
   });
 
   test("runs one file once per run line across incremental compiles", () => {
