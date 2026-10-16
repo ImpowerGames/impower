@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 306,
-  "previous": "5217d9c7f6aa55c49d98c545ddf930c60bf3f83c",
+  "seq": 307,
+  "previous": "efef803c46bb1bfea6d4ae63192a0c5b596892b1",
   "snapshotParents": [],
-  "time": "2026-10-16T18:06:01.328Z",
+  "time": "2026-10-16T18:07:19.909Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1955 (failed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 254,
+    "recordRevision": 255,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3845,9 +3845,9 @@
       "ticket": 1800,
       "pr": 1955,
       "expectHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
-      "state": "intent",
+      "state": "failed",
       "time": "2026-10-16T18:05:56.839Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "not run: while the intent was saved, GitHub has not settled whether the PR can merge (UNKNOWN); read it again shortly; origin/main moved from 463e5238a6c0eb484904405570efadaa64451213 to 791b877f3e0651e7c55f051330c30471b5bd5191; run the gate again",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -4025,7 +4025,8 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T18:07:16.469Z"
     }
   ],
   "decisions": [
@@ -4445,7 +4446,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:05:58.980Z",
+      "observedAt": "2026-10-16T18:07:18.418Z",
       "held": true,
       "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
@@ -4533,7 +4534,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T18:05:58.980Z",
+      "observedAt": "2026-10-16T18:07:18.418Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -4659,12 +4660,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:05:58.980Z",
+      "observedAt": "2026-10-16T18:07:18.418Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "unpushed": false,
-      "dirty": false
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 49528
+      }
     }
   },
   "snapshots": {},
@@ -4771,11 +4776,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T07:15:31.960Z",
-      "event": "check-in",
-      "outcome": "no change: run held on the account's weekly usage limit (resets Oct 19); requests 5b339599 (#454) and d8a61713 (#887) relayed to the maintainer await a decision; PRs #1928 and #1929 unchanged; no dead launches"
-    },
     {
       "time": "2026-10-16T07:45:27.867Z",
       "event": "check-in",
@@ -5472,6 +5472,12 @@
       "id": "0f12ef1c",
       "kind": "merge",
       "pr": 1955
+    },
+    {
+      "time": "2026-10-16T18:07:16.469Z",
+      "event": "operation-outcome",
+      "id": "0f12ef1c",
+      "state": "failed"
     }
   ]
 }
