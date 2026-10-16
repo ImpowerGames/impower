@@ -520,6 +520,14 @@ variables:
   LUAU_COMMENT_START: (?:[-][-])
   # The end of the line, or the start of a comment.
   LUAU_LINE_END_OR_COMMENT: (?:$|{{LUAU_COMMENT_START}})
+  # lookaround: LuauForCondition and LuauWhileCondition own the line break
+  # after a `for` or `while` that ends its line, since Luau lets the
+  # condition begin on the next line. The loop's line-end end would win at
+  # that position, where the condition's empty begin also matches, so it
+  # steps aside there; the condition then reads on to its `do`.
+  LUAU_NOT_AFTER_LOOP_KEYWORD: (?<!\b{{LUAU_CONDITION_LOOP_KEYWORDS}}{{WS}}*)
+  # The loops whose header holds a condition before its `do`.
+  LUAU_CONDITION_LOOP_KEYWORDS: (?:for|while)
   LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
   # Style/UI property names follow CSS/sparkle spelling — hyphens are
   # allowed (e.g. `bg-color`, `corner-top-left`, `c-tl`). This is
@@ -809,6 +817,19 @@ variables:
   SPARKLE_KEYWORD_END: (?![{{IDENTIFIER_END_CHAR}}])
   # A long string is a single call argument at every bracket level.
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[=*\[)
+  # lookaround: LuauFunctionDefinition and the next LuauAttribute or
+  # LuauAttributeList own what follows an attribute; the attribute takes
+  # the space before them only when they are there, since a value that ends
+  # at a space (LuauAssignmentOperation) cannot otherwise reach them.
+  LUAU_ATTRIBUTE_FOLLOWER: (?=@|{{LUAU_LOCAL_PREFIX}}?function\b)
+  # The space an attribute takes before what follows it on its line.
+  _LUAU_ATTRIBUTE_FOLLOWER_SPACE_: (?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?
+  LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
+  LUAU_ATTRIBUTE_ON_LINE: (?:@{{LUAU_IDENTIFIER}}|@\[[^\r\n]*?\])
+  # lookaround: LuauFunctionDefinition owns the function after the
+  # attributes, and SparkdownStatement owns any other top-level line that
+  # begins with `@`; only the function on the line tells them apart.
+  LUAU_FUNCTION_ATTRIBUTES_AHEAD: "{{WS}}*{{LUAU_ATTRIBUTE_ON_LINE}}(?:{{WS}}*{{LUAU_ATTRIBUTE_ON_LINE}})*{{WS}}+{{LUAU_LOCAL_PREFIX}}?function\\b"
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
@@ -845,6 +866,9 @@ variables:
   LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|[.](?![.\d])|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   # A `-` that is neither a `--` comment nor a `->` divert.
   LUAU_MINUS_LINE_START: -(?![->])
+  # The redundant `&` that may mark a line continuing the expression before
+  # it in a Luau body, with the space after it.
+  _LUAU_CONTINUATION_MARK_: (?:([&])({{WS}}+))?
   # A `.` that is not concatenation, which a continuation line keeps reading
   # after its access parts, as a member access or a dangling accessor
   # (`LuauDanglingAccessor`), so the line does not end before it.
@@ -868,23 +892,25 @@ variables:
   # is not one of the binary type operators.
   LUAU_TYPE_OPTIONAL_OPERATOR: (?:[?])
   # The last character of a type: a name, a closing bracket or quote, or an
-  # optional type's `?`.
-  LUAU_TYPE_END: (?:[\w)}\]>"'`?])
+  # optional type's `?`. The `>` of a function type's `->` is not one, since
+  # no type ends there: a type after the arrow is the function's result
+  # (`() -> <b>(b) -> b`), and a `?` after it is a stray operator. The
+  # lookbehinds this goes in spell that out as `[^-]>` (or a `>` that begins
+  # its line) because VS Code's regex engine refuses a lookbehind nested in
+  # another.
+  LUAU_TYPE_END: (?:[\w)}\]"'`?]|[^-]>|^>)
   # A function header up to its parameter list: a header keyword, an optional
-  # dotted or colon name path and an optional generics `<T>` run (`function`,
-  # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
-  # opens its `(` only right after one, and `LuauFunctionBody` never opens
-  # there.
-  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
+  # dotted or colon name path and an optional generics `<T>` run, which Luau
+  # lets a space precede (`function`, `function t.g`, `function t:m`,
+  # `function f<T>`, `function f <T>`). `LuauFunctionParameters` opens its
+  # `(` only right after one, and `LuauFunctionBody` never opens there.
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{LUAU_HEADER_NAME_GAP}}(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:{{WS}}*<[^<>\n]*>)?)
   # A token that a declaration's comma line break (`LuauCommaLineBreak`)
   # can reach but that begins a statement rather than a value: a statement
   # keyword or a type declaration. An `if` there is an if expression, as in
   # Luau. The declaration ends before it, so it is the enclosing block's
   # next statement.
   LUAU_DECLARATION_STOP: (?:(?:end|else|elseif|until|return|break|continue|goto|local|store|const|do|while|repeat|for)\b|(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}})
-  # A type end that an optional-type `?` can follow: the `>` of a function
-  # type's `->` is excluded, since no type ends there.
-  LUAU_TYPE_END_BEFORE_OPTIONAL: (?:[\w)}\]"'`?]|[^-]>)
   # The whitespace that ends a type, unless the optional-type suffix follows
   # it (`number ?`), which Luau allows and which still belongs to the type,
   # or a union or intersection operator does (`number | string`), which
@@ -979,8 +1005,23 @@ variables:
   # A `:` that is not the start of `::`.
   LUAU_SINGLE_COLON: '[:](?![:])'
   # Just after a token an inline `if` expression can follow: a line start,
-  # an operator, an opening bracket, a comma, `..` or a keyword.
-  AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*)
+  # an operator, an opening bracket, a comma, `..` or a keyword, with a block
+  # comment after it on its line or not (`local x = --[[c]] if c then`).
+  AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*{{LUAU_PLAIN_BLOCK_COMMENT}}{{WS}}*)
+  # A block comment that closes on its line, for a lookbehind. A lookbehind
+  # holds no lookaround, so `LUAU_BLOCK_COMMENT_ON_LINE`, which closes the
+  # comment only at brackets of its own level, cannot stand in one. Its text
+  # may hold a `]` that a `]` or `=` does not follow (`--[[a]b]]`); a
+  # comment whose text holds `]]` or `]=` (`--[=[a]]b]=]`) is not one, so
+  # the rule after it reads on as it does after any other text, and this
+  # one never runs on past its own close into the text after it.
+  LUAU_PLAIN_BLOCK_COMMENT: (?:--\[=*\[(?:[^\]\r\n]|\][^\]=\r\n])*\]=*\])
+  # The space between a header keyword and the name after it: whitespace,
+  # and block comments that close on the keyword's line (`style --[[ note ]]
+  # banner with`, `function --[[ c ]] f(x)`). A comment that spans lines
+  # there still hides the name: a lookbehind sees no further back than its
+  # line in VS Code.
+  LUAU_HEADER_NAME_GAP: (?:{{WS}}*(?:{{LUAU_PLAIN_BLOCK_COMMENT}}{{WS}}*)*)
   # A token an inline `if` expression can follow, other than a line start.
   LUAU_TERNARY_PRECEDING_TOKEN: (?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_TERNARY_PRECEDING_KEYWORDS}})
   # An `if` whose line holds an `else`, `elseif` or `}` before any lone `=`.
@@ -1122,6 +1163,7 @@ patterns:
   - { include: "#LuauExternalDeclaration" }
 
   - { include: "#LuauSparkdownExplicitStatement" }
+  - { include: "#LuauFunctionAttributes" }
   - { include: "#LuauFunctionDefinition" }
   - { include: "#LuauSparkdownVariableDefinition" }
   - { include: "#LuauDeclarations" }
@@ -4003,6 +4045,10 @@ repository:
       - { include: "#LuauDeclarations" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
+      # An explicit type instantiation after a method's name (`t:f<<T>>()`),
+      # which ends the access path before it. Luau has no `<<` operator, so
+      # it comes before the compare operation, which would read its `<`s.
+      - { include: "#LuauGenericsInstantiation" }
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
@@ -4011,6 +4057,7 @@ repository:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
       - { include: "#LuauParenthetical" }
+      - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
       - { include: "#LuauString" }
@@ -4022,7 +4069,6 @@ repository:
       # Including it standalone here too would short-circuit the
       # access-path lowerer (which needs to see them as identifiers
       # for the `STDLIB_CONSTANTS` short-circuit).
-      - { include: "#LuauGenericsInstantiation" }
       # `LuauTypeofFunction` is intentionally NOT included in value
       # expressions: in value context, `type(x)` and `typeof(x)` are
       # Luau stdlib function calls returning the type-name string,
@@ -4178,6 +4224,12 @@ repository:
     end: (?={{BEAT}})|$|(?=^)
 
   LuauExplicitStatementMark:
+    tag: keyword
+    name: keyword.other.statement.explicit.luau.mark.sd
+
+  # The redundant `&` of a Luau body line that continues the expression
+  # before it (`LuauLineContinuation`), highlighted as a statement's mark.
+  LuauContinuationMark:
     tag: keyword
     name: keyword.other.statement.explicit.luau.mark.sd
 
@@ -4414,10 +4466,11 @@ repository:
   # begin ended. `LuauBlockBody` reads a name in the middle of a line, so it
   # would take the define's name if it were tried first, and a name rule
   # tried before it takes `x` and `if` from a body line that begins at
-  # column 0 (fixture luau-declaration/define-column-0-body). The cost: a
-  # block comment between `define` and the name hides the name.
+  # column 0 (fixture luau-declaration/define-column-0-body). The lookbehind
+  # passes over block comments that close on the keyword's line
+  # (`LUAU_HEADER_NAME_GAP`); the cost: one that spans lines hides the name.
   LuauDefineNameAndInheritance:
-    begin: (?<=define\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<=define\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4670,10 +4723,11 @@ repository:
   # `LuauComment` has read the start of a line: `--[[ note ]] accidental` at
   # column 0 declares `accidental` as a second style (declarationAnnotator
   # test "a word after a comment in a block body declares nothing"). Nothing
-  # but the text before it tells the header's name from that word. The cost:
-  # a block comment between `style` and the name hides the name.
+  # but the text before it tells the header's name from that word. The
+  # lookbehind passes over block comments that close on the keyword's line
+  # (`LUAU_HEADER_NAME_GAP`); the cost: one that spans lines hides the name.
   LuauStyleNameAndInheritance:
-    begin: (?<=style\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<=style\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4700,7 +4754,7 @@ repository:
   # lookaround: as in `LuauStyleNameAndInheritance` (fixture
   # struct/column-0-brace-lines has an `animation` brace line at column 0).
   LuauAnimationThemeNameAndInheritance:
-    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -6967,7 +7021,7 @@ repository:
   # or last: the declarationAnnotator test's `screen menu` declares `extra`
   # without the lookbehind.
   LuauScreenNameHeader:
-    begin: (?<=screen\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<=screen\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7029,7 +7083,7 @@ repository:
   # column 0 are `LuauSparkleControlBlock` (`if`, `for`, `match`) and
   # `LuauSparkleBlockLine` (fixture sparkle/column-0-body-lines).
   LuauLayoutNameAndInheritance:
-    begin: (?<=layout\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<=layout\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7058,7 +7112,7 @@ repository:
   # lookaround: as in `LuauLayoutNameAndInheritance` (fixture
   # sparkle/column-0-body-lines has a component body at column 0).
   LuauComponentNameAndInheritance:
-    begin: (?<=component\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: (?<=component\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -7404,6 +7458,14 @@ repository:
     tag: special(typeName)
     name: variable.parameter.function.varargs.luau
 
+  # The `...` of a variadic type written before its type (`...number`, a
+  # pack of any number of numbers), highlighted as `T...` is; the type
+  # after it is read on as the type.
+  LuauVariadicTypePack:
+    match: ([.][.][.])
+    tag: special(typeName)
+    name: variable.parameter.function.varargs.luau
+
   LuauVariadicParameter:
     match: ([.][.][.])
     tag: special(variableName)
@@ -7567,6 +7629,7 @@ repository:
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauGenericsInstantiation" }
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
@@ -7575,13 +7638,13 @@ repository:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
       - { include: "#LuauParenthetical" }
+      - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
       - { include: "#LuauString" }
       - { include: "#LuauBoolean" }
       - { include: "#LuauNil" }
       - { include: "#LuauUnitKeywords" }
-      - { include: "#LuauGenericsInstantiation" }
       - { include: "#LuauNewExpression" }
       - { include: "#LuauAccessPath" }
       - { include: "#LuauTable" }
@@ -7862,8 +7925,10 @@ repository:
       - { include: "#LuauSparkdownBlockBody" }
     # `(?<=\bend)` — close right after the do-block's `end` so one-line
     # `for ... do BODY end return x` doesn't swallow trailing
-    # statements (see LuauSparkdownWhileLoop).
-    end: (?={{BEAT}})|(?<=\bend)|$
+    # statements (see LuauSparkdownWhileLoop). The line's end does not close
+    # it after a `for` that ends its line, whose condition begins on the
+    # next (`LUAU_NOT_AFTER_LOOP_KEYWORD`).
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
 
   LuauForLoop:
     begin: ({{WS}}*)(for)\b({{WS}}*)
@@ -7883,8 +7948,8 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
     # See LuauSparkdownWhileLoop's end comment (one-line trailing
-    # statements).
-    end: (?={{BEAT}})|(?<=\bend)|$
+    # statements, a condition on the next line).
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
 
   LuauForCondition:
     # See `LuauIfBlockCondition` for the multi-line trick: begin's
@@ -7943,8 +8008,11 @@ repository:
     # swallow the trailing statements into the loop (the `$` alternative
     # only fires at end-of-line). The lookbehind can't false-trigger on
     # identifiers like `friend` — `\b` requires a word boundary before
-    # the `e`.
-    end: (?={{BEAT}})|(?<=\bend)|$
+    # the `e`. The line's end does not close it after a `while` that ends
+    # its line, as Luau lets the condition begin on the next line; the
+    # condition opens there and reads on to its `do`
+    # (`LUAU_NOT_AFTER_LOOP_KEYWORD`).
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
 
   LuauWhileLoop:
     begin: ({{WS}}*)(while)\b({{WS}}*)
@@ -7964,8 +8032,8 @@ repository:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
     # See LuauSparkdownWhileLoop's end comment (one-line trailing
-    # statements).
-    end: (?={{BEAT}})|(?<=\bend)|$
+    # statements, a condition on the next line).
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
 
   LuauWhileCondition:
     # See `LuauIfBlockCondition` for the multi-line trick.
@@ -8199,7 +8267,7 @@ repository:
     # lookaround: anchor the header once after for/while so it cannot reopen
     # over LuauSparkdownExplicitBlockBody assignments. The specific do rule
     # precedes this header, so it owns do when the condition is missing.
-    begin: (?<=\b(?:for|while)\b{{WS}}*)
+    begin: (?<=\b{{LUAU_CONDITION_LOOP_KEYWORDS}}\b{{WS}}*)
     patterns:
       - { include: "#LuauInKeyword" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
@@ -8888,7 +8956,9 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#LuauVariadicType" }
       - { include: "#LuauSparkdownExplicitTypeLiteral" }
+      - { include: "#LuauCommaSeparator" }
     end: ([>][>])|$
     endCaptures:
       1:
@@ -9040,6 +9110,7 @@ repository:
       - { include: "#LuauSparkdownExplicitDeclarations" }
       - { include: "#LuauSparkdownExplicitAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauSparkdownExplicitGenericsInstantiation" }
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitArithmeticOperation" }
       - { include: "#LuauSparkdownExplicitCompareOperation" }
@@ -9048,6 +9119,7 @@ repository:
       - { include: "#LuauSparkdownExplicitLogicalOperation" }
       - { include: "#LuauSparkdownExplicitTypeCastOperation" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
+      - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
       - { include: "#LuauString" }
@@ -9059,7 +9131,6 @@ repository:
       # Including it standalone here too would short-circuit the
       # access-path lowerer (which needs to see them as identifiers
       # for the `STDLIB_CONSTANTS` short-circuit).
-      - { include: "#LuauSparkdownExplicitGenericsInstantiation" }
       # `LuauTypeofFunction` is intentionally NOT included in value
       # expressions: in value context, `type(x)` and `typeof(x)` are
       # Luau stdlib function calls returning the type-name string,
@@ -9371,6 +9442,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauSparkdownExplicitGenericsInstantiation" }
       - { include: "#LuauSparkdownExplicitFunctionCallParameters" }
       # Lua/Luau sugar: `f"..."`, `f'...'`, `f[[...]]`, `f{...}` are
       # function calls with a single string/table argument (equivalent
@@ -9654,7 +9726,7 @@ repository:
     name: invalid.illegal.luau
     # lookaround: LuauExpression and LuauTypeLiteral own valid operands; this diagnostic matches only a bounded end or a terminator, excluding member words and divert arrows.
     # See bounded-invalid-token rationale above for the structural alternatives.
-    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END_BEFORE_OPTIONAL}}{{WS}}*)[-][>])({{WS}}*)(?=$|{{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
+    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END}}{{WS}}*)[-][>])({{WS}}*)(?=$|{{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
   # The bounded twin of `LuauThenOperator`, with the same two begin
   # alternatives; it never reads past its line.
@@ -9865,6 +9937,7 @@ repository:
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauSparkdownExplicitGenericsInstantiation" }
       - { include: "#LuauSparkdownExplicitOperatorMissingOperand" }
       - { include: "#LuauSparkdownExplicitArithmeticOperation" }
       - { include: "#LuauSparkdownExplicitCompareOperation" }
@@ -9873,13 +9946,13 @@ repository:
       - { include: "#LuauSparkdownExplicitLogicalOperation" }
       - { include: "#LuauSparkdownExplicitTypeCastOperation" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
+      - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
       - { include: "#LuauString" }
       - { include: "#LuauBoolean" }
       - { include: "#LuauNil" }
       - { include: "#LuauUnitKeywords" }
-      - { include: "#LuauSparkdownExplicitGenericsInstantiation" }
       - { include: "#LuauNewExpression" }
       - { include: "#LuauSparkdownExplicitAccessPath" }
       - { include: "#LuauSparkdownExplicitTable" }
@@ -10719,7 +10792,11 @@ repository:
     # break. Reordering the patterns cannot help, since the end is tried
     # first, and the condition cannot leave the `then` to the arm (see
     # `LuauThenExpression`).
-    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
+    #
+    # It also ends before an `end` or `until` after its last arm, which
+    # closes the block around it (`return if a then 2 else 3 end`), as its
+    # `LuauSparkdownExplicitTernaryExpression` twin does.
+    end: "(?={{BEAT}}|(?<!{{LUAU_THEN_BEHIND}})$|{{WS}}*{{LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS}}\\b|^{{LUAU_SHARED_TERNARY_NEXT_LINE_GUARD}}|[)}\\],;]|{{LUAU_SHARED_NOT_ELSEIF}}{{WS}}+{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}{{LUAU_SHARED_CONDITION_CLOSER_KEYWORDS}}\\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})"
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -11527,10 +11604,11 @@ repository:
   # name, which must stay this rule's; `a` in `a.b` and a plain name are the
   # same identifier, so no tightened variable separates them; and a name
   # has no end that could stop before a `.` it has not reached. Only the
-  # character after the name tells the two apart. The cost: a block comment
-  # between the keyword and the name hides the name.
+  # character after the name tells the two apart. The lookbehind passes over
+  # block comments that close on the keyword's line (`LUAU_HEADER_NAME_GAP`);
+  # the cost: one that spans lines hides the name.
   LuauFunctionDeclarationName:
-    match: (?<=(?:function|external)\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: (?<=(?:function|external)\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:
@@ -11608,12 +11686,26 @@ repository:
   #
   # `and` and `or` are tried before an access part, which would otherwise
   # read either as a name.
+  #
+  # A redundant `&` may mark the line, as it may any line of a Luau body
+  # (`& return 1` then `& + 2`, which Luau reads as `return 1 + 2`): the
+  # line still continues the expression before it (#1369). The mark is a
+  # `LuauContinuationMark`, not the `LuauExplicitStatementMark` that begins
+  # a statement, so the converter reads past it (`SPARKDOWN_ONLY`), as it
+  # reads past the line break, and every reading of the body reads the one
+  # expression.
   LuauLineContinuation:
-    begin: ^({{WS}}*)(?={{LUAU_LINE_CONTINUATION}})
+    begin: ^({{WS}}*){{_LUAU_CONTINUATION_MARK_}}(?={{LUAU_LINE_CONTINUATION}})
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauContinuationMark" }
+      3:
+        patterns:
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauAccessPart" }
@@ -11633,11 +11725,17 @@ repository:
   # of the expression there, so only `LuauBlockBody` includes this rule. A
   # `--` line is a comment, and a `->` line a divert.
   LuauMinusLineContinuation:
-    begin: ^({{WS}}*)(?={{LUAU_MINUS_LINE_START}})
+    begin: ^({{WS}}*){{_LUAU_CONTINUATION_MARK_}}(?={{LUAU_MINUS_LINE_START}})
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauContinuationMark" }
+      3:
+        patterns:
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#LuauAccessPart" }
       - { include: "#LuauParenthetical" }
@@ -11708,6 +11806,9 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      # An explicit type instantiation before the arguments (`f<<T>>()`),
+      # which `LUAU_FUNCTION_CALL_START` opens the call at.
+      - { include: "#LuauGenericsInstantiation" }
       - { include: "#LuauFunctionCallParameters" }
       # Lua/Luau sugar: `f"..."`, `f'...'`, `f[[...]]`, `f{...}` are
       # function calls with a single string/table argument (equivalent
@@ -13054,10 +13155,7 @@ repository:
         patterns:
           - { include: "#PunctuationDoubleAngleOpen" }
     patterns:
-      - { include: "#LuauComment" }
-      - { include: "#Newline" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#LuauTypeLiteral" }
+      - { include: "#LuauTypeArgumentContents" }
       - { include: "#LuauUnreadToken" }
     # A type never holds a keyword that cannot begin one, so an unclosed
     # instantiation ends before it, as `LuauTypeGenerics` does.
@@ -13125,10 +13223,11 @@ repository:
   # `q` a second name, ahead of `LuauBlockBody`, which reads it otherwise
   # (keywordLookbehinds.test.ts asserts the one name directly). Tried after
   # `LuauBlockBody`, the rule would never meet its name.
-  # The cost: a block comment between `function` and the name hides the
+  # The lookbehind passes over block comments that close on the keyword's
+  # line (`LUAU_HEADER_NAME_GAP`); the cost: one that spans lines hides the
   # name.
   LuauTypeFunctionName:
-    match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    match: (?<=\bfunction\b{{LUAU_HEADER_NAME_GAP}})({{LUAU_IDENTIFIER}})\b({{WS}}*)
     captures:
       1:
         tag: typeName
@@ -13252,7 +13351,7 @@ repository:
   # type-name variable used only here would hold the lookahead without
   # replacing it.
   LuauTypeLiteral:
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
+    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:]|[.][.][.])"
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -13265,6 +13364,7 @@ repository:
       - { include: "#LuauBoolean" }
       - { include: "#LuauTypeofFunction" }
       - { include: "#LuauVariadicType" }
+      - { include: "#LuauVariadicTypePack" }
       - { include: "#LuauQualifiedTypeReference" }
       - { include: "#LuauNamedTypeReference" }
       - { include: "#LuauPrimitiveType" }
@@ -13485,7 +13585,7 @@ repository:
   # lookbehind spells that out as `[^-]>` because VS Code's regex engine
   # refuses a lookbehind nested in another.
   LuauTypeOptionalOperator:
-    match: (?<={{LUAU_TYPE_END_BEFORE_OPTIONAL}}{{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
+    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
     captures:
       1:
         patterns:
@@ -13550,7 +13650,7 @@ repository:
   LuauTypeBinaryOperatorMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END_BEFORE_OPTIONAL}}{{WS}}*)[-][>])({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
+    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END}}{{WS}}*)[-][>])({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
   LuauTypeBinaryOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_BINARY_OPERATORS}})({{WS}}*)
@@ -14025,8 +14125,12 @@ repository:
   # Attributes
   # ----------------------------------------------------------------------------
 
+  # A function's attribute (`@native`). The space after it is the
+  # attribute's when another attribute or the function follows on the line
+  # (`@native function`, `store f = @native function() ... end`), so a value
+  # that ends at a space, an assignment's, reads on to the function.
   LuauAttribute:
-    match: (@)({{LUAU_IDENTIFIER}})
+    match: (@)({{LUAU_IDENTIFIER}}){{_LUAU_ATTRIBUTE_FOLLOWER_SPACE_}}
     captures:
       1:
         patterns:
@@ -14034,6 +14138,63 @@ repository:
       2:
         patterns:
           - { include: "#LuauAttributeName" }
+      3:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+
+  # Luau's bracketed attribute list (`@[deprecated]`, `@[native, deprecated]`,
+  # `@[deprecated{ reason = "x" }]`): names separated by commas, each with
+  # the arguments Luau's parser reads after it, a table, a string or a
+  # parenthesized list. Its names are highlighted as `@name`'s are; the
+  # space after it is the list's as the space after `@name` is.
+  LuauAttributeList:
+    begin: (@)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAttributeListName" }
+      - { include: "#LuauTable" }
+      - { include: "#LuauString" }
+      - { include: "#LuauFunctionCallParameters" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|(\]){{_LUAU_ATTRIBUTE_FOLLOWER_SPACE_}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+      2:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+
+  LuauAttributeListName:
+    tag: attributeName
+    name: storage.type.attribute.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  # Attributes before a function on its line at the top level of a script
+  # (`@native function f() return 7 end`). Elsewhere at the top level a line
+  # that begins with `@` is story text.
+  #
+  # lookaround: SparkdownStatement owns a top-level line that begins with
+  # `@` unless a function follows the attributes, and LuauFunctionDefinition
+  # owns that function, so the rule opens only before the attributes and
+  # closes where they stop.
+  LuauFunctionAttributes:
+    begin: (?={{LUAU_FUNCTION_ATTRIBUTES_AHEAD}})
+    patterns:
+      - { include: "#LuauAttributeList" }
+      - { include: "#LuauAttribute" }
+      - { include: "#ExtraWhitespace" }
+    end: (?!@)
 
   LuauAttributeOperator:
     tag: operator

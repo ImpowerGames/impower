@@ -285,11 +285,10 @@ end
   end
 end
 `);
-    // The grammar has no type rule for `...any` (#876), but the list takes it
-    // as a token it leaves unread (#1905) and goes on to its own `)`, so the
-    // runtime binds `f` and `k`, and the type checker reads `k` as the
-    // `number` it is declared as. `any` is no parameter, so Sparkdown's own
-    // resolver reports its read (#990).
+    // The list reads `...any` as a variadic type (#876, #1924) and goes on
+    // to its own `)`, so the runtime binds `f` and `k`, and the type checker
+    // reads `k` as the `number` it is declared as. `any` is no parameter, so
+    // Sparkdown's own resolver reports its read (#990).
     expect(typeWarnings(program)).toEqual(["8:26-8:27 Expected this to be 'string', but got 'number'"]);
     expect(describeDiagnostics(program, false)).toEqual(["7:12-7:15 Cannot find variable named `any`"]);
   });

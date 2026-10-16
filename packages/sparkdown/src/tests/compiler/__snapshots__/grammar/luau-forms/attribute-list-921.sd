@@ -1,0 +1,11 @@
+Value {g()}.
+function g()
+  @[deprecated]
+  local function f()
+    return 1
+  end
+  @[deprecated{ reason = "x" }]
+  function h() end
+  @[native, deprecated] function k() end
+  return f()
+end

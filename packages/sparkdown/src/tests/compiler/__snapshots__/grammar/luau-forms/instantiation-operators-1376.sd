@@ -1,0 +1,8 @@
+function g()
+  local function f<T>() end
+  f<<number | string>>()
+  f<<number & string>>()
+  local t = {}
+  function t:m<T>() end
+  t:m<<number | string>>()
+end

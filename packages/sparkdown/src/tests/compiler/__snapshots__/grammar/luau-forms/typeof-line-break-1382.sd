@@ -1,0 +1,6 @@
+function g()
+  type T = typeof(1
+  )
+  type U = typeof(
+    1)
+end

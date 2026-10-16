@@ -489,7 +489,6 @@ end
     // TypeInfer.test.cpp:700 TEST_CASE_FIXTURE(BuiltinsFixture, "invalide_deprecated_attribute_doesn't_chrash_checker")
     name: "invalide_deprecated_attribute_doesn't_chrash_checker",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 921 }, // an attribute written @[...]
     source: `
 @[deprecated{ reason = reasonString }]
 function hello(x: number, y: number): number
@@ -1452,7 +1451,6 @@ end
     // TypeInfer.test.cpp:1845 TEST_CASE_FIXTURE(Fixture, "multiple_assignment")
     name: "multiple_assignment",
     fixture: "Fixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         local function requireString(arg: string) end
         local function requireNumber(arg: number) end

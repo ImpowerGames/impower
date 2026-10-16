@@ -1,0 +1,4 @@
+function g()
+  type Box<T> = {value: T}
+  local x: {Box<number>} = {}
+end

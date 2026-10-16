@@ -1,0 +1,5 @@
+function --[[ c ]] f(x)
+  local function --[[ c ]] g(y) return y end
+  export type function --[[ c ]] Keys<T>(t) return t end
+  return g(x)
+end

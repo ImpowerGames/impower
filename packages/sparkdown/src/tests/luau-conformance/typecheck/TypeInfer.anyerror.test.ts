@@ -69,7 +69,6 @@ portUpstreamFile("TypeInfer.anyerror.test.cpp", [
     // TypeInfer.anyerror.test.cpp:98 TEST_CASE_FIXTURE(Fixture, "for_in_loop_iterator_is_any_pack")
     name: "for_in_loop_iterator_is_any_pack",
     fixture: "Fixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         function bar(): ...any end
 

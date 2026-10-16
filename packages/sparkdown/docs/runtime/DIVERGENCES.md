@@ -722,9 +722,9 @@ fires at all (`LuauArithmeticOperation` claims the leading `/` first), and
 ahead of that rule it fires in operator position too, so
 `{10/2} and {10 / 2}` lexed `/2} and {10 /` as a regex.
 
-`@` works because every other `@` rule requires an identifier, `(` or `=` after
-the sigil (`@attribute`, `@has(...)`, `@click=`), so none of them can match
-`@/`. It also leaves `/` as the familiar delimiter, which matters: `/` is the
+`@` works because every other `@` rule requires an identifier, `[`, `(` or `=`
+after the sigil (`@attribute`, `@[attribute]`, `@has(...)`, `@click=`), so none
+of them can match `@/`. It also leaves `/` as the familiar delimiter, which matters: `/` is the
 one candidate that appears in **zero** of the built-in patterns, whereas `!`
 (`[!?]`, intonation), `:` (`(?:`) and `|` (`(?:^|\b)`) are all common inside
 them and would need escaping.

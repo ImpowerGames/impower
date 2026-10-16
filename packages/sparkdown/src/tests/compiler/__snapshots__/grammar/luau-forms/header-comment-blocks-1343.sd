@@ -1,0 +1,13 @@
+style --[[ note ]] banner with
+  color = red
+end
+
+layout --[[ note ]] hud with
+  text "hi"
+end
+
+component --[[ note ]] card with
+  text "card"
+end
+
+The rain stops on the rooftop.

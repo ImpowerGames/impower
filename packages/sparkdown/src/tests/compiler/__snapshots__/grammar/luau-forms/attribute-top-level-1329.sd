@@ -1,0 +1,2 @@
+Value {f()}.
+@native function f() return 7 end
