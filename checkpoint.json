@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 170,
-  "previous": "867b5cbe72fff29473ca0212acdee5f4ba47cdc2",
+  "seq": 171,
+  "previous": "f4b46144feb46b2b21adf1a680be62b58618d41e",
   "snapshotParents": [],
-  "time": "2026-10-16T04:34:10.860Z",
+  "time": "2026-10-16T04:34:18.626Z",
   "kind": "auto",
-  "transition": "verify of #454",
+  "transition": "verify of #887",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 137,
+    "recordRevision": 138,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -547,7 +547,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-887-6944980d-0e0e-4dfc-bfbc-6851e5e74f98"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -2454,7 +2454,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:34:10.860Z",
+      "observedAt": "2026-10-16T04:34:18.625Z",
       "held": true,
       "exists": false
     },
@@ -2463,7 +2463,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T04:34:10.860Z",
+      "observedAt": "2026-10-16T04:34:18.625Z",
       "held": true,
       "exists": false
     }
@@ -2554,11 +2554,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:21:24.360Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1746-interpolation-line-start"
-    },
     {
       "time": "2026-10-15T22:21:32.346Z",
       "event": "disk-recovery",
@@ -3254,6 +3249,11 @@
       "time": "2026-10-16T04:34:09.651Z",
       "event": "verified",
       "ticket": 454
+    },
+    {
+      "time": "2026-10-16T04:34:16.985Z",
+      "event": "verified",
+      "ticket": 887
     }
   ]
 }
