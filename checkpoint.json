@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 10,
-  "previous": "6cf9e19a693b5c5b1fb93b5b0f7b2e21d97a67e1",
+  "seq": 11,
+  "previous": "bca6b6aca1ce4c02ebe6fffb236c816be000b54e",
   "snapshotParents": [],
-  "time": "2026-10-16T05:29:55.776Z",
+  "time": "2026-10-16T05:31:48.892Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1925 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 28,
+    "recordRevision": 29,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -236,9 +236,9 @@
       "ticket": 1909,
       "pr": 1925,
       "expectHead": "70264631133235688073b982e27ee3e56a8c94fd",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T05:29:53.645Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1925 reads back merged as 8a191abf4a4181c8fbb476923aa82fe6cf304689 at 70264631133235688073b982e27ee3e56a8c94fd; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "164e862d8950feb8fded3e2c0b1a8176862afcfe",
@@ -412,7 +412,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T05:31:46.666Z",
+      "mergeCommit": "8a191abf4a4181c8fbb476923aa82fe6cf304689",
+      "mergedOnto": "d6d6f27200c062972a71d30e4adcbe4dc8ca6648",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -424,7 +429,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T05:29:55.020Z",
+      "observedAt": "2026-10-16T05:31:48.115Z",
       "held": true,
       "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
       "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
@@ -880,6 +885,12 @@
       "id": "04a40bf9",
       "kind": "merge",
       "pr": 1925
+    },
+    {
+      "time": "2026-10-16T05:31:46.666Z",
+      "event": "operation-outcome",
+      "id": "04a40bf9",
+      "state": "confirmed"
     }
   ]
 }
