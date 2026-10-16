@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 142,
-  "previous": "82f80c39a96dd5c213ad1009e785aa96c85ae7c2",
+  "seq": 143,
+  "previous": "7115c3a2f5195d92f204dc3cb081e395f1583d41",
   "snapshotParents": [],
-  "time": "2026-10-16T02:32:23.981Z",
+  "time": "2026-10-16T02:32:40.865Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 119,
+    "recordRevision": 120,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1934,16 +1934,19 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:32:23.981Z",
+      "observedAt": "2026-10-16T02:32:39.941Z",
       "held": true,
-      "exists": false
+      "head": "192b2f2dab673911ea2b397c7d852a2899563e3f",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread": {
       "ticket": 1920,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:32:23.981Z",
+      "observedAt": "2026-10-16T02:32:39.941Z",
       "held": true,
       "exists": false
     }
@@ -2034,11 +2037,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:47.826Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1740-evaluate-in-selected-frame"
-    },
     {
       "time": "2026-10-15T22:18:55.905Z",
       "event": "disk-recovery",
@@ -2692,6 +2690,11 @@
       "time": "2026-10-16T02:31:25.876Z",
       "event": "verified",
       "ticket": 1920
+    },
+    {
+      "time": "2026-10-16T02:32:38.297Z",
+      "event": "check-in",
+      "outcome": "no change: writers for #1617 and #1920 running with no PR yet; no transcripts to read, no dead launches; #316, #454, #887 wait for #1617; 59 GB free"
     }
   ]
 }
