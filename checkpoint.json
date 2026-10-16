@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 121,
-  "previous": "6a1b6baa323dc536fcd742bd2d395b2ee04fe048",
+  "seq": 122,
+  "previous": "7a845238a7375d9bbda8eb04325815974b159314",
   "snapshotParents": [],
-  "time": "2026-10-16T01:59:29.627Z",
+  "time": "2026-10-16T01:59:39.866Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1846",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 92,
+    "recordRevision": 93,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -496,55 +496,61 @@
       ]
     },
     "1846": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
-        "branch": "fix/1846-do-block-memo-tally",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "launchId": "01c5d730-a671-44d3-98f5-684890d101cd",
-        "handle": {
-          "kind": "process",
-          "pid": 59960,
-          "start": "639277108713379831",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 01c5d730-a671-44d3-98f5-684890d101cd. You are the writer for ImpowerGames/impower ticket #1846 (An incremental compile drops a memo-served statement's resolution diagnostics after an edit is made and taken back, where a cold compile reports them (repeatMemo replay)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 01c5d730-a671-44d3-98f5-684890d101cd and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1846 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally on branch fix/1846-do-block-memo-tally from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit C of umbrella #1893, whose Description and Scope are the design of record: the do-block memo tally. ProgramResolver.reported (ProgramResolver.ts around 1891-1920) credits a report only to the memo frames open when it arrives, and a do block's lowering places its body statements' objects as siblings between its two scope markers rather than inside an object of its own, so a nested statement's resolution errors are credited to its own frame only, the block's memo completes with resolve: [] (memoResolutionOf), and when the block is later served as an owner, repeatMemo replays nothing and MemoizedStatement.ResolveWith replays nothing for the nested stand-in: the diagnostics vanish and the typechecker's Unknown global warnings are no longer suppressed. Fix direction from the 2026-10-15 root-cause comment on #1846: credit a report to every memo candidate that owns the reporting statement (through candidate.nested), or open the owner's frame across its body statements, so a do block's memo keeps its body's reports as if, while and for blocks already do. Read that comment first; it carries the traces and the modes (norevert SAME, revert DIFF, revertcompile DIFF).\n- Regression test: the three-edit minimal script from that comment (a 140-character comment line so the parse mints split points, function reckon() with six lines local fN = N, then a block ' 1, 2 do' / '    t.a = t.a + i' / '  end' / '  local y = 1' / 'end'; edit local f5 = 5 to 6 and compile, then to 7 and compile), asserting after each compile that the incremental diagnostics equal a cold compile's; add the variant that starts from a valid for k = 1, 2 do and breaks its header with an edit. Also cover a plain do block in the same shape. Keep the original 67-edit seed 77 sequence out unless the harness already carries it cheaply.\n- Closes line: Closes #1846 only; no other ticket of #1893 shares this cause. Stay out of packages/sparkdown/src/program/ChunkStore.ts and the parser packages: another writer holds ChunkStore.ts (unit U2, PR #1912) and its units U1 and U3 follow; the memo session (statementMemo.ts, ProgramResolver.ts, MemoizedStatement.ts) is yours.\n- Hand-over notes with the probe scripts that reproduced the case on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/incremental-vs-cold/NOTES.md (probe-1846.ts, probe-1846-min.ts, probe-1846-min2.ts, probe-1846-memo.ts, common.ts), run through vite-node from packages/sparkdown as the notes say. Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since (PR #1910 added programIncrementalColdParity.test.ts); re-establish the case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files under work> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Put the test beside programDiagnosticsParity.test.ts or programPreviewMemo.test.ts under packages/sparkdown/src/tests/program, reusing their harness. The cumulative randomized-edit run of programDifferential.test.ts is an acceptance criterion of #1893: run it on its committed seeds plus seed 77 and report the result in Testing and verification.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "cdae556f",
-          "attempts": 1,
-          "time": "2026-10-15T22:54:42.526Z",
-          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
-        },
-        "since": "2026-10-15T22:54:42.527Z",
-        "sessionId": "0658610c-7e0e-4886-b19f-ca2a5e791f2f",
-        "acknowledged": {
-          "time": "2026-10-15T22:56:38.795Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
+            "branch": "fix/1846-do-block-memo-tally",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+            "launchId": "01c5d730-a671-44d3-98f5-684890d101cd",
+            "handle": {
+              "kind": "process",
+              "pid": 59960,
+              "start": "639277108713379831",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 01c5d730-a671-44d3-98f5-684890d101cd. You are the writer for ImpowerGames/impower ticket #1846 (An incremental compile drops a memo-served statement's resolution diagnostics after an edit is made and taken back, where a cold compile reports them (repeatMemo replay)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 01c5d730-a671-44d3-98f5-684890d101cd and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1846 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally on branch fix/1846-do-block-memo-tally from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit C of umbrella #1893, whose Description and Scope are the design of record: the do-block memo tally. ProgramResolver.reported (ProgramResolver.ts around 1891-1920) credits a report only to the memo frames open when it arrives, and a do block's lowering places its body statements' objects as siblings between its two scope markers rather than inside an object of its own, so a nested statement's resolution errors are credited to its own frame only, the block's memo completes with resolve: [] (memoResolutionOf), and when the block is later served as an owner, repeatMemo replays nothing and MemoizedStatement.ResolveWith replays nothing for the nested stand-in: the diagnostics vanish and the typechecker's Unknown global warnings are no longer suppressed. Fix direction from the 2026-10-15 root-cause comment on #1846: credit a report to every memo candidate that owns the reporting statement (through candidate.nested), or open the owner's frame across its body statements, so a do block's memo keeps its body's reports as if, while and for blocks already do. Read that comment first; it carries the traces and the modes (norevert SAME, revert DIFF, revertcompile DIFF).\n- Regression test: the three-edit minimal script from that comment (a 140-character comment line so the parse mints split points, function reckon() with six lines local fN = N, then a block ' 1, 2 do' / '    t.a = t.a + i' / '  end' / '  local y = 1' / 'end'; edit local f5 = 5 to 6 and compile, then to 7 and compile), asserting after each compile that the incremental diagnostics equal a cold compile's; add the variant that starts from a valid for k = 1, 2 do and breaks its header with an edit. Also cover a plain do block in the same shape. Keep the original 67-edit seed 77 sequence out unless the harness already carries it cheaply.\n- Closes line: Closes #1846 only; no other ticket of #1893 shares this cause. Stay out of packages/sparkdown/src/program/ChunkStore.ts and the parser packages: another writer holds ChunkStore.ts (unit U2, PR #1912) and its units U1 and U3 follow; the memo session (statementMemo.ts, ProgramResolver.ts, MemoizedStatement.ts) is yours.\n- Hand-over notes with the probe scripts that reproduced the case on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/incremental-vs-cold/NOTES.md (probe-1846.ts, probe-1846-min.ts, probe-1846-min2.ts, probe-1846-memo.ts, common.ts), run through vite-node from packages/sparkdown as the notes say. Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since (PR #1910 added programIncrementalColdParity.test.ts); re-establish the case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files under work> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Put the test beside programDiagnosticsParity.test.ts or programPreviewMemo.test.ts under packages/sparkdown/src/tests/program, reusing their harness. The cumulative randomized-edit run of programDifferential.test.ts is an acceptance criterion of #1893: run it on its committed seeds plus seed 77 and report the result in Testing and verification.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "cdae556f",
+              "attempts": 1,
+              "time": "2026-10-15T22:54:42.526Z",
+              "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+            },
+            "since": "2026-10-15T22:54:42.527Z",
+            "sessionId": "0658610c-7e0e-4886-b19f-ca2a5e791f2f",
+            "acknowledged": {
+              "time": "2026-10-15T22:56:38.795Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from writer session impower-f0 at 2026-10-15 18:56 local naming assignment 01c5d730 and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+              "deliveryId": "cdae556f"
+            },
+            "resumes": [
+              {
+                "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
+                "time": "2026-10-16T01:27:51.927Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875"
+              }
+            ]
           },
-          "evidence": "cross-session message from writer session impower-f0 at 2026-10-15 18:56 local naming assignment 01c5d730 and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
-          "deliveryId": "cdae556f"
-        },
-        "resumes": [
-          {
-            "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
-            "time": "2026-10-16T01:27:51.927Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 59960 is gone and no process names its launch directory; process 59960 is gone and no process names its launch directory; the resumed transcript /c/Users/Brode/AppData/Local/Temp/impower-writers/1893/resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875/out.jsonl ends with end_turn after reporting head bc305a65a green; PR 1915 merged at 135919bf66218cc31bcba96528d45ac406c1af8c through the gate",
+          "time": "2026-10-16T01:59:36.825Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-15T23:52:33.927Z",
@@ -1305,7 +1311,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:59:28.325Z",
+      "observedAt": "2026-10-16T01:59:38.413Z",
       "held": true,
       "head": "ebdaaacb00109edecda42519a352456125186a77",
       "remoteHead": "ebdaaacb00109edecda42519a352456125186a77",
@@ -1342,7 +1348,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:59:28.325Z",
+      "observedAt": "2026-10-16T01:59:38.413Z",
       "held": true,
       "head": "164cead2492fe406853dfa165beff860a2bc12a1",
       "remoteHead": "164cead2492fe406853dfa165beff860a2bc12a1",
@@ -1387,142 +1393,6 @@
           "finalCorrections": false,
           "commentIds": [
             6206157836
-          ]
-        }
-      ]
-    },
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally": {
-      "ticket": 1846,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
-      "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:59:28.325Z",
-      "held": true,
-      "head": "bc305a65aa40d9a69b2ff5a6ac896ce25bc35c0e",
-      "remoteHead": "bc305a65aa40d9a69b2ff5a6ac896ce25bc35c0e",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1915,
-      "reviewJobs": [
-        {
-          "job": "pr-1915/round-1/launch-ax-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-ax",
-            "reviewerId": "ax",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "incr",
-              "undirected"
-            ],
-            "head": "a21e382931cfb916f58c4274eefec510df56ad60",
-            "completedRoundReviewers": null,
-            "time": "2026-10-15T23:21:12.371Z"
-          },
-          "round": 1,
-          "reviewerId": "ax",
-          "attempt": 1,
-          "reviewedHead": "a21e382931cfb916f58c4274eefec510df56ad60",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "ax": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "incr",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "incr",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6204378401
-          ]
-        },
-        {
-          "job": "pr-1915/round-1/launch-incr-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-incr",
-            "reviewerId": "incr",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "incr",
-              "undirected"
-            ],
-            "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
-            "completedRoundReviewers": {
-              "ax": 1
-            },
-            "time": "2026-10-15T23:29:02.760Z"
-          },
-          "round": 1,
-          "reviewerId": "incr",
-          "attempt": 1,
-          "reviewedHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "ax": 1,
-            "incr": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "incr",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6204545717
-          ]
-        },
-        {
-          "job": "pr-1915/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "incr",
-              "undirected"
-            ],
-            "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
-            "completedRoundReviewers": {
-              "ax": 1,
-              "incr": 1
-            },
-            "time": "2026-10-15T23:39:13.773Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "ax": 1,
-            "incr": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "incr",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6204612025
           ]
         }
       ]
@@ -2266,6 +2136,12 @@
       "event": "operation-outcome",
       "id": "51e91325",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T01:59:36.826Z",
+      "event": "released",
+      "ticket": 1846,
+      "reason": "process 59960 is gone and no process names its launch directory"
     }
   ]
 }
