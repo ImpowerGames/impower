@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 110 (this commit), 2026-10-16T00:24:11.827Z, after a new plan. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 111 (this commit), 2026-10-16T00:24:22.256Z, after release of #1299. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -18,12 +18,6 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1911/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 6a8847302, completed {"ax":1,"bound":1,"undirected":1} of planned ["ax","bound","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","bound","undirected"]), last event finished
 - review job pr-1911/round-2/launch-bound-1 on DESKTOP-726EO47: round 2 reviewed 178637495, completed {"bound":1} of planned ["bound","undirected"]; last launched reviewer bound attempt 1 of round 2 (planned ["bound","undirected"]), last event finished
 - review job pr-1911/round-2/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 2 (planned ["bound","undirected"]), last event identified
-
-## #1299
-
-- claude-cli claude-opus-5-5 at medium, process 20144 on DESKTOP-726EO47
-- review job pr-1914/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 65e1bf0c3, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["undirected"]), last event finished
-- review job pr-1914/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 7144777e7, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["undirected"]), last event finished
 
 ## #1645
 
