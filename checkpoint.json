@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 16,
-  "previous": "f5fde62fad5ef56063cf90eb7a0412f3152719d2",
+  "seq": 17,
+  "previous": "e56b9f2214ebd2b73ae5e61b106ddbf2043c7ec4",
   "snapshotParents": [],
-  "time": "2026-10-16T21:24:00.283Z",
+  "time": "2026-10-16T21:28:14.568Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 13,
@@ -112,12 +112,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T21:23:59.300Z",
+      "observedAt": "2026-10-16T21:28:13.413Z",
       "held": true,
-      "head": "2fb944aa7a0add9f272720f73ba3c1909327ddf0",
-      "remoteHead": "2fb944aa7a0add9f272720f73ba3c1909327ddf0",
+      "head": "3626459970eba05554ed39a5c677fb570ba585ef",
+      "remoteHead": "3626459970eba05554ed39a5c677fb570ba585ef",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1975,
       "reviewJobs": [
         {
@@ -351,13 +351,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:23:40.899Z",
+    "at": "2026-10-16T21:28:13.410Z",
     "tickets": [
       {
         "number": 1962,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1975,
-        "reason": "process 724 started 639277716963446119 is running"
+        "reason": "process 724 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1962-21e53437-583d-4ff6-b398-939b1a758fff\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1963,

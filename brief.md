@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 16 (this commit), 2026-10-16T21:24:00.283Z, after checked-in. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 17 (this commit), 2026-10-16T21:28:14.568Z, after a new plan. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,7 +12,6 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1962
 
 - claude-cli claude-opus-5-5 at medium, process 724 on DESKTOP-726EO47
-- as of 2026-10-16T21:23:59.300Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1975/round-1/launch-guard-1 on DESKTOP-726EO47: round 1 reviewed 7789e8a38, completed {"guard":1} of planned ["guard","undirected"]; last launched reviewer guard attempt 1 of round 1 (planned ["guard","undirected"]), last event finished
 - review job pr-1975/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 1af512a07, completed {"guard":1,"undirected":1} of planned ["guard","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["guard","undirected"]), last event finished
 - review job pr-1975/round-2/launch-fidelity-1 on DESKTOP-726EO47: round 2 reviewed 90b72d67e, completed {"fidelity":1} of planned ["fidelity","undirected"]; last launched reviewer fidelity attempt 1 of round 2 (planned ["fidelity","undirected"]), last event finished
