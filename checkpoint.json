@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 121,
-  "previous": "ef6a9c8a86dd002820699624e6b51ba6b14be3a3",
+  "seq": 122,
+  "previous": "51c45b4aed9bfad7a998ef354e60f23a90c273ff",
   "snapshotParents": [],
-  "time": "2026-10-16T01:27:28.990Z",
+  "time": "2026-10-16T01:30:53.487Z",
   "kind": "auto",
-  "transition": "result of #457",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 105,
@@ -1646,7 +1646,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-16T01:27:27.734Z",
+      "observedAt": "2026-10-16T01:30:52.247Z",
       "held": true,
       "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
       "remoteHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
@@ -1935,7 +1935,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-16T01:27:27.734Z",
+      "observedAt": "2026-10-16T01:30:52.247Z",
       "held": true,
       "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
       "remoteHead": "8453e6f9c89315fc50d9738ac90fbe0aec51b61e",
@@ -1981,31 +1981,31 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T01:21:55.621Z",
+    "at": "2026-10-16T01:30:52.245Z",
     "tickets": [
       {
         "number": 316,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1617 (open), #1645 (open)"
+        "reason": "waiting for #457 (open), #1617 (open)"
       },
       {
         "number": 454,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1617 (open), #1645 (open)"
+        "reason": "waiting for #457 (open), #1617 (open)"
       },
       {
         "number": 457,
-        "action": "collect-report",
+        "action": "merge-gate",
         "pr": 1911,
-        "reason": "process 21264 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-457-aa2733e6-4028-47ec-981f-f17d4cad4da8\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2; process 56604 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 887,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1617 (open), #1645 (open)"
+        "reason": "waiting for #457 (open), #1617 (open)"
       },
       {
         "number": 1103,
@@ -2021,15 +2021,15 @@
       },
       {
         "number": 1325,
-        "action": "adopt-pr",
+        "action": "merge-gate",
         "pr": 1911,
-        "reason": "draft PR #1911 at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1502,
-        "action": "adopt-pr",
+        "action": "merge-gate",
         "pr": 1911,
-        "reason": "draft PR #1911 at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1617,
@@ -2039,15 +2039,15 @@
       },
       {
         "number": 1641,
-        "action": "adopt-pr",
+        "action": "merge-gate",
         "pr": 1911,
-        "reason": "draft PR #1911 at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1645,
-        "action": "merge-gate",
-        "pr": 1916,
-        "reason": "PR #1916 is ready at 8453e6f9c89315fc50d9738ac90fbe0aec51b61e; process 21792 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 21792 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       }
     ],
     "remaining": [
