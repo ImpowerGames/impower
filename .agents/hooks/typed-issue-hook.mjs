@@ -1269,10 +1269,11 @@ function unwrapBody(body) {
 const CURL_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
-// A whole argument that is a URL on api.github.com or github.com, with any
-// scheme, user information or port, after an optional `-Uri:`, `-Url:` or
-// `--url=`. Group 1 is the host, group 2 the path after it.
-const HTTP_URL = /^(?:-uri:|-url:|--url=)?(?:https?:\/\/)?(?:[^@/\s"']*@)?(api\.github\.com|(?:www\.)?github\.com)(?::\d+)?\/([^\s"']*)$/i;
+// An argument that starts with a URL on api.github.com or github.com, with
+// any scheme, user information or port, after an optional `-Uri:`, `-Url:`
+// or `--url=`. Group 1 is the host, group 2 everything after it, quotes and
+// spaces included, so a query string cannot hide the destination.
+const HTTP_URL = /^(?:-uri:|-url:|--url=)?(?:https?:\/\/)?(?:[^@/\s"']*@)?(api\.github\.com|(?:www\.)?github\.com)(?::\d+)?\/([\s\S]*)$/i;
 
 /**
  * The guard's reason for an HTTP client invocation whose request URL reaches
@@ -1291,8 +1292,10 @@ const HTTP_URL = /^(?:-uri:|-url:|--url=)?(?:https?:\/\/)?(?:[^@/\s"']*@)?(api\.
 function checkGuardedUrl(args, curl) {
   const texts = args.map((a) => a.text);
   const text = texts.join("\n");
-  // A body (JSON, prose) carries quotes or spaces, which a URL argument does not.
-  if (curl && texts.some((t) => /github/i.test(t) && /[{}[\]]/.test(t) && !/["\s]/.test(t))) return GUARD.api();
+  // An argument that starts with a GitHub URL is a URL whatever follows it;
+  // any other argument naming GitHub is a URL glob unless it carries quotes
+  // or spaces, as a body (JSON, prose) does.
+  if (curl && texts.some((t) => /[{}[\]]/.test(t) && (HTTP_URL.test(t) || (/github/i.test(t) && !/["\s]/.test(t))))) return GUARD.api();
   for (const arg of texts) {
     const m = arg.match(HTTP_URL);
     if (!m) continue;
