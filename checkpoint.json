@@ -2,10 +2,10 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 227,
-  "previous": "2953edefb8aa05b20e6894646fcc4de8f1dc8e77",
+  "seq": 228,
+  "previous": "30bd3a7cc45f9adf91a9a6ca8d52cfbad72b9118",
   "snapshotParents": [],
-  "time": "2026-10-16T14:16:58.544Z",
+  "time": "2026-10-16T14:21:08.053Z",
   "kind": "auto",
   "transition": "a new plan",
   "run": {
@@ -2836,7 +2836,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T14:16:57.574Z",
+      "observedAt": "2026-10-16T14:21:07.078Z",
       "held": true,
       "head": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
       "remoteHead": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
@@ -3049,7 +3049,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T14:16:57.574Z",
+      "observedAt": "2026-10-16T14:21:07.078Z",
       "held": true,
       "head": "6156c871695ca66489dab3e473e5ac1199f68443",
       "remoteHead": "6156c871695ca66489dab3e473e5ac1199f68443",
@@ -3285,7 +3285,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T14:16:57.572Z",
+    "at": "2026-10-16T14:21:07.076Z",
     "tickets": [
       {
         "number": 316,
@@ -3307,9 +3307,9 @@
       },
       {
         "number": 839,
-        "action": "blocked-route",
+        "action": "dispatch",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 887,
@@ -3361,9 +3361,9 @@
       },
       {
         "number": 1800,
-        "action": "blocked-route",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+        "reason": "2 writers already hold tickets against a limit of 3"
       },
       {
         "number": 1920,
