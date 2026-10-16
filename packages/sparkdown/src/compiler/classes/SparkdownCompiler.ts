@@ -2838,14 +2838,21 @@ export class SparkdownCompiler {
             () => runCallText(wrapperName),
           ]);
           for (const [virtualUri, text] of runDocuments) {
-            this.documents.add({
-              textDocument: {
-                uri: virtualUri,
-                languageId: "sparkdown",
-                version: 1,
-                text: text(),
-              },
-            });
+            // A document is set again only when its text changed, under the
+            // next version, so the registry parses the new text (the .luau
+            // file was edited) and an unchanged one keeps its tree (#316).
+            const documentText = text().replace(/\r\n|\r/g, "\n");
+            const registered = this.documents.get(virtualUri);
+            if (registered?.getText() !== documentText) {
+              this.documents.add({
+                textDocument: {
+                  uri: virtualUri,
+                  languageId: "sparkdown",
+                  version: (registered?.version ?? 0) + 1,
+                  text: documentText,
+                },
+              });
+            }
             if (state.fileResolutionState) {
               state.fileResolutionState.runStack ??= [];
               state.fileResolutionState.runStack.push(resolvedFilePath);
