@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1940
 
-Checkpoint 83 (this commit), 2026-10-16T19:23:41.723Z, after the intent before a side effect. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
+Checkpoint 84 (this commit), 2026-10-16T19:23:51.500Z, after resume of #1637. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -11,11 +11,11 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1637
 
-- claude-cli claude-opus-5-5 at medium, process 36564 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at medium, process 45152 on DESKTOP-726EO47
 - review job pr-1960/round-1/launch-incremental-1 on DESKTOP-726EO47: round 1 reviewed 78f865241, completed {"incremental":1} of planned ["incremental","undirected"]; last launched reviewer incremental attempt 1 of round 1 (planned ["incremental","undirected"]), last event finished
 - review job pr-1960/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 9a1b6f64d, completed {"incremental":1,"undirected":1} of planned ["incremental","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["incremental","undirected"]), last event finished
 
 ## #1881
 
 - claude-cli claude-opus-5-5 at medium, process 35408 on DESKTOP-726EO47
-- as of 2026-10-16T19:23:40.487Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1881-compile-at-debounce that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T19:23:50.060Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1881-compile-at-debounce that may exist only there; recover those bytes there before restarting or overwriting this work

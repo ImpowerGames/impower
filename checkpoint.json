@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 83,
-  "previous": "d9aa329190c2249c310285f7af1c185356bbc0af",
+  "seq": 84,
+  "previous": "8be0a463ab5ab286a5258a6d64a6a355b8a26b33",
   "snapshotParents": [],
-  "time": "2026-10-16T19:23:41.723Z",
+  "time": "2026-10-16T19:23:51.500Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #1637",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 66,
+    "recordRevision": 67,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -138,10 +138,10 @@
         "launchId": "6a277fa9-157c-4586-a29f-df6814e10c3e",
         "handle": {
           "kind": "process",
-          "pid": 36564,
-          "start": "639277730827826009",
+          "pid": 45152,
+          "start": "639277754279288458",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-3fdbdbbe-1842-4e9e-8411-5c7587308fe4"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-fcab34d9-879d-446e-9cc9-baf63a589624"
         },
         "verified": true,
         "brief": {
@@ -170,13 +170,13 @@
             "id": "3fdbdbbe-1842-4e9e-8411-5c7587308fe4",
             "time": "2026-10-16T18:44:43.184Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-3fdbdbbe-1842-4e9e-8411-5c7587308fe4"
+          },
+          {
+            "id": "fcab34d9-879d-446e-9cc9-baf63a589624",
+            "time": "2026-10-16T19:23:48.419Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-fcab34d9-879d-446e-9cc9-baf63a589624"
           }
-        ],
-        "resuming": {
-          "id": "fcab34d9-879d-446e-9cc9-baf63a589624",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-fcab34d9-879d-446e-9cc9-baf63a589624",
-          "time": "2026-10-16T19:23:38.797Z"
-        }
+        ]
       },
       "pending": null,
       "history": [],
@@ -890,7 +890,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:23:40.487Z",
+      "observedAt": "2026-10-16T19:23:50.060Z",
       "held": true,
       "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -978,7 +978,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:23:40.487Z",
+      "observedAt": "2026-10-16T19:23:50.060Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1459,6 +1459,19 @@
       "ticket": 1637,
       "id": "fcab34d9-879d-446e-9cc9-baf63a589624",
       "sessionId": "01a84990-6733-433b-807b-8af331dfa40b"
+    },
+    {
+      "time": "2026-10-16T19:23:48.419Z",
+      "event": "resumed",
+      "ticket": 1637,
+      "id": "fcab34d9-879d-446e-9cc9-baf63a589624",
+      "handle": {
+        "kind": "process",
+        "pid": 45152,
+        "start": "639277754279288458",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-fcab34d9-879d-446e-9cc9-baf63a589624"
+      }
     }
   ]
 }
