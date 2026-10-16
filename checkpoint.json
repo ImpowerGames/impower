@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 151,
-  "previous": "30e48881b49004d49d73cc2fc6061f429b3a6b8a",
+  "seq": 152,
+  "previous": "e70de86c60c94a8d0b65495cf80efa6fb09acabf",
   "snapshotParents": [],
-  "time": "2026-10-16T04:53:57.339Z",
+  "time": "2026-10-16T04:54:36.488Z",
   "kind": "auto",
-  "transition": "launch of #1627",
+  "transition": "acknowledged of #1627",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 111,
+    "recordRevision": 112,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -471,7 +471,18 @@
           "time": "2026-10-16T04:53:56.185Z",
           "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
         },
-        "since": "2026-10-16T04:53:56.186Z"
+        "since": "2026-10-16T04:53:56.186Z",
+        "sessionId": "5f878fe6-0a34-4b32-8826-d0793f340dc0",
+        "acknowledged": {
+          "time": "2026-10-16T04:54:35.254Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer session impower-44 at 2026-10-16 ~00:5x local naming assignment 4acb108d and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+          "deliveryId": "7e6ae326"
+        }
       },
       "pending": null,
       "history": [],
@@ -1781,7 +1792,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T04:53:57.339Z",
+      "observedAt": "2026-10-16T04:54:36.487Z",
       "held": true,
       "exists": false
     }
@@ -1884,11 +1895,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:01:46.731Z",
-      "event": "verified",
-      "ticket": 1201
-    },
     {
       "time": "2026-10-15T22:17:20.257Z",
       "event": "disk-recovery",
@@ -2563,6 +2569,16 @@
         "start": "639277232358933695",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1627-4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8"
+      }
+    },
+    {
+      "time": "2026-10-16T04:54:35.255Z",
+      "event": "acknowledged",
+      "ticket": 1627,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
