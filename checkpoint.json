@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 12,
-  "previous": "b1f0a76c0689a1f2ede005177b5b055126bb0715",
+  "seq": 13,
+  "previous": "c8025ef16eebc58263b6faee64ae9b08a806d02a",
   "snapshotParents": [],
-  "time": "2026-10-16T16:25:05.415Z",
+  "time": "2026-10-16T16:25:13.846Z",
   "kind": "auto",
-  "transition": "acknowledged of #851",
+  "transition": "verify of #851",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 9,
+    "recordRevision": 10,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -78,7 +78,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-851-432efd6d-c055-4f07-a9f3-7b88b1ab2f3a"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -150,7 +150,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T16:25:05.415Z",
+      "observedAt": "2026-10-16T16:25:13.845Z",
       "held": true,
       "exists": false
     },
@@ -159,7 +159,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T16:25:05.415Z",
+      "observedAt": "2026-10-16T16:25:13.845Z",
       "held": true,
       "exists": false
     }
@@ -275,6 +275,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-16T16:25:12.125Z",
+      "event": "verified",
+      "ticket": 851
     }
   ]
 }
