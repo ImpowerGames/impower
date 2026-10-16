@@ -8,6 +8,11 @@ import {
   testStory,
   withTestExternals,
 } from "../engineUnderTest";
+import {
+  runCallUri,
+  runWrapperName,
+  runWrapperUri,
+} from "../../compiler/utils/runWrapper";
 
 function compileWithFiles(files: Array<{ uri: string; text: string }>) {
   const compiler = testCompiler();
@@ -152,6 +157,17 @@ done
     ]);
     expect(errs).toEqual([]);
     expect(recordedRun(result.program.chunks)).toEqual([42, 42]);
+  });
+
+  test("names the wrapper of a run's call document as of its wrapper document", () => {
+    const file = "inmemory:///helper.luau";
+    expect(runWrapperName(runWrapperUri(file, "__run_helper"))).toBe(
+      "__run_helper",
+    );
+    expect(runWrapperName(runCallUri(file, "__run_helper", 2))).toBe(
+      "__run_helper",
+    );
+    expect(runWrapperName(file)).toBeUndefined();
   });
 
   test("runs one file once per run line across incremental compiles", () => {
