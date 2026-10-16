@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 308,
-  "previous": "1dab01316d4afc1d320013b9cf0d682ebbfadc07",
+  "seq": 309,
+  "previous": "bd5100c4b8255b251047266b5091fe59c74337cf",
   "snapshotParents": [],
-  "time": "2026-10-16T18:08:44.514Z",
+  "time": "2026-10-16T18:08:59.208Z",
   "kind": "auto",
-  "transition": "result of #316",
+  "transition": "request of #316",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 256,
+    "recordRevision": 257,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -126,6 +126,17 @@
             "other": "Residual risk disclosed: the missing-file include/run error range is zero-width at column 1 (the pre-existing run convention); defect 3 is unreachable in the shipped editors (default scriptFiles glob) and tested through the compiler API only; no CRLF-specific run test; one non-reproducible LSP link-pull console error on a cold load. None filed. Feedback: recurrence of F-5789457733 on #510, comment 6221539704.",
             "source": "cross-session message from writer impower-60 (session 9e58f473-2803-4892-ba10-e44e624c7007), final report for assignment 7d758442"
           }
+        }
+      ],
+      "requests": [
+        {
+          "id": "ad4bb14a",
+          "owner": "7d758442-e0f0-4ff2-b298-18525c405e4b",
+          "time": "2026-10-16T18:08:52.353Z",
+          "text": "Final report: PR #1956 marked ready after round 1 with no outstanding findings and CI green; head 74ad2fdb is a test-data-only baseline re-record after the reviewed head eae96dce, taken under review-pr's non-behavioral exception. The merge gate refuses it: the head is not the last independently reviewed commit and no acceptance covers it; the writer's next round or a checkpoint decision on this head settles it.",
+          "source": "cross-session message from writer impower-60 and integration.mjs gate on PR #1956",
+          "relayed": null,
+          "answer": null
         }
       ]
     },
@@ -4469,7 +4480,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:08:43.003Z",
+      "observedAt": "2026-10-16T18:08:54.137Z",
       "held": true,
       "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
@@ -4557,7 +4568,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T18:08:43.003Z",
+      "observedAt": "2026-10-16T18:08:54.137Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -4683,7 +4694,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:08:43.003Z",
+      "observedAt": "2026-10-16T18:08:54.137Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -4799,11 +4810,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T08:15:27.011Z",
-      "event": "check-in",
-      "outcome": "no change: held on the weekly usage limit; maintainer decision on requests 5b339599 and d8a61713 pending; PRs #1928 and #1929 unchanged"
-    },
     {
       "time": "2026-10-16T08:46:10.035Z",
       "event": "check-in",
@@ -5503,6 +5509,12 @@
       "ticket": 316,
       "pr": 1956,
       "reviewedHead": "eae96dceab16d4d8c2814350bc19809c36fe49f8"
+    },
+    {
+      "time": "2026-10-16T18:08:52.353Z",
+      "event": "request",
+      "ticket": 316,
+      "id": "ad4bb14a"
     }
   ]
 }
