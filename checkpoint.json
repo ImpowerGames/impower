@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 258,
-  "previous": "9454ea7d2fa4e63373bcf3f3a7ea109cb87997ca",
+  "seq": 259,
+  "previous": "a6621d4ae9fd45c16463f66e03af5ede67c60b9b",
   "snapshotParents": [],
-  "time": "2026-10-16T16:05:52.506Z",
+  "time": "2026-10-16T16:07:05.103Z",
   "kind": "auto",
-  "transition": "answered of #839",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 218,
@@ -3999,7 +3999,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T16:05:51.338Z",
+      "observedAt": "2026-10-16T16:07:03.981Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -4247,7 +4247,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:05:51.338Z",
+      "observedAt": "2026-10-16T16:07:03.981Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4391,19 +4391,19 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T15:48:53.824Z",
+    "at": "2026-10-16T16:07:03.980Z",
     "tickets": [
       {
         "number": 316,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 454,
-        "action": "merge-gate",
-        "pr": 1929,
-        "reason": "PR #1929 is ready at 5af99acef3f333d0cb5891bd50402faf19ada517; process 55476 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55476 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 457,
@@ -4413,9 +4413,9 @@
       },
       {
         "number": 839,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1948,
-        "reason": "process 34548 started 639277574440592944 is running"
+        "reason": "PR #1948 is ready at a9d427cc24c26205d3890719f94ff33992476127; process 15932 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 887,
@@ -4467,9 +4467,9 @@
       },
       {
         "number": 1800,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1920,
@@ -4479,9 +4479,9 @@
       },
       {
         "number": 1951,
-        "action": "blocked-route",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+        "reason": "1 writers already hold tickets against a limit of 3"
       }
     ],
     "remaining": [
