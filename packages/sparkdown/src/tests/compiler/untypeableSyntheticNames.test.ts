@@ -4,6 +4,7 @@
 // ordinary name: it is neither reported nor renamed.
 import { describe, expect, it } from "vitest";
 import { File } from "../../compiler/types/File";
+import { NUMBERED_SYNTHETIC_NAME } from "../../program/ProgramSymbols";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { programListing, rootOf } from "../programListing";
 
@@ -129,7 +130,8 @@ describe("names the compiler generates", () => {
   it("hold a character no identifier can contain", () => {
     const { program, compiler } = compileWith(EVERY_FAMILY);
     expect(errors(program)).toEqual([]);
-    // The names the compile numbers by document order: those of a function
+    // The names the compile numbers by document order within each flow
+    // (`__synth$<flow>$<n>`, #851): those of a function
     // a statement writes, a `define`'s method, a redefined function, and
     // the temporaries and labels of a method call, a property assignment, a
     // multiple assignment and each kind of loop. The program names none of
@@ -158,7 +160,7 @@ describe("names the compiler generates", () => {
         `a name of the ${family} family in ${lowered.join(", ")}`,
       ).toBe(true);
     }
-    expect(numbered.filter((name) => !/^__synth\$\d+$/.test(name))).toEqual([]);
+    expect(numbered.filter((name) => !NUMBERED_SYNTHETIC_NAME.test(name))).toEqual([]);
     const names = underscoredNames(program);
     // Each family the program keeps a name of: a continuation's group, a
     // binding's evaluator, and a chunk's own name for a temporary.

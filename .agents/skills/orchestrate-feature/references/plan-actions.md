@@ -2,7 +2,7 @@
 
 The observation file `plan` reads is `{ "sessions": { "<id>": { "state": "running|idle|archived|absent" } }, "tasks": { "<id>": { "state": "running|completed|failed|stopped|<other>" } } }`, written from what your runner reports.
 
-`plan` gives every ticket one action with its reason, and reports beside them the wake sweep (`sweep`: the transcripts to read, the running writers not read, and reviewer launches that died before their journal), the periodic check-in (`checkIn`) and the session group (`grouping`), as [writer reports](writer-reports.md) and [starting a run](start.md) describe. Act on each ticket as follows.
+`plan` gives every ticket one action with its reason, and reports beside them the wake sweep (`sweep`: the transcripts to read, the running writers not read, and reviewer launches that died before their journal) and the periodic check-in (`checkIn`), as [writer reports](writer-reports.md) and [starting a run](start.md) describe. Act on each ticket as follows.
 
 | Action | Meaning and next step |
 | --- | --- |

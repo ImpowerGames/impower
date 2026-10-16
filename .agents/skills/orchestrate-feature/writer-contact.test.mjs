@@ -5,8 +5,7 @@
 // permission mode, an unacknowledged brief becomes a delivery to settle after
 // one check-in interval, the periodic check-in is recorded and recreated on
 // takeover, the wake sweep reads only idle writers and flags dead reviewer
-// launches, the Feature's session group is recorded, an idle CLI writer can
-// be opened in the app, and the retired Claude routes are refused. Each
+// launches, an idle CLI writer can be opened in the app, and the retired Claude routes are refused. Each
 // scenario reports on its own, so a run shows every one that fails. Runs in
 // a scratch repository under the system temp directory and launches only a
 // stand-in writer.
@@ -670,35 +669,6 @@ try {
     assert.match(planOf(f, snapshotOf([ticket(371)])).checkIn.next, /wake routine at the start of every turn/);
   });
 
-  // --- The Feature's session group ---------------------------------------------
-
-  scenario("on a runner with grouping, writers in the app are filed into the Feature's recorded group, and a takeover reuses it", () => {
-    const f = fresh("group", { feature: 1775 });
-    const snap = snapshotOf([ticket(381, { prs: [{ number: 981, state: "OPEN", isDraft: true, branch: "fix/381-thing", head: "h", rounds: 1 }] })], 1775);
-    const first = planOf(f, snap);
-    assert.equal(first.grouping.state, "missing");
-    assert.match(first.grouping.next, /Orchestrate #1775/);
-    f.change((r) => run.recordGroup(r, { id: "group-1775" }));
-    const session = "local_2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e";
-    f.change((r) => run.adopt(r, { plan: write("group-plan.json", planOf(f, snap)), ticket: 381, handleKind: "session", handle: session, route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt-381") }));
-    assert.deepEqual(planOf(f, snap).grouping.file, [{ ticket: 381, session }]);
-    assert.throws(() => f.change((r) => run.filed(r, { ticket: 381, group: "another" })), /group-1775/);
-    f.change((r) => run.filed(r, { ticket: 381, group: "group-1775" }));
-    assert.deepEqual(planOf(f, snap).grouping.file, []);
-    const takeoverFile = path.join(f.artifacts, "takeover.json");
-    run.initRecord({ record: takeoverFile, checkout: f.dir, repository: "acme/widgets", feature: 1775, coordinator: "local_3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e6f", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #1775.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
-    assert.deepEqual(run.readRecord(takeoverFile).group, { name: "Orchestrate #1775", id: "group-1775" });
-  });
-
-  scenario("a runner without grouping records none and continues dispatching", () => {
-    const f = fresh("group-codex", { harness: "codex", coordinator: CODEX_THREAD });
-    const snap = snapshotOf([ticket(391)]);
-    assert.match(planOf(f, snap).grouping.next, /group --none/);
-    f.change((r) => run.recordGroup(r, { none: "Codex has no session grouping" }));
-    const p = planOf(f, snap, { preflights: [available("codex-cli", "gpt-6.1-sol", [391])] });
-    assert.deepEqual([p.grouping.state, entryOf(p, 391).action], ["none", "dispatch"]);
-  });
-
   // --- Shared skill text names no harness tool -----------------------------------
 
   scenario("the shared skill text names no harness tool", () => {
@@ -709,7 +679,7 @@ try {
   });
 
   if (failed.length) throw new Error(`${failed.length} scenario${failed.length === 1 ? "" : "s"} failed: ${failed.join("; ")}`);
-  console.log("PASS: CLI-only Claude dispatch, coordinator id and mode, per-route briefs with report mechanisms, acknowledgement and delivery settlement, idle-only transcript sweep, dead reviewer launches, periodic check-in and its takeover, session groups, opening an idle writer, and tool-free skill text");
+  console.log("PASS: CLI-only Claude dispatch, coordinator id and mode, per-route briefs with report mechanisms, acknowledgement and delivery settlement, idle-only transcript sweep, dead reviewer launches, periodic check-in and its takeover, opening an idle writer, and tool-free skill text");
 } finally {
   for (const { stop } of started) fs.writeFileSync(stop, "");
   for (const { pid } of started) { try { waitFor(() => !processIdentity(pid), `stand-in ${pid} to exit`, 15000); } catch (error) { console.error(error.message); } }

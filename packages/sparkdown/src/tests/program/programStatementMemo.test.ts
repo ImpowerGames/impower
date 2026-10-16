@@ -14,6 +14,7 @@ import type { StatementShape } from "../../compiler/lower/utils/statementShape";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import { NUMBERED_SYNTHETIC_NAME } from "../../program/ProgramSymbols";
 import { loweredOutsideRebuilt } from "./memoLowering";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
@@ -1242,11 +1243,11 @@ describe("a loop or a `choose` block served from its memo, as the rest of the st
 describe("the names a loop's lowering makes from its place (#1683)", () => {
   /** The number the last compile's numbering of synthetic names gave each
    *  name a lowering made from its place (`<tag>__$<place>...`), leaving
-   *  out the names an earlier compile numbered (`__synth$<n>`). */
+   *  out the names an earlier compile numbered (`__synth$<flow>$<n>`). */
   const placedNames = (compiler: SparkdownCompiler): Map<string, string> =>
     new Map(
       [...((compiler as any)._syntheticNamesLastRun as Map<string, string>)].filter(
-        ([name]) => name.includes("$") && !/^__synth\$\d+$/.test(name),
+        ([name]) => name.includes("$") && !NUMBERED_SYNTHETIC_NAME.test(name),
       ),
     );
 

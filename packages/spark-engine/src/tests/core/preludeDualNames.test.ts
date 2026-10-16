@@ -17,8 +17,9 @@
 //   2. `applyBuiltinOverrides`' back-fill gate keyed on post-scoping
 //      identifiers, which differ between the prelude pass and the user pass
 //      for exactly these names — a user override of a dual-defined builtin
-//      instance silently lost every field it didn't restate. The gate now
-//      keys on the stable bare name.
+//      instance silently lost every field it didn't restate. The gate keyed
+//      on the stable bare name; since #1951 the authored `__def` fills its
+//      table at runtime from the member registered under that bare name.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -110,7 +111,7 @@ end
     const override = findDefine(story, "ambient", "channel");
     expect(override).toBeDefined();
     // Authored value wins; prelude fields the author didn't restate survive
-    // via the override back-fill.
+    // via the override fill.
     const struct: any = convertDefine(override, story);
     expect(struct.loop).toBe(true);
     expect(struct.mixer).toBe("sound");
@@ -172,7 +173,7 @@ end
     expect(override).toBeDefined();
     const struct: any = convertDefine(override, story);
     expect(struct.loop).toBe(true); // authored
-    // Back-filled from the prelude's channel-typed `typewriter` — the
+    // Filled from the prelude's channel-typed `typewriter` — the
     // channel ROOT's default is a `mixer.none` REF, so a plain "sound"
     // proves the INSTANCE's value survived, not just chain inheritance.
     expect(struct.mixer).toBe("sound");

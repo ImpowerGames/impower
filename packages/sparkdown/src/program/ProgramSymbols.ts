@@ -43,8 +43,18 @@ export const INCLUDED_FLOW_PREFIX = "$include:";
 /** How a function the compiler named is shown to an author. */
 export const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
 
+/** A name `SparkdownCompiler.canonicalizeSyntheticFlowNames` gives a name
+ *  the lowering made from its place: `__synth$`, the name of the top-level
+ *  flow the name first stands in (empty for the top-level content), `$`,
+ *  then its number among that flow's names in document order, as in
+ *  `__synth$kitchen$2` (#851). */
+export const NUMBERED_SYNTHETIC_NAME = /^__synth\$[^$]*\$\d+$/;
+
+/** Each such name in a text. */
+export const NUMBERED_SYNTHETIC_NAMES = /__synth\$[^$\s]*\$\d+/g;
+
 /** A name the compiler generates: `__`, its family, then a `$`, which no
- *  name an author writes holds (`__synth$3`, `__binding$...`;
+ *  name an author writes holds (`__synth$kitchen$3`, `__binding$...`;
  *  docs/engine/binary-program.md, section 2). */
 const GENERATED_LABEL_PART = /^__[A-Za-z]\w*\$/;
 

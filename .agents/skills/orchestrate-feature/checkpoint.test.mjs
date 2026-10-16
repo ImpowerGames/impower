@@ -171,9 +171,8 @@ try {
   ].map((r) => JSON.stringify(r)).join("\n") + "\n");
   // #502's writer has a brief whose delivery is unconfirmed.
   mutate(rec500, "local_src", (r) => { r.tickets[502].owner.brief = { state: "intent", deliveryId: "d1", attempts: 1, time: new Date().toISOString(), text: "the stored brief for #502" }; });
-  // The source scheduled its check-in, filed its sessions into the Feature's
-  // group and carries its title.
-  mutate(rec500, "local_src", (r) => { run.recordCheckIn(r, { job: "src-cron", file: rec500, defaults }); run.recordGroup(r, { id: "group-500" }); r.title = "ORCH #500: widget delivery"; });
+  // The source scheduled its check-in and carries its title.
+  mutate(rec500, "local_src", (r) => { run.recordCheckIn(r, { job: "src-cron", file: rec500, defaults }); r.title = "ORCH #500: widget delivery"; });
   // The source recorded its intent to merge another PR and stopped before the
   // outcome.
   const mergeHead = "b".repeat(40);
@@ -265,9 +264,8 @@ try {
   assert.match(d.previousCoordinators.at(-1).ended, /usage limit/);
   assert.equal(d.previousCoordinators.at(-1).authority.merge, srcRecordCopy.authority.merge, "the previous grant stays as evidence");
   // The check-in ended with the source's session: the takeover carries the
-  // command that recreates it for the new record, and the Feature's group and
-  // title.
-  assert.deepEqual([d.checkIn.job, d.checkIn.state, d.checkIn.command, d.group.id, d.title, d.coordinator.permissionMode], [null, "recreate on this coordinator's runner", `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record '${rec500d}'`, "group-500", "ORCH #500: widget delivery", "bypassPermissions"]);
+  // command that recreates it for the new record, and the Feature's title.
+  assert.deepEqual([d.checkIn.job, d.checkIn.state, d.checkIn.command, d.title, d.coordinator.permissionMode], [null, "recreate on this coordinator's runner", `node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record '${rec500d}'`, "ORCH #500: widget delivery", "bypassPermissions"]);
   assert.match(found.brief, /recreate it on your own runner with: node \.agents\/skills\/orchestrate-feature\/feature-run\.mjs schedule --record /);
   assert.ok(run.scheduleSpec(d, rec500d, defaults).prompt.includes(rec500d), "the recreated job names the new record");
   assert.deepEqual(d.authority, run.AUTHORITY, "the new coordinator's authority comes from its own invocation");

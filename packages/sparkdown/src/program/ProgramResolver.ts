@@ -47,6 +47,7 @@ import { DebugMetadata } from "../runtime/DebugMetadata";
 import type { SourceMetadata } from "../runtime/Error";
 import { structDefinitionTable } from "../runtime/StructDefinition";
 import type { ProgramStoryTables } from "./ProgramRoot";
+import { NUMBERED_SYNTHETIC_NAME } from "./ProgramSymbols";
 import type { StructDefinition as RuntimeStructDefinition } from "../runtime/StructDefinition";
 import type {
   MemoReported,
@@ -2568,7 +2569,7 @@ const ownNumberedNames = (
             : obj instanceof Divert
               ? (obj.pathIdentifiers?.[0]?.name ?? null)
               : null;
-      if (name && /^__synth\$\d+$/.test(name)) {
+      if (name && NUMBERED_SYNTHETIC_NAME.test(name)) {
         out.add(name);
       }
     }

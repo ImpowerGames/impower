@@ -41,8 +41,7 @@ export class ObjectExpression extends Expression {
   }
 
   /** Append an entry after construction, parenting its expressions the same way
-   *  the constructor does. Used by the builtin-override pass, which back-fills a
-   *  `__def` table with the prelude values the author didn't restate. */
+   *  the constructor does. */
   public readonly addEntry = (entry: ObjectExpressionEntry): void => {
     this._entries.push(entry);
     if (entry.key instanceof Expression) {
