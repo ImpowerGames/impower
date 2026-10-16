@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 157,
-  "previous": "852d9d44b006754a6fecbec85c4f0ab9ff887eb6",
+  "seq": 158,
+  "previous": "36d50948cf55f48aaaa4fae18b6781a602473980",
   "snapshotParents": [],
-  "time": "2026-10-16T05:48:19.934Z",
+  "time": "2026-10-16T05:48:47.625Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 115,
+    "recordRevision": 116,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1792,7 +1792,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T05:48:19.016Z",
+      "observedAt": "2026-10-16T05:48:46.749Z",
       "held": true,
       "head": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
       "remoteHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
@@ -2006,11 +2006,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:17:45.785Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1741-stack-paging-from-top"
-    },
     {
       "time": "2026-10-15T22:17:54.437Z",
       "event": "disk-recovery",
@@ -2691,6 +2686,11 @@
       "time": "2026-10-16T05:17:39.777Z",
       "event": "check-in",
       "outcome": "no change: #1627 writer has its fix pushed (cd6379dc7) and is writing the PR body, no PR yet; main at d6d6f272; holding merges for ORCH #1904's PR 1925 per the three-way queue; no requests"
+    },
+    {
+      "time": "2026-10-16T05:48:45.046Z",
+      "event": "check-in",
+      "outcome": "no change: #1627 draft PR 1930 at cd6379dc7 in review round 1, two of three reviewers done with no findings, undirected launching; main at 8a191abf (#1925); hold released; no requests"
     }
   ]
 }
