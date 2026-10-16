@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 272,
-  "previous": "ba63b880edba740e8dfb653998c92a71aed529ca",
+  "seq": 273,
+  "previous": "1e8c3e9648fe8e3cc0b57bc4e61717fbff7320ab",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:36.461Z",
+  "time": "2026-10-16T16:09:45.011Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 231,
+    "recordRevision": 232,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4068,6 +4068,12 @@
       "removed": "C:\\Users\\Brode\\AppData\\Local\\impower-driver (removed driver directories)",
       "branch": null,
       "classifier": "49 driver directories: 6 removed (1.5 GB), 43 kept."
+    },
+    {
+      "time": "2026-10-16T16:09:42.764Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs (removed pr-* directories of closed PRs)",
+      "branch": null,
+      "classifier": "35 job directories: 1 removable, 34 kept."
     }
   ],
   "verifications": [],
@@ -4077,7 +4083,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:09:35.607Z",
+      "observedAt": "2026-10-16T16:09:44.236Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4322,19 +4328,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:31:31.325Z",
-      "event": "launched",
-      "ticket": 454,
-      "launchId": "a77d8ee5-d75c-4a55-b475-f2b8b69eead6",
-      "handle": {
-        "kind": "process",
-        "pid": 13860,
-        "start": "639277218910543405",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-454-a77d8ee5-d75c-4a55-b475-f2b8b69eead6"
-      }
-    },
     {
       "time": "2026-10-16T04:32:08.596Z",
       "event": "dispatch-intent",
@@ -5020,6 +5013,11 @@
       "time": "2026-10-16T16:09:33.345Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\AppData\\Local\\impower-driver (removed driver directories)"
+    },
+    {
+      "time": "2026-10-16T16:09:42.765Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs (removed pr-* directories of closed PRs)"
     }
   ]
 }
