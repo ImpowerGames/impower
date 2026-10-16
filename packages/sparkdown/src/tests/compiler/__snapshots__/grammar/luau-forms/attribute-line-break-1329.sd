@@ -1,0 +1,11 @@
+store second = @[native]
+  function() return 9 end
+function g()
+  local f = @native
+    function() return 7 end
+  local h = @[native] -- note
+
+    @checked function() return 8 end
+  return f() + h()
+end
+Value {second()} {g()}.

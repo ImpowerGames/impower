@@ -10,7 +10,11 @@ theme --[[ a]b ]] t with
   colors { primary = red }
 end
 morph --[[ c ]] --[[ d ]] m with
-  x = 1
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = eyes.open } }
+    { offset = 0.4; eyes { state = eyes.closed } }
+  }
 end
 screen --[[ c ]] hud with
 end

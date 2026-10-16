@@ -117,6 +117,28 @@ const FORMS: Record<string, Form> = {
     ],
     output: "Value 7.\n",
   },
+  "#1329 attributes that end their line before the function they mark": {
+    fixture: "attribute-line-break-1329",
+    scopes: [
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["@", ATTRIBUTE_OPERATOR],
+      ["checked", ATTRIBUTE],
+      ["function", FUNCTION],
+    ],
+    within: [
+      ["@[native]\n  function", "LuauSparkdownVariableDefinition"],
+      ["@native\n    function", "LuauVariableDefinition"],
+      ["@checked function", "LuauVariableDefinition"],
+    ],
+    output: "Value 9 15.\n",
+  },
   "#1329 an attribute before a stored function": {
     fixture: "attribute-store-1329",
     scopes: [
@@ -242,13 +264,24 @@ const FORMS: Record<string, Form> = {
       ["with", WITH],
     ],
   },
+  "#1343 a levelled block comment holding brackets between a keyword and its name": {
+    fixture: "header-comment-levels-1343",
+    scopes: [
+      ["banner", DEFINE_NAME],
+      ["with", WITH],
+      ["red", "string.unquoted.identifier.sd"],
+      ["other", DEFINE_NAME],
+      ["with", WITH],
+      ["blue", "string.unquoted.identifier.sd"],
+    ],
+  },
   "#1343 a block comment between the other header keywords and their names": {
     fixture: "header-comment-other-blocks-1343",
     control:
       'define Person with\n  name = "a"\nend\n' +
       "animation fade with\n  keyframes {\n    from { opacity = 0 }\n  }\nend\n" +
       "theme t with\n  colors { primary = red }\nend\n" +
-      "morph m with\n  x = 1\nend\n" +
+      "morph m with\n  method = bend\n  keyframes {\n    { offset = 0; eyes { state = eyes.open } }\n    { offset = 0.4; eyes { state = eyes.closed } }\n  }\nend\n" +
       "screen hud with\nend\n" +
       "external message(x)\nHi.\n",
     scopes: [
@@ -260,7 +293,7 @@ const FORMS: Record<string, Form> = {
       ["with", WITH],
       ["m", DEFINE_NAME],
       ["with", WITH],
-      ["x", "variable.other.property.define.sd"],
+      ["method", "variable.other.property.define.sd"],
       ["hud", DEFINE_NAME],
       ["with", WITH],
       ["message", FUNCTION_NAME],
@@ -437,6 +470,14 @@ describe("valid Luau forms the grammar reads with their usual scopes (#1924)", (
       }
     });
   }
+});
+
+// The attributes before a top-level function are read with the function, as
+// Luau reads them, so an invalid list reports Luau's error for it.
+test("an invalid attribute list before a top-level function reports Luau's error (#1924)", () => {
+  expect(compile("@[native; deprecated] function first()\n  return 7\nend\nValue: {first()}.\n")).toContain(
+    "Expected ']' (to close '[' at column 2), got ';'",
+  );
 });
 
 // Forms that already ran correctly, whose tree still held an unfinished node

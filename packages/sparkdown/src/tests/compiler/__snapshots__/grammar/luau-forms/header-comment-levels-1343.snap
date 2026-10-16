@@ -1,0 +1,228 @@
+sparkdown [0..157]
+ ├─ LuauStyle [0..63]
+ │   ├─ LuauStyle_begin [0..6]
+ │   │   ├─ LuauStyle_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauStyle_begin_c2 [0..5]
+ │   │   │   └─ LuauStyleKeyword [0..5]: "style"
+ │   │   └─ LuauStyle_begin_c3 [5..6]
+ │   │       └─ LuauStyle_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauStyle_content [6..60]
+ │   │   ├─ LuauBlockComment [6..34]
+ │   │   │   ├─ LuauBlockComment_begin [6..11]
+ │   │   │   │   ├─ LuauBlockComment_begin_c1 6
+ │   │   │   │   ├─ LuauBlockComment_begin_c2 [6..9]
+ │   │   │   │   │   └─ LuauCommentMark [6..9]: "--["
+ │   │   │   │   ├─ LuauBlockComment_begin_c3 [9..10]
+ │   │   │   │   │   └─ LuauCommentMark [9..10]: "="
+ │   │   │   │   └─ LuauBlockComment_begin_c4 [10..11]
+ │   │   │   │       └─ LuauCommentMark [10..11]: "["
+ │   │   │   ├─ LuauBlockComment_content [11..30]
+ │   │   │   │   ├─ LuauBlockCommentContent [11..12]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [12..13]: "e"
+ │   │   │   │   ├─ LuauBlockCommentContent [13..14]: "x"
+ │   │   │   │   ├─ LuauBlockCommentContent [14..15]: "a"
+ │   │   │   │   ├─ LuauBlockCommentContent [15..16]: "m"
+ │   │   │   │   ├─ LuauBlockCommentContent [16..17]: "p"
+ │   │   │   │   ├─ LuauBlockCommentContent [17..18]: "l"
+ │   │   │   │   ├─ LuauBlockCommentContent [18..19]: "e"
+ │   │   │   │   ├─ LuauBlockCommentContent [19..20]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [20..21]: "]"
+ │   │   │   │   ├─ LuauBlockCommentContent [21..22]: "]"
+ │   │   │   │   ├─ LuauBlockCommentContent [22..23]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [23..24]: "i"
+ │   │   │   │   ├─ LuauBlockCommentContent [24..25]: "n"
+ │   │   │   │   ├─ LuauBlockCommentContent [25..26]: "s"
+ │   │   │   │   ├─ LuauBlockCommentContent [26..27]: "i"
+ │   │   │   │   ├─ LuauBlockCommentContent [27..28]: "d"
+ │   │   │   │   ├─ LuauBlockCommentContent [28..29]: "e"
+ │   │   │   │   └─ LuauBlockCommentContent [29..30]: " "
+ │   │   │   └─ LuauBlockComment_end [30..34]
+ │   │   │       ├─ LuauBlockComment_end_c1 [30..31]
+ │   │   │       │   └─ LuauCommentMark [30..31]: "]"
+ │   │   │       ├─ LuauBlockComment_end_c2 [31..32]
+ │   │   │       │   └─ LuauCommentMark [31..32]: "="
+ │   │   │       ├─ LuauBlockComment_end_c3 [32..33]
+ │   │   │       │   └─ LuauCommentMark [32..33]: "]"
+ │   │   │       └─ LuauBlockComment_end_c4 [33..34]
+ │   │   │           └─ LuauBlockComment_end_c4 [33..34]
+ │   │   │               └─ OptionalWhitespace [33..34]: " "
+ │   │   ├─ LuauStyleNameAndInheritance [34..45]
+ │   │   │   ├─ LuauStyleNameAndInheritance_begin [34..40]
+ │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [34..40]
+ │   │   │   │       └─ LuauDefineName [34..40]: "banner"
+ │   │   │   └─ LuauStyleNameAndInheritance_end [40..45]
+ │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [40..41]
+ │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [40..41]
+ │   │   │       │       └─ OptionalWhitespace [40..41]: " "
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [41..45]
+ │   │   │           └─ LuauWithKeyword [41..45]: "with"
+ │   │   ├─ Newline [45..46]: "\n"
+ │   │   ├─ LuauStructBlockLine [46..59]
+ │   │   │   ├─ LuauStructBlockLine_begin 46
+ │   │   │   ├─ LuauStructBlockLine_content [46..59]
+ │   │   │   │   ├─ Whitespace [46..48]: "  "
+ │   │   │   │   └─ LuauStructBlockProperty [48..59]
+ │   │   │   │       ├─ LuauStructBlockProperty_c1 [48..53]
+ │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [48..53]
+ │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [48..53]
+ │   │   │   │       │           └─ DeclarationScalarPropertyKey [48..53]: "color"
+ │   │   │   │       ├─ LuauStructBlockProperty_c2 [53..56]
+ │   │   │   │       │   └─ AssignEqualOperator [53..56]
+ │   │   │   │       │       ├─ AssignEqualOperator_c1 [53..54]
+ │   │   │   │       │       │   └─ AssignEqualOperator_c1 [53..54]
+ │   │   │   │       │       │       └─ OptionalSeparator [53..54]: " "
+ │   │   │   │       │       ├─ AssignEqualOperator_c2 [54..55]
+ │   │   │   │       │       │   └─ EqualOperator [54..55]: "="
+ │   │   │   │       │       └─ AssignEqualOperator_c3 [55..56]
+ │   │   │   │       │           └─ AssignEqualOperator_c3 [55..56]
+ │   │   │   │       │               └─ OptionalSeparator [55..56]: " "
+ │   │   │   │       ├─ LuauStructBlockProperty_c3 [56..59]
+ │   │   │   │       │   └─ StylingValue [56..59]
+ │   │   │   │       │       ├─ StylingValue_c1 56
+ │   │   │   │       │       ├─ StylingValue_c2 56
+ │   │   │   │       │       ├─ StylingValue_c3 56
+ │   │   │   │       │       ├─ StylingValue_c4 [56..59]
+ │   │   │   │       │       │   └─ StylingValueContent [56..59]
+ │   │   │   │       │       │       └─ StylingValueContent_c1 [56..59]
+ │   │   │   │       │       │           └─ StylingStringIdentifier [56..59]: "red"
+ │   │   │   │       │       ├─ StylingValue_c5 59
+ │   │   │   │       │       ├─ StylingValue_c6 59
+ │   │   │   │       │       └─ StylingValue_c7 59
+ │   │   │   │       └─ LuauStructBlockProperty_c4 59
+ │   │   │   └─ LuauStructBlockLine_end 59
+ │   │   └─ Newline [59..60]: "\n"
+ │   └─ LuauStyle_end [60..63]
+ │       ├─ LuauStyle_end_c1 60
+ │       │   └─ LuauStyle_end_c1 60
+ │       │       └─ OptionalWhitespace 60
+ │       └─ LuauStyle_end_c2 [60..63]
+ │           └─ LuauEndKeyword [60..63]: "end"
+ ├─ Newline [63..64]: "\n"
+ ├─ LuauStyle [64..124]
+ │   ├─ LuauStyle_begin [64..70]
+ │   │   ├─ LuauStyle_begin_c1 64
+ │   │   │   └─ OptionalWhitespace 64
+ │   │   ├─ LuauStyle_begin_c2 [64..69]
+ │   │   │   └─ LuauStyleKeyword [64..69]: "style"
+ │   │   └─ LuauStyle_begin_c3 [69..70]
+ │   │       └─ LuauStyle_begin_c3 [69..70]
+ │   │           └─ OptionalWhitespace [69..70]: " "
+ │   ├─ LuauStyle_content [70..121]
+ │   │   ├─ LuauBlockComment [70..95]
+ │   │   │   ├─ LuauBlockComment_begin [70..76]
+ │   │   │   │   ├─ LuauBlockComment_begin_c1 70
+ │   │   │   │   ├─ LuauBlockComment_begin_c2 [70..73]
+ │   │   │   │   │   └─ LuauCommentMark [70..73]: "--["
+ │   │   │   │   ├─ LuauBlockComment_begin_c3 [73..75]
+ │   │   │   │   │   └─ LuauCommentMark [73..75]: "=="
+ │   │   │   │   └─ LuauBlockComment_begin_c4 [75..76]
+ │   │   │   │       └─ LuauCommentMark [75..76]: "["
+ │   │   │   ├─ LuauBlockComment_content [76..90]
+ │   │   │   │   ├─ LuauBlockCommentContent [76..77]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [77..78]: "a"
+ │   │   │   │   ├─ LuauBlockCommentContent [78..79]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [79..80]: "]"
+ │   │   │   │   ├─ LuauBlockCommentContent [80..81]: "="
+ │   │   │   │   ├─ LuauBlockCommentContent [81..82]: "]"
+ │   │   │   │   ├─ LuauBlockCommentContent [82..83]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [83..84]: "b"
+ │   │   │   │   ├─ LuauBlockCommentContent [84..85]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [85..86]: "]"
+ │   │   │   │   ├─ LuauBlockCommentContent [86..87]: "]"
+ │   │   │   │   ├─ LuauBlockCommentContent [87..88]: " "
+ │   │   │   │   ├─ LuauBlockCommentContent [88..89]: "c"
+ │   │   │   │   └─ LuauBlockCommentContent [89..90]: " "
+ │   │   │   └─ LuauBlockComment_end [90..95]
+ │   │   │       ├─ LuauBlockComment_end_c1 [90..91]
+ │   │   │       │   └─ LuauCommentMark [90..91]: "]"
+ │   │   │       ├─ LuauBlockComment_end_c2 [91..93]
+ │   │   │       │   └─ LuauCommentMark [91..93]: "=="
+ │   │   │       ├─ LuauBlockComment_end_c3 [93..94]
+ │   │   │       │   └─ LuauCommentMark [93..94]: "]"
+ │   │   │       └─ LuauBlockComment_end_c4 [94..95]
+ │   │   │           └─ LuauBlockComment_end_c4 [94..95]
+ │   │   │               └─ OptionalWhitespace [94..95]: " "
+ │   │   ├─ LuauStyleNameAndInheritance [95..105]
+ │   │   │   ├─ LuauStyleNameAndInheritance_begin [95..100]
+ │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [95..100]
+ │   │   │   │       └─ LuauDefineName [95..100]: "other"
+ │   │   │   └─ LuauStyleNameAndInheritance_end [100..105]
+ │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [100..101]
+ │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [100..101]
+ │   │   │       │       └─ OptionalWhitespace [100..101]: " "
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [101..105]
+ │   │   │           └─ LuauWithKeyword [101..105]: "with"
+ │   │   ├─ Newline [105..106]: "\n"
+ │   │   ├─ LuauStructBlockLine [106..120]
+ │   │   │   ├─ LuauStructBlockLine_begin 106
+ │   │   │   ├─ LuauStructBlockLine_content [106..120]
+ │   │   │   │   ├─ Whitespace [106..108]: "  "
+ │   │   │   │   └─ LuauStructBlockProperty [108..120]
+ │   │   │   │       ├─ LuauStructBlockProperty_c1 [108..113]
+ │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [108..113]
+ │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [108..113]
+ │   │   │   │       │           └─ DeclarationScalarPropertyKey [108..113]: "color"
+ │   │   │   │       ├─ LuauStructBlockProperty_c2 [113..116]
+ │   │   │   │       │   └─ AssignEqualOperator [113..116]
+ │   │   │   │       │       ├─ AssignEqualOperator_c1 [113..114]
+ │   │   │   │       │       │   └─ AssignEqualOperator_c1 [113..114]
+ │   │   │   │       │       │       └─ OptionalSeparator [113..114]: " "
+ │   │   │   │       │       ├─ AssignEqualOperator_c2 [114..115]
+ │   │   │   │       │       │   └─ EqualOperator [114..115]: "="
+ │   │   │   │       │       └─ AssignEqualOperator_c3 [115..116]
+ │   │   │   │       │           └─ AssignEqualOperator_c3 [115..116]
+ │   │   │   │       │               └─ OptionalSeparator [115..116]: " "
+ │   │   │   │       ├─ LuauStructBlockProperty_c3 [116..120]
+ │   │   │   │       │   └─ StylingValue [116..120]
+ │   │   │   │       │       ├─ StylingValue_c1 116
+ │   │   │   │       │       ├─ StylingValue_c2 116
+ │   │   │   │       │       ├─ StylingValue_c3 116
+ │   │   │   │       │       ├─ StylingValue_c4 [116..120]
+ │   │   │   │       │       │   └─ StylingValueContent [116..120]
+ │   │   │   │       │       │       └─ StylingValueContent_c1 [116..120]
+ │   │   │   │       │       │           └─ StylingStringIdentifier [116..120]: "blue"
+ │   │   │   │       │       ├─ StylingValue_c5 120
+ │   │   │   │       │       ├─ StylingValue_c6 120
+ │   │   │   │       │       └─ StylingValue_c7 120
+ │   │   │   │       └─ LuauStructBlockProperty_c4 120
+ │   │   │   └─ LuauStructBlockLine_end 120
+ │   │   └─ Newline [120..121]: "\n"
+ │   └─ LuauStyle_end [121..124]
+ │       ├─ LuauStyle_end_c1 121
+ │       │   └─ LuauStyle_end_c1 121
+ │       │       └─ OptionalWhitespace 121
+ │       └─ LuauStyle_end_c2 [121..124]
+ │           └─ LuauEndKeyword [121..124]: "end"
+ ├─ Newline [124..125]: "\n"
+ ├─ Newline [125..126]: "\n"
+ ├─ ImplicitAction [126..156]
+ │   ├─ ImplicitAction_begin 126
+ │   │   └─ ImplicitAction_begin_c1 126
+ │   │       └─ OptionalWhitespace 126
+ │   ├─ ImplicitAction_content [126..156]
+ │   │   └─ ActionLineEnd [126..156]
+ │   │       ├─ ActionLineEnd_begin 126
+ │   │       │   └─ ActionLineEnd_begin_c1 126
+ │   │       │       └─ OptionalWhitespace 126
+ │   │       ├─ ActionLineEnd_content [126..156]
+ │   │       │   └─ TextChunk [126..156]
+ │   │       │       ├─ TextChunk_begin 126
+ │   │       │       ├─ TextChunk_content [126..156]
+ │   │       │       │   ├─ Word [126..129]: "The"
+ │   │       │       │   ├─ Space [129..130]: " "
+ │   │       │       │   ├─ Word [130..134]: "rain"
+ │   │       │       │   ├─ Space [134..135]: " "
+ │   │       │       │   ├─ Word [135..140]: "stops"
+ │   │       │       │   ├─ Space [140..141]: " "
+ │   │       │       │   ├─ Word [141..143]: "on"
+ │   │       │       │   ├─ Space [143..144]: " "
+ │   │       │       │   ├─ Word [144..147]: "the"
+ │   │       │       │   ├─ Space [147..148]: " "
+ │   │       │       │   ├─ Word [148..155]: "rooftop"
+ │   │       │       │   └─ Punctuation [155..156]: "."
+ │   │       │       └─ TextChunk_end 156
+ │   │       └─ ActionLineEnd_end 156
+ │   └─ ImplicitAction_end 156
+ └─ Newline [156..157]: "\n"

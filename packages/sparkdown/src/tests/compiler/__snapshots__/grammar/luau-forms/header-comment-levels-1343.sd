@@ -1,0 +1,8 @@
+style --[=[ example ]] inside ]=] banner with
+  color = red
+end
+style --[==[ a ]=] b ]] c ]==] other with
+  color = blue
+end
+
+The rain stops on the rooftop.

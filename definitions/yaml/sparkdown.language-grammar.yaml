@@ -829,7 +829,9 @@ variables:
   # lookaround: LuauFunctionDefinition owns the function after the
   # attributes, and SparkdownStatement owns any other top-level line that
   # begins with `@`; only the function on the line tells them apart.
-  LUAU_FUNCTION_ATTRIBUTES_AHEAD: "{{WS}}*{{LUAU_ATTRIBUTE_ON_LINE}}(?:{{WS}}*{{LUAU_ATTRIBUTE_ON_LINE}})*{{WS}}+{{LUAU_LOCAL_PREFIX}}?function\\b"
+  LUAU_FUNCTION_ATTRIBUTES_AHEAD: "{{WS}}*{{LUAU_ATTRIBUTES_ON_LINE}}{{WS}}+{{LUAU_LOCAL_PREFIX}}?function\\b"
+  # One or more attributes side by side on a line.
+  LUAU_ATTRIBUTES_ON_LINE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}(?:{{WS}}*{{LUAU_ATTRIBUTE_ON_LINE}})*)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
@@ -1008,14 +1010,23 @@ variables:
   # an operator, an opening bracket, a comma, `..` or a keyword, with a block
   # comment after it on its line or not (`local x = --[[c]] if c then`).
   AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*{{LUAU_PLAIN_BLOCK_COMMENT}}{{WS}}*)
-  # A block comment that closes on its line, for a lookbehind. A lookbehind
-  # holds no lookaround, so `LUAU_BLOCK_COMMENT_ON_LINE`, which closes the
-  # comment only at brackets of its own level, cannot stand in one. Its text
-  # may hold a `]` that a `]` or `=` does not follow (`--[[a]b]]`); a
-  # comment whose text holds `]]` or `]=` (`--[=[a]]b]=]`) is not one, so
-  # the rule after it reads on as it does after any other text, and this
-  # one never runs on past its own close into the text after it.
-  LUAU_PLAIN_BLOCK_COMMENT: (?:--\[=*\[(?:[^\]\r\n]|\][^\]=\r\n])*\]=*\])
+  # A block comment of level up to three that closes on its line, for a
+  # lookbehind. A lookbehind holds no lookaround in VS Code's regex engine,
+  # so this is `LUAU_BLOCK_COMMENT_ON_LINE` spelled without one: each level's
+  # text takes a `]` only together with the character after it when that
+  # character does not go on to the level's close (`--[[a]b]]`,
+  # `--[=[a]]b]=]`), so the comment closes only at brackets of its own level
+  # and never runs on past its close into the text after it. Text that ends
+  # with a `]` right before the close (`--[=[a]]=]`) is not one, and the rule
+  # after it reads on as it does after any other text.
+  LUAU_PLAIN_BLOCK_COMMENT: (?:--\[(?:{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_0}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_1}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_2}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3}}))
+  # A comment character other than a `]`, or a `]` the next character keeps
+  # from closing a level-0 comment.
+  LUAU_PLAIN_COMMENT_CHAR: (?:[^\]\r\n])
+  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_0: \[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\]{{LUAU_PLAIN_COMMENT_CHAR}})*\]\]
+  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_1: =\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]={{LUAU_PLAIN_COMMENT_CHAR}})*\]=\]
+  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_2: ==\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]=[^=\r\n]|\]=={{LUAU_PLAIN_COMMENT_CHAR}})*\]==\]
+  LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3: ===\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]=[^=\r\n]|\]==[^=\r\n]|\]==={{LUAU_PLAIN_COMMENT_CHAR}})*\]===\]
   # The space between a header keyword and the name after it: whitespace,
   # and block comments that close on the keyword's line (`style --[[ note ]]
   # banner with`, `function --[[ c ]] f(x)`). A comment that spans lines
@@ -4057,6 +4068,7 @@ repository:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
       - { include: "#LuauParenthetical" }
+      - { include: "#LuauAttributeLineBreak" }
       - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
@@ -7638,6 +7650,7 @@ repository:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
       - { include: "#LuauParenthetical" }
+      - { include: "#LuauAttributeLineBreak" }
       - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
@@ -8391,11 +8404,18 @@ repository:
   LuauSparkdownExplicitLineContinuation:
     # lookaround: LuauAccessPath owns ordinary identifiers; this continuation opens only at an accessor or operator and yields when its continuation ends.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: ^({{WS}}*)(?={{LUAU_LINE_CONTINUATION}})
+    # The captures are `LuauLineContinuation`'s, the redundant `&` included.
+    begin: ^({{WS}}*){{_LUAU_CONTINUATION_MARK_}}(?={{LUAU_LINE_CONTINUATION}})
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauContinuationMark" }
+      3:
+        patterns:
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#LuauSparkdownExplicitLogicalOperation" }
       - { include: "#LuauSparkdownExplicitAccessPart" }
@@ -9119,7 +9139,7 @@ repository:
       - { include: "#LuauSparkdownExplicitLogicalOperation" }
       - { include: "#LuauSparkdownExplicitTypeCastOperation" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
-      - { include: "#LuauAttributeList" }
+      - { include: "#LuauSparkdownExplicitAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
       - { include: "#LuauString" }
@@ -9946,7 +9966,7 @@ repository:
       - { include: "#LuauSparkdownExplicitLogicalOperation" }
       - { include: "#LuauSparkdownExplicitTypeCastOperation" }
       - { include: "#LuauSparkdownExplicitParenthetical" }
-      - { include: "#LuauAttributeList" }
+      - { include: "#LuauSparkdownExplicitAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauNumber" }
       - { include: "#LuauString" }
@@ -14175,10 +14195,67 @@ repository:
         patterns:
           - { include: "#RequiredWhitespace" }
 
+  # `LuauAttributeList` in a narrative `&` statement, which ends with its
+  # line, reading its arguments with the statement's own expression rules.
+  LuauSparkdownExplicitAttributeList:
+    begin: (@)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAttributeListName" }
+      - { include: "#LuauSparkdownExplicitTable" }
+      - { include: "#LuauString" }
+      - { include: "#LuauSparkdownExplicitFunctionCallParameters" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|(\]){{_LUAU_ATTRIBUTE_FOLLOWER_SPACE_}}|$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+      2:
+        patterns:
+          - { include: "#RequiredWhitespace" }
+
   LuauAttributeListName:
     tag: attributeName
     name: storage.type.attribute.luau
     match: ({{LUAU_IDENTIFIER}})
+
+  # Attributes that end their line, with the line break after them, which
+  # Luau reads past to the function they mark (`local f = @native` or
+  # `store f = @[native]`, then `function() ... end`). A value that ends at
+  # its line's end would otherwise end before that function. On the next
+  # line it takes the indentation before a function or another attribute,
+  # and ends at any other line's start, which the value then ends at too.
+  # Blank and comment lines between them are read on.
+  #
+  # lookaround: LuauAttribute and LuauAttributeList read the attributes; the
+  # begin opens only where nothing but them is left on the line, which the
+  # value's line-end end (LuauAssignmentOperation, LuauVariableDefinition)
+  # would otherwise close at, and no order of the value's patterns can keep
+  # its own end from being tried there first. The end's lookaheads leave the
+  # function and the next attribute to LuauFunctionDefinition and the
+  # attribute rules, and a blank or comment line to this rule's patterns.
+  LuauAttributeLineBreak:
+    begin: (?={{LUAU_ATTRIBUTES_ON_LINE}}{{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
+    patterns:
+      - { include: "#LuauAttributeList" }
+      - { include: "#LuauAttribute" }
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|^({{WS}}*)(?=@|{{LUAU_LOCAL_PREFIX}}?function\b)|^(?!{{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   # Attributes before a function on its line at the top level of a script
   # (`@native function f() return 7 end`). Elsewhere at the top level a line
