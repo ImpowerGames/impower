@@ -1023,9 +1023,12 @@ export abstract class SparkdownWorkspace {
   /** Schedule the keystroke compile for an edit to `uri`, made at
    *  `changedAt` (by `Date.now()`) when the editor says when. The debounce
    *  runs from then: the editor's own work on the key can hold its message
-   *  back by more than the debounce (#1881). The edit's time counts for no
-   *  more than the debounce and no less than nothing, so a clock that does
-   *  not agree with this one neither skips nor stretches it. */
+   *  back by more than the debounce (#1881). The time since the edit counts
+   *  for no more than the debounce and no less than nothing, so what is left
+   *  to wait is between nothing and the whole debounce. That assumes the
+   *  editor's clock agrees with this one, as on one machine: a clock behind
+   *  this one makes the edit look old and the compile start at once, and one
+   *  ahead makes it wait the whole debounce, never longer. */
   protected scheduleChangeCompile(uri: string, changedAt?: number) {
     const delay = this._changeCompileDebounceDelay;
     this._pendingChangeCompileUris.add(uri);
