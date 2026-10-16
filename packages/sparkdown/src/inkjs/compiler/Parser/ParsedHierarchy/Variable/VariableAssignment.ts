@@ -36,6 +36,13 @@ export class VariableAssignment extends ParsedObject {
    *  `local function`'s closure, assigned after its name is declared nil so
    *  the body can call it (#1720). Its `SetVar` carries `SET_INITIALIZE`. */
   public readonly isDeclarationInitializer: boolean;
+  /** For a `store`'s global whose value is the statement's last, a call or
+   *  `...`, with names after it that have no value of their own: those
+   *  names' declarations, in order, which the call's further values give
+   *  values to as Luau's `local a, b = f()` does (#1920). The declaration's
+   *  chunk evaluates the value once and declares this global and each of
+   *  them from its values; their own expressions are never evaluated. */
+  public spreadTo: readonly VariableAssignment[] = [];
   /** For a plain assignment, whether a `local` or parameter of its name
    *  certainly binds it where it is written (`FlowBase.IsBoundLocallyAt`),
    *  so that it writes that binding and not the global: decided when the
