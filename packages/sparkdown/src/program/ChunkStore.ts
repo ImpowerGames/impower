@@ -670,6 +670,8 @@ export class ChunkStore {
     this.memosKept(statements, carried);
     const nesting = {
       owner: (statement: StatementSource) => owners.get(statement),
+      oldLine: (chunk: ProgramChunk) =>
+        previous ? this.oldLineOf(previous, chunk) : -1,
     };
     const window =
       program.changed && previous
@@ -2627,7 +2629,10 @@ export class ChunkStore {
     statements: readonly StatementSource[],
     kept: readonly (ProgramChunk | undefined)[],
     previous: ProgramRoot,
-    nesting: { owner(statement: StatementSource): StatementSource | undefined },
+    nesting: {
+      owner(statement: StatementSource): StatementSource | undefined;
+      oldLine(chunk: ProgramChunk): number;
+    },
     reused: readonly (ProgramChunk | undefined)[],
     checked: { used: Set<ProgramChunk>; inherit: Map<StatementSource, ProgramChunk> },
   ): void {
@@ -2660,6 +2665,13 @@ export class ChunkStore {
     chunk: ProgramChunk,
   ): ProgramChunk | undefined {
     return this.orderOf(root).owners.get(chunk);
+  }
+
+  /** The line a chunk of a root starts at in its script, or -1 for one the
+   *  root does not place. */
+  protected oldLineOf(root: ProgramRoot, chunk: ProgramChunk): number {
+    const at = root.position(chunkId(chunk));
+    return at ? root.lineOf(at.sequence, at.entry) : -1;
   }
 
   /** How many statements a root holds, which a build counts from the
@@ -2885,9 +2897,13 @@ export class ChunkStore {
    * statements whose block the store emitted a chunk for. The others are
    * aligned with the old chunks in two steps.
    *
-   * By position: between two statements that kept old chunks, the old and
-   * new statements are matched from both ends and then in order by their
-   * syntax, and the one statement left on each side of a run with the one
+   * By position: between two statements that kept old chunks, twins (more
+   * than one statement or old chunk of the same syntax and lowering reads)
+   * that can keep an old chunk are paired first with the chunks they can
+   * keep, in order and at the least distance in lines (`matchTwins`); the
+   * other old and new statements are matched from both ends and then in
+   * order by their syntax, and the one statement left on each side of a run
+   * with the one
    * old statement left; of the statements left, only the outermost count:
    * the statements of a left statement's bodies are part of it, as the
    * statements of a function written on its owner's line are, whose columns
@@ -2921,6 +2937,8 @@ export class ChunkStore {
     nesting?: {
       owner(statement: StatementSource): StatementSource | undefined;
       oldOwner(chunk: ProgramChunk): ProgramChunk | undefined;
+      /** The line an old chunk's statement started at in its script. */
+      oldLine?(chunk: ProgramChunk): number;
     },
   ): (ProgramChunk | undefined)[] {
     const used = this._used;
@@ -3094,19 +3112,97 @@ export class ChunkStore {
     };
     const outermostNew = outermostOf(statements, nesting?.owner);
     const outermostOld = outermostOf(old, nesting?.oldOwner);
-    const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
-      const candidates: number[] = [];
-      for (let i = newFrom; i < newTo; i += 1) {
-        if (!result[i]) {
-          candidates.push(i);
+    // Twins: statements of a run that read alike in their syntax and their
+    // lowering reads, of which the run holds more than one, or more than one
+    // old chunk (a block statement's own syntax leaves its bodies out, so
+    // blocks with different bodies read alike). The passes by position would
+    // pair them by their order alone, so of twins the one an edit changed
+    // takes the chunk of one it did not (#1623), or a twin takes for an edit
+    // in place the chunk another can keep (#1611). Before those passes, each
+    // twin that can keep an old chunk of the run is paired among the chunks
+    // it can keep by where they stood: in order, at the least distance in
+    // lines between each statement and its chunk. Returns the old chunks it
+    // paired.
+    const matchTwins = (
+      candidates: readonly number[],
+      olds: readonly number[],
+    ): Set<number> => {
+      const paired = new Set<number>();
+      const oldLine = nesting?.oldLine;
+      if (!oldLine) {
+        return paired;
+      }
+      const alike = new Map<string, { news: number[]; olds: number[] }>();
+      for (const o of olds) {
+        const info = this._info.get(old[o]!);
+        if (info && !used.has(old[o]!)) {
+          const reads = `${info.syntax}\u0000${info.reads}`;
+          const group = alike.get(reads);
+          if (group) {
+            group.olds.push(o);
+          } else {
+            alike.set(reads, { news: [], olds: [o] });
+          }
         }
       }
-      if (candidates.length === 0 || oldTo <= oldFrom) {
+      for (const i of candidates) {
+        const statement = statements[i]!;
+        alike.get(`${statement.syntax()}\u0000${statement.reads}`)?.news.push(i);
+      }
+      for (const group of alike.values()) {
+        if (group.news.length === 0 || group.news.length + group.olds.length < 3) {
+          continue;
+        }
+        // The twins that read the same in everything else a kept chunk
+        // depends on, with the chunks whose facts hold.
+        const same = new Map<string, { news: number[]; olds: number[] }>();
+        for (const o of group.olds) {
+          const identity = this.chunkIdentity(old[o]!);
+          if (identity !== undefined && factsHold(old[o]!)) {
+            const twins = same.get(identity);
+            if (twins) {
+              twins.olds.push(o);
+            } else {
+              same.set(identity, { news: [], olds: [o] });
+            }
+          }
+        }
+        for (const i of group.news) {
+          same.get(this.statementIdentity(statements[i]!))?.news.push(i);
+        }
+        for (const twins of same.values()) {
+          const pairs = nearestInOrder(
+            twins.news.map((i) => statements[i]!.firstLine),
+            twins.olds.map((o) => oldLine(old[o]!)),
+          );
+          for (const [n, k] of pairs) {
+            if (take(twins.news[n]!, twins.olds[k]!)) {
+              paired.add(twins.olds[k]!);
+            }
+          }
+        }
+      }
+      return paired;
+    };
+    const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
+      const unmatched: number[] = [];
+      for (let i = newFrom; i < newTo; i += 1) {
+        if (!result[i]) {
+          unmatched.push(i);
+        }
+      }
+      if (unmatched.length === 0 || oldTo <= oldFrom) {
         return;
       }
-      const olds: number[] = [];
+      const run: number[] = [];
       for (let o = oldFrom; o < oldTo; o += 1) {
-        olds.push(o);
+        run.push(o);
+      }
+      const twins = matchTwins(unmatched, run);
+      const candidates = twins.size ? unmatched.filter((i) => !result[i]) : unmatched;
+      const olds = twins.size ? run.filter((o) => !twins.has(o)) : run;
+      if (candidates.length === 0 || olds.length === 0) {
+        return;
       }
       const syntaxOf = (o: number) => this._info.get(old[o]!)?.syntax;
       // From the front, then from the back, while the syntax matches.
@@ -3629,6 +3725,58 @@ const sameChunks = (
 
 const sameNumbers = (a: readonly number[], b: readonly number[]): boolean =>
   a.length === b.length && a.every((n, i) => n === b[i]);
+
+// Past this many cells, twins are paired in order rather than by distance.
+const NEAREST_CELLS = 1 << 16;
+
+/** Pairs every entry of the shorter of two lists of lines with one of the
+ *  longer, in order, at the least total distance between the lines paired,
+ *  as `[entry of a, entry of b]`; in order from the first of each when the
+ *  lists are too long to weigh every pairing. */
+const nearestInOrder = (
+  a: readonly number[],
+  b: readonly number[],
+): [number, number][] => {
+  const swap = a.length > b.length;
+  const short = swap ? b : a;
+  const long = swap ? a : b;
+  const n = short.length;
+  const m = long.length;
+  const pairs: [number, number][] = [];
+  const pair = (s: number, l: number) => pairs.push(swap ? [l, s] : [s, l]);
+  if (n === 0) {
+    return pairs;
+  }
+  if (n === m || n * m > NEAREST_CELLS) {
+    for (let s = 0; s < n; s += 1) {
+      pair(s, s);
+    }
+    return pairs;
+  }
+  // cost[s][l]: the least distance pairing the first s entries of the short
+  // list within the first l of the long one, row by row.
+  const width = m + 1;
+  const cost = new Float64Array((n + 1) * width).fill(Infinity);
+  for (let l = 0; l <= m; l += 1) {
+    cost[l] = 0;
+  }
+  for (let s = 1; s <= n; s += 1) {
+    for (let l = s; l <= m; l += 1) {
+      const skip = cost[s * width + l - 1]!;
+      const take =
+        cost[(s - 1) * width + l - 1]! + Math.abs(short[s - 1]! - long[l - 1]!);
+      cost[s * width + l] = Math.min(skip, take);
+    }
+  }
+  for (let s = n, l = m; s > 0; l -= 1) {
+    if (cost[s * width + l] !== cost[s * width + l - 1]) {
+      pair(s - 1, l - 1);
+      s -= 1;
+    }
+  }
+  pairs.reverse();
+  return pairs;
+};
 
 /** A sequence's arrays, sharing with the current root's `before` each array
  *  that reads the same (docs/engine/binary-program.md, section 1, The order

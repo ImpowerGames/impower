@@ -6,7 +6,9 @@
 // again and compares the tree, the program's chunks by content and the
 // diagnostics with a cold compile of the edited text; the cases where the
 // chunks were equal but an untouched statement's chunk was emitted again
-// also count those (#1611).
+// also count those (#1611). Statements that read the same as each other
+// (twins) keep the chunks of the statements they were, wherever the edit
+// falls among them (#1893, unit U1).
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import {
@@ -66,7 +68,9 @@ function editOnce(before: string, at: number, remove: number, insert: string) {
     const c = programCompiler({ [MAIN_URI]: before }, { programChunks: true } as never);
     c.compile();
     const store = c.compiler.chunkStore!;
-    const keysBefore = uniqueKeys(programStatements(c.compiler));
+    const statementsBefore = programStatements(c.compiler);
+    const keysBefore = uniqueKeys(statementsBefore);
+    const chunkBefore = new Map(statementsBefore.map((s) => [s.key, s.chunk]));
     // A compile that refuses a construct leaves no root.
     const held = new Set(store.current ? rootChunks(store.current) : []);
     c.compiler.updateDocument({
@@ -84,16 +88,19 @@ function editOnce(before: string, at: number, remove: number, insert: string) {
     const coldProgram = cold.compile().program;
     // The chunks of the statements away from the edit that the compile
     // emitted again.
-    const reemitted = untouchedChunks(
-      c.compiler,
-      at,
-      at + insert.length,
-      keysBefore,
-    ).filter((chunk) => !held.has(chunk)).length;
+    const untouched = untouchedChunks(c.compiler, at, at + insert.length, keysBefore);
+    const reemitted = untouched.filter((chunk) => !held.has(chunk)).length;
+    // The statements away from the edit that hold a chunk other than their
+    // own from before it: one emitted again, or a twin's.
+    const own = new Set(untouched);
+    const moved = programStatements(c.compiler)
+      .filter((s) => own.has(s.chunk) && chunkBefore.get(s.key) !== s.chunk)
+      .map((s) => s.syntax);
     return {
       incremental: surface(c, incremental),
       cold: surface(cold, coldProgram),
       reemitted,
+      moved,
     };
   });
 }
@@ -249,5 +256,55 @@ describe("a call whose arguments continue on the next line (#1614)", () => {
     expect(cold.chunks).not.toBeNull();
     expect(incremental.chunks).toEqual(cold.chunks);
     expect(incremental).toEqual(cold);
+  });
+});
+
+describe("statements that read the same as each other (twins)", () => {
+  // A `do` block's own syntax leaves its body out, so blocks holding
+  // different bodies read the same. The edit turns the empty first line of
+  // one block's body and the `scene ` after it into a statement, and the
+  // whole script is lowered again. Blocks of three hold different functions,
+  // so each of them is a statement of its own to the test.
+  const FN = "do\n  function inner()\n  end\nend\n";
+  const OTHER = "do\n  function other()\n  end\nend\n";
+  const SCENE = "do\n\nscene FN_0\nend\n";
+  const TAIL = "  Made {make(0)()} total return {total} twice {twic";
+
+  const cases: [string, string][] = [
+    ["the first of two `do` blocks (#1623)", SCENE + FN + TAIL],
+    ["the second of two `do` blocks", FN + SCENE + TAIL],
+    ["the first of three `do` blocks", SCENE + FN + OTHER + TAIL],
+    ["the second of three `do` blocks", FN + SCENE + OTHER + TAIL],
+    ["the third of three `do` blocks", FN + OTHER + SCENE + TAIL],
+  ];
+
+  it.each(cases)("keep their own chunks after an edit to %s", (_, before) => {
+    const at = before.indexOf("\nscene ");
+    const { incremental, cold, reemitted, moved } = editOnce(before, at, "\nscene ".length, "  & add(2)\n");
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
+  });
+
+  it("keep their own chunks when an edit makes them labels of different branches (#1611)", () => {
+    // Before the edit the first line's alternator runs to the last line, so
+    // the program holds one `label mid`, the one under `branch after`. The
+    // edit ends the first line: that label keeps its chunk, and its twin
+    // under `scene FLOW_2` is new.
+    const before = [
+      "  Chained .. chain|one|two|three {cycle|1|2}  shuffle queue | Lucky. | Plain. end",
+      "  branch after",
+      "    label mid",
+      "scene FLOW_2{cycle|1|2}",
+      "  Chained .. chain|one|two|three .. here.",
+      "  branch after",
+      "    label mid",
+    ].join("\n");
+    const { incremental, cold, reemitted, moved } = editOnce(before, 2, "Chained .. ch".length, "Chaine ");
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
   });
 });
