@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 174,
-  "previous": "9a309eddecedc036711125f7417a507140d9adb0",
+  "seq": 175,
+  "previous": "c88a30408b9d9cbb27227a9018ecf3dc5e7471c2",
   "snapshotParents": [],
-  "time": "2026-10-16T04:44:31.179Z",
+  "time": "2026-10-16T05:14:34.469Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 141,
@@ -2454,30 +2454,94 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:44:30.257Z",
+      "observedAt": "2026-10-16T05:14:33.600Z",
       "held": true,
-      "head": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "beae9a8cbe9cc0bb0a88a77db0c34dd7200f8a09",
+      "remoteHead": "beae9a8cbe9cc0bb0a88a77db0c34dd7200f8a09",
+      "unpushed": false,
+      "dirty": true,
+      "pr": 1929,
+      "reviewJobs": []
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice": {
       "ticket": 887,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T04:44:30.257Z",
+      "observedAt": "2026-10-16T05:14:33.600Z",
       "held": true,
-      "head": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "589a987eedd96a6cbfed3b027356adc3d563a6f9",
+      "remoteHead": "589a987eedd96a6cbfed3b027356adc3d563a6f9",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 47260
+      },
+      "pr": 1928,
+      "reviewJobs": [
+        {
+          "job": "pr-1928/round-1/launch-inc-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-inc",
+            "reviewerId": "inc",
+            "attempt": 1,
+            "plannedReviewers": [
+              "inc",
+              "undirected"
+            ],
+            "head": "6ba48a4821dc63cf1e520f4c5a3059bf6a6b9951",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T04:50:57.728Z"
+          },
+          "round": 1,
+          "reviewerId": "inc",
+          "attempt": 1,
+          "reviewedHead": "6ba48a4821dc63cf1e520f4c5a3059bf6a6b9951",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "inc": 1
+          },
+          "plannedRoundReviewers": [
+            "inc",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6208415409
+          ]
+        },
+        {
+          "job": "pr-1928/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "inc",
+              "undirected"
+            ],
+            "head": "589a987eedd96a6cbfed3b027356adc3d563a6f9",
+            "completedRoundReviewers": {
+              "inc": 1
+            },
+            "time": "2026-10-16T05:03:38.071Z"
+          }
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:33:23.453Z",
+    "at": "2026-10-16T05:14:33.599Z",
     "tickets": [
       {
         "number": 316,
@@ -2488,7 +2552,7 @@
       {
         "number": 454,
         "action": "observe",
-        "pr": null,
+        "pr": 1929,
         "reason": "process 13860 started 639277218910543405 is running"
       },
       {
@@ -2500,7 +2564,7 @@
       {
         "number": 887,
         "action": "observe",
-        "pr": null,
+        "pr": 1928,
         "reason": "process 26336 started 639277219684181653 is running"
       },
       {
