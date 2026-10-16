@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 169,
-  "previous": "d38d572a2f3ca44d2d2fbaeeffed14262ed14140",
+  "seq": 170,
+  "previous": "867b5cbe72fff29473ca0212acdee5f4ba47cdc2",
   "snapshotParents": [],
-  "time": "2026-10-16T04:34:03.402Z",
+  "time": "2026-10-16T04:34:10.860Z",
   "kind": "auto",
-  "transition": "acknowledged of #887",
+  "transition": "verify of #454",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 136,
+    "recordRevision": 137,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -79,7 +79,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-454-a77d8ee5-d75c-4a55-b475-f2b8b69eead6"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -2454,7 +2454,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:34:03.402Z",
+      "observedAt": "2026-10-16T04:34:10.860Z",
       "held": true,
       "exists": false
     },
@@ -2463,7 +2463,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T04:34:03.402Z",
+      "observedAt": "2026-10-16T04:34:10.860Z",
       "held": true,
       "exists": false
     }
@@ -2554,11 +2554,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:21:16.217Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1725-variables-view-tables"
-    },
     {
       "time": "2026-10-15T22:21:24.360Z",
       "event": "disk-recovery",
@@ -3254,6 +3249,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-16T04:34:09.651Z",
+      "event": "verified",
+      "ticket": 454
     }
   ]
 }
