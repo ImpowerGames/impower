@@ -124,6 +124,19 @@ function buildDisplayCalls(
     return joined;
   };
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
+  // A line that is only an inline conditional (`{if c then "a"}`) shows what
+  // the same conditional shows beside other text: its matching branch, or
+  // nothing (#1103). Each branch makes its own call, so a line with no
+  // matching branch makes none, rather than an empty line.
+  if (ranges.length === 1 && !ranges[0]!.pause && !ranges[0]!.leads && !leads) {
+    const only = soleExpressionSegment(parent, ranges[0]!, ctx);
+    const conditional =
+      only &&
+      tryLowerInlineConditional(only, ctx, (body) => [
+        buildDisplayCall(target, character, body, ranges[0]!, ctx),
+      ]);
+    if (conditional) return [conditional];
+  }
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
@@ -238,6 +251,20 @@ function buildDisplayCalls(
     }
   }
   return calls;
+}
+
+// The interpolation a body range holds when it holds nothing else but
+// whitespace.
+function soleExpressionSegment(
+  parent: SyntaxNode,
+  range: { from: number; to: number },
+  ctx: LowerContext,
+): SyntaxNode | null {
+  const segments = collectBodySegments(parent, range.from, range.to, ctx).filter(
+    (seg) => !(seg.kind === "text" && seg.raw.trim().length === 0),
+  );
+  const only = segments.length === 1 ? segments[0]! : null;
+  return only?.kind === "expr" ? only.node : null;
 }
 
 // A `..` that ends a line of a display body, held in the body until
@@ -1705,9 +1732,12 @@ function makeAltNodeRef(node: SyntaxNode): SparkdownSyntaxNodeRef {
   } as unknown as SparkdownSyntaxNodeRef;
 }
 
+// `wrapBranch`, when given, turns a branch's output into the branch's content
+// (a whole-line conditional's display call).
 function tryLowerInlineConditional(
   interpNode: SyntaxNode,
   ctx: LowerContext,
+  wrapBranch?: (body: ParsedObject[]) => ParsedObject[],
 ): Conditional | null {
   // Call-only shorthand: `{{if … then … else …}}` must NOT become a
   // Conditional — see the matching guard in `tryLowerInlineAlternator`.
@@ -1837,7 +1867,9 @@ function tryLowerInlineConditional(
     const bodyExpr = lowerExpressionFromNodes(b.body, ctx);
     if (!bodyExpr) continue;
     bodyExpr.outputWhenComplete = true;
-    const branch = new ConditionalSingleBranch([bodyExpr]);
+    const branch = new ConditionalSingleBranch(
+      wrapBranch ? wrapBranch([bodyExpr]) : [bodyExpr],
+    );
     branch.isInline = true;
     if (i === 0) {
       branch.isTrueBranch = true;
