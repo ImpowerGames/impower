@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 177,
-  "previous": "ad2a464181ae59ba27e6d3eb2acb46e3e906120b",
+  "seq": 178,
+  "previous": "ae9cba3adcc089969df19ed139df5f9965847020",
   "snapshotParents": [],
-  "time": "2026-10-16T05:45:35.749Z",
+  "time": "2026-10-16T05:57:19.142Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "request of #887",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 143,
+    "recordRevision": 144,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -572,7 +572,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "3647ce66",
+          "owner": "6944980d-0e0e-4dfc-bfbc-6851e5e74f98",
+          "time": "2026-10-16T05:57:16.665Z",
+          "text": "Blocker: a dead machine-wide test reservation (C:/ProgramData/Impower/test-suite/reservation.json, token 4c19a43f, left by the round-2 reviewer's interrupted probe under impower.review-jobs/pr-1928/round-2/reviewer-undirected-1) refuses every vitest run with Existing suite unknown (exit 75); all four recorded processes are absent and no vitest runs. Writer asks the coordinator either to authorize renaming it to recovered-4c19a43f.json or to recover it itself. Needed to run the round-2 reviewer's unfinished broader incremental probe before readiness; PR #1928 draft at 156e83fe with CI green, one round left under the cap.",
+          "source": "cross-session message from writer impower-db",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     },
     "1103": {
       "owner": null,
@@ -2454,7 +2465,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T05:45:34.546Z",
+      "observedAt": "2026-10-16T05:57:18.141Z",
       "held": true,
       "head": "c9553cf457b333b5976d97cbeb62476af83ae27a",
       "remoteHead": "c9553cf457b333b5976d97cbeb62476af83ae27a",
@@ -2508,16 +2519,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T05:45:34.546Z",
+      "observedAt": "2026-10-16T05:57:18.141Z",
       "held": true,
       "head": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
       "remoteHead": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 10708
-      },
       "pr": 1928,
       "reviewJobs": [
         {
@@ -2595,7 +2602,7 @@
         },
         {
           "job": "pr-1928/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -2610,7 +2617,23 @@
               "undirected": 1
             },
             "time": "2026-10-16T05:39:36.343Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6209069707
+          ]
         }
       ]
     }
@@ -2701,11 +2724,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:22:10.786Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1643-summary-from-store"
-    },
     {
       "time": "2026-10-15T22:22:18.829Z",
       "event": "disk-recovery",
@@ -3401,6 +3419,12 @@
       "time": "2026-10-16T05:45:33.072Z",
       "event": "check-in",
       "outcome": "no change: #1928 (887) at 156e83fe1 and #1929 (454) at c9553cf45 both still drafts in review with corrections pushed, writers running; #316 waits for #887; no transcripts to read, no dead launches; merge slot free, nothing of mine ready"
+    },
+    {
+      "time": "2026-10-16T05:57:16.666Z",
+      "event": "request",
+      "ticket": 887,
+      "id": "3647ce66"
     }
   ]
 }
