@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 225,
-  "previous": "c143caa204449651246968a0b258bebcf3cc9e76",
+  "seq": 226,
+  "previous": "5d7df5fd1b63269a4f4e1110250e2c69569f38a8",
   "snapshotParents": [],
-  "time": "2026-10-16T13:55:51.056Z",
+  "time": "2026-10-16T13:56:26.064Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 187,
+    "recordRevision": 188,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2836,7 +2836,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T13:55:49.856Z",
+      "observedAt": "2026-10-16T13:56:23.063Z",
       "held": true,
       "head": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
       "remoteHead": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
@@ -3049,7 +3049,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T13:55:49.856Z",
+      "observedAt": "2026-10-16T13:56:23.063Z",
       "held": true,
       "head": "6156c871695ca66489dab3e473e5ac1199f68443",
       "remoteHead": "6156c871695ca66489dab3e473e5ac1199f68443",
@@ -3353,13 +3353,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:38:17.090Z",
-      "event": "result",
-      "ticket": 1645,
-      "pr": 1916,
-      "reviewedHead": "fd81f7e1b15be1e8e277763155aacd54acb86b01"
-    },
     {
       "time": "2026-10-15T23:42:32.828Z",
       "event": "operation-intent",
@@ -4060,6 +4053,11 @@
       "ticket": 887,
       "id": "4a6cec03",
       "deliveryId": "f396d5ae"
+    },
+    {
+      "time": "2026-10-16T13:56:18.469Z",
+      "event": "check-in",
+      "outcome": "no change: #887 writer running round 4 on PR #1928 at 6156c8716 under extension 1f865fa5; #454 writer running review on PR #1929 at 7c62c9a8c; both drafts; #316 waits for #887; no transcripts to read, no dead launches"
     }
   ]
 }
