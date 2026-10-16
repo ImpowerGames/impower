@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 191,
-  "previous": "2a9ac82a19b4f2ecef71b05db418e02a8bd730a6",
+  "seq": 192,
+  "previous": "2a49f0d421d9f0c72518451b72d11cc38d0b2ce7",
   "snapshotParents": [],
-  "time": "2026-10-16T07:15:24.821Z",
+  "time": "2026-10-16T07:15:34.234Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 154,
+    "recordRevision": 155,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2505,7 +2505,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T07:15:23.820Z",
+      "observedAt": "2026-10-16T07:15:33.275Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2641,7 +2641,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T07:15:23.820Z",
+      "observedAt": "2026-10-16T07:15:33.275Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2884,11 +2884,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:23:40.423Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-program-engine-own-state"
-    },
     {
       "time": "2026-10-15T22:23:47.927Z",
       "event": "disk-recovery",
@@ -3606,6 +3601,11 @@
       "time": "2026-10-16T06:48:00.021Z",
       "event": "check-in",
       "outcome": "BLOCKED: both writers (#454 on PR #1929, #887 on PR #1928) ended their turns on the account's weekly usage limit (resets Oct 19 1am America/New_York); requests relayed to the maintainer; no resume or launch until the maintainer decides; #316 still waits for #887; other coordinators informed"
+    },
+    {
+      "time": "2026-10-16T07:15:31.960Z",
+      "event": "check-in",
+      "outcome": "no change: run held on the account's weekly usage limit (resets Oct 19); requests 5b339599 (#454) and d8a61713 (#887) relayed to the maintainer await a decision; PRs #1928 and #1929 unchanged; no dead launches"
     }
   ]
 }
