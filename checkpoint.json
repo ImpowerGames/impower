@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 76,
-  "previous": "b306a945b7c74a10dc1e289abe581fd2edbb696b",
+  "seq": 77,
+  "previous": "3eb90f3eb6937f9115e5fbd6d9b84f77066dcf26",
   "snapshotParents": [],
-  "time": "2026-10-16T19:36:54.764Z",
+  "time": "2026-10-16T19:37:02.015Z",
   "kind": "auto",
-  "transition": "claim of #1908",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 82,
@@ -1379,7 +1379,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-16T19:36:54.763Z",
+      "observedAt": "2026-10-16T19:37:02.015Z",
       "held": true,
       "exists": false
     },
@@ -1388,7 +1388,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
       "branch": "test/1908-luau-corpus-gate",
-      "observedAt": "2026-10-16T19:36:54.763Z",
+      "observedAt": "2026-10-16T19:37:02.015Z",
       "held": true,
       "exists": false
     }
@@ -1396,7 +1396,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:36:47.008Z",
+    "at": "2026-10-16T19:37:02.014Z",
     "tickets": [
       {
         "number": 984,
@@ -1622,9 +1622,9 @@
       },
       {
         "number": 1908,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 157a9a9c-bce5-4635-b65a-7b7f25fc3b63 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1909,
