@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 168,
-  "previous": "ce6530d496f9c795d4146e13ca9b7ecc0762df6a",
+  "seq": 169,
+  "previous": "d38d572a2f3ca44d2d2fbaeeffed14262ed14140",
   "snapshotParents": [],
-  "time": "2026-10-16T04:33:55.667Z",
+  "time": "2026-10-16T04:34:03.402Z",
   "kind": "auto",
-  "transition": "acknowledged of #454",
+  "transition": "acknowledged of #887",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 135,
+    "recordRevision": 136,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -557,7 +557,18 @@
           "time": "2026-10-16T04:32:48.680Z",
           "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
         },
-        "since": "2026-10-16T04:32:48.681Z"
+        "since": "2026-10-16T04:32:48.681Z",
+        "sessionId": "13d51545-ae87-46e9-923a-a2ae8ed8de49",
+        "acknowledged": {
+          "time": "2026-10-16T04:34:02.216Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer impower-db naming assignment 6944980d, read from its claude process command line (--model claude-opus-5-5 --effort medium --permission-mode bypassPermissions) and CLAUDE_EFFORT=medium; out.jsonl init line agrees on model and mode",
+          "deliveryId": "bf39f04f"
+        }
       },
       "pending": null,
       "history": [],
@@ -2443,7 +2454,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:33:55.667Z",
+      "observedAt": "2026-10-16T04:34:03.402Z",
       "held": true,
       "exists": false
     },
@@ -2452,7 +2463,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T04:33:55.667Z",
+      "observedAt": "2026-10-16T04:34:03.402Z",
       "held": true,
       "exists": false
     }
@@ -2543,11 +2554,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:21:07.882Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1720-local-function-declaration"
-    },
     {
       "time": "2026-10-15T22:21:16.217Z",
       "event": "disk-recovery",
@@ -3233,6 +3239,16 @@
       "time": "2026-10-16T04:33:54.235Z",
       "event": "acknowledged",
       "ticket": 454,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
+      }
+    },
+    {
+      "time": "2026-10-16T04:34:02.217Z",
+      "event": "acknowledged",
+      "ticket": 887,
       "confirmed": {
         "model": "claude-opus-5-5",
         "effort": "medium",
