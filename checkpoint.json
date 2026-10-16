@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 156,
-  "previous": "dc0ef7ea9070d0e6d796f44cbf9b51a3be4b0bb1",
+  "seq": 157,
+  "previous": "57316b754be7fb7253da261308097bbdc6206872",
   "snapshotParents": [],
-  "time": "2026-10-16T04:27:04.237Z",
+  "time": "2026-10-16T04:30:10.887Z",
   "kind": "auto",
-  "transition": "the merge of PR #1921 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 129,
@@ -2358,7 +2358,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T04:27:03.583Z",
+      "observedAt": "2026-10-16T04:30:10.179Z",
       "held": true,
       "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
       "remoteHead": "d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4",
@@ -2445,19 +2445,19 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:08:31.736Z",
+    "at": "2026-10-16T04:30:10.178Z",
     "tickets": [
       {
         "number": 316,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1617 (open)"
+        "reason": "waiting for #887 (open)"
       },
       {
         "number": 454,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1617 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 457,
@@ -2467,9 +2467,9 @@
       },
       {
         "number": 887,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1617 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1103,
@@ -2497,9 +2497,9 @@
       },
       {
         "number": 1617,
-        "action": "merge-gate",
-        "pr": 1921,
-        "reason": "PR #1921 is ready at d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4; process 60224 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 60224 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1641,
@@ -2515,9 +2515,9 @@
       },
       {
         "number": 1920,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55752 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       }
     ],
     "remaining": [
