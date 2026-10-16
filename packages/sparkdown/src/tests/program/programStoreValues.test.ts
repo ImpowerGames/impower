@@ -2,8 +2,9 @@
 // holds nil, and a call as the last value gives the names after it its
 // further values, as Luau's `local a, b = f()` does, evaluating the call once.
 import { describe, expect, it } from "vitest";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compileScript, errorsOf, storyBeats } from "./programHarness";
+import { compileScript, errorsOf, programSession, storyBeats } from "./programHarness";
 
 const play = (text: string) => {
   const { program } = compileScript(text);
@@ -72,6 +73,28 @@ describe("a store with more names than values", () => {
     expect(errorsOf(program)).toContainEqual([
       0,
       "A `store` takes one value for each name: `...` gives a store only its first value",
+    ]);
+  });
+
+  it("keeps the spread across later compiles of an edited document", () => {
+    const beats = (root: ProgramRoot) =>
+      storyBeats(new ProgramStory(root)).beats.map((b) => b.text);
+    const session = programSession(
+      `${FUNCTIONS}store a, b = 1, 2\n\nValue {a} and {b}.\n`,
+    );
+    expect(beats(session.root)).toEqual(["Value 1 and 2.\n"]);
+    expect(beats(session.edit("store a, b = 1, 2", "store a, b = pair()"))).toEqual([
+      "Value 3 and 4.\n",
+    ]);
+    expect(errorsOf(session.program)).toEqual([]);
+    expect(beats(session.edit("Value", "Now"))).toEqual(["Now 3 and 4.\n"]);
+    expect(beats(session.edit("return 3, 4", "return 5"))).toEqual(["Now 5 and nil.\n"]);
+    expect(beats(session.edit("store a, b = pair()", "store a, b = (pair())"))).toEqual([
+      "Now 5 and nil.\n",
+    ]);
+    expect(beats(session.edit("return 5", "return 7, 8"))).toEqual(["Now 7 and nil.\n"]);
+    expect(beats(session.edit("store a, b = (pair())", "store a, b = pair()"))).toEqual([
+      "Now 7 and 8.\n",
     ]);
   });
 
