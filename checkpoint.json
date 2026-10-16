@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 17,
-  "previous": "179b6b3667ce0834fa5ac42c01d9a612bdd3f2d2",
+  "seq": 18,
+  "previous": "bf7d8b4aecb42cc86601f000c23b1744d9e811e0",
   "snapshotParents": [],
-  "time": "2026-10-16T16:26:18.704Z",
+  "time": "2026-10-16T16:26:30.217Z",
   "kind": "auto",
-  "transition": "claim of #1798",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 13,
@@ -180,7 +180,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T16:26:17.528Z",
+      "observedAt": "2026-10-16T16:26:29.186Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -192,7 +192,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T16:26:17.528Z",
+      "observedAt": "2026-10-16T16:26:29.186Z",
       "held": true,
       "exists": false
     },
@@ -201,7 +201,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T16:26:17.528Z",
+      "observedAt": "2026-10-16T16:26:29.186Z",
       "held": true,
       "exists": false
     }
@@ -209,7 +209,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:26:07.747Z",
+    "at": "2026-10-16T16:26:29.185Z",
     "tickets": [
       {
         "number": 851,
@@ -225,15 +225,15 @@
       },
       {
         "number": 1798,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch cbb3d603-a40d-4802-af19-3b4cb8c6a743 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1881,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "2 writers already hold tickets against a limit of 3"
+        "reason": "3 writers already hold tickets against a limit of 3"
       }
     ],
     "remaining": [
