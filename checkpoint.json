@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 32,
-  "previous": "1d175cdff59efd9d9f7a61ccb3b881503507172d",
+  "seq": 33,
+  "previous": "1fb28063ecf2197a31dd83bb35d2681dfb5db3c0",
   "snapshotParents": [],
-  "time": "2026-10-16T12:17:11.307Z",
+  "time": "2026-10-16T12:17:43.293Z",
   "kind": "auto",
-  "transition": "resume of #1905",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 47,
@@ -436,7 +436,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T12:17:10.443Z",
+      "observedAt": "2026-10-16T12:17:42.499Z",
       "held": true,
       "head": "b457d0aa5480939884e63198a5c7147b56edbef8",
       "remoteHead": "a322a5d0a067c3f5070e314d4b0287a1d8e048b5",
@@ -449,7 +449,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T06:48:16.892Z",
+    "at": "2026-10-16T12:17:42.496Z",
     "tickets": [
       {
         "number": 984,
@@ -657,9 +657,9 @@
       },
       {
         "number": 1905,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 1927,
-        "reason": "process 47220 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1905-0bd1b9bd-ee07-4a38-873e-ac01c26e794c\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 20964 started 639277498285774709 is running"
       },
       {
         "number": 1906,
