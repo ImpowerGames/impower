@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 95,
-  "previous": "fbef640b28a83fe44dc683b81a2d0e81c26e2f99",
+  "seq": 96,
+  "previous": "5612f132f979cafdfc5a761c7ab0a1778f931933",
   "snapshotParents": [],
-  "time": "2026-10-16T00:54:19.856Z",
+  "time": "2026-10-16T00:55:35.405Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1912 (confirmed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 73,
+    "recordRevision": 74,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -628,9 +628,9 @@
       "ticket": 1632,
       "pr": 1912,
       "expectHead": "8c3effbc01d165c9cc3a4be47e1ce8518380bce7",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T00:54:17.443Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1912 reads back merged as e84cd48368b3362989776690ec88a1d1f5d05857 at 8c3effbc01d165c9cc3a4be47e1ce8518380bce7; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
@@ -803,7 +803,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T00:55:32.521Z",
+      "mergeCommit": "e84cd48368b3362989776690ec88a1d1f5d05857",
+      "mergedOnto": "fe765851cc759b99d134b6164c72995dc4a76a47",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -966,7 +971,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-16T00:54:18.950Z",
+      "observedAt": "2026-10-16T00:55:34.210Z",
       "held": true,
       "head": "8c3effbc01d165c9cc3a4be47e1ce8518380bce7",
       "remoteHead": "8c3effbc01d165c9cc3a4be47e1ce8518380bce7",
@@ -1102,7 +1107,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T00:54:18.950Z",
+      "observedAt": "2026-10-16T00:55:34.210Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1822,6 +1827,12 @@
       "id": "e29af538",
       "kind": "merge",
       "pr": 1912
+    },
+    {
+      "time": "2026-10-16T00:55:32.521Z",
+      "event": "operation-outcome",
+      "id": "e29af538",
+      "state": "confirmed"
     }
   ]
 }
