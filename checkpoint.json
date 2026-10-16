@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 97,
-  "previous": "fce6ffdf4e5878eb2f628153cea3e41df0fe084c",
+  "seq": 98,
+  "previous": "39a1b0a5512b12ea02ea34d677d1d205a0db7086",
   "snapshotParents": [],
-  "time": "2026-10-16T19:37:35.412Z",
+  "time": "2026-10-16T19:50:57.815Z",
   "kind": "auto",
-  "transition": "verify of #1974",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 76,
@@ -1152,7 +1152,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:37:34.350Z",
+      "observedAt": "2026-10-16T19:50:56.948Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1164,15 +1164,18 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T19:37:34.350Z",
+      "observedAt": "2026-10-16T19:50:56.948Z",
       "held": true,
-      "exists": false
+      "head": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:36:33.381Z",
+    "at": "2026-10-16T19:50:56.947Z",
     "tickets": [
       {
         "number": 851,
@@ -1200,9 +1203,9 @@
       },
       {
         "number": 1974,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 3950b896-bf27-4a2c-b9ff-a936c1dec179 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 49176 started 639277762017008569 is running"
       }
     ],
     "remaining": [
