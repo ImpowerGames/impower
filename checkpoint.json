@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 14,
-  "previous": "ae910ff4673a62cbaddca9f52ab902b3c5ba6bbc",
+  "seq": 15,
+  "previous": "43096a02394ed8a1ddfce1243d77b22f1742ec57",
   "snapshotParents": [],
-  "time": "2026-10-16T20:24:59.555Z",
+  "time": "2026-10-16T20:53:48.262Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 11,
+    "recordRevision": 12,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -112,16 +112,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T20:24:58.657Z",
+      "observedAt": "2026-10-16T20:53:47.409Z",
       "held": true,
       "head": "da29d919f61b584abd5a985d33947f84dd1df266",
       "remoteHead": "da29d919f61b584abd5a985d33947f84dd1df266",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 53740
-      },
+      "dirty": true,
       "pr": 1975,
       "reviewJobs": [
         {
@@ -275,7 +271,7 @@
         },
         {
           "job": "pr-1975/round-3/launch-boundary-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 3,
             "step": "review-boundary",
@@ -291,7 +287,26 @@
               "undirected": 1
             },
             "time": "2026-10-16T20:12:33.752Z"
-          }
+          },
+          "round": 3,
+          "reviewerId": "boundary",
+          "attempt": 1,
+          "reviewedHead": "da29d919f61b584abd5a985d33947f84dd1df266",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "boundary": 1
+          },
+          "plannedRoundReviewers": [
+            "boundary",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6224347210
+          ]
         }
       ]
     }
@@ -418,6 +433,11 @@
       "time": "2026-10-16T20:24:56.219Z",
       "event": "check-in",
       "outcome": "no change: #1962 writer running, PR #1975 in review round 2 (boundary reviewer running) at da29d919f; CI green except the Windows driver check still in progress"
+    },
+    {
+      "time": "2026-10-16T20:53:45.870Z",
+      "event": "check-in",
+      "outcome": "no change: #1962 writer running, PR #1975 round 2 reviewed at da29d919f (CI all green on that head); writer is applying the round 2 corrections to the hook"
     }
   ]
 }
