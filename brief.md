@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 140 (this commit), 2026-10-16T04:28:17.805Z, after the intent before a side effect. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 141 (this commit), 2026-10-16T04:28:25.024Z, after resume of #1623. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -15,7 +15,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1623
 
-- claude-cli claude-opus-5-5 at medium, process 40848 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at medium, process 58912 on DESKTOP-726EO47
 - review job pr-1918/round-1/launch-bound-1 on DESKTOP-726EO47: round 1 reviewed c18ffb8c0, completed {"incr":1,"bound":1} of planned ["incr","bound","undirected"]; last launched reviewer bound attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
 - review job pr-1918/round-1/launch-incr-1 on DESKTOP-726EO47: round 1 reviewed ebdaaacb0, completed {"incr":1} of planned ["incr","bound","undirected"]; last launched reviewer incr attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
 - review job pr-1918/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 500014ad3, completed {"incr":1,"bound":1,"undirected":1} of planned ["incr","bound","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
