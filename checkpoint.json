@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 85,
-  "previous": "1597d5d2fb744973c66b5a757e666a36e562abfb",
+  "seq": 86,
+  "previous": "06b88fc1e098205ddb35241c297cf3bea2f773cc",
   "snapshotParents": [],
-  "time": "2026-10-16T19:24:01.492Z",
+  "time": "2026-10-16T19:32:01.029Z",
   "kind": "auto",
-  "transition": "answered of #1637",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 68,
@@ -890,7 +890,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:23:59.922Z",
+      "observedAt": "2026-10-16T19:32:00.143Z",
       "held": true,
       "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -970,6 +970,41 @@
           "commentIds": [
             6222725017
           ]
+        },
+        {
+          "job": "pr-1960/round-2/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
+            "completedRoundReviewers": {
+              "incremental": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T19:24:38.426Z"
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6223128601
+          ]
         }
       ]
     },
@@ -978,7 +1013,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:23:59.922Z",
+      "observedAt": "2026-10-16T19:32:00.143Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -989,7 +1024,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:22:30.116Z",
+    "at": "2026-10-16T19:32:00.142Z",
     "tickets": [
       {
         "number": 851,
@@ -999,9 +1034,9 @@
       },
       {
         "number": 1637,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 1960,
-        "reason": "process 36564 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-3fdbdbbe-1842-4e9e-8411-5c7587308fe4\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 1748, 36652, 33908 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-fcab34d9-879d-446e-9cc9-baf63a589624"
       },
       {
         "number": 1798,
