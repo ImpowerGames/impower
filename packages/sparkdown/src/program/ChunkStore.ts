@@ -4158,8 +4158,8 @@ export const compilerNamedTexts = (
   return out;
 };
 
-/** How the names and calls a statement's objects read resolved, sorted, as
- *  the writer records them (`VariableReference.EmitExpression`,
+/** How the names and calls a statement's objects read resolved, each once and
+ *  sorted, as the writer records them (`VariableReference.EmitExpression`,
  *  `Divert.EmitCall`), leaving out the objects in `exclude` and the
  *  declarations a flow's statement holds, whose initializers are the
  *  declaration sequence's code and not the statement's. Of a function the
@@ -4222,7 +4222,7 @@ export const resolutionsOf = (
     }
   };
   objects.forEach(visit);
-  return out.sort();
+  return [...new Set(out)].sort();
 };
 
 /** The objects of the statements in a block statement's bodies. */
