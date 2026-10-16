@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 75,
-  "previous": "ceb92218c1457598e371ca7e897e715c4668e223",
+  "seq": 76,
+  "previous": "7ebc55c661b202e9cec323394085b28138b5f461",
   "snapshotParents": [],
-  "time": "2026-10-16T18:44:55.597Z",
+  "time": "2026-10-16T18:59:25.977Z",
   "kind": "auto",
-  "transition": "answered of #1637",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 61,
@@ -869,12 +869,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:44:54.733Z",
+      "observedAt": "2026-10-16T18:59:25.043Z",
       "held": true,
-      "head": "99f13721c737d931e3462c9875ee432fce5c3017",
-      "remoteHead": "99f13721c737d931e3462c9875ee432fce5c3017",
+      "head": "9a1b6f64d741a08cb81e787614da8705679ce30e",
+      "remoteHead": "9a1b6f64d741a08cb81e787614da8705679ce30e",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 56496
+      },
       "pr": 1960,
       "reviewJobs": [
         {
@@ -912,6 +916,25 @@
           "commentIds": [
             6221582779
           ]
+        },
+        {
+          "job": "pr-1960/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incremental",
+              "undirected"
+            ],
+            "head": "9a1b6f64d741a08cb81e787614da8705679ce30e",
+            "completedRoundReviewers": {
+              "incremental": 1
+            },
+            "time": "2026-10-16T18:54:49.689Z"
+          }
         }
       ]
     },
@@ -920,7 +943,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:44:54.733Z",
+      "observedAt": "2026-10-16T18:59:25.043Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -931,7 +954,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T18:43:23.460Z",
+    "at": "2026-10-16T18:59:25.042Z",
     "tickets": [
       {
         "number": 851,
@@ -941,9 +964,9 @@
       },
       {
         "number": 1637,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 1960,
-        "reason": "process 47756 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1637-6a277fa9-157c-4586-a29f-df6814e10c3e\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 36564 started 639277730827826009 is running"
       },
       {
         "number": 1798,
@@ -956,6 +979,12 @@
         "action": "observe",
         "pr": null,
         "reason": "process 35408 started 639277678901320254 is running"
+      },
+      {
+        "number": 1974,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
       }
     ],
     "remaining": [
