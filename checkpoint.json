@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 243,
-  "previous": "275a1639cb0e0c644abd1311864778b919947ba1",
+  "seq": 244,
+  "previous": "12a41ec784db5b3dfd78b98a8135f5838f00e830",
   "snapshotParents": [],
-  "time": "2026-10-16T15:42:05.134Z",
+  "time": "2026-10-16T15:42:14.240Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #454",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 205,
+    "recordRevision": 206,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -74,10 +74,10 @@
         "launchId": "a77d8ee5-d75c-4a55-b475-f2b8b69eead6",
         "handle": {
           "kind": "process",
-          "pid": 42664,
-          "start": "639277499372042368",
+          "pid": 55476,
+          "start": "639277621309918460",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-41d54a93-5a95-40c3-8969-2b9551d1c06b"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22"
         },
         "verified": true,
         "brief": {
@@ -111,13 +111,13 @@
             "id": "41d54a93-5a95-40c3-8969-2b9551d1c06b",
             "time": "2026-10-16T12:18:57.526Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-41d54a93-5a95-40c3-8969-2b9551d1c06b"
+          },
+          {
+            "id": "8fb130a9-3869-4d4d-9c99-83434b433b22",
+            "time": "2026-10-16T15:42:11.320Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22"
           }
-        ],
-        "resuming": {
-          "id": "8fb130a9-3869-4d4d-9c99-83434b433b22",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22",
-          "time": "2026-10-16T15:42:02.237Z"
-        }
+        ]
       },
       "pending": null,
       "history": [],
@@ -3725,7 +3725,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:42:03.706Z",
+      "observedAt": "2026-10-16T15:42:12.931Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3973,7 +3973,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:42:03.706Z",
+      "observedAt": "2026-10-16T15:42:12.931Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -3989,7 +3989,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T15:42:03.706Z",
+      "observedAt": "2026-10-16T15:42:12.931Z",
       "held": true,
       "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
       "remoteHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
@@ -4357,12 +4357,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:31:01.176Z",
-      "event": "released",
-      "ticket": 1645,
-      "reason": "process 21792 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-16T01:31:10.852Z",
       "event": "check-in",
@@ -5066,6 +5060,19 @@
       "ticket": 454,
       "id": "8fb130a9-3869-4d4d-9c99-83434b433b22",
       "sessionId": "b483900d-bfad-4f3d-bff3-87e961965503"
+    },
+    {
+      "time": "2026-10-16T15:42:11.320Z",
+      "event": "resumed",
+      "ticket": 454,
+      "id": "8fb130a9-3869-4d4d-9c99-83434b433b22",
+      "handle": {
+        "kind": "process",
+        "pid": 55476,
+        "start": "639277621309918460",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22"
+      }
     }
   ]
 }
