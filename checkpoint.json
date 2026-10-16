@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 218,
-  "previous": "9fe85cb0d745b02ddbd0ad08ae1d52c56af9e6f3",
+  "seq": 219,
+  "previous": "f8a48a7f2acd73e452b604996483b14f53eb279a",
   "snapshotParents": [],
-  "time": "2026-10-16T15:28:59.026Z",
+  "time": "2026-10-16T15:44:55.574Z",
   "kind": "auto",
-  "transition": "result of #1933",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 159,
@@ -2531,11 +2531,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T15:28:55.958Z",
+      "observedAt": "2026-10-16T15:44:54.649Z",
       "held": true,
       "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
-      "remoteHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
-      "unpushed": false,
+      "remoteHead": null,
+      "unpushed": true,
       "dirty": false,
       "pr": 1947,
       "reviewJobs": [
@@ -2660,7 +2660,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T15:28:26.085Z",
+    "at": "2026-10-16T15:44:54.647Z",
     "tickets": [
       {
         "number": 1201,
@@ -2748,15 +2748,15 @@
       },
       {
         "number": 1933,
-        "action": "merge-gate",
-        "pr": 1947,
-        "reason": "PR #1947 is ready at ddc8852b9e9ccfdca4d759b878f1879bd7497f2c; process 33756 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 33756 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1934,
-        "action": "wait-dependency",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "waiting for #1933 (open)"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       }
     ],
     "remaining": [
