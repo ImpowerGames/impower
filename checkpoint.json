@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 248,
-  "previous": "ac0635e03f73cac7376135bb6a7b32dc7be45f48",
+  "seq": 249,
+  "previous": "71760fe4b20d3ad5e2ac94daa26553f94853b510",
   "snapshotParents": [],
-  "time": "2026-10-16T15:48:55.668Z",
+  "time": "2026-10-16T15:49:09.442Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 208,
+    "recordRevision": 209,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3731,7 +3731,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:48:53.826Z",
+      "observedAt": "2026-10-16T15:49:07.280Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3979,7 +3979,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:48:53.826Z",
+      "observedAt": "2026-10-16T15:49:07.280Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4224,12 +4224,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T02:25:56.494Z",
-      "event": "operation-outcome",
-      "id": "42ad4541",
-      "state": "confirmed"
-    },
     {
       "time": "2026-10-16T02:27:17.037Z",
       "event": "released",
@@ -4941,6 +4935,11 @@
       "event": "released",
       "ticket": 887,
       "reason": "process 45104 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T15:49:05.247Z",
+      "event": "check-in",
+      "outcome": "Accepted and merged PR #1928 (#887, a6c12061) under acceptance 51ff191a and released its writer; published finish 69b392c5 for PR #1929 (#454) and resumed its writer to file the FlowBase sweep item and mark ready; dispatched #316 into the freed slot; #839 running; #1800 waits for capacity"
     }
   ]
 }
