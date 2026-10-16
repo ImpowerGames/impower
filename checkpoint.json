@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 148,
-  "previous": "005f159caf9de2ab2c8085ba468d905faafb7884",
+  "seq": 149,
+  "previous": "94df90cb722c589a265d83140fb7cffadc563490",
   "snapshotParents": [],
-  "time": "2026-10-16T04:53:05.159Z",
+  "time": "2026-10-16T04:53:12.825Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1627",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 109,
+    "recordRevision": 110,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -442,6 +442,25 @@
           }
         }
       ]
+    },
+    "1627": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
+        "branch": "fix/1627-carried-block-flow-change",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T04:53:11.511Z"
+      },
+      "history": [],
+      "results": []
     },
     "1628": {
       "owner": null,
@@ -1741,7 +1760,17 @@
     }
   ],
   "verifications": [],
-  "work": {},
+  "work": {
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change": {
+      "ticket": 1627,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
+      "branch": "fix/1627-carried-block-flow-change",
+      "observedAt": "2026-10-16T04:53:12.825Z",
+      "held": true,
+      "exists": false
+    }
+  },
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -1840,11 +1869,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:01:25.735Z",
-      "event": "verified",
-      "ticket": 1632
-    },
     {
       "time": "2026-10-15T22:01:35.846Z",
       "event": "acknowledged",
@@ -2515,6 +2539,13 @@
       "event": "released",
       "ticket": 1611,
       "reason": "process 40848 is gone"
+    },
+    {
+      "time": "2026-10-16T04:53:11.512Z",
+      "event": "dispatch-intent",
+      "ticket": 1627,
+      "route": "claude-cli",
+      "launchId": "4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8"
     }
   ]
 }
