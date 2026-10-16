@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 66,
-  "previous": "838ce4e3eb294ec6765294c44ffdf87a4a09edab",
+  "seq": 67,
+  "previous": "c745518fc206af5323321eb82d7c68a1d2b9343d",
   "snapshotParents": [],
-  "time": "2026-10-16T19:25:22.580Z",
+  "time": "2026-10-16T19:25:32.241Z",
   "kind": "auto",
-  "transition": "result of #1905",
+  "transition": "the intent to ready PR #1927",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 75,
+    "recordRevision": 76,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1095,6 +1095,15 @@
       "mergedOnto": "d6d6f27200c062972a71d30e4adcbe4dc8ca6648",
       "baseMoved": false,
       "onMain": true
+    },
+    {
+      "id": "e46013e2",
+      "kind": "ready",
+      "ticket": 1905,
+      "pr": 1927,
+      "expectHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
+      "state": "intent",
+      "time": "2026-10-16T19:25:30.262Z"
     }
   ],
   "decisions": [
@@ -1117,7 +1126,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T19:25:21.577Z",
+      "observedAt": "2026-10-16T19:25:31.499Z",
       "held": true,
       "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
       "remoteHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
@@ -2133,6 +2142,13 @@
       "ticket": 1905,
       "pr": 1927,
       "reviewedHead": "0a820cb1f43026402f8affa25240491729ee5eee"
+    },
+    {
+      "time": "2026-10-16T19:25:30.262Z",
+      "event": "operation-intent",
+      "id": "e46013e2",
+      "kind": "ready",
+      "pr": 1927
     }
   ]
 }
