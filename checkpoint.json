@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 273,
-  "previous": "1e8c3e9648fe8e3cc0b57bc4e61717fbff7320ab",
+  "seq": 274,
+  "previous": "1afd2e0236435fa936e41afc5047d5ff0f12f166",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:45.011Z",
+  "time": "2026-10-16T16:09:54.131Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 232,
+    "recordRevision": 233,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4074,6 +4074,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs (removed pr-* directories of closed PRs)",
       "branch": null,
       "classifier": "35 job directories: 1 removable, 34 kept."
+    },
+    {
+      "time": "2026-10-16T16:09:51.664Z",
+      "removed": "C:\\Users\\Brode\\AppData\\Local\\Temp\\redgreen-* (removed red/green snapshots)",
+      "branch": null,
+      "classifier": "129 directories: 53 removable (365.0 KB), 76 kept."
     }
   ],
   "verifications": [],
@@ -4083,7 +4089,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:09:44.236Z",
+      "observedAt": "2026-10-16T16:09:53.026Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4328,13 +4334,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:32:08.596Z",
-      "event": "dispatch-intent",
-      "ticket": 887,
-      "route": "claude-cli",
-      "launchId": "6944980d-0e0e-4dfc-bfbc-6851e5e74f98"
-    },
     {
       "time": "2026-10-16T04:32:48.681Z",
       "event": "launched",
@@ -5018,6 +5017,11 @@
       "time": "2026-10-16T16:09:42.765Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs (removed pr-* directories of closed PRs)"
+    },
+    {
+      "time": "2026-10-16T16:09:51.665Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\AppData\\Local\\Temp\\redgreen-* (removed red/green snapshots)"
     }
   ]
 }
