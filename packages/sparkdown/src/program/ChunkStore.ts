@@ -2389,8 +2389,15 @@ export class ChunkStore {
    *  statement, so every name its code reads resolves and every text the
    *  compiler names reads as the chunk recorded (`StatementWatch`); no
    *  symbol the chunk read a fact about changed (`flagged`); its ids belong
-   *  to the table's generation; and, for a declaration, it assigns the same
-   *  globals. */
+   *  to the table's generation; for a declaration, it assigns the same
+   *  globals; and it stands where the chunk was emitted for it, which the
+   *  flow around it decides and its syntax does not (#1627): at the top
+   *  level the story takes a `do` block's functions as flows of their own,
+   *  so a block the edit moved into or out of a scene holds other statements
+   *  in its bodies, and each of those functions defines a flow or is a
+   *  statement of a body. So the statement defines the same function, in the
+   *  same placement (`placementOf`), and each of its bodies holds as many
+   *  statements as the chunk's row for that body does. */
   protected keepCarried(
     byBlock: WeakMap<object, ProgramChunk>,
     statement: StatementSource,
@@ -2413,7 +2420,13 @@ export class ChunkStore {
       !info ||
       info.generation !== this.table.generation ||
       info.globals !== assignedNames(statement) ||
-      !holdsChunkIn(previous, chunk)
+      info.defines !== statement.defines ||
+      info.placement !== this.placementOf(statement) ||
+      !holdsChunkIn(previous, chunk) ||
+      (statement.bodies ?? []).some(
+        (body, k) =>
+          previous.body(chunk, k)?.arrays.chunks.length !== body.statements.length,
+      )
     ) {
       return undefined;
     }
