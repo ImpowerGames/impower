@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 88,
-  "previous": "1c692ce1170619e60712e63788c01a4b2988e82b",
+  "seq": 89,
+  "previous": "df304a460eb09c791833047923dc188443b65001",
   "snapshotParents": [],
-  "time": "2026-10-16T19:39:31.453Z",
+  "time": "2026-10-16T19:40:03.211Z",
   "kind": "auto",
-  "transition": "verify of #1924",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 92,
+    "recordRevision": 93,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1476,7 +1476,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-16T19:39:31.452Z",
+      "observedAt": "2026-10-16T19:40:03.211Z",
       "held": true,
       "exists": false
     },
@@ -1485,7 +1485,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
       "branch": "test/1908-luau-corpus-gate",
-      "observedAt": "2026-10-16T19:39:31.452Z",
+      "observedAt": "2026-10-16T19:40:03.211Z",
       "held": true,
       "exists": false
     },
@@ -1494,7 +1494,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-16T19:39:31.452Z",
+      "observedAt": "2026-10-16T19:40:03.211Z",
       "held": true,
       "exists": false
     }
@@ -2373,6 +2373,11 @@
       "time": "2026-10-16T19:39:29.476Z",
       "event": "verified",
       "ticket": 1924
+    },
+    {
+      "time": "2026-10-16T19:40:01.252Z",
+      "event": "check-in",
+      "outcome": "#1905 checkpoint decided accept-unreviewed (41203445, comment 6223037563), PR #1927 marked ready and merged as bdba348d (operation 9834267a); writer released and its final report stored; #1906 (High), #1908 (Medium) and #1924 (High) claimed, launched on claude-cli, acknowledged and verified; main's run on bdba348d was cancelled by the #1960 merge, watching the run on f654256e7; #1907 still waits on #1374 whose PR #1402 is a stale draft"
     }
   ]
 }
