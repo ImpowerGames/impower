@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 124 (this commit), 2026-10-16T02:18:12.621Z, after a new plan. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 125 (this commit), 2026-10-16T02:18:31.753Z, after checked-in. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -16,11 +16,12 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1614
 
 - claude-cli claude-opus-5-5 at medium, process 11208 on DESKTOP-726EO47
+- as of 2026-10-16T02:18:30.951Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1919/round-1/launch-bound-1 on DESKTOP-726EO47: round 1 reviewed 164cead24, completed {"incr":1,"bound":1} of planned ["incr","bound","undirected"]; last launched reviewer bound attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
 - review job pr-1919/round-1/launch-incr-1 on DESKTOP-726EO47: round 1 reviewed 6cd26291e, completed {"incr":1} of planned ["incr","bound","undirected"]; last launched reviewer incr attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
 
 ## #1623
 
 - claude-cli claude-opus-5-5 at medium, process 40848 on DESKTOP-726EO47
-- as of 2026-10-16T02:18:11.767Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T02:18:30.951Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1918/round-1/launch-incr-1 on DESKTOP-726EO47: round 1 reviewed ebdaaacb0, completed {"incr":1} of planned ["incr","bound","undirected"]; last launched reviewer incr attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished

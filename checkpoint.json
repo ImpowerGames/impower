@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 124,
-  "previous": "22677f9c75406944b16a1bfeb155f72795293422",
+  "seq": 125,
+  "previous": "651e17b3dd59d393ba9b1659719a667f0a68d619",
   "snapshotParents": [],
-  "time": "2026-10-16T02:18:12.621Z",
+  "time": "2026-10-16T02:18:31.753Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 93,
+    "recordRevision": 94,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1311,7 +1311,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T02:18:11.767Z",
+      "observedAt": "2026-10-16T02:18:30.951Z",
       "held": true,
       "head": "ebdaaacb00109edecda42519a352456125186a77",
       "remoteHead": "ebdaaacb00109edecda42519a352456125186a77",
@@ -1365,12 +1365,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T02:18:11.767Z",
+      "observedAt": "2026-10-16T02:18:30.951Z",
       "held": true,
       "head": "164cead2492fe406853dfa165beff860a2bc12a1",
       "remoteHead": "164cead2492fe406853dfa165beff860a2bc12a1",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1919,
       "reviewJobs": [
         {
@@ -2200,6 +2200,11 @@
       "event": "released",
       "ticket": 1846,
       "reason": "process 59960 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T02:18:29.753Z",
+      "event": "check-in",
+      "outcome": "no change: PR 1918 (#1623/#1611) and PR 1919 (#1614/#1638, head 164cead after an accepted round-1 correction) both in review round 1; #1911 still open ahead in the merge queue; main at 135919bf (#1915); no requests"
     }
   ]
 }
