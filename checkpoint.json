@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 23,
-  "previous": "59e61adf1c757f190daa3da14263542546a31c21",
+  "seq": 24,
+  "previous": "8179b5af52ceb9232b8e6e2e34e97c337e60a6b9",
   "snapshotParents": [],
-  "time": "2026-10-16T17:00:32.359Z",
+  "time": "2026-10-16T17:00:46.516Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 17,
+    "recordRevision": 18,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -204,6 +204,12 @@
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1950-bench-bundle-own-packages",
       "branch": "fix/1950-bench-bundle-own-packages",
       "classifier": "removed 939.1 MB: merged into origin/main; no origin/fix/1950-bench-bundle-own-packages; takes 15 ignored paths with it (clean-worktrees --apply, 2026-10-16 16:43Z)"
+    },
+    {
+      "time": "2026-10-16T17:00:42.023Z",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
+      "branch": "fix/839-block-missing-end",
+      "classifier": "removed 984.9 MB: merged into origin/main; origin/fix/839-block-missing-end still exists; takes 16 ignored paths with it (clean-worktrees --apply, 2026-10-16 16:43Z)"
     }
   ],
   "verifications": [],
@@ -213,7 +219,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:00:30.288Z",
+      "observedAt": "2026-10-16T17:00:44.486Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -225,7 +231,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:00:30.288Z",
+      "observedAt": "2026-10-16T17:00:44.486Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -237,7 +243,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:00:30.288Z",
+      "observedAt": "2026-10-16T17:00:44.486Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
@@ -420,6 +426,11 @@
       "time": "2026-10-16T17:00:26.979Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1950-bench-bundle-own-packages"
+    },
+    {
+      "time": "2026-10-16T17:00:42.025Z",
+      "event": "disk-recovery",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end"
     }
   ]
 }
