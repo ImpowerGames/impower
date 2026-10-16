@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 246 (this commit), 2026-10-16T17:05:19.474Z, after a new plan. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 247 (this commit), 2026-10-16T17:25:16.252Z, after feature verification 4c8c8717 (complete). Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -16,3 +16,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1947/round-1/launch-incr-1 on DESKTOP-726EO47: no completed review; last launched reviewer incr attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event blocked
 - review job pr-1947/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 7c12e2d2f, completed {"incr":1,"bound":1,"undirected":1} of planned ["incr","bound","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
 - review job pr-1947/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed ddc8852b9, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["undirected"]), last event finished
+
+## Feature verification
+
+Feature verification 4c8c8717 on main `cd50ceb1e` at 2026-10-16T17:25:14.508Z: complete.

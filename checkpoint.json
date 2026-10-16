@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 246,
-  "previous": "18dbe02b8140559fef21664d0304c472ae5180a7",
+  "seq": 247,
+  "previous": "5a4c343b70c34692b0873a0070f3ff9e737690b0",
   "snapshotParents": [],
-  "time": "2026-10-16T17:05:19.474Z",
+  "time": "2026-10-16T17:25:16.252Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "feature verification 4c8c8717 (complete)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 179,
+    "recordRevision": 180,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2847,14 +2847,75 @@
       "classifier": "removed  impower.worktrees\\test\\1201-incremental-cold-parity             test/1201-incremental-cold-parity                 938.9 MB   merged into origin/main; origin/test/1201-incremental-cold-parity still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_"
     }
   ],
-  "verifications": [],
+  "verifications": [
+    {
+      "id": "4c8c8717",
+      "time": "2026-10-16T17:25:14.508Z",
+      "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+      "mainSha": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
+      "snapshotAt": "2026-10-16T17:25:13.130Z",
+      "verdict": "complete",
+      "criteria": [
+        {
+          "index": 1,
+          "criterion": "Every sub-issue is closed, each with a regression test that compiles its script incrementally and cold and asserts the same tree, program chunks and diagnostics.",
+          "status": "met",
+          "evidence": [
+            "All sixteen sub-issues of #1893 are closed on GitHub (snapshot at main 4cb586458): #1201, #1211, #1249, #1295, #1611, #1613, #1614, #1623, #1627, #1628, #1632, #1638, #1846, #1917, #1933, #1934.",
+            "PR #1910 (merge d121f7026) closed #1201, #1211, #1249, #1295, #1613 and #1628 with packages/sparkdown/src/tests/program/programIncrementalColdParity.test.ts: each ticket's edit sequence replayed through one programCompiler, comparing tree, describeRoot chunks and every diagnostic with a cold compile after each edit (#1201 compares the registry's semantics channel); 8 cases on main.",
+            "PR #1912 (merge e84cd4836) closed #1632 and fixed the first cause of #1611 and the call case of #1614 with packages/sparkdown/src/tests/program/programChunkValidity.test.ts, each case comparing tree, chunks by content and diagnostics incremental against cold.",
+            "PR #1915 (merge 135919bf6) closed #1846 with packages/sparkdown/src/tests/program/programDoBlockMemo.test.ts: the three-edit minimal script and three variants, asserting incremental diagnostics equal a cold compile's; 4 cases.",
+            "PR #1919 (merge 50335b015) closed #1614 (string case) and #1638 with packages/sparkdown/src/tests/incremental/zeroWidthRestart.test.ts and packages/sparkdown/src/tests/program/incrementalHashLineParity.test.ts (incremental against cold: tree, chunks, diagnostics, and no empty-match backstop warning) and packages/sparkdown/src/tests/incremental/chunkedInputParity.test.ts (the same text parsed through 3-, 5- and 7-character chunk Inputs and as a string gives identical trees, which is #1638's parity).",
+            "PR #1918 (merge d6d6f2720) closed #1623 and #1611 (alternator case) with twin-alignment cases in programChunkValidity.test.ts asserting the same tree, chunks and diagnostics and no untouched re-emission.",
+            "PR #1930 (merge 2d5f7cc10) closed #1627 with the ticket script, the reduced reproduction, a scene-header guard and an unchanged-flow control in programChunkValidity.test.ts, run with ChunkStore.verifyBuilds on.",
+            "PR #1936 (merge 8b466a5cd) closed #1917 with packages/sparkdown/src/tests/program/programCumulativeEdits.test.ts, the cumulative randomized-edit run itself.",
+            "PR #1947 (merge 4f9480fb8, merged by the maintainer by hand after the gate could not count two rate-limited reviewer journals) closed #1933 with two one-edit cases in programChunkValidity.test.ts and un-skipped function seed 12 in programCumulativeEdits.test.ts.",
+            "PR #1953 (merge 4cb586458) closed #1934 with the label-then-branch case and its variants in programChunkValidity.test.ts and un-skipped flow seed 3 in programCumulativeEdits.test.ts; programChunkValidity.test.ts holds 19 cases on main."
+          ]
+        },
+        {
+          "index": 2,
+          "criterion": "The cumulative randomized-edit run of `programDifferential.test.ts` passes on the committed seeds plus every seed named in a sub-issue.",
+          "status": "met",
+          "evidence": [
+            "programDifferential.test.ts was deleted with the object engine in 2a940a750 (#705); its cumulative block is reinstated as packages/sparkdown/src/tests/program/programCumulativeEdits.test.ts by PR #1936 (closes #1917), and the comment 6216501358 on #1893 records that the criterion now reads as that file and quotes its seed list.",
+            "Seeds: the deleted run's 0x51ed694 + index per screenplay plus 12345 and 99991 for the function screenplay (the committed seeds), and every seed a sub-issue names on a committed screenplay and insert set: logic 5; function 1, 3, 4, 6, 10, 12; capture 2, 7; flow 3; choose 1, 2, 3, 8, 9, 10; and #1846's seed 77 sequence through edit 99. Left out, because no committed file holds their insert sets: flow 2, 6, 9 (#1628), capture 4 (#1613) and choose 1 with fallback inserts (#1632).",
+            "Coordinator's own run on the main checkout at 4cb586458 (the merge of #1953, the last slice), after every slice landed: SPARKDOWN_CUMULATIVE=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/program/programCumulativeEdits.test.ts --wait 1800 reported status passed, Tests 25 passed (25), 0 skipped, 370 s of test time; log at C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/216eacd3-d9ab-45a2-bcdc-cc17e0fdbc97/scratchpad/writer-1893-oEb374/verify-cumulative.log, evidence directory C:/Users/Brode/AppData/Local/Temp/impower-suite-direct-btJY8d.",
+            "The suite's short form (the committed seed per screenplay at 30 edits) runs in CI's sparkdown shards on every pull request; it passed on the heads of PRs #1936, #1947 and #1953."
+          ]
+        }
+      ],
+      "acceptanceSha256": "7628c9813b9cbeaf8148a9c6df5ae00a66f548edcba1411f45b256b959ba3440",
+      "incomplete": [],
+      "unsettled": [],
+      "tickets": [
+        1201,
+        1211,
+        1249,
+        1295,
+        1611,
+        1613,
+        1614,
+        1623,
+        1627,
+        1628,
+        1632,
+        1638,
+        1846,
+        1917,
+        1933,
+        1934
+      ],
+      "report": "<!-- orchestrate-feature final report: verification 4c8c8717 -->\n## Final report: Feature #1893\n\nVerdict: complete. Verified on main at `cd50ceb1e81f6d7d996149a79db9442d7da104a0` at 2026-10-16T17:25:14.508Z by coordinator `local_56709354-3f72-4ea5-b2f4-f38e39493141`, from the snapshot of 2026-10-16T17:25:13.130Z.\n\n### Slices\n\n| Ticket | State | PR | Integration |\n| --- | --- | --- | --- |\n| #1201 | delivered | #1910 | merged by the coordinator as `d121f7026`; independently reviewed through `f771cccd2` |\n| #1211 | delivered | #1910 | merged by the coordinator as `d121f7026`; independently reviewed through `f771cccd2` |\n| #1249 | delivered | #1910 | merged by the coordinator as `d121f7026`; independently reviewed through `f771cccd2` |\n| #1295 | delivered | #1910 | merged by the coordinator as `d121f7026`; independently reviewed through `f771cccd2` |\n| #1611 | delivered | #1918 | merged by the coordinator as `d6d6f2720`; independently reviewed through `bbf9c7004` plus 2 clean merges of main |\n| #1613 | delivered | #1910 | merged by the coordinator as `d121f7026`; independently reviewed through `f771cccd2` |\n| #1614 | delivered | #1919 | merged by the coordinator as `50335b015`; independently reviewed through `8ac011bda` plus 1 clean merge of main |\n| #1623 | delivered | #1918 | merged by the coordinator as `d6d6f2720`; independently reviewed through `bbf9c7004` plus 2 clean merges of main |\n| #1627 | delivered | #1930 | merged by the coordinator as `2d5f7cc10`; independently reviewed through `cd6379dc7` plus 1 clean merge of main |\n| #1628 | delivered | #1910 | merged by the coordinator as `d121f7026`; independently reviewed through `f771cccd2` |\n| #1632 | delivered | #1912 | merged by the coordinator as `e84cd4836`; independently reviewed through `9b9d1b794` plus 3 clean merges of main |\n| #1638 | delivered | #1919 | merged by the coordinator as `50335b015`; independently reviewed through `8ac011bda` plus 1 clean merge of main |\n| #1846 | delivered | #1915 | merged by the coordinator as `135919bf6`; independently reviewed through `a9838d755` plus 1 clean merge of main |\n| #1917 | delivered | #1936 | merged by the coordinator as `8b466a5cd`; independently reviewed through `dd52a20c0`; it landed on main `270edb682`, while its CI covered main `45e2dd1e3`, so CI never ran on that combination before main's own run |\n| #1933 | delivered | #1947 | merged as `4f9480fb8` outside this run's merge gate (by the maintainer or before this run merged) |\n| #1934 | delivered | #1953 | merged by the coordinator as `4cb586458`; independently reviewed through `40f7f8169`; it landed on main `41c4a6b2f`, while its CI covered main `7ae0fffa2`, so CI never ran on that combination before main's own run |\n\n### Accepted unreviewed corrections\n\nNone.\n\n### Acceptance criteria\n\n- [x] Every sub-issue is closed, each with a regression test that compiles its script incrementally and cold and asserts the same tree, program chunks and diagnostics. Evidence: All sixteen sub-issues of #1893 are closed on GitHub (snapshot at main 4cb586458): #1201, #1211, #1249, #1295, #1611, #1613, #1614, #1623, #1627, #1628, #1632, #1638, #1846, #1917, #1933, #1934.; PR #1910 (merge d121f7026) closed #1201, #1211, #1249, #1295, #1613 and #1628 with packages/sparkdown/src/tests/program/programIncrementalColdParity.test.ts: each ticket's edit sequence replayed through one programCompiler, comparing tree, describeRoot chunks and every diagnostic with a cold compile after each edit (#1201 compares the registry's semantics channel); 8 cases on main.; PR #1912 (merge e84cd4836) closed #1632 and fixed the first cause of #1611 and the call case of #1614 with packages/sparkdown/src/tests/program/programChunkValidity.test.ts, each case comparing tree, chunks by content and diagnostics incremental against cold.; PR #1915 (merge 135919bf6) closed #1846 with packages/sparkdown/src/tests/program/programDoBlockMemo.test.ts: the three-edit minimal script and three variants, asserting incremental diagnostics equal a cold compile's; 4 cases.; PR #1919 (merge 50335b015) closed #1614 (string case) and #1638 with packages/sparkdown/src/tests/incremental/zeroWidthRestart.test.ts and packages/sparkdown/src/tests/program/incrementalHashLineParity.test.ts (incremental against cold: tree, chunks, diagnostics, and no empty-match backstop warning) and packages/sparkdown/src/tests/incremental/chunkedInputParity.test.ts (the same text parsed through 3-, 5- and 7-character chunk Inputs and as a string gives identical trees, which is #1638's parity).; PR #1918 (merge d6d6f2720) closed #1623 and #1611 (alternator case) with twin-alignment cases in programChunkValidity.test.ts asserting the same tree, chunks and diagnostics and no untouched re-emission.; PR #1930 (merge 2d5f7cc10) closed #1627 with the ticket script, the reduced reproduction, a scene-header guard and an unchanged-flow control in programChunkValidity.test.ts, run with ChunkStore.verifyBuilds on.; PR #1936 (merge 8b466a5cd) closed #1917 with packages/sparkdown/src/tests/program/programCumulativeEdits.test.ts, the cumulative randomized-edit run itself.; PR #1947 (merge 4f9480fb8, merged by the maintainer by hand after the gate could not count two rate-limited reviewer journals) closed #1933 with two one-edit cases in programChunkValidity.test.ts and un-skipped function seed 12 in programCumulativeEdits.test.ts.; PR #1953 (merge 4cb586458) closed #1934 with the label-then-branch case and its variants in programChunkValidity.test.ts and un-skipped flow seed 3 in programCumulativeEdits.test.ts; programChunkValidity.test.ts holds 19 cases on main.\n- [x] The cumulative randomized-edit run of `programDifferential.test.ts` passes on the committed seeds plus every seed named in a sub-issue. Evidence: programDifferential.test.ts was deleted with the object engine in 2a940a750 (#705); its cumulative block is reinstated as packages/sparkdown/src/tests/program/programCumulativeEdits.test.ts by PR #1936 (closes #1917), and the comment 6216501358 on #1893 records that the criterion now reads as that file and quotes its seed list.; Seeds: the deleted run's 0x51ed694 + index per screenplay plus 12345 and 99991 for the function screenplay (the committed seeds), and every seed a sub-issue names on a committed screenplay and insert set: logic 5; function 1, 3, 4, 6, 10, 12; capture 2, 7; flow 3; choose 1, 2, 3, 8, 9, 10; and #1846's seed 77 sequence through edit 99. Left out, because no committed file holds their insert sets: flow 2, 6, 9 (#1628), capture 4 (#1613) and choose 1 with fallback inserts (#1632).; Coordinator's own run on the main checkout at 4cb586458 (the merge of #1953, the last slice), after every slice landed: SPARKDOWN_CUMULATIVE=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/program/programCumulativeEdits.test.ts --wait 1800 reported status passed, Tests 25 passed (25), 0 skipped, 370 s of test time; log at C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/216eacd3-d9ab-45a2-bcdc-cc17e0fdbc97/scratchpad/writer-1893-oEb374/verify-cumulative.log, evidence directory C:/Users/Brode/AppData/Local/Temp/impower-suite-direct-btJY8d.; The suite's short form (the committed seed per screenplay at 30 edits) runs in CI's sparkdown shards on every pull request; it passed on the heads of PRs #1936, #1947 and #1953.\n\n### Incomplete work\n\nNone.\n\n### Next action\n\nNone: every slice is delivered on main and every criterion has evidence, so this report accompanies the Feature's closure."
+    }
+  ],
   "work": {
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block": {
       "ticket": 1933,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T17:05:19.459Z",
+      "observedAt": "2026-10-16T17:25:16.201Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -3093,16 +3154,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:02:24.422Z",
-      "event": "acknowledged",
-      "ticket": 1623,
-      "confirmed": {
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "permissionMode": "bypassPermissions"
-      }
-    },
     {
       "time": "2026-10-16T01:02:33.802Z",
       "event": "verified",
@@ -3753,6 +3804,13 @@
       "event": "released",
       "ticket": 1934,
       "reason": "process 7864 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T17:25:14.508Z",
+      "event": "feature-verification",
+      "id": "4c8c8717",
+      "verdict": "complete",
+      "mainSha": "cd50ceb1e81f6d7d996149a79db9442d7da104a0"
     }
   ]
 }
