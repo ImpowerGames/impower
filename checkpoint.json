@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 236,
-  "previous": "64c6870deb2ef47fc5f2b9b94a8fe3032287f771",
+  "seq": 237,
+  "previous": "151bf91bd3070c3f73441a66327bfcb5283add2e",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:42.523Z",
+  "time": "2026-10-16T16:10:00.167Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 173,
+    "recordRevision": 174,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2636,7 +2636,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:09:41.625Z",
+      "observedAt": "2026-10-16T16:09:59.206Z",
       "held": true,
       "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
       "remoteHead": null,
@@ -2648,7 +2648,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:09:41.625Z",
+      "observedAt": "2026-10-16T16:09:59.206Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2887,12 +2887,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:55:32.521Z",
-      "event": "operation-outcome",
-      "id": "e29af538",
-      "state": "confirmed"
-    },
     {
       "time": "2026-10-16T00:57:27.691Z",
       "event": "released",
@@ -3563,6 +3557,11 @@
       "time": "2026-10-16T16:08:21.337Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1201-incremental-cold-parity"
+    },
+    {
+      "time": "2026-10-16T16:09:57.718Z",
+      "event": "check-in",
+      "outcome": "no change: #1934 writer has its fix red on base and green on the fix and is running the parity files and the cumulative run; no PR yet; no requests; disk recovered to 34 GB"
     }
   ]
 }
