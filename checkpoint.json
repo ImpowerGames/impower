@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 186,
-  "previous": "6a1830242f6366274283b31d9eb96538754251ec",
+  "seq": 187,
+  "previous": "082e5c333578cdc4051f86356a67299fa74e07a4",
   "snapshotParents": [],
-  "time": "2026-10-16T12:15:07.978Z",
+  "time": "2026-10-16T12:16:51.310Z",
   "kind": "auto",
-  "transition": "resume of #1917",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 138,
@@ -2055,7 +2055,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:15:07.303Z",
+      "observedAt": "2026-10-16T12:16:50.647Z",
       "held": true,
       "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
       "remoteHead": null,
@@ -2066,7 +2066,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T06:47:23.359Z",
+    "at": "2026-10-16T12:16:50.646Z",
     "tickets": [
       {
         "number": 1201,
@@ -2150,7 +2150,7 @@
         "number": 1917,
         "action": "collect-report",
         "pr": null,
-        "reason": "process 12152 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1917-4e3cff43-de59-4ecb-90b5-8869deb13480\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 58900 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1917-92387613-a3f8-4ae5-adcd-5deffdb94a85\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       }
     ],
     "remaining": [
