@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 332,
-  "previous": "520882a9491ba509e1d5ed99a5d922194b8ab549",
+  "seq": 333,
+  "previous": "ba9bf855ca9af19fb9e069eb5276aed165dbc2f8",
   "snapshotParents": [],
-  "time": "2026-10-16T18:52:12.819Z",
+  "time": "2026-10-16T18:53:31.331Z",
   "kind": "auto",
-  "transition": "the merge of PR #1971 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 278,
@@ -5504,7 +5504,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:52:11.597Z",
+      "observedAt": "2026-10-16T18:53:30.353Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5639,7 +5639,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T18:27:49.627Z",
+    "at": "2026-10-16T18:53:30.351Z",
     "tickets": [
       {
         "number": 316,
@@ -5727,9 +5727,9 @@
       },
       {
         "number": 1951,
-        "action": "observe",
-        "pr": 1971,
-        "reason": "process 9444 started 639277651467391877 is running"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 9444 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       }
     ],
     "remaining": [
