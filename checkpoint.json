@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 331,
-  "previous": "adba990d9f601e6b881bd8c612cca03f82156855",
+  "seq": 332,
+  "previous": "520882a9491ba509e1d5ed99a5d922194b8ab549",
   "snapshotParents": [],
-  "time": "2026-10-16T18:50:53.737Z",
+  "time": "2026-10-16T18:52:12.819Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1971 (confirmed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 277,
+    "recordRevision": 278,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4899,9 +4899,9 @@
       "ticket": 1951,
       "pr": 1971,
       "expectHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T18:50:46.089Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1971 reads back merged as e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e at 2e3664603435c0ad48b26361ca7dc51dc3f21408; the merge commit is on origin/main; it landed on 59739ecf7d52a548bdaca416b4bd221fb37a657c, while its CI covered main 41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5079,7 +5079,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T18:52:09.411Z",
+      "mergeCommit": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e",
+      "mergedOnto": "59739ecf7d52a548bdaca416b4bd221fb37a657c",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -5499,7 +5504,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:50:52.940Z",
+      "observedAt": "2026-10-16T18:52:11.597Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5735,11 +5740,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:20:22.833Z",
-      "event": "check-in",
-      "outcome": "First resumes of #454 and #887 were refused at once by the weekly limit; after the maintainer fixed the CLI account a clean probe succeeded and both writers were resumed again (pids 42664 and 48396) and are past their first API calls; #316 waits for #887"
-    },
     {
       "time": "2026-10-16T12:46:47.090Z",
       "event": "check-in",
@@ -6425,6 +6425,12 @@
       "id": "202f993c",
       "kind": "merge",
       "pr": 1971
+    },
+    {
+      "time": "2026-10-16T18:52:09.411Z",
+      "event": "operation-outcome",
+      "id": "202f993c",
+      "state": "confirmed"
     }
   ]
 }
