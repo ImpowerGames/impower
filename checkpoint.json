@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 46,
-  "previous": "e0d496b390f8e7c84fa1455f5078581fadcb20f6",
+  "seq": 47,
+  "previous": "eaeab383da8c3ba60c9620a6fb39c8a77ea917a4",
   "snapshotParents": [],
-  "time": "2026-10-16T17:14:34.940Z",
+  "time": "2026-10-16T17:15:06.196Z",
   "kind": "auto",
-  "transition": "disk-recovery",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 40,
@@ -351,7 +351,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:14:32.406Z",
+      "observedAt": "2026-10-16T17:15:03.512Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -363,7 +363,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:14:32.406Z",
+      "observedAt": "2026-10-16T17:15:03.512Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -375,7 +375,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:14:32.406Z",
+      "observedAt": "2026-10-16T17:15:03.512Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
@@ -386,7 +386,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:27:38.979Z",
+    "at": "2026-10-16T17:15:03.510Z",
     "tickets": [
       {
         "number": 851,
@@ -402,15 +402,15 @@
       },
       {
         "number": 1798,
-        "action": "observe",
+        "action": "collect-report",
         "pr": null,
-        "reason": "process 40624 started 639277648017542271 is running"
+        "reason": "process 40624 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1798-cbb3d603-a40d-4802-af19-3b4cb8c6a743\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1881,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
+        "reason": "3 writers already hold tickets against a limit of 3"
       }
     ],
     "remaining": [
