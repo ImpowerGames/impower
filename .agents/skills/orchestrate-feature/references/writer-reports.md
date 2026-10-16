@@ -11,7 +11,7 @@ Run it at every periodic check-in, on the first wake after the coordinator itsel
 3. Act on each ticket's action, reading every open PR's checks and merge state from its entry, and on every pending request in the record (`answer-request`) and every writer a previous coordinator briefed (`update-contact`).
 4. Settle every `settle-delivery`: a brief its writer has not acknowledged within one check-in interval is a failed delivery. Confirm that the record's coordinator id is this session's own id. When the writer's turn has ended, read its transcript and record `acknowledged` if it shows one; a running writer's transcript is not read. Otherwise resend with `deliver --retry`, send that copy, and record `delivered`.
 5. Raise every entry under `sweep.deadLaunches`, which checks every open PR, with its writer: a reviewer plan whose launcher ran, with no journal and no process naming it, died before its journal existed, and its `.coordinator.err.log` says why.
-6. Dispatch the dependency-eligible tickets the plan admits, and act on its `checkIn` and `grouping` entries.
+6. Dispatch the dependency-eligible tickets the plan admits, and act on its `checkIn` entry.
 7. Record the outcome with `checked-in --outcome "<what was done>"`, or `--outcome "no change"` when nothing needed action.
 
 ## How writers reach the coordinator

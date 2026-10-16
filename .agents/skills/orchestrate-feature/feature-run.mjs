@@ -11,8 +11,7 @@
 // Commands: init, snapshot, plan, claim, launch, launched, acknowledged,
 // deliver, delivered, request, relay, answer, answered, adopt, reconcile,
 // withdraw, verify, release, result, open, opened, resume, contact, contacted,
-// schedule, check-in, checked-in, group, filed, disk-recovery, brief,
-// recover-lock.
+// schedule, check-in, checked-in, disk-recovery, brief, recover-lock.
 // Every command that changes the record takes --record, --coordinator and
 // --expect-revision, prints the new record revision, and refuses a stale
 // revision or another coordinator's session.
@@ -255,7 +254,7 @@ export function applyCoordinatorMode(file, { coordinator, permissionMode, title 
   }).record;
 }
 
-// --- Periodic check-in and session group ------------------------------------
+// --- Periodic check-in ------------------------------------------------------
 
 // The coordinator checks in every 30 minutes: its prompt cache lasts an hour,
 // and the scheduler fires a recurring job up to 10 percent late, so an hourly
@@ -304,43 +303,13 @@ function checkInStatus(record, now) {
   return { state: "scheduled", job: c.job, interval: c.interval };
 }
 
-// The Feature's sessions share one group on a runner that offers grouping, so
-// they stay together in its session list; the group id is recorded so a
-// resuming coordinator files new writers into the same group.
-export const groupName = (feature) => `Orchestrate #${feature}`;
-export function recordGroup(record, { id, none }) {
-  if (Boolean(id) === Boolean(none)) throw new Error("Record the group with --id <the group's id>, or with --none <why the runner offers no grouping>");
-  if (record.group?.id && id !== record.group.id) throw new Error(`Feature #${record.feature}'s group is already ${record.group.id}; reuse it`);
-  record.group = id ? { name: groupName(record.feature), id } : { name: groupName(record.feature), id: null, none };
-  log(record, "group", { id: id ?? null, none: none ?? null });
-}
-// A writer's session in the app: an existing session adopted with its work,
-// or a CLI writer's session once it was opened.
-const appSession = (owner) => owner?.opened?.session ?? (owner?.handle?.kind === "session" ? owner.handle.id : null);
-export function filed(record, { ticket: number, group }) {
-  if (!record.group?.id) throw new Error(`Feature #${record.feature} has no recorded group; record it with group --id first`);
-  if (group !== record.group.id) throw new Error(`--group must be the Feature's group ${record.group.id}`);
-  const owner = ticketOf(record, number).owner;
-  if (!appSession(owner)) throw new Error(`#${number}'s writer has no session in the app to file`);
-  owner.group = group;
-  log(record, "filed", { ticket: number, session: appSession(owner), group });
-}
-function groupingStatus(record, defaults) {
-  const file = record.group?.id ? Object.entries(record.tickets).filter(([, t]) => appSession(t.owner) && t.owner.group !== record.group.id).map(([n, t]) => ({ ticket: Number(n), session: appSession(t.owner) })) : [];
-  if (record.group?.id) return { state: "recorded", id: record.group.id, file, ...(file.length && { next: `file each listed session into group ${record.group.id} and record it with filed --ticket <N> --group ${record.group.id}` }) };
-  if (record.group) return { state: "none", file };
-  const capability = defaults.orchestrators[record.coordinator.harness]?.grouping;
-  return { state: "missing", file, next: capability ? `file this session into the group ${groupName(record.feature)} with ${capability}, reusing it when it exists, then record its id with group --id <id>` : "the runner offers no session grouping; record that with group --none <reason>" };
-}
-
-// What a takeover carries of the check-in, the group and the title: the job
-// ended with the previous coordinator's session, so it is recreated for the
-// new record; the group and title stay the Feature's.
+// What a takeover carries of the check-in and the title: the job ended with
+// the previous coordinator's session, so it is recreated for the new record;
+// the title stays the Feature's.
 export function carriedRun(prev, { file, record, defaults }) {
   const spec = scheduleSpec(record, file, defaults);
   return {
     ...(prev.checkIn && { checkIn: { ...prev.checkIn, interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: null, state: "recreate on this coordinator's runner", since: null, expires: null } }),
-    ...(prev.group && { group: prev.group }),
     ...(prev.title && { title: prev.title }),
   };
 }
@@ -948,7 +917,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   return {
     repository: record.repository, feature: record.feature, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow },
-    routes, tickets, sweep, checkIn: checkInStatus(record, now), grouping: groupingStatus(record, defaults), remaining: remainingFor(record, complete), complete,
+    routes, tickets, sweep, checkIn: checkInStatus(record, now), remaining: remainingFor(record, complete), complete,
   };
 }
 
@@ -1788,8 +1757,6 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "launched": return mutate((r) => launched(r, { ticket: number(), handleKind: o.handleKind, handle: o.handle, observedOn: o.observedOn }));
     case "check-in": { const file = absolute(o.record, "record"); return mutate((r) => recordCheckIn(r, { job: o.job, none: o.none, file, defaults })); }
     case "checked-in": return mutate((r) => checkedIn(r, { outcome: o.outcome }));
-    case "group": return mutate((r) => recordGroup(r, { id: o.id, none: o.none }));
-    case "filed": return mutate((r) => filed(r, { ticket: number(), group: o.group }));
     case "adopt": return mutate((r) => adopt(r, { plan: absolute(o.plan, "plan"), ticket: number(), handleKind: o.handleKind, handle: o.handle, pid: o.pid, session: o.session, route: o.route, model: o.model, effort: o.effort, worktree: o.worktree, branch: o.branch }));
     case "reconcile": return mutate((r) => reconcile(r, { ticket: number() }));
     case "withdraw": return mutate((r) => withdraw(r, { ticket: number(), evidence: o.evidence, observedOn: o.observedOn }));
@@ -1800,7 +1767,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|group|filed|disk-recovery|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: feature-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|brief|recover-lock --option value ...");
   }
 }
 

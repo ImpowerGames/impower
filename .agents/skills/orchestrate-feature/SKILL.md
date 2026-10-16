@@ -19,8 +19,7 @@ Before `init`, read [starting a run](references/start.md).
 2. Allocate your private directory with resolve-issue's [allocator](../resolve-issue/references/publishing.md#private-writer-allocation), passing the Feature number as `--issue`; the run record lives there.
 3. Run `init`. It records your own session id, which writers message, and your session title, and refuses a second coordinator for the Feature. A checkpointed Feature is resumed as [checkpoints](references/checkpoints.md) describes, never restarted.
 4. Schedule the periodic check-in at 30 minutes: your prompt cache lasts an hour and the scheduler fires a recurring job up to 10 percent late, so an hourly job can miss the cache and re-read the whole context at full price. It is the fallback for a lost message or a dead writer.
-5. File yourself into the Feature's session group where your runner offers one.
-6. Report the writer model, the concurrency bound and its basis to the user before any dispatch.
+5. Report the writer model, the concurrency bound and its basis to the user before any dispatch.
 
 ## 1. Read the Feature
 
@@ -34,7 +33,7 @@ Before planning, read [plan actions](references/plan-actions.md).
 2. Run the route preflight for each route your runner offers at the eligible tickets' efforts, as the writing routes describe.
 3. Run `plan --record --snapshot --observations --preflight <file,file> --out <file>`. A Claude writer is dispatched only on the detached CLI route; the writing routes say why the others are retired.
 
-The plan's `remaining` list and `complete` flag belong in every report, with its `checkIn`, `grouping` and `sweep` entries acted on; `complete` holds only after step 6 verified the Feature's acceptance criteria on main.
+The plan's `remaining` list and `complete` flag belong in every report, with its `checkIn` and `sweep` entries acted on; `complete` holds only after step 6 verified the Feature's acceptance criteria on main.
 
 ## 3. Dispatch
 
