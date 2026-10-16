@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 11,
-  "previous": "bca6b6aca1ce4c02ebe6fffb236c816be000b54e",
+  "seq": 12,
+  "previous": "19d44ce00e08daa1efc6bbff1deb59ffd540c4ae",
   "snapshotParents": [],
-  "time": "2026-10-16T05:31:48.892Z",
+  "time": "2026-10-16T05:33:25.375Z",
   "kind": "auto",
-  "transition": "the merge of PR #1925 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 29,
@@ -429,7 +429,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T05:31:48.115Z",
+      "observedAt": "2026-10-16T05:33:24.580Z",
       "held": true,
       "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
       "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
@@ -442,7 +442,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:48:15.579Z",
+    "at": "2026-10-16T05:33:24.579Z",
     "tickets": [
       {
         "number": 984,
@@ -458,9 +458,9 @@
       },
       {
         "number": 1093,
-        "action": "merge-gate",
-        "pr": 1925,
-        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1102,
@@ -512,15 +512,15 @@
       },
       {
         "number": 1205,
-        "action": "merge-gate",
-        "pr": 1925,
-        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1206,
-        "action": "merge-gate",
-        "pr": 1925,
-        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1207,
@@ -536,9 +536,9 @@
       },
       {
         "number": 1243,
-        "action": "merge-gate",
-        "pr": 1925,
-        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1247,
@@ -584,9 +584,9 @@
       },
       {
         "number": 1293,
-        "action": "merge-gate",
-        "pr": 1925,
-        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1318,
@@ -674,9 +674,9 @@
       },
       {
         "number": 1909,
-        "action": "merge-gate",
-        "pr": 1925,
-        "reason": "PR #1925 is ready at 7bfed36838223aa8f6e07af6c7bf34858bc5cb16 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1924,
