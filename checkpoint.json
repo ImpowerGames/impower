@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 197,
-  "previous": "448e587d3ce8a063e746bc460097e5e9775eaa6c",
+  "seq": 198,
+  "previous": "41fea7361c8be4e8d65aa64311f3883ef2a16509",
   "snapshotParents": [],
-  "time": "2026-10-16T12:50:50.049Z",
+  "time": "2026-10-16T12:50:59.455Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1933",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 144,
+    "recordRevision": 145,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -781,10 +781,7 @@
       "results": []
     },
     "1933": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "medium",
@@ -793,9 +790,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
         "branch": "fix/1933-inserted-twin-do-block",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-16T12:50:06.255Z"
+        "launchId": "9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769",
+        "handle": {
+          "kind": "process",
+          "pid": 33756,
+          "start": "639277518570225878",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1933-9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment 9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769. You are the writer for ImpowerGames/impower ticket #1933 (An edit inserting a do block holding function inner() makes the incremental program emit again the chunk of an untouched later do block (lost chunk reuse, chunks equal a cold compile's)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1933 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block on branch fix/1933-inserted-twin-do-block from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- A new slice of umbrella #1893 (its Description and Scope are the design of record), found by the cumulative randomized-edit run #1917 commits: lost chunk reuse only, since chunks by content and diagnostics equal a cold compile's. One incremental edit that inserts a third do block holding function inner() makes the program emit again the chunk of an untouched later do block (edit #27 of the function screenplay at seed 12, reduced in the ticket to a one-edit reproduction from a fresh compile), and a later edit of the same run (#117, inserting a plain line) re-emits an untouched function inner() definition (not reduced). Read the ticket's Reproduction and the 2026-10-15 root-cause comments on #1623 and #1627 first: this is the twin-identity area that PR #1918 (twin pairing by fit and distance in ChunkStore.align, with its edit-in-place and line-shift rules) and PR #1930 (keepCarried refusing a chunk whose defines, placement or body counts changed) just changed, so start by tracing which pass hands the untouched block's chunk away or refuses it, and build on those two changes rather than around them.\n- Closes line: Closes #1933 only. Regression tests: a focused one-edit case from the ticket's reduced reproduction in packages/sparkdown/src/tests/program/programChunkValidity.test.ts, asserting the same tree, chunks and diagnostics as a cold compile and that no untouched statement's chunk is emitted again (untouchedChunks from programStatements.ts); reduce edit #117 the same way, or show that the seed-12 run passes end to end with your fix. The seed itself lives in programCumulativeEdits.test.ts on #1917's branch (PR pending; function seed 12 is marked skipped there with a comment naming this ticket): once that PR has merged, merge origin/main into your branch and un-skip that seed in your PR; if it has not merged by the time your PR is ready, say so in the PR body and leave the un-skip to the coordinator.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; no other writer touches it now. Keep the change inside the chunk store's alignment and carried-chunk checks, the lowering's recorded reads and the writer's identity recording; a change that reaches the parser or the memo session (statementMemo.ts, ProgramResolver.ts) is a question for the coordinator before you make it.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files relative to the package> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Run programChunkValidity, programChunkCrossing, programChunkIdentity, programIncrementalOracles and programIncrementalColdParity on your head and report them.\n- The merge gate no longer requires your head to contain current origin/main (main's own Test Suite run checks the combination after the merge), but merge origin/main into your branch as a merge commit once before you open the PR so your tests run on the main every #1893 fix unit landed on, and again if #1917's PR lands while you are in review.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- Other coordinators run tickets of #1895 and #1904 on this machine at the same time. The machine-wide reviewer and test reservations are shared with their writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "fe813ea3",
+          "attempts": 1,
+          "time": "2026-10-16T12:50:57.360Z",
+          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+        },
+        "since": "2026-10-16T12:50:57.361Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     }
@@ -2079,7 +2094,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:50:49.312Z",
+      "observedAt": "2026-10-16T12:50:58.718Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2091,7 +2106,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T12:50:49.312Z",
+      "observedAt": "2026-10-16T12:50:58.718Z",
       "held": true,
       "exists": false
     }
@@ -2206,11 +2221,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:27:20.821Z",
-      "event": "verified",
-      "ticket": 1295
-    },
     {
       "time": "2026-10-15T22:27:29.192Z",
       "event": "verified",
@@ -2894,6 +2904,19 @@
       "ticket": 1933,
       "route": "claude-cli",
       "launchId": "9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769"
+    },
+    {
+      "time": "2026-10-16T12:50:57.361Z",
+      "event": "launched",
+      "ticket": 1933,
+      "launchId": "9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769",
+      "handle": {
+        "kind": "process",
+        "pid": 33756,
+        "start": "639277518570225878",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1933-9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769"
+      }
     }
   ]
 }
