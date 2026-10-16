@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 203,
-  "previous": "8196d95b6411d49fab3b7741fc4c3b8a8e158280",
+  "seq": 204,
+  "previous": "cf1b8fccf1024c997a660ab9436e412e361317f3",
   "snapshotParents": [],
-  "time": "2026-10-16T13:30:55.606Z",
+  "time": "2026-10-16T13:31:14.915Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1917",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 148,
+    "recordRevision": 149,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -778,7 +778,26 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T13:31:12.846Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1936,
+            "reviewedHead": "dd52a20c018b545998f8e0071972727b907bbc10",
+            "rounds": "1 of 3 on gpt-6.1-sol at high (native Codex via start-coordinator), one undirected reviewer for a single test-only file; exit 0, journal finished; round state 6216160829, report 6216476469, adjudication 6216496933",
+            "findings": "None",
+            "verification": "New packages/sparkdown/src/tests/program/programCumulativeEdits.test.ts, no production source changes. Seeds: display 0x51ed694; logic 0x51ed695 and 5; function 0x51ed696, 12345, 99991, 1, 3, 4, 6, 10 and 12 (skipped, #1933); capture 0x51ed697, 2 and 7; flow 0x51ed698 and 3 (skipped, #1934); choose 0x51ed699, 1, 2, 3, 8, 9 and 10; #1846's seed 77 sequence through edit 99 with edit 66 made after a change compiled and taken back. Left out for lack of committed inserts: #1628's flow 2, 6 and 9, #1613's capture 4, #1632's choose 1. Full form (SPARKDOWN_CUMULATIVE=1): 23 passed, 2 skipped, 257.8 s locally (reviewer 281.7 s); every seed in the brief passes. Short form (suite default, the deleted run's seed per screenplay at 30 edits): 6 passed, 17.6 s locally, 23.0 s in CI shard 2/4. Red evidence: without the skips the full form fails on exactly the two filed seeds; the reviewer confirmed seed 77 red at edit 66 with the pre-#1846 ProgramResolver and green with it restored. Filtered sparkdown typecheck clean. #1893 comment 6216501358 names the test and quotes the seed list, holding for every seed except #1933 and #1934 until fixed and unskipped.",
+            "ci": "every check passed on dd52a20c0 and every package job ran (sparkdown shards 21m45s, 9m26s, 12m21s, 6m0s; tsc 4m23s; test-suite, build, linked-issue); driver-checks, notifier, skills-checks, vitest-api-integration skipped by path; branch fast-forwarded to 45e2dd1e3 before the commit so it contains that main",
+            "next": "none from the writer; PR 1936 awaits the merge gate",
+            "changesAfterReviewedCommit": "none; head equals the reviewed commit",
+            "notes": "Friction on #510: 6216561362 (install-step hook refusals on Windows) and 6216561859 (reviewer-probe-cleanup has no snapshot for native Codex launches); reviewer clone remains under pr-1936/round-1 until the PR closes. New Bugs #1933 and #1934 filed under #1893 with the milestone.",
+            "source": "cross-session message from writer session impower-b0 after its turn ended; transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/resume-1917-262d49e2-7b15-49b7-baa4-017198a902c1/out.jsonl; PR facts confirmed on GitHub"
+          }
+        }
+      ]
     },
     "1933": {
       "owner": {
@@ -2105,7 +2124,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T13:30:54.510Z",
+      "observedAt": "2026-10-16T13:31:14.026Z",
       "held": true,
       "head": "dd52a20c018b545998f8e0071972727b907bbc10",
       "remoteHead": "dd52a20c018b545998f8e0071972727b907bbc10",
@@ -2152,7 +2171,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T13:30:54.510Z",
+      "observedAt": "2026-10-16T13:31:14.026Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2270,13 +2289,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:46:19.529Z",
-      "event": "result",
-      "ticket": 1201,
-      "pr": 1910,
-      "reviewedHead": "f771cccd2ca4e6ad4e76403cb9eab185d035183a"
-    },
     {
       "time": "2026-10-15T22:48:33.734Z",
       "event": "operation-intent",
@@ -2971,6 +2983,13 @@
       "time": "2026-10-16T13:18:04.990Z",
       "event": "check-in",
       "outcome": "no change: #1917 draft PR 1936 at dd52a20c0 in review round 1 (first reviewer launching, CI started); #1933 writer reproducing (its first reduction passed on base, comparing with the cumulative harness); #1934 waits for capacity; no requests"
+    },
+    {
+      "time": "2026-10-16T13:31:12.846Z",
+      "event": "result",
+      "ticket": 1917,
+      "pr": 1936,
+      "reviewedHead": "dd52a20c018b545998f8e0071972727b907bbc10"
     }
   ]
 }
