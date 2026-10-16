@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 88,
-  "previous": "6a7f7a5e23b797707e8bb71f5aa99cd4978f6bb7",
+  "seq": 89,
+  "previous": "7317a0043206c5ba0d8d40967bb8b92ff47a4085",
   "snapshotParents": [],
-  "time": "2026-10-15T23:52:35.939Z",
+  "time": "2026-10-16T00:00:09.436Z",
   "kind": "auto",
-  "transition": "result of #1846",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 68,
@@ -778,7 +778,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-15T23:52:35.032Z",
+      "observedAt": "2026-10-16T00:00:08.542Z",
       "held": true,
       "head": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
       "remoteHead": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
@@ -914,7 +914,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-15T23:52:35.032Z",
+      "observedAt": "2026-10-16T00:00:08.542Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1049,7 +1049,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-15T23:47:55.087Z",
+    "at": "2026-10-16T00:00:08.540Z",
     "tickets": [
       {
         "number": 1201,
@@ -1113,9 +1113,9 @@
       },
       {
         "number": 1632,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1912,
-        "reason": "process 40028 started 639277036005706428 is running"
+        "reason": "PR #1912 is ready at 20045cf5e11e7c11cd2ac635abc7016ef6255aa3; process 40028 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1638,
@@ -1125,9 +1125,9 @@
       },
       {
         "number": 1846,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1915,
-        "reason": "process 53964 started 639277016822063214 is running"
+        "reason": "PR #1915 is ready at a9838d7553f0e90c0ace7bb226c6f1f7e25fe198; process 53964 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1917,
