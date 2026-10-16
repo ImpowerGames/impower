@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 190,
-  "previous": "6de54813fbb221599c9b92b4110416adefe5b6f5",
+  "seq": 191,
+  "previous": "2a9ac82a19b4f2ecef71b05db418e02a8bd730a6",
   "snapshotParents": [],
-  "time": "2026-10-16T06:48:02.433Z",
+  "time": "2026-10-16T07:15:24.821Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 154,
@@ -2505,7 +2505,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T06:48:01.369Z",
+      "observedAt": "2026-10-16T07:15:23.820Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2641,7 +2641,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T06:48:01.369Z",
+      "observedAt": "2026-10-16T07:15:23.820Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2801,7 +2801,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T06:45:55.987Z",
+    "at": "2026-10-16T07:15:23.819Z",
     "tickets": [
       {
         "number": 316,
@@ -2811,9 +2811,9 @@
       },
       {
         "number": 454,
-        "action": "collect-report",
+        "action": "answer-request",
         "pr": 1929,
-        "reason": "process 13860 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-454-a77d8ee5-d75c-4a55-b475-f2b8b69eead6\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "request 5b339599 \"Writer stopped by the account's weekly usage limit (API answer: You've hit your weekly limit, resets Oct 19, 1am America/New_York) while correcting round-1 findings on PR #1929 (head d037751d7, undirected report 6209618664 not yet adjudicated); its worktree holds uncommitted edits to SparkdownCompiler.ts, DefineScopeRecord.ts, StdLib.ts and builtinRootDefineOverride.test.ts. No writer can be resumed or relaunched on this account until the limit resets; the maintainer decides whether to wait or change account or writer model.\" was relayed to the maintainer at 2026-10-16T06:47:36.164Z; once they decide, record answer and send it; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered"
       },
       {
         "number": 457,
@@ -2823,9 +2823,9 @@
       },
       {
         "number": 887,
-        "action": "collect-report",
+        "action": "answer-request",
         "pr": 1928,
-        "reason": "process 51424 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-d079b78a-0330-4db4-9a57-8289b8ff7680\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "request d8a61713 \"Writer stopped by the account's weekly usage limit (resets Oct 19, 1am America/New_York) while waiting on round-3 reviewer inc's journal for PR #1928 (head 3c1986e10, CI green; the inc report 6209677385 is posted and not yet adjudicated); worktree clean. No writer can be resumed or relaunched on this account until the limit resets; the maintainer decides whether to wait or change account or writer model.\" was relayed to the maintainer at 2026-10-16T06:47:51.945Z; once they decide, record answer and send it; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered"
       },
       {
         "number": 1103,
