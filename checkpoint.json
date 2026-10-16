@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 2,
-  "previous": "9aa537694a28f1ecde56ff030fefceb58cda8eab",
+  "seq": 3,
+  "previous": "ed61294b0a1b096903bb3b12ba4f9f2582ab47fc",
   "snapshotParents": [],
-  "time": "2026-10-16T03:42:22.641Z",
+  "time": "2026-10-16T03:48:03.054Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 23,
@@ -239,7 +239,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T03:42:22.048Z",
+      "observedAt": "2026-10-16T03:48:02.448Z",
       "held": true,
       "head": "192b2f2dab673911ea2b397c7d852a2899563e3f",
       "remoteHead": null,
@@ -249,7 +249,257 @@
   },
   "snapshots": {},
   "handoff": null,
-  "observed": null,
+  "observed": {
+    "at": "2026-10-16T03:48:02.447Z",
+    "tickets": [
+      {
+        "number": 984,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1002,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1093,
+        "action": "merge-gate",
+        "pr": 1925,
+        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
+      },
+      {
+        "number": 1102,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1121,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1195,
+        "action": "decision-needed",
+        "pr": null,
+        "reason": "the ticket has no Effort value; assign one through the issue-fields procedure"
+      },
+      {
+        "number": 1197,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1199,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1200,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1203,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1204,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1205,
+        "action": "merge-gate",
+        "pr": 1925,
+        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+      },
+      {
+        "number": 1206,
+        "action": "merge-gate",
+        "pr": 1925,
+        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+      },
+      {
+        "number": 1207,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1209,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1243,
+        "action": "merge-gate",
+        "pr": 1925,
+        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+      },
+      {
+        "number": 1247,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at high: claude-cli: no preflight result for claude-opus-5-5 at high"
+      },
+      {
+        "number": 1248,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1254,
+        "action": "decision-needed",
+        "pr": null,
+        "reason": "the ticket has no Effort value; assign one through the issue-fields procedure"
+      },
+      {
+        "number": 1258,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1261,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1266,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1290,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1293,
+        "action": "merge-gate",
+        "pr": 1925,
+        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+      },
+      {
+        "number": 1318,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1329,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1341,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1343,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at high: claude-cli: no preflight result for claude-opus-5-5 at high"
+      },
+      {
+        "number": 1344,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1369,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1596,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1647,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1658,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1890,
+        "action": "container",
+        "pr": null,
+        "reason": "its own sub-issues are planned individually"
+      },
+      {
+        "number": 1905,
+        "action": "observe",
+        "pr": null,
+        "reason": "process 47220 started 639277164087901651 is running"
+      },
+      {
+        "number": 1906,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1905 (open)"
+      },
+      {
+        "number": 1907,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1374 (open)"
+      },
+      {
+        "number": 1908,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1905 (open)"
+      },
+      {
+        "number": 1909,
+        "action": "merge-gate",
+        "pr": 1925,
+        "reason": "PR #1925 is ready at d0059ccd92602cab478b6b790a53cd1c51fccf90 after 1 review rounds; run integration.mjs gate, and merge only when it admits that head"
+      },
+      {
+        "number": 1924,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1905 (open)"
+      }
+    ],
+    "remaining": [
+      "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
+      "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main.",
+      "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
+      "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone."
+    ]
+  },
   "log": [
     {
       "time": "2026-10-16T02:55:00.531Z",
