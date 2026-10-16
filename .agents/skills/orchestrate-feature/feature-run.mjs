@@ -39,6 +39,8 @@ export const RECORD_VERSION = 1;
 export const readWriterDefaults = (repo = repoRoot) => JSON.parse(fs.readFileSync(path.join(repo, ".claude", "writer-defaults.json"), "utf8"));
 
 export function resolveWriterModel(harness, override, defaults) {
+  // Agents launch Opus and below only; a Fable writer is never dispatched.
+  if (typeof override === "string" && /fable/i.test(override)) throw new Error(`Writer model ${override} is refused: agents launch Opus and below only`);
   if (override !== undefined) {
     if (typeof override !== "string" || !routeVendor(override) || !defaults.routes[routeVendor(override)]) throw new Error(`Writer model ${override} has no supported writer route`);
     return { model: override, source: "invocation" };

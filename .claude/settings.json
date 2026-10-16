@@ -22,6 +22,15 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Agent|Task|Workflow|Bash|PowerShell|mcp__.*__start_session|mcp__.*__hand_off_to_session|mcp__.*__set_session_model",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/no-fable-launch-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"no-fable hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'no-fable hook: node is not on PATH, so the launch cannot be checked' >&2; exit 2; }; node \"$f\" || exit 2"
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit",
         "hooks": [
           {
