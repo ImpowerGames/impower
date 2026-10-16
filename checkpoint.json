@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 34,
-  "previous": "6175c1f055f89b282ae279383d91ded6c5d7b2ec",
+  "seq": 35,
+  "previous": "90637492ae545fafb4ffdafa128f6bad9a4f2a9f",
   "snapshotParents": [],
-  "time": "2026-10-16T12:17:51.488Z",
+  "time": "2026-10-16T12:18:07.766Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "acknowledged of #1905",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 48,
+    "recordRevision": 49,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -122,13 +122,13 @@
         "since": "2026-10-16T03:00:09.096Z",
         "sessionId": "c7930980-e567-434b-b93e-e49bf72521e2",
         "acknowledged": {
-          "time": "2026-10-16T03:00:55.917Z",
+          "time": "2026-10-16T12:18:05.619Z",
           "confirmed": {
             "model": "claude-opus-5-5",
             "effort": "high",
             "permissionMode": "bypassPermissions"
           },
-          "evidence": "cross-session message from impower-5b at 2026-10-16T03:01Z naming assignment 0bd1b9bd (sent by session title after the local_ id did not resolve); out.jsonl init line of launch-1905-0bd1b9bd reports model claude-opus-5-5, permissionMode bypassPermissions, session c7930980-e567-434b-b93e-e49bf72521e2",
+          "evidence": "cross-session message from impower-a9 (resumed writer, session c7930980) on 2026-10-16 acknowledging the resume with --model claude-opus-5-5, --effort high (CLAUDE_EFFORT=high), --permission-mode bypassPermissions; resume-1905-c04ac027 out.jsonl init line reports the same model and mode",
           "deliveryId": "f822fbee"
         },
         "resumes": [
@@ -436,7 +436,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T12:17:50.810Z",
+      "observedAt": "2026-10-16T12:18:06.993Z",
       "held": true,
       "head": "b457d0aa5480939884e63198a5c7147b56edbef8",
       "remoteHead": "a322a5d0a067c3f5070e314d4b0287a1d8e048b5",
@@ -1003,6 +1003,16 @@
       "time": "2026-10-16T12:17:49.524Z",
       "event": "check-in",
       "outcome": "CLI route available again after the maintainer's fix; resumed the #1905 writer in its session c7930980 (resume c04ac027) with a prompt to continue from its worktree state; awaiting its acknowledgement"
+    },
+    {
+      "time": "2026-10-16T12:18:05.620Z",
+      "event": "acknowledged",
+      "ticket": 1905,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "permissionMode": "bypassPermissions"
+      }
     }
   ]
 }
