@@ -80,6 +80,26 @@ describe("story lines after a function declaration", () => {
     expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
   });
 
+  test("a function whose body is only lines of words ends at its `end`, and the line after it plays from the top", () => {
+    // GRAMMAR.md section 13.2: a pure-Luau body holds no story text, so each
+    // line is reported as Luau, and the definition still closes at its `end`
+    // (#1093).
+    const ctx = makeRuntimeStoryFromSource(
+      `function greet\n  Hello there.\n  How are you?\nend\nAfter it.\n\nscene A\n  Line one.\n  done\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
+    const lines: string[] = [];
+    while (ctx.story.canContinue) {
+      const text = ctx.story.Continue();
+      if (text) {
+        lines.push(text);
+      }
+    }
+    expect(lines).toEqual(["After it.\n"]);
+    const named = flowListings(ctx.root);
+    expect(holds(named.get("greet"), "After it.")).toBe(false);
+  });
+
   test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
     // The line does not close the definition early, so its `end` closes it
     // and the line after the function is in the root flow (#1093).
