@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 24,
-  "previous": "814f96561d3b077d28007f521b49f1c4778672f6",
+  "seq": 25,
+  "previous": "0c1f80476d15b548d65dc0b0a3aaa93aecbce626",
   "snapshotParents": [],
-  "time": "2026-10-16T21:54:34.864Z",
+  "time": "2026-10-16T22:06:55.274Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 24,
@@ -815,16 +815,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T21:54:33.850Z",
+      "observedAt": "2026-10-16T22:06:54.256Z",
       "held": true,
-      "head": "5415ccea549dc6631fed6412162345fa6af13210",
-      "remoteHead": "5415ccea549dc6631fed6412162345fa6af13210",
+      "head": "041d28169100232e321ebdc166009aa3dbd853e6",
+      "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 512
-      },
       "pr": 1975,
       "reviewJobs": [
         {
@@ -1054,7 +1050,7 @@
         },
         {
           "job": "pr-1975/round-4/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 4,
             "step": "review-undirected",
@@ -1069,7 +1065,23 @@
               "undirected": 1
             },
             "time": "2026-10-16T21:40:31.270Z"
-          }
+          },
+          "round": 4,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "5415ccea549dc6631fed6412162345fa6af13210",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6225503433
+          ]
         }
       ]
     }
@@ -1077,13 +1089,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T21:54:11.949Z",
+    "at": "2026-10-16T22:06:54.255Z",
     "tickets": [
       {
         "number": 1962,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1975,
-        "reason": "process 31640 started 639277833284075691 is running"
+        "reason": "process 31640 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1962-9b86a7f5-eda8-418c-bc46-fcfbbe241d53\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1963,
