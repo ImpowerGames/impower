@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 230,
-  "previous": "1745454da614eecc78a118ce52d507dce491a50f",
+  "seq": 231,
+  "previous": "0f0e42abeee53ad4828d7d606e81546bc093fdae",
   "snapshotParents": [],
-  "time": "2026-10-16T16:07:40.679Z",
+  "time": "2026-10-16T16:07:49.191Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 168,
+    "recordRevision": 169,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2597,6 +2597,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
       "classifier": "removed  impower.worktrees\\fix\\1623-twin-chunk-alignment                 fix/1623-twin-chunk-alignment                     984.7 MB   merged into origin/main; origin/fix/1623-twin-chunk-alignment still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spar"
+    },
+    {
+      "time": "2026-10-16T16:07:47.101Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1645-scene-beats-document-order",
+      "branch": "fix/1645-scene-beats-document-order",
+      "classifier": "removed  impower.worktrees\\fix\\1645-scene-beats-document-order           fix/1645-scene-beats-document-order               938.9 MB   merged into origin/main; origin/fix/1645-scene-beats-document-order still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/nod"
     }
   ],
   "verifications": [],
@@ -2606,7 +2612,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:07:39.931Z",
+      "observedAt": "2026-10-16T16:07:48.461Z",
       "held": true,
       "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
       "remoteHead": null,
@@ -2618,7 +2624,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:07:39.931Z",
+      "observedAt": "2026-10-16T16:07:48.461Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2857,13 +2863,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:00:16.295Z",
-      "event": "resume-intent",
-      "ticket": 1632,
-      "id": "2ac8e804-2312-40b6-9318-b122cc1b3575",
-      "sessionId": "0d9b203c-af40-46b9-9a14-51bc116ba837"
-    },
     {
       "time": "2026-10-16T00:00:23.508Z",
       "event": "resumed",
@@ -3545,6 +3544,11 @@
       "time": "2026-10-16T16:07:38.572Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1623-twin-chunk-alignment"
+    },
+    {
+      "time": "2026-10-16T16:07:47.102Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1645-scene-beats-document-order"
     }
   ]
 }
