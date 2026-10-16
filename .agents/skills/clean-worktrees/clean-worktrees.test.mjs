@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // agent-tooling-timeout-ms: 600000
+// agent-tooling-serial: its dead-owner fixtures record an exited child's pid, which a concurrent check's process can be handed before --apply runs (#1810)
 // Measured at 215 s alone and over 300 s inside the sweep on a loaded Windows
 // machine, so the default five-minute bound leaves no headroom.
 // Pins the decisions behind clean-worktrees.mjs and the commands it runs.

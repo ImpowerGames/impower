@@ -1,3 +1,5 @@
+// agent-tooling-timeout-ms: 600000
+// Ran 219 s on a Windows runner with four checks in flight (#1937).
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
