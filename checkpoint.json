@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 31,
-  "previous": "80bc360327f0d04e83c3764126a64439c4b5165b",
+  "seq": 32,
+  "previous": "67fcbbce004908463d7c3c52bfa26edefbabc722",
   "snapshotParents": [],
-  "time": "2026-10-16T17:11:18.774Z",
+  "time": "2026-10-16T17:11:31.334Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 25,
+    "recordRevision": 26,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -252,6 +252,12 @@
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/perf/1684-annotator-carry",
       "branch": "perf/1684-annotator-carry",
       "classifier": "removed 936.2 MB by --remove: #1684 closed; one uncommitted 27-line test addition discarded after a copy to the run directory (discarded/1684); its branch stays"
+    },
+    {
+      "time": "2026-10-16T17:11:27.192Z",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/705-runtime-layer",
+      "branch": "(detached)",
+      "classifier": "removed 1.1 GB by --remove: #705 closed; untracked zz/probe.test.ts discarded after a copy (discarded/705); empty refactor directory removed"
     }
   ],
   "verifications": [],
@@ -261,7 +267,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:11:16.414Z",
+      "observedAt": "2026-10-16T17:11:29.393Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -273,7 +279,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:11:16.414Z",
+      "observedAt": "2026-10-16T17:11:29.393Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -285,7 +291,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:11:16.414Z",
+      "observedAt": "2026-10-16T17:11:29.393Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
@@ -504,6 +510,11 @@
       "time": "2026-10-16T17:11:14.448Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/perf/1684-annotator-carry"
+    },
+    {
+      "time": "2026-10-16T17:11:27.193Z",
+      "event": "disk-recovery",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/705-runtime-layer"
     }
   ]
 }
