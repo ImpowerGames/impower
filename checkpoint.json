@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 214,
-  "previous": "c94b9f3e5116c8c5a3a6fece61e61bf076ae26b1",
+  "seq": 215,
+  "previous": "166d349eca84fced65fcf295a6554e9e070fadb4",
   "snapshotParents": [],
-  "time": "2026-10-16T14:47:13.970Z",
+  "time": "2026-10-16T15:18:59.290Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 157,
@@ -2512,22 +2512,124 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T14:47:13.239Z",
+      "observedAt": "2026-10-16T15:18:58.395Z",
       "held": true,
-      "head": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
-      "remoteHead": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
+      "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
+      "remoteHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
       "unpushed": false,
       "dirty": false,
       "handoffLock": {
         "host": "DESKTOP-726EO47",
-        "pid": 9936
-      }
+        "pid": 57260
+      },
+      "pr": 1947,
+      "reviewJobs": [
+        {
+          "job": "pr-1947/round-1/launch-bound-1",
+          "lastEvent": "blocked",
+          "attempted": {
+            "round": 1,
+            "step": "review-bound",
+            "reviewerId": "bound",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
+            "completedRoundReviewers": {
+              "incr": 1
+            },
+            "time": "2026-10-16T14:42:36.998Z"
+          }
+        },
+        {
+          "job": "pr-1947/round-1/launch-incr-1",
+          "lastEvent": "blocked",
+          "attempted": {
+            "round": 1,
+            "step": "review-incr",
+            "reviewerId": "incr",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T14:26:07.297Z"
+          }
+        },
+        {
+          "job": "pr-1947/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
+            "completedRoundReviewers": {
+              "incr": 1,
+              "bound": 1
+            },
+            "time": "2026-10-16T14:50:16.386Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "7c12e2d2f3c082835cbe866382e079489e90fdc4",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6218384148
+          ]
+        },
+        {
+          "job": "pr-1947/round-2/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
+            "completedRoundReviewers": {
+              "incr": 1,
+              "bound": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T15:12:48.314Z"
+          }
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T13:47:41.460Z",
+    "at": "2026-10-16T15:18:58.393Z",
     "tickets": [
       {
         "number": 1201,
@@ -2616,7 +2718,7 @@
       {
         "number": 1933,
         "action": "observe",
-        "pr": null,
+        "pr": 1947,
         "reason": "process 33756 started 639277518570225878 is running"
       },
       {
