@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 215,
-  "previous": "883e764213dda9161088e47105eaed6e797c8d05",
+  "seq": 216,
+  "previous": "2547a5cddcf11c962a7886c696deec77ac18eb18",
   "snapshotParents": [],
-  "time": "2026-10-16T12:19:20.385Z",
+  "time": "2026-10-16T12:20:25.049Z",
   "kind": "auto",
-  "transition": "resume of #887",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 177,
+    "recordRevision": 178,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2541,7 +2541,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:19:19.109Z",
+      "observedAt": "2026-10-16T12:20:23.967Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2677,7 +2677,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:19:19.109Z",
+      "observedAt": "2026-10-16T12:20:23.967Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2920,11 +2920,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:10:36.147Z",
-      "event": "verified",
-      "ticket": 1645
-    },
     {
       "time": "2026-10-15T23:13:19.897Z",
       "event": "request",
@@ -3629,6 +3624,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-bc0500a4-ad92-4256-ba27-34ffcb73ba13"
       }
+    },
+    {
+      "time": "2026-10-16T12:20:22.833Z",
+      "event": "check-in",
+      "outcome": "First resumes of #454 and #887 were refused at once by the weekly limit; after the maintainer fixed the CLI account a clean probe succeeded and both writers were resumed again (pids 42664 and 48396) and are past their first API calls; #316 waits for #887"
     }
   ]
 }
