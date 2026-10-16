@@ -276,7 +276,7 @@ end
     ]);
   });
 
-  test("a parameter list the grammar ends early is read as the runtime binds it", () => {
+  test("a parameter list whose type the grammar has no rule for is read whole", () => {
     const program = compile(`scene start(a: number)
   branch inner(f: (...any) -> (), k: number)
     & f()
@@ -285,11 +285,12 @@ end
   end
 end
 `);
-    // The grammar ends the list at the `)` inside `f`'s type (#876), so the
-    // runtime binds `f`, `any` and `...` and not `k`. Sparkdown's own resolver
-    // reports the read of `k` on the name (#990), so the type checker's
-    // unknown-global warning for the same read is left out.
-    expect(typeWarnings(program)).toEqual([]);
-    expect(describeDiagnostics(program, false)).toEqual(["8:26-8:27 Cannot find variable named `k`"]);
+    // The grammar has no type rule for `...any` (#876), but the list takes it
+    // as a token it leaves unread (#1905) and goes on to its own `)`, so the
+    // runtime binds `f` and `k`, and the type checker reads `k` as the
+    // `number` it is declared as. `any` is no parameter, so Sparkdown's own
+    // resolver reports its read (#990).
+    expect(typeWarnings(program)).toEqual(["8:26-8:27 Expected this to be 'string', but got 'number'"]);
+    expect(describeDiagnostics(program, false)).toEqual(["7:12-7:15 Cannot find variable named `any`"]);
   });
 });

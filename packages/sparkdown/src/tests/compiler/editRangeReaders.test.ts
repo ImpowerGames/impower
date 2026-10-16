@@ -20,8 +20,10 @@ const forget = () => {
 const block = (i: number) =>
   `function f${i}()\n  local x${i} = ${i} -- note ${i}\n  return x${i}\nend\n\nThe hero walks on, ${i} steps.\n\n`;
 
-// A deliberate error near the bottom, which the edit must keep reported.
-const tail = "function g()\n  Hello there\nend\n\nThe hero stops.\n";
+// A deliberate error near the bottom, which the edit must keep reported: a
+// `.` whose name is on the next line, which the validator reads past its line
+// to find.
+const tail = "function g(t)\n  local y = t.\n  Hello\nend\n\nThe hero stops.\n";
 
 const ANNOTATE = ["compilations", "validations"] as const;
 
@@ -69,9 +71,9 @@ function slicesOnEdit(count: number) {
   } finally {
     spy.mockRestore();
   }
-  const hello = edited.lastIndexOf("Hello");
+  const dot = edited.lastIndexOf("t.") + 1;
   expect(validations(registry, uri)).toContainEqual({
-    from: hello, to: hello + 5, message: "Incomplete statement: expected assignment or a function call",
+    from: dot, to: dot + 1, message: expect.stringMatching(/^Expected identifier after '\.' on the same line/),
   });
   return { count, sourceUnits: edited.length, slices };
 }

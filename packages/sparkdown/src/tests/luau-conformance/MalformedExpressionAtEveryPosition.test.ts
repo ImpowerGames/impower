@@ -388,9 +388,13 @@ describe("the reported layouts", () => {
       "1:24-1:29 Expected identifier, got 'until'",
       "1:48-1:49 Expected identifier when parsing expression, got ';'",
     ]],
+    // The `then` after the table belongs to no `if` (Luau read `if` as the
+    // name after `t.a.`), so the grammar leaves it unread, and Luau's error
+    // for it is reported (#1905).
     ["function f(t)\n  local a, b = 1, t.a. if {1 +} then end\nend", [
       "1:23-1:25 Expected identifier, got 'if'",
       "1:30-1:31 Expected identifier when parsing expression, got '}'",
+      "1:32-1:36 Expected identifier when parsing expression, got 'then'",
     ], false],
   ] as [string, string[], boolean?][])("interim: %j reports %j", (source, messages, keepsEnd = true) => {
     const { errors, functions } = compileDocument(`${source}\n`);
