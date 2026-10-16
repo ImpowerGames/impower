@@ -7,6 +7,9 @@ end
 style --[=[a]]=] third with
   color = green
 end
+style --[====[c]====] fourth with
+  color = green
+end
 function --[=[a]]=] h(x: number) return x end
 
 The rain stops on the rooftop.

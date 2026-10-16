@@ -119,8 +119,13 @@ const FORMS: Record<string, Form> = {
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["k", FUNCTION_NAME],
+      // with a block comment before the function
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["m", FUNCTION_NAME],
     ],
-    output: "Value 7 1.\n",
+    output: "Value 7 1 2.\n",
   },
   "#1329 attributes that end their line before the function value they mark": {
     fixture: "attribute-line-break-1329",
@@ -132,6 +137,14 @@ const FORMS: Record<string, Form> = {
       ["native", ATTRIBUTE],
       ["@", ATTRIBUTE_OPERATOR],
       ["checked", ATTRIBUTE],
+      ["function", FUNCTION],
+      // a block comment between them on the line
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      // a list that spans lines
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
@@ -147,10 +160,12 @@ const FORMS: Record<string, Form> = {
       ["@[native]\nfunction", "LuauSparkdownVariableDefinition"],
       // past a line comment that ends with the word `end`
       ["@checked\n  function", "LuauSparkdownVariableDefinition"],
+      ["@[native] --[[c]] function", "LuauSparkdownVariableDefinition"],
+      ["  native\n]\nfunction", "LuauSparkdownVariableDefinition"],
       ["@native\n    function", "LuauVariableDefinition"],
       ["@checked function", "LuauVariableDefinition"],
     ],
-    output: "Value 9 3 15.\n",
+    output: "Value 9 3 4 5 15.\n",
   },
   "#921 attributes on their own line before a function statement, and a block comment after an attribute": {
     fixture: "attribute-statement-lines-921",
@@ -308,6 +323,9 @@ const FORMS: Record<string, Form> = {
       // a comment whose text ends with a `]` right before its close
       ["third", DEFINE_NAME],
       ["green", "string.unquoted.identifier.sd"],
+      // a comment of level four
+      ["fourth", DEFINE_NAME],
+      ["green", "string.unquoted.identifier.sd"],
       ["h", FUNCTION_NAME],
       ["x", PARAMETER],
     ],
@@ -347,6 +365,9 @@ const FORMS: Record<string, Form> = {
       ["Keys", TYPE],
       ["T", TYPE],
       ["t", PARAMETER],
+      // after an attribute
+      ["h", FUNCTION_NAME],
+      ["z", PARAMETER],
     ],
   },
   "#1344 a loop condition on the line after for or while": {

@@ -1,3 +1,4 @@
-Value {f()} {k()}.
+Value {f()} {k()} {m()}.
 @native function f() return 7 end
   @native function k() return 1 end
+@native --[[c]] function m() return 2 end
