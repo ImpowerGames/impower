@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 155,
-  "previous": "79466066d2e9b4748df0788283c7d1f34627880b",
+  "seq": 156,
+  "previous": "28d2b75b4400cbd403b2f01837b1c5bbca605d33",
   "snapshotParents": [],
-  "time": "2026-10-16T04:56:01.436Z",
+  "time": "2026-10-16T05:17:41.526Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 114,
+    "recordRevision": 115,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1792,9 +1792,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T04:56:01.435Z",
+      "observedAt": "2026-10-16T05:17:40.888Z",
       "held": true,
-      "exists": false
+      "head": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+      "remoteHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+      "unpushed": false,
+      "dirty": false
     }
   },
   "snapshots": {},
@@ -1895,11 +1898,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:17:37.126Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1728-scene-parameter-saves"
-    },
     {
       "time": "2026-10-15T22:17:45.785Z",
       "event": "disk-recovery",
@@ -2580,6 +2578,11 @@
       "time": "2026-10-16T04:56:00.315Z",
       "event": "check-in",
       "outcome": "no change: #1627 writer running (preflight done, reading the ticket), no PR yet; main at d6d6f272 (#1918); #1917 waits on #1627; no requests"
+    },
+    {
+      "time": "2026-10-16T05:17:39.777Z",
+      "event": "check-in",
+      "outcome": "no change: #1627 writer has its fix pushed (cd6379dc7) and is writing the PR body, no PR yet; main at d6d6f272; holding merges for ORCH #1904's PR 1925 per the three-way queue; no requests"
     }
   ]
 }
