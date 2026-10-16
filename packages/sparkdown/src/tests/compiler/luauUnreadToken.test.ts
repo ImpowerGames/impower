@@ -388,6 +388,14 @@ describe("each error has one reader", () => {
     ]) {
       expect(read(luau).errors).toEqual(officialErrors(luau));
     }
+    // Inside an interpolation too, which the parser reads from tokens of its own.
+    const interpolated = read("function f()\n  local s = `{function(@) end}`\nend\n").errors;
+    expect(interpolated).toEqual(["1:23-1:24 Expected identifier when parsing variable name, got ''"]);
+    // The `end` a closure's reading writes after its body is no name written
+    // after a `@` right before the closure's `}`.
+    const closure = (body: string) => read(`layout main with\n  button @click={ ${body}}\nend\n`).errors;
+    expect(closure("local x = @")).toEqual(closure("local x = @ "));
+    expect(closure("local x = @").join("\n")).not.toContain("@end");
     // The grammar reads `@native` as an attribute (`LuauAttribute`), so it is
     // no unread token; the type is still missing there, as Luau reports it.
     expect(read("function f()\n  local x: @native = 1\nend\n").errors).toContain(
