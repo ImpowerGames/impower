@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 52,
-  "previous": "43dd275cf58b8f7355418c32c6f2c84971542bc1",
+  "seq": 53,
+  "previous": "729d10af50af44f69f1962f4f408f2549eb8e999",
   "snapshotParents": [],
-  "time": "2026-10-16T17:33:12.471Z",
+  "time": "2026-10-16T17:33:49.489Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 59,
+    "recordRevision": 60,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -436,7 +436,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T17:33:10.939Z",
+      "observedAt": "2026-10-16T17:33:46.640Z",
       "held": true,
       "head": "0a820cb1f43026402f8affa25240491729ee5eee",
       "remoteHead": "0a820cb1f43026402f8affa25240491729ee5eee",
@@ -1307,6 +1307,11 @@
       "time": "2026-10-16T17:03:25.125Z",
       "event": "check-in",
       "outcome": "no change: #1905 running; PR #1927 head 0a820cb1 (24 passed, 3 pending), round 3's second reviewer (undirected3) running with the writer waiting in the foreground, 19 PR comments; no request pending"
+    },
+    {
+      "time": "2026-10-16T17:33:43.218Z",
+      "event": "check-in",
+      "outcome": "no change: #1905 running; PR #1927 head 0a820cb1 all green; round 3's second reviewer (undirected3) still running, writer waiting in the foreground; no request pending"
     }
   ]
 }
