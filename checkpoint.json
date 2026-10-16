@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 231,
-  "previous": "37aeaa8bc1f7f34d8591c62665d8844c6b0119d5",
+  "seq": 232,
+  "previous": "120a6fd48e0e7ba659b38b1712bd5ab2ddf618eb",
   "snapshotParents": [],
-  "time": "2026-10-16T14:24:06.908Z",
+  "time": "2026-10-16T14:28:39.909Z",
   "kind": "auto",
-  "transition": "launch of #839",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 190,
@@ -2870,7 +2870,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T14:24:05.949Z",
+      "observedAt": "2026-10-16T14:28:38.500Z",
       "held": true,
       "head": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
       "remoteHead": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
@@ -3083,7 +3083,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T14:24:05.949Z",
+      "observedAt": "2026-10-16T14:28:38.500Z",
       "held": true,
       "exists": false
     },
@@ -3092,7 +3092,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T14:24:05.949Z",
+      "observedAt": "2026-10-16T14:28:38.500Z",
       "held": true,
       "head": "6156c871695ca66489dab3e473e5ac1199f68443",
       "remoteHead": "6156c871695ca66489dab3e473e5ac1199f68443",
@@ -3328,7 +3328,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T14:23:55.276Z",
+    "at": "2026-10-16T14:28:38.498Z",
     "tickets": [
       {
         "number": 316,
@@ -3350,9 +3350,9 @@
       },
       {
         "number": 839,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 38d5d960-a370-4c8d-b671-7753bea0d042 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 34548 started 639277574440592944 is running"
       },
       {
         "number": 887,
