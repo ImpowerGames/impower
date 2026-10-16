@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 166,
-  "previous": "f93f61da0f7c7d41716aeafef6b8ca8cb9449299",
+  "seq": 167,
+  "previous": "99194c1a821ce60cc69c54f4e0377e544b117abf",
   "snapshotParents": [],
-  "time": "2026-10-16T04:32:49.838Z",
+  "time": "2026-10-16T04:33:23.456Z",
   "kind": "auto",
-  "transition": "launch of #887",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 134,
@@ -2432,7 +2432,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:32:49.838Z",
+      "observedAt": "2026-10-16T04:33:23.455Z",
       "held": true,
       "exists": false
     },
@@ -2441,7 +2441,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T04:32:49.838Z",
+      "observedAt": "2026-10-16T04:33:23.455Z",
       "held": true,
       "exists": false
     }
@@ -2449,7 +2449,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:32:41.527Z",
+    "at": "2026-10-16T04:33:23.453Z",
     "tickets": [
       {
         "number": 316,
@@ -2471,9 +2471,9 @@
       },
       {
         "number": 887,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 6944980d-0e0e-4dfc-bfbc-6851e5e74f98 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 26336 started 639277219684181653 is running"
       },
       {
         "number": 1103,
