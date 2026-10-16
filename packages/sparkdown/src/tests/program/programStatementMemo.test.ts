@@ -791,7 +791,11 @@ describe("a local declaration", () => {
     const s = warmed(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1");
     s.edit("Line last.", "Line last, edited.");
-    expect(loweredOutside(s)).toEqual([]);
+    // The rename carries the scene (#1637), so the memos of the two
+    // statements that read `here` keep the resolution recorded before it was
+    // a global, and the edit after it lowers them again (#1974). The fix of
+    // #1974 makes this `[]` again.
+    expect(loweredOutside(s)).toEqual(["local here = 2", "Here {here}."]);
     sameAsCold(s);
   });
 
