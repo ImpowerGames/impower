@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 211,
-  "previous": "3c774bd309916fcb3e2c2b0078a7f0ba741c7c88",
+  "seq": 212,
+  "previous": "f1140e3f9fb437b9e876b628ea626e4246ca4e66",
   "snapshotParents": [],
-  "time": "2026-10-16T13:47:42.252Z",
+  "time": "2026-10-16T13:47:59.441Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 154,
+    "recordRevision": 155,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2512,7 +2512,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T13:47:41.461Z",
+      "observedAt": "2026-10-16T13:47:58.706Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2630,12 +2630,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:52:29.844Z",
-      "event": "released",
-      "ticket": 1295,
-      "reason": "process 55348 is gone"
-    },
     {
       "time": "2026-10-15T22:52:47.182Z",
       "event": "released",
@@ -3332,6 +3326,11 @@
       "event": "released",
       "ticket": 1917,
       "reason": "process 46624 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T13:47:57.080Z",
+      "event": "check-in",
+      "outcome": "no change: #1933 writer has its fix with a clean typecheck and is on live verification (booting the editor), no PR yet; #1934 blocked behind #1933 (same file); no requests"
     }
   ]
 }
