@@ -56,7 +56,10 @@ describe("a global declaration with no value", () => {
     story.onError = (m: string) => runtimeErrors.push(m);
     story.ContinueMaximally();
     expect(runtimeErrors).toEqual([]);
-    expect(story.variablesState.GetVariableWithName("x")?.valueObject).toBe(1);
+    const x = story.variablesState.GetVariableWithName("x") as {
+      valueObject?: unknown;
+    } | null;
+    expect(x?.valueObject).toBe(1);
     expect(story.variablesState.GetVariableWithName("orphan") == null).toBe(
       true,
     );
