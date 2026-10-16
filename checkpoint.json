@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 183,
-  "previous": "d5ce077c02096d88f4af96f781110060af7abe2a",
+  "seq": 184,
+  "previous": "2610f8b752e0d5fc644b6ed6f6018aec09c51ab4",
   "snapshotParents": [],
-  "time": "2026-10-16T06:15:15.199Z",
+  "time": "2026-10-16T06:15:34.504Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 148,
+    "recordRevision": 149,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2479,7 +2479,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T06:15:14.244Z",
+      "observedAt": "2026-10-16T06:15:33.639Z",
       "held": true,
       "head": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
       "remoteHead": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
@@ -2574,7 +2574,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T06:15:14.244Z",
+      "observedAt": "2026-10-16T06:15:33.639Z",
       "held": true,
       "head": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
       "remoteHead": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
@@ -2779,11 +2779,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:22:49.969Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1815-lsp-result-cost"
-    },
     {
       "time": "2026-10-15T22:22:58.231Z",
       "event": "disk-recovery",
@@ -3495,6 +3490,11 @@
       "ticket": 887,
       "id": "3647ce66",
       "deliveryId": "93e2552a"
+    },
+    {
+      "time": "2026-10-16T06:15:32.254Z",
+      "event": "check-in",
+      "outcome": "no change: #887 writer resumed (pid 51424) and running its probe on PR #1928 at 156e83fe; #454 writer running on PR #1929 at 1d3085aaf; both drafts in review; #316 waits for #887; reservation store free; no transcripts to read, no dead launches"
     }
   ]
 }
