@@ -37,12 +37,6 @@ import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifi
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
 import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
-import {
-  ObjectExpression,
-  ObjectExpressionEntry,
-} from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
-import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
 import { BINDING_ID_PREFIX } from "../lower/lowerers/lowerSparkleBody";
 import { ReturnType as ParsedReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
@@ -1844,7 +1838,7 @@ export class SparkdownCompiler {
       }
       // Now that both sides carry their final global keys, let an authored
       // define that reuses a builtin name override it rather than collide.
-      this.applyBuiltinOverrides(userVAs, preludeVAs);
+      this.applyBuiltinOverrides(preludeVAs);
       profile("end", this._profilerId, "scopeDefineInstances", uri);
       // Declared-name census across every file of this compile — see
       // `_censusEntries`. Compared here (not per file) so includes can't
@@ -4581,126 +4575,31 @@ export class SparkdownCompiler {
    *  The builtins prelude is source-injected FIRST, and
    *  `FlowBase.AddNewVariableDeclaration` is first-writer-wins, so every such
    *  override used to fail the compile with "Duplicate identifier" — the
-   *  opposite of the intent recorded at the injection site. Two things are
-   *  needed to undo that safely, and both live here because this is the first
-   *  point where the prelude's declarations, the user's, and the prelude's
-   *  compiled values are all in scope (and it still runs before resolution,
-   *  where the collision is detected):
+   *  opposite of the intent recorded at the injection site. Tag the prelude's
+   *  declarations so the collision handler can tell an override (allowed,
+   *  authored wins) from two colliding authored defines (still an error).
+   *  `debugMetadata` can't distinguish them. The prelude's root defines are
+   *  marked too.
    *
-   *  1. BACK-FILL. A partial override (`define ui as config with
-   *     root_text_size = "112.5%"`) restates one property, but the authored
-   *     `__def` table is what reaches the runtime — so every builtin sibling the
-   *     author didn't mention (`breakpoints`, `layouts_element_name`, …) would
-   *     vanish, and e.g. `reveal()` would fail to find the screen root, giving a
-   *     black preview with no error. Copy the prelude's values for keys the
-   *     author did NOT restate into the authored table.
-   *  2. MARK. Tag the prelude's declarations so the collision handler can tell
-   *     an override (allowed, authored wins) from two colliding authored
-   *     defines (still an error). `debugMetadata` can't distinguish them.
-   *     The prelude's root defines are marked too; an authored root needs no
-   *     back-fill, since its `__def` merges into the prelude's table at
-   *     runtime (FlowBase.AddRootOverride).
+   *  A partial override (`define ui as config with root_text_size =
+   *  "112.5%"`) keeps the builtin's other fields at runtime: the prelude's
+   *  `__def` runs first and registers the builtin, and the authored `__def`
+   *  fills its table from the member it replaces, records key by key, with
+   *  every authored key winning, computed ones included (`fillMissingEntries`
+   *  in the runtime's StdLib, #1951). An authored root merges into the
+   *  prelude's table the same way (`mergeIntoRootTable`). A compile-time
+   *  back-fill appended after the authored entries used to do this, so a
+   *  computed key naming a builtin key read the builtin's value and a
+   *  restated nested table lost the builtin's other nested keys.
    *
-   *  Idempotent, like {@link scopeDefineInstances}: back-fill only adds keys the
-   *  table lacks, so re-running on cached parse nodes across incremental
-   *  compiles is a no-op. Must run AFTER the scoping passes, which is what makes
-   *  the identifier a stable, comparable key on both sides. */
+   *  Must run AFTER the scoping passes. */
   protected applyBuiltinOverrides(
-    userVAs: readonly ParsedObject[],
     preludeVAs: ReadonlySet<ParsedObject>,
   ): void {
-    // Marked even when no user declaration is typed: an authored ROOT define
-    // (`define game with … end`, #454) is not among `userVAs`, and overrides
-    // the prelude's root, which `preludeVAs` holds, only once it is marked.
-    if (preludeVAs.size === 0) {
-      return;
-    }
-    // The prelude's declarations, keyed by their STABLE BARE name — never the
-    // post-scoping identifier. The two passes of `scopeDefineInstances`
-    // classify independently (the prelude by its own type-name census, the
-    // user files by theirs), so the same bare name can come out as different
-    // global keys on the two sides: the prelude's channel-typed `typewriter`
-    // keeps the bare key (`typewriter` is a prelude type name) while a user's
-    // `define typewriter as channel` scopes to `$channel_typewriter`. An
-    // identifier-keyed gate missed exactly those overrides, and the back-fill
-    // silently never ran — a partial override lost every builtin field the
-    // author didn't restate. The VALUE lookup inside
-    // `backfillBuiltinDefaults` is already (type, name)-keyed against the
-    // prelude context, so a bare-name gate can't over-apply: a user define
-    // that merely shares a name with an unrelated builtin misses that lookup
-    // and no-ops.
-    const preludeNames = new Set<string>();
     for (const obj of preludeVAs) {
       if (obj instanceof ParsedVariableAssignment) {
         obj.isPreludeDeclaration = true;
-        const bare =
-          obj.structDefinition?.name?.name ?? obj.identifier?.name;
-        if (bare) {
-          preludeNames.add(bare);
-        }
       }
-    }
-    let preludeContext: Record<string, any> | undefined;
-    for (const obj of userVAs) {
-      if (!(obj instanceof ParsedVariableAssignment)) {
-        continue;
-      }
-      const bare = obj.structDefinition?.name?.name ?? obj.identifier?.name;
-      if (!bare || !preludeNames.has(bare)) {
-        continue;
-      }
-      // Resolved lazily so a program with no overrides never touches the cache.
-      preludeContext ??= getCompiledPrelude().context;
-      this.backfillBuiltinDefaults(obj, preludeContext);
-    }
-  }
-
-  /** Copy the prelude's values for every property an overriding define did NOT
-   *  restate into that define's `__def` table, so a partial override keeps the
-   *  builtin's other fields. Mirrors {@link inheritDefaults}, which does the
-   *  same for the compile-time `program.context` view — the runtime table is a
-   *  separate channel (the engine reads it, not `program.context`), so it needs
-   *  its own merge or the two views disagree. */
-  protected backfillBuiltinDefaults(
-    va: ParsedVariableAssignment,
-    preludeContext: Record<string, any>,
-  ): void {
-    const type = va.structDefinition?.type?.name;
-    const name = va.structDefinition?.name?.name;
-    if (!type || !name) {
-      return;
-    }
-    const builtinStruct = preludeContext?.[type]?.[name];
-    if (!builtinStruct || typeof builtinStruct !== "object") {
-      return;
-    }
-    // `va.expression` is the `__def({ props }, name, parent)` call the define
-    // lowerers emit; its first argument is the property table.
-    const call = va.expression;
-    if (!(call instanceof FunctionCall)) {
-      return;
-    }
-    const table = call.args?.[0];
-    if (!(table instanceof ObjectExpression)) {
-      return;
-    }
-    const authored = new Set<string>();
-    for (const entry of table.entries) {
-      if (typeof entry.key === "string") {
-        authored.add(entry.key);
-      }
-    }
-    for (const [k, v] of Object.entries(builtinStruct)) {
-      // `$type` / `$name` are context bookkeeping, re-derived by `__def` from
-      // its own args; `__storeProps` and friends are the define's own hidden
-      // modifier lists and must not be inherited from the builtin.
-      if (k.startsWith("$") || k.startsWith("__")) {
-        continue;
-      }
-      if (authored.has(k) || v === undefined) {
-        continue;
-      }
-      table.addEntry(new ObjectExpressionEntry(k, contextValueToExpression(v)));
     }
   }
 

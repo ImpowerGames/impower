@@ -108,7 +108,9 @@ import {
 // hidden `__readProps` / `__writeProps` lists for future enforcement.
 
 interface DefineProperty {
+  // Empty for a computed key (`[expr] = …`), whose `key` is evaluated at init.
   name: string;
+  key?: Expression;
   expr: Expression;
   // "store" | "local" | "const" | "" — from LuauScopeModifier.
   scope: string;
@@ -439,8 +441,11 @@ export function lowerLuauDefine(
         entryExpr = contextValueToExpression(ctxValue);
       }
     }
-    entries.push(new ObjectExpressionEntry(prop.name, entryExpr));
+    entries.push(new ObjectExpressionEntry(prop.key ?? prop.name, entryExpr));
   }
+  // A computed key's name is unknown until init, so it takes no modifier
+  // list, struct property or context entry.
+  const named = properties.filter((p) => !p.key);
   for (const method of methodNodes) {
     const closure = lowerDefineMethod(method.name, method.node, ctx);
     if (closure) {
@@ -469,15 +474,15 @@ export function lowerLuauDefine(
   };
   pushNameList(
     "__storeProps",
-    properties.filter((p) => p.scope === "store").map((p) => p.name),
+    named.filter((p) => p.scope === "store").map((p) => p.name),
   );
   pushNameList(
     "__readProps",
-    properties.filter((p) => p.access === "read").map((p) => p.name),
+    named.filter((p) => p.access === "read").map((p) => p.name),
   );
   pushNameList(
     "__writeProps",
-    properties.filter((p) => p.access === "write").map((p) => p.name),
+    named.filter((p) => p.access === "write").map((p) => p.name),
   );
 
   const defineExpr = new FunctionCall(new Identifier("__def"), [
@@ -503,7 +508,7 @@ export function lowerLuauDefine(
     // level). Without this, `define X as character` registers the struct
     // KEY but with no `name` prop, so the engine can't match a dialogue
     // cue (`RAFFLES:`) to its character and every cue warns + no portrait.
-    const propertyDefs = properties.map(
+    const propertyDefs = named.map(
       (p) => new StructPropertyDefinition(1, new Identifier(p.name), p.expr),
     );
     structDef = new StructDefinition(propertyDefs);
@@ -553,7 +558,7 @@ export function lowerLuauDefine(
     const name = nameIdentifier.name ?? "";
     if (type && name) {
       const struct: Record<string, unknown> = { $type: type, $name: name };
-      for (const prop of properties) {
+      for (const prop of named) {
         // A bare/dotted reference used as a SCALAR value (e.g. a
         // `filtered_image`'s `image = bunny_realization`) is a struct
         // reference, not a string — it must reach context as a
@@ -601,7 +606,7 @@ export function lowerLuauDefine(
         $type: type,
         $name: "$default",
       };
-      for (const prop of properties) {
+      for (const prop of named) {
         let value = coerceScalarLiteral(prop.value, ctx);
         if (value === undefined) {
           value = expressionToContextValue(prop.expr);
@@ -736,6 +741,7 @@ function readPropertyDefinition(
   // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
   // plain identifier (`name = …`).
   let name: string | null = null;
+  let keyExpr: Expression | null = null;
   const bracketAssignment = getDescendent("LuauBracketKeyAssignment", propNode);
   if (bracketAssignment) {
     const indexNode = getDescendent(
@@ -744,8 +750,9 @@ function readPropertyDefinition(
     );
     if (!indexNode) return null;
     // Only STRING-LITERAL keys are representable in the compile-time struct;
-    // computed keys (`[expr]`) stay runtime-only (the __def table still carries
-    // them). The key is the string's value, its escapes read.
+    // a computed key (`[expr]`) is runtime-only: the __def table carries it as
+    // an expression key evaluated at init, and the context never sees it. The
+    // key is the string's value, its escapes read.
     const key = readExpressionAst(containerValueNodes(indexNode), ctx);
     if (
       key?.expr instanceof AstExprConstantString &&
@@ -753,6 +760,12 @@ function readPropertyDefinition(
     ) {
       const range = rangeOf(key.expr.location, ctx);
       name = processLuauEscapes(stripQuotes(ctx.read(range.from, range.to)));
+    } else if (key) {
+      keyExpr = lowerExpression(key.expr, key.source, ctx);
+      if (keyExpr) {
+        stampDebugMetadata([keyExpr], indexNode.from, indexNode.to, ctx);
+        name = "";
+      }
     }
     if (name == null) return null;
   } else {
@@ -819,5 +832,13 @@ function readPropertyDefinition(
     ? ctx.read(accessNode.from, accessNode.to).trim()
     : "";
 
-  return { name, expr, scope, access, node: propNode, value };
+  return {
+    name,
+    ...(keyExpr ? { key: keyExpr } : {}),
+    expr,
+    scope,
+    access,
+    node: propNode,
+    value,
+  };
 }
