@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 226,
-  "previous": "27e21279146049d6d8e5db196c8f9736fc6ccef7",
+  "seq": 227,
+  "previous": "f355d991ceb6677f260c459f3b3bd57fcaafc8f0",
   "snapshotParents": [],
-  "time": "2026-10-16T15:47:46.251Z",
+  "time": "2026-10-16T16:07:14.709Z",
   "kind": "auto",
-  "transition": "verify of #1934",
+  "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 164,
+    "recordRevision": 165,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2573,6 +2573,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\705-migrate-engine-tests-3",
       "branch": "test/705-migrate-engine-tests-3",
       "classifier": "removed  impower.worktrees\\test\\705-migrate-engine-tests-3               test/705-migrate-engine-tests-3               941.2 MB   merged into origin/main; origin/test/705-migrate-engine-tests-3 still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_module"
+    },
+    {
+      "time": "2026-10-16T16:07:12.152Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1920-store-call-spread",
+      "branch": "feat/1920-store-call-spread",
+      "classifier": "removed  impower.worktrees\\feat\\1920-store-call-spread                   feat/1920-store-call-spread                       984.7 MB   merged into origin/main; origin/feat/1920-store-call-spread still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-"
     }
   ],
   "verifications": [],
@@ -2582,21 +2588,27 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T15:47:45.139Z",
+      "observedAt": "2026-10-16T16:07:13.960Z",
       "held": true,
-      "exists": false
+      "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block": {
       "ticket": 1933,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T15:47:45.139Z",
+      "observedAt": "2026-10-16T16:07:13.960Z",
       "held": false,
-      "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": false,
+      "exists": false,
+      "lastObserved": {
+        "at": "2026-10-16T15:47:45.139Z",
+        "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
+        "dirty": false,
+        "unpushed": true
+      },
       "pr": 1947,
       "reviewJobs": [
         {
@@ -2827,13 +2839,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:26:32.480Z",
-      "event": "resume-intent",
-      "ticket": 1632,
-      "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
-      "sessionId": "0d9b203c-af40-46b9-9a14-51bc116ba837"
-    },
     {
       "time": "2026-10-15T23:26:40.890Z",
       "event": "resumed",
@@ -3527,6 +3532,11 @@
       "time": "2026-10-16T15:47:43.605Z",
       "event": "verified",
       "ticket": 1934
+    },
+    {
+      "time": "2026-10-16T16:07:12.154Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1920-store-call-spread"
     }
   ]
 }
