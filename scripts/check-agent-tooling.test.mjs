@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-check-discovery-"));
@@ -105,6 +105,23 @@ assert.notEqual(concurrentFailure.status, 0, "a failing check fails a concurrent
 assert.match(concurrentFailure.stdout, /DONE: .agents\/skills\/coverage-11.test.mjs: failed; exit=1/);
 assert.match(concurrentFailure.stdout, /1 failed, 0 not run/);
 for (const i of [10, 11, 12, 13]) put(`.agents/skills/coverage-${i}.test.mjs`, 'console.log("fixture passed");');
+// A timeout stops launches the moment it fires, not when the child's close
+// is confirmed. The preload makes the runner's kill fail, so the timed-out
+// check (coverage-10, which exits by itself at 5 s) closes late; the check
+// beside it (coverage-11) finishes at 3.5 s, and nothing queued behind them
+// may start in between.
+put("kill-refused.mjs", 'import cp from "node:child_process"; import { syncBuiltinESMExports } from "node:module"; const original = cp.execFileSync; cp.execFileSync = (file, ...rest) => { if (file === "taskkill") throw new Error("fixture: taskkill refused"); return original(file, ...rest); }; const kill = process.kill; process.kill = (pid, ...rest) => { if (pid < 0) throw new Error("fixture: group kill refused"); return kill(pid, ...rest); }; syncBuiltinESMExports();');
+put(".agents/skills/coverage-10.test.mjs", "setTimeout(() => {}, 5000);");
+put(".agents/skills/coverage-11.test.mjs", "// agent-tooling-timeout-ms: 10000\nsetTimeout(() => {}, 3500);");
+const lateClose = run({ AGENT_TOOLING_TIMEOUT_MS: "1500", NODE_OPTIONS: `--max-old-space-size=1024 --import=${pathToFileURL(path.join(scratch, "kill-refused.mjs")).href}` }, ["--concurrency", "2"]);
+assert.equal(lateClose.status, 1, lateClose.stderr);
+assert.match(lateClose.stdout, /DONE: .agents\/skills\/coverage-10.test.mjs: timed out/);
+assert.match(lateClose.stdout, /DONE: .agents\/skills\/coverage-11.test.mjs: passed/);
+assert.match(lateClose.stderr, /ABORT: cleanup was not confirmed: fixture: (?:taskkill|group kill) refused/);
+assert.doesNotMatch(lateClose.stdout, /DONE: .agents\/skills\/coverage-12.test.mjs/, `a check queued behind a timed-out check launched while its cleanup was unconfirmed:\n${lateClose.stdout}`);
+assert.match(lateClose.stdout, /NOT RUN: .agents\/skills\/coverage-12.test.mjs/);
+for (const i of [10, 11]) put(`.agents/skills/coverage-${i}.test.mjs`, 'console.log("fixture passed");');
+fs.unlinkSync(path.join(scratch, "kill-refused.mjs"));
 const badTier = run({}, ["--tier", "fast"]);
 assert.notEqual(badTier.status, 0, "an unknown tier refuses");
 assert.match(badTier.stderr, /--tier must be skills, drivers or all, not fast/);

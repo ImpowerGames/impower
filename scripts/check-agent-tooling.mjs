@@ -91,7 +91,7 @@ for (const file of fixtures) {
 // written live, since its job is to show that a long check is still alive.
 const header = (file) => fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/, 10).join("\n");
 const serialOf = (file) => header(file).match(/^(?:\/\/|#) agent-tooling-serial: (.+)$/m)?.[1];
-async function runCheck(file) {
+async function runCheck(file, onTimeout) {
   const buffered = [];
   const out = (text) => buffered.push([process.stdout, `${text}\n`]);
   const err = (text) => buffered.push([process.stderr, `${text}\n`]);
@@ -118,6 +118,11 @@ async function runCheck(file) {
     const progress = setInterval(() => console.log(`RUNNING: ${file}: ${Date.now() - started} ms; awaiting exit`), 30000);
     const timer = setTimeout(() => {
       timedOut = true;
+      // The scheduler stops launching now, not when the child's close is
+      // confirmed: that can take up to the cleanup deadline, during which
+      // another check's completion would otherwise admit queued checks
+      // beside a child whose cleanup is still unconfirmed.
+      onTimeout();
       err(`TIMEOUT: ${file}; stopping launched ${process.platform === "win32" ? "process tree" : "process group"} ${child.pid}`);
       try {
         if (child.exitCode !== null || child.signalCode !== null) throw new Error("launched parent already exited; refusing an unowned process identifier, inspect remaining descendants");
@@ -153,10 +158,12 @@ async function runCheck(file) {
 }
 // Launch in inventory order, at most `concurrency` at a time. A serial-only
 // check waits for every running check to finish and holds the machine until
-// it exits. An abort stops further launches; checks already running finish.
+// it exits. An abort (a timeout the moment it fires, or an unconfirmed
+// cleanup) stops further launches; checks already running finish.
 await new Promise((resolve) => {
   const queue = [...candidates];
   let active = 0, exclusive = false, aborted = false;
+  const abort = () => { aborted = true; };
   const pump = () => {
     while (!aborted && !exclusive && queue.length && active < concurrency) {
       const serial = fs.existsSync(path.join(root, queue[0])) && /\.test\.(?:mjs|sh)$/.test(queue[0]) && serialOf(queue[0]) !== undefined;
@@ -164,7 +171,7 @@ await new Promise((resolve) => {
       const file = queue.shift();
       active++;
       if (serial) exclusive = true;
-      runCheck(file).then(({ abort }) => { active--; if (serial) exclusive = false; if (abort) aborted = true; pump(); });
+      runCheck(file, abort).then((result) => { active--; if (serial) exclusive = false; if (result.abort) abort(); pump(); });
       if (serial) break;
     }
     if (active === 0 && (aborted || !queue.length)) resolve();

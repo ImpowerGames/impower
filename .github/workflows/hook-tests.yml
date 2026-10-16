@@ -47,10 +47,11 @@ jobs:
         .github/workflows/changed-paths.yml
 
   # The drivers tier reads these paths: the driver skills' own scripts and
-  # SKILL.md files, the scripts/ tree minus what no drivers-tier check reads
-  # (the notifier has its own workflow, the bench TypeScript sources run
-  # through the workspace install the tier does not have, the lowerer baseline
-  # belongs to the typecheck workflow, and the two unreferenced scripts), the
+  # SKILL.md files, the scripts/ tree (the windows-hide scanner reads every
+  # tracked script under it, the notifier and dev-preview included, and the
+  # engine-bench check greps all of scripts/bench, TypeScript included) minus
+  # the two files no check reads: the lowerer baseline, which belongs to the
+  # typecheck workflow, and the sessions transplant script. It also reads the
   # reviewer prompt template the prompt builder tests, the generated reviewer
   # definitions, and the package manifests and ignore file the link and
   # test-suite checks read. The filing preservation check also reads the hooks
@@ -73,10 +74,7 @@ jobs:
         .claude/reviewer-models.json
         .codex/**
         scripts/**
-        !scripts/agent-notification-alerts/**
-        !scripts/bench/*.ts
         !scripts/lowerer-conventions-baseline.json
-        !scripts/dev-preview.mjs
         !scripts/transplant-desktop-sessions.ps1
         .gitignore
         package.json
