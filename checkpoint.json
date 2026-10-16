@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 146,
-  "previous": "57e9cce978ca788c98fe0ee79e9cfd56f1514b59",
+  "seq": 147,
+  "previous": "f7acce3e4f4e562cfb8c58b48914c331f5de2b01",
   "snapshotParents": [],
-  "time": "2026-10-16T04:52:11.888Z",
+  "time": "2026-10-16T04:52:25.616Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1611",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 108,
+    "recordRevision": 109,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -231,30 +231,36 @@
       "results": []
     },
     "1611": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "requestedEffort": "medium",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
-        "branch": "fix/1623-twin-chunk-alignment",
-        "artifactParent": null,
-        "handle": {
-          "kind": "process",
-          "pid": 40848,
-          "start": "639277092958357626",
-          "host": "DESKTOP-726EO47"
-        },
-        "sessionId": "72838ba2-2c24-4498-a2a3-13d507e4a877",
-        "verified": true,
-        "adopted": {
-          "pr": 1918,
-          "rounds": 0
-        },
-        "since": "2026-10-16T01:49:23.653Z"
-      },
+      "owner": null,
       "pending": null,
-      "history": [],
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "requestedEffort": "medium",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
+            "branch": "fix/1623-twin-chunk-alignment",
+            "artifactParent": null,
+            "handle": {
+              "kind": "process",
+              "pid": 40848,
+              "start": "639277092958357626",
+              "host": "DESKTOP-726EO47"
+            },
+            "sessionId": "72838ba2-2c24-4498-a2a3-13d507e4a877",
+            "verified": true,
+            "adopted": {
+              "pr": 1918,
+              "rounds": 0
+            },
+            "since": "2026-10-16T01:49:23.653Z"
+          },
+          "released": "process 40848 is gone; process 58912 is gone and no process names its launch directory; the resumed transcript /c/Users/Brode/AppData/Local/Temp/impower-writers/1893/resume-1623-e2063ace-5e20-48c2-b13e-8ed08ba3e3dd/out.jsonl ends with end_turn after reporting head c447e94eb green; PR 1918 merged at d6d6f27200c062972a71d30e4adcbe4dc8ca6648 through the gate",
+          "time": "2026-10-16T04:52:21.570Z"
+        }
+      ],
       "results": []
     },
     "1613": {
@@ -1735,180 +1741,7 @@
     }
   ],
   "verifications": [],
-  "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment": {
-      "ticket": 1611,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
-      "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T04:52:11.225Z",
-      "held": true,
-      "head": "c447e94eb26675819ee800d3a6622b206590bbf2",
-      "remoteHead": "c447e94eb26675819ee800d3a6622b206590bbf2",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1918,
-      "reviewJobs": [
-        {
-          "job": "pr-1918/round-1/launch-bound-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-bound",
-            "reviewerId": "bound",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "c18ffb8c0886c7e6c420ed8fab36484f629d363a",
-            "completedRoundReviewers": {
-              "incr": 1
-            },
-            "time": "2026-10-16T02:20:37.414Z"
-          },
-          "round": 1,
-          "reviewerId": "bound",
-          "attempt": 1,
-          "reviewedHead": "c18ffb8c0886c7e6c420ed8fab36484f629d363a",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "incr": 1,
-            "bound": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6206725464
-          ]
-        },
-        {
-          "job": "pr-1918/round-1/launch-incr-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-incr",
-            "reviewerId": "incr",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "ebdaaacb00109edecda42519a352456125186a77",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T01:42:09.380Z"
-          },
-          "round": 1,
-          "reviewerId": "incr",
-          "attempt": 1,
-          "reviewedHead": "ebdaaacb00109edecda42519a352456125186a77",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "incr": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "bound",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6206311988
-          ]
-        },
-        {
-          "job": "pr-1918/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "500014ad35accab637cdd7366024d166da586bd6",
-            "completedRoundReviewers": {
-              "incr": 1,
-              "bound": 1
-            },
-            "time": "2026-10-16T02:37:12.151Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "500014ad35accab637cdd7366024d166da586bd6",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "incr": 1,
-            "bound": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6206879903
-          ]
-        },
-        {
-          "job": "pr-1918/round-2/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
-            "completedRoundReviewers": {
-              "incr": 1,
-              "bound": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-16T03:14:55.237Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6207348579
-          ]
-        }
-      ]
-    }
-  },
+  "work": {},
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -2007,16 +1840,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:01:14.995Z",
-      "event": "acknowledged",
-      "ticket": 1632,
-      "confirmed": {
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "permissionMode": "bypassPermissions"
-      }
-    },
     {
       "time": "2026-10-15T22:01:25.735Z",
       "event": "verified",
@@ -2686,6 +2509,12 @@
       "event": "released",
       "ticket": 1623,
       "reason": "process 58912 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T04:52:21.571Z",
+      "event": "released",
+      "ticket": 1611,
+      "reason": "process 40848 is gone"
     }
   ]
 }
