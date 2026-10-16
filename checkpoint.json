@@ -2,10 +2,10 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 69,
-  "previous": "b7ec811a4e807278139f6b1ecb0b54dac2236bb3",
+  "seq": 70,
+  "previous": "e782ea71a02fb765b23a6cd553a443307e4c2635",
   "snapshotParents": [],
-  "time": "2026-10-16T18:30:52.706Z",
+  "time": "2026-10-16T18:43:24.859Z",
   "kind": "auto",
   "transition": "a new plan",
   "run": {
@@ -844,12 +844,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:30:50.817Z",
+      "observedAt": "2026-10-16T18:43:23.462Z",
       "held": true,
-      "head": "78f865241113d8f9ebbc810fe500821defc75df0",
-      "remoteHead": "78f865241113d8f9ebbc810fe500821defc75df0",
+      "head": "99f13721c737d931e3462c9875ee432fce5c3017",
+      "remoteHead": "99f13721c737d931e3462c9875ee432fce5c3017",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1960,
       "reviewJobs": [
         {
@@ -895,7 +895,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:30:50.817Z",
+      "observedAt": "2026-10-16T18:43:23.462Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -906,7 +906,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T18:30:50.815Z",
+    "at": "2026-10-16T18:43:23.460Z",
     "tickets": [
       {
         "number": 851,
@@ -916,9 +916,9 @@
       },
       {
         "number": 1637,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1960,
-        "reason": "process 47756 started 639277646500257141 is running"
+        "reason": "process 47756 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1637-6a277fa9-157c-4586-a29f-df6814e10c3e\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1798,
