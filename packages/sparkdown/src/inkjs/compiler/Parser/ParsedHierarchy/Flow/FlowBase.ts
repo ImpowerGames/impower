@@ -758,12 +758,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // script identifier, and the `$type_name` convention is reserved for
       // dual-TYPE names) immediately BEFORE the authored declaration: the
       // prelude's `__def` runs first and the authored one re-registers over
-      // it in place — the documented override semantic. The override pass has
-      // also already back-filled the authored `__def` table with every prelude
-      // value the author didn't restate (see
-      // SparkdownCompiler.applyBuiltinOverrides), so a partial override keeps
-      // the builtin's other fields. Two colliding AUTHORED defines still
-      // error below. Narrow on purpose: only another DEFINE may take a
+      // it in place — the documented override semantic. The authored `__def`
+      // fills its table from the builtin it replaces with every value the
+      // author didn't restate (see SparkdownCompiler.applyBuiltinOverrides),
+      // so a partial override keeps the builtin's other fields. Two colliding
+      // AUTHORED defines still error below. Narrow on purpose: only another DEFINE may take a
       // builtin's slot. A property declaration that happens to collide is not
       // an override and must fall through to the checks below.
       if (
