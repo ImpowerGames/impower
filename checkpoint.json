@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 227,
-  "previous": "f355d991ceb6677f260c459f3b3bd57fcaafc8f0",
+  "seq": 228,
+  "previous": "e328ec1ab502144544a758a7aff26bacd99d1bfa",
   "snapshotParents": [],
-  "time": "2026-10-16T16:07:14.709Z",
+  "time": "2026-10-16T16:07:23.700Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 165,
+    "recordRevision": 166,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2579,6 +2579,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
       "classifier": "removed  impower.worktrees\\feat\\1920-store-call-spread                   feat/1920-store-call-spread                       984.7 MB   merged into origin/main; origin/feat/1920-store-call-spread still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-"
+    },
+    {
+      "time": "2026-10-16T16:07:21.469Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1103-whole-line-conditional-nil",
+      "branch": "fix/1103-whole-line-conditional-nil",
+      "classifier": "removed  impower.worktrees\\fix\\1103-whole-line-conditional-nil           fix/1103-whole-line-conditional-nil               938.9 MB   merged into origin/main; origin/fix/1103-whole-line-conditional-nil still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/nod"
     }
   ],
   "verifications": [],
@@ -2588,7 +2594,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:07:13.960Z",
+      "observedAt": "2026-10-16T16:07:22.923Z",
       "held": true,
       "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
       "remoteHead": null,
@@ -2600,7 +2606,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:07:13.960Z",
+      "observedAt": "2026-10-16T16:07:22.923Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2839,19 +2845,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:26:40.890Z",
-      "event": "resumed",
-      "ticket": 1632,
-      "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
-      "handle": {
-        "kind": "process",
-        "pid": 40028,
-        "start": "639277036005706428",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42"
-      }
-    },
     {
       "time": "2026-10-15T23:48:19.351Z",
       "event": "check-in",
@@ -3537,6 +3530,11 @@
       "time": "2026-10-16T16:07:12.154Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1920-store-call-spread"
+    },
+    {
+      "time": "2026-10-16T16:07:21.470Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1103-whole-line-conditional-nil"
     }
   ]
 }
