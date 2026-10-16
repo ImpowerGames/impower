@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 200,
-  "previous": "87538ea7b65febca4de95dfcdfc290ded8674037",
+  "seq": 201,
+  "previous": "4c60f8fa20f73c86a24ffcf7179ea2456ac50200",
   "snapshotParents": [],
-  "time": "2026-10-16T12:51:50.289Z",
+  "time": "2026-10-16T13:17:50.762Z",
   "kind": "auto",
-  "transition": "verify of #1933",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 147,
@@ -2105,27 +2105,53 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:51:49.529Z",
+      "observedAt": "2026-10-16T13:17:49.574Z",
       "held": true,
-      "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "dd52a20c018b545998f8e0071972727b907bbc10",
+      "remoteHead": "dd52a20c018b545998f8e0071972727b907bbc10",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 59160
+      },
+      "pr": 1936,
+      "reviewJobs": [
+        {
+          "job": "pr-1936/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "dd52a20c018b545998f8e0071972727b907bbc10",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T13:06:55.407Z"
+          }
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block": {
       "ticket": 1933,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T12:51:49.529Z",
+      "observedAt": "2026-10-16T13:17:49.574Z",
       "held": true,
-      "exists": false
+      "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T12:50:49.311Z",
+    "at": "2026-10-16T13:17:49.572Z",
     "tickets": [
       {
         "number": 1201,
@@ -2208,14 +2234,14 @@
       {
         "number": 1917,
         "action": "observe",
-        "pr": null,
+        "pr": 1936,
         "reason": "process 46624 started 639277498593512774 is running"
       },
       {
         "number": 1933,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 33756 started 639277518570225878 is running"
       },
       {
         "number": 1934,
