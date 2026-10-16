@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 4,
-  "previous": "3404ed130b7fa91b3d2ece69bb59c6165e722fa7",
+  "seq": 5,
+  "previous": "c6628ae9b074b51d0e653c50efd4dd9714981aa0",
   "snapshotParents": [],
-  "time": "2026-10-16T16:20:45.475Z",
+  "time": "2026-10-16T16:21:59.050Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #851",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 4,
+    "recordRevision": 5,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -59,12 +59,42 @@
     "id": "cg-14350a8e-773f-4354-beb9-a8637c9cb365"
   },
   "title": "ORCH #1940: edit preview latency",
-  "tickets": {},
+  "tickets": {
+    "851": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "432efd6d-c055-4f07-a9f3-7b88b1ab2f3a",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
+        "branch": "perf/851-flow-scoped-renumbering",
+        "artifactParent": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T16:21:57.480Z"
+      },
+      "history": [],
+      "results": []
+    }
+  },
   "operations": [],
   "decisions": [],
   "diskRecoveries": [],
   "verifications": [],
-  "work": {},
+  "work": {
+    "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering": {
+      "ticket": 851,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
+      "branch": "perf/851-flow-scoped-renumbering",
+      "observedAt": "2026-10-16T16:21:59.050Z",
+      "held": true,
+      "exists": false
+    }
+  },
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -126,6 +156,13 @@
       "event": "group",
       "id": "cg-14350a8e-773f-4354-beb9-a8637c9cb365",
       "none": null
+    },
+    {
+      "time": "2026-10-16T16:21:57.481Z",
+      "event": "dispatch-intent",
+      "ticket": 851,
+      "route": "claude-cli",
+      "launchId": "432efd6d-c055-4f07-a9f3-7b88b1ab2f3a"
     }
   ]
 }
