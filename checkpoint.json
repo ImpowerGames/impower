@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 198,
-  "previous": "72adc6e6fa3fdc8514f2377d8a891395e50c50be",
+  "seq": 199,
+  "previous": "53443da5838eaea40fe88417176ad7e0af8f8898",
   "snapshotParents": [],
-  "time": "2026-10-16T10:15:32.334Z",
+  "time": "2026-10-16T10:45:24.008Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 161,
+    "recordRevision": 162,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2505,7 +2505,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T10:15:31.363Z",
+      "observedAt": "2026-10-16T10:45:23.197Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2641,7 +2641,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T10:15:31.363Z",
+      "observedAt": "2026-10-16T10:45:23.197Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2884,19 +2884,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:28:10.511Z",
-      "event": "launched",
-      "ticket": 1103,
-      "launchId": "8e9ee861-8d52-4a89-b46c-ef9fd66fd4ec",
-      "handle": {
-        "kind": "process",
-        "pid": 51856,
-        "start": "639277000901603101",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1103-8e9ee861-8d52-4a89-b46c-ef9fd66fd4ec"
-      }
-    },
     {
       "time": "2026-10-15T22:28:28.090Z",
       "event": "dispatch-intent",
@@ -3602,6 +3589,11 @@
     },
     {
       "time": "2026-10-16T10:15:30.091Z",
+      "event": "check-in",
+      "outcome": "no change: held on the weekly usage limit; maintainer decision on requests 5b339599 and d8a61713 pending; PRs #1928 and #1929 unchanged"
+    },
+    {
+      "time": "2026-10-16T10:45:22.081Z",
       "event": "check-in",
       "outcome": "no change: held on the weekly usage limit; maintainer decision on requests 5b339599 and d8a61713 pending; PRs #1928 and #1929 unchanged"
     }
