@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 311,
-  "previous": "1147f3e26dc0954bff04ce4206c2be8980672e2a",
+  "seq": 312,
+  "previous": "14f24333041fce1f54221552521e1951de048fd4",
   "snapshotParents": [],
-  "time": "2026-10-16T18:09:33.940Z",
+  "time": "2026-10-16T18:09:43.884Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #316",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 259,
+    "recordRevision": 260,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -74,10 +74,10 @@
         "launchId": "7d758442-e0f0-4ff2-b298-18525c405e4b",
         "handle": {
           "kind": "process",
-          "pid": 60204,
-          "start": "639277639598449164",
+          "pid": 29340,
+          "start": "639277709803853267",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-316-7d758442-e0f0-4ff2-b298-18525c405e4b"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a"
         },
         "verified": true,
         "brief": {
@@ -101,11 +101,13 @@
           "evidence": "cross-session message from writer impower-60 naming assignment 7d758442, read from its process command line (pid 58040: --model claude-opus-5-5 --effort medium --permission-mode bypassPermissions, CLAUDE_EFFORT=medium); out.jsonl init line agrees on model and mode",
           "deliveryId": "4251bf36"
         },
-        "resuming": {
-          "id": "b0693a95-6b2b-49a8-a986-88b25af21d1a",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a",
-          "time": "2026-10-16T18:09:31.082Z"
-        }
+        "resumes": [
+          {
+            "id": "b0693a95-6b2b-49a8-a986-88b25af21d1a",
+            "time": "2026-10-16T18:09:40.850Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a"
+          }
+        ]
       },
       "pending": null,
       "history": [],
@@ -4492,7 +4494,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:09:32.486Z",
+      "observedAt": "2026-10-16T18:09:42.419Z",
       "held": true,
       "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
@@ -4580,7 +4582,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T18:09:32.486Z",
+      "observedAt": "2026-10-16T18:09:42.419Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -4706,7 +4708,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:09:32.486Z",
+      "observedAt": "2026-10-16T18:09:42.419Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -4822,11 +4824,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T09:45:49.457Z",
-      "event": "check-in",
-      "outcome": "no change: held on the weekly usage limit; maintainer decision on requests 5b339599 and d8a61713 pending; PRs #1928 and #1929 unchanged"
-    },
     {
       "time": "2026-10-16T10:15:30.091Z",
       "event": "check-in",
@@ -5532,6 +5529,19 @@
       "ticket": 316,
       "id": "b0693a95-6b2b-49a8-a986-88b25af21d1a",
       "sessionId": "9e58f473-2803-4892-ba10-e44e624c7007"
+    },
+    {
+      "time": "2026-10-16T18:09:40.850Z",
+      "event": "resumed",
+      "ticket": 316,
+      "id": "b0693a95-6b2b-49a8-a986-88b25af21d1a",
+      "handle": {
+        "kind": "process",
+        "pid": 29340,
+        "start": "639277709803853267",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a"
+      }
     }
   ]
 }

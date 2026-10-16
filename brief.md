@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 311 (this commit), 2026-10-16T18:09:33.940Z, after the intent before a side effect. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 312 (this commit), 2026-10-16T18:09:43.884Z, after resume of #316. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -11,7 +11,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #316
 
-- claude-cli claude-opus-5-5 at medium, process 60204 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at medium, process 29340 on DESKTOP-726EO47
 - review job pr-1956/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 5ac47e2b0, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
 - review job pr-1956/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed eae96dcea, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
 
