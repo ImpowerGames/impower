@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 242,
-  "previous": "1a653556abec496a01fb803f6685f33fc50042d8",
+  "seq": 243,
+  "previous": "af3cca163886456da10403d4e2f1dfb7191d4829",
   "snapshotParents": [],
-  "time": "2026-10-16T17:00:57.867Z",
+  "time": "2026-10-16T17:02:43.242Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1953 (confirmed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 177,
+    "recordRevision": 178,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2446,9 +2446,9 @@
       "ticket": 1934,
       "pr": 1953,
       "expectHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T17:00:48.842Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1953 reads back merged as 4cb58645852778b9b0864fd6a2830fdb7a9f9411 at 40f7f8169a627b4c27d81790110a3bf79bddf842; the merge commit is on origin/main; it landed on 41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8, while its CI covered main 7ae0fffa2bdbe14b34ae87eb62beaabccabf3464, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
@@ -2626,7 +2626,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T17:02:37.780Z",
+      "mergeCommit": "4cb58645852778b9b0864fd6a2830fdb7a9f9411",
+      "mergedOnto": "41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -2843,7 +2848,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T17:00:56.963Z",
+      "observedAt": "2026-10-16T17:02:42.046Z",
       "held": true,
       "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
       "remoteHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
@@ -2931,7 +2936,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T17:00:56.963Z",
+      "observedAt": "2026-10-16T17:02:42.046Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -3170,19 +3175,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:01:36.213Z",
-      "event": "launched",
-      "ticket": 1623,
-      "launchId": "e5b583ab-32cc-45f0-a078-087926aa6f19",
-      "handle": {
-        "kind": "process",
-        "pid": 40848,
-        "start": "639277092958357626",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1623-e5b583ab-32cc-45f0-a078-087926aa6f19"
-      }
-    },
     {
       "time": "2026-10-16T01:01:45.714Z",
       "event": "launched",
@@ -3844,6 +3836,12 @@
       "id": "849b3954",
       "kind": "merge",
       "pr": 1953
+    },
+    {
+      "time": "2026-10-16T17:02:37.780Z",
+      "event": "operation-outcome",
+      "id": "849b3954",
+      "state": "confirmed"
     }
   ]
 }
