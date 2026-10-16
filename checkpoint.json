@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 139,
-  "previous": "e89b92dc7792373ca2b9ff30deabace6f6fb4611",
+  "seq": 140,
+  "previous": "fae7d66f040ac92f8ff3a67340d939f35006e0e7",
   "snapshotParents": [],
-  "time": "2026-10-16T04:18:36.390Z",
+  "time": "2026-10-16T04:28:17.805Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 103,
+    "recordRevision": 104,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -399,6 +399,11 @@
           },
           "evidence": "cross-session message from the writer session (impower-d5) at 2026-10-15 ~21:05 local naming the assignment and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
           "deliveryId": "10e32eb3"
+        },
+        "resuming": {
+          "id": "e2063ace-5e20-48c2-b13e-8ed08ba3e3dd",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1623-e2063ace-5e20-48c2-b13e-8ed08ba3e3dd",
+          "time": "2026-10-16T04:28:16.085Z"
         }
       },
       "pending": null,
@@ -1541,7 +1546,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T04:18:35.712Z",
+      "observedAt": "2026-10-16T04:28:17.149Z",
       "held": true,
       "head": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
       "remoteHead": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
@@ -1807,12 +1812,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T21:41:04.709Z",
-      "event": "group",
-      "id": "cg-771cbaca-b272-4288-84e0-40bb5c30257a",
-      "none": null
-    },
     {
       "time": "2026-10-15T21:57:41.085Z",
       "event": "dispatch-intent",
@@ -2493,6 +2492,13 @@
       "time": "2026-10-16T04:18:34.626Z",
       "event": "check-in",
       "outcome": "no change: PR 1918 (#1623/#1611) ready at 7c5f980fe with its report recorded, held behind #1921 (still open, CI cycle running) per the merge queue; main at 7cab47f9 (#1923); U3 brief drafted; no requests"
+    },
+    {
+      "time": "2026-10-16T04:28:16.086Z",
+      "event": "resume-intent",
+      "ticket": 1623,
+      "id": "e2063ace-5e20-48c2-b13e-8ed08ba3e3dd",
+      "sessionId": "72838ba2-2c24-4498-a2a3-13d507e4a877"
     }
   ]
 }
