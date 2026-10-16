@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 191,
-  "previous": "6d8a3684575b59cc7cdfe639d2e85b461360a819",
+  "seq": 192,
+  "previous": "b57b20c2fb21e0bfc3dda0f9b66837a18f608c56",
   "snapshotParents": [],
-  "time": "2026-10-16T12:18:47.770Z",
+  "time": "2026-10-16T12:19:10.581Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 141,
+    "recordRevision": 142,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2060,7 +2060,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:18:47.038Z",
+      "observedAt": "2026-10-16T12:19:09.752Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2166,19 +2166,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:26:42.321Z",
-      "event": "adopted",
-      "ticket": 1628,
-      "handle": {
-        "kind": "process",
-        "pid": 55348,
-        "start": "639276984318127089",
-        "host": "DESKTOP-726EO47"
-      },
-      "pr": 1910,
-      "rounds": 0
-    },
     {
       "time": "2026-10-15T22:27:05.364Z",
       "event": "verified",
@@ -2860,6 +2847,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1917-262d49e2-7b15-49b7-baa4-017198a902c1"
       }
+    },
+    {
+      "time": "2026-10-16T12:19:08.090Z",
+      "event": "check-in",
+      "outcome": "no change: #1917 writer running (restructuring the test into a short suite form plus a SPARKDOWN_CUMULATIVE=1 long form with every sub-issue seed, running the full form); no PR yet; no requests"
     }
   ]
 }
