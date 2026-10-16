@@ -425,6 +425,7 @@ export const inlineChoiceBranches = (
   objects: readonly ParsedObject[],
   holdsChoice: (obj: ParsedObject) => boolean,
   isChoice: (obj: ParsedObject) => boolean,
+  isLabel: (obj: ParsedObject) => boolean,
 ): void => {
   const owner = currentStatement(ctx);
   if (!owner) {
@@ -444,6 +445,8 @@ export const inlineChoiceBranches = (
     owner.bodies.splice(at, 1);
     const statements = body.statements;
     let choiceBody: BodyShape | undefined;
+    // Whether a choice of this body follows the body of the choice before.
+    let choiceFollows = false;
     statements.forEach((statement, i) => {
       // A block statement's objects hold those of its bodies, so a choice
       // written in a `do` block or a loop that this body holds is no choice
@@ -466,6 +469,7 @@ export const inlineChoiceBranches = (
           headEnd: statement.to,
           nextStart: statements[next]?.from ?? body.nextStart,
         };
+        choiceFollows = next < statements.length;
         owner.bodies.push(choiceBody);
         recordChoiceBody(choice, choiceBody);
         own(statement);
@@ -473,6 +477,16 @@ export const inlineChoiceBranches = (
       }
       if (choiceBody && !statement.objects.some(isChoice)) {
         choiceBody.statements.push(statement);
+        // A label between this choice and the next makes a shape the
+        // binary program's writer refuses (`emitObjects`) where it writes
+        // the statement. The label is a statement of the choice's body, an
+        // edit that this statement's syntax does not see, so the statement
+        // records it: its chunk is kept only while this reads the same, and
+        // a compile that adds the label writes the statement again and
+        // refuses it as a cold compile does (#1632).
+        if (choiceFollows && statement.objects.some(isLabel)) {
+          owner.reads.other.push("choose:a label between gated choices");
+        }
         return;
       }
       // A block that holds a choice ends the body of the choice before it,

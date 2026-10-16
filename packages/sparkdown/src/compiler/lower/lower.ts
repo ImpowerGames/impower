@@ -438,11 +438,19 @@ function lowerBlockStatements(
       rereadAt = undefined;
       reading = readFrom(i);
     }
+    // The last child the statements that begin here were read from. A
+    // statement cut short still lowers as the reader read it (`add(2)` then
+    // a line `()` is `add(2)()`), so what it lowered from, which its syntax
+    // and its memo run over, reaches the children past the cut too.
+    let readTo = i;
     // A `choose` block is Sparkdown's own, lowered from its node.
     const statements =
       reading && !TREE_LOWERED_STATEMENTS.has(child.name)
         ? readStatements(child, beginning[i]!, reading.source, ctx).map(
             (statement) => {
+              for (const ref of statement.nodes) {
+                readTo = Math.max(readTo, nodeIndex(ref) ?? i);
+              }
               const cut = cutAt(statement, i, reading!.source.errors);
               if (cut === undefined) return statement;
               if (rereadAt === undefined || cut < rereadAt) rereadAt = cut;
@@ -473,11 +481,7 @@ function lowerBlockStatements(
     let last: SyntaxNode = child;
     try {
       if (statements.length > 0 && reading) {
-        const lastIndex = Math.max(
-          i,
-          ...statements.flatMap((s) => s.nodes.map((n) => nodeIndex(n) ?? i)),
-        );
-        last = nodes[lastIndex]!;
+        last = nodes[readTo]!;
         const source = reading.source;
         const lowerRead = (c: LowerContext) =>
           lowerLuauStatementsAt(child, statements, { node: child, source }, c);
