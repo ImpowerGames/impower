@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 171,
-  "previous": "a59fdc8fd802ccaab30d54671677a5729b51082a",
+  "seq": 172,
+  "previous": "4359af8bb25334040873877269944a1bcdcc20f6",
   "snapshotParents": [],
-  "time": "2026-10-16T06:29:57.358Z",
+  "time": "2026-10-16T06:30:04.898Z",
   "kind": "auto",
-  "transition": "acknowledged of #1917",
+  "transition": "verify of #1917",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 124,
+    "recordRevision": 125,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -741,7 +741,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1917-4e3cff43-de59-4ecb-90b5-8869deb13480"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -2048,7 +2048,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T06:29:57.358Z",
+      "observedAt": "2026-10-16T06:30:04.898Z",
       "held": true,
       "exists": false
     }
@@ -2151,11 +2151,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:19:03.480Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1724-validation-window-lex"
-    },
     {
       "time": "2026-10-15T22:19:11.529Z",
       "event": "disk-recovery",
@@ -2857,6 +2852,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-16T06:30:03.367Z",
+      "event": "verified",
+      "ticket": 1917
     }
   ]
 }
