@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 266,
-  "previous": "24c4830c381863d930ba4c869d8e82fdb213cf56",
+  "seq": 267,
+  "previous": "136bf353a4c0790d1bbd254af50e747182aa8cdf",
   "snapshotParents": [],
-  "time": "2026-10-16T16:08:44.882Z",
+  "time": "2026-10-16T16:08:53.542Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 225,
+    "recordRevision": 226,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4032,6 +4032,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
       "classifier": "removed  impower.worktrees\\fix\\1632-chunk-validity-dependencies          fix/1632-chunk-validity-dependencies              984.6 MB   merged into origin/main; origin/fix/1632-chunk-validity-dependencies still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-16T16:08:51.103Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1719-watch-across-load",
+      "branch": "fix/1719-watch-across-load",
+      "classifier": "removed  impower.worktrees\\fix\\1719-watch-across-load                    fix/1719-watch-across-load                        981.8 MB   merged into origin/main; origin/fix/1719-watch-across-load still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1719-watch-across-load': Permission denied) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -4041,7 +4047,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:08:44.012Z",
+      "observedAt": "2026-10-16T16:08:52.496Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4286,12 +4292,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:07:01.162Z",
-      "event": "operation-outcome",
-      "id": "df04048c",
-      "state": "confirmed"
-    },
     {
       "time": "2026-10-16T04:08:38.669Z",
       "event": "released",
@@ -4992,6 +4992,11 @@
       "time": "2026-10-16T16:08:42.704Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1632-chunk-validity-dependencies"
+    },
+    {
+      "time": "2026-10-16T16:08:51.103Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1719-watch-across-load"
     }
   ]
 }
