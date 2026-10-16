@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 238 (this commit), 2026-10-16T15:20:07.583Z, after the outcome of operation 02611c11. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 239 (this commit), 2026-10-16T15:34:00.686Z, after the intent before a side effect. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -22,7 +22,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #839
 
 - claude-cli claude-opus-5-5 at medium, process 34548 on DESKTOP-726EO47
-- as of 2026-10-16T15:20:05.723Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end that may exist only there; recover those bytes there before restarting or overwriting this work
+- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end removes it once its coordinator and child are confirmed gone
 
 ## #887
 
@@ -34,3 +34,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1928/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 55c540149, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["inc","undirected"]), last event finished
 - review job pr-1928/round-4/launch-inc-1 on DESKTOP-726EO47: round 4 reviewed 6156c8716, completed {"inc":1} of planned ["inc","undirected"]; last launched reviewer inc attempt 1 of round 4 (planned ["inc","undirected"]), last event finished
 - review job pr-1928/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 9701b89b6, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["inc","undirected"]), last event finished
+
+## Unsettled operations
+
+- 9e48e521: merge of PR #1928 at 950ebc2d0de11eea19e757c82b4663637fea5de3, intent; settle it with checkpoint.mjs reconcile-operations before any retry
