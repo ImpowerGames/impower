@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 138,
-  "previous": "aefcbfdbcec3659ad9b7d54d0f4c8c97e048dfe0",
+  "seq": 139,
+  "previous": "8ffc950a42ff946c49040e2c9681bb0389cb922c",
   "snapshotParents": [],
-  "time": "2026-10-16T02:30:49.197Z",
+  "time": "2026-10-16T02:31:12.370Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "acknowledged of #1920",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 116,
+    "recordRevision": 117,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -854,7 +854,18 @@
           "time": "2026-10-16T02:30:24.841Z",
           "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
         },
-        "since": "2026-10-16T02:30:24.842Z"
+        "since": "2026-10-16T02:30:24.842Z",
+        "sessionId": "8b354c79-be70-4644-9c37-bf3126adf7bb",
+        "acknowledged": {
+          "time": "2026-10-16T02:31:10.504Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer impower-45 naming assignment 46e210e6, read from its claude.exe command line pid 47892 (--model claude-opus-5-5 --effort medium --permission-mode bypassPermissions) and CLAUDE_EFFORT=medium; out.jsonl init line reports model claude-opus-5-5 and permissionMode bypassPermissions",
+          "deliveryId": "24a80efb"
+        }
       },
       "pending": null,
       "history": [],
@@ -1923,7 +1934,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:30:49.196Z",
+      "observedAt": "2026-10-16T02:31:12.369Z",
       "held": true,
       "exists": false
     },
@@ -1932,7 +1943,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:30:49.196Z",
+      "observedAt": "2026-10-16T02:31:12.369Z",
       "held": true,
       "exists": false
     }
@@ -2023,11 +2034,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:22.387Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1664-binding-writes"
-    },
     {
       "time": "2026-10-15T22:18:31.158Z",
       "event": "disk-recovery",
@@ -2676,6 +2682,16 @@
       "time": "2026-10-16T02:30:47.731Z",
       "event": "check-in",
       "outcome": "Merged #1911 (192b2f2d) closing #457, #1325, #1502 and #1641; released its writer; #1920 filed and held behind #457 until the merge; dispatched writers for #1617 (low) and #1920 (medium); #316, #454 and #887 wait for #1617"
+    },
+    {
+      "time": "2026-10-16T02:31:10.505Z",
+      "event": "acknowledged",
+      "ticket": 1920,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
+      }
     }
   ]
 }
