@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 60,
-  "previous": "0a931848c7d3f5238bb0aef0fc811829117c2244",
+  "seq": 61,
+  "previous": "17d8524ed13a9ee13fa89bcca59891bb0bbc68f8",
   "snapshotParents": [],
-  "time": "2026-10-16T17:23:08.175Z",
+  "time": "2026-10-16T17:52:35.098Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 50,
@@ -631,41 +631,128 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:23:06.573Z",
+      "observedAt": "2026-10-16T17:52:33.334Z",
       "held": true,
       "head": "2928727422dfbbd147efa1b7789f9e634a9793ab",
       "remoteHead": "2928727422dfbbd147efa1b7789f9e634a9793ab",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 17324
+      },
       "pr": 1959,
-      "reviewJobs": []
+      "reviewJobs": [
+        {
+          "job": "pr-1959/round-1/launch-incremental-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-incremental",
+            "reviewerId": "incremental",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incremental",
+              "undirected"
+            ],
+            "head": "2928727422dfbbd147efa1b7789f9e634a9793ab",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T17:24:13.215Z"
+          },
+          "round": 1,
+          "reviewerId": "incremental",
+          "attempt": 1,
+          "reviewedHead": "2928727422dfbbd147efa1b7789f9e634a9793ab",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "incremental": 1
+          },
+          "plannedRoundReviewers": [
+            "incremental",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6221134958
+          ]
+        },
+        {
+          "job": "pr-1959/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incremental",
+              "undirected"
+            ],
+            "head": "2928727422dfbbd147efa1b7789f9e634a9793ab",
+            "completedRoundReviewers": {
+              "incremental": 1
+            },
+            "time": "2026-10-16T17:36:57.106Z"
+          }
+        }
+      ]
     },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run": {
       "ticket": 1637,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:23:06.573Z",
+      "observedAt": "2026-10-16T17:52:33.334Z",
       "held": true,
-      "head": "18722872bc484313b2c0220e5e176c1503deca00",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": false
+      "head": "78f865241113d8f9ebbc810fe500821defc75df0",
+      "remoteHead": "78f865241113d8f9ebbc810fe500821defc75df0",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 26552
+      },
+      "pr": 1960,
+      "reviewJobs": [
+        {
+          "job": "pr-1960/round-1/launch-incremental-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-incremental",
+            "reviewerId": "incremental",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incremental",
+              "undirected"
+            ],
+            "head": "78f865241113d8f9ebbc810fe500821defc75df0",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T17:39:26.911Z"
+          }
+        }
+      ]
     },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce": {
       "ticket": 1881,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T17:23:06.573Z",
+      "observedAt": "2026-10-16T17:52:33.334Z",
       "held": true,
-      "exists": false
+      "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T17:21:56.107Z",
+    "at": "2026-10-16T17:52:33.333Z",
     "tickets": [
       {
         "number": 851,
@@ -676,7 +763,7 @@
       {
         "number": 1637,
         "action": "observe",
-        "pr": null,
+        "pr": 1960,
         "reason": "process 47756 started 639277646500257141 is running"
       },
       {
