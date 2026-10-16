@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 280,
-  "previous": "ab8ff49cd94de7069a3a4891d5a9d2e4a4fab763",
+  "seq": 281,
+  "previous": "f1d4dc1e7cb8617c1b29ae714a42a6367c3fc4e2",
   "snapshotParents": [],
-  "time": "2026-10-16T16:13:55.617Z",
+  "time": "2026-10-16T16:15:26.963Z",
   "kind": "auto",
-  "transition": "claim of #1800",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 236,
@@ -4142,7 +4142,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:13:54.317Z",
+      "observedAt": "2026-10-16T16:15:25.488Z",
       "held": true,
       "exists": false
     },
@@ -4151,7 +4151,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:13:54.317Z",
+      "observedAt": "2026-10-16T16:15:25.488Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4296,7 +4296,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:13:54.317Z",
+      "observedAt": "2026-10-16T16:15:25.488Z",
       "held": true,
       "exists": false
     }
@@ -4304,7 +4304,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:13:44.438Z",
+    "at": "2026-10-16T16:15:25.485Z",
     "tickets": [
       {
         "number": 316,
@@ -4380,9 +4380,9 @@
       },
       {
         "number": 1800,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 31d5b5cf-d978-4fc3-8b44-fd76e05930c7 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1920,
@@ -4394,7 +4394,7 @@
         "number": 1951,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "2 writers already hold tickets against a limit of 3"
+        "reason": "3 writers already hold tickets against a limit of 3"
       }
     ],
     "remaining": [
