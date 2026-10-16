@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 137,
-  "previous": "a7778b4f9bef4ba33363bf287fb0867f260c3bb1",
+  "seq": 138,
+  "previous": "fd604ae596514e8c1ea7b45bf7044b59e0421812",
   "snapshotParents": [],
-  "time": "2026-10-16T03:59:11.056Z",
+  "time": "2026-10-16T03:59:18.292Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1623",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 101,
+    "recordRevision": 102,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -403,7 +403,26 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T03:59:16.478Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1918,
+            "reviewedHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
+            "rounds": "2 of 3, all on gpt-6.1-sol at high (native-codex-jsonl via start-coordinator). Round 1 (state 6206099657), three serial reviewers: incr report 6206311988 adjudication 6206574040 (inserted copy stole an edited function's chunk and symbol, raw line distance failed when the edit adds lines, lookup budgets exceeded; fixed c18ffb8c0); bound report 6206725464 adjudication 6206777342 (n x m cutoff fell back to position at 257 twins, stale description; fixed 500014ad3); undirected report 6206879903 adjudication 6206926329 (quadratic allocation on a large twin paste; fixed 49de1ace8). Round 2 (state 6207243253), one reviewer: undirected report 6207348579 adjudication 6207391387 (description only). Shared mechanism: pairing twins in a separate pass ahead of the position passes without their rules; each correction brought one rule into the twin pass.",
+            "findings": "None",
+            "verification": "Redgreen against merge base e84cd4836: 6 failed / 14 passed, then 20 passed; mutation checks: the 257-block case red on c18ffb8c0, the storage test red with the swap disabled, removing the shift fails the two line-adding cases, pairing in order fails three cases. On bbf9c7004: programChunkValidity 22, programChunkCrossing 41, programChunkIdentity, programIncrementalOracles 50, programIncrementalColdParity 44 passed. On 7c5f980fe: validity 22 and crossing 41 passed, filtered typecheck clean. Align-trace probes: untouched chunks emitted again go from 7 (#1623) and 4 (#1611) to none. Structural preview bench on the reference project, 3 alternating pairs: no measurable change, emitted counts identical. Editor booted at reference line 3514 and the preview rendered. Deviation accepted: the exchange-pass half of the fix direction is not shipped because no case reaches it once the twin pass exists and it would overturn the edit-in-place parts rule round 1 showed matters for saved closures; the PR body explains it. Residual risk disclosed: raw-line twin distance across scripts or with both run ends edited can change which candidate owns a chunk, never what the program runs; groups over 2^20 band cells fall back to position; the cumulative run (#1917) was not run.",
+            "ci": "every check on 7c5f980fe passed (28), 4 skipped by path; all four packages/sparkdown shards passed; 7c5f980fe = bbf9c7004 + merge of origin/main 50335b015 (#1919), touching none of the PR's files",
+            "next": "none from the writer; PR 1918 awaits the merge gate; resume to merge main again if it moves",
+            "changesAfterReviewedCommit": "one merge commit 7c5f980fe bringing in origin/main 50335b015; validity and crossing re-run on it",
+            "notes": "Sweep: a reverse edit whose incremental program differs from cold on base was reproduced on 192b2f2da and attached to #1627 (comment 6207397449). The filer's scratch worktree remains at C:/Users/Brode/Documents/GitHub/impower.worktrees/repro/filer-f0d14c2f55e04b00a60a2cbe0222659d (record impower.filer-jobs/f0d14c2f-55e0-4b00-a60a-2cbe0222659d/owner.json) because filer-worktree remove refused an untracked zzRepro.test.ts. Feedback on #510: 6207720231 and 6207720536. Adjudication 6206574040 was corrected in place for a wrong SHA.",
+            "source": "cross-session message from writer session impower-d5 after its turn ended; transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1623-e5b583ab-32cc-45f0-a078-087926aa6f19/out.jsonl; PR facts confirmed on GitHub"
+          }
+        }
+      ]
     },
     "1628": {
       "owner": null,
@@ -1522,7 +1541,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T03:59:10.398Z",
+      "observedAt": "2026-10-16T03:59:17.619Z",
       "held": true,
       "head": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
       "remoteHead": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
@@ -1788,11 +1807,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T21:40:25.668Z",
-      "event": "checkpoints-enabled",
-      "remote": "origin"
-    },
     {
       "time": "2026-10-15T21:40:57.644Z",
       "event": "check-in-scheduled",
@@ -2473,6 +2487,13 @@
       "time": "2026-10-16T03:48:52.273Z",
       "event": "check-in",
       "outcome": "no change: PR 1918 (#1623/#1611) round 2 adjudicated, head 7c5f980fe waiting on CI, writer in its sweep (added a reduced reproduction to #1627, filed nothing new); merge queue is #1923 then #1921 then #1918; main at 50335b01; no requests"
+    },
+    {
+      "time": "2026-10-16T03:59:16.478Z",
+      "event": "result",
+      "ticket": 1623,
+      "pr": 1918,
+      "reviewedHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8"
     }
   ]
 }
