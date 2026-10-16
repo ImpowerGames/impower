@@ -2857,8 +2857,9 @@ export class SparkdownCompiler {
               state.fileResolutionState.runStack ??= [];
               state.fileResolutionState.runStack.push(resolvedFilePath);
             }
-            let runStory: ReturnType<typeof this.parseIncrementally> | null =
-              null;
+            let runStory: ReturnType<
+              SparkdownCompiler["parseIncrementally"]
+            > | null = null;
             try {
               runStory = this.parseIncrementally(
                 virtualUri,
