@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 37 (this commit), 2026-10-16T22:59:40.489Z, after a new plan. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 38 (this commit), 2026-10-16T22:59:49.375Z, after claim of #1963. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -19,3 +19,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1975/round-3/launch-boundary-1 on DESKTOP-726EO47: round 3 reviewed da29d919f, completed {"boundary":1} of planned ["boundary","undirected"]; last launched reviewer boundary attempt 1 of round 3 (planned ["boundary","undirected"]), last event finished
 - review job pr-1975/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 2fb944aa7, completed {"boundary":1,"undirected":1} of planned ["boundary","undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["boundary","undirected"]), last event finished
 - review job pr-1975/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 5415ccea5, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["undirected"]), last event finished
+
+## #1963
+
+- pending dispatch on claude-cli (claimed on DESKTOP-726EO47)

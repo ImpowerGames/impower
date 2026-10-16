@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 37,
-  "previous": "b633b4f4edc4fc3c9ad1a86b4afd82ba0609848c",
+  "seq": 38,
+  "previous": "40a13e06b0902cf9a24258d534fd0c678de3dd54",
   "snapshotParents": [],
-  "time": "2026-10-16T22:59:40.489Z",
+  "time": "2026-10-16T22:59:49.375Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1963",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 36,
+    "recordRevision": 37,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1181,6 +1181,25 @@
           }
         }
       ]
+    },
+    "1963": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "c7b0d9e3-f7ae-4c8a-ae6a-e1ef52a07fba",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
+        "branch": "feat/1963-retarget-internal-tracker",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T22:59:47.006Z"
+      },
+      "history": [],
+      "results": []
     }
   },
   "operations": [
@@ -1378,7 +1397,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:59:39.546Z",
+      "observedAt": "2026-10-16T22:59:48.345Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1647,6 +1666,15 @@
           ]
         }
       ]
+    },
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker": {
+      "ticket": 1963,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
+      "branch": "feat/1963-retarget-internal-tracker",
+      "observedAt": "2026-10-16T22:59:48.345Z",
+      "held": true,
+      "exists": false
     }
   },
   "snapshots": {},
@@ -1958,6 +1986,13 @@
       "ticket": 1962,
       "pr": 1975,
       "reviewedHead": "5415ccea549dc6631fed6412162345fa6af13210"
+    },
+    {
+      "time": "2026-10-16T22:59:47.007Z",
+      "event": "dispatch-intent",
+      "ticket": 1963,
+      "route": "claude-cli",
+      "launchId": "c7b0d9e3-f7ae-4c8a-ae6a-e1ef52a07fba"
     }
   ]
 }
