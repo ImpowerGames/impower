@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 144,
-  "previous": "c8937fbd77c47ab8063409c9b1262f87847c9f16",
+  "seq": 145,
+  "previous": "86a64b17e97a6952c67c1fb583c77684fb3df43e",
   "snapshotParents": [],
-  "time": "2026-10-16T04:51:28.809Z",
+  "time": "2026-10-16T04:51:36.789Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1623",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 107,
+    "recordRevision": 108,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -361,55 +361,61 @@
       ]
     },
     "1623": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
-        "branch": "fix/1623-twin-chunk-alignment",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "launchId": "e5b583ab-32cc-45f0-a078-087926aa6f19",
-        "handle": {
-          "kind": "process",
-          "pid": 58912,
-          "start": "639277217029725854",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1623-e2063ace-5e20-48c2-b13e-8ed08ba3e3dd"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment e5b583ab-32cc-45f0-a078-087926aa6f19. You are the writer for ImpowerGames/impower ticket #1623 (An edit elsewhere makes an incremental compile emit again the chunk of an untouched statement around a function defined in a do block (twin functions swap chunks)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment e5b583ab-32cc-45f0-a078-087926aa6f19 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1623 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment on branch fix/1623-twin-chunk-alignment from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit U1 of umbrella #1893, whose Description and Scope are the design of record: twin alignment in ChunkStore.align. The run matching (ChunkStore.ts around 3112-3164 at e912fc40c: the front pass, the back pass, then in order) pairs same-syntax statements by position before it checks fits, so when the whole document is re-lowered a twin that changed takes the old chunk of the twin that did not. Two cases share it, and one PR on this branch fixes both with a regression test each: (a) #1623 case 2: two do blocks each holding function inner(); replacing the empty line and 'scene ' with '  & add(2)' and a newline re-lowers everything, the first (edited) do block takes the second's chunk because a block statement's own syntax leaves its bodies out by design, fits passes on syntax, reads and values, and the untouched second block is emitted again (case 1, ' + 1' into the second twin's header, no longer reproduces: drop it). (b) The alternator case of #1611: two 'label mid' statements under different branches (after.mid and FLOW_2.after.mid); the back pass pairs the old after.mid chunk with the last label mid, fits fails on the values (label:after.mid against label:FLOW_2.after.mid), the chunk becomes that statement's edit-in-place inheritance, and the first label mid, which would fit it, finds it held because the #1496 exchange pass does not take a chunk from an edit-in-place partner. Fix direction from the 2026-10-15 root-cause comments: among same-syntax candidates, pair by fit and by distance (line, or the bodies' first statements) rather than by order alone, and let a fitting statement take a chunk an edit-in-place partner holds without fitting. Read the comments on #1623 and #1611 first; they carry the traces.\n- Closes lines: Closes #1623 and Closes #1611, both in Summary. #1611's first cause (the writer recording a resolution twice) landed in PR #1912 with its seed 10 and seed 2 tests in programChunkValidity.test.ts, so this PR is the second to land and carries #1611's Closes line; say in the PR body which cause landed where. Confirm on your base that programChunkValidity.test.ts still passes before you start.\n- Each regression test compiles the script incrementally and cold and asserts the same tree, program chunks and diagnostics, and that no untouched statement's chunk was emitted again, in the shapes under packages/sparkdown/src/tests/program (programChunkValidity.test.ts, programChunkIdentity.test.ts, programIncrementalColdParity.test.ts). Add a twin control where the second twin is the edited one, and a three-twin case, so the pairing is shown to follow the edit and not a fixed position.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; unit U3 (#1627, a carried block whose enclosing flow changed: keepCarried and CompilationAnnotator.staleRanges) waits for your merge, so do not change keepCarried's checks here. The fit check itself was just changed by PR #1912 (statement values and recorded resolutions compared as key sets, a recorded read for a label among gated choices, statement extent covering joined continuation lines); build on it, do not undo it.\n- Hand-over notes with the probe scripts that reproduced both cases on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/incremental-vs-cold/NOTES.md (probe-store.ts 1623|1611 for the align traces, probe-fits.ts 1611, probe-more.ts 1611, probe-program.ts, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since (PRs #1910, #1912, #1913, #1914); re-establish each case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files relative to the package> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Run programChunkValidity, programChunkIdentity, programIncrementalOracles and programIncrementalColdParity on your head and report them; the cumulative randomized-edit run is tracked by #1917 and is not yours to commit.\n- Another coordinator merges PRs on this repository at the same time and the merge gate admits only a head that contains current origin/main with CI green on it. Just before you mark the PR ready, fetch origin main and merge it in as a merge commit if it moved, let CI finish on that head in the foreground, and report that head; the coordinator may later resume you to merge main once more if it moves again before your turn in the merge queue.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "10e32eb3",
-          "attempts": 1,
-          "time": "2026-10-16T01:01:36.212Z",
-          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
-        },
-        "since": "2026-10-16T01:01:36.213Z",
-        "sessionId": "72838ba2-2c24-4498-a2a3-13d507e4a877",
-        "acknowledged": {
-          "time": "2026-10-16T01:02:24.421Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
+            "branch": "fix/1623-twin-chunk-alignment",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+            "launchId": "e5b583ab-32cc-45f0-a078-087926aa6f19",
+            "handle": {
+              "kind": "process",
+              "pid": 58912,
+              "start": "639277217029725854",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1623-e2063ace-5e20-48c2-b13e-8ed08ba3e3dd"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment e5b583ab-32cc-45f0-a078-087926aa6f19. You are the writer for ImpowerGames/impower ticket #1623 (An edit elsewhere makes an incremental compile emit again the chunk of an untouched statement around a function defined in a do block (twin functions swap chunks)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment e5b583ab-32cc-45f0-a078-087926aa6f19 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1623 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment on branch fix/1623-twin-chunk-alignment from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit U1 of umbrella #1893, whose Description and Scope are the design of record: twin alignment in ChunkStore.align. The run matching (ChunkStore.ts around 3112-3164 at e912fc40c: the front pass, the back pass, then in order) pairs same-syntax statements by position before it checks fits, so when the whole document is re-lowered a twin that changed takes the old chunk of the twin that did not. Two cases share it, and one PR on this branch fixes both with a regression test each: (a) #1623 case 2: two do blocks each holding function inner(); replacing the empty line and 'scene ' with '  & add(2)' and a newline re-lowers everything, the first (edited) do block takes the second's chunk because a block statement's own syntax leaves its bodies out by design, fits passes on syntax, reads and values, and the untouched second block is emitted again (case 1, ' + 1' into the second twin's header, no longer reproduces: drop it). (b) The alternator case of #1611: two 'label mid' statements under different branches (after.mid and FLOW_2.after.mid); the back pass pairs the old after.mid chunk with the last label mid, fits fails on the values (label:after.mid against label:FLOW_2.after.mid), the chunk becomes that statement's edit-in-place inheritance, and the first label mid, which would fit it, finds it held because the #1496 exchange pass does not take a chunk from an edit-in-place partner. Fix direction from the 2026-10-15 root-cause comments: among same-syntax candidates, pair by fit and by distance (line, or the bodies' first statements) rather than by order alone, and let a fitting statement take a chunk an edit-in-place partner holds without fitting. Read the comments on #1623 and #1611 first; they carry the traces.\n- Closes lines: Closes #1623 and Closes #1611, both in Summary. #1611's first cause (the writer recording a resolution twice) landed in PR #1912 with its seed 10 and seed 2 tests in programChunkValidity.test.ts, so this PR is the second to land and carries #1611's Closes line; say in the PR body which cause landed where. Confirm on your base that programChunkValidity.test.ts still passes before you start.\n- Each regression test compiles the script incrementally and cold and asserts the same tree, program chunks and diagnostics, and that no untouched statement's chunk was emitted again, in the shapes under packages/sparkdown/src/tests/program (programChunkValidity.test.ts, programChunkIdentity.test.ts, programIncrementalColdParity.test.ts). Add a twin control where the second twin is the edited one, and a three-twin case, so the pairing is shown to follow the edit and not a fixed position.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; unit U3 (#1627, a carried block whose enclosing flow changed: keepCarried and CompilationAnnotator.staleRanges) waits for your merge, so do not change keepCarried's checks here. The fit check itself was just changed by PR #1912 (statement values and recorded resolutions compared as key sets, a recorded read for a label among gated choices, statement extent covering joined continuation lines); build on it, do not undo it.\n- Hand-over notes with the probe scripts that reproduced both cases on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/incremental-vs-cold/NOTES.md (probe-store.ts 1623|1611 for the align traces, probe-fits.ts 1611, probe-more.ts 1611, probe-program.ts, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since (PRs #1910, #1912, #1913, #1914); re-establish each case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files relative to the package> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Run programChunkValidity, programChunkIdentity, programIncrementalOracles and programIncrementalColdParity on your head and report them; the cumulative randomized-edit run is tracked by #1917 and is not yours to commit.\n- Another coordinator merges PRs on this repository at the same time and the merge gate admits only a head that contains current origin/main with CI green on it. Just before you mark the PR ready, fetch origin main and merge it in as a merge commit if it moved, let CI finish on that head in the foreground, and report that head; the coordinator may later resume you to merge main once more if it moves again before your turn in the merge queue.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "10e32eb3",
+              "attempts": 1,
+              "time": "2026-10-16T01:01:36.212Z",
+              "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+            },
+            "since": "2026-10-16T01:01:36.213Z",
+            "sessionId": "72838ba2-2c24-4498-a2a3-13d507e4a877",
+            "acknowledged": {
+              "time": "2026-10-16T01:02:24.421Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from the writer session (impower-d5) at 2026-10-15 ~21:05 local naming the assignment and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+              "deliveryId": "10e32eb3"
+            },
+            "resumes": [
+              {
+                "id": "e2063ace-5e20-48c2-b13e-8ed08ba3e3dd",
+                "time": "2026-10-16T04:28:23.277Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1623-e2063ace-5e20-48c2-b13e-8ed08ba3e3dd"
+              }
+            ]
           },
-          "evidence": "cross-session message from the writer session (impower-d5) at 2026-10-15 ~21:05 local naming the assignment and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
-          "deliveryId": "10e32eb3"
-        },
-        "resumes": [
-          {
-            "id": "e2063ace-5e20-48c2-b13e-8ed08ba3e3dd",
-            "time": "2026-10-16T04:28:23.277Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1623-e2063ace-5e20-48c2-b13e-8ed08ba3e3dd"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 58912 is gone and no process names its launch directory; process 58912 is gone and no process names its launch directory; the resumed transcript /c/Users/Brode/AppData/Local/Temp/impower-writers/1893/resume-1623-e2063ace-5e20-48c2-b13e-8ed08ba3e3dd/out.jsonl ends with end_turn after reporting head c447e94eb green; PR 1918 merged at d6d6f27200c062972a71d30e4adcbe4dc8ca6648 through the gate",
+          "time": "2026-10-16T04:51:34.947Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-16T03:59:16.478Z",
@@ -1731,11 +1737,11 @@
   "verifications": [],
   "work": {
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment": {
-      "ticket": 1623,
+      "ticket": 1611,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T04:51:28.019Z",
+      "observedAt": "2026-10-16T04:51:36.127Z",
       "held": true,
       "head": "c447e94eb26675819ee800d3a6622b206590bbf2",
       "remoteHead": "c447e94eb26675819ee800d3a6622b206590bbf2",
@@ -2001,19 +2007,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:00:32.141Z",
-      "event": "launched",
-      "ticket": 1201,
-      "launchId": "924f2008-1121-474f-9f5f-ff1a78951482",
-      "handle": {
-        "kind": "process",
-        "pid": 55348,
-        "start": "639276984318127089",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1201-924f2008-1121-474f-9f5f-ff1a78951482"
-      }
-    },
     {
       "time": "2026-10-15T22:01:14.995Z",
       "event": "acknowledged",
@@ -2687,6 +2680,12 @@
       "event": "operation-outcome",
       "id": "ed21a3fb",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T04:51:34.947Z",
+      "event": "released",
+      "ticket": 1623,
+      "reason": "process 58912 is gone and no process names its launch directory"
     }
   ]
 }
