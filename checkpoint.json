@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 270,
-  "previous": "e5c28c679c3f502ab72d3938af04bea788716b25",
+  "seq": 271,
+  "previous": "94d5b282c38dc020fe30ed661fc266089eb4b57b",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:18.771Z",
+  "time": "2026-10-16T16:09:27.403Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 229,
+    "recordRevision": 230,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4056,6 +4056,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1909-fixed-misparse-closures",
       "branch": "test/1909-fixed-misparse-closures",
       "classifier": "removed  impower.worktrees\\test\\1909-fixed-misparse-closures             test/1909-fixed-misparse-closures                 939.0 MB   merged into origin/main; origin/test/1909-fixed-misparse-closures still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1909-fixed-misparse-closures': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-16T16:09:25.186Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1917-cumulative-edit-run",
+      "branch": "test/1917-cumulative-edit-run",
+      "classifier": "removed  impower.worktrees\\test\\1917-cumulative-edit-run                 test/1917-cumulative-edit-run                     939.1 MB   merged into origin/main; origin/test/1917-cumulative-edit-run still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run': Directory not empty) and dropped its record; the rest of the directory was removed directly; removed the empty test\\"
     }
   ],
   "verifications": [],
@@ -4065,7 +4071,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:09:17.958Z",
+      "observedAt": "2026-10-16T16:09:26.523Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4310,12 +4316,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:30:17.008Z",
-      "event": "released",
-      "ticket": 1617,
-      "reason": "process 60224 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-16T04:30:53.766Z",
       "event": "dispatch-intent",
@@ -5011,6 +5011,11 @@
       "time": "2026-10-16T16:09:16.578Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1909-fixed-misparse-closures"
+    },
+    {
+      "time": "2026-10-16T16:09:25.187Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1917-cumulative-edit-run"
     }
   ]
 }
