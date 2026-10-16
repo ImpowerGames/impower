@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 215,
-  "previous": "166d349eca84fced65fcf295a6554e9e070fadb4",
+  "seq": 216,
+  "previous": "551f687b548b16a7f540dbf428feedf8f84972e1",
   "snapshotParents": [],
-  "time": "2026-10-16T15:18:59.290Z",
+  "time": "2026-10-16T15:19:18.943Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 157,
+    "recordRevision": 158,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2512,7 +2512,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T15:18:58.395Z",
+      "observedAt": "2026-10-16T15:19:18.065Z",
       "held": true,
       "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
       "remoteHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
@@ -2736,13 +2736,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:53:35.526Z",
-      "event": "dispatch-intent",
-      "ticket": 1846,
-      "route": "claude-cli",
-      "launchId": "01c5d730-a671-44d3-98f5-684890d101cd"
-    },
     {
       "time": "2026-10-15T22:54:42.527Z",
       "event": "launched",
@@ -3435,6 +3428,11 @@
       "time": "2026-10-16T14:47:11.929Z",
       "event": "check-in",
       "outcome": "no change: #1933 draft PR in review round 1 (second reviewer bound running); GitHub GraphQL rate limit hit for the gh user during this check-in (PR listing failed; REST snapshot fine); #1934 blocked behind #1933; no requests"
+    },
+    {
+      "time": "2026-10-16T15:19:16.629Z",
+      "event": "check-in",
+      "outcome": "no change: #1933 draft PR 1947 at ddc8852b9 in review round 2 (reviewer running) after round-1 corrections; GraphQL rate limit has reset; #1934 blocked behind #1933; no requests"
     }
   ]
 }
