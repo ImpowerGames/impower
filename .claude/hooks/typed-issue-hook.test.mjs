@@ -859,6 +859,16 @@ for (const [label, command, shell] of allows) {
     ["gh issue create whose title holds an internal -R", `gh issue create --title "-R ${internal} x" --type Task`, "issue"],
     ["gh issue view inside bash -c", "bash -c 'gh issue view 12'", "issue"],
     ["gh issue view in a substitution", 'T="$(gh issue view 12 --json title)"', "issue"],
+    // gh's own repository order: the last repo flag in argument order, and a URL selector over any flag.
+    ["gh issue view whose last repo flag is the code repository", `gh issue view 12 --repo ${internal} -R ${code}`, "issue"],
+    ["gh issue view with -R internal before the subcommand and the code repository after", `gh -R ${internal} issue view 12 -R ${code}`, "issue"],
+    ["gh issue view by the code repository's URL with an internal --repo", `gh issue view https://github.com/${code}/issues/12 --repo ${internal}`, "issue"],
+    ["gh pr view --comments by the code repository's URL with an internal -R", `gh pr view https://github.com/${code}/pull/1975 --comments -R ${internal}`, "prView"],
+    // GH_REPO counts only when gh certainly inherits it.
+    ["gh issue view after GH_REPO internal and sudo, which resets the environment", `GH_REPO=${internal} sudo gh issue view 12`, "issue"],
+    ["gh issue view after GH_REPO internal and env -i", `GH_REPO=${internal} env -i gh issue view 12`, "issue"],
+    ["gh issue view in bash -c that unsets an inherited internal GH_REPO", `GH_REPO=${internal} bash -c 'unset GH_REPO; gh issue view 12'`, "issue"],
+    ["gh issue view in a substitution that unsets GH_REPO", `GH_REPO=${internal} bash -c 'T=$(unset GH_REPO; gh issue view 12)'`, "issue"],
     // gh pr
     ["gh pr comment", "gh pr comment 12 --body-file r.md", "prComment"],
     ["gh pr comment naming the code repository", `gh pr comment 12 -R ${code} --body x`, "prComment"],
@@ -897,6 +907,8 @@ for (const [label, command, shell] of allows) {
     ["gh api pull request reviews", `gh api repos/${code}/pulls/12/reviews`, "api"],
     ["gh api one review's comments", `gh api repos/${code}/pulls/12/reviews/3/comments`, "api"],
     ["gh api review request", `gh api -X POST repos/${code}/pulls/12/requested_reviewers -f "reviewers[]=x"`, "api"],
+    ["gh api repository-wide review comments", `gh api repos/${code}/pulls/comments`, "api"],
+    ["gh api one repository-wide review comment", `gh api repos/${code}/pulls/comments/5`, "api"],
     ["gh api discussions", `gh api repos/${code}/discussions`, "api"],
     ["gh api discussion comments", `gh api repos/${code}/discussions/3/comments`, "api"],
     ["gh api by the {owner}/{repo} placeholder", "gh api repos/{owner}/{repo}/issues/12/comments", "api"],
@@ -908,6 +920,8 @@ for (const [label, command, shell] of allows) {
     ["GraphQL pull request comments by variables", "gh api graphql -f owner=ImpowerGames -f name=impower -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { pullRequest(number: 1) { comments(first: 5) { nodes { body } } } } }'", "graphql"],
     ["GraphQL search by repo qualifier", `gh api graphql -f query='query { search(query: "repo:${code} crash", type: ISSUE, first: 5) { nodes { ... on Issue { title } } } }'`, "graphql"],
     ["GraphQL discussions", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { discussions(first: 1) { nodes { body } } } }'`, "graphql"],
+    ["GraphQL pull request timeline", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1975) { timeline(first: 100) { nodes { ... on IssueComment { body } ... on PullRequestReview { body } } } } } }'`, "graphql"],
+    ["GraphQL closing issue references", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1975) { closingIssuesReferences(first: 5) { nodes { body } } } } }'`, "graphql"],
     // curl, Invoke-RestMethod, irm, Invoke-WebRequest, iwr
     ["curl read of issue comments", `curl https://api.github.com/repos/${code}/issues/12/comments`, "api"],
     ["curl review POST", `curl -X POST https://api.github.com/repos/${code}/pulls/12/reviews -d '{"event":"APPROVE"}'`, "api"],
@@ -917,11 +931,16 @@ for (const [label, command, shell] of allows) {
     ["irm read of discussions", `irm https://api.github.com/repos/${code}/discussions`, "api"],
     ["Invoke-WebRequest read of review requests", `Invoke-WebRequest -Uri https://api.github.com/repos/${code}/pulls/12/requested_reviewers`, "api"],
     ["iwr read of the issues collection", `iwr https://api.github.com/repos/${code}/issues`, "api"],
+    ["curl read with an explicit port", `curl https://api.github.com:443/repos/${code}/issues/12`, "api"],
+    ["curl read through --url=", `curl --url=https://api.github.com/repos/${code}/issues/12`, "api"],
+    ["irm read through -Uri:", `irm -Uri:https://api.github.com/repos/${code}/issues/12`, "api", "powershell"],
+    ["curl comment POST whose body links a pull request", `curl -X POST https://api.github.com/repos/${code}/issues/1/comments -d '{"body":"see https://api.github.com/repos/${code}/pulls/2"}'`, "api"],
     ["Invoke-RestMethod GraphQL reviews", `Invoke-RestMethod -Method Post -Uri https://api.github.com/graphql -Body (@{query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1) { reviews(first: 5) { nodes { body } } } } }'} | ConvertTo-Json)`, "graphql"],
     // Typed creation, now scoped to the internal repository.
     ["gh issue create on the internal repository without --type", `gh issue create --title x --body y --repo ${internal}`, "typedIssue"],
     ["gh issue create with -R internal before the subcommand without --type", `gh -R ${internal} issue create --title x`, "typedIssue"],
     ["gh issue create with GH_REPO internal without --type", `GH_REPO=${internal} gh issue create --title x`, "typedIssue"],
+    ["gh issue create inheriting GH_REPO internal in bash -c without --type", `GH_REPO=${internal} bash -c 'gh issue create --title x'`, "typedIssue"],
     ["gh api create on the internal repository without type", `gh api -X POST repos/${internal}/issues -f title=x -F body=@b.md`, "typedApi"],
     ["curl create on the internal repository without type", `curl -X POST https://api.github.com/repos/${internal}/issues -d '{"title":"x"}'`, "typedHttp"],
     ["irm create on the internal repository without type", `irm -Method Post -Uri https://api.github.com/repos/${internal}/issues -Body @{title='x'}`, "typedHttp"],
@@ -959,6 +978,14 @@ for (const [label, command, shell] of allows) {
     ["gh issue comment on the internal repository", `gh issue comment 12 -R ${internal} --body-file c.md`],
     ["gh issue view by the internal repository's URL", `gh issue view https://github.com/${internal}/issues/12`],
     ["gh issue view with GH_REPO naming the internal repository", `GH_REPO=${internal} gh issue view 12`],
+    ["gh issue view with GH_REPO internal among other assignments", `X=1 GH_REPO=${internal} Y=2 gh issue view 12`],
+    ["gh issue view with GH_REPO internal given to env", `env GH_REPO=${internal} gh issue view 12`],
+    ["gh issue view in bash -c inheriting GH_REPO internal", `GH_REPO=${internal} bash -c 'gh issue view 12'`],
+    ["gh issue view in pwsh -Command inheriting GH_REPO internal", `GH_REPO=${internal} pwsh -NoProfile -Command 'gh issue view 12'`],
+    ["gh issue view whose last repo flag is the internal repository", `gh issue view 12 -R ${code} --repo ${internal}`],
+    ["gh issue view by the internal repository's URL with a code -R", `gh issue view https://github.com/${internal}/issues/12 -R ${code}`],
+    ["curl PATCH of a pull request body that links an issue", `curl https://api.github.com/repos/${code}/pulls/1975 -X PATCH -d '{"body":"See https://api.github.com/repos/${code}/issues/1962"}'`],
+    ["Invoke-RestMethod PATCH of a pull request body that links an issue", `Invoke-RestMethod -Uri https://api.github.com/repos/${code}/pulls/1975 -Method Patch -Body @{body='See https://api.github.com/repos/${code}/issues/1962'}`, "powershell"],
     ["typed gh issue create on the internal repository", `gh issue create --title x --body y --type Task --repo ${internal}`],
     ["typed gh api create on the internal repository", `gh api -X POST repos/${internal}/issues -f title=x -F body=@b.md -f type=Task`],
     ["gh api comments on the internal repository", `gh api repos/${internal}/issues/12/comments --paginate`],
@@ -1004,6 +1031,18 @@ for (const [label, command, shell] of allows) {
     const r = runHook(command, shell);
     check(r.status === 0 && !(r.stderr ?? "").trim() && r.stdout === "", `switch on, allowed: ${label}`, `status=${r.status} stderr=${JSON.stringify(r.stderr)} stdout=${JSON.stringify(r.stdout)}`);
     check(decideWith(command, shell, { repos: ON }) === null, `switch on, allowed in-process under both readings: ${label}`);
+  }
+  // The guard's own passes stay linear on large commands.
+  {
+    const timed = (label, command, shell) => {
+      const t0 = Date.now();
+      decideWith(command, shell, { repos: ON });
+      check(Date.now() - t0 < 2000, `switch on, ${label} decides in under 2 s`, `${Date.now() - t0} ms`);
+    };
+    timed("a 400 KB pull request body holding 8000 API links", `curl https://api.github.com/repos/${code}/pulls/1 -X PATCH -d '{"body":"${"see https://api.github.com/repos/x/y/issues/1 ".repeat(8000)}"}'`);
+    timed("a 300 KB GraphQL query", `gh api graphql -f query='query { ${"a: repository(owner: \"x\", name: \"y\") { id } ".repeat(6000)} }'`);
+    timed("20000 gh flags and assignments", "X=1 ".repeat(10000) + "gh pr edit 1 " + "--title x ".repeat(10000));
+    timed("a 300 KB search query", `gh search issues "${"repo:a/b ".repeat(30000)}"`);
   }
   // The detail lines name the internal repository and the public contract.
   const reason = decideWith("gh issue view 12", "bash", { repos: ON });

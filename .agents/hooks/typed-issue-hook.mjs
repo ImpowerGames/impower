@@ -733,12 +733,17 @@ const GH_VALUE_FLAGS = new Set([
 /**
  * The flags and positional words of a gh issue, pr or search invocation:
  * `flags` maps each lower-cased long name or short name to its values (an
- * empty string for a flag without one), and `positional` holds the rest.
+ * empty string for a flag without one), `repos` holds the `-R`/`--repo`
+ * values in argument order, and `positional` holds the rest.
  */
 function ghArgs(args) {
   const flags = new Map();
+  const repos = [];
   const positional = [];
-  const add = (name, value) => flags.set(name, [...(flags.get(name) ?? []), value]);
+  const add = (name, value) => {
+    flags.set(name, [...(flags.get(name) ?? []), value]);
+    if (name === "-R" || name === "--repo") repos.push(value);
+  };
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
     if (t === "--") {
@@ -758,24 +763,46 @@ function ghArgs(args) {
     }
     add(name, t.length > name.length ? flagValue(args, i)[0] : "");
   }
-  return { flags, positional };
+  return { flags, repos, positional };
 }
 
 /**
- * The repository a gh issue, pr or search invocation targets: the last
- * `-R`/`--repo`, else an issue or pull request URL argument, else a
- * `GH_REPO` assignment before the command, else null for the checkout's own
+ * The repository a gh issue, pr or search invocation targets, in gh's own
+ * order: an issue or pull request URL as the selector argument, else the
+ * last `-R`/`--repo` in argument order (one before the action comes first),
+ * else the `GH_REPO` gh inherits, else null for the checkout's own
  * repository, which is the code repository. An empty value names nothing.
  */
 function ghTargetRepo(invocation, parsed, envRepo) {
-  const named = [...(parsed.flags.get("-R") ?? []), ...(parsed.flags.get("--repo") ?? [])].filter((r) => r.trim() !== "");
+  const url = (parsed.positional[0] ?? "").match(/github\.com\/([^/\s]+\/[^/\s]+)\/(?:issues|pull|discussions)\/\d/i);
+  if (url) return url[1];
+  const named = [invocation.repo ?? "", ...parsed.repos].filter((r) => r.trim() !== "");
   if (named.length) return named[named.length - 1];
-  if (invocation.repo) return invocation.repo;
-  for (const word of parsed.positional) {
-    const m = word.match(/github\.com\/([^/\s]+\/[^/\s]+)\/(?:issues|pull|discussions)\/\d/i);
+  return envRepo?.trim() ? envRepo : null;
+}
+
+/**
+ * The `GH_REPO` a program at index `at` of a segment runs with: the last one
+ * in the run of assignments directly before it, so a wrapper between the
+ * assignment and the program (sudo, `env -i`, `env -u`), which may drop it,
+ * never counts. Without one, `inherited` (the value a nested command gets
+ * from its enclosing command) applies only when nothing but shell keywords
+ * precedes that run. Null when gh would read no repository from the
+ * environment, or the hook cannot tell.
+ */
+function assignedRepo(seg, at, inherited) {
+  let k = at - 1;
+  for (; k >= 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(seg[k].text); k--) {
+    const m = seg[k].text.match(/^GH_REPO=(.*)$/s);
     if (m) return m[1];
   }
-  return envRepo?.trim() ? envRepo : null;
+  for (; k >= 0; k--) if (seg[k].quoted || !KEYWORDS.has(seg[k].text.toLowerCase())) return null;
+  return inherited;
+}
+
+/** The `GH_REPO` a nested command inherits: none when its text mentions the variable, since it may unset or replace it. */
+function inheritedRepo(text, envRepo) {
+  return /GH_REPO/i.test(text) ? null : envRepo;
 }
 
 function guardReason(what, hint) {
@@ -846,20 +873,24 @@ function guardedEndpoint(endpoint) {
   const m = endpoint.match(/^repos\/([^/]+\/[^/]+)(?:\/(.*))?$/);
   if (!m || !isCodeRepo(m[1])) return false;
   const path = m[2] ?? "";
-  return /^issues(\/|$)/.test(path) || /^pulls\/[^/]+\/(comments|reviews|requested_reviewers)(\/|$)/.test(path) || /^discussion/.test(path);
+  // `pulls/comments` is the repository-wide list of review comments.
+  return /^issues(\/|$)/.test(path) || /^pulls\/[^/]+\/(comments|reviews|requested_reviewers)(\/|$)/.test(path) || /^pulls\/comments(\/|$)/.test(path) || /^discussion/.test(path);
 }
 
 /**
  * True when GraphQL text names the code repository, as an `owner/name` slug
- * or as its owner and name words, together with issue, comment, review or
- * discussion fields.
+ * or as its owner and name words, together with anything that reads issues,
+ * comments, reviews, discussions or a timeline. The field test matches inside
+ * camel-case names (`closingIssuesReferences`, `IssueComment`,
+ * `PullRequestReview`, `timeline`), so a query for pull request state that
+ * also names `reviewDecision` is refused too.
  */
 function graphqlReadsCode(text) {
   const [owner, name] = repos.code.toLowerCase().split("/");
   const words = new Set(text.toLowerCase().split(/[^\w.-]+/));
   const slug = new RegExp(`(^|[^\\w.-])${repos.code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.-])`, "i");
   const named = slug.test(text) || (words.has(owner) && words.has(name));
-  return named && /\b(issues?|issueOrPullRequest|comments|reviews|reviewThreads|latestReviews|reviewRequests|discussions?|timelineItems)\b/i.test(text);
+  return named && /issue|comment|review|discussion|timeline/i.test(text);
 }
 
 /** The guard's reason for an API URL path and the request text around it, or null. */
@@ -1121,13 +1152,31 @@ function unwrapBody(body) {
 const CURL_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
-const API_URL = /api\.github\.com\/[^\s"'#]*/gi;
+const API_URL = /^(?:-uri:|-url:|--url=)?((?:https?:\/\/)?api\.github\.com(?::\d+)?\/[^\s"'#]*)$/i;
+// Flags whose value is a body, a header, a file or another setting, never
+// the request URL: curl's long forms and short flags that take a value, and
+// Invoke-RestMethod's and Invoke-WebRequest's parameters other than -Uri.
+const CURL_LONG_VALUE = /^--(data(-ascii|-raw|-binary|-urlencode)?|json|form(-string)?|header|cookie|referer|user-agent|output|upload-file|proxy|write-out|user|request)$/;
+const PS_NON_URL_VALUE = /^-(body|headers|infile|outfile|contenttype|useragent|proxy|websession|sessionvariable|method|credential|certificate|form|token|authentication|transferencoding|maximumredirection|timeoutsec)(:)?$/i;
 
-/** The guard's reason for an HTTP client invocation that reaches a guarded API path, or null. */
-function checkGuardedUrl(args) {
+/**
+ * The guard's reason for an HTTP client invocation whose request URL reaches
+ * a guarded API path, or null. A URL is a token that is entirely an
+ * api.github.com URL and is not the value of a body, header or other flag,
+ * so a link inside a pull request body is not taken for a destination. The
+ * request text the GraphQL and search checks read is every argument.
+ */
+function checkGuardedUrl(args, powershell) {
   const text = args.map((a) => a.text).join("\n");
-  for (const [url] of text.matchAll(API_URL)) {
-    const endpoint = normalizeEndpoint(url.replace(/^api\.github\.com\//i, ""));
+  for (let k = 0; k < args.length; k++) {
+    const url = args[k].text.match(API_URL)?.[1];
+    if (!url) continue;
+    const prev = args[k - 1]?.text ?? "";
+    const valueOf = powershell
+      ? PS_NON_URL_VALUE.test(prev)
+      : CURL_LONG_VALUE.test(prev) || (/^-[A-Za-z0-9]+$/.test(prev) && CURL_VALUE.includes(prev[prev.length - 1]));
+    if (valueOf) continue;
+    const endpoint = normalizeEndpoint(url.replace(/^(?:https?:\/\/)?api\.github\.com(?::\d+)?\//i, ""));
     const reason = checkGuardedRequest(endpoint, text);
     if (reason) return reason;
   }
@@ -1347,16 +1396,20 @@ export { baseName, isShellCommandString, programBefore };
  */
 export function decide(command, shell, options = {}) {
   repos = options.repos ?? (defaultRepos ??= readRepos());
-  return decideAt(command, shell, 0);
+  return decideAt(command, shell, 0, null);
 }
 
-function decideAt(command, shell, depth) {
+// `envRepo` is the GH_REPO the command inherits from an enclosing command,
+// or null.
+function decideAt(command, shell, depth, envRepo) {
   if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
-  if (shell !== "powershell" && shell !== "bash") return decideAt(command, "bash", depth) ?? decideAt(command, "powershell", depth);
+  if (shell !== "powershell" && shell !== "bash") return decideAt(command, "bash", depth, envRepo) ?? decideAt(command, "powershell", depth, envRepo);
   const { segments, subs } = readCommand(command, shell);
   const outerShell = shell;
   for (const sub of subs) {
-    const inner = decideAt(sub, outerShell, depth + 1);
+    // A substitution runs in the enclosing shell, before any assignment
+    // that prefixes the command it appears in.
+    const inner = decideAt(sub, outerShell, depth + 1, inheritedRepo(sub, envRepo));
     currentShell = outerShell;
     if (inner) return inner;
   }
@@ -1368,7 +1421,9 @@ function decideAt(command, shell, depth) {
         // A string handed to a shell's -c is written for that shell.
         const program = programBefore(seg, i - 1);
         const innerShell = program >= 0 && /^(pwsh|powershell)$/.test(baseName(seg[program])) ? "powershell" : program >= 0 ? "bash" : outerShell;
-        const inner = decideAt(tok.text, innerShell, depth + 1);
+        // The nested shell inherits the environment its own program runs with.
+        const innerEnv = inheritedRepo(tok.text, assignedRepo(seg, program >= 0 ? program : i - 1, envRepo));
+        const inner = decideAt(tok.text, innerShell, depth + 1, innerEnv);
         currentShell = outerShell;
         if (inner) return inner;
       }
@@ -1381,18 +1436,17 @@ function decideAt(command, shell, depth) {
         let repo = invocation.repo;
         if (repos.cutover) {
           // gh reads GH_REPO when no flag names a repository.
-          const env = seg.slice(0, i).reverse().find((t) => /^GH_REPO=/.test(t.text));
-          const envRepo = env ? env.text.slice("GH_REPO=".length) : null;
-          reason = checkGhGuarded(invocation, envRepo);
-          if (repo === null && words[0] === "issue") repo = ghTargetRepo(invocation, ghArgs(rest), envRepo);
+          const ghEnv = assignedRepo(seg, i, envRepo);
+          reason = checkGhGuarded(invocation, ghEnv);
+          if (repo === null && words[0] === "issue") repo = ghTargetRepo(invocation, ghArgs(rest), ghEnv);
         }
         if (reason) return reason;
         if (words[0] === "issue" && words[1] === "create") reason = checkGhIssueCreate(rest, repo);
         else if (words[0] === "api") reason = checkGhApi(rest);
       } else if (base === "curl") {
-        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkCurl(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1), false) : null) ?? checkCurl(seg.slice(i + 1));
       } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
-        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkInvokeRestMethod(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1), true) : null) ?? checkInvokeRestMethod(seg.slice(i + 1));
       }
       if (reason) return reason;
     }
