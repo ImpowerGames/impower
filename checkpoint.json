@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 17,
-  "previous": "e56b9f2214ebd2b73ae5e61b106ddbf2043c7ec4",
+  "seq": 18,
+  "previous": "8cffdd1bace4c101c61fa43bfea05c1b6c476ef4",
   "snapshotParents": [],
-  "time": "2026-10-16T21:28:14.568Z",
+  "time": "2026-10-16T21:28:59.081Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1962",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 13,
+    "recordRevision": 14,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -99,7 +99,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "03777fe0",
+          "owner": "21e53437-583d-4ff6-b398-939b1a758fff",
+          "time": "2026-10-16T21:28:52.585Z",
+          "text": "Round 3 checkpoint report for PR #1975: round 3 of 3 complete (guard+undirected, fidelity+undirected, boundary+undirected, all gpt-6.1-sol high, every journal finished, every report adjudicated; 30 accepted findings, one mechanism: static command reading vs real gh/curl/PowerShell/GitHub semantics, switch-on position only). Last reviewed commit 2fb944aa7; current head 3626459970 is the unreviewed round-3 undirected correction, behaviour-changing for switch-on only, replacing modelling with four fail-closed blanket rules. Corrections introduced at least three defects in earlier rounds. Writer recommends a round 4 with a single undirected reviewer on 3626459970 and adjudicating evasion-grade findings against the ticket's guardrail scope; asks for the checkpoint decision (reviewRoundLimit and extendedReviewAuthorization if extended). Also asks whether the pre-existing switch-off gap (gh issue new alias skipping the typed check, same as base) stays as is.",
+          "source": "cross-session message from writer impower-33 (CLI session 9ca34572) received 2026-10-16 ~21:25Z; transcript out.jsonl in launch-1962-21e53437",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     }
   },
   "operations": [],
@@ -112,7 +123,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T21:28:13.413Z",
+      "observedAt": "2026-10-16T21:28:57.089Z",
       "held": true,
       "head": "3626459970eba05554ed39a5c677fb570ba585ef",
       "remoteHead": "3626459970eba05554ed39a5c677fb570ba585ef",
@@ -480,6 +491,12 @@
       "time": "2026-10-16T21:23:57.304Z",
       "event": "check-in",
       "outcome": "no change: #1962 writer running, PR #1975 round 3 reviewed at 2fb944aa7 (CI green); writer is correcting round 3's six findings with regression rows before the checkpoint report"
+    },
+    {
+      "time": "2026-10-16T21:28:52.587Z",
+      "event": "request",
+      "ticket": 1962,
+      "id": "03777fe0"
     }
   ]
 }
