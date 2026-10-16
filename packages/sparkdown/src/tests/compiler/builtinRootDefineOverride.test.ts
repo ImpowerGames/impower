@@ -6,10 +6,11 @@
 // a seeded compile parses that prelude ahead of the project. The prelude's
 // root defines were never marked as prelude declarations, so the authored
 // root define reached `FlowBase.AddNewVariableDeclaration` as a plain
-// collision: the compile failed with "Duplicate identifier `game`. A var
-// named `game` already exists on null" and made no program. An override takes
-// the slot, keeps the prelude's values for the keys it does not restate, and
-// keeps every builtin instance registered in the type's table.
+// collision: the compile reported "Duplicate identifier `game`. A var named
+// `game` already exists on null" and the authored define was dropped. An
+// override takes the slot, keeps the prelude's values for the keys it does
+// not restate, and keeps every builtin instance registered in the type's
+// table, which then inherits from the authored root.
 
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -134,6 +135,83 @@ end
       errors: [],
     });
   });
+
+  test("a builtin instance inherits from the authored root", () => {
+    const program = compileWith(
+      {
+        [MAIN]: `define color with
+  probe_field = 2
+end
+
+-> start
+scene start
+  {color.red.probe_field} {color.red.value}
+  fin
+
+end
+`,
+      },
+      true,
+    );
+    expect(errorsOf(program)).toEqual([]);
+    expect(play(program)).toEqual({ output: "2 rgb(220,38,38)\n", errors: [] });
+  });
+
+  test.each([true, false])(
+    "the override's initializer reads the authored globals declared before it (seeded: %s)",
+    (seeded) => {
+      const program = compileWith(
+        {
+          [MAIN]: `store custom = 7
+
+define game with
+  probe_field = custom
+end
+
+-> start
+scene start
+  {game.probe_field}
+  fin
+
+end
+`,
+        },
+        seeded,
+      );
+      expect(errorsOf(program)).toEqual([]);
+      expect(play(program)).toEqual({ output: "7\n", errors: [] });
+    },
+  );
+
+  test.each([true, false])(
+    "a root define written after a member of its type keeps that member (seeded: %s)",
+    (seeded) => {
+      // The member mints the type's table when it runs first; the root then
+      // takes over what registered there, as it does a builtin's members.
+      const program = compileWith(
+        {
+          [MAIN]: `define pebble as rock with
+  size = 1
+end
+
+define rock with
+  hardness = 5
+end
+
+-> start
+scene start
+  {rock.pebble.size} {rock.pebble.hardness}
+  fin
+
+end
+`,
+        },
+        seeded,
+      );
+      expect(errorsOf(program)).toEqual([]);
+      expect(play(program)).toEqual({ output: "1 5\n", errors: [] });
+    },
+  );
 
   test("a key the author restates takes the authored value", () => {
     const program = compileWith(

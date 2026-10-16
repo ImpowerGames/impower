@@ -2536,6 +2536,56 @@ function linkWaitingStructuralChildren(
   }
 }
 
+// Whether `v` is a root table of the type `name`: an explicit root define
+// (`define color with … end`) or the table a child minted for it (`as color`
+// before any root), neither of which has a parent.
+function isRootTypeTable(v: AbstractValue | null, name: string): boolean {
+  const meta = metatableMap(v);
+  return (
+    meta != null &&
+    coerceString(meta.get(DEFINE_MARKER) ?? null) === name &&
+    meta.get(DEFINE_PARENT_MARKER) == null
+  );
+}
+
+// A root define replacing the table that already holds its type's name takes
+// over what registered there: a project's `define color with … end`
+// overriding the builtin root runs after the prelude's `define red as color`
+// (and every other member) registered into the table then named `color`
+// (#454). Each member the new table does not hold itself moves to it, and a
+// member that inherited from a root table of the type inherits from the new
+// one, so `color.red` stays reachable and reads the authored root's props.
+// The declarations run on a fresh state, so the table found is always one
+// this run made.
+function adoptRootMembers(
+  // `any` for the same circular-import reason as `StateAwareStdLibFn`.
+  story: any,
+  name: string,
+  table: ObjectValue,
+  written: Written,
+): void {
+  const existing = story.state.variablesState.GetVariableWithName(
+    name,
+  ) as AbstractValue | null;
+  if (
+    !(existing instanceof ObjectValue) ||
+    existing === table ||
+    !isRootTypeTable(existing, name)
+  ) {
+    return;
+  }
+  const own = table.value!;
+  for (const [key, member] of existing.value!) {
+    if (own.has(key)) continue;
+    own.set(key, member);
+    const inherits = metatableMap(member)?.get("__index") ?? null;
+    if (inherits instanceof ObjectValue && isRootTypeTable(inherits, name)) {
+      written((member as ObjectValue).metatable);
+      metatableMap(member)!.set("__index", table);
+    }
+  }
+}
+
 // A `display({ parts })` table carries words whose tags sit between pieces of
 // text, each part a string or a `{ tag }` table, in the order written. Join
 // them into the `text` and `tags` every other display table carries. True
@@ -5263,6 +5313,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   //   3. Registers D into T and EVERY ancestor (`T.D`, `Grandparent.D`),
   //      so members are reachable through any type up the chain and
   //      `instances(T)` enumerates them.
+  //   4. A ROOT define (no T) takes over the members registered in the
+  //      table that held its name before it (`adoptRootMembers`).
   // Returns D (the global VariableAssignment binds it to the name).
   "__def": {
     arity: 3,
@@ -5314,6 +5366,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         for (const level of chain) {
           linkWaitingStructuralChildren(level, name, table, written);
         }
+      } else if (name) {
+        adoptRootMembers(story, name, table, written);
       }
       return table;
     },
