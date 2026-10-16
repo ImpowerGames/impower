@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 11,
-  "previous": "89b9670b5b4fd4e160f1c126aa57987731c4b05d",
+  "seq": 12,
+  "previous": "068a2b3c5ad3fe5c5d9cb289d443a89c4038d120",
   "snapshotParents": [],
-  "time": "2026-10-16T19:23:41.789Z",
+  "time": "2026-10-16T19:24:03.825Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 8,
+    "recordRevision": 9,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -112,7 +112,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T19:23:40.900Z",
+      "observedAt": "2026-10-16T19:24:03.094Z",
       "held": true,
       "head": "1af512a07d459d13f6355e468fe37a2b85b9cfd8",
       "remoteHead": "1af512a07d459d13f6355e468fe37a2b85b9cfd8",
@@ -289,6 +289,11 @@
       "time": "2026-10-16T18:53:44.035Z",
       "event": "check-in",
       "outcome": "no change"
+    },
+    {
+      "time": "2026-10-16T19:24:01.809Z",
+      "event": "check-in",
+      "outcome": "no change: #1962 writer running, draft PR #1975 at 1af512a07 with review round 1 (undirected reviewer) in progress and CI green so far"
     }
   ]
 }
