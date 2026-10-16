@@ -79,6 +79,7 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauSparkdownVariableDefinition": "LuauSparkdownExplicitStoryVariableDefinition",
   "Tag": "SparkdownExplicitTag",
   "LuauDeclarations": "LuauSparkdownExplicitDeclarations",
+  "LuauExpressionDeclarations": "LuauSparkdownExplicitExpressionDeclarations",
   "Tags": "SparkdownExplicitTags",
   "Annotation": "SparkdownExplicitAnnotation",
   "DivertPath": "SparkdownExplicitDivertPath",
