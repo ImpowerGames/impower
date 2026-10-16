@@ -47,9 +47,20 @@ function offsetAt(text: string, line: number, character: number) {
 
 const loops = (warnings: string[]) => warnings.filter((w) => /Possible infinite loop/.test(w));
 
+/** Every node of the document's tree as `name from-to`, in tree order. */
+function treeNodes(compiler: SparkdownCompiler): string[] {
+  const nodes: string[] = [];
+  compiler.documents.tree(MAIN_URI)!.iterate({
+    enter(node) {
+      nodes.push(`${node.name} ${node.from}-${node.to}`);
+    },
+  });
+  return nodes;
+}
+
 /** What an incremental and a cold compile of the same text must agree on. */
 const surface = (compiler: SparkdownCompiler, program: SparkProgram) => ({
-  tree: compiler.documents.tree(MAIN_URI)!.toString(),
+  tree: treeNodes(compiler),
   chunks: program.chunks ? describeRoot(program.chunks) : null,
   diagnostics: Object.values(program.diagnostics ?? {})
     .flat()

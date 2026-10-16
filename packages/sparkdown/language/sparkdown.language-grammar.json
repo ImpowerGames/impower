@@ -421,6 +421,7 @@
     "IDENTIFIER": "(?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}\\b)",
     "TAG_START": "(?:[#]+(?=$|{{WS}}))",
     "NOT_TAG_HASH": "(?:[#]+[^#\\s])",
+    "NOT_TAG_HASH_AFTER_TEXT": "(?<=\\S)(?={{NOT_TAG_HASH}})",
     "COMMENT_START": "(?:[-][-])",
     "BREAK_MARK": "(?:[>])",
     "BREAK": "(?:{{WS}}*{{BREAK_MARK}}{{WS}}*)",
