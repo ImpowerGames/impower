@@ -4,7 +4,11 @@
 // and another in a scene. They differ only where #1147 made them differ: the
 // Luau rule continues its target and value lists past a comma that ends its
 // line (`LuauCommaLineBreak`), so it also begins at a target list that ends
-// its line with a comma, and ends where the next line starts a statement. The runtime cases in `TrailingCommaReassignment.test.ts` check
+// its line with a comma, and ends where the next line starts a statement;
+// and where #1906 made them differ: the Luau rule reads its value from the
+// next line after an `=` that ends its line (`LuauAssignmentLineBreak`), so
+// it does not end at such a line end, where the narrative rule, which ends
+// at its line, does. The runtime cases in `TrailingCommaReassignment.test.ts` check
 // the values themselves.
 
 import { describe, expect, test } from "vitest";
@@ -30,15 +34,19 @@ describe("the two reassignment rules", () => {
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
   });
 
-  test("share their content, except the Luau rule's comma line break", () => {
+  test("share their content, except the Luau rule's comma and `=` line breaks", () => {
+    const lineBreaks = ["#LuauCommaLineBreak", "#LuauAssignmentLineBreak"];
     expect(
-      luau.patterns!.filter((p) => p.include !== "#LuauCommaLineBreak"),
+      luau.patterns!.filter((p) => !lineBreaks.includes(p.include)),
     ).toEqual(narrative.patterns);
-    expect(luau.patterns!.map((p) => p.include)).toContain("#LuauCommaLineBreak");
+    for (const lineBreak of lineBreaks) {
+      expect(luau.patterns!.map((p) => p.include)).toContain(lineBreak);
+    }
   });
 
-  test("share their end, except the Luau rule's line-start statement end", () => {
-    expect(luau.end!.startsWith(`${narrative.end!}|(?<=^`)).toBe(true);
+  test("share their end, except the narrative rule's line end and the Luau rule's line-start statement end", () => {
+    expect(narrative.end!.endsWith("|$")).toBe(true);
+    expect(luau.end!.startsWith(`${narrative.end!.slice(0, -"|$".length)}|(?<=^`)).toBe(true);
   });
 });
 

@@ -791,7 +791,7 @@ function readPropertyDefinition(
       propNode,
     );
     if (!variableAssignment) return null;
-    const nameNode = getDescendent("LuauVariableName", variableAssignment);
+    const nameNode = getDescendent(["LuauVariableName", "LuauDefineKeywordKey"], variableAssignment);
     if (!nameNode) return null;
     name = ctx.read(nameNode.from, nameNode.to);
   }

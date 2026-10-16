@@ -44,10 +44,26 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
+  // A structural word with no construct after it is a name (#1906), so the
+  // AST represents its uses.
   test.each([
     ["style", "function inspect() local style = {}; setStyle(style) end\n"],
     ["layout", "function inspect() local layout = {}; return layout.x end\n"],
     ["match", "function inspect() local match = true; if match then print(1) end end\n"],
+  ])("represents %s used as a name, with no uncertainty", (name, source) => {
+    const value = script(source);
+    const facts = names(value);
+    expect(facts.uncertainNames ?? []).toEqual([]);
+    expect(facts.declarations.filter((d: any) => d.name === name)).toHaveLength(1);
+    expect(facts.references.some((r: any) => r.name === name)).toBe(true);
+    expect(value.result.lints).toEqual([]);
+  });
+
+  // Where the grammar reads a construct that Luau reads as a name (a `match`
+  // whose subject is in parentheses, Luau's call), the word stays uncertain.
+  test.each([
+    ["match", "function inspect() local match = print; match(1) end\n"],
+    ["match", "function inspect() local match = print; match(\"a\") end\n"],
   ])("retains unrepresented %s keyword occurrences as uncertainty without inventing AST uses", (name, source) => {
     const value = script(source);
     const facts = names(value);
@@ -75,20 +91,21 @@ describe("shared AST name facts", () => {
   });
 
   test("cached uncertainty recombines changed and removed scripts without creating definite global uses", () => {
-    const first = script("function inspect() local style = {}; setStyle(style) end\n");
-    const second = script("function other() local layout = {}; return layout.x end\n");
+    const first = script("function inspect() local match = print; match(1) end\n");
+    const second = script("function other() local match = print; match(\"a\") end\n");
     const cached = names(first);
     expect(lint.collectLuauLints(first.tree, (from, to) => first.text.slice(from, to)).names.uncertainNames === cached.uncertainNames).toBe(true);
     const index = (lint as any).indexProgramNames;
     const both = index([{ uri: "first", names: cached }, { uri: "second", names: names(second) }]);
-    expect(both.uncertainNames?.get("style") ?? []).toEqual([{ name: "style", from: first.text.lastIndexOf("style"), to: first.text.lastIndexOf("style") + 5, reason: "grammar-keyword", uri: "first" }]);
-    expect(both.uncertainNames?.get("layout") ?? []).toEqual([{ name: "layout", from: second.text.lastIndexOf("layout"), to: second.text.lastIndexOf("layout") + 6, reason: "grammar-keyword", uri: "second" }]);
-    expect(both.globals.has("style")).toBe(false);
+    expect(both.uncertainNames?.get("match") ?? []).toEqual([
+      { name: "match", from: first.text.lastIndexOf("match"), to: first.text.lastIndexOf("match") + 5, reason: "grammar-keyword", uri: "first" },
+      { name: "match", from: second.text.lastIndexOf("match"), to: second.text.lastIndexOf("match") + 5, reason: "grammar-keyword", uri: "second" },
+    ]);
+    expect(both.globals.has("match")).toBe(false);
     const edited = script("function other() return 1 end\n");
     const changed = index([{ uri: "first", names: cached }, { uri: "second", names: names(edited) }]);
     expect(changed.scripts.get("first") === cached).toBe(true);
-    expect(changed.uncertainNames.has("style")).toBe(true);
-    expect(changed.uncertainNames.has("layout")).toBe(false);
+    expect(changed.uncertainNames.get("match")?.map((u: any) => u.uri)).toEqual(["first"]);
     expect(index([{ uri: "second", names: names(edited) }]).uncertainNames.size).toBe(0);
   });
   test("embedded stores publish explicit global writes", () => {

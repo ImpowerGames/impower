@@ -650,10 +650,8 @@ describe("if expression without an else", () => {
     ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
     ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
     ["a then arm with only a chain of unary operators", "  local y = if true then\n    not not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
-    // A cast's `::` is Sparkdown's to report, and a value at column 0 is
-    // one Luau reads as the arm's, where Sparkdown ends the statement.
+    // A cast's `::` is Sparkdown's to report.
     ["a then arm with only a cast","  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm at column 0 on the line after then", "  local y = if true then\n1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:5-4:9"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
   ])("%s: reports it where it is missing and keeps what follows", (_name, partial, message, at) => {
@@ -662,6 +660,18 @@ describe("if expression without an else", () => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\nYou walk through it.\n");
+  });
+
+  // Sparkdown ends the statement at the value at column 0, but the `else`
+  // after it closes nothing there (#1906), so the lines are Luau's to read,
+  // and Luau reads the value as the arm's.
+  test("a then arm at column 0 on the line after then is read as Luau reads it", () => {
+    const source = "function f()\n  local y = if true then\n1\n  else 2\n  return y\nend\nSum {f()}.\n";
+    expect(ifDiagnostics(source)).toEqual([]);
+    expect(officialSyntaxErrors(source.slice(0, source.indexOf("Sum")))).toEqual([]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Sum 1.\n");
   });
 
   // The function's own `end` at column 0 comes straight after the unfinished

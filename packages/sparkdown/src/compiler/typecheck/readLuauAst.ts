@@ -521,6 +521,16 @@ const KEYWORDS = new Set([
 // The keywords that close a block, which the grammar reads only as closers.
 const BLOCK_CLOSERS = new Set(["end", "else", "elseif", "until"]);
 
+// The rules of an if expression that read its `else` and `elseif`.
+const IF_EXPRESSION_RULES = ["LuauTernaryExpression", "LuauElseOperator"];
+
+/** Whether a keyword is read by an if expression, as the first rule around it (not a part of one, whose name has `_`) shows. */
+function isIfExpressionKeyword(node: SyntaxNode | undefined): boolean {
+  let rule = node?.parent;
+  while (rule && rule.name.includes("_")) rule = rule.parent;
+  return !!rule && IF_EXPRESSION_RULES.some((name) => isExplicitRuleName(rule!.name, name));
+}
+
 // The closers each block of a pure-Luau body takes, or yields to as a part
 // of its own construct (an `elseif` to its `if`'s `else`). The grammar
 // closes a block before any other closer, with nothing in its `_end`, and
@@ -700,6 +710,11 @@ class Tokenizer {
     if (closed?.at === this.tokens.length && kind === "keyword" && BLOCK_CLOSERS.has(token.text) && !closed.owned.has(token.text)) {
       token.unread = true;
     }
+    // So is a reserved word where a `local` needs its name (`local end`,
+    // #1906): the grammar ends the declaration with no name, and the word
+    // begins whatever it begins, as in Luau.
+    const before = this.tokens[this.tokens.length - 1];
+    if (kind === "keyword" && token.text !== "function" && before?.kind === "keyword" && before.text === "local") token.unread = true;
     this.tokens.push(token);
   }
 
@@ -720,6 +735,10 @@ class Tokenizer {
       this.comment(node);
       return;
     }
+    // An if expression's `else` or `elseif` is the expression's own, not a
+    // closer: after its unfinished condition the grammar reports the missing
+    // `then` itself.
+    if ((name === "LuauElseifKeyword" || name === "LuauElseKeyword") && isIfExpressionKeyword(node)) this.closedBefore = undefined;
     const [from, to] = trimmedRange(this.text, node.from, node.to);
     if (this.luauThroughout && node.type.isError) {
       this.lex(from, to);

@@ -166,6 +166,22 @@ describe("closers close blocks and nothing else", () => {
       expect(errorsOf(source), source).toEqual(officialErrors(source));
     }
   });
+
+  // A function body takes its own `end` and no other closer, so one it does
+  // not own stays in it instead of closing the outermost function.
+  test("a closer no block of a function owns is Luau's error, and the function keeps its end", () => {
+    for (const source of [
+      "function f()\n  until true\nend\n",
+      "function f()\n  else\nend\n",
+      "function f()\n  do\n    until true\n  end\nend\n",
+      "function f(a)\n  while a do\n    else\n  end\nend\n",
+      "function f(a)\n  if a then\n    until true\n  end\nend\n",
+      "function f()\n  local g = function()\n    until true\n  end\nend\n",
+    ]) {
+      expect(officialErrors(source), source).toHaveLength(1);
+      expect(errorsOf(source), source).toEqual(officialErrors(source));
+    }
+  });
 });
 
 describe("a reserved word is never a name", () => {
@@ -211,6 +227,23 @@ describe("a reserved word is never a name", () => {
     expect(run(source).output).toBe("Value 1.\n");
     expect(stripAnsi(dumpTree(source))).not.toMatch(/LuauVariableName \[\d+\.\.\d+\]: "end"/);
   });
+
+  test.each([
+    ["if", "1:8-1:10"],
+    ["repeat", "1:8-1:14"],
+    ["nil", "1:8-1:11"],
+    ["end", "1:8-1:11"],
+  ])("a `local` before `%s` is Luau's error at the word", (word, at) => {
+    const source = `function f()\n  local ${word} = 3\nend\n`;
+    const error = `${at} Expected identifier when parsing variable name, got '${word}'`;
+    expect(officialErrors(source)).toContain(error);
+    expect(errorsOf(source)).toContain(error);
+  });
+
+  test("a define's key may be a reserved word (#1081)", () => {
+    const source = "define cfg with\n  repeat = 3\n  if = 4\n  x = 5\nend\nValue {cfg['repeat']} {cfg['if']} {cfg.x}.\n";
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 3 4 5.\n" });
+  });
 });
 
 describe("a structural word is a name outside its shape (#984)", () => {
@@ -234,6 +267,26 @@ describe("a structural word is a name outside its shape (#984)", () => {
   test("a local named continue is assigned, and continue is a statement where one begins", () => {
     const source = "Value {f()} {g()}.\nfunction f()\n  local continue = 1\n  continue = continue + 1\n  return continue\nend\nfunction g()\n  local n = 0\n  for i = 1, 3 do\n    if i == 2 then continue end\n    n = n + i\n  end\n  return n\nend\n";
     expect(run(source)).toMatchObject({ errors: [], output: "Value 2 4.\n" });
+  });
+
+  // An arm separator later on the line opens nothing when the word goes on
+  // as a name: into an operator, a separator or a cast.
+  test.each([
+    ["queue", 'local s = queue .. "a|b"', "qa|b"],
+    ["cycle", 'local s = tostring(cycle) .. "|"', "q|"],
+    ["match", "local s = match :: number | string", "q"],
+    ["queue", "local s = queue :: number | string", "q"],
+    ["shuffle", 'local s, t = shuffle, "|"', "q"],
+  ])("a %s with a later `|` on its line is a name: %s", (word, statement, value) => {
+    const source = `Value {f()}.\nfunction f()\n  local ${word} = "q"\n  ${statement}\n  return s\nend\n`;
+    expect(run(source)).toEqual({ errors: [], warnings: expect.any(Array), output: `Value ${value}.\n` });
+    expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorBlock \[/);
+  });
+
+  test("continue is a value where one stands, as in Luau", () => {
+    const source = "function f()\n  local a, b = 1, continue\n  return a, b\nend\n";
+    expect(officialErrors(source)).toEqual([]);
+    expect(errorsOf(source)).toEqual([]);
   });
 
   test("#1102 an if on a local named match or plural logs no empty match", () => {

@@ -1,11 +1,12 @@
 // The leaves of the grammar's `LuauUnreadToken`: a token no rule of a
 // pure-Luau body or bracket read, which the converter reads as Luau's lexer
-// does (`readLuauAst.ts`).
+// does (`readLuauAst.ts`), and `LuauStrayCloser`, a closer no block in a
+// function's body took.
 
 import type { SyntaxNode } from "@lezer/common";
 import { nodeNameSet } from "./nodeNameSet";
 
-export const UNREAD_TOKENS: ReadonlySet<string> = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter"]);
+export const UNREAD_TOKENS: ReadonlySet<string> = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter", "LuauStrayCloser"]);
 
 /** Whether the token at a document offset, looked up from any node of its tree, is one the grammar left unread. */
 export function isUnreadTokenAt(anyNode: SyntaxNode, offset: number): boolean {

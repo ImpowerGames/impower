@@ -270,11 +270,12 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(";")]);
   });
 
-  test("before `continue` in a loop: the error, and `continue` stays a statement", () => {
+  // `continue` is a name where a value can stand, as Luau reads it (#1906).
+  test("before `continue` in a loop: `continue` is the list's value", () => {
     const { errorMessages } = collectDiagnostics(
       "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
     );
-    expect(errorMessages).toEqual([missingValue("continue")]);
+    expect(errorMessages).toEqual([]);
   });
 
   test("before the `=`, an unindented if expression after the targets' comma is a missing binding name", () => {
@@ -325,10 +326,15 @@ describe("narrative body: the declaration ends at its line", () => {
     expect(text).toBe("Value 7.\n");
   });
 
+  // Luau reads it by its key, since a reserved word after `.` is never a
+  // name (#1906).
   test("a keyword can name a define property", () => {
-    const { errors, text } = run("define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n");
+    const { errors, text } = run("define cfg with\n  repeat = 3\nend\nValue {cfg['repeat']}.\n");
     expect(errors).toEqual([]);
     expect(text).toBe("Value 3.\n");
+    expect(run("define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n").errors).toEqual([
+      expect.stringContaining("Expected identifier, got 'repeat'"),
+    ]);
   });
 
   test.each([

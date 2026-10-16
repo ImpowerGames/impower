@@ -167,7 +167,16 @@ function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
   return keyword && keyword.to <= endNode.to ? keyword : null;
 }
 
-const CLOSER_KEYWORDS = nodeNameSet(["LuauEndKeyword", "LuauElseKeyword", "LuauElseifKeyword", "LuauUntilKeyword"]);
+// A function body's stray `else`, `elseif` or `until` is a closer no block
+// owns.
+const CLOSER_KEYWORDS = nodeNameSet(["LuauEndKeyword", "LuauElseKeyword", "LuauElseifKeyword", "LuauUntilKeyword", "LuauStrayCloser"]);
+
+// The story blocks of `END_BLOCKS` and `REPEAT_LOOPS`.
+const STORY_BLOCKS = nodeNameSet([
+  "LuauSparkdownIfBlock",
+  "LuauSparkdownDoBlock",
+  "LuauSparkdownRepeatLoop",
+]);
 
 // The node after `node` in the document, past trivia, from the first of its
 // following siblings or of its ancestors' that has one; null where only
@@ -197,9 +206,11 @@ function firstToken(node: SyntaxNode): SyntaxNode | null {
 // as an `if` with no `end` before its `repeat`'s `until` (#1209). Luau's
 // reading of the chunk reports the block left open at that closer
 // (`readLuauAst.ts`), as Luau does, so it is not reported here. A closer
-// the chunk does not hold (one read as story text after a function) is
-// left to this validator.
+// the chunk does not hold is left to this validator, and so is a story
+// block that closed before its `repeat`'s `until`, which keeps the
+// validator's own report.
 function closedBeforeOuterCloser(node: SyntaxNode, own: ReadonlySet<string>, chunk: SyntaxNode): boolean {
+  if (STORY_BLOCKS.has(node.name)) return false;
   const endNode = findChildByName(node, `${node.name}_end`);
   if (!endNode || endNode.from !== endNode.to) return false;
   const next = nextAfter(endNode);

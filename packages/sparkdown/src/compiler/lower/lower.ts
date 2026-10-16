@@ -280,6 +280,10 @@ function lowerInner(
       // A `repeat` loop reads the condition after its `until` as its own
       // (`lowerLuauStatementNode`), so the line lowers to nothing here.
       return {};
+    case "LuauStrayUntilStatement":
+      // An `until` no story `repeat` took is a syntax error, which Luau's
+      // reading of the line reports; there is nothing to run.
+      return {};
     case "LuauEndKeyword":
       // Stand-alone `end` keyword (the scene/branch/function terminator).
       // It's purely a structural marker — no runtime content.
