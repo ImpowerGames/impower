@@ -33,10 +33,10 @@ export function runWrapperUri(fileUri: string, wrapper: string): string {
 const RUN_SITE_PARAM = "&site=";
 
 /**
- * The URI of the document a later `run` naming the same wrapper in one
- * compile is compiled as: only the call (`runCallText`), the `site`-th of
- * the `run` statements naming it that the compile reaches. The wrapper is
- * declared once, where the first one is.
+ * The URI of the document a later `run` of the same file in one compile is
+ * compiled as: only the call (`runCallText`), the `site`-th of the file's
+ * `run` statements the compile reaches. The file's wrapper is declared once,
+ * where the first one is.
  */
 export function runCallUri(
   fileUri: string,

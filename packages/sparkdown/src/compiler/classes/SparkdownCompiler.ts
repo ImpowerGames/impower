@@ -2775,12 +2775,36 @@ export class SparkdownCompiler {
             sourceMetadata,
           );
         } else {
-          // Sanitize: identifier-safe name derived from the path, so
-          // every `run` statement naming the same file by the same
-          // path calls the same wrapper function. Sparkdown
-          // identifiers are `[A-Za-z_][A-Za-z0-9_]*`.
-          const sanitized = run.replace(/[^A-Za-z0-9_]/g, "_");
-          const wrapperName = `__run_${sanitized}`;
+          // One wrapper function per file in a compile. It joins the
+          // story at the first `run` of the file the compile reaches,
+          // which names it after its path: identifier-safe, since
+          // Sparkdown identifiers are `[A-Za-z_][A-Za-z0-9_]*`, and
+          // numbered when another file's wrapper already has the
+          // name (`helper.luau` and `lib/helper.luau`, both run as
+          // "helper"). Each later `run` of the file, by any path, is
+          // compiled from a document of its own holding only the
+          // call, so the body runs at every `run` site. A document's
+          // chunks are the same objects however often it is parsed,
+          // so two sites can never share one.
+          const runWrappers = state.fileResolutionState
+            ? (state.fileResolutionState.runWrappers ??= new Map())
+            : undefined;
+          let wrapper = runWrappers?.get(resolvedFilePath);
+          if (wrapper) {
+            wrapper.sites += 1;
+          } else {
+            const base = `__run_${run.replace(/[^A-Za-z0-9_]/g, "_")}`;
+            const taken = new Set(
+              [...(runWrappers?.values() ?? [])].map((w) => w.name),
+            );
+            let name = base;
+            for (let n = 2; taken.has(name); n++) {
+              name = `${base}_${n}`;
+            }
+            wrapper = { name, sites: 1 };
+            runWrappers?.set(resolvedFilePath, wrapper);
+          }
+          const { name: wrapperName, sites: site } = wrapper;
           // The wrapper has TWO parts:
           //   `& <wrapperName>()`  → top-level statement, gets
           //                          spliced inline by IncludedFile
@@ -2797,22 +2821,9 @@ export class SparkdownCompiler {
           // keeps it distinct from any raw .luau document registered
           // separately. The compiler treats it as a normal `.sd`
           // source from this point on.
-          const wrapperUri = runWrapperUri(resolvedFilePath, wrapperName);
-          // The wrapper joins the story once per compile, at the first
-          // `run` the compile reaches that names it (the file, by the
-          // same path). Each later one is compiled from a document of
-          // its own holding only the call, so the body runs at every
-          // `run` site. A document's chunks are the same objects
-          // however often it is parsed, so two sites can never share
-          // one.
-          const runSites = state.fileResolutionState
-            ? (state.fileResolutionState.runSites ??= new Map())
-            : undefined;
-          const site = (runSites?.get(wrapperUri) ?? 0) + 1;
-          runSites?.set(wrapperUri, site);
           const virtualUri =
             site === 1
-              ? wrapperUri
+              ? runWrapperUri(resolvedFilePath, wrapperName)
               : runCallUri(resolvedFilePath, wrapperName, site);
           this.documents.add({
             textDocument: {

@@ -23,10 +23,11 @@ export interface SparkdownCompilerState {
    * instead of recursing forever. Pushed before recursive descent and
    * popped on return.
    *
-   * `runSites` counts, by the URI of the wrapper document (`runWrapperUri`:
-   * the `.luau` file and the wrapper its `run` path names), the `run`
-   * statements the compile has reached. The first declares the wrapper
-   * function and calls it; each later one only calls it.
+   * `runWrappers` holds, by resolved URI, the wrapper function of each
+   * `.luau` file a `run` has reached in this compile: its name, unique among
+   * the compile's wrappers, and how many of the file's `run` statements the
+   * compile has reached. The first declares the wrapper and calls it; each
+   * later one only calls it.
    *
    * `includedUris` holds the entry script and every script an `include` has
    * reached in this compile. A script is included once: a later `include` of
@@ -36,7 +37,7 @@ export interface SparkdownCompilerState {
   fileResolutionState?: {
     currentParentUri: string;
     runStack?: string[];
-    runSites?: Map<string, number>;
+    runWrappers?: Map<string, { name: string; sites: number }>;
     includedUris: Set<string>;
   };
 }

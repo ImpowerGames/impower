@@ -159,6 +159,55 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([42, 42]);
   });
 
+  // Two files whose paths, as written, give one wrapper name each get a
+  // wrapper of their own.
+  test.each([
+    { order: "the included script first", lines: `include lib/chapter.sd\nrun "helper"\n`, recorded: [2, 1] },
+    { order: "the entry script first", lines: `run "helper"\ninclude lib/chapter.sd\n`, recorded: [1, 2] },
+  ])("runs two files run by one path from two directories, $order", ({ lines, recorded }) => {
+    const { result, errs } = compileWithFiles([
+      {
+        uri: "inmemory:///main.sd",
+        text: `external harness_record(v)\n${lines}run "helper"\ndone\n`,
+      },
+      { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
+      { uri: "inmemory:///helper.luau", text: `& harness_record(1)\n` },
+      { uri: "inmemory:///lib/helper.luau", text: `& harness_record(2)\n` },
+    ]);
+    expect(errs).toEqual([]);
+    expect(recordedRun(result.program.chunks)).toEqual([...recorded, 1]);
+  });
+
+  test("runs two files run by one path when an edit swaps which is reached first", () => {
+    const mainWith = (lines: string) =>
+      `external harness_record(v)\n${lines}run "helper"\ndone\n`;
+    const { compiler, result: first } = compileWithFiles([
+      {
+        uri: "inmemory:///main.sd",
+        text: mainWith(`include lib/chapter.sd\nrun "helper"\n`),
+      },
+      { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
+      { uri: "inmemory:///helper.luau", text: `& harness_record(1)\n` },
+      { uri: "inmemory:///lib/helper.luau", text: `& harness_record(2)\n` },
+    ]);
+    expect(recordedRun(first.program.chunks)).toEqual([2, 1, 1]);
+    let version = 1;
+    for (const [lines, recorded] of [
+      [`run "helper"\ninclude lib/chapter.sd\n`, [1, 2, 1]],
+      [`include lib/chapter.sd\nrun "helper"\n`, [2, 1, 1]],
+    ] as const) {
+      compiler.updateDocument({
+        textDocument: { uri: "inmemory:///main.sd", version: ++version },
+        contentChanges: [{ text: withTestExternals(mainWith(lines)) }],
+      });
+      const result = compiler.compile({
+        textDocument: { uri: "inmemory:///main.sd" },
+      });
+      expect(messagesOf(result).errs).toEqual([]);
+      expect(recordedRun(result.program.chunks)).toEqual(recorded);
+    }
+  });
+
   test("names the wrapper of a run's call document as of its wrapper document", () => {
     const file = "inmemory:///helper.luau";
     expect(runWrapperName(runWrapperUri(file, "__run_helper"))).toBe(
