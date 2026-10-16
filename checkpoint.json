@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 44,
-  "previous": "5fed3b1ccb000d8b37163c6c35e6351d8f1c4bc2",
+  "seq": 45,
+  "previous": "5e8e7e1f812e62a4117e3289974ae156526f1b00",
   "snapshotParents": [],
-  "time": "2026-10-16T23:02:21.943Z",
+  "time": "2026-10-16T23:02:59.381Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 40,
+    "recordRevision": 41,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1223,10 +1223,7 @@
       "results": []
     },
     "1966": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "high",
@@ -1235,9 +1232,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
         "branch": "feat/1966-tracker-migration-tool",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-16T23:02:10.553Z"
+        "launchId": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+        "handle": {
+          "kind": "process",
+          "pid": 11732,
+          "start": "639277885772495931",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1966-c7aabe5c-2e64-4947-a879-3c9cc12af4eb"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment c7aabe5c-2e64-4947-a879-3c9cc12af4eb. You are the writer for ImpowerGames/impower ticket #1966 (Build the resumable issue migration tool with snapshot, transfer, restore, rewrite and verify modes), a slice of Feature #1961, coordinated by coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c an acknowledgement naming assignment c7aabe5c-2e64-4947-a879-3c9cc12af4eb and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1966 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool on branch feat/1966-tracker-migration-tool from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961, and keep every artifact in it.\nSettled decisions:\n- Cutover switch (maintainer, 2026-10-16, comment 6221962821 on #1961; read it and #1962's merged implementation first): .agents/repos.json carries cutover: false until #1967 flips it, with the loader in .agents/repos.mjs. The migration tool reads the code and internal repository names from that file and never hard-codes them. The tool itself is not switch-gated: it is run by #1967 inside the cutover window, so it may name the internal repository directly; but nothing you merge may change how the workflow behaves while the switch is off. Your own worktree runs the merged guard with the committed switch off; never flip repos.json in your worktree.\n- ImpowerGames/impower-internal does not exist yet; #1967's runbook creates it. Do not create it, and do not create any other repository. Build the tool and its unit tests first, run the --dry-run snapshot against the real public repository to meet the counts criterion, and leave the rehearsal (the acceptance criteria that need the real internal repository) for last. When you reach it, if the internal repository still does not exist, send the coordinator a request saying exactly what the rehearsal needs, with the rest of the ticket done and the PR open as a draft, and end your turn; the coordinator will answer by resuming you. Until then every call that would write to GitHub runs only in --dry-run.\n- The guard merged in #1962 refuses, with the switch on, every GraphQL selection of issues, comments, reviews or discussions for any repository, and every gh issue or issue API call on the public repository. The tool must therefore work through REST (gh api --paginate) for both repositories, as the ticket already says, and must not depend on gh api graphql for issue data. With the switch off, which is the position the tool is developed and dry-run under, the hook decides as before, so your dry runs against the public repository work today; design the tool so that the cutover run (switch flipped in the same window) still passes the guard, which allows reads and writes on the internal repository and allows the public repository's pull request, git and Actions endpoints.\n- The 35 outsider-filed issues stay public: identify them by author association NONE as the ticket says, and report their numbers in the dry-run output so the maintainer can confirm the set before the cutover. Transfers run in ascending old number. Journal every step in the private attempt directory so a rerun resumes.\n- Other writers run on this machine (#1963 of this Feature, and the #1904 and #1940 runs); reviewer slots and the vitest reservation are shared. Merge origin/main into your branch before each review round, run node --test for the script tests directly, and pass --wait to node scripts/test-suite.mjs when you need vitest. If SendMessage to the coordinator's local_ id fails with no agent reachable, run ListAgents and send to the session titled exactly 'ORCH #1961: private internal tracker'. Any subagent you launch (a filer) reports to the coordinator, not to you: note 'filer launched, report pending' and continue. Keep all private artifacts under the artifact parent this brief names.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "a2dbb47c",
+          "attempts": 1,
+          "time": "2026-10-16T23:02:57.792Z",
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+        },
+        "since": "2026-10-16T23:02:57.794Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     }
@@ -1437,7 +1452,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-16T23:02:21.943Z",
+      "observedAt": "2026-10-16T23:02:59.381Z",
       "held": true,
       "exists": false
     },
@@ -1446,7 +1461,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-16T23:02:21.943Z",
+      "observedAt": "2026-10-16T23:02:59.381Z",
       "held": true,
       "exists": false
     }
@@ -1793,6 +1808,19 @@
       "ticket": 1966,
       "route": "claude-cli",
       "launchId": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb"
+    },
+    {
+      "time": "2026-10-16T23:02:57.794Z",
+      "event": "launched",
+      "ticket": 1966,
+      "launchId": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+      "handle": {
+        "kind": "process",
+        "pid": 11732,
+        "start": "639277885772495931",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1966-c7aabe5c-2e64-4947-a879-3c9cc12af4eb"
+      }
     }
   ]
 }
