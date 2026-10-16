@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 271,
-  "previous": "94d5b282c38dc020fe30ed661fc266089eb4b57b",
+  "seq": 272,
+  "previous": "ba63b880edba740e8dfb653998c92a71aed529ca",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:27.403Z",
+  "time": "2026-10-16T16:09:36.461Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 230,
+    "recordRevision": 231,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4062,6 +4062,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
       "classifier": "removed  impower.worktrees\\test\\1917-cumulative-edit-run                 test/1917-cumulative-edit-run                     939.1 MB   merged into origin/main; origin/test/1917-cumulative-edit-run still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run': Directory not empty) and dropped its record; the rest of the directory was removed directly; removed the empty test\\"
+    },
+    {
+      "time": "2026-10-16T16:09:33.344Z",
+      "removed": "C:\\Users\\Brode\\AppData\\Local\\impower-driver (removed driver directories)",
+      "branch": null,
+      "classifier": "49 driver directories: 6 removed (1.5 GB), 43 kept."
     }
   ],
   "verifications": [],
@@ -4071,7 +4077,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:09:26.523Z",
+      "observedAt": "2026-10-16T16:09:35.607Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4316,13 +4322,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:30:53.766Z",
-      "event": "dispatch-intent",
-      "ticket": 454,
-      "route": "claude-cli",
-      "launchId": "a77d8ee5-d75c-4a55-b475-f2b8b69eead6"
-    },
     {
       "time": "2026-10-16T04:31:31.325Z",
       "event": "launched",
@@ -5016,6 +5015,11 @@
       "time": "2026-10-16T16:09:25.187Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\1917-cumulative-edit-run"
+    },
+    {
+      "time": "2026-10-16T16:09:33.345Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\AppData\\Local\\impower-driver (removed driver directories)"
     }
   ]
 }
