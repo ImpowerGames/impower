@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 15,
-  "previous": "43096a02394ed8a1ddfce1243d77b22f1742ec57",
+  "seq": 16,
+  "previous": "f5fde62fad5ef56063cf90eb7a0412f3152719d2",
   "snapshotParents": [],
-  "time": "2026-10-16T20:53:48.262Z",
+  "time": "2026-10-16T21:24:00.283Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 12,
+    "recordRevision": 13,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -112,10 +112,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T20:53:47.409Z",
+      "observedAt": "2026-10-16T21:23:59.300Z",
       "held": true,
-      "head": "da29d919f61b584abd5a985d33947f84dd1df266",
-      "remoteHead": "da29d919f61b584abd5a985d33947f84dd1df266",
+      "head": "2fb944aa7a0add9f272720f73ba3c1909327ddf0",
+      "remoteHead": "2fb944aa7a0add9f272720f73ba3c1909327ddf0",
       "unpushed": false,
       "dirty": true,
       "pr": 1975,
@@ -307,6 +307,43 @@
           "commentIds": [
             6224347210
           ]
+        },
+        {
+          "job": "pr-1975/round-3/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "boundary",
+              "undirected"
+            ],
+            "head": "2fb944aa7a0add9f272720f73ba3c1909327ddf0",
+            "completedRoundReviewers": {
+              "boundary": 1
+            },
+            "time": "2026-10-16T20:57:44.620Z"
+          },
+          "round": 3,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "2fb944aa7a0add9f272720f73ba3c1909327ddf0",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "boundary": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "boundary",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6224851543
+          ]
         }
       ]
     }
@@ -438,6 +475,11 @@
       "time": "2026-10-16T20:53:45.870Z",
       "event": "check-in",
       "outcome": "no change: #1962 writer running, PR #1975 round 2 reviewed at da29d919f (CI all green on that head); writer is applying the round 2 corrections to the hook"
+    },
+    {
+      "time": "2026-10-16T21:23:57.304Z",
+      "event": "check-in",
+      "outcome": "no change: #1962 writer running, PR #1975 round 3 reviewed at 2fb944aa7 (CI green); writer is correcting round 3's six findings with regression rows before the checkpoint report"
     }
   ]
 }
