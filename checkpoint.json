@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 41,
-  "previous": "929e620e9732c842deae8c67fe2eb1dcefd198f1",
+  "seq": 42,
+  "previous": "2f1cb469f690f744df01fe075f13e682c818a334",
   "snapshotParents": [],
-  "time": "2026-10-16T23:01:54.477Z",
+  "time": "2026-10-16T23:02:03.687Z",
   "kind": "auto",
-  "transition": "launch of #1963",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 39,
@@ -1418,7 +1418,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-16T23:01:54.476Z",
+      "observedAt": "2026-10-16T23:02:03.687Z",
       "held": true,
       "exists": false
     }
@@ -1426,19 +1426,19 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T22:59:59.405Z",
+    "at": "2026-10-16T23:02:03.685Z",
     "tickets": [
       {
         "number": 1962,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 22556 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1963,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch c7b0d9e3-f7ae-4c8a-ae6a-e1ef52a07fba on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 51820 started 639277885124225254 is running"
       },
       {
         "number": 1964,
