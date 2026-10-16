@@ -32,6 +32,7 @@ import {
   CORPUS_INVENTORY,
   corpusInputs,
   KNOWN_CORPUS_FAILURES,
+  placeSnippet,
   type CorpusCheck,
   type CorpusInput,
   type CorpusSource,
@@ -63,16 +64,28 @@ const CLOSED_EARLY = /^Expected <eof>, got 'end'/;
 
 type OfficialError = ReturnType<typeof officialSyntaxErrors>[number];
 
-/** Where Luau ends the snippet's function: an offset, or an offset it ends before. */
-function luauExtent(input: CorpusInput, errors: OfficialError[]): { end: number; before?: true; says: string } {
-  const surplus = errors.find((error) => CLOSED_EARLY.test(error.message));
-  if (surplus) {
-    // Line 0 of the Luau is the function's header line in the document.
-    const header = input.text.slice(0, input.functionStart).split("\n").length - 1;
-    const lines = input.text.split("\n");
-    const line = header + surplus.location.begin.line;
-    const offset = lines.slice(0, line).reduce((sum, l) => sum + l.length + 1, 0) + surplus.location.begin.column;
-    return { end: offset, before: true, says: `before the \`end\` it reports as surplus, ${where(input, offset)}` };
+const END_KEYWORD = /\bend\b/g;
+
+/**
+ * Where Luau's parser ends the snippet's function, as an offset in the
+ * document.
+ * - Luau reports the wrapper's `end` as surplus: it closed the function at an
+ *   earlier `end`. That is the first `end` at which the Luau, cut off just
+ *   after it, leaves nothing open at the end of the input.
+ * - A Luau error ends `, got <eof>`: something was still open there, inside
+ *   the function, so the function runs to the end of the input.
+ * - Otherwise the function ends at its own `end`.
+ */
+function luauExtent(input: CorpusInput, errors: OfficialError[]): { end: number; says: string } {
+  if (errors.some((error) => CLOSED_EARLY.test(error.message))) {
+    for (const match of input.luau.matchAll(END_KEYWORD)) {
+      if (match.index < input.luauSnippetStart) continue;
+      const close = match.index + "end".length;
+      if (officialSyntaxErrors(input.luau.slice(0, close)).some((error) => LEFT_OPEN.test(error.message))) continue;
+      const end = input.snippetStart + (close - input.luauSnippetStart);
+      return { end, says: `at the \`end\` that closes it before the surplus one, ${where(input, end)}` };
+    }
+    throw new Error(`${input.name}: Luau reports a surplus \`end\`, but no earlier \`end\` closes the function`);
   }
   if (errors.some((error) => LEFT_OPEN.test(error.message))) {
     return { end: input.text.length, says: "at the end of the input, left open" };
@@ -156,6 +169,27 @@ describe("Luau corpus gate", () => {
     ).toEqual([]);
   });
 
+  // The second `describe` of upstream DeprecatedApiUntyped has no `// Luau:`
+  // comment of its own; it continues the case above it (round 1 of #1996).
+  test("reads a linter case's snippets from every group that continues it", () => {
+    expect(
+      INPUTS.filter((input) => input.name.startsWith("lint/LintExistingWarnings.test.ts/") && input.luau.includes("print(table.nogetn())")).length,
+    ).toBe(1);
+  });
+
+  // Luau closes the function at the `end` of an unsupported `class` and then
+  // reports the wrapper's `end` as surplus. The gate expects exactly that
+  // `end`, so a function closing at any other point fails it.
+  test("expects a function that Luau closes early to end at the `end` Luau closes it at", () => {
+    const input = placeSnippet("surplus", "lint", "local a = 1\nclass A\n  x = 1\nend\nprint(a)");
+    const errors = officialSyntaxErrors(input.luau);
+    expect(errors.some((error) => CLOSED_EARLY.test(error.message))).toBe(true);
+    const classEnd = input.text.indexOf("\nend\nprint(a)") + "\nend".length;
+    expect(luauExtent(input, errors).end).toBe(classEnd);
+    const fn = snippetFunction(input, parser.parse(input.text));
+    expect(typeof fn === "string" ? fn : fn.to).toBe(classEnd);
+  });
+
   for (const input of INPUTS) {
     test(input.name, () => {
       const tree = parser.parse(input.text);
@@ -173,7 +207,7 @@ describe("Luau corpus gate", () => {
       expectGate(
         input,
         "extent",
-        extent.before ? fn.to > extent.end : fn.to !== extent.end,
+        fn.to !== extent.end,
         `the function ends at ${where(input, fn.to)}; Luau ends it ${extent.says}${luau.length ? `\nLuau's parse errors:\n  ${luau.join("\n  ")}` : ""}`,
       );
 

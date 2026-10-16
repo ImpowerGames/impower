@@ -47,6 +47,9 @@ export interface CorpusInput {
   functionStart: number;
   /** Where that function's own `end` ends in `text`. */
   functionEnd: number;
+  /** Where the snippet starts in `text`, and in `luau`; it is the same text in both. */
+  snippetStart: number;
+  luauSnippetStart: number;
 }
 
 /**
@@ -57,7 +60,7 @@ export interface CorpusInput {
 export const CORPUS_INVENTORY: Record<CorpusSource, number> = {
   conformance: 54,
   typecheck: 851,
-  lint: 76,
+  lint: 85,
   autocomplete: 77,
 };
 
@@ -151,6 +154,12 @@ export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
     "typecheck/TypeInfer.const.test.cpp/const_shadowing",
     "typecheck/TypeInfer.tables.test.cpp/oss_2597_constraint_forcing_bad_refinement",
   ]),
+  {
+    input: "lint/LintExistingWarnings.test.ts/UnknownGlobal (2)",
+    check: "syntax",
+    divergence: "`&` prefix for bare statements at the top level",
+    reason: "the port's top-level adaptation `& print(foo)` is Sparkdown's statement prefix, not Luau",
+  },
 ];
 
 function failing(issue: number, check: CorpusCheck, reason: string, inputs: string[]): KnownCorpusFailure[] {
@@ -161,11 +170,28 @@ function failing(issue: number, check: CorpusCheck, reason: string, inputs: stri
 const HEADER = "function run()";
 const VARARG_HEADER = "function run(...)";
 
-function wrapped(name: string, source: CorpusSource, snippet: string): CorpusInput {
-  const text = wrapConformanceSource(snippet).replace(HEADER, VARARG_HEADER);
-  const luau = conformanceLuau(snippet).replace(HEADER, VARARG_HEADER);
+/**
+ * A snippet in its function, for Sparkdown and for Luau. The document has a
+ * line before and after the snippet that the Luau does not
+ * (`wrapConformanceSource`, `conformanceLuau`), so the snippet's start is
+ * kept for each.
+ */
+function placed(name: string, source: CorpusSource, snippet: string, header: string): CorpusInput {
+  const text = wrapConformanceSource(snippet).replace(HEADER, header);
+  const luau = conformanceLuau(snippet).replace(HEADER, header);
+  const functionStart = text.indexOf(header);
+  const snippetStart = text.indexOf(`${header}\n\n`) + header.length + 2;
+  const luauSnippetStart = header.length + 1;
+  if (text.slice(snippetStart, snippetStart + snippet.length) !== snippet || luau.slice(luauSnippetStart, luauSnippetStart + snippet.length) !== snippet) {
+    throw new Error(`${name}: the wrapper no longer places the snippet where the corpus expects`);
+  }
   const functionEnd = text.lastIndexOf("end") + "end".length;
-  return { name, source, text, luau, functionStart: text.indexOf(VARARG_HEADER), functionEnd };
+  return { name, source, text, luau, functionStart, functionEnd, snippetStart, luauSnippetStart };
+}
+
+/** A module's snippet in `function run(...)`, as the corpus places it. */
+export function placeSnippet(name: string, source: CorpusSource, snippet: string): CorpusInput {
+  return placed(name, source, snippet, VARARG_HEADER);
 }
 
 /** Gives a name that recurs ` (2)`, ` (3)` and so on, in order. */
@@ -181,14 +207,15 @@ function namer(): (name: string) => string {
 function conformanceInputs(): CorpusInput[] {
   return luauInputs()
     .filter((input) => input.name.startsWith("conformance/"))
-    .map((input) => ({
-      name: input.name,
-      source: "conformance" as const,
-      text: input.text,
-      luau: input.luau!,
-      functionStart: input.text.indexOf(HEADER),
-      functionEnd: input.text.lastIndexOf("end") + "end".length,
-    }));
+    .map((input) => {
+      // `luauInputs` gives the file as patched in `luau`, between its header and closing lines.
+      const snippet = input.luau!.slice(HEADER.length + 1, -"\nend\n".length);
+      const placedInput = placed(input.name, "conformance", snippet, HEADER);
+      if (placedInput.text !== input.text || placedInput.luau !== input.luau) {
+        throw new Error(`${input.name}: luauInputs no longer wraps a conformance file as the corpus does`);
+      }
+      return placedInput;
+    });
 }
 
 /** The type-checker ports' snippets, from the cases each port file handed to `portUpstreamFile`. */
@@ -200,10 +227,10 @@ export function typecheckInputs(ports: Map<string, PortedCase[]>): CorpusInput[]
       const checks = "checks" in c && c.checks ? c.checks : [c as unknown as { source: string }];
       checks.forEach((check, i) => {
         const base = `typecheck/${file}/${c.name}${checks.length > 1 ? ` check ${i + 1}` : ""}`;
-        found.push(wrapped(name(base), "typecheck", check.source));
+        found.push(placeSnippet(name(base), "typecheck", check.source));
         const modules = (check as { moduleSources?: Record<string, string> }).moduleSources ?? {};
         for (const [module, source] of Object.entries(modules)) {
-          found.push(wrapped(name(`${base} module ${module}`), "typecheck", source));
+          found.push(placeSnippet(name(`${base} module ${module}`), "typecheck", source));
         }
       });
     }
@@ -229,7 +256,7 @@ export function portInputs(snippets: CapturedSnippet[]): CorpusInput[] {
     if (seen.has(`${key}\n${text}`)) continue;
     seen.add(`${key}\n${text}`);
     if (!names.has(snippet.file)) names.set(snippet.file, namer());
-    found.push(wrapped(names.get(snippet.file)!(key), snippet.source, text));
+    found.push(placeSnippet(names.get(snippet.file)!(key), snippet.source, text));
   }
   return found;
 }

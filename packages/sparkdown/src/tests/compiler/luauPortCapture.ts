@@ -13,7 +13,9 @@
 //
 // What is in scope:
 // - linter ports (`../luau-conformance/Lint*.test.ts`): the top-level
-//   statements whose leading comments mark an upstream case (`// Luau: Name`).
+//   statements from one whose leading comments mark an upstream case
+//   (`// Luau: Name`) up to the next case, or to a statement whose leading
+//   comment opens `// Sparkdown`, which is Sparkdown's own.
 //   A helper whose name ends in `InFunction` takes a function body; the others
 //   (`diagnose`, `diagnoseDetailed`, `diagnoseWithLints`) take a document.
 // - autocomplete ports (`sparkdown-language-server/src/tests/providers/
@@ -182,11 +184,28 @@ function markSites(source: ts.SourceFile, node: ts.Node, callees: Set<string>, s
 }
 
 const LUAU_CASE = /^\/\/ Luau: (.+)$/gm;
+const SPARKDOWN_GROUP = /^\/\/ Sparkdown\b/;
 
-/** The upstream cases a top-level statement's leading comments name. */
-function luauCases(source: ts.SourceFile, statement: ts.Statement): string[] {
-  const comments = ts.getLeadingCommentRanges(source.text, statement.pos) ?? [];
-  return comments.flatMap((range) => [...source.text.slice(range.pos, range.end).matchAll(LUAU_CASE)].map((m) => m[1]!.trim()));
+/**
+ * The upstream cases each top-level statement of a linter port belongs to.
+ * A statement whose leading comments name cases (`// Luau: Name`) starts
+ * them, one whose leading comment opens `// Sparkdown` is Sparkdown's own and
+ * ends them, and any other statement continues the cases before it, as a
+ * second `describe` for the same upstream case does.
+ */
+function luauCaseGroups(source: ts.SourceFile): Map<ts.Statement, string[]> {
+  const groups = new Map<ts.Statement, string[]>();
+  let current: string[] = [];
+  for (const statement of source.statements) {
+    const comments = (ts.getLeadingCommentRanges(source.text, statement.pos) ?? []).map((range) =>
+      source.text.slice(range.pos, range.end),
+    );
+    const cases = comments.flatMap((comment) => [...comment.matchAll(LUAU_CASE)].map((m) => m[1]!.trim()));
+    if (cases.length) current = cases;
+    else if (comments.length && SPARKDOWN_GROUP.test(comments[0]!)) current = [];
+    if (current.length && !ts.isImportDeclaration(statement)) groups.set(statement, current);
+  }
+  return groups;
 }
 
 /** The case key of an `upstreamCase(key, ...)` or `upstreamCase.bug(bug, key, ...)` call. */
@@ -293,9 +312,7 @@ export async function capturePortSnippets(): Promise<PortCapture> {
       LINT_HARNESS,
       (exported) => exported.endsWith("InFunction") || LINT_DOCUMENT_HELPERS.has(exported),
       (source, callees, sites, edits) => {
-        for (const statement of source.statements) {
-          const cases = luauCases(source, statement);
-          if (!cases.length) continue;
+        for (const [statement, cases] of luauCaseGroups(source)) {
           markSites(source, statement, callees, sites, edits);
           if (!ts.isExpressionStatement(statement)) continue;
           edits.push({ from: statement.getStart(), to: statement.getStart(), text: `__context(${JSON.stringify(cases.join(", "))}, () => {\n` });
