@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 278,
-  "previous": "709a9c94e3fe8a11f750b97ac6e3274c6486168b",
+  "seq": 279,
+  "previous": "3eeb876b68eacf065ebef46c912ccb8251328b1d",
   "snapshotParents": [],
-  "time": "2026-10-16T16:12:42.412Z",
+  "time": "2026-10-16T16:13:45.335Z",
   "kind": "auto",
-  "transition": "launch of #316",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 235,
@@ -4123,7 +4123,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:12:41.590Z",
+      "observedAt": "2026-10-16T16:13:44.440Z",
       "held": true,
       "exists": false
     },
@@ -4132,7 +4132,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:12:41.590Z",
+      "observedAt": "2026-10-16T16:13:44.440Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4276,13 +4276,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:12:31.525Z",
+    "at": "2026-10-16T16:13:44.438Z",
     "tickets": [
       {
         "number": 316,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 7d758442-e0f0-4ff2-b298-18525c405e4b on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 60204 started 639277639598449164 is running"
       },
       {
         "number": 454,
