@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 20 (this commit), 2026-10-16T21:35:22.174Z, after the intent before a side effect. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 21 (this commit), 2026-10-16T21:35:31.611Z, after resume of #1962. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -11,7 +11,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1962
 
-- claude-cli claude-opus-5-5 at medium, process 724 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at medium, process 31640 on DESKTOP-726EO47
 - review job pr-1975/round-1/launch-guard-1 on DESKTOP-726EO47: round 1 reviewed 7789e8a38, completed {"guard":1} of planned ["guard","undirected"]; last launched reviewer guard attempt 1 of round 1 (planned ["guard","undirected"]), last event finished
 - review job pr-1975/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 1af512a07, completed {"guard":1,"undirected":1} of planned ["guard","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["guard","undirected"]), last event finished
 - review job pr-1975/round-2/launch-fidelity-1 on DESKTOP-726EO47: round 2 reviewed 90b72d67e, completed {"fidelity":1} of planned ["fidelity","undirected"]; last launched reviewer fidelity attempt 1 of round 2 (planned ["fidelity","undirected"]), last event finished
