@@ -3,7 +3,11 @@
 // modes (missing file, cycle detection).
 
 import { describe, expect, test } from "vitest";
-import { testCompiler, testStory } from "../engineUnderTest";
+import {
+  testCompiler,
+  testStory,
+  withTestExternals,
+} from "../engineUnderTest";
 
 function compileWithFiles(files: Array<{ uri: string; text: string }>) {
   const compiler = testCompiler();
@@ -21,6 +25,12 @@ function compileWithFiles(files: Array<{ uri: string; text: string }>) {
   const result = compiler.compile({
     textDocument: { uri: files[0]!.uri },
   });
+  return { compiler, result, ...messagesOf(result) };
+}
+
+function messagesOf(
+  result: ReturnType<ReturnType<typeof testCompiler>["compile"]>,
+) {
   const errs: string[] = [];
   const warns: string[] = [];
   for (const docDiagnostics of Object.values(result.program.diagnostics ?? {})) {
@@ -32,7 +42,7 @@ function compileWithFiles(files: Array<{ uri: string; text: string }>) {
       else if (sev === 2) warns.push(m);
     }
   }
-  return { result, errs, warns };
+  return { errs, warns };
 }
 
 describe("run statement", () => {
@@ -74,6 +84,79 @@ done
       { uri: "inmemory:///main.sd", text: `run "doesnotexist"\ndone\n` },
     ]);
     expect(errs.some((m) => m.includes("doesnotexist"))).toBe(true);
+  });
+
+  // #887: a file run from two places declares its wrapper function once and
+  // calls it from each place.
+  function recordedRun(chunks: unknown) {
+    const story = testStory(chunks as any);
+    const recorded: unknown[] = [];
+    story.BindExternalFunction("harness_record", (v: unknown) => {
+      recorded.push(v);
+      return v;
+    });
+    story.ContinueMaximally();
+    return recorded;
+  }
+
+  test.each([
+    {
+      shape: "two run lines in one script",
+      files: [
+        {
+          uri: "inmemory:///main.sd",
+          text: `external harness_record(v)\nrun "helper"\nrun "helper"\ndone\n`,
+        },
+      ],
+    },
+    {
+      shape: "one run line in each of two scripts",
+      files: [
+        {
+          uri: "inmemory:///main.sd",
+          text: `external harness_record(v)\ninclude chapter.sd\nrun "helper"\ndone\n`,
+        },
+        { uri: "inmemory:///chapter.sd", text: `run "helper"\n` },
+      ],
+    },
+  ])("runs one file from $shape, once per run line", ({ files }) => {
+    const { result, errs } = compileWithFiles([
+      ...files,
+      { uri: "inmemory:///helper.luau", text: `& harness_record(42)\n` },
+    ]);
+    expect(errs).toEqual([]);
+    expect(recordedRun(result.program.chunks)).toEqual([42, 42]);
+  });
+
+  test("runs one file once per run line across incremental compiles", () => {
+    const mainWith = (runLines: number) =>
+      `external harness_record(v)\n${'run "helper"\n'.repeat(runLines)}done\n`;
+    const { compiler, result: first } = compileWithFiles([
+      { uri: "inmemory:///main.sd", text: mainWith(2) },
+      { uri: "inmemory:///helper.luau", text: `& harness_record(42)\n` },
+    ]);
+    expect(recordedRun(first.program.chunks)).toEqual([42, 42]);
+
+    let version = 1;
+    const recompile = (uri: string, text: string) => {
+      compiler.updateDocument({
+        textDocument: { uri, version: ++version },
+        contentChanges: [{ text: withTestExternals(text) }],
+      });
+      const result = compiler.compile({
+        textDocument: { uri: "inmemory:///main.sd" },
+      });
+      expect(messagesOf(result).errs).toEqual([]);
+      return recordedRun(result.program.chunks);
+    };
+    expect(recompile("inmemory:///main.sd", mainWith(3))).toEqual([42, 42, 42]);
+    expect(recompile("inmemory:///main.sd", mainWith(1))).toEqual([42]);
+    expect(recompile("inmemory:///main.sd", mainWith(2))).toEqual([42, 42]);
+    // The body an edit to the file gives is #316's: the wrapper document
+    // keeps its first text. Each run line still calls it.
+    expect(
+      recompile("inmemory:///helper.luau", `& harness_record(7)\n`),
+    ).toHaveLength(2);
   });
 
   // Cycle detection guards against a future scenario where `run`

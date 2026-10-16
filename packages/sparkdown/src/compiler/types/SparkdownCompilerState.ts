@@ -23,6 +23,10 @@ export interface SparkdownCompilerState {
    * instead of recursing forever. Pushed before recursive descent and
    * popped on return.
    *
+   * `runSites` counts, by resolved URI, the `run` statements of each `.luau`
+   * file the compile has reached. The first declares the file's wrapper
+   * function and calls it; each later one only calls it.
+   *
    * `includedUris` holds the entry script and every script an `include` has
    * reached in this compile. A script is included once: a later `include` of
    * a script already in the set adds nothing, so the flows it declares are
@@ -31,6 +35,7 @@ export interface SparkdownCompilerState {
   fileResolutionState?: {
     currentParentUri: string;
     runStack?: string[];
+    runSites?: Map<string, number>;
     includedUris: Set<string>;
   };
 }
