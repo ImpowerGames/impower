@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 100,
-  "previous": "da9728c97b49f042dadcd009c43281f6147edd98",
+  "seq": 101,
+  "previous": "491947310e03b61ca2554f5856b81cc76ec52ccf",
   "snapshotParents": [],
-  "time": "2026-10-16T20:21:52.374Z",
+  "time": "2026-10-16T20:22:12.459Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 77,
+    "recordRevision": 78,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -1152,7 +1152,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T20:21:51.444Z",
+      "observedAt": "2026-10-16T20:22:11.575Z",
       "held": true,
       "head": "f5af545356733453cfb0145ffc816c61b62d1c47",
       "remoteHead": "f5af545356733453cfb0145ffc816c61b62d1c47",
@@ -1203,7 +1203,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T20:21:51.444Z",
+      "observedAt": "2026-10-16T20:22:11.575Z",
       "held": true,
       "head": "e83fefb53b039d981683520afe174b199552c884",
       "remoteHead": "e83fefb53b039d981683520afe174b199552c884",
@@ -1795,6 +1795,11 @@
       "time": "2026-10-16T19:51:15.239Z",
       "event": "check-in",
       "outcome": "no change: #1881 and #1974 writers running, no PRs yet; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T20:22:09.995Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (draft PR #1983) and #1974 (draft PR #1984) writers running; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
     }
   ]
 }
