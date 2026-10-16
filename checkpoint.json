@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 33,
-  "previous": "1fb28063ecf2197a31dd83bb35d2681dfb5db3c0",
+  "seq": 34,
+  "previous": "6175c1f055f89b282ae279383d91ded6c5d7b2ec",
   "snapshotParents": [],
-  "time": "2026-10-16T12:17:43.293Z",
+  "time": "2026-10-16T12:17:51.488Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 47,
+    "recordRevision": 48,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -436,7 +436,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T12:17:42.499Z",
+      "observedAt": "2026-10-16T12:17:50.810Z",
       "held": true,
       "head": "b457d0aa5480939884e63198a5c7147b56edbef8",
       "remoteHead": "a322a5d0a067c3f5070e314d4b0287a1d8e048b5",
@@ -998,6 +998,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1905-c04ac027-1dba-4d09-9570-d962dbca24a5"
       }
+    },
+    {
+      "time": "2026-10-16T12:17:49.524Z",
+      "event": "check-in",
+      "outcome": "CLI route available again after the maintainer's fix; resumed the #1905 writer in its session c7930980 (resume c04ac027) with a prompt to continue from its worktree state; awaiting its acknowledgement"
     }
   ]
 }
