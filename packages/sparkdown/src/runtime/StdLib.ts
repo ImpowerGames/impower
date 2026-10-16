@@ -2536,6 +2536,144 @@ function linkWaitingStructuralChildren(
   }
 }
 
+// Whether `v` is a root table of the type `name`: an explicit root define
+// (`define color with … end`) or the table a child minted for it (`as color`
+// before any root), neither of which has a parent.
+function isRootTypeTable(v: AbstractValue | null, name: string): boolean {
+  const meta = metatableMap(v);
+  return (
+    meta != null &&
+    coerceString(meta.get(DEFINE_MARKER) ?? null) === name &&
+    meta.get(DEFINE_PARENT_MARKER) == null
+  );
+}
+
+// The table that already holds the type `name` when a root define of it
+// runs, if one does: the flat global, or the displaced root `$name_name` of
+// a dual name (see `resolveParentType`).
+function rootTableFor(
+  // `any` for the same circular-import reason as `StateAwareStdLibFn`.
+  story: any,
+  name: string,
+  table: ObjectValue,
+): ObjectValue | null {
+  for (const key of [name, `$${name}_${name}`]) {
+    const held = story.state.variablesState.GetVariableWithName(
+      key,
+    ) as AbstractValue | null;
+    if (
+      held instanceof ObjectValue &&
+      held !== table &&
+      isRootTypeTable(held, name)
+    ) {
+      return held;
+    }
+  }
+  return null;
+}
+
+// Whether `v` is a table in Luau's sense, not a function wrapper
+// (`__stdlib_fn`, `__closure_fn`) that is also an `ObjectValue`.
+function isPlainTable(v: AbstractValue | null | undefined): v is ObjectValue {
+  return v instanceof ObjectValue && luauTypeOf(v) === "table";
+}
+
+// Whether `v` is a record a root's merge descends into: a table that is not a
+// define and is not a list. A list is a non-empty table whose keys are
+// exactly `"1"`..`"n"`, as the context converters classify one
+// (`expressionToContextValue`, `buildDefinesContext`), and replaces what it
+// meets whole, as `inheritDefaults` replaces arrays in the compile-time
+// context. A table mixing positions with names is a record, and so is an
+// empty table, which those converters read as an empty object: it fills a
+// record with nothing and replaces a list.
+function isRecordTable(v: AbstractValue | null | undefined): v is ObjectValue {
+  if (!isPlainTable(v)) return false;
+  const map = v.value;
+  if (!map || isDefineTable(v)) return false;
+  if (map.size === 0) return true;
+  for (let i = 1; i <= map.size; i++) {
+    if (!map.has(String(i))) return true;
+  }
+  return false;
+}
+
+// Writes `from`'s entries into `into`. A record written where `into` holds a
+// record or a define (a registered member) fills that table key by key
+// instead of replacing it, so `loading = { percent = 5 }` keeps the
+// builtin's other `loading` fields and `ui = { … }` in a `config` root keeps
+// the registered `config.ui`. `active` holds the tables being filled on the
+// way down, so a cycle ends while a table reached twice by different keys is
+// filled each time.
+function mergeEntries(
+  into: ObjectValue,
+  from: ObjectValue,
+  written: Written,
+  active: Set<ObjectValue>,
+): void {
+  written(into);
+  const map = into.value!;
+  for (const [key, value] of from.value!) {
+    const held = map.get(key) ?? null;
+    if (
+      held instanceof ObjectValue &&
+      held !== value &&
+      !active.has(held) &&
+      isRecordTable(value) &&
+      (isRecordTable(held) || (isPlainTable(held) && isDefineTable(held)))
+    ) {
+      active.add(held);
+      mergeEntries(held, value, written, active);
+      active.delete(held);
+    } else {
+      map.set(key, value);
+    }
+  }
+}
+
+// A root define of a type whose table already exists merges into that table
+// rather than replacing it, and returns it: a project's `define color with
+// … end` overriding the builtin root (#454) runs after the prelude's root and
+// every member that registered into its table (`define red as color`, the
+// structural blocks, the parent links still waiting there), and a project's
+// root written after its own members finds the table the first of them
+// minted. The authored values replace the table's own, records key by key
+// (`mergeEntries`); each member keeps
+// inheriting from the same table, so it reads them, and takes the `store`
+// defaults the merge brings, as a member defined after it would. A root table
+// that already holds such defaults (neither the prelude's nor a minted one
+// does) keeps the copies its members took.
+// The declarations run on a fresh state, so the table found is always one
+// this run made.
+function mergeIntoRootTable(
+  story: any,
+  name: string,
+  table: ObjectValue,
+  written: Written,
+): ObjectValue | null {
+  const target = rootTableFor(story, name, table);
+  if (!target) return null;
+  mergeEntries(target, table, written, new Set([target]));
+  const into = target.value!;
+  for (const [key, member] of into) {
+    const meta = metatableMap(member);
+    if (
+      !(member instanceof ObjectValue) ||
+      meta?.get(DEFINE_PARENT_MARKER) == null ||
+      coerceString(meta.get(DEFINE_MARKER) ?? null) !== key
+    ) {
+      continue;
+    }
+    const chain = defineChain(member);
+    if (!chain.includes(target)) continue;
+    if (structuralStoreCopies.has(member)) {
+      copyStructuralStoreDefaults(member, written);
+    } else {
+      copyStoreDefaults(chain.slice(1), member, written);
+    }
+  }
+  return target;
+}
+
 // A `display({ parts })` table carries words whose tags sit between pieces of
 // text, each part a string or a `{ tag }` table, in the order written. Join
 // them into the `text` and `tags` every other display table carries. True
@@ -5263,6 +5401,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   //   3. Registers D into T and EVERY ancestor (`T.D`, `Grandparent.D`),
   //      so members are reachable through any type up the chain and
   //      `instances(T)` enumerates them.
+  //   4. A ROOT define (no T) whose type's table already exists merges
+  //      into that table and returns it (`mergeIntoRootTable`).
   // Returns D (the global VariableAssignment binds it to the name).
   "__def": {
     arity: 3,
@@ -5314,6 +5454,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
         for (const level of chain) {
           linkWaitingStructuralChildren(level, name, table, written);
         }
+      } else if (name) {
+        const merged = mergeIntoRootTable(story, name, table, written);
+        if (merged) return merged;
       }
       return table;
     },

@@ -723,9 +723,19 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         // doesn't throw and abort the pass. The `$type_name` key can't
         // collide with a script identifier (`$` is not legal in one).
         const qualifiedKey = `$${newType}_${varName}`;
-        if (!this.variableDeclarations.has(qualifiedKey)) {
+        const holder = this.variableDeclarations.get(qualifiedKey);
+        // The displaced root of a dual name (the prelude's `typewriter` root,
+        // displaced by its synth instance) is overridden like any other.
+        if (holder && this.AddRootOverride(qualifiedKey, holder, varDecl)) {
+          return;
+        }
+        if (!holder) {
           this.variableDeclarations.set(qualifiedKey, varDecl);
         }
+        return;
+      }
+
+      if (this.AddRootOverride(varName, varab, varDecl)) {
         return;
       }
 
@@ -801,6 +811,44 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
 
     this.variableDeclarations.set(varDecl.variableName, varDecl);
+  };
+
+  /** Registers an authored ROOT define that overrides the prelude's root
+   *  define held under `key` (`define game with … end`, #454), and reports
+   *  whether it did; a second authored override of the same root is reported
+   *  as a duplicate. The prelude's root keeps its key and its place in the
+   *  init order, so the prelude's members register into its table as they
+   *  run; the authored root runs at its own place, after the globals its
+   *  initializer reads, under a synthetic `$override_` key, and its `__def`
+   *  merges it into the table that holds the type (`StdLib`'s
+   *  `mergeIntoRootTable`). */
+  protected AddRootOverride = (
+    key: string,
+    incumbent: VariableAssignment,
+    varDecl: VariableAssignment,
+  ): boolean => {
+    const isRoot = (va: VariableAssignment) =>
+      va.isDefineDeclaration && !va.structDefinition && !!va.expression;
+    if (
+      !incumbent.isPreludeDeclaration ||
+      varDecl.isPreludeDeclaration ||
+      !isRoot(incumbent) ||
+      !isRoot(varDecl)
+    ) {
+      return false;
+    }
+    const overrideKey = `$override_${key}`;
+    const earlier = this.variableDeclarations.get(overrideKey);
+    if (earlier) {
+      this.Error(
+        `Duplicate identifier \`${varDecl.variableName}\`. A ${earlier.typeName.toLowerCase()} named \`${varDecl.variableName}\` already exists on ${earlier.debugMetadata}`,
+        varDecl.identifier!.debugMetadata,
+      );
+      varDecl.RefuseAsDuplicate();
+      return true;
+    }
+    this.variableDeclarations.set(overrideKey, varDecl);
+    return true;
   };
 
   public ResolveWeavePointNaming = (): void => {

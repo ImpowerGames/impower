@@ -4597,6 +4597,9 @@ export class SparkdownCompiler {
    *  2. MARK. Tag the prelude's declarations so the collision handler can tell
    *     an override (allowed, authored wins) from two colliding authored
    *     defines (still an error). `debugMetadata` can't distinguish them.
+   *     The prelude's root defines are marked too; an authored root needs no
+   *     back-fill, since its `__def` merges into the prelude's table at
+   *     runtime (FlowBase.AddRootOverride).
    *
    *  Idempotent, like {@link scopeDefineInstances}: back-fill only adds keys the
    *  table lacks, so re-running on cached parse nodes across incremental
@@ -4606,7 +4609,10 @@ export class SparkdownCompiler {
     userVAs: readonly ParsedObject[],
     preludeVAs: ReadonlySet<ParsedObject>,
   ): void {
-    if (preludeVAs.size === 0 || userVAs.length === 0) {
+    // Marked even when no user declaration is typed: an authored ROOT define
+    // (`define game with … end`, #454) is not among `userVAs`, and overrides
+    // the prelude's root, which `preludeVAs` holds, only once it is marked.
+    if (preludeVAs.size === 0) {
       return;
     }
     // The prelude's declarations, keyed by their STABLE BARE name — never the

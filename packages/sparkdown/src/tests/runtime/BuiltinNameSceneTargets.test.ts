@@ -185,9 +185,8 @@ end
 describe("an authored define may take a builtin's name in an unseeded compile", () => {
   test("a root override replaces the marker and compiles", () => {
     // The marker is dropped from the registry and the authored define takes
-    // the slot. (A seeded compile of the same source fails on a duplicate
-    // identifier between the prelude's `game` and the authored one; that is
-    // #454, and independent of the markers.)
+    // the slot. (A seeded compile of the same source overrides the prelude's
+    // `game` instead; see builtinRootDefineOverride.test.ts, #454.)
     const program = compileUnseeded(`define game with
   loading = { percent = 5 }
 end
