@@ -8,7 +8,9 @@
 // chunks were equal but an untouched statement's chunk was emitted again
 // also count those (#1611). Statements that read the same as each other
 // (twins) keep the chunks of the statements they were, wherever the edit
-// falls among them (#1893, unit U1).
+// falls among them (#1893, unit U1). A statement the parse carried past the
+// edit keeps its chunk only while it stands where the chunk was emitted for
+// it, which the flow around it decides (#1893, unit U3).
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { pairCells, pairInOrder } from "../../program/ChunkStore";
@@ -349,6 +351,62 @@ describe("statements that read the same as each other (twins)", () => {
       "    label mid",
     ].join("\n");
     const { incremental, cold, reemitted, moved } = editOnce(before, 2, "Chained .. ch".length, "Chaine ");
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
+  });
+});
+
+describe("a carried `do` block whose enclosing flow changed (#1627)", () => {
+  // At the top level the story takes a `do` block's functions as flows of
+  // their own, and the block's body holds no statement for them; inside a
+  // scene the body holds the statement that writes each one. The edits leave
+  // the second `do` block as it was, so the parse carries it.
+  it("is emitted again when an unclosed function moves it out of its scene", () => {
+    const before = [
+      "scene FN_0",
+      "function helper()",
+      "  return 7",
+      "end",
+      "do",
+      "  function inner()",
+      "essage}.",
+      "end",
+      "",
+      "do",
+      "  function inner()",
+    ].join("\n");
+    // Replaces the newline and the `e` of `end` that close `helper` with
+    // `end` and a newline, which leaves `helper` unclosed.
+    const at = offsetOf(before, 2, 10);
+    const { incremental, cold } = editOnce(before, at, offsetOf(before, 3, 1) - at, "end\n");
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+  });
+
+  it("is emitted again when a scene header breaks the block above it", () => {
+    const before = "do\n  & add(2)\nFN_0\nend\ndo\n  function inner()\n  end\nend\n";
+    const { incremental, cold } = editOnce(before, 3, "  & add(2)\n".length, "\nscene ");
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+  });
+
+  it("is emitted again when a scene header is inserted above it", () => {
+    const before = "do\n  function inner()\n  end\nend\n";
+    const { incremental, cold } = editOnce(before, 0, 0, "scene S\n");
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+  });
+
+  it("keeps its chunk when its enclosing flow does not change", () => {
+    const before = "scene S\n  Hello.\ndo\n  function inner()\n  end\nend\n";
+    const { incremental, cold, reemitted, moved } = editOnce(
+      before,
+      before.indexOf("Hello"),
+      "Hello".length,
+      "Howdy",
+    );
     expect(cold.chunks).not.toBeNull();
     expect(incremental).toEqual(cold);
     expect(moved).toEqual([]);
