@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 235,
-  "previous": "aceba8d26feef32d3968040ddccf72c7d63549b3",
+  "seq": 236,
+  "previous": "64c6870deb2ef47fc5f2b9b94a8fe3032287f771",
   "snapshotParents": [],
-  "time": "2026-10-16T16:08:23.591Z",
+  "time": "2026-10-16T16:09:42.523Z",
   "kind": "auto",
-  "transition": "disk-recovery",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 173,
@@ -2636,7 +2636,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:08:22.773Z",
+      "observedAt": "2026-10-16T16:09:41.625Z",
       "held": true,
       "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
       "remoteHead": null,
@@ -2648,7 +2648,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:08:22.773Z",
+      "observedAt": "2026-10-16T16:09:41.625Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2780,7 +2780,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T15:46:41.649Z",
+    "at": "2026-10-16T16:09:41.623Z",
     "tickets": [
       {
         "number": 1201,
@@ -2874,9 +2874,9 @@
       },
       {
         "number": 1934,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch fdf8e099-6449-4a65-b797-0cd95778f581 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 7864 started 639277624095413727 is running"
       }
     ],
     "remaining": [
