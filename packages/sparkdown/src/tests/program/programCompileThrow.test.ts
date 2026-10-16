@@ -148,6 +148,24 @@ describe("a compile whose statement throws", () => {
     expect(errorsOf(program).map(([line]) => line)).toEqual([6]);
   });
 
+  it("reports a store whose call gives the names after it values at that store", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      'function fail()\n  error("bad")\n  return 1, 2\nend\nfunction holder()\n  store c = 1\n  store a, b = fail()\n  store d = 2\n  return 0\nend\nHello.\n',
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line)).toEqual([6]);
+  });
+
+  it("reports a store after such a store at its own line", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      "function pair()\n  return 3, 4\nend\nfunction holder()\n  store a, b = pair()\n  store c = 1 // nil\n  return 0\nend\nHello.\n",
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line)).toEqual([5]);
+  });
+
   it("reports a store whose error reads like a diagnostic the compile leaves out", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
