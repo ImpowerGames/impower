@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 141,
-  "previous": "05cd459b75980bf86a6c1b0232ff5246507c8690",
+  "seq": 142,
+  "previous": "82f80c39a96dd5c213ad1009e785aa96c85ae7c2",
   "snapshotParents": [],
-  "time": "2026-10-16T02:31:27.528Z",
+  "time": "2026-10-16T02:32:23.981Z",
   "kind": "auto",
-  "transition": "verify of #1920",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 119,
@@ -1934,7 +1934,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:31:27.528Z",
+      "observedAt": "2026-10-16T02:32:23.981Z",
       "held": true,
       "exists": false
     },
@@ -1943,7 +1943,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:31:27.528Z",
+      "observedAt": "2026-10-16T02:32:23.981Z",
       "held": true,
       "exists": false
     }
@@ -1951,7 +1951,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T02:30:16.812Z",
+    "at": "2026-10-16T02:32:23.978Z",
     "tickets": [
       {
         "number": 316,
@@ -2021,9 +2021,9 @@
       },
       {
         "number": 1920,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 46e210e6-d8a0-431e-9691-54f966c53260 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 55752 started 639277146245211808 is running"
       }
     ],
     "remaining": [
