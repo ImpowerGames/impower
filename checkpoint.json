@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 169,
-  "previous": "a931640e4c37f097d884c1dafd4bf4b5e8981ded",
+  "seq": 170,
+  "previous": "fc0cec8ce6141d55b81f25fba4a2ef32c133817b",
   "snapshotParents": [],
-  "time": "2026-10-16T06:29:04.056Z",
+  "time": "2026-10-16T06:29:12.750Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1917",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 122,
+    "recordRevision": 123,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -724,10 +724,7 @@
       ]
     },
     "1917": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "4e3cff43-de59-4ecb-90b5-8869deb13480",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "medium",
@@ -736,9 +733,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
         "branch": "test/1917-cumulative-edit-run",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-16T06:28:26.693Z"
+        "launchId": "4e3cff43-de59-4ecb-90b5-8869deb13480",
+        "handle": {
+          "kind": "process",
+          "pid": 12152,
+          "start": "639277289510282821",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1917-4e3cff43-de59-4ecb-90b5-8869deb13480"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment 4e3cff43-de59-4ecb-90b5-8869deb13480. You are the writer for ImpowerGames/impower ticket #1917 (Commit the cumulative randomized-edit run on the statement chunks with the seeds the #1893 sub-issues name), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 4e3cff43-de59-4ecb-90b5-8869deb13480 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1917 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run on branch test/1917-cumulative-edit-run from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- This Task is the last slice of umbrella #1893, whose Description, Scope and Acceptance criteria are the design of record. Every fix unit has merged (PRs #1910, #1912, #1915, #1918, #1919 and #1930), so the cumulative randomized-edit run you commit must pass on origin/main as it is now. Reinstate the 'randomized incremental edits on the statement chunks' block of the deleted packages/sparkdown/src/tests/differential/programDifferential.test.ts (last version at 2a940a750^, read it with git show) as a test of its own under packages/sparkdown/src/tests/program, driven by the committed cumulativeEdits helper, over the six screenplays (display, logic, function, capture, flow, choose) with the deleted run's cumulative seeds (0x51ed694 + index per screenplay plus 12345 and 99991 for the function screenplay) and the sub-issue seeds: choose 2 and 10 (#1611), function 3 (#1614), capture 7 (#1614's string case) and the #1846 seed 77 sequence with its inserts. After each edit compare the chunks by content (describeRoot), the flows and the diagnostics with a cold compile, and check that every chunk of a statement the edit did not touch is the chunk it was before. The two-engine comparison and the SPARKDOWN_PROJECT whole-project run stay deleted.\n- A seed that fails is a report, not a fix: do not change the compiler, the chunk store, the memo session or the parser. Message the coordinator with the seed, the screenplay, the edit index and the first difference, keep that seed in the test marked as skipped with a comment naming the ticket it belongs to (or the new Bug you file as a sub-issue of #1893 with the milestone 'Compilation robustness' when no existing ticket covers the mechanism), and finish the rest.\n- Budget: the Test Suite workflow's sparkdown shards must stay within their current time (shard 1/4 already takes about 22 minutes). Measure the run; if 120 edits per seed over all seeds is too slow, lower the count per seed and say so in the test's comment, or keep a short form in the suite and put the long form behind an environment variable as the deleted run was (document the command in the file header). Report the measured duration of the committed form in Testing and verification.\n- Closes line: Closes #1917 only. Also post a comment on #1893 naming the committed test file as the one its second acceptance criterion ('the cumulative randomized-edit run of programDifferential.test.ts passes on the committed seeds plus every seed named in a sub-issue') now reads as, and quote the seed list; the coordinator verifies the umbrella against it.\n- Reference material: PR #1912's writer replayed the deleted block as an uncommitted script with 11 of 11 seeds passing; its artifacts (cumulative-fix.txt, cumulative-main.txt and the script) are under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/writer-1632-I0sJ8k, read-only; copy what you use into your own artifact directory. The committed incrementalCumulativeEquivalence in programIncrementalOracles.test.ts (around line 579) is the closest existing shape.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files relative to the package> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Do not edit packages/sparkdown/src/program/ChunkStore.ts or any production source; this PR is tests and a comment on the umbrella.\n- Another coordinator merges PRs on this repository at the same time and the merge gate admits only a head that contains current origin/main with CI green on it. Just before you mark the PR ready, fetch origin main and merge it in as a merge commit if it moved, let CI finish on that head in the foreground, and report that head; the coordinator may later resume you to merge main once more if it moves again before your turn in the merge queue.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it. Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Other coordinators run tickets of #1895 and #1904 on this machine at the same time. The machine-wide reviewer and test reservations are shared with their writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "2ebdfa12",
+          "attempts": 1,
+          "time": "2026-10-16T06:29:11.324Z",
+          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+        },
+        "since": "2026-10-16T06:29:11.325Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     }
@@ -2022,7 +2037,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T06:29:04.056Z",
+      "observedAt": "2026-10-16T06:29:12.749Z",
       "held": true,
       "exists": false
     }
@@ -2125,11 +2140,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:47.337Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1607-program-resolver"
-    },
     {
       "time": "2026-10-15T22:18:55.427Z",
       "event": "disk-recovery",
@@ -2818,6 +2828,19 @@
       "ticket": 1917,
       "route": "claude-cli",
       "launchId": "4e3cff43-de59-4ecb-90b5-8869deb13480"
+    },
+    {
+      "time": "2026-10-16T06:29:11.325Z",
+      "event": "launched",
+      "ticket": 1917,
+      "launchId": "4e3cff43-de59-4ecb-90b5-8869deb13480",
+      "handle": {
+        "kind": "process",
+        "pid": 12152,
+        "start": "639277289510282821",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1917-4e3cff43-de59-4ecb-90b5-8869deb13480"
+      }
     }
   ]
 }
