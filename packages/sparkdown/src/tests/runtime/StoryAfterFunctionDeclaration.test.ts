@@ -90,11 +90,16 @@ describe("story lines after a function declaration", () => {
   test("a function whose body is only lines of words ends at its `end`, and the line after it plays from the top", () => {
     // GRAMMAR.md section 13.2: a pure-Luau body holds no story text, so each
     // line is reported as Luau, and the definition still closes at its `end`
-    // (#1093).
+    // (#1093). The errors are those of the test above (#1905).
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\nAfter it.\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
+    expect(ctx.errorMessages.map((m) => m.split("\n")[0])).toEqual([
+      "Expected identifier after '.' on the same line",
+      INCOMPLETE,
+      INCOMPLETE,
+      "Expected identifier when parsing expression, got '?'",
+    ]);
     const lines: string[] = [];
     while (ctx.story.canContinue) {
       const text = ctx.story.Continue();
