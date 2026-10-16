@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 104,
-  "previous": "661763f9137947216fb969caadfb56cacb0a03f1",
+  "seq": 105,
+  "previous": "bcb2705b0202bbb32656cafc05f8bcb996321c00",
   "snapshotParents": [],
-  "time": "2026-10-16T21:51:48.224Z",
+  "time": "2026-10-16T22:18:40.696Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 81,
@@ -1152,16 +1152,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T21:51:46.783Z",
+      "observedAt": "2026-10-16T22:18:39.410Z",
       "held": true,
-      "head": "f0639071e60ccba0ed8badb942e2b8876095ad29",
-      "remoteHead": "f0639071e60ccba0ed8badb942e2b8876095ad29",
+      "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
+      "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 36168
-      },
       "pr": 1983,
       "reviewJobs": [
         {
@@ -1239,7 +1235,7 @@
         },
         {
           "job": "pr-1983/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -1254,7 +1250,23 @@
               "undirected": 1
             },
             "time": "2026-10-16T21:38:34.178Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "f0639071e60ccba0ed8badb942e2b8876095ad29",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6225585759
+          ]
         }
       ]
     },
@@ -1263,12 +1275,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T21:51:46.783Z",
+      "observedAt": "2026-10-16T22:18:39.410Z",
       "held": true,
-      "head": "00e52531f3d43dc3f415227e727a9bf4f49e0dd1",
-      "remoteHead": "00e52531f3d43dc3f415227e727a9bf4f49e0dd1",
+      "head": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
+      "remoteHead": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1984,
       "reviewJobs": [
         {
@@ -1350,6 +1362,47 @@
           "commentIds": [
             6224228197
           ]
+        },
+        {
+          "job": "pr-1984/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incrementality",
+              "blast-radius",
+              "undirected"
+            ],
+            "head": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
+            "completedRoundReviewers": {
+              "incrementality": 1,
+              "blast-radius": 1
+            },
+            "time": "2026-10-16T21:55:54.821Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "incrementality": 1,
+            "blast-radius": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incrementality",
+            "blast-radius",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6225755506
+          ]
         }
       ]
     }
@@ -1357,7 +1410,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T20:21:51.443Z",
+    "at": "2026-10-16T22:18:39.407Z",
     "tickets": [
       {
         "number": 851,
@@ -1381,7 +1434,7 @@
         "number": 1881,
         "action": "observe",
         "pr": 1983,
-        "reason": "process 35408 started 639277678901320254 is running"
+        "reason": "process 30652, 48268, 13428 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1881-3dcfbdc3-6df9-4d2e-b876-2ffdb15ae348"
       },
       {
         "number": 1974,
