@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 152,
-  "previous": "ed30fb24c53c1ccc001aba2bfb5cfda6793121ed",
+  "seq": 153,
+  "previous": "8fcad44c88d756990b469ae8af15f6719af9a256",
   "snapshotParents": [],
-  "time": "2026-10-16T04:07:03.177Z",
+  "time": "2026-10-16T04:08:32.706Z",
   "kind": "auto",
-  "transition": "the merge of PR #1923 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 126,
@@ -2166,11 +2166,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T04:07:02.294Z",
+      "observedAt": "2026-10-16T04:08:31.737Z",
       "held": true,
       "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
-      "remoteHead": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
-      "unpushed": false,
+      "remoteHead": "d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4",
+      "unpushed": true,
       "dirty": false,
       "pr": 1921,
       "reviewJobs": [
@@ -2254,7 +2254,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T04:07:02.294Z",
+      "observedAt": "2026-10-16T04:08:31.737Z",
       "held": true,
       "head": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
       "remoteHead": "e3c7af01568fe8b8c928450fe906376e2f18ff58",
@@ -2389,7 +2389,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T03:43:00.151Z",
+    "at": "2026-10-16T04:08:31.736Z",
     "tickets": [
       {
         "number": 316,
@@ -2443,7 +2443,7 @@
         "number": 1617,
         "action": "merge-gate",
         "pr": 1921,
-        "reason": "PR #1921 is ready at 7402a36baf3ef413cfb0eb48d6a4feff50664399; process 60224 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "PR #1921 is ready at d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4; process 60224 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1641,
@@ -2459,9 +2459,9 @@
       },
       {
         "number": 1920,
-        "action": "merge-gate",
-        "pr": 1923,
-        "reason": "PR #1923 is ready at e3c7af01568fe8b8c928450fe906376e2f18ff58; process 55752 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55752 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       }
     ],
     "remaining": [
