@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 283,
-  "previous": "52adaf570abe0349850b6923dc480d56cedd4e24",
+  "seq": 284,
+  "previous": "31fd89f03df656563346960b570b7bb07004b320",
   "snapshotParents": [],
-  "time": "2026-10-16T16:17:26.880Z",
+  "time": "2026-10-16T16:17:40.008Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 237,
+    "recordRevision": 238,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4157,7 +4157,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:17:24.302Z",
+      "observedAt": "2026-10-16T16:17:38.362Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -4169,7 +4169,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:17:24.302Z",
+      "observedAt": "2026-10-16T16:17:38.362Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4314,7 +4314,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:17:24.302Z",
+      "observedAt": "2026-10-16T16:17:38.362Z",
       "held": true,
       "exists": false
     }
@@ -4423,11 +4423,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:34:16.985Z",
-      "event": "verified",
-      "ticket": 887
-    },
     {
       "time": "2026-10-16T04:34:24.927Z",
       "event": "check-in",
@@ -5113,6 +5108,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1800-31d5b5cf-d978-4fc3-8b44-fd76e05930c7"
       }
+    },
+    {
+      "time": "2026-10-16T16:17:35.769Z",
+      "event": "check-in",
+      "outcome": "Merged #1929 (7ae0fffa, #454) and released its writer; #839's PR #1948 is ready but the gate refuses it (round-1 ax journal blocked, launcher cannot relaunch), relayed to the maintainer as request 1a4a9897; second disk recovery freed 8.6 GB of worktrees plus driver and scratch directories (34 GB free), recorded; dispatched #316 (medium) and #1800 (low); #1951 waits for capacity"
     }
   ]
 }
