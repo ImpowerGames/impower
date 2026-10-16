@@ -227,8 +227,9 @@ export class TextmateParseRegion {
     let str = "";
     let pos = from;
     while (pos < this.input.length && !str.match(ENDS_WITH_NEWLINE_REGEX)) {
-      str += this.input.chunk(pos);
-      pos += str.length;
+      const chunk = this.input.chunk(pos);
+      str += chunk;
+      pos += chunk.length;
     }
     return str;
   }
