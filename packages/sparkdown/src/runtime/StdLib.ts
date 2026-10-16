@@ -2630,6 +2630,41 @@ function mergeEntries(
   }
 }
 
+// Fills `into` with the entries of `from` it lacks, the reverse of
+// `mergeEntries`: a typed define overriding a member already registered under
+// its name (`define ui as config` over the builtin `config.ui`, #1951) keeps
+// every key it authors, computed ones included, and takes the member's
+// others. A record it restates where the member holds a record is filled the
+// same way, key by key, so `breakpoints = { xs = 1 }` keeps the builtin's
+// other breakpoints, as `inheritDefaults` merges them in the compile-time
+// context; a list or any other value it authors stays as written. The
+// member's hidden modifier lists (`__storeProps`, …) are its own.
+function fillMissingEntries(
+  into: ObjectValue,
+  from: ObjectValue,
+  written: Written,
+  active: Set<ObjectValue>,
+): void {
+  const map = into.value!;
+  for (const [key, value] of from.value!) {
+    if (key.startsWith("__")) continue;
+    const own = map.get(key);
+    if (own === undefined) {
+      written(into);
+      map.set(key, value);
+    } else if (
+      own !== value &&
+      !active.has(own as ObjectValue) &&
+      isRecordTable(own) &&
+      isRecordTable(value)
+    ) {
+      active.add(own);
+      fillMissingEntries(own, value, written, active);
+      active.delete(own);
+    }
+  }
+}
+
 // A root define of a type whose table already exists merges into that table
 // rather than replacing it, and returns it: a project's `define color with
 // … end` overriding the builtin root (#454) runs after the prelude's root and
@@ -5441,6 +5476,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
       table.metatable = new ObjectValue(mt);
 
       if (parent) {
+        // An override of a member already registered under this name (a
+        // builtin instance the seeded prelude declared first) keeps that
+        // member's values for the keys it does not author.
+        const replaced = parent.value!.get(name);
+        if (
+          replaced instanceof ObjectValue &&
+          replaced !== table &&
+          isPlainTable(replaced) &&
+          isDefineTable(replaced)
+        ) {
+          fillMissingEntries(table, replaced, written, new Set([table]));
+        }
         const chain = defineChain(parent);
         copyStoreDefaults(chain, table, written);
         // Register into the parent and every ancestor.

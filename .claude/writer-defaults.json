@@ -2,13 +2,11 @@
   "orchestrators": {
     "claude": {
       "model": "claude-opus-5-5",
-      "checkIn": { "capability": "CronCreate with recurring true, the cron expression and the prompt that the schedule command prints; the job is session-scoped, so it ends with the coordinator's session", "expiresAfterDays": 7 },
-      "grouping": "the desktop app's sidebar group tools, when the session offers them"
+      "checkIn": { "capability": "CronCreate with recurring true, the cron expression and the prompt that the schedule command prints; the job is session-scoped, so it ends with the coordinator's session", "expiresAfterDays": 7 }
     },
     "codex": {
       "model": "gpt-6.1-sol",
-      "checkIn": null,
-      "grouping": null
+      "checkIn": null
     }
   },
   "routes": {

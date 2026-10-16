@@ -11,6 +11,8 @@ import type { Location, Position } from "../../typecheck/Location";
 import {
   readLuauBlock,
   readLuauExpression,
+  readLuauMethod,
+  readLuauStatements,
   type LuauAstUnit,
   type LuauSyntaxError,
 } from "../../typecheck/readLuauAst";
@@ -127,6 +129,16 @@ export function readBlockAst(
   if (!first) return null;
   const unit = readLuauBlock(nodes, documentText(ctx));
   return { unit, source: { top: topOf(first), errors: unit.errors } };
+}
+
+/** The syntax errors of a `define`'s method, read as the function value it stands for (`readLuauMethod`). */
+export function methodSyntaxErrors(node: SyntaxNode, ctx: LowerContext): readonly LuauSyntaxError[] {
+  return readLuauMethod(node, documentText(ctx)).errors;
+}
+
+/** The syntax errors of a Sparkle closure's body, read as the body of the function value it runs as (`readLuauStatements`). */
+export function closureSyntaxErrors(content: SyntaxNode, ctx: LowerContext): readonly LuauSyntaxError[] {
+  return readLuauStatements([content], documentText(ctx)).errors;
 }
 
 /** The message of the syntax error an error node names. */

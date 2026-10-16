@@ -130,8 +130,10 @@ test("lookups after edits read the tokens a lex of the whole edited document giv
 const block = (i: number) =>
   `function f${i}()\n  local x${i} = ${i} -- note ${i}\n  return x${i}\nend\n\nThe hero walks on, ${i} steps.\n\n`;
 
-// A deliberate error near the bottom, which the window must still report.
-const tail = "function g()\n  Hello there\nend\n\nThe hero stops.\n";
+// A deliberate error near the bottom, which the window must still report: a
+// `.` whose name is on the next line, which the validator reads past its line
+// to find.
+const tail = "function g(t)\n  local y = t.\n  Hello\nend\n\nThe hero stops.\n";
 
 function validations(registry: SparkdownDocumentRegistry, uri: string) {
   const found: { from: number; to: number; message: string }[] = [];
@@ -176,9 +178,9 @@ function lexedOnEdit(count: number) {
     spy.mockRestore();
   }
   // The deliberate error is still reported after the edit.
-  const hello = edited.lastIndexOf("Hello");
+  const dot = edited.lastIndexOf("t.") + 1;
   expect(validations(registry, uri)).toContainEqual({
-    from: hello, to: hello + 5, message: "Incomplete statement: expected assignment or a function call",
+    from: dot, to: dot + 1, message: expect.stringMatching(/^Expected identifier after '\.' on the same line/),
   });
   return { count, sourceUnits: edited.length, tokens };
 }

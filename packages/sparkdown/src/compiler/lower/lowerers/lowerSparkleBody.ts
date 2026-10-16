@@ -12,6 +12,8 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { reportBodySyntaxErrors } from "../expression/lowerFunction";
+import { closureSyntaxErrors } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
 import {
   type Binding,
@@ -542,6 +544,7 @@ function lowerHandlerClosure(
     // the evaluator's body, for the binary program (`openEvaluatorBody`).
     const shape = openEvaluatorBody(ctx, closureNode.from, closureNode.to);
     const stmts = lowerStatements(body, ctx, undefined, shape);
+    if (body) reportBodySyntaxErrors(closureSyntaxErrors(body, ctx), ctx);
     const fn = new Function(
       new Identifier(exprId),
       stmts,

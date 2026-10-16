@@ -18,16 +18,11 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
-import {
-  followsDanglingDot,
-  followsMissingValue,
-  TRIVIA_BEFORE_STATEMENT,
-} from "../../lower/utils/statementBefore";
-import { luauStatementError } from "../../utils/luauStatementError";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
-import { luauPositionOffset, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
+import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
+import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -245,86 +240,6 @@ const LUAU_COMMENT = nodeNameSet([
 // ends with its line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
-/** The text Luau's parser names a token by in "got '…'", `<eof>` for none. */
-const gotToken = (token: { text: string } | null) =>
-  token == null ? "<eof>" : `'${token.text}'`;
-
-/**
- * Luau's error for the `.` at `dot` that no name follows on its line: the
- * token after it, or, when that is a name on a later line, the rule that a
- * Sparkdown access path ends with its line. It is reported at the `.`.
- */
-function danglingDotError(
-  node: SyntaxNode,
-  dot: number,
-  read: (from: number, to: number) => string,
-  document: () => string,
-): { message: string; from: number; to: number } {
-  const got = nextSignificantToken(node, dot + 1, read, document);
-  const nameOnLaterLine =
-    got != null &&
-    /^[A-Za-z_]/.test(got.text) &&
-    !RESERVED.has(got.text) &&
-    read(dot + 1, got.from).includes("\n");
-  return {
-    message: nameOnLaterLine
-      ? NAME_ON_LATER_LINE
-      : `Expected identifier, got ${gotToken(got)}`,
-    from: dot,
-    to: dot + 1,
-  };
-}
-
-/**
- * The error for a line in a Luau body that is not a Luau statement
- * (`LuauInvalidStatement`), which runs from `from` to `to`: Luau's parser's
- * first error for it (`luauStatementError`). The exception is a line that
- * ends with a `.` whose name Luau reads from the next line, so that its
- * first error runs past the line (`Hello.` then `How are you?`): a
- * Sparkdown access path ends with its line, so the `.` is reported as
- * `danglingDotError` reports it.
- */
-function invalidStatementError(
-  node: SyntaxNode,
-  from: number,
-  to: number,
-  read: (from: number, to: number) => string,
-  document: () => string,
-): { message: string; from: number; to: number } | null {
-  const error = luauStatementError(node, from, read, to, document);
-  const line = read(from, to).trimEnd();
-  if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
-    const dangling = danglingDotError(node, from + line.length - 1, read, document);
-    if (dangling.message === NAME_ON_LATER_LINE) return dangling;
-  }
-  return error;
-}
-
-/**
- * Whether `node`, a line in a Luau body that is not a Luau statement, is one
- * that Luau reads into the statement before it, whose report stands for it:
- * an `=` or operator that ends its line takes its first token as the missing
- * value (`local y =`), and a `.` that ends its line takes it as the missing
- * member (`local v = t.`, `U.S.`). The `.` is reported as a Sparkdown access
- * path when that token is a name, and the type checker then reports the
- * statement as Luau reads it; otherwise the report names the token.
- */
-function reportedBefore(
-  node: SyntaxNode,
-  read: (from: number, to: number) => string,
-  document: () => string,
-): boolean {
-  if (followsMissingValue(node, read)) return true;
-  let prev = node.prevSibling;
-  while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
-  if (prev?.name === "LuauInvalidStatement") {
-    const line = childNamed(prev, "LuauInvalidStatement_c2");
-    const error = invalidStatementError(prev, line?.from ?? prev.from, line?.to ?? prev.to, read, document);
-    return error != null && (error.message === NAME_ON_LATER_LINE || error.from >= node.from);
-  }
-  return followsDanglingDot(node, read);
-}
-
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -536,6 +451,76 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
+// The bodies of the pure-Luau blocks (the rules that hold `LuauBlockBody`),
+// whose children are the blocks' statements.
+const PURE_LUAU_BODY_CONTENT = nodeNameSet([
+  "LuauDefine_content",
+  "LuauMethodDefinition_content",
+  "LuauSparkleHandlerClosure_content",
+  "LuauFunctionDefinition_content",
+  "LuauFunctionBody_content",
+  "LuauForLoop_content",
+  "LuauWhileLoop_content",
+  "LuauRepeatLoop_content",
+  "LuauDoBlock_content",
+  "LuauIfBlock_content",
+  "LuauElseifBlock_content",
+  "LuauElseBlock_content",
+  "LuauConditionalAlternatorBlock_content",
+  "LuauSequentialAlternatorBlock_content",
+  "LuauFunctionTypeDeclaration_content",
+]);
+
+// The alternator bodies among them. The type checker reads an alternator as
+// a value of any type, not its arms, so an arm that holds an unread token is
+// the alternator lowerer's to report (`lowerArms`).
+const ALTERNATOR_CONTENT = nodeNameSet([
+  "LuauConditionalAlternatorBlock_content",
+  "LuauSequentialAlternatorBlock_content",
+]);
+// The bodies whose statements are read one member or one closure at a time:
+// a define's (its members, each a method, a function or a property) and a
+// sparkle handler's closure's (read whole, as `lowerSparkleBody.ts` reads it).
+const MEMBER_CONTENT = nodeNameSet(["LuauDefine_content", "LuauSparkleHandlerClosure_content"]);
+
+/** The node of an alternator's arm a node is in, at any depth (a function value's body in the arm included): its nearest ancestor (or itself) that is a child of an alternator's body. */
+function armNodeOf(node: SyntaxNode | null): SyntaxNode | null {
+  while (node && !ALTERNATOR_CONTENT.has(node.parent?.name ?? "")) node = node.parent;
+  return node;
+}
+
+/** Whether the arm of an alternator that a node of its body is in holds a token the grammar left unread. */
+function armHoldsUnreadToken(armNode: SyntaxNode): boolean {
+  let first = armNode;
+  while (first.prevSibling && first.prevSibling.name !== "LuauAlternatorSeparator") first = first.prevSibling;
+  for (let node: SyntaxNode | null = first; node && node.name !== "LuauAlternatorSeparator"; node = node.nextSibling) {
+    if (containsUnreadToken(node)) return true;
+  }
+  return false;
+}
+
+/** The statement of a pure-Luau body a node is in: its nearest ancestor (or itself) that is a child of such a body. */
+function bodyStatementOf(node: SyntaxNode | null): SyntaxNode | null {
+  while (node && !PURE_LUAU_BODY_CONTENT.has(node.parent?.name ?? "")) node = node.parent;
+  return node;
+}
+
+/**
+ * The outermost Luau statement around a statement of a pure-Luau body, which
+ * the converter reads whole as the type checker or a lowerer reads it: up to
+ * a define's member or a closure's statement, and no further than Luau runs
+ * (a scene's body, Sparkdown's own constructs).
+ */
+function outermostStatementOf(statement: SyntaxNode): SyntaxNode {
+  let top = statement;
+  for (let parent = statement.parent; parent?.parent; parent = parent.parent) {
+    if (MEMBER_CONTENT.has(parent.name)) break;
+    if (!parent.name.startsWith("Luau") || parent.name.startsWith("LuauSparkdown") || SPARKDOWN_ONLY.has(parent.name)) break;
+    top = parent;
+  }
+  return top;
+}
+
 // NOTE: This annotator previously also validated property selectors
 // (`PropertySelectorSimpleConditionName`/`...FunctionConditionName`/
 // `PropertySelectorConstant`), reserved define names (`DefineVariableName`),
@@ -558,10 +543,67 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
   private diagnosticDocument?: { text: Text; source: string };
+  // For each outermost statement around a pure-Luau body's statements, by
+  // its range, the statements in it whose errors Luau's reading reports
+  // (`ownedByUnreadReading`), by theirs.
+  private unreadReadings = new Map<string, ReadonlySet<string>>();
 
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
+    this.unreadReadings.clear();
     super.update(tree, text, uri);
+  }
+
+  /**
+   * Whether `node` is in a statement of a pure-Luau body whose errors Luau's
+   * reading reports, which the converter marks (`LuauSyntaxError.unread`,
+   * `markUnreadErrors`): one that holds a token the grammar left unread,
+   * one such a token follows on its line, and one Luau's recovery from such
+   * a statement reads. None of their errors is reported from the tree. The
+   * converter reads the statement's outermost statement for them (a sparkle
+   * closure's whole body), only when that holds an unread token. Anything in
+   * an alternator's arm that holds one is the alternator lowerer's to
+   * report, which reads the arm whole, and a define's property-level
+   * statement that is one is the define lowerer's.
+   */
+  private ownedByUnreadReading(node: SyntaxNode): boolean {
+    const arm = armNodeOf(node);
+    if (arm) return armHoldsUnreadToken(arm);
+    const statement = bodyStatementOf(node);
+    if (!statement) return false;
+    const top = outermostStatementOf(statement);
+    if (top.parent?.name === "LuauDefine_content" && top.name !== "LuauMethodDefinition" && top.name !== "LuauFunctionDefinition") {
+      return UNREAD_TOKENS.has(statement.name);
+    }
+    // A closure's body is read whole, as its lowerer reads it (the body of
+    // the function value it runs as), so that Luau's recovery from one of its
+    // statements reaches the next.
+    const reading = top.parent?.name === "LuauSparkleHandlerClosure_content" ? top.parent : top;
+    return this.unreadStatementsIn(reading).has(`${statement.from}:${statement.to}`);
+  }
+
+  /** The statements in a reading (an outermost statement, or a closure's body) whose errors the converter marks as Luau's, by range. */
+  private unreadStatementsIn(reading: SyntaxNode): ReadonlySet<string> {
+    const key = `${reading.name}:${reading.from}:${reading.to}`;
+    let owned = this.unreadReadings.get(key);
+    if (owned) return owned;
+    const found = new Set<string>();
+    if (containsUnreadToken(reading)) {
+      const text = this.statementDocumentText();
+      const ranges = reading.name === "LuauMethodDefinition"
+        ? readLuauMethod(reading, text).unreadStatements
+        : reading.name === "LuauSparkleHandlerClosure_content"
+          ? readLuauStatements([reading], text).unreadStatements
+          : readLuauBlock([reading], text).unreadStatements ?? [];
+      // Each range begins with its statement's first token: the statement is
+      // the body statement there.
+      for (const range of ranges) {
+        const statement = bodyStatementOf(reading.resolveInner(range.from, 1));
+        if (statement) found.add(`${statement.from}:${statement.to}`);
+      }
+    }
+    this.unreadReadings.set(key, found);
+    return found;
   }
 
   // CodeMirror Text is immutable. A replacement or edit supplies a new Text
@@ -1038,6 +1080,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    if (nodeRef.name.startsWith("Luau") && this.ownedByUnreadReading(nodeRef.node)) {
+      return annotations;
+    }
     if (this.validateLuauLiteral(annotations, nodeRef)) {
       return annotations;
     }
@@ -1306,26 +1351,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           got ? got.from + got.text.length : nodeRef.to,
         );
       }
-      return annotations;
-    }
-    // A line in a Luau body that is not a statement (`Hello there.`). Luau's
-    // first error for it is reported; the errors Luau's recovery finds in the
-    // rest of the line are not, nor is a line whose error the statement
-    // before it reports already (`reportedBefore`).
-    if (nodeRef.name === "LuauInvalidStatement") {
-      const read = (from: number, to: number) => this.read(from, to);
-      if (reportedBefore(nodeRef.node, read, this.statementDocumentText)) {
-        return annotations;
-      }
-      const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
-      const error = invalidStatementError(
-        nodeRef.node,
-        line?.from ?? nodeRef.from,
-        line?.to ?? nodeRef.to,
-        (from, to) => this.read(from, to),
-        this.statementDocumentText,
-      );
-      if (error) this.error(annotations, error.message, error.from, error.to);
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau

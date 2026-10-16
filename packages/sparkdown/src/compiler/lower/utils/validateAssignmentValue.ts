@@ -19,6 +19,7 @@ import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../.
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeUnionLineValue } from "./lineContinuation";
 import { validateExplicitStatement } from "./validateExplicitStatement";
+import { isUnreadTokenAt } from "../../utils/unreadTokens";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
 // declaration: a value missing after `=` or after a comma, a second `=`, a
@@ -170,6 +171,23 @@ function siblingAssignmentOperation(node: SyntaxNode): SyntaxNode | null {
 // the parse tree (a comment node is not a value), not from raw source text.
 //
 // `opNode` is a `LuauAssignmentOperation` grammar node.
+/**
+ * Whether the token at `offset` is one the grammar left unread whose errors
+ * a reading of Luau reports: the type checker's, or the lowerer's of a
+ * define's method, in either spelling (`f()` … `end`, `function f()` …
+ * `end`), or of a Sparkle closure (`reportBodySyntaxErrors`). A define's
+ * property value has no such reading.
+ */
+function luauReadingReportsUnread(node: SyntaxNode, offset: number, read: (from: number, to: number) => string): boolean {
+  if (!isUnreadTokenAt(node, offset)) return false;
+  if (checkerReadsOnTo(node, offset, read)) return true;
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.name === "LuauMethodDefinition_content" || parent.name === "LuauSparkleHandlerClosure_content") return true;
+    if (parent.name === "LuauFunctionDefinition" && parent.parent?.name === "LuauDefine_content") return true;
+  }
+  return false;
+}
+
 export function validateAssignmentValue(
   opNode: SyntaxNode,
   ctx: LowerContext,
@@ -188,6 +206,9 @@ export function validateAssignmentValue(
   // reads a value on the following line. Validate the converter's value.
   const read = (from: number, to: number) => ctx.read(from, to);
   const next = nextSignificantToken(opNode, operator.to, read, ctx.documentText);
+  // A value that begins with a token the grammar left unread (`x = @5`) is
+  // Luau's reading's to report, as it reports the statement's other errors.
+  if (next && luauReadingReportsUnread(opNode, next.from, read)) return;
   if (checkerReadsOnTo(opNode, next?.from, read)) {
     const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read, ctx.documentText));
     if (value.errors.every((error) => error.message.startsWith("Expected the end of the expression"))) return;
@@ -221,6 +242,10 @@ export function validateListComma(
   if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, (from, to) => ctx.read(from, to), ctx.documentText)) {
     return;
   }
+  // As after an `=` (`validateAssignmentValue`).
+  const read = (from: number, to: number) => ctx.read(from, to);
+  const after = nextSignificantToken(comma, at + 1, read, ctx.documentText);
+  if (after && luauReadingReportsUnread(comma, after.from, read)) return;
   const got = nextTokenAfter(comma, at + 1, ctx);
   const parsing = afterAssignment ? "expression" : "binding name";
   ctx.diagnostics.push({

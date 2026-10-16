@@ -14,6 +14,7 @@ import type { StatementShape } from "../../compiler/lower/utils/statementShape";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { ProgramRoot } from "../../program/ProgramRoot";
+import { NUMBERED_SYNTHETIC_NAME } from "../../program/ProgramSymbols";
 import { loweredOutsideRebuilt } from "./memoLowering";
 
 const CHARACTERS = "inmemory:///scripts/characters.sd";
@@ -783,15 +784,20 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("is served when a global of its name is declared above it, and no other statement is lowered", () => {
+  it("is lowered again with the line that reads it after a global of its name is declared above it (#1974), and compiles as cold", () => {
     // A global of the local's name, declared above the scene: the local
     // shadows it with no diagnostic (#1742), so nothing about the local
-    // changes. The line that reads the local still reads the local its
-    // served declaration declares.
+    // changes, and the line that reads the local still reads the local. Its
+    // memo and the reader's should therefore be served on the next edit;
+    // until #1974 is fixed they are lowered again, and no other statement is.
     const s = warmed(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1");
     s.edit("Line last.", "Line last, edited.");
-    expect(loweredOutside(s)).toEqual([]);
+    // The rename carries the scene (#1637), so the memos of the two
+    // statements that read `here` keep the resolution recorded before it was
+    // a global, and the edit after it lowers them again (#1974). The fix of
+    // #1974 makes this `[]` again.
+    expect(loweredOutside(s)).toEqual(["local here = 2", "Here {here}."]);
     sameAsCold(s);
   });
 
@@ -1238,11 +1244,11 @@ describe("a loop or a `choose` block served from its memo, as the rest of the st
 describe("the names a loop's lowering makes from its place (#1683)", () => {
   /** The number the last compile's numbering of synthetic names gave each
    *  name a lowering made from its place (`<tag>__$<place>...`), leaving
-   *  out the names an earlier compile numbered (`__synth$<n>`). */
+   *  out the names an earlier compile numbered (`__synth$<flow>$<n>`). */
   const placedNames = (compiler: SparkdownCompiler): Map<string, string> =>
     new Map(
       [...((compiler as any)._syntheticNamesLastRun as Map<string, string>)].filter(
-        ([name]) => name.includes("$") && !/^__synth\$\d+$/.test(name),
+        ([name]) => name.includes("$") && !NUMBERED_SYNTHETIC_NAME.test(name),
       ),
     );
 

@@ -86,6 +86,18 @@ done
     expect(errs.some((m) => m.includes("doesnotexist"))).toBe(true);
   });
 
+  // #316: a run that names no file is an error, not a statement that runs
+  // nothing.
+  test.each(["run", 'run ""', "run ''", 'run ".luau"', "run  # tag"])(
+    "errors on a run with no path: %s",
+    (runLine) => {
+      const { errs } = compileWithFiles([
+        { uri: "inmemory:///main.sd", text: `${runLine}\ndone\n` },
+      ]);
+      expect(errs).toEqual(["Expected a file path after 'run'."]);
+    },
+  );
+
   // #887: a file run from two places declares its wrapper function once and
   // calls it from each place.
   function recordedRun(chunks: unknown) {
@@ -323,11 +335,41 @@ done
     expect(recompile("inmemory:///main.sd", mainWith(3))).toEqual([42, 42, 42]);
     expect(recompile("inmemory:///main.sd", mainWith(1))).toEqual([42]);
     expect(recompile("inmemory:///main.sd", mainWith(2))).toEqual([42, 42]);
-    // The body an edit to the file gives is #316's: the wrapper document
-    // keeps its first text. Each run line still calls it.
+    // An edit to the file gives each run line its new body (#316).
     expect(
       recompile("inmemory:///helper.luau", `& harness_record(7)\n`),
-    ).toHaveLength(2);
+    ).toEqual([7, 7]);
+  });
+
+  // #316: the wrapper document is set again when the file changes, so a
+  // compile after `updateFile` runs the file's new body, and one after
+  // that, with the file unchanged, runs it too.
+  test("runs a file's new body after the file is updated", () => {
+    const helper = (text: string, version: number) => ({
+      uri: "inmemory:///helper.luau",
+      type: "script",
+      name: "helper",
+      ext: "luau",
+      text,
+      version,
+      languageId: "sparkdown",
+    });
+    const { compiler, result: first } = compileWithFiles([
+      {
+        uri: "inmemory:///main.sd",
+        text: `external harness_record(v)\nrun "helper"\ndone\n`,
+      },
+      { uri: "inmemory:///helper.luau", text: `& harness_record(1)\n` },
+    ]);
+    expect(recordedRun(first.program.chunks)).toEqual([1]);
+    compiler.updateFile({ file: helper(`& harness_record(2)\n`, 2) as never });
+    for (const _ of [0, 1]) {
+      const result = compiler.compile({
+        textDocument: { uri: "inmemory:///main.sd" },
+      });
+      expect(messagesOf(result).errs).toEqual([]);
+      expect(recordedRun(result.program.chunks)).toEqual([2]);
+    }
   });
 
   // Cycle detection guards against a future scenario where `run`

@@ -556,7 +556,6 @@ return wrapStrictTable(Constants, "Constants")
     name: "floating_generics_should_not_be_allowed",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         local assign : <T, U, V, W>(target: T, source0: U?, source1: V?, source2: W?, ...any) -> T & U & V & W = (nil :: any)
 

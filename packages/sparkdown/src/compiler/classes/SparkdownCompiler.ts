@@ -37,12 +37,6 @@ import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifi
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
 import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
-import {
-  ObjectExpression,
-  ObjectExpressionEntry,
-} from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
-import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
 import { BINDING_ID_PREFIX } from "../lower/lowerers/lowerSparkleBody";
 import { ReturnType as ParsedReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
@@ -149,6 +143,7 @@ import {
   SET_GLOBAL,
 } from "../../program/ProgramInstructions";
 import { H_CODE_WORDS, HEADER_WORDS } from "../../program/ProgramChunk";
+import { NUMBERED_SYNTHETIC_NAME } from "../../program/ProgramSymbols";
 import { rootChanges } from "../../program/rootChanges";
 import { captureProgramAssets } from "../../program/programSceneAssets";
 import {
@@ -174,12 +169,13 @@ import type {
 } from "./annotators/CompilationAnnotator";
 
 // The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
-// identifiers to. These names are POSITIONAL (document-order ordinals), so a
-// name can refer to a different flow after an edit — name-keyed caches must
-// never reuse entries for flows matching this. Its `$` is a character no
-// identifier can contain (docs/engine/binary-program.md, section 2), so no
-// name an author writes has this form.
-const CANONICAL_SYNTH_NAME = /^__synth\$\d+$/;
+// identifiers to. These names are POSITIONAL (document-order ordinals within
+// a top-level flow), so a name can refer to a different flow after an edit —
+// name-keyed caches must never reuse entries for flows matching this. Its
+// `$` is a character no identifier can contain
+// (docs/engine/binary-program.md, section 2), so no name an author writes
+// has this form.
+const CANONICAL_SYNTH_NAME = NUMBERED_SYNTHETIC_NAME;
 
 // Reseed the binary string table once it is half again its live size, provided
 // the absolute slack is worth a full remap. A ratio rather than a
@@ -1844,7 +1840,7 @@ export class SparkdownCompiler {
       }
       // Now that both sides carry their final global keys, let an authored
       // define that reuses a builtin name override it rather than collide.
-      this.applyBuiltinOverrides(userVAs, preludeVAs);
+      this.applyBuiltinOverrides(preludeVAs);
       profile("end", this._profilerId, "scopeDefineInstances", uri);
       // Declared-name census across every file of this compile — see
       // `_censusEntries`. Compared here (not per file) so includes can't
@@ -1883,7 +1879,7 @@ export class SparkdownCompiler {
       // untouched (see `_prevFlowSignatures`). The current signatures aren't
       // known until assembly finishes, so this is a post-hoc check.
       // Collected after the canonicalization above, so a synthetic flow is
-      // keyed by its `__synth$<n>` name in every compile: a freshly lowered
+      // keyed by its `__synth$<flow>$<n>` name in every compile: a freshly lowered
       // chunk holds its offset name until the rename, and a carried chunk
       // already holds the canonical one.
       const flowSignatures = this.collectFlowSignatures(parsedStory);
@@ -2709,6 +2705,19 @@ export class SparkdownCompiler {
           // includes the script including it ends the descent there.
           const includedUris = state.fileResolutionState?.includedUris;
           if (!resolvedFilePath) {
+            // 1-based line/character, as the `run` branch below reports.
+            onDiagnostic(
+              `Could not find '${include}' for 'include' statement.`,
+              ErrorType.Error,
+              {
+                fileName,
+                filePath: uri,
+                startLineNumber: lineNumberOffset + 1,
+                endLineNumber: lineNumberOffset + 1,
+                startCharacterNumber: 1,
+                endCharacterNumber: 1,
+              },
+            );
             topLevelIncludedFileObjs.push(new IncludedFile(null));
           } else if (!includedUris?.has(resolvedFilePath)) {
             includedUris?.add(resolvedFilePath);
@@ -2825,20 +2834,28 @@ export class SparkdownCompiler {
             () => runCallText(wrapperName),
           ]);
           for (const [virtualUri, text] of runDocuments) {
-            this.documents.add({
-              textDocument: {
-                uri: virtualUri,
-                languageId: "sparkdown",
-                version: 1,
-                text: text(),
-              },
-            });
+            // A document is set again only when its text changed, under the
+            // next version, so the registry parses the new text (the .luau
+            // file was edited) and an unchanged one keeps its tree (#316).
+            const documentText = text().replace(/\r\n|\r/g, "\n");
+            const registered = this.documents.get(virtualUri);
+            if (registered?.getText() !== documentText) {
+              this.documents.add({
+                textDocument: {
+                  uri: virtualUri,
+                  languageId: "sparkdown",
+                  version: (registered?.version ?? 0) + 1,
+                  text: documentText,
+                },
+              });
+            }
             if (state.fileResolutionState) {
               state.fileResolutionState.runStack ??= [];
               state.fileResolutionState.runStack.push(resolvedFilePath);
             }
-            let runStory: ReturnType<typeof this.parseIncrementally> | null =
-              null;
+            let runStory: ReturnType<
+              SparkdownCompiler["parseIncrementally"]
+            > | null = null;
             try {
               runStory = this.parseIncrementally(
                 virtualUri,
@@ -3231,8 +3248,14 @@ export class SparkdownCompiler {
   //
   // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
   // and incremental, before resolution) and renumbers each distinct synthetic
-  // name to `__synth$<n>` by DOCUMENT-ORDER of first appearance, rewriting the
-  // IR in place. A carried chunk therefore holds the `__synth$<n>` names an
+  // name to `__synth$<flow>$<n>` by DOCUMENT-ORDER of first appearance among
+  // the names of the top-level flow it first stands in (`<flow>` is that
+  // flow's name, empty for the top-level content), rewriting the IR in place.
+  // A name added or removed therefore renumbers only the names of its own
+  // flow, and the flows after it keep theirs (#851). A function a statement
+  // writes is placed among the top-level flows under such a name, and what
+  // stands in it is numbered with the flow that writes it. A carried chunk
+  // therefore holds the `__synth$<flow>$<n>` names an
   // earlier compile gave it, beside the raw names of freshly lowered chunks;
   // a raw name begins with its family's prefix and a canonical one with
   // `__synth$`, so the two never share a string. Both hold a `$`, which no
@@ -3248,9 +3271,9 @@ export class SparkdownCompiler {
   //
   // A display call's continuation `group` (`ContinuationGroup`) is minted from
   // its statement's offset the same way, as a string value rather than a name.
-  // The pass renumbers those to `__group$<n>` in a sequence of their own, so
-  // adding a continuation leaves the synthetic names after it as they were,
-  // and the other way round.
+  // The pass renumbers those to `__group$<flow>$<n>` in a sequence of their
+  // own within each flow, so adding a continuation leaves the synthetic names
+  // after it as they were, and the other way round.
   //
   // A tag line's `Statement` container (and a choice that carries its
   // chunk's uuid) is named `id-<uuid>`, and the pass numbers those uuids
@@ -3259,18 +3282,22 @@ export class SparkdownCompiler {
   // any path through the container, as it was.
   protected canonicalizeSyntheticFlowNames(root: ParsedObject): void {
     // Every offset-derived synthetic family minted in the lowerers — PLUS the
-    // canonical `__synth$<n>` form this pass itself produces. The pass mutates
-    // the parsed IR in place and the incremental pipeline carries those nodes
-    // into the next compile, so already-renamed names must be re-collected and
-    // renumbered too: when an edit adds/removes a synthetic earlier in the
-    // document, a carried `__synth$k`'s ordinal is stale and only re-running it
-    // through the document-order numbering matches what a cold compile derives.
-    // A raw name carries `syntheticId`: the document tag, `$`, then the
-    // offset. Every form requires a `$`, which an author's identifier cannot
-    // contain, so the pass never takes an authored name such as
-    // `f__redef_x__1` or `__synth_0` for one of its own.
-    const SYNTH =
-      /^__synth\$\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
+    // canonical `__synth$<flow>$<n>` form this pass itself produces. The pass
+    // mutates the parsed IR in place and the incremental pipeline carries
+    // those nodes into the next compile, so already-renamed names must be
+    // re-collected and renumbered too: when an edit adds/removes a synthetic
+    // earlier in the flow, a carried `__synth$<flow>$k`'s ordinal is stale
+    // and only re-running it through the document-order numbering matches
+    // what a cold compile derives. A raw name carries `syntheticId`: the
+    // document tag, `$`, then the offset. Every form requires a `$`, which an
+    // author's identifier cannot contain, so the pass never takes an authored
+    // name such as `f__redef_x__1` or `__synth_0` for one of its own. The
+    // canonical form is the one its readers share (`NUMBERED_SYNTHETIC_NAME`).
+    const RAW_SYNTH =
+      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
+    const SYNTH = new RegExp(
+      `${NUMBERED_SYNTHETIC_NAME.source}|${RAW_SYNTH.source}`,
+    );
     const remap = new Map<string, string>();
     // True once any collected name maps to a DIFFERENT canonical name. In the
     // steady state (carried names already canonical and ordinals unchanged —
@@ -3282,7 +3309,7 @@ export class SparkdownCompiler {
     // (the same Identifier object can be aliased from several own-properties,
     // e.g. `identifier` and a `pathIdentifiers` entry) so each object is
     // rewritten exactly once — rewriting twice could CHAIN through the remap
-    // now that canonical `__synth$<n>` names are themselves remappable.
+    // now that canonical `__synth$<flow>$<n>` names are themselves remappable.
     const matchedIds: Array<{ id: Identifier; owner: ParsedObject }> = [];
     const seenIds = new Set<Identifier>();
     // A string field is recorded once per node, with the name it held when
@@ -3299,38 +3326,56 @@ export class SparkdownCompiler {
     // group node of its own, and `seenGroups`, keyed by the node, records a
     // node once, with the name it gets, for the same reason as a string field.
     const groupRemap = new Map<string, string>();
-    const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
+    const matchedGroups: Array<{ group: ContinuationGroup; text: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();
     const matchedUuids: Array<{ node: Statement | Choice; next: string }> = [];
     const seenUuids = new Set<Statement | Choice>();
+    // Each name and group is numbered among those of the top-level flow it
+    // first stands in, so a name added or removed renumbers only the names
+    // of its own flow (#851). The walk carries the flow it is in as a scope:
+    // `=` and the flow's name, or `=` alone for the top-level content. A
+    // function a statement writes is placed among the top-level flows under
+    // a name of this pass's own, so what stands in it takes `>` and that
+    // name, and is numbered with the flow that name first stands in.
+    const nameScope = new Map<string, string>();
+    const groupScope = new Map<string, string>();
+    const noteScope = (scopes: Map<string, string>, key: string, scope: string) => {
+      const was = scopes.get(key);
+      // A flow's own name never takes the flow as its scope, and a name
+      // first met in such a flow takes the first flow named outright that
+      // it stands in, when there is one.
+      if (scope === `>${key}`) {
+        return;
+      }
+      if (was === undefined || (was[0] === ">" && scope[0] === "=")) {
+        scopes.set(key, scope);
+      }
+    };
 
-    const considerName = (name: string) => {
+    const considerName = (name: string, scope: string) => {
       // Numbered once the walk has found every name.
       if (!remap.has(name)) {
         remap.set(name, "");
       }
+      noteScope(nameScope, name, scope);
     };
-    const considerGroup = (group: ContinuationGroup) => {
+    const considerGroup = (group: ContinuationGroup, scope: string) => {
       if (seenGroups.has(group)) {
         return;
       }
       seenGroups.add(group);
       const text = group.text;
-      let next = groupRemap.get(text);
-      if (next === undefined) {
-        next = `__group$${groupRemap.size}`;
-        groupRemap.set(text, next);
+      if (!groupRemap.has(text)) {
+        groupRemap.set(text, "");
       }
-      if (next !== text) {
-        changed = true;
-      }
-      matchedGroups.push({ group, next });
+      noteScope(groupScope, text, scope);
+      matchedGroups.push({ group, text });
     };
-    const considerId = (id: Identifier, owner: ParsedObject) => {
+    const considerId = (id: Identifier, owner: ParsedObject, scope: string) => {
       const name = id.name;
       if (name && SYNTH.test(name) && !seenIds.has(id)) {
         seenIds.add(id);
-        considerName(name);
+        considerName(name, scope);
         matchedIds.push({ id, owner });
       }
     };
@@ -3346,17 +3391,29 @@ export class SparkdownCompiler {
     // forward by identity, and a re-lowered node is a NEW object, so it is
     // never wrongly skipped. The set stays valid across the rewrite below
     // because renaming only ever rewrites names that already matched SYNTH
-    // (including the canonical `__synth$<n>` form), so a synth-free subtree
+    // (including the canonical `__synth$<flow>$<n>` form), so a synth-free subtree
     // cannot acquire one. Most of a screenplay is display text with no
     // synthetics at all, which is what makes this worth caching — the walk
     // itself is otherwise whole-tree on every keystroke.
-    const collect = (node: ParsedObject): boolean => {
+    const collect = (node: ParsedObject, outer: string): boolean => {
       const markedLength = this._synthFreeSubtrees.get(node);
       if (
         markedLength !== undefined &&
         markedLength === (node.content?.length ?? 0)
       ) {
         return false;
+      }
+      let scope = outer;
+      if (node instanceof FlowBase && node.parent instanceof Story) {
+        const name = node.identifier?.name ?? "";
+        // A name holding a `$` would make the names numbered in it
+        // ambiguous, so the flows of such names, if any, number theirs
+        // with the top-level content's.
+        scope = SYNTH.test(name)
+          ? `>${name}`
+          : name.includes("$")
+            ? "="
+            : `=${name}`;
       }
       let found = false;
       for (const f of IDENTIFIER_FIELDS) {
@@ -3365,14 +3422,14 @@ export class SparkdownCompiler {
           if (val.name && SYNTH.test(val.name)) {
             found = true;
           }
-          considerId(val, node);
+          considerId(val, node, scope);
         } else if (Array.isArray(val)) {
           for (const el of val) {
             if (el instanceof Identifier) {
               if (el.name && SYNTH.test(el.name)) {
                 found = true;
               }
-              considerId(el, node);
+              considerId(el, node, scope);
             }
           }
         }
@@ -3391,14 +3448,14 @@ export class SparkdownCompiler {
           }
           if (!fields.has(f)) {
             fields.add(f);
-            considerName(v);
+            considerName(v, scope);
             matchedStrings.push({ node, field: f, name: v });
           }
         }
       }
       if (node instanceof ContinuationGroup) {
         found = true;
-        considerGroup(node);
+        considerGroup(node, scope);
       }
       if (
         (node instanceof Statement || node instanceof Choice) &&
@@ -3425,7 +3482,7 @@ export class SparkdownCompiler {
       // arguments, from `content` when it generates, so a call carried from
       // an earlier compile reaches its arguments only through `args`.
       for (const c of parsedChildren(node)) {
-        if (collect(c)) {
+        if (collect(c, scope)) {
           found = true;
         }
       }
@@ -3434,13 +3491,43 @@ export class SparkdownCompiler {
       }
       return found;
     };
-    collect(root);
-    // Document order of first appearance.
-    let ordinal = 0;
+    collect(root, "=");
+    // The flow a scope numbers in: its own, or for a function a statement
+    // wrote, the flow its name takes, and the top-level content's when no
+    // flow named outright holds it.
+    const flowOf = (scope: string | undefined, seen = new Set<string>()): string => {
+      if (scope === undefined) {
+        return "";
+      }
+      if (scope[0] === "=") {
+        return scope.slice(1);
+      }
+      const name = scope.slice(1);
+      if (seen.has(name)) {
+        return "";
+      }
+      seen.add(name);
+      return flowOf(nameScope.get(name), seen);
+    };
+    // Document order of first appearance within each flow.
+    const ordinals = new Map<string, number>();
+    const numbered = (family: string, flow: string): string => {
+      const key = `${family}$${flow}`;
+      const n = ordinals.get(key) ?? 0;
+      ordinals.set(key, n + 1);
+      return `${key}$${n}`;
+    };
     for (const name of remap.keys()) {
-      const next = `__synth$${ordinal++}`;
+      const next = numbered("__synth", flowOf(nameScope.get(name)));
       remap.set(name, next);
       if (next !== name) {
+        changed = true;
+      }
+    }
+    for (const text of groupRemap.keys()) {
+      const next = numbered("__group", flowOf(groupScope.get(text)));
+      groupRemap.set(text, next);
+      if (next !== text) {
         changed = true;
       }
     }
@@ -3486,7 +3573,8 @@ export class SparkdownCompiler {
         node[field] = next;
       }
     }
-    for (const { group, next } of matchedGroups) {
+    for (const { group, text } of matchedGroups) {
+      const next = groupRemap.get(text)!;
       if (next !== group.text) {
         const was = group.text;
         undo?.push(() => {
@@ -3523,7 +3611,7 @@ export class SparkdownCompiler {
       }
       flow._subFlowsByName = next;
       // A carried flow keeps the temps it declared in an earlier compile under
-      // their names from then. Left there, an old `__synth$<n>` key shadows
+      // their names from then. Left there, an old `__synth$<flow>$<n>` key shadows
       // whatever now holds that name, such as a loop label, whose back edge
       // then resolves as a divert to an undeclared variable. Each synthetic
       // entry is keyed by its declaration's name, which the rewrite above
@@ -4581,126 +4669,31 @@ export class SparkdownCompiler {
    *  The builtins prelude is source-injected FIRST, and
    *  `FlowBase.AddNewVariableDeclaration` is first-writer-wins, so every such
    *  override used to fail the compile with "Duplicate identifier" — the
-   *  opposite of the intent recorded at the injection site. Two things are
-   *  needed to undo that safely, and both live here because this is the first
-   *  point where the prelude's declarations, the user's, and the prelude's
-   *  compiled values are all in scope (and it still runs before resolution,
-   *  where the collision is detected):
+   *  opposite of the intent recorded at the injection site. Tag the prelude's
+   *  declarations so the collision handler can tell an override (allowed,
+   *  authored wins) from two colliding authored defines (still an error).
+   *  `debugMetadata` can't distinguish them. The prelude's root defines are
+   *  marked too.
    *
-   *  1. BACK-FILL. A partial override (`define ui as config with
-   *     root_text_size = "112.5%"`) restates one property, but the authored
-   *     `__def` table is what reaches the runtime — so every builtin sibling the
-   *     author didn't mention (`breakpoints`, `layouts_element_name`, …) would
-   *     vanish, and e.g. `reveal()` would fail to find the screen root, giving a
-   *     black preview with no error. Copy the prelude's values for keys the
-   *     author did NOT restate into the authored table.
-   *  2. MARK. Tag the prelude's declarations so the collision handler can tell
-   *     an override (allowed, authored wins) from two colliding authored
-   *     defines (still an error). `debugMetadata` can't distinguish them.
-   *     The prelude's root defines are marked too; an authored root needs no
-   *     back-fill, since its `__def` merges into the prelude's table at
-   *     runtime (FlowBase.AddRootOverride).
+   *  A partial override (`define ui as config with root_text_size =
+   *  "112.5%"`) keeps the builtin's other fields at runtime: the prelude's
+   *  `__def` runs first and registers the builtin, and the authored `__def`
+   *  fills its table from the member it replaces, records key by key, with
+   *  every authored key winning, computed ones included (`fillMissingEntries`
+   *  in the runtime's StdLib, #1951). An authored root merges into the
+   *  prelude's table the same way (`mergeIntoRootTable`). A compile-time
+   *  back-fill appended after the authored entries used to do this, so a
+   *  computed key naming a builtin key read the builtin's value and a
+   *  restated nested table lost the builtin's other nested keys.
    *
-   *  Idempotent, like {@link scopeDefineInstances}: back-fill only adds keys the
-   *  table lacks, so re-running on cached parse nodes across incremental
-   *  compiles is a no-op. Must run AFTER the scoping passes, which is what makes
-   *  the identifier a stable, comparable key on both sides. */
+   *  Must run AFTER the scoping passes. */
   protected applyBuiltinOverrides(
-    userVAs: readonly ParsedObject[],
     preludeVAs: ReadonlySet<ParsedObject>,
   ): void {
-    // Marked even when no user declaration is typed: an authored ROOT define
-    // (`define game with … end`, #454) is not among `userVAs`, and overrides
-    // the prelude's root, which `preludeVAs` holds, only once it is marked.
-    if (preludeVAs.size === 0) {
-      return;
-    }
-    // The prelude's declarations, keyed by their STABLE BARE name — never the
-    // post-scoping identifier. The two passes of `scopeDefineInstances`
-    // classify independently (the prelude by its own type-name census, the
-    // user files by theirs), so the same bare name can come out as different
-    // global keys on the two sides: the prelude's channel-typed `typewriter`
-    // keeps the bare key (`typewriter` is a prelude type name) while a user's
-    // `define typewriter as channel` scopes to `$channel_typewriter`. An
-    // identifier-keyed gate missed exactly those overrides, and the back-fill
-    // silently never ran — a partial override lost every builtin field the
-    // author didn't restate. The VALUE lookup inside
-    // `backfillBuiltinDefaults` is already (type, name)-keyed against the
-    // prelude context, so a bare-name gate can't over-apply: a user define
-    // that merely shares a name with an unrelated builtin misses that lookup
-    // and no-ops.
-    const preludeNames = new Set<string>();
     for (const obj of preludeVAs) {
       if (obj instanceof ParsedVariableAssignment) {
         obj.isPreludeDeclaration = true;
-        const bare =
-          obj.structDefinition?.name?.name ?? obj.identifier?.name;
-        if (bare) {
-          preludeNames.add(bare);
-        }
       }
-    }
-    let preludeContext: Record<string, any> | undefined;
-    for (const obj of userVAs) {
-      if (!(obj instanceof ParsedVariableAssignment)) {
-        continue;
-      }
-      const bare = obj.structDefinition?.name?.name ?? obj.identifier?.name;
-      if (!bare || !preludeNames.has(bare)) {
-        continue;
-      }
-      // Resolved lazily so a program with no overrides never touches the cache.
-      preludeContext ??= getCompiledPrelude().context;
-      this.backfillBuiltinDefaults(obj, preludeContext);
-    }
-  }
-
-  /** Copy the prelude's values for every property an overriding define did NOT
-   *  restate into that define's `__def` table, so a partial override keeps the
-   *  builtin's other fields. Mirrors {@link inheritDefaults}, which does the
-   *  same for the compile-time `program.context` view — the runtime table is a
-   *  separate channel (the engine reads it, not `program.context`), so it needs
-   *  its own merge or the two views disagree. */
-  protected backfillBuiltinDefaults(
-    va: ParsedVariableAssignment,
-    preludeContext: Record<string, any>,
-  ): void {
-    const type = va.structDefinition?.type?.name;
-    const name = va.structDefinition?.name?.name;
-    if (!type || !name) {
-      return;
-    }
-    const builtinStruct = preludeContext?.[type]?.[name];
-    if (!builtinStruct || typeof builtinStruct !== "object") {
-      return;
-    }
-    // `va.expression` is the `__def({ props }, name, parent)` call the define
-    // lowerers emit; its first argument is the property table.
-    const call = va.expression;
-    if (!(call instanceof FunctionCall)) {
-      return;
-    }
-    const table = call.args?.[0];
-    if (!(table instanceof ObjectExpression)) {
-      return;
-    }
-    const authored = new Set<string>();
-    for (const entry of table.entries) {
-      if (typeof entry.key === "string") {
-        authored.add(entry.key);
-      }
-    }
-    for (const [k, v] of Object.entries(builtinStruct)) {
-      // `$type` / `$name` are context bookkeeping, re-derived by `__def` from
-      // its own args; `__storeProps` and friends are the define's own hidden
-      // modifier lists and must not be inherited from the builtin.
-      if (k.startsWith("$") || k.startsWith("__")) {
-        continue;
-      }
-      if (authored.has(k) || v === undefined) {
-        continue;
-      }
-      table.addEntry(new ObjectExpressionEntry(k, contextValueToExpression(v)));
     }
   }
 

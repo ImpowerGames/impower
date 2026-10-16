@@ -530,7 +530,7 @@ export function buildCheckpoint(record, { seq, previous, snapshotParents = [], k
     run: { runId: record.runId, recordRevision: record.revision, source: { host, checkout: record.checkout } },
     coordinator: record.coordinator, previousCoordinators: record.previousCoordinators,
     invocation: record.invocation, authority: record.authority, writer: record.writer, concurrency: record.concurrency,
-    checkIn: record.checkIn ?? null, group: record.group ?? null, title: record.title ?? null,
+    checkIn: record.checkIn ?? null, title: record.title ?? null,
     tickets: portableTickets(record.tickets, host),
     operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries, verifications: record.verifications ?? [],
     work: work ?? {}, snapshots,
@@ -775,7 +775,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const since = new Date().toISOString();
   if (options.coordinatorMode !== undefined && !PERMISSION_MODES.includes(options.coordinatorMode)) throw new Error(`--coordinator-mode must be the coordinator's own permission mode: ${PERMISSION_MODES.join(", ")}`);
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, ...(options.coordinatorMode !== undefined && { permissionMode: options.coordinatorMode }), since };
-  // The Feature's title, group and check-in carry over; a checkpoint from
+  // The Feature's title and check-in carry over; a checkpoint from
   // before titles were recorded takes the title from this session's slug.
   const run = carriedRun(prev, { file, record: { feature, coordinator: self }, defaults });
   if (!run.title && options.slug !== undefined) run.title = orchestrationTitle(feature, options.slug);
