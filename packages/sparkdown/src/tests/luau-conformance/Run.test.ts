@@ -175,6 +175,27 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([...recorded, 1]);
   });
 
+  // Two files whose URIs a 32-bit hash would give one value (round 3 of PR
+  // #1928's review) each keep a wrapper of their own.
+  test("runs two files whose URIs share a 32-bit hash", () => {
+    const { result, errs } = compileWithFiles([
+      {
+        uri: "inmemory:///main.sd",
+        text: `external harness_record(v)\nrun "d68kpfa1p5a91s/helper"\nrun "dux1d8u1w62cf0/helper"\ndone\n`,
+      },
+      {
+        uri: "inmemory:///d68kpfa1p5a91s/helper.luau",
+        text: `& harness_record(1)\n`,
+      },
+      {
+        uri: "inmemory:///dux1d8u1w62cf0/helper.luau",
+        text: `& harness_record(2)\n`,
+      },
+    ]);
+    expect(errs).toEqual([]);
+    expect(recordedRun(result.program.chunks)).toEqual([1, 2]);
+  });
+
   // Every reordering of a script that runs three files from three
   // directories, by several paths each, compiles incrementally to what a
   // cold compile of the same text gives (round 2 of PR #1928's review).
@@ -251,7 +272,7 @@ done
     ]);
     const before = recordedRun(first.program.chunks);
     expect(before).toHaveLength(2);
-    expect(before[0]).toMatch(/^__run_helper_[0-9a-f]{8}$/);
+    expect(before[0]).toMatch(/^__run_\w+helper\w*__$/);
     expect(before[1]).toBe(before[0]);
     compiler.updateDocument({
       textDocument: { uri: "inmemory:///main.sd", version: 2 },

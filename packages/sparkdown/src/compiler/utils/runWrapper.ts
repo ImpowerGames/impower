@@ -9,28 +9,22 @@
 // holds the function alone, once per compile for each file, and each `run`
 // statement compiles a call document of its own holding the call.
 
-import { hash32 } from "../../program/hash64";
+import { documentTag } from "../lower/utils/documentTag";
 
 export const RUN_QUERY = "?run=";
 
 const RUN_SITE_PARAM = "&site=";
 
 /**
- * The wrapper function of the `.luau` file at `fileUri`: `__run_`, the file's
- * name made identifier-safe (Sparkdown identifiers are
- * `[A-Za-z_][A-Za-z0-9_]*`), and a hash of its URI. It depends on the file
- * alone, never on the path a `run` writes, the order a compile reaches its
- * `run`s or what earlier compiles saw, so a cold and an incremental compile
- * of one text name it alike and two files never share it.
+ * The wrapper function of the `.luau` file at `fileUri`: `__run_` and the
+ * file's URI spelled as an identifier no other URI shares (`documentTag`).
+ * It depends on the file alone, never on the path a `run` writes, the order
+ * a compile reaches its `run`s or what earlier compiles saw, so a cold and
+ * an incremental compile of one text name it alike and two files never
+ * share it.
  */
 export function runWrapperFunctionName(fileUri: string): string {
-  const path = fileUri.split(/[?#]/, 1)[0]!;
-  const name = path
-    .slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1)
-    .replace(/\.luau$/i, "")
-    .replace(/[^A-Za-z0-9_]/g, "_");
-  const hash = (hash32(fileUri) >>> 0).toString(16).padStart(8, "0");
-  return `__run_${name}_${hash}`;
+  return `__run_${documentTag(fileUri)}`;
 }
 
 /** The call a `run` statement makes to its file's wrapper. */
