@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 163,
-  "previous": "9eef7d3b93ee2e68e37d197f548014fb19eca1c7",
+  "seq": 164,
+  "previous": "3f7875c879497de024856c0d13016ca929a73ad1",
   "snapshotParents": [],
-  "time": "2026-10-16T06:24:50.525Z",
+  "time": "2026-10-16T06:26:23.680Z",
   "kind": "auto",
-  "transition": "the merge of PR #1930 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 120,
@@ -1997,7 +1997,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T06:24:49.755Z",
+      "observedAt": "2026-10-16T06:26:22.908Z",
       "held": true,
       "head": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
       "remoteHead": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
@@ -2132,7 +2132,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T06:20:06.260Z",
+    "at": "2026-10-16T06:26:22.906Z",
     "tickets": [
       {
         "number": 1201,
@@ -2184,9 +2184,9 @@
       },
       {
         "number": 1627,
-        "action": "merge-gate",
-        "pr": 1930,
-        "reason": "PR #1930 is ready at e58e9a9329d96925ff3e5fde608cfc65d1124add; process 2528 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 2528 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1628,
@@ -2214,9 +2214,9 @@
       },
       {
         "number": 1917,
-        "action": "wait-dependency",
+        "action": "blocked-route",
         "pr": null,
-        "reason": "waiting for #1627 (open)"
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
       }
     ],
     "remaining": [
