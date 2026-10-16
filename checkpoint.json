@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 135,
-  "previous": "479d3688c0946376ffb8a004eaed25d052c5fdcd",
+  "seq": 136,
+  "previous": "003aac30347d9a2bafb03e1a40eb615db95a7175",
   "snapshotParents": [],
-  "time": "2026-10-16T03:22:44.642Z",
+  "time": "2026-10-16T03:48:54.086Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 100,
+    "recordRevision": 101,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1522,16 +1522,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T03:22:43.997Z",
+      "observedAt": "2026-10-16T03:48:53.410Z",
       "held": true,
-      "head": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
-      "remoteHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
+      "head": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
+      "remoteHead": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 1900
-      },
       "pr": 1918,
       "reviewJobs": [
         {
@@ -1657,7 +1653,7 @@
         },
         {
           "job": "pr-1918/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -1673,7 +1669,23 @@
               "undirected": 1
             },
             "time": "2026-10-16T03:14:55.237Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6207348579
+          ]
         }
       ]
     }
@@ -1776,13 +1788,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T21:40:15.902Z",
-      "event": "init",
-      "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
-      "writer": "claude-opus-5-5",
-      "concurrency": 2
-    },
     {
       "time": "2026-10-15T21:40:25.668Z",
       "event": "checkpoints-enabled",
@@ -2463,6 +2468,11 @@
       "time": "2026-10-16T03:22:42.868Z",
       "event": "check-in",
       "outcome": "no change: PR 1918 (#1623/#1611) in review round 2 on head bbf9c7004, writer waiting in the foreground; main at 50335b01 (#1919); U3 and #1917 wait on 1918; no requests"
+    },
+    {
+      "time": "2026-10-16T03:48:52.273Z",
+      "event": "check-in",
+      "outcome": "no change: PR 1918 (#1623/#1611) round 2 adjudicated, head 7c5f980fe waiting on CI, writer in its sweep (added a reduced reproduction to #1627, filed nothing new); merge queue is #1923 then #1921 then #1918; main at 50335b01; no requests"
     }
   ]
 }
