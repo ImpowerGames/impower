@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 110,
-  "previous": "a42781bce550294b4308122a7f8cf379093f686e",
+  "seq": 111,
+  "previous": "4d6d03fc05db3977d243c9a2b7635bb44ed24172",
   "snapshotParents": [],
-  "time": "2026-10-16T22:20:05.507Z",
+  "time": "2026-10-16T22:21:12.364Z",
   "kind": "auto",
-  "transition": "answered of #1881",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 86,
@@ -1177,12 +1177,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T22:20:04.153Z",
+      "observedAt": "2026-10-16T22:21:11.167Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 52280
+      },
       "pr": 1983,
       "reviewJobs": [
         {
@@ -1292,6 +1296,24 @@
           "commentIds": [
             6225585759
           ]
+        },
+        {
+          "job": "pr-1983/round-3/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
+            "completedRoundReviewers": {
+              "undirected": 1
+            },
+            "time": "2026-10-16T22:20:49.366Z"
+          }
         }
       ]
     },
@@ -1300,7 +1322,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T22:20:04.153Z",
+      "observedAt": "2026-10-16T22:21:11.167Z",
       "held": true,
       "head": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
       "remoteHead": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
@@ -1435,7 +1457,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T22:18:39.407Z",
+    "at": "2026-10-16T22:21:11.166Z",
     "tickets": [
       {
         "number": 851,
@@ -1459,7 +1481,7 @@
         "number": 1881,
         "action": "observe",
         "pr": 1983,
-        "reason": "process 30652, 48268, 13428 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1881-3dcfbdc3-6df9-4d2e-b876-2ffdb15ae348"
+        "reason": "process 56704 started 639277859929638674 is running"
       },
       {
         "number": 1974,
