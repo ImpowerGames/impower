@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 304,
-  "previous": "9efed14a1cb916a0d22b4c0a03d77f781e40aab8",
+  "seq": 305,
+  "previous": "b198c97d01b6899f512f0458dc5ddee6d71494a2",
   "snapshotParents": [],
-  "time": "2026-10-16T17:46:51.742Z",
+  "time": "2026-10-16T18:03:46.420Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "result of #1800",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 252,
+    "recordRevision": 253,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2165,7 +2165,30 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T18:03:41.794Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions",
+            "pr": 1955,
+            "reviewedHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
+            "rounds": {
+              "gpt-5.6-terra (cross-vendor default, high)": 1,
+              "cap": 3,
+              "round1": "state 6220140252; ax (author-experience short) report 6220230442 adjudication 6221051158 (one blocking test-honesty finding, fixed in 7e939bf and 4c07b89, tests only); undirected attempt 1 report 6221310478 adjudication 6221379724 (no findings, could not take the test reservation); undirected attempt 2 report 6221603077 adjudication 6221652399 (no findings, ran red on merge base and green on head)"
+            },
+            "findings": "None",
+            "verification": "Story.EachGlobal's bare throw new Error() replaced by this.Error('Global <name> is declared without a value, so it is not initialized.', value.identifier?.debugMetadata ?? value, false), placed at the identifier because lowered declarations carry their position there; the compile still makes a program. New src/tests/program/valuelessGlobal.test.ts runs the program and asserts x is 1 and orphan has no value. redgreen --base origin/main on 4c07b89 ok: red AssertionError expected undefined to be truthy (no program), green 1 passed. Filtered sparkdown typecheck clean; programResolver.test.ts 15 passed. No live editor check since no source script reaches the path after #1792, disclosed in the PR. Only Story.ts and the new test changed.",
+            "ci": "On 4c07b89 every check passed including Sparkdown 1/4 to 4/4, tsc, typecheck, test-suite, build, vscode-sparkdown, hook-tests and linked-issue; vitest-api-integration, skills-checks, notifier and driver-checks skipped by path gating; none failed or pending.",
+            "next": "None from the writer; PR #1955 (Closes #1800, branch fix/1800-valueless-global-diagnostic) is marked ready for the coordinator's merge gate.",
+            "changesAfterReviewedCommit": "none",
+            "other": "Nothing filed from the sweep. The writer notes the ticket says this closes at the source the silent failure #1325 described; #1325 was already closed by PR #1911.",
+            "source": "cross-session message from writer impower-d5 (session f0a69931-51bb-4941-a6cb-5c6886538849), final report for assignment 31d5b5cf"
+          }
+        }
+      ]
     },
     "1920": {
       "owner": null,
@@ -4234,16 +4257,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T17:46:50.206Z",
+      "observedAt": "2026-10-16T18:03:43.693Z",
       "held": true,
-      "head": "eae96dceab16d4d8c2814350bc19809c36fe49f8",
-      "remoteHead": "eae96dceab16d4d8c2814350bc19809c36fe49f8",
+      "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
+      "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 11548
-      },
       "pr": 1956,
       "reviewJobs": [
         {
@@ -4284,7 +4303,7 @@
         },
         {
           "job": "pr-1956/round-1/launch-undirected-1",
-          "lastEvent": "exited",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -4299,7 +4318,25 @@
               "ax": 1
             },
             "time": "2026-10-16T17:30:42.356Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "eae96dceab16d4d8c2814350bc19809c36fe49f8",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6221341755
+          ]
         }
       ]
     },
@@ -4308,16 +4345,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T17:46:50.206Z",
+      "observedAt": "2026-10-16T18:03:43.693Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 57916
-      },
       "pr": 1955,
       "reviewJobs": [
         {
@@ -4358,7 +4391,7 @@
         },
         {
           "job": "pr-1955/round-1/launch-undirected-1",
-          "lastEvent": "exited",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -4373,7 +4406,63 @@
               "ax": 1
             },
             "time": "2026-10-16T17:29:48.562Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6221310478
+          ]
+        },
+        {
+          "job": "pr-1955/round-1/launch-undirected-2",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 2,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
+            "completedRoundReviewers": {
+              "ax": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T17:48:24.221Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 2,
+          "reviewedHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 2
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6221603077
+          ]
         }
       ]
     },
@@ -4382,12 +4471,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T17:46:50.206Z",
+      "observedAt": "2026-10-16T18:03:43.693Z",
       "held": true,
-      "head": "41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "558a4f50a255b6138579c6725e2260e1b4357ee3",
+      "remoteHead": "558a4f50a255b6138579c6725e2260e1b4357ee3",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 50908
+      }
     }
   },
   "snapshots": {},
@@ -4494,13 +4587,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T06:47:51.946Z",
-      "event": "relayed",
-      "ticket": 887,
-      "id": "d8a61713",
-      "to": "the maintainer"
-    },
     {
       "time": "2026-10-16T06:48:00.021Z",
       "event": "check-in",
@@ -5193,6 +5279,13 @@
       "time": "2026-10-16T17:46:48.527Z",
       "event": "check-in",
       "outcome": "no change: #316 (PR #1956 at eae96dcea) and #1800 (PR #1955 at 4c07b893a) in review with reviewer comments arriving; #1951 writer implementing; all three running; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T18:03:41.795Z",
+      "event": "result",
+      "ticket": 1800,
+      "pr": 1955,
+      "reviewedHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33"
     }
   ]
 }

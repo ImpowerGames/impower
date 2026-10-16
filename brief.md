@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 304 (this commit), 2026-10-16T17:46:51.742Z, after checked-in. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 305 (this commit), 2026-10-16T18:03:46.420Z, after result of #1800. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,18 +12,17 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #316
 
 - claude-cli claude-opus-5-5 at medium, process 60204 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run removes it once its coordinator and child are confirmed gone
 - review job pr-1956/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 5ac47e2b0, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
-- review job pr-1956/round-1/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event exited
+- review job pr-1956/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed eae96dcea, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
 
 ## #1800
 
 - claude-cli claude-opus-5-5 at low, process 41376 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic removes it once its coordinator and child are confirmed gone
 - review job pr-1955/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed af8a77a21, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
-- review job pr-1955/round-1/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event exited
+- review job pr-1955/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 4c07b893a, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
+- review job pr-1955/round-1/launch-undirected-2 on DESKTOP-726EO47: round 1 reviewed 4c07b893a, completed {"ax":1,"undirected":2} of planned ["ax","undirected"]; last launched reviewer undirected attempt 2 of round 1 (planned ["ax","undirected"]), last event finished
 
 ## #1951
 
 - claude-cli claude-opus-5-5 at low, process 9444 on DESKTOP-726EO47
-- as of 2026-10-16T17:46:50.206Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill that may exist only there; recover those bytes there before restarting or overwriting this work
+- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill removes it once its coordinator and child are confirmed gone
