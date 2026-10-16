@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 172 (this commit), 2026-10-16T04:34:26.055Z, after checked-in. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 173 (this commit), 2026-10-16T04:35:53.871Z, after checked-in. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,7 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #454
 
 - claude-cli claude-opus-5-5 at medium, process 13860 on DESKTOP-726EO47
+- as of 2026-10-16T04:35:50.859Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #887
 
 - claude-cli claude-opus-5-5 at medium, process 26336 on DESKTOP-726EO47
+- as of 2026-10-16T04:35:50.859Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice that may exist only there; recover those bytes there before restarting or overwriting this work

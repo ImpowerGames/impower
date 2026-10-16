@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 172,
-  "previous": "0b7e8bbe58ec2c80b150dd554f03653bd8a0f125",
+  "seq": 173,
+  "previous": "992b7222da02988667d36f4f865162a42f2a4f1b",
   "snapshotParents": [],
-  "time": "2026-10-16T04:34:26.055Z",
+  "time": "2026-10-16T04:35:53.871Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 139,
+    "recordRevision": 140,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2454,18 +2454,24 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:34:26.055Z",
+      "observedAt": "2026-10-16T04:35:50.859Z",
       "held": true,
-      "exists": false
+      "head": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": false
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice": {
       "ticket": 887,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T04:34:26.055Z",
+      "observedAt": "2026-10-16T04:35:50.859Z",
       "held": true,
-      "exists": false
+      "head": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": false
     }
   },
   "snapshots": {},
@@ -2554,11 +2560,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:21:40.424Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1794-workspace-import-cycle"
-    },
     {
       "time": "2026-10-15T22:21:47.793Z",
       "event": "disk-recovery",
@@ -3254,6 +3255,11 @@
       "time": "2026-10-16T04:34:24.927Z",
       "event": "check-in",
       "outcome": "Merged #1923 (7cab47f9) and #1921 (13f6fd9f); released writers for #1920 and #1617; dispatched #454 and #887 (both medium), acknowledged and verified; #316 held behind #887 (shared run branch of SparkdownCompiler.ts); merge slot handed to ORCH #1893 for #1918"
+    },
+    {
+      "time": "2026-10-16T04:35:48.280Z",
+      "event": "check-in",
+      "outcome": "no change: writers for #454 and #887 running in their early steps with no PR yet; #316 waits for #887; no transcripts to read, no dead launches; 63 GB free"
     }
   ]
 }
