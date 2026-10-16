@@ -87,10 +87,10 @@ function editOnce(before: string, at: number, remove: number, insert: string) {
     });
     const after = before.slice(0, at) + insert + before.slice(at + remove);
     const incremental = c.compile().program;
-    const cold = programCompiler({ [MAIN_URI]: after }, { programChunks: true } as never);
-    const coldProgram = cold.compile().program;
     // The chunks of the statements away from the edit that the compile
-    // emitted again.
+    // emitted again. A statement's key holds how its names resolved, which
+    // the parsed objects report only until any compiler compiles again
+    // (`CompileEpoch.ts`), so these are found before the cold compile.
     const untouched = untouchedChunks(c.compiler, at, at + insert.length, keysBefore);
     const reemitted = untouched.filter((chunk) => !held.has(chunk)).length;
     // The statements away from the edit that hold a chunk other than their
@@ -99,6 +99,8 @@ function editOnce(before: string, at: number, remove: number, insert: string) {
     const moved = programStatements(c.compiler)
       .filter((s) => own.has(s.chunk) && chunkBefore.get(s.key) !== s.chunk)
       .map((s) => s.syntax);
+    const cold = programCompiler({ [MAIN_URI]: after }, { programChunks: true } as never);
+    const coldProgram = cold.compile().program;
     return {
       incremental: surface(c, incremental),
       cold: surface(cold, coldProgram),
@@ -407,6 +409,60 @@ describe("a carried `do` block whose enclosing flow changed (#1627)", () => {
       "Hello".length,
       "Howdy",
     );
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
+  });
+});
+
+describe("a `do` block holding `function inner()` inserted above twins (#1933)", () => {
+  // The cumulative run's seed 12 of the function screenplay, edit #27,
+  // reduced by line deletion: the insert lands inside `sortDescendi`, above
+  // an unclosed `do` block holding `function inner()` and a later `do` block
+  // the edit does not touch, which ends the script with no newline after it.
+  it("leaves the untouched later `do` block its chunk", () => {
+    const before = [
+      "  Sorted {sortDescendi",
+      "do",
+      "  function inner()",
+      "    return 2",
+      "return   end",
+      "end",
+      "",
+      "do",
+      "  local make = function(n) return function() return n * 3 e",
+      "end",
+    ].join("\n");
+    const insert = "\ndo\n  function inner()\n    return 2\n  end\nend\n";
+    const { incremental, cold, reemitted, moved } = editOnce(before, 16, 0, insert);
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
+  });
+
+  // Edit #117 of the same run, reduced the same way. Before the edit the
+  // unclosed `{sortDe` hides the first `function inner()`, so the second
+  // defines `inner`; the edit removes the ` {tota` that hides the second
+  // `do`, which puts the second function in a `do` block, where it defines
+  // nothing, and the first defines `inner` again.
+  it("leaves its chunk to the function that defines its name", () => {
+    const before = [
+      "scene FN_1",
+      "  Sorted {sortDe",
+      "do",
+      "  function inner()",
+      "    return 2",
+      "  end",
+      "  Plain li)n * 4 end e({make(2)()} total {total",
+      "do",
+      "  function inner()",
+      "    return 2",
+      "  end",
+    ].join("\n");
+    const at = before.indexOf(" {total");
+    const { incremental, cold, reemitted, moved } = editOnce(before, at, " {tota".length, "\n  Plain line.\n");
     expect(cold.chunks).not.toBeNull();
     expect(incremental).toEqual(cold);
     expect(moved).toEqual([]);

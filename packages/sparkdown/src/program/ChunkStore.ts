@@ -702,6 +702,11 @@ export class ChunkStore {
       owner: (statement: StatementSource) => owners.get(statement),
       oldLine: (chunk: ProgramChunk) =>
         previous ? this.oldLineOf(previous, chunk) : -1,
+      oldShape: (chunk: ProgramChunk) =>
+        Array.from(
+          { length: previous ? blockCount(chunk) : 0 },
+          (_, k) => previous!.body(chunk, k)?.arrays.chunks.length ?? 0,
+        ),
     };
     const window =
       program.changed && previous
@@ -2993,8 +2998,10 @@ export class ChunkStore {
    * statements than old chunks of the same syntax and lowering reads, or
    * fewer) are paired first, in order, each with a chunk it can keep or one
    * whose parts it would take, at the least distance in lines across the
-   * edit (`matchTwins`); the other old and new statements are matched from
-   * both ends and then in order by their syntax, and the one statement left
+   * edit and, of twins as far, with the chunk whose bodies held as many
+   * statements as its own do (`matchTwins`); the other old and new
+   * statements are matched from both ends and then in order by their
+   * syntax, and the one statement left
    * on each side of a run with the one old statement left; of the
    * statements left, only the outermost count:
    * the statements of a left statement's bodies are part of it, as the
@@ -3017,8 +3024,10 @@ export class ChunkStore {
    * again in place, when that one can take the one this statement leaves. A
    * statement that holds none takes no chunk another statement holds, since
    * that one was edited in place and keeps the parts of its old self, whose
-   * ids and symbols a saved state may name; and a statement that holds a
-   * chunk with parts keeps it over a chunk no statement holds for the same
+   * ids and symbols a saved state may name, unless that one no longer
+   * defines the function the chunk defines and this one does, so the parts
+   * go with the name a saved state reaches them by (#1933); and a statement
+   * that holds a chunk with parts keeps it over a chunk no statement holds for the same
    * reason. A chunk left behind goes to a statement no pass matched, by its
    * syntax.
    */
@@ -3031,6 +3040,8 @@ export class ChunkStore {
       oldOwner(chunk: ProgramChunk): ProgramChunk | undefined;
       /** The line an old chunk's statement started at in its script. */
       oldLine?(chunk: ProgramChunk): number;
+      /** How many statements each body of an old chunk's statement held. */
+      oldShape?(chunk: ProgramChunk): number[];
     },
   ): (ProgramChunk | undefined)[] {
     const used = this._used;
@@ -3217,9 +3228,12 @@ export class ChunkStore {
     // gained above or below it). A twin is paired with a chunk it can keep,
     // or with one whose parts it would take when emitted again in place
     // (`ownsParts`), since those parts' ids and symbols go with the edit in
-    // place. Where a run holds as many twins as chunks, or the pairing would
-    // weigh more than `TWIN_CELLS` pairs, the passes by position pair them as
-    // before. Returns the old chunks it paired.
+    // place. Of twins that would move as far, as one above the edit and one
+    // below it can, the one whose bodies hold as many statements as the
+    // chunk's did is paired (#1933). Where a run holds as many twins as
+    // chunks, or the pairing would weigh more than `TWIN_CELLS` pairs, the
+    // passes by position pair them as before. Returns the old chunks it
+    // paired.
     const matchTwins = (
       candidates: readonly number[],
       olds: readonly number[],
@@ -3279,6 +3293,10 @@ export class ChunkStore {
           continue;
         }
         const [above, below] = shiftsOf();
+        // Less than a line in all, so it decides only between pairings that
+        // move their twins as far: one whose bodies hold as many statements
+        // as its chunk's did (`keepCarried`) over one whose bodies do not.
+        const misshapen = 1 / (Math.min(n, m) + 1);
         const news = group.news.map((i) => {
           const statement = statements[i]!;
           return {
@@ -3287,6 +3305,7 @@ export class ChunkStore {
             bodied: (statement.bodies?.length ?? 0) > 0,
             alternating: writesAlternators(statement),
             choosing: raisesChoices(statement),
+            shape: (statement.bodies ?? []).map((body) => body.statements.length),
           };
         });
         const chunks = group.olds.map((o) => {
@@ -3298,6 +3317,7 @@ export class ChunkStore {
             bodied: blockCount(chunk) > 0,
             alternating: info.alternators.length > 0,
             choosing: info.choices.length > 0,
+            shape: nesting?.oldShape?.(chunk) ?? [],
           };
         });
         const pairs = pairInOrder(n, m, (s, l) => {
@@ -3312,7 +3332,10 @@ export class ChunkStore {
             return undefined;
           }
           const moved = twin.line - chunk.line;
-          return Math.min(Math.abs(moved - above), Math.abs(moved - below));
+          return (
+            Math.min(Math.abs(moved - above), Math.abs(moved - below)) +
+            (sameNumbers(twin.shape, chunk.shape) ? 0 : misshapen)
+          );
         });
         for (const [s, l] of pairs) {
           if (take(group.news[s]!, group.olds[l]!)) {
@@ -3479,7 +3502,8 @@ export class ChunkStore {
     // can keep, which takes the one it leaves, so no chunk is left behind.
     // A statement paired with no chunk takes none that another statement
     // holds: that one was edited in place, and keeps the parts of its old
-    // self.
+    // self, unless it no longer defines the function the chunk defines and
+    // the statement taking it does.
     const partner = new Map<number, number>();
     const holder = new Map<number, number>();
     statements.forEach((statement, i) => {
@@ -3621,6 +3645,30 @@ export class ChunkStore {
         }
       }
       if (q === undefined) {
+        // A chunk held for an edit in place by a statement that no longer
+        // defines the function the chunk defines, which this one defines
+        // now, goes with the name: its parts are that function's, which a
+        // saved state names by it, and the holder is emitted anew (#1933).
+        const defines = statements[i]!.defines;
+        const named =
+          defines === undefined
+            ? undefined
+            : lists.held.bySyntax.get(statements[i]!.syntax());
+        const o = named?.findLast((c) => {
+          const p = holder.get(c);
+          return (
+            p !== undefined &&
+            p !== i &&
+            statements[p]!.defines !== defines &&
+            this._info.get(old[c]!)?.defines === defines
+          );
+        });
+        if (o !== undefined) {
+          const p = holder.get(o)!;
+          unpair(p);
+          result[i] = old[o]!;
+          queue.push(p);
+        }
         continue;
       }
       // The other statement takes the chunk this one leaves: it keeps it,
