@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 336,
-  "previous": "cb8c8d41fdbcfb00c732803f958e04381a8cc4eb",
+  "seq": 337,
+  "previous": "e8e7ca1aeb8d677be88bed03e6cdb5b4b1517aeb",
   "snapshotParents": [],
-  "time": "2026-10-16T18:56:55.967Z",
+  "time": "2026-10-16T18:58:07.973Z",
   "kind": "auto",
-  "transition": "feature verification 39795293 (complete)",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 280,
+    "recordRevision": 281,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5091,6 +5091,16 @@
       "mergedOnto": "59739ecf7d52a548bdaca416b4bd221fb37a657c",
       "baseMoved": true,
       "onMain": true
+    },
+    {
+      "id": "f0178674",
+      "kind": "close",
+      "ticket": 1895,
+      "pr": 1895,
+      "expectHead": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e",
+      "state": "intent",
+      "time": "2026-10-16T18:58:06.494Z",
+      "evidence": "verification 39795293"
     }
   ],
   "decisions": [
@@ -5672,15 +5682,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T13:48:18.068Z",
-      "event": "checkpoint-intent",
-      "ticket": 887,
-      "id": "1f865fa5",
-      "kind": "extend",
-      "round": 3,
-      "head": "6156c871695ca66489dab3e473e5ac1199f68443"
-    },
     {
       "time": "2026-10-16T13:48:21.399Z",
       "event": "checkpoint-published",
@@ -6366,6 +6367,13 @@
       "id": "39795293",
       "verdict": "complete",
       "mainSha": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e"
+    },
+    {
+      "time": "2026-10-16T18:58:06.494Z",
+      "event": "operation-intent",
+      "id": "f0178674",
+      "kind": "close",
+      "pr": 1895
     }
   ]
 }
