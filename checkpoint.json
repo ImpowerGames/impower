@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 8,
-  "previous": "93be859b8c6ec672598c1af4a3ee1e796e5feed2",
+  "seq": 9,
+  "previous": "61d5c2c063c529b6472a5fe280a72fa4777ce2af",
   "snapshotParents": [],
-  "time": "2026-10-16T04:48:58.003Z",
+  "time": "2026-10-16T05:06:57.258Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 26,
+    "recordRevision": 27,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -239,7 +239,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T04:48:57.136Z",
+      "observedAt": "2026-10-16T05:06:56.579Z",
       "held": true,
       "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
       "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
@@ -683,6 +683,11 @@
       "time": "2026-10-16T04:48:55.976Z",
       "event": "check-in",
       "outcome": "PR #1925 CI passed on 7bfed368 but main moved to 13f6fd9f (#1921) first; branch updated with main a third time; a CI watch will trigger the merge gate as soon as checks finish; #1905 running with draft PR #1927 open"
+    },
+    {
+      "time": "2026-10-16T05:06:55.460Z",
+      "event": "check-in",
+      "outcome": "PR #1925 gate refused a fourth time: main moved to d6d6f272 (#1918) during CI; branch updated with main again (head 70264631) and a CI watch re-armed to merge at once when checks finish"
     }
   ]
 }
