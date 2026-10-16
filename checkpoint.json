@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 301,
-  "previous": "70624e160fbc16c9bdd88ae5b563731420a573f8",
+  "seq": 302,
+  "previous": "ebcf9bb79982115de1480c45972bac3ebd2eb01a",
   "snapshotParents": [],
-  "time": "2026-10-16T16:44:55.755Z",
+  "time": "2026-10-16T17:14:55.313Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 250,
@@ -4234,22 +4234,61 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:44:53.622Z",
+      "observedAt": "2026-10-16T17:14:51.563Z",
       "held": true,
       "head": "5ac47e2b05d0a587a91e203f37c4fe440cebb9d5",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": false
+      "remoteHead": "5ac47e2b05d0a587a91e203f37c4fe440cebb9d5",
+      "unpushed": false,
+      "dirty": true,
+      "pr": 1956,
+      "reviewJobs": [
+        {
+          "job": "pr-1956/round-1/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "5ac47e2b05d0a587a91e203f37c4fe440cebb9d5",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T16:47:51.914Z"
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "5ac47e2b05d0a587a91e203f37c4fe440cebb9d5",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6220438308
+          ]
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic": {
       "ticket": 1800,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:44:53.622Z",
+      "observedAt": "2026-10-16T17:14:51.563Z",
       "held": true,
-      "head": "af8a77a2142f050823b820dba61958da3735b98d",
-      "remoteHead": "af8a77a2142f050823b820dba61958da3735b98d",
+      "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
+      "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "unpushed": false,
       "dirty": true,
       "pr": 1955,
@@ -4297,7 +4336,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T16:44:53.622Z",
+      "observedAt": "2026-10-16T17:14:51.563Z",
       "held": true,
       "head": "41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8",
       "remoteHead": null,
@@ -4308,12 +4347,12 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:44:39.889Z",
+    "at": "2026-10-16T17:14:51.561Z",
     "tickets": [
       {
         "number": 316,
         "action": "observe",
-        "pr": null,
+        "pr": 1956,
         "reason": "process 60204 started 639277639598449164 is running"
       },
       {
