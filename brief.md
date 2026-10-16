@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 119 (this commit), 2026-10-16T01:56:19.165Z, after the intent before a side effect. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 120 (this commit), 2026-10-16T01:57:59.329Z, after the merge of PR #1915 (confirmed). Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -16,7 +16,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1614
 
 - claude-cli claude-opus-5-5 at medium, process 11208 on DESKTOP-726EO47
-- as of 2026-10-16T01:56:17.994Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T01:57:58.201Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1919/round-1/launch-incr-1 on DESKTOP-726EO47: round 1 reviewed 6cd26291e, completed {"incr":1} of planned ["incr","bound","undirected"]; last launched reviewer incr attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
 
 ## #1623
@@ -31,7 +31,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1915/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed a21e38293, completed {"ax":1} of planned ["ax","incr","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","incr","undirected"]), last event finished
 - review job pr-1915/round-1/launch-incr-1 on DESKTOP-726EO47: round 1 reviewed a9838d755, completed {"ax":1,"incr":1} of planned ["ax","incr","undirected"]; last launched reviewer incr attempt 1 of round 1 (planned ["ax","incr","undirected"]), last event finished
 - review job pr-1915/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed a9838d755, completed {"ax":1,"incr":1,"undirected":1} of planned ["ax","incr","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","incr","undirected"]), last event finished
-
-## Unsettled operations
-
-- 51e91325: merge of PR #1915 at bc305a65aa40d9a69b2ff5a6ac896ce25bc35c0e, intent; settle it with checkpoint.mjs reconcile-operations before any retry
