@@ -413,3 +413,57 @@ describe("a carried `do` block whose enclosing flow changed (#1627)", () => {
     expect(reemitted).toBe(0);
   });
 });
+
+describe("a `do` block holding `function inner()` inserted above twins (#1933)", () => {
+  // The cumulative run's seed 12 of the function screenplay, edit #27,
+  // reduced by line deletion: the insert lands inside `sortDescendi`, above
+  // an unclosed `do` block holding `function inner()` and a later `do` block
+  // the edit does not touch, which ends the script with no newline after it.
+  it("leaves the untouched later `do` block its chunk", () => {
+    const before = [
+      "  Sorted {sortDescendi",
+      "do",
+      "  function inner()",
+      "    return 2",
+      "return   end",
+      "end",
+      "",
+      "do",
+      "  local make = function(n) return function() return n * 3 e",
+      "end",
+    ].join("\n");
+    const insert = "\ndo\n  function inner()\n    return 2\n  end\nend\n";
+    const { incremental, cold, reemitted, moved } = editOnce(before, 16, 0, insert);
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
+  });
+
+  // Edit #117 of the same run, reduced the same way. Before the edit the
+  // unclosed `{sortDe` hides the first `function inner()`, so the second
+  // defines `inner`; the edit removes the ` {tota` that hides the second
+  // `do`, which puts the second function in a `do` block, where it defines
+  // nothing, and the first defines `inner` again.
+  it("leaves its chunk to the function that defines its name", () => {
+    const before = [
+      "scene FN_1",
+      "  Sorted {sortDe",
+      "do",
+      "  function inner()",
+      "    return 2",
+      "  end",
+      "  Plain li)n * 4 end e({make(2)()} total {total",
+      "do",
+      "  function inner()",
+      "    return 2",
+      "  end",
+    ].join("\n");
+    const at = before.indexOf(" {total");
+    const { incremental, cold, reemitted, moved } = editOnce(before, at, " {tota".length, "\n  Plain line.\n");
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
+  });
+});
