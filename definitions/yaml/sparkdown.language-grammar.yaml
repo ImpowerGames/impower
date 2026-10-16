@@ -388,6 +388,19 @@ variables:
   # tag that touches the line's text (`Hello# t`) stays inside the line's
   # Annotation, so its tags are the line's own (#1710).
   NOT_TAG_HASH: (?:[#]+[^#\s])
+  # lookaround: ActionLineEnd and LineEnd own a `#x` the line begins with,
+  # as display text. The line rules that end here (ImplicitAction,
+  # InlineAction, InlineTitle, InlineHeading, InlineTransitional) begin at
+  # the line's first non-space character, and a rule's end is tried before
+  # its body at every position, so no reordering of the body hands it the
+  # `#x` there: the end would close the rule empty where it began and the
+  # tokenizer would loop to its empty-match backstop (#1614). This is the
+  # parent's own end already, there is no Switch to split, and the text
+  # before the run is outside anything `NOT_TAG_HASH` can match. Text is a
+  # non-space character other than `.`, with at most the `..` after it: the
+  # leading glue a begin takes (`^: ..#x`, `..#x`) is not text. Each
+  # alternative has a fixed width, which VS Code's Oniguruma requires.
+  NOT_TAG_HASH_AFTER_TEXT: (?<=[^\s.]|[^\s.][.]|[^\s.][.][.])(?={{NOT_TAG_HASH}})
   COMMENT_START: (?:[-][-])
   # A `>` in display text, which may touch the words around it (`A>B`), and
   # each `>` of `>>` is one. The marks that hold a `>` are matched before it:
@@ -2709,7 +2722,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|{{NOT_TAG_HASH_AFTER_TEXT}}
   TitleMark:
     tag: definition(punctuation)
     name: punctuation.title.mark.sd
@@ -2773,7 +2786,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|{{NOT_TAG_HASH_AFTER_TEXT}}
   HeadingMark:
     tag: definition(punctuation)
     name: punctuation.heading.mark.sd
@@ -2837,7 +2850,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|{{NOT_TAG_HASH_AFTER_TEXT}}
   TransitionalMark:
     tag: definition(punctuation)
     name: punctuation.transitional.mark.sd
@@ -3146,7 +3159,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|{{NOT_TAG_HASH_AFTER_TEXT}}
   ImplicitAction:
     begin: ({{WS}}*)(?!{{END}})(?=\S)
     beginCaptures:
@@ -3161,7 +3174,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#ActionLineEnd" }
       - { include: "#ExtraWhitespace" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?={{NOT_TAG_HASH}})
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|{{NOT_TAG_HASH_AFTER_TEXT}}
   # Action bodies share display parsing, but also expose the load directive.
   # Keep the enclosing line shapes parallel to the ordinary display rules.
   BlockActionLineContinue:
