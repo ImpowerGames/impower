@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 219,
-  "previous": "6651e3bf17cc28d2fe469e8cb38a427d596d6925",
+  "seq": 220,
+  "previous": "afb358255cc651f746fe2cc70ebcc3db92a8f530",
   "snapshotParents": [],
-  "time": "2026-10-16T13:16:50.476Z",
+  "time": "2026-10-16T13:48:49.926Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "request of #887",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 180,
+    "recordRevision": 183,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -657,6 +657,279 @@
             "attempts": 1,
             "time": "2026-10-16T12:14:59.708Z",
             "to": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+          }
+        },
+        {
+          "id": "4a6cec03",
+          "owner": "6944980d-0e0e-4dfc-bfbc-6851e5e74f98",
+          "time": "2026-10-16T13:48:47.347Z",
+          "text": "Checkpoint report after round 3 on PR #1928: last reviewed commit 55c54014, head 6156c871 with behaviour-changing corrections (00582b91: wrapper named by documentTag, harness reads the declaration document; 6156c871 docs) landed after round 3's last reviewer; nine blocking findings over three rounds all accepted; CI green on the head. Writer asks: extend with a round 4 (reviewRoundLimit and extendedReviewAuthorization) or accept the unreviewed corrections at 6156c871.",
+          "source": "cross-session message from writer impower-f8",
+          "relayed": null,
+          "answer": null
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "1f865fa5",
+          "kind": "extend",
+          "feature": 1895,
+          "ticket": 887,
+          "pr": 1928,
+          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+          "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
+          "time": "2026-10-16T13:48:18.068Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "55c5401496e7778684794ceb146ee2f6f71be912",
+          "head": "6156c871695ca66489dab3e473e5ac1199f68443",
+          "range": {
+            "from": "55c5401496e7778684794ceb146ee2f6f71be912",
+            "to": "6156c871695ca66489dab3e473e5ac1199f68443",
+            "base": "8b466a5cd497e3b3a61433546e046d5b71149d89",
+            "commits": [
+              "00582b91a557d29f61c0c10ae24dd40291d07f4c",
+              "6156c871695ca66489dab3e473e5ac1199f68443"
+            ],
+            "diffSha256": "969f264d44af1a5339bab319be57d5bcb5e5cee3e9a8e496c410fc6c1c4b07c3"
+          },
+          "reports": [
+            {
+              "comment": 6208415409,
+              "round": 1,
+              "reviewerId": "inc",
+              "adjudication": 6208474653
+            },
+            {
+              "comment": 6208652985,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6208678287
+            },
+            {
+              "comment": 6209069707,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6209103191
+            },
+            {
+              "comment": 6209677385,
+              "round": 3,
+              "reviewerId": "inc",
+              "adjudication": 6215635849
+            },
+            {
+              "comment": 6215969878,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6216359175
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 4,
+          "limitReason": "One bounded round on the 55c54014..6156c871 range (documentTag naming, harness declaration-document selection, the name's author-visible surface); every earlier correction reached a consumer the writer had not traced, and the final range is small enough that one independent red-on-base read settles it.",
+          "authority": "Use orchestrate-feature for #1895. I give you explicit permission to approve as many review rounds as are reasonable for each ticket and merge the PRs yourself.\n\n#1895 is a Task umbrella, not a Feature; its Description and Scope are the design of record. Its 11 children are compiles that produce no program, or a wrong one, with no diagnostic. #1617 is the one engine-divergence bug left from the two-engine sweep, retitled on 2026-10-15 to describe the program engine alone, with a failing test already in its body; the other eight were closed that day and are not to be reopened.\n\nThe children carry no blockers, so plan them in these units:\n- One writer for the four no-program compiles, which share the compile pipeline and the umbrella's new harness assertion that a compile yielding no program carries at least one Error diagnostic: #457, #1325, #1502 and #1641.\n- #1103, #1299, #1617 and #1645 are independent wrong-lowering fixes. Several are likely to touch SparkdownCompiler.ts or the same lowerer, so before dispatching a second writer read the first writer's draft PR for the files it touches and hold any ticket likely to collide.\n- #454, #887 and #316 come last. #316 holds three pre-existing defects; its writer may split it into three tickets under this umbrella if the fixes share no cause.\n\nA second coordinator is running #1893 on this machine at the same time, so init with --concurrency 3. Any new ticket filed under the umbrella gets the \"Compilation robustness\" milestone.",
+          "assessment": {
+            "mechanisms": "Every blocking finding of the three rounds is one mechanism: what identifies the wrapper a run statement compiles, and whether that identity depends on anything but the file. Round 1 keyed sites by resolved file but named them by authored path (alias paths called an undeclared wrapper). Round 2's probe found that sharing one wrapper document between sites made a statement's compiled document depend on the order the compile reached the file's runs, so a kept flow reached objects placed at another statement and the story looped. Round 3's inc found that the per-statement counter then put edit history into an author-visible name (warm and cold compiles disagreed in debug.info, and the name could collide with an author's __run_helper_2); round 3's undirected found that the 32-bit hash that replaced it could give two files one wrapper, and that the conformance harness still expected one combined run document. The design that ended the churn (55c54014, then 00582b91) separates the two identities: a declaration document per file, compiled once per compile, whose function is named from the file alone by documentTag, the repository's identifier-safe collision-free path encoding, and a one-line call document per run statement keyed by its compiled block. That restores the invariant main had, that what a run statement compiles depends only on the statement and its file, and it is the first version in which the name cannot collide by construction (documentTag escapes every non-alphanumeric character and ends at the first double underscore).",
+            "regressions": "Corrections introduced defects three times: 3c1986e1 (the round-2 gap fix) introduced the counter's two round-3 findings; 55c54014 (the round-3 inc fix) introduced the hash collision and the harness breakage, the latter failing all four sparkdown CI shards with 298 snippet tests before the writer saw it. 00582b91 fixes both; its naming change is 7 lines in runWrapper.ts and the harness change is test-only, and CI on 6156c871 passes every check with the package jobs run. The pattern says each correction so far widened the design and reached a consumer the writer had not traced, which is why the small final range still deserves one independent read rather than an acceptance on the writer's and CI's word alone.",
+            "repairOptions": "The writer considered and rejected the earlier shapes (shared documents per site, order-dependent hosting, an edit-history counter, a hashed name), each of which violated the invariant above; the declaration-plus-call design is the simplest one that keeps it, and documentTag is an existing building block rather than new naming code. No broader repair is open: the stale .luau body on edit is #316's, and retiring abandoned call documents is a disclosed cost, not a defect. A round-4 reviewer may still judge the author-visible form of the new name (a documentTag spelling of the whole URI now reaches debug.info, stack traces and frame labels), which no reviewer has seen yet.",
+            "residualRisk": "00582b91 has had no independent review: the documentTag naming and the harness's declaration-document selection. The visible name is now a long URI spelling (for example __run_inmemory_3a_2f_2f_2fhelper_2eluau__) wherever readableSymbolLabel does not shorten it, which round 3's inc lens treated as author-facing; whether that is acceptable has not been reviewed. The declaration document's host is whichever run the compile reaches first; round 2's 24-order matrix and round 3's host-change probes passed on 55c54014 and the only shipped change since is the name spelling. One one-line call document per run statement ever compiled stays in the registry for the compiler's lifetime, disclosed.",
+            "coverage": "Run.test.ts 16/16 on 00582b91 and 6156c871, including the ticket's two shapes, the alias and two-directory cases, the 24-order cold-versus-warm reordering test, the warm/cold name test and the hash-collision test. Red/green: against merge base 13f6fd9f8 on 55c54014 (7 failed then 15 passed) and against 55c54014 for 00582b91 (2 failed then 16 passed), restores matched. Both reviewers' saved probe files pass on 55c54014. The eight CI-failing snippet files pass locally on 00582b91 (harness 55, TypeInfer.annotations 58, MalformedExpressionAtEveryPosition 981, fixtureQuerySupport 336, invalidStatementInFunctionBody 105, TypeUnionWithSpaces 13, TypeFunctionDeclaration 29, Run 16). Filtered typecheck clean. VS Code served workbench on the alias and two-files projects shows no errors. CI on 6156c871: all 28 checks pass with the package jobs run.",
+            "nextRoundValue": "A bounded round 4 on the unreviewed range 55c54014..6156c871 establishes, with an independent red-on-base run, that the documentTag naming keeps warm and cold compiles aligned and two files apart, that the harness now selects the declaration document and still checks snippet positions, and whether the long tag-spelled name is acceptable where it reaches an author (debug.info, stack traces, frames). Its expected yield is low in defects but it is the one read this PR's correction history says the final change should get before the Feature's coordinator merges it.",
+            "rationale": "The gates for round 3 pass on the reviewed head 55c54014, but the head 6156c871 carries behaviour-changing corrections no reviewer has read, and every correction in this PR so far has reached a consumer the writer missed. The unreviewed range is small and verified, which would also satisfy an acceptance, but the naming class recurred within round 3 itself, so the acceptance condition that the class has stopped recurring is not yet shown by an independent read. The maintainer authorized extending review rounds as reasonable for each ticket; one more round, limited to this range and the name's author-facing surface, is reasonable and cheap next to the churn it closes.",
+            "next": "Extend: the writer launches round 4 under this decision with reviewRoundLimit 4 and extendedReviewAuthorization equal to the quoted invocation, planning the undirected reviewer (red-on-base on the range 55c54014..6156c871) and, if its launcher plans two, the inc lens for the author-visible name surface; then reports the checkpoint after round 4, where a clean round finishes the PR through ordinary readiness and the coordinator merges through the gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 4,
+            "limitReason": "One bounded round on the 55c54014..6156c871 range (documentTag naming, harness declaration-document selection, the name's author-visible surface); every earlier correction reached a consumer the writer had not traced, and the final range is small enough that one independent red-on-base read settles it.",
+            "findings": [
+              {
+                "comment": 6208415409,
+                "finding": "deduplicating by resolved URI while naming calls by authored path broke alias and cross-directory runs",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6208652985,
+                "finding": "runWrapperName returned site metadata for a call document's URI (optional)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209069707,
+                "finding": "verification gap: the supplemental 24-order incremental probe hung, settled as a real order-dependence defect fixed in 3c1986e1",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209677385,
+                "finding": "an unrelated edit could introduce a generated-name collision through the compiler-lifetime counter",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209677385,
+                "finding": "the counter changed debug.info output between warm and cold compiles",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209677385,
+                "finding": "retention cost of discarded previews and full parsed bodies undisclosed (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215969878,
+                "finding": "the conformance harness was not updated for the split run documents, failing all sparkdown CI shards",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215969878,
+                "finding": "a 32-bit hash could give two files the same wrapper name",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: authorize another bounded round\n\nDecision `1f865fa5` by coordinator `local_bede5658-a16d-4558-858b-9a8d10696a23` of Feature #1895 for #887. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"Use orchestrate-feature for #1895. I give you explicit permission to approve as many review rounds as are reasonable for each ticket and merge the PRs yourself. #1895 is a Task umbrella, not a Feature; its Description and Scope are the design of record. Its 11 children are compiles that produce no program, or a wrong one, with no diagnostic. #1617 is the one engine-divergence bug left from the two-engine sweep, retitled on 2026-10-15 to describe the program engine alone, with a failing test already in its body; the other eight were closed that day and are not to be reopened. The children carry no blockers, so plan them in these units: - One writer for the four no-program compiles, which share the compile pipeline and the umbrella's new harness assertion that a compile yielding no program carries at least one Error diagnostic: #457, #1325, #1502 and #1641. - #1103, #1299, #1617 and #1645 are independent wrong-lowering fixes. Several are likely to touch SparkdownCompiler.ts or the same lowerer, so before dispatching a second writer read the first writer's draft PR for the files it touches and hold any ticket likely to collide. - #454, #887 and #316 come last. #316 holds three pre-existing defects; its writer may split it into three tickets under this umbrella if the fixes share no cause. A second coordinator is running #1893 on this machine at the same time, so init with --concurrency 3. Any new ticket filed under the umbrella gets the \"Compilation robustness\" milestone.\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (inc, undirected) exited, and every report has its adjudication (6208415409 in 6208474653, 6208652985 in 6208678287, 6209069707 in 6209103191, 6209677385 in 6215635849, 6215969878 in 6216359175).\n- Independently reviewed through `55c5401496e7778684794ceb146ee2f6f71be912`.\n- Head `6156c871695ca66489dab3e473e5ac1199f68443`. Unreviewed: `55c540149..6156c8716`, 2 commits (`00582b91a` fix(compiler): spell a run file's wrapper from its whole URI, and read the split documents in the conformance harness (#887); `6156c8716` docs(engine): name the run wrapper as documentTag spells it (#887)), diff SHA-256 `969f264d44af1a5339bab319be57d5bcb5e5cee3e9a8e496c410fc6c1c4b07c3`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, test-suite passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 8 accepted; unresolved: none.\n- Shared mechanisms: Every blocking finding of the three rounds is one mechanism: what identifies the wrapper a run statement compiles, and whether that identity depends on anything but the file. Round 1 keyed sites by resolved file but named them by authored path (alias paths called an undeclared wrapper). Round 2's probe found that sharing one wrapper document between sites made a statement's compiled document depend on the order the compile reached the file's runs, so a kept flow reached objects placed at another statement and the story looped. Round 3's inc found that the per-statement counter then put edit history into an author-visible name (warm and cold compiles disagreed in debug.info, and the name could collide with an author's __run_helper_2); round 3's undirected found that the 32-bit hash that replaced it could give two files one wrapper, and that the conformance harness still expected one combined run document. The design that ended the churn (55c54014, then 00582b91) separates the two identities: a declaration document per file, compiled once per compile, whose function is named from the file alone by documentTag, the repository's identifier-safe collision-free path encoding, and a one-line call document per run statement keyed by its compiled block. That restores the invariant main had, that what a run statement compiles depends only on the statement and its file, and it is the first version in which the name cannot collide by construction (documentTag escapes every non-alphanumeric character and ends at the first double underscore).\n- Defects introduced by corrections: Corrections introduced defects three times: 3c1986e1 (the round-2 gap fix) introduced the counter's two round-3 findings; 55c54014 (the round-3 inc fix) introduced the hash collision and the harness breakage, the latter failing all four sparkdown CI shards with 298 snippet tests before the writer saw it. 00582b91 fixes both; its naming change is 7 lines in runWrapper.ts and the harness change is test-only, and CI on 6156c871 passes every check with the package jobs run. The pattern says each correction so far widened the design and reached a consumer the writer had not traced, which is why the small final range still deserves one independent read rather than an acceptance on the writer's and CI's word alone.\n- Broader or simpler repair: The writer considered and rejected the earlier shapes (shared documents per site, order-dependent hosting, an edit-history counter, a hashed name), each of which violated the invariant above; the declaration-plus-call design is the simplest one that keeps it, and documentTag is an existing building block rather than new naming code. No broader repair is open: the stale .luau body on edit is #316's, and retiring abandoned call documents is a disclosed cost, not a defect. A round-4 reviewer may still judge the author-visible form of the new name (a documentTag spelling of the whole URI now reaches debug.info, stack traces and frame labels), which no reviewer has seen yet.\n- Residual risk: 00582b91 has had no independent review: the documentTag naming and the harness's declaration-document selection. The visible name is now a long URI spelling (for example __run_inmemory_3a_2f_2f_2fhelper_2eluau__) wherever readableSymbolLabel does not shorten it, which round 3's inc lens treated as author-facing; whether that is acceptable has not been reviewed. The declaration document's host is whichever run the compile reaches first; round 2's 24-order matrix and round 3's host-change probes passed on 55c54014 and the only shipped change since is the name spelling. One one-line call document per run statement ever compiled stays in the registry for the compiler's lifetime, disclosed.\n- Verification coverage: Run.test.ts 16/16 on 00582b91 and 6156c871, including the ticket's two shapes, the alias and two-directory cases, the 24-order cold-versus-warm reordering test, the warm/cold name test and the hash-collision test. Red/green: against merge base 13f6fd9f8 on 55c54014 (7 failed then 15 passed) and against 55c54014 for 00582b91 (2 failed then 16 passed), restores matched. Both reviewers' saved probe files pass on 55c54014. The eight CI-failing snippet files pass locally on 00582b91 (harness 55, TypeInfer.annotations 58, MalformedExpressionAtEveryPosition 981, fixtureQuerySupport 336, invalidStatementInFunctionBody 105, TypeUnionWithSpaces 13, TypeFunctionDeclaration 29, Run 16). Filtered typecheck clean. VS Code served workbench on the alias and two-files projects shows no errors. CI on 6156c871: all 28 checks pass with the package jobs run.\n- What another round would establish: A bounded round 4 on the unreviewed range 55c54014..6156c871 establishes, with an independent red-on-base run, that the documentTag naming keeps warm and cold compiles aligned and two files apart, that the harness now selects the declaration document and still checks snippet positions, and whether the long tag-spelled name is acceptable where it reaches an author (debug.info, stack traces, frames). Its expected yield is low in defects but it is the one read this PR's correction history says the final change should get before the Feature's coordinator merges it.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The gates for round 3 pass on the reviewed head 55c54014, but the head 6156c871 carries behaviour-changing corrections no reviewer has read, and every correction in this PR so far has reached a consumer the writer missed. The unreviewed range is small and verified, which would also satisfy an acceptance, but the naming class recurred within round 3 itself, so the acceptance condition that the class has stopped recurring is not yet shown by an independent read. The maintainer authorized extending review rounds as reasonable for each ticket; one more round, limited to this range and the name's author-facing surface, is reasonable and cheap next to the churn it closes. Next: Extend: the writer launches round 4 under this decision with reviewRoundLimit 4 and extendedReviewAuthorization equal to the quoted invocation, planning the undirected reviewer (red-on-base on the range 55c54014..6156c871) and, if its launcher plans two, the inc lens for the author-visible name surface; then reports the checkpoint after round 4, where a clean round finishes the PR through ordinary readiness and the coordinator merges through the gate.\n- Round 4 may launch with `reviewRoundLimit` 4 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: One bounded round on the 55c54014..6156c871 range (documentTag naming, harness declaration-document selection, the name's author-visible surface); every earlier correction reached a consumer the writer had not traced, and the final range is small enough that one independent red-on-base read settles it. The next checkpoint follows round 4's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"1f865fa5\",\n \"kind\": \"extend\",\n \"feature\": 1895,\n \"ticket\": 887,\n \"pr\": 1928,\n \"coordinator\": \"local_bede5658-a16d-4558-858b-9a8d10696a23\",\n \"runId\": \"2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4\",\n \"time\": \"2026-10-16T13:48:18.068Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"55c5401496e7778684794ceb146ee2f6f71be912\",\n \"head\": \"6156c871695ca66489dab3e473e5ac1199f68443\",\n \"range\": {\n  \"from\": \"55c5401496e7778684794ceb146ee2f6f71be912\",\n  \"to\": \"6156c871695ca66489dab3e473e5ac1199f68443\",\n  \"base\": \"8b466a5cd497e3b3a61433546e046d5b71149d89\",\n  \"commits\": [\n   \"00582b91a557d29f61c0c10ae24dd40291d07f4c\",\n   \"6156c871695ca66489dab3e473e5ac1199f68443\"\n  ],\n  \"diffSha256\": \"969f264d44af1a5339bab319be57d5bcb5e5cee3e9a8e496c410fc6c1c4b07c3\"\n },\n \"reports\": [\n  {\n   \"comment\": 6208415409,\n   \"round\": 1,\n   \"reviewerId\": \"inc\",\n   \"adjudication\": 6208474653\n  },\n  {\n   \"comment\": 6208652985,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6208678287\n  },\n  {\n   \"comment\": 6209069707,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6209103191\n  },\n  {\n   \"comment\": 6209677385,\n   \"round\": 3,\n   \"reviewerId\": \"inc\",\n   \"adjudication\": 6215635849\n  },\n  {\n   \"comment\": 6215969878,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6216359175\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 4,\n \"limitReason\": \"One bounded round on the 55c54014..6156c871 range (documentTag naming, harness declaration-document selection, the name's author-visible surface); every earlier correction reached a consumer the writer had not traced, and the final range is small enough that one independent red-on-base read settles it.\",\n \"authority\": \"Use orchestrate-feature for #1895. I give you explicit permission to approve as many review rounds as are reasonable for each ticket and merge the PRs yourself.\\n\\n#1895 is a Task umbrella, not a Feature; its Description and Scope are the design of record. Its 11 children are compiles that produce no program, or a wrong one, with no diagnostic. #1617 is the one engine-divergence bug left from the two-engine sweep, retitled on 2026-10-15 to describe the program engine alone, with a failing test already in its body; the other eight were closed that day and are not to be reopened.\\n\\nThe children carry no blockers, so plan them in these units:\\n- One writer for the four no-program compiles, which share the compile pipeline and the umbrella's new harness assertion that a compile yielding no program carries at least one Error diagnostic: #457, #1325, #1502 and #1641.\\n- #1103, #1299, #1617 and #1645 are independent wrong-lowering fixes. Several are likely to touch SparkdownCompiler.ts or the same lowerer, so before dispatching a second writer read the first writer's draft PR for the files it touches and hold any ticket likely to collide.\\n- #454, #887 and #316 come last. #316 holds three pre-existing defects; its writer may split it into three tickets under this umbrella if the fixes share no cause.\\n\\nA second coordinator is running #1893 on this machine at the same time, so init with -\\u002dconcurrency 3. Any new ticket filed under the umbrella gets the \\\"Compilation robustness\\\" milestone.\",\n \"assessment\": {\n  \"mechanisms\": \"Every blocking finding of the three rounds is one mechanism: what identifies the wrapper a run statement compiles, and whether that identity depends on anything but the file. Round 1 keyed sites by resolved file but named them by authored path (alias paths called an undeclared wrapper). Round 2's probe found that sharing one wrapper document between sites made a statement's compiled document depend on the order the compile reached the file's runs, so a kept flow reached objects placed at another statement and the story looped. Round 3's inc found that the per-statement counter then put edit history into an author-visible name (warm and cold compiles disagreed in debug.info, and the name could collide with an author's __run_helper_2); round 3's undirected found that the 32-bit hash that replaced it could give two files one wrapper, and that the conformance harness still expected one combined run document. The design that ended the churn (55c54014, then 00582b91) separates the two identities: a declaration document per file, compiled once per compile, whose function is named from the file alone by documentTag, the repository's identifier-safe collision-free path encoding, and a one-line call document per run statement keyed by its compiled block. That restores the invariant main had, that what a run statement compiles depends only on the statement and its file, and it is the first version in which the name cannot collide by construction (documentTag escapes every non-alphanumeric character and ends at the first double underscore).\",\n  \"regressions\": \"Corrections introduced defects three times: 3c1986e1 (the round-2 gap fix) introduced the counter's two round-3 findings; 55c54014 (the round-3 inc fix) introduced the hash collision and the harness breakage, the latter failing all four sparkdown CI shards with 298 snippet tests before the writer saw it. 00582b91 fixes both; its naming change is 7 lines in runWrapper.ts and the harness change is test-only, and CI on 6156c871 passes every check with the package jobs run. The pattern says each correction so far widened the design and reached a consumer the writer had not traced, which is why the small final range still deserves one independent read rather than an acceptance on the writer's and CI's word alone.\",\n  \"repairOptions\": \"The writer considered and rejected the earlier shapes (shared documents per site, order-dependent hosting, an edit-history counter, a hashed name), each of which violated the invariant above; the declaration-plus-call design is the simplest one that keeps it, and documentTag is an existing building block rather than new naming code. No broader repair is open: the stale .luau body on edit is #316's, and retiring abandoned call documents is a disclosed cost, not a defect. A round-4 reviewer may still judge the author-visible form of the new name (a documentTag spelling of the whole URI now reaches debug.info, stack traces and frame labels), which no reviewer has seen yet.\",\n  \"residualRisk\": \"00582b91 has had no independent review: the documentTag naming and the harness's declaration-document selection. The visible name is now a long URI spelling (for example __run_inmemory_3a_2f_2f_2fhelper_2eluau__) wherever readableSymbolLabel does not shorten it, which round 3's inc lens treated as author-facing; whether that is acceptable has not been reviewed. The declaration document's host is whichever run the compile reaches first; round 2's 24-order matrix and round 3's host-change probes passed on 55c54014 and the only shipped change since is the name spelling. One one-line call document per run statement ever compiled stays in the registry for the compiler's lifetime, disclosed.\",\n  \"coverage\": \"Run.test.ts 16/16 on 00582b91 and 6156c871, including the ticket's two shapes, the alias and two-directory cases, the 24-order cold-versus-warm reordering test, the warm/cold name test and the hash-collision test. Red/green: against merge base 13f6fd9f8 on 55c54014 (7 failed then 15 passed) and against 55c54014 for 00582b91 (2 failed then 16 passed), restores matched. Both reviewers' saved probe files pass on 55c54014. The eight CI-failing snippet files pass locally on 00582b91 (harness 55, TypeInfer.annotations 58, MalformedExpressionAtEveryPosition 981, fixtureQuerySupport 336, invalidStatementInFunctionBody 105, TypeUnionWithSpaces 13, TypeFunctionDeclaration 29, Run 16). Filtered typecheck clean. VS Code served workbench on the alias and two-files projects shows no errors. CI on 6156c871: all 28 checks pass with the package jobs run.\",\n  \"nextRoundValue\": \"A bounded round 4 on the unreviewed range 55c54014..6156c871 establishes, with an independent red-on-base run, that the documentTag naming keeps warm and cold compiles aligned and two files apart, that the harness now selects the declaration document and still checks snippet positions, and whether the long tag-spelled name is acceptable where it reaches an author (debug.info, stack traces, frames). Its expected yield is low in defects but it is the one read this PR's correction history says the final change should get before the Feature's coordinator merges it.\",\n  \"rationale\": \"The gates for round 3 pass on the reviewed head 55c54014, but the head 6156c871 carries behaviour-changing corrections no reviewer has read, and every correction in this PR so far has reached a consumer the writer missed. The unreviewed range is small and verified, which would also satisfy an acceptance, but the naming class recurred within round 3 itself, so the acceptance condition that the class has stopped recurring is not yet shown by an independent read. The maintainer authorized extending review rounds as reasonable for each ticket; one more round, limited to this range and the name's author-facing surface, is reasonable and cheap next to the churn it closes.\",\n  \"next\": \"Extend: the writer launches round 4 under this decision with reviewRoundLimit 4 and extendedReviewAuthorization equal to the quoted invocation, planning the undirected reviewer (red-on-base on the range 55c54014..6156c871) and, if its launcher plans two, the inc lens for the author-visible name surface; then reports the checkpoint after round 4, where a clean round finishes the PR through ordinary readiness and the coordinator merges through the gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 4,\n  \"limitReason\": \"One bounded round on the 55c54014..6156c871 range (documentTag naming, harness declaration-document selection, the name's author-visible surface); every earlier correction reached a consumer the writer had not traced, and the final range is small enough that one independent red-on-base read settles it.\",\n  \"findings\": [\n   {\n    \"comment\": 6208415409,\n    \"finding\": \"deduplicating by resolved URI while naming calls by authored path broke alias and cross-directory runs\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6208652985,\n    \"finding\": \"runWrapperName returned site metadata for a call document's URI (optional)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209069707,\n    \"finding\": \"verification gap: the supplemental 24-order incremental probe hung, settled as a real order-dependence defect fixed in 3c1986e1\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209677385,\n    \"finding\": \"an unrelated edit could introduce a generated-name collision through the compiler-lifetime counter\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209677385,\n    \"finding\": \"the counter changed debug.info output between warm and cold compiles\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209677385,\n    \"finding\": \"retention cost of discarded previews and full parsed bodies undisclosed (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215969878,\n    \"finding\": \"the conformance harness was not updated for the split run documents, failing all sparkdown CI shards\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215969878,\n    \"finding\": \"a 32-bit hash could give two files the same wrapper name\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "2a7caf965fcf0b3ef0811aaa76c5a408ad4161831d5afb7435b781b1214ea2b5",
+          "blockSha256": "f8c048fcd7f3ee5d8c71371e507bf9b8d10c33703dcf1bdaaecb0c809e6b1a2f",
+          "published": {
+            "comment": 6216915208,
+            "time": "2026-10-16T13:48:21.399Z",
+            "headAtPublish": "6156c871695ca66489dab3e473e5ac1199f68443"
           }
         }
       ]
@@ -2236,6 +2509,16 @@
       "round": 3,
       "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
       "time": "2026-10-16T01:17:41.277Z"
+    },
+    {
+      "pr": 1928,
+      "url": "https://github.com/ImpowerGames/impower/pull/1928#issuecomment-6216915208",
+      "kind": "review-checkpoint extend",
+      "ticket": 887,
+      "id": "1f865fa5",
+      "round": 3,
+      "head": "6156c871695ca66489dab3e473e5ac1199f68443",
+      "time": "2026-10-16T13:48:21.399Z"
     }
   ],
   "diskRecoveries": [
@@ -2541,10 +2824,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T13:16:49.491Z",
+      "observedAt": "2026-10-16T13:48:48.793Z",
       "held": true,
-      "head": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
-      "remoteHead": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
+      "head": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
+      "remoteHead": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
       "unpushed": false,
       "dirty": true,
       "pr": 1929,
@@ -2709,6 +2992,43 @@
           "commentIds": [
             6215992421
           ]
+        },
+        {
+          "job": "pr-1929/round-2/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "merge",
+              "undirected"
+            ],
+            "head": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
+            "completedRoundReviewers": {
+              "merge": 1
+            },
+            "time": "2026-10-16T13:26:28.652Z"
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "merge": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "merge",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6216661174
+          ]
         }
       ]
     },
@@ -2717,12 +3037,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T13:16:49.491Z",
+      "observedAt": "2026-10-16T13:48:48.793Z",
       "held": true,
-      "head": "55c5401496e7778684794ceb146ee2f6f71be912",
-      "remoteHead": "55c5401496e7778684794ceb146ee2f6f71be912",
+      "head": "6156c871695ca66489dab3e473e5ac1199f68443",
+      "remoteHead": "6156c871695ca66489dab3e473e5ac1199f68443",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1928,
       "reviewJobs": [
         {
@@ -2997,28 +3317,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:14:03.112Z",
-      "event": "answer-intent",
-      "ticket": 1645,
-      "id": "cd9cd4a0",
-      "deliveryId": "0911dfb2",
-      "attempt": 1
-    },
-    {
-      "time": "2026-10-15T23:14:28.136Z",
-      "event": "answered",
-      "ticket": 1645,
-      "id": "cd9cd4a0",
-      "deliveryId": "0911dfb2"
-    },
-    {
-      "time": "2026-10-15T23:15:15.378Z",
-      "event": "reconciled",
-      "ticket": 1645,
-      "resume": "0dc34ee7-fff4-4723-9b75-2bd1bc26afa1",
-      "outcome": "not running"
-    },
     {
       "time": "2026-10-15T23:15:48.985Z",
       "event": "resume-intent",
@@ -3703,6 +4001,28 @@
       "time": "2026-10-16T13:16:48.058Z",
       "event": "check-in",
       "outcome": "no change: both writers running in review (PR #1928 at 55c540149, 15 comments; PR #1929 at a622c49fc, 11 comments), both drafts; #316 waits for #887; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T13:48:18.068Z",
+      "event": "checkpoint-intent",
+      "ticket": 887,
+      "id": "1f865fa5",
+      "kind": "extend",
+      "round": 3,
+      "head": "6156c871695ca66489dab3e473e5ac1199f68443"
+    },
+    {
+      "time": "2026-10-16T13:48:21.399Z",
+      "event": "checkpoint-published",
+      "ticket": 887,
+      "id": "1f865fa5",
+      "comment": 6216915208
+    },
+    {
+      "time": "2026-10-16T13:48:47.348Z",
+      "event": "request",
+      "ticket": 887,
+      "id": "4a6cec03"
     }
   ]
 }
