@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 55,
-  "previous": "ffa34d80bca4ff34aae62473e137c75d255dd8db",
+  "seq": 56,
+  "previous": "63d4533ba926275427ab12e9ecc75d5a002171c5",
   "snapshotParents": [],
-  "time": "2026-10-16T17:19:59.862Z",
+  "time": "2026-10-16T17:20:43.829Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1957 (confirmed)",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 46,
+    "recordRevision": 47,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -278,9 +278,9 @@
       "ticket": 1798,
       "pr": 1957,
       "expectHead": "f61f8756e186753f83fe40c387723736bb66abe7",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T17:19:55.315Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1957 reads back merged as cd50ceb1e81f6d7d996149a79db9442d7da104a0 at f61f8756e186753f83fe40c387723736bb66abe7; the merge commit is on origin/main; it landed on 4cb58645852778b9b0864fd6a2830fdb7a9f9411, while its CI covered main 41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "f61f8756e186753f83fe40c387723736bb66abe7",
@@ -458,7 +458,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T17:20:39.659Z",
+      "mergeCommit": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
+      "mergedOnto": "4cb58645852778b9b0864fd6a2830fdb7a9f9411",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -615,7 +620,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:19:58.003Z",
+      "observedAt": "2026-10-16T17:20:41.906Z",
       "held": true,
       "head": "2928727422dfbbd147efa1b7789f9e634a9793ab",
       "remoteHead": null,
@@ -627,7 +632,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:19:58.003Z",
+      "observedAt": "2026-10-16T17:20:41.906Z",
       "held": true,
       "head": "18722872bc484313b2c0220e5e176c1503deca00",
       "remoteHead": null,
@@ -639,7 +644,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T17:19:58.003Z",
+      "observedAt": "2026-10-16T17:20:41.906Z",
       "held": true,
       "exists": false
     }
@@ -977,6 +982,12 @@
       "id": "0df34214",
       "kind": "merge",
       "pr": 1957
+    },
+    {
+      "time": "2026-10-16T17:20:39.659Z",
+      "event": "operation-outcome",
+      "id": "0df34214",
+      "state": "confirmed"
     }
   ]
 }
