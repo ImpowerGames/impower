@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 91,
-  "previous": "3a068913e353136daf71a37f81536b814951cb7f",
+  "seq": 92,
+  "previous": "fd6b65c8a64ef35805f4fc9cbf383d259da823f5",
   "snapshotParents": [],
-  "time": "2026-10-16T00:00:25.683Z",
+  "time": "2026-10-16T00:18:14.932Z",
   "kind": "auto",
-  "transition": "resume of #1632",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 70,
@@ -783,10 +783,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-16T00:00:24.689Z",
+      "observedAt": "2026-10-16T00:18:13.935Z",
       "held": true,
-      "head": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
-      "remoteHead": "20045cf5e11e7c11cd2ac635abc7016ef6255aa3",
+      "head": "58391f0960c9678e5bd244ca1bf4ebad1403eec2",
+      "remoteHead": "58391f0960c9678e5bd244ca1bf4ebad1403eec2",
       "unpushed": false,
       "dirty": false,
       "pr": 1912,
@@ -919,7 +919,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T00:00:24.689Z",
+      "observedAt": "2026-10-16T00:18:13.935Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1054,7 +1054,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T00:00:08.540Z",
+    "at": "2026-10-16T00:18:13.934Z",
     "tickets": [
       {
         "number": 1201,
@@ -1118,9 +1118,9 @@
       },
       {
         "number": 1632,
-        "action": "merge-gate",
+        "action": "observe",
         "pr": 1912,
-        "reason": "PR #1912 is ready at 20045cf5e11e7c11cd2ac635abc7016ef6255aa3; process 40028 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "process 50480 started 639277056231944010 is running"
       },
       {
         "number": 1638,
