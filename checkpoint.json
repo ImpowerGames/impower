@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 64,
-  "previous": "f8a56600769befd74a73208280320b97487534bc",
+  "seq": 65,
+  "previous": "1032b18ec17ca7a82a08790b0d50dbf6f3886e74",
   "snapshotParents": [],
-  "time": "2026-10-16T19:16:23.782Z",
+  "time": "2026-10-16T19:17:00.668Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 68,
+    "recordRevision": 69,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -456,7 +456,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T19:16:22.726Z",
+      "observedAt": "2026-10-16T19:16:59.723Z",
       "held": true,
       "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
       "remoteHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
@@ -1419,6 +1419,11 @@
       "time": "2026-10-16T19:01:51.168Z",
       "event": "check-in",
       "outcome": "#1905 round 3 checkpoint report received (request 3a331217); evidence not due because launch-fix2-1's journal lacks its report-posted row (the posted comment omitted the recorded report file's first line); answered by resuming the writer to post report.md verbatim on fix2's behalf, record-report it, adjudicate the new comment, file the out-of-scope findings and the tokenizer-lexeme Task, and resend; assessment drafted, leaning to accept-unreviewed on 77fcc6ed6"
+    },
+    {
+      "time": "2026-10-16T19:16:58.421Z",
+      "event": "check-in",
+      "outcome": "#1905 writer (second resume) completed fix2's journal (completed, report-posted, finished) and posted the reposted report and adjudication (PR #1927 now 23 comments); writer still running on the filing steps; checkpoint evidence being re-gathered"
     }
   ]
 }
