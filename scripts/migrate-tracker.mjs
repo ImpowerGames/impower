@@ -526,17 +526,24 @@ function runGh(args, input) {
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
 
-/** Calls gh with pacing and retries for rate limits and server errors. */
+/**
+ * Calls gh with pacing and retries. A rate-limit refusal (REST 403 or 429,
+ * or GraphQL's "submitted too quickly") rejected the request, so any request
+ * is retried after it. A server error or a broken connection may have
+ * followed a request that took effect, so only an idempotent one (a read,
+ * PATCH or PUT) is retried after it; a POST, a transfer or a deletion throws,
+ * and the mode's own live-state checks decide on the rerun.
+ */
 export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, log = () => {} } = {}) {
-  async function call(args, { write = false, input } = {}) {
+  async function call(args, { write = false, idempotent = !write, input } = {}) {
     for (let attempt = 0; ; attempt++) {
       await pacer.take(write);
       const r = run(args, input);
       if (r.status === 0) return r.stdout;
       const text = `${r.stderr}\n${r.stdout}`;
       const status = Number(text.match(/HTTP (\d{3})/)?.[1] ?? 0);
-      const limited = (status === 403 || status === 429) && /rate limit|abuse|secondary/i.test(text);
-      const transient = status >= 500 || /timed? ?out|ECONNRESET|connection reset|TLS handshake|EOF/i.test(text);
+      const limited = ((status === 403 || status === 429) && /rate limit|abuse|secondary/i.test(text)) || /submitted too quickly|secondary rate limit/i.test(text);
+      const transient = idempotent && (status >= 500 || /timed? ?out|ECONNRESET|connection reset|TLS handshake|unexpected EOF/i.test(text));
       if ((limited || transient) && attempt < 8) {
         const wait = limited ? Math.min(900e3, 60e3 * 2 ** attempt) : Math.min(120e3, 5e3 * 2 ** attempt);
         log(`gh ${args.slice(0, 4).join(" ")}: ${limited ? "rate limited" : "transient failure"}, retrying in ${Math.round(wait / 1000)}s`);
@@ -552,7 +559,7 @@ export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, 
     pacer,
     async api(method, endpoint, body, headers = []) {
       const args = ["api", "-X", method, endpoint, ...headerArgs(headers), ...(body === undefined ? [] : ["--input", "-"])];
-      return parse(await call(args, { write: method !== "GET", input: body === undefined ? undefined : JSON.stringify(body) }));
+      return parse(await call(args, { write: method !== "GET", idempotent: ["GET", "PATCH", "PUT"].includes(method), input: body === undefined ? undefined : JSON.stringify(body) }));
     },
     async list(endpoint, headers = []) {
       const pages = parse(await call(["api", "--paginate", "--slurp", endpoint, ...headerArgs(headers)])) ?? [];
@@ -560,7 +567,7 @@ export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, 
       return pages.flat();
     },
     async command(args, { write = true } = {}) {
-      return call(args, { write });
+      return call(args, { write, idempotent: !write });
     },
   };
 }

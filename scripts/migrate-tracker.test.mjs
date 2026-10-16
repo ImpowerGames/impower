@@ -17,6 +17,7 @@ import {
   bareResolver,
   closingRefs,
   closingResolver,
+  ghClient,
   main,
   migrationLine,
   parseArgs,
@@ -627,6 +628,33 @@ test("the pacer holds requests to the hourly budget and writes to the minute and
   assert.equal(slept.length, 2, "the fourth request waits for the hour window");
   assert.equal(slept[1], 3540e3, "until the first request, made a minute earlier, leaves the hour");
   assert.equal(pacer.total, 4);
+});
+
+test("gh calls retry a rate limit always, and a server error only for an idempotent request", async () => {
+  const replies = (list) => {
+    const calls = [];
+    return { calls, run: (args) => (calls.push(args), list.shift() ?? { status: 0, stdout: "{}", stderr: "" }) };
+  };
+  const pacer = new Pacer({ sleep: async () => {} });
+  const busy = { status: 1, stdout: "", stderr: "gh: Server Error (HTTP 502)" };
+  const limited = { status: 1, stdout: "", stderr: "GraphQL: was submitted too quickly (transferIssue)" };
+  const quiet = async () => {};
+
+  const read = replies([busy]);
+  await ghClient({ pacer, run: read.run, sleep: quiet }).api("GET", "repos/o/r/issues/1");
+  assert.equal(read.calls.length, 2, "a read is retried after a server error");
+
+  const create = replies([busy]);
+  await assert.rejects(ghClient({ pacer, run: create.run, sleep: quiet }).api("POST", "repos/o/r/issues", { title: "t" }), /HTTP 502/);
+  assert.equal(create.calls.length, 1, "a POST that may have landed is not repeated");
+
+  const transfer = replies([busy]);
+  await assert.rejects(ghClient({ pacer, run: transfer.run, sleep: quiet }).command(["issue", "transfer", "1", "o/x", "-R", "o/r"]), /HTTP 502/);
+  assert.equal(transfer.calls.length, 1, "nor a transfer");
+
+  const refused = replies([limited, { status: 0, stdout: "https://github.com/o/x/issues/9\n", stderr: "" }]);
+  assert.equal(await ghClient({ pacer, run: refused.run, sleep: quiet }).command(["issue", "transfer", "1", "o/x", "-R", "o/r"]), "https://github.com/o/x/issues/9\n");
+  assert.equal(refused.calls.length, 2, "a refused transfer is retried");
 });
 
 test("restore and rewrite wait for the last transfer to settle", async () => {
