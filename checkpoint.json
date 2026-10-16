@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 281,
-  "previous": "f1d4dc1e7cb8617c1b29ae714a42a6367c3fc4e2",
+  "seq": 282,
+  "previous": "450ad29c4a7242b3c021405d16e8bce344664b71",
   "snapshotParents": [],
-  "time": "2026-10-16T16:15:26.963Z",
+  "time": "2026-10-16T16:15:41.673Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1800",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 236,
+    "recordRevision": 237,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2102,10 +2102,7 @@
       ]
     },
     "1800": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "31d5b5cf-d978-4fc3-8b44-fd76e05930c7",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "low",
@@ -2114,9 +2111,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
         "branch": "fix/1800-valueless-global-diagnostic",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-16T16:13:52.614Z"
+        "launchId": "31d5b5cf-d978-4fc3-8b44-fd76e05930c7",
+        "handle": {
+          "kind": "process",
+          "pid": 41376,
+          "start": "639277641377453150",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1800-31d5b5cf-d978-4fc3-8b44-fd76e05930c7"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment 31d5b5cf-d978-4fc3-8b44-fd76e05930c7. You are the writer for ImpowerGames/impower ticket #1800 (Report a global declaration with no value as a diagnostic instead of throwing a bare Error that leaves the compile with no program), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort low in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment 31d5b5cf-d978-4fc3-8b44-fd76e05930c7 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1800 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic on branch fix/1800-valueless-global-diagnostic from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #1800 alone. Story.EachGlobal (packages/sparkdown/src/inkjs/compiler/Parser/ParsedHierarchy/Story.ts, the branch that throws a bare new Error() when a global declaration has neither an expression nor a struct definition) must report a diagnostic at the declaration that names it, at error severity or as an internal-error diagnostic per the compiler's conventions, skip initializing that global, and let the compile still produce a program. Note what main already does since PR #1911: the compile's catch turns a bare throw into the Error \"The compile stopped in this script, so no program was made: ...\" on line 1 with an empty message, so the failure is no longer silent but still unnamed and still leaves no program; your change replaces that with the named diagnostic at the declaration and a program. The lowerer no longer builds such a declaration (PR #1792 gives those shapes a NullExpression), so the regression test drives the parsed hierarchy directly as the ticket describes: a Story holding a VariableAssignment with isGlobalDeclaration true and neither assignedExpression nor a struct or list definition, then PrepareGlobals or the compile entry point; it is red on origin/main and green after. Keep the ticket's exclusions; siblings running beside you own SparkdownCompiler.ts's builtin-override path (#454), the run-file wrapper path (#887) and the style, layout, screen and component block checks (#839), so keep to Story.ts and its test.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section). Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer, compiler path or serializer swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch does this since PR #1911 merged, and programHarness.ts asserts that a no-program compile carries an Error, so never write a test that expects a silent no-program compile).\n- Repository state: origin/main 13f6fd9f or later. One compile mode exists since #705 (no programChunks flag, no ink JSON serializer): compile with compileScript from packages/sparkdown/src/tests/program/programHarness.ts, or SparkdownCompiler directly with configure({ files }) for multi-file scripts, and run with ProgramStory over program.chunks. The ticket's line numbers and some file paths predate #705 and the #1895 PRs (#1911, #1913, #1914, #1916, #1921, #1923); verify every cited location on the current code before fixing. Sibling writers of this umbrella run beside you, each with its own area named in your scope line; several of you touch SparkdownCompiler.ts in different regions, so keep your hunks to your own region and tell the coordinator before touching a region named for another ticket.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run; the redgreen driver can exceed the Bash tool's 600 s limit when queued behind another test run, so run it in the background and poll its output in the foreground. Disk has about 55 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "e5c9d193",
+          "attempts": 1,
+          "time": "2026-10-16T16:15:38.230Z",
+          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+        },
+        "since": "2026-10-16T16:15:38.231Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     },
@@ -4142,7 +4157,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:15:25.488Z",
+      "observedAt": "2026-10-16T16:15:40.282Z",
       "held": true,
       "exists": false
     },
@@ -4151,7 +4166,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:15:25.488Z",
+      "observedAt": "2026-10-16T16:15:40.282Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4296,7 +4311,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:15:25.488Z",
+      "observedAt": "2026-10-16T16:15:40.282Z",
       "held": true,
       "exists": false
     }
@@ -4405,11 +4420,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:34:09.651Z",
-      "event": "verified",
-      "ticket": 454
-    },
     {
       "time": "2026-10-16T04:34:16.985Z",
       "event": "verified",
@@ -5087,6 +5097,19 @@
       "ticket": 1800,
       "route": "claude-cli",
       "launchId": "31d5b5cf-d978-4fc3-8b44-fd76e05930c7"
+    },
+    {
+      "time": "2026-10-16T16:15:38.231Z",
+      "event": "launched",
+      "ticket": 1800,
+      "launchId": "31d5b5cf-d978-4fc3-8b44-fd76e05930c7",
+      "handle": {
+        "kind": "process",
+        "pid": 41376,
+        "start": "639277641377453150",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1800-31d5b5cf-d978-4fc3-8b44-fd76e05930c7"
+      }
     }
   ]
 }
