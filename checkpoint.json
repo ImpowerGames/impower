@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 325,
-  "previous": "fe6b31bb9a923975daeb9f1e1462453b65333ce5",
+  "seq": 326,
+  "previous": "3c5b843ee6ad903152687cd70a077b75000c104e",
   "snapshotParents": [],
-  "time": "2026-10-16T18:26:08.091Z",
+  "time": "2026-10-16T18:26:19.790Z",
   "kind": "auto",
-  "transition": "release of #1800",
+  "transition": "release of #316",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 272,
+    "recordRevision": 273,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -58,55 +58,61 @@
   "title": "ORCH #1895: compile without diagnostic",
   "tickets": {
     "316": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
-        "branch": "fix/316-silent-include-define-run",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
-        "launchId": "7d758442-e0f0-4ff2-b298-18525c405e4b",
-        "handle": {
-          "kind": "process",
-          "pid": 29340,
-          "start": "639277709803853267",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 7d758442-e0f0-4ff2-b298-18525c405e4b. You are the writer for ImpowerGames/impower ticket #316 (Pre-existing on main: silent missing include, define comment corrupts typed values, run() caches forever), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment 7d758442-e0f0-4ff2-b298-18525c405e4b and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #316 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run on branch fix/316-silent-include-define-run from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #316, which holds three pre-existing defects, each with a one-line fix sketched in the ticket (its line numbers are from base b5c9063a1 and are stale; verify every location on the current code). (1) A missing include is silent: the include branch of SparkdownCompiler swallows ResolveInkFilename's throw in an empty catch; mirror the sibling run branch's onDiagnostic call so include nope.sd reports an Error at the include line. (2) A define property's rawValue swallows a trailing comment: lowerLuauDefine reads to the operand node's end, past a LuauLineComment child, so count = 5 -- note lands in program.context as the string \"5 -- note\" while the runtime __def keeps the number; clip the read at the first comment sibling so the context and the runtime agree. (3) run \"path\" caches the wrapped .luau body forever: the run virtual document is re-registered with a hard-coded version 1, so the registry's treeVersion guard never rebuilds the cached tree and an edit to the .luau file has no effect; pass a monotonically increasing version or the source document's version. Note that #887 (PR #1928, merged as a6c12061) rewrote the run wrapper path into a declaration document per file plus a call document per run statement (packages/sparkdown/src/compiler/utils/runWrapper.ts and SparkdownCompiler's run handling): read that code first, and fix (3) on top of it so the declaration document is rebuilt when the .luau file changes, with a test that edits the .luau body between two compiles and sees the new body run. Fix all three in one PR with one regression test per defect, red on origin/main and green after, in separate commits per defect. The maintainer allows splitting: if one of the three turns out to need a design decision or a change larger than the ticket sketches, file that defect as its own Bug under #1895 with the milestone Compilation robustness, reference it from this PR, and leave it out of this PR; do not split otherwise. For (3), the ticket notes the editors' default scriptFiles glob never matches a .luau file, so the defect bites the compiler API and a workspace configured with *.{sd,luau}; the test drives the compiler directly. Siblings running beside you: #454 owns SparkdownCompiler.ts's builtin-override path, FlowBase, StdLib and DefineScopeRecord (its PR #1929 merged as 7ae0fffa and is on main; read its diff), #839 owns the style, layout, screen and component block checks and the define header-text report in lowerLuauDefine; keep your lowerLuauDefine change to the rawValue read and tell the coordinator before touching a region named for another ticket.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section). Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer, compiler path or serializer swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch does this since PR #1911 merged, and programHarness.ts asserts that a no-program compile carries an Error, so never write a test that expects a silent no-program compile).\n- Repository state: origin/main 13f6fd9f or later. One compile mode exists since #705 (no programChunks flag, no ink JSON serializer): compile with compileScript from packages/sparkdown/src/tests/program/programHarness.ts, or SparkdownCompiler directly with configure({ files }) for multi-file scripts, and run with ProgramStory over program.chunks. The ticket's line numbers and some file paths predate #705 and the #1895 PRs (#1911, #1913, #1914, #1916, #1921, #1923); verify every cited location on the current code before fixing. Sibling writers of this umbrella run beside you, each with its own area named in your scope line; several of you touch SparkdownCompiler.ts in different regions, so keep your hunks to your own region and tell the coordinator before touching a region named for another ticket.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run; the redgreen driver can exceed the Bash tool's 600 s limit when queued behind another test run, so run it in the background and poll its output in the foreground. Disk has about 55 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "4251bf36",
-          "attempts": 1,
-          "time": "2026-10-16T16:12:40.185Z",
-          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
-        },
-        "since": "2026-10-16T16:12:40.186Z",
-        "sessionId": "9e58f473-2803-4892-ba10-e44e624c7007",
-        "acknowledged": {
-          "time": "2026-10-16T16:18:07.277Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
+            "branch": "fix/316-silent-include-define-run",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
+            "launchId": "7d758442-e0f0-4ff2-b298-18525c405e4b",
+            "handle": {
+              "kind": "process",
+              "pid": 29340,
+              "start": "639277709803853267",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 7d758442-e0f0-4ff2-b298-18525c405e4b. You are the writer for ImpowerGames/impower ticket #316 (Pre-existing on main: silent missing include, define comment corrupts typed values, run() caches forever), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment 7d758442-e0f0-4ff2-b298-18525c405e4b and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #316 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run on branch fix/316-silent-include-define-run from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #316, which holds three pre-existing defects, each with a one-line fix sketched in the ticket (its line numbers are from base b5c9063a1 and are stale; verify every location on the current code). (1) A missing include is silent: the include branch of SparkdownCompiler swallows ResolveInkFilename's throw in an empty catch; mirror the sibling run branch's onDiagnostic call so include nope.sd reports an Error at the include line. (2) A define property's rawValue swallows a trailing comment: lowerLuauDefine reads to the operand node's end, past a LuauLineComment child, so count = 5 -- note lands in program.context as the string \"5 -- note\" while the runtime __def keeps the number; clip the read at the first comment sibling so the context and the runtime agree. (3) run \"path\" caches the wrapped .luau body forever: the run virtual document is re-registered with a hard-coded version 1, so the registry's treeVersion guard never rebuilds the cached tree and an edit to the .luau file has no effect; pass a monotonically increasing version or the source document's version. Note that #887 (PR #1928, merged as a6c12061) rewrote the run wrapper path into a declaration document per file plus a call document per run statement (packages/sparkdown/src/compiler/utils/runWrapper.ts and SparkdownCompiler's run handling): read that code first, and fix (3) on top of it so the declaration document is rebuilt when the .luau file changes, with a test that edits the .luau body between two compiles and sees the new body run. Fix all three in one PR with one regression test per defect, red on origin/main and green after, in separate commits per defect. The maintainer allows splitting: if one of the three turns out to need a design decision or a change larger than the ticket sketches, file that defect as its own Bug under #1895 with the milestone Compilation robustness, reference it from this PR, and leave it out of this PR; do not split otherwise. For (3), the ticket notes the editors' default scriptFiles glob never matches a .luau file, so the defect bites the compiler API and a workspace configured with *.{sd,luau}; the test drives the compiler directly. Siblings running beside you: #454 owns SparkdownCompiler.ts's builtin-override path, FlowBase, StdLib and DefineScopeRecord (its PR #1929 merged as 7ae0fffa and is on main; read its diff), #839 owns the style, layout, screen and component block checks and the define header-text report in lowerLuauDefine; keep your lowerLuauDefine change to the rawValue read and tell the coordinator before touching a region named for another ticket.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section). Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer, compiler path or serializer swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch does this since PR #1911 merged, and programHarness.ts asserts that a no-program compile carries an Error, so never write a test that expects a silent no-program compile).\n- Repository state: origin/main 13f6fd9f or later. One compile mode exists since #705 (no programChunks flag, no ink JSON serializer): compile with compileScript from packages/sparkdown/src/tests/program/programHarness.ts, or SparkdownCompiler directly with configure({ files }) for multi-file scripts, and run with ProgramStory over program.chunks. The ticket's line numbers and some file paths predate #705 and the #1895 PRs (#1911, #1913, #1914, #1916, #1921, #1923); verify every cited location on the current code before fixing. Sibling writers of this umbrella run beside you, each with its own area named in your scope line; several of you touch SparkdownCompiler.ts in different regions, so keep your hunks to your own region and tell the coordinator before touching a region named for another ticket.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run; the redgreen driver can exceed the Bash tool's 600 s limit when queued behind another test run, so run it in the background and poll its output in the foreground. Disk has about 55 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "4251bf36",
+              "attempts": 1,
+              "time": "2026-10-16T16:12:40.185Z",
+              "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+            },
+            "since": "2026-10-16T16:12:40.186Z",
+            "sessionId": "9e58f473-2803-4892-ba10-e44e624c7007",
+            "acknowledged": {
+              "time": "2026-10-16T16:18:07.277Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from writer impower-60 naming assignment 7d758442, read from its process command line (pid 58040: --model claude-opus-5-5 --effort medium --permission-mode bypassPermissions, CLAUDE_EFFORT=medium); out.jsonl init line agrees on model and mode",
+              "deliveryId": "4251bf36"
+            },
+            "resumes": [
+              {
+                "id": "b0693a95-6b2b-49a8-a986-88b25af21d1a",
+                "time": "2026-10-16T18:09:40.850Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a"
+              }
+            ]
           },
-          "evidence": "cross-session message from writer impower-60 naming assignment 7d758442, read from its process command line (pid 58040: --model claude-opus-5-5 --effort medium --permission-mode bypassPermissions, CLAUDE_EFFORT=medium); out.jsonl init line agrees on model and mode",
-          "deliveryId": "4251bf36"
-        },
-        "resumes": [
-          {
-            "id": "b0693a95-6b2b-49a8-a986-88b25af21d1a",
-            "time": "2026-10-16T18:09:40.850Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-316-b0693a95-6b2b-49a8-a986-88b25af21d1a"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 29340 is gone and no process names its launch directory; PR #1956 merged at 74ad2fdb as merge commit dc84c647, closing #316; writer process 29340 (resumed session 9e58f473) and every process naming its launch directory ended after its round-2 final report",
+          "time": "2026-10-16T18:26:16.617Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-16T18:08:41.526Z",
@@ -5277,135 +5283,12 @@
   ],
   "verifications": [],
   "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run": {
-      "ticket": 316,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
-      "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:26:06.347Z",
-      "held": true,
-      "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
-      "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1956,
-      "reviewJobs": [
-        {
-          "job": "pr-1956/round-1/launch-ax-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-ax",
-            "reviewerId": "ax",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "undirected"
-            ],
-            "head": "5ac47e2b05d0a587a91e203f37c4fe440cebb9d5",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T16:47:51.914Z"
-          },
-          "round": 1,
-          "reviewerId": "ax",
-          "attempt": 1,
-          "reviewedHead": "5ac47e2b05d0a587a91e203f37c4fe440cebb9d5",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "ax": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6220438308
-          ]
-        },
-        {
-          "job": "pr-1956/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "undirected"
-            ],
-            "head": "eae96dceab16d4d8c2814350bc19809c36fe49f8",
-            "completedRoundReviewers": {
-              "ax": 1
-            },
-            "time": "2026-10-16T17:30:42.356Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "eae96dceab16d4d8c2814350bc19809c36fe49f8",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "ax": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6221341755
-          ]
-        },
-        {
-          "job": "pr-1956/round-2/launch-undirected2-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected2",
-            "reviewerId": "undirected2",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected2"
-            ],
-            "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
-            "completedRoundReviewers": {
-              "ax": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-16T18:10:47.058Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected2",
-          "attempt": 1,
-          "reviewedHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected2": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected2"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6221898247
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill": {
       "ticket": 1951,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:26:06.347Z",
+      "observedAt": "2026-10-16T18:26:18.560Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5625,11 +5508,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:15:20.016Z",
-      "event": "check-in",
-      "outcome": "Maintainer restored usage and relaxed the merge gate (PR #1931: a head need not contain main; red main freezes merges); answered requests 5b339599 and d8a61713 and resumed the #454 (pid 58112) and #887 (pid 48332) writers; #316 still waits for #887"
-    },
     {
       "time": "2026-10-16T12:18:48.818Z",
       "event": "resume-intent",
@@ -6330,6 +6208,12 @@
       "event": "released",
       "ticket": 1800,
       "reason": "process 41376 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T18:26:16.618Z",
+      "event": "released",
+      "ticket": 316,
+      "reason": "process 29340 is gone and no process names its launch directory"
     }
   ]
 }
