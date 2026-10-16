@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 16,
-  "previous": "1c0c87992678f5886570850c04bf166f5803759b",
+  "seq": 17,
+  "previous": "179b6b3667ce0834fa5ac42c01d9a612bdd3f2d2",
   "snapshotParents": [],
-  "time": "2026-10-16T16:26:08.774Z",
+  "time": "2026-10-16T16:26:18.704Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1798",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 12,
+    "recordRevision": 13,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -149,6 +149,25 @@
       "pending": null,
       "history": [],
       "results": []
+    },
+    "1798": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "cbb3d603-a40d-4802-af19-3b4cb8c6a743",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "low",
+        "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
+        "branch": "perf/1798-decidewrites-cached-locals",
+        "artifactParent": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T16:26:15.982Z"
+      },
+      "history": [],
+      "results": []
     }
   },
   "operations": [],
@@ -161,19 +180,28 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T16:26:07.750Z",
+      "observedAt": "2026-10-16T16:26:17.528Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
       "unpushed": true,
-      "dirty": true
+      "dirty": false
     },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run": {
       "ticket": 1637,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T16:26:07.750Z",
+      "observedAt": "2026-10-16T16:26:17.528Z",
+      "held": true,
+      "exists": false
+    },
+    "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals": {
+      "ticket": 1798,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
+      "branch": "perf/1798-decidewrites-cached-locals",
+      "observedAt": "2026-10-16T16:26:17.528Z",
       "held": true,
       "exists": false
     }
@@ -309,6 +337,13 @@
       "time": "2026-10-16T16:25:32.997Z",
       "event": "verified",
       "ticket": 1637
+    },
+    {
+      "time": "2026-10-16T16:26:15.983Z",
+      "event": "dispatch-intent",
+      "ticket": 1798,
+      "route": "claude-cli",
+      "launchId": "cbb3d603-a40d-4802-af19-3b4cb8c6a743"
     }
   ]
 }
