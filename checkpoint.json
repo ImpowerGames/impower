@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 192,
-  "previous": "b57b20c2fb21e0bfc3dda0f9b66837a18f608c56",
+  "seq": 193,
+  "previous": "3f9e0a9114735c490229d755364bd40f6869da85",
   "snapshotParents": [],
-  "time": "2026-10-16T12:19:10.581Z",
+  "time": "2026-10-16T12:47:44.274Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 142,
@@ -2060,7 +2060,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:19:09.752Z",
+      "observedAt": "2026-10-16T12:47:43.437Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2071,7 +2071,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T12:18:47.037Z",
+    "at": "2026-10-16T12:47:43.436Z",
     "tickets": [
       {
         "number": 1201,
@@ -2156,6 +2156,18 @@
         "action": "observe",
         "pr": null,
         "reason": "process 46624 started 639277498593512774 is running"
+      },
+      {
+        "number": 1933,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1934,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
       }
     ],
     "remaining": [
