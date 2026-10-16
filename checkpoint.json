@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 49,
-  "previous": "e24149372e5dba4951ecdddb5c5b882b1d992e32",
+  "seq": 50,
+  "previous": "6d6baa7690cd22c2e82bf4773cb25c007032a906",
   "snapshotParents": [],
-  "time": "2026-10-16T17:16:29.540Z",
+  "time": "2026-10-16T17:17:01.166Z",
   "kind": "auto",
-  "transition": "release of #1798",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 42,
@@ -375,7 +375,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:16:27.977Z",
+      "observedAt": "2026-10-16T17:16:59.689Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -387,7 +387,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:16:27.977Z",
+      "observedAt": "2026-10-16T17:16:59.689Z",
       "held": true,
       "head": "18722872bc484313b2c0220e5e176c1503deca00",
       "remoteHead": null,
@@ -398,7 +398,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T17:15:03.510Z",
+    "at": "2026-10-16T17:16:59.687Z",
     "tickets": [
       {
         "number": 851,
@@ -414,15 +414,15 @@
       },
       {
         "number": 1798,
-        "action": "collect-report",
-        "pr": null,
-        "reason": "process 40624 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1798-cbb3d603-a40d-4802-af19-3b4cb8c6a743\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "action": "merge-gate",
+        "pr": 1957,
+        "reason": "PR #1957 is ready at f61f8756e186753f83fe40c387723736bb66abe7 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1881,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "3 writers already hold tickets against a limit of 3"
+        "reason": "every blocker's deliverable is on origin/main"
       }
     ],
     "remaining": [
