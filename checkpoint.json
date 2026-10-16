@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 114,
-  "previous": "241780c45f78d3955cc558bb2eb6b53e33230169",
+  "seq": 115,
+  "previous": "2649fbe545b9fc133880ea8ecb794309b35b1847",
   "snapshotParents": [],
-  "time": "2026-10-16T23:22:13.811Z",
+  "time": "2026-10-16T23:45:29.590Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 89,
@@ -1177,7 +1177,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T23:22:12.110Z",
+      "observedAt": "2026-10-16T23:45:23.346Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1334,16 +1334,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T23:22:12.110Z",
+      "observedAt": "2026-10-16T23:45:23.346Z",
       "held": true,
-      "head": "da7056ff172de966ad508f8afd03bd647944303b",
-      "remoteHead": "da7056ff172de966ad508f8afd03bd647944303b",
+      "head": "f10dd9fcbf92a924ee940114d722caab03c4f576",
+      "remoteHead": "f10dd9fcbf92a924ee940114d722caab03c4f576",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 54512
-      },
       "pr": 1984,
       "reviewJobs": [
         {
@@ -1509,7 +1505,7 @@
         },
         {
           "job": "pr-1984/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -1524,7 +1520,25 @@
               "incrementality": 1
             },
             "time": "2026-10-16T23:14:16.040Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "da7056ff172de966ad508f8afd03bd647944303b",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "incrementality": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incrementality",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6226665410
+          ]
         }
       ]
     }
@@ -1532,7 +1546,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T22:21:11.166Z",
+    "at": "2026-10-16T23:45:23.343Z",
     "tickets": [
       {
         "number": 851,
@@ -1556,7 +1570,7 @@
         "number": 1881,
         "action": "observe",
         "pr": 1983,
-        "reason": "process 56704 started 639277859929638674 is running"
+        "reason": "process 54048, 3504, 45096 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1881-7cc2d28a-42d9-4398-be58-a9f24cbfbd7e"
       },
       {
         "number": 1974,
