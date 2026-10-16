@@ -253,6 +253,24 @@ const lastLineOf = (statement: StatementSource): number =>
     ? Math.max(statement.firstLine, statement.range.endLineNumber - 1)
     : statement.firstLine;
 
+/** Where a clash of a name at `row`'s entry `entry` stands. A flow's entries
+ *  start at lines from the flow's first, and a declaration sequence's at
+ *  their own; a body's place is its owner's. */
+const clashAt = (
+  row: SequenceRow | undefined,
+  entry: number,
+  uri: string,
+): { uri: string; line: number } => ({
+  uri: row?.uri ?? uri,
+  line: !row
+    ? 0
+    : entry < 0 || row.block >= 0
+      ? row.firstLine
+      : row.flow >= 0
+        ? row.firstLine + row.arrays.lineStarts[entry]!
+        : row.arrays.lineStarts[entry]!,
+});
+
 /** Where an issue the declarations' run raised stands: a script, and the
  *  first and last line, counting from 0, of the code it is reported over. */
 interface DeclarationSite {
@@ -1353,20 +1371,11 @@ export class ChunkStore {
             (label || before === SymbolKind.Label)
           ) {
             const row = build.sequences.get(place.sequence);
-            const entry = row ? row.arrays.chunks.indexOf(chunk) : -1;
-            failed ??= {
-              uri: row?.uri ?? flows[0]?.uri ?? "",
-              // A flow's entries start at lines from the flow's first, and a
-              // declaration sequence's at their own; a body's place is its
-              // owner's.
-              line: !row
-                ? 0
-                : entry < 0 || row.block >= 0
-                  ? row.firstLine
-                  : row.flow >= 0
-                    ? row.firstLine + row.arrays.lineStarts[entry]!
-                    : row.arrays.lineStarts[entry]!,
-            };
+            failed ??= clashAt(
+              row,
+              row ? row.arrays.chunks.indexOf(chunk) : -1,
+              flows[0]?.uri ?? "",
+            );
           }
         }
         defs.chunk[symbol] = chunkId(chunk);
@@ -1390,10 +1399,89 @@ export class ChunkStore {
       }
     }
     if (failed) {
+      // Which clash is found first depends on the definitions the previous
+      // root carried in, so the clash is placed where a cold build meets it.
+      if (previous) {
+        failed = this.coldClash(flows, symbols, flowIds, build) ?? failed;
+      }
       fail("a label named as another", failed.uri, failed.line);
       return undefined;
     }
     return defs;
+  }
+
+  /** The first clash of a name a cold build of the rows `build` holds
+   *  meets, in the order it places their chunks: each flow's sequence, the
+   *  bodies of a sequence's entries before the entries themselves, then the
+   *  declaration sequences. */
+  protected coldClash(
+    flows: readonly FlowSource[],
+    symbols: readonly number[],
+    flowIds: ReadonlyMap<number, number>,
+    build: SequenceBuild,
+  ): { uri: string; line: number } | undefined {
+    const kinds = new Map<number, SymbolKindValue>();
+    const owners = new Map<number, number>();
+    flows.forEach((flow, f) => kinds.set(symbols[f]!, flow.kind));
+    let failed: { uri: string; line: number } | undefined;
+    const visited = new Set<number>();
+    const bodies = (row: SequenceRow) => {
+      for (const chunk of row.arrays.chunks) {
+        for (let k = 0; k < blockCount(chunk); k += 1) {
+          visit(blockField(chunk, k, B_SEQUENCE));
+        }
+      }
+    };
+    const place = (row: SequenceRow) => {
+      row.arrays.chunks.forEach((chunk, entry) => {
+        for (let r = 0; r < exportCount(chunk); r += 1) {
+          const symbol = exportSymbol(chunk, r);
+          const label = exportsLabel(chunk, r);
+          const before = kinds.get(symbol);
+          if (
+            owners.get(symbol) !== chunkId(chunk) &&
+            before !== undefined &&
+            (label || before === SymbolKind.Label)
+          ) {
+            failed ??= clashAt(row, entry, flows[0]?.uri ?? "");
+          }
+          owners.set(symbol, chunkId(chunk));
+          kinds.set(symbol, label ? SymbolKind.Label : SymbolKind.Function);
+        }
+        for (const part of this._info.get(chunk)?.alternators ?? []) {
+          kinds.set(part.symbol, SymbolKind.Alternator);
+        }
+        for (const part of this._info.get(chunk)?.choices ?? []) {
+          if (part.symbol >= 0) {
+            kinds.set(part.symbol, SymbolKind.Choice);
+          }
+        }
+      });
+    };
+    const visit = (id: number) => {
+      const row = build.sequences.get(id);
+      if (!row || visited.has(id)) {
+        return;
+      }
+      visited.add(id);
+      bodies(row);
+      place(row);
+    };
+    flows.forEach((_, f) => {
+      const id = flowIds.get(symbols[f]!);
+      if (id !== undefined) {
+        visit(id);
+      }
+    });
+    const declarations = [...build.sequences.values()].filter(
+      (row) => row.owner < 0 && row.flow < 0,
+    );
+    declarations.forEach((row) => {
+      visited.add(row.id);
+      bodies(row);
+    });
+    declarations.forEach(place);
+    return failed;
   }
 
   // Whether the last declarations run raised an error, which runs them again
