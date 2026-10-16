@@ -326,3 +326,205 @@ end
     },
   );
 });
+
+describe("the edges of a root override", () => {
+  /** A seeded compile of `declarations` and a scene line of `line`, which
+   *  reports no error and shows `expected`. */
+  function shows(
+    declarations: string,
+    line: string,
+    expected: string,
+    seeded = true,
+  ): SparkProgram {
+    const program = compileWith(
+      {
+        [MAIN]: `${declarations}
+-> start
+scene start
+  ${line}
+  fin
+
+end
+`,
+      },
+      seeded,
+    );
+    expect(errorsOf(program)).toEqual([]);
+    expect(play(program)).toEqual({ output: `${expected}\n`, errors: [] });
+    return program;
+  }
+
+  // `typewriter` is a dual name: the prelude's bare `typewriter` is a synth
+  // instance and its root is displaced to `$typewriter_typewriter`.
+  test.each(["character", "typewriter"])(
+    "an override of the dual-named root `%s` reaches a member defined after it",
+    (type) => {
+      shows(
+        `define ${type} with
+  probe_field = 7
+end
+
+define hero as ${type} with
+  other = 3
+end
+`,
+        `{${type}.hero.probe_field} {${type}.hero.other}`,
+        "7 3",
+      );
+    },
+  );
+
+  test("a builtin member of the displaced `typewriter` root inherits the override", () => {
+    shows(
+      `define typewriter with
+  probe_field = 7
+end
+`,
+      "{typewriter.title.probe_field}",
+      "7",
+    );
+  });
+
+  test.each(["character", "typewriter"])(
+    "two authored roots of the dual name `%s` collide at the second",
+    (type) => {
+      const program = compileWith(
+        {
+          [MAIN]: `define ${type} with
+  probe_field = 1
+end
+
+define ${type} with
+  probe_field = 2
+end
+
+-> start
+scene start
+  Hi.
+  fin
+
+end
+`,
+        },
+        true,
+      );
+      expect(
+        errorsOf(program).map(([line, message]) => [line, message.split(".")[0]]),
+      ).toEqual([[4, `Duplicate identifier \`${type}\``]]);
+    },
+  );
+
+  test("a builtin member owns the `store` defaults the override declares", () => {
+    shows(
+      `define color with
+  store score = 7
+end
+
+define mine as color with
+  own = 1
+end
+`,
+      `& color.score = 9
+  {color.red.score} {rawget(color.red, "score")} {color.mine.score} {color.score}`,
+      "7 7 7 9",
+    );
+  });
+
+  test("a member written before its own root owns the root's `store` defaults", () => {
+    shows(
+      `define pebble as rock with
+  size = 1
+end
+
+define rock with
+  store hardness = 5
+end
+`,
+      `{rock.pebble.hardness} {rawget(rock.pebble, "hardness")}`,
+      "5 5",
+    );
+  });
+
+  test("a grandchild keeps inheriting from its own parent", () => {
+    shows(
+      `define shade as color with
+  probe_field = 8
+end
+
+define dark as shade with
+  own = 1
+end
+
+define color with
+  probe_field = 7
+end
+`,
+      "{color.dark.probe_field} {color.shade.probe_field} {color.red.probe_field}",
+      "8 8 7",
+    );
+  });
+
+  test("a structural block keeps inheriting from its sibling parent", () => {
+    shows(
+      `animation base with
+  probe_field = 8
+end
+
+animation child as base with
+  own = 1
+end
+
+define animation with
+  probe_field = 7
+end
+`,
+      "{animation.child.probe_field} {animation.base.probe_field}",
+      "8 8",
+    );
+  });
+
+  test("a structural block waiting for its parent links to it after the override", () => {
+    shows(
+      `animation child as later with
+  own = 1
+end
+
+define animation with
+  probe_field = 7
+end
+
+animation later with
+  probe_field = 8
+end
+`,
+      "{animation.child.probe_field} {animation.later.probe_field}",
+      "8 8",
+    );
+  });
+
+  test("a typed define named after a type root leaves that root alone", () => {
+    shows(
+      `define game as foo with
+  probe_field = 7
+end
+`,
+      "{game.loading.percent} {foo.game.probe_field}",
+      "0 7",
+    );
+  });
+
+  test("a nested table the override restates keeps the builtin's other fields, as the context does", () => {
+    const program = shows(
+      `define game with
+  loading = { percent = 5 }
+end
+`,
+      "{game.loading.percent} {game.loading.active}",
+      "5 false",
+    );
+    expect(program.context?.["game"]?.["$default"]?.loading).toMatchObject({
+      percent: 5,
+      active: false,
+    });
+  });
+});

@@ -4654,23 +4654,44 @@ export class SparkdownCompiler {
     if (!(table instanceof ObjectExpression)) {
       return;
     }
-    const authored = new Set<string>();
+    this.backfillTable(table, builtinStruct);
+  }
+
+  /** Adds to `table` each of `values` it does not hold, and fills a nested
+   *  table literal the author wrote where the builtin holds a plain object
+   *  the same way, as {@link inheritDefaults} merges nested objects:
+   *  `loading = { percent = 5 }` keeps the builtin's other `loading` fields.
+   *  Idempotent: it only adds keys a table lacks. */
+  protected backfillTable(
+    table: ObjectExpression,
+    values: Record<string, any>,
+  ): void {
+    const authored = new Map<string, ObjectExpressionEntry>();
     for (const entry of table.entries) {
       if (typeof entry.key === "string") {
-        authored.add(entry.key);
+        authored.set(entry.key, entry);
       }
     }
-    for (const [k, v] of Object.entries(builtinStruct)) {
+    for (const [k, v] of Object.entries(values)) {
       // `$type` / `$name` are context bookkeeping, re-derived by `__def` from
       // its own args; `__storeProps` and friends are the define's own hidden
       // modifier lists and must not be inherited from the builtin.
-      if (k.startsWith("$") || k.startsWith("__")) {
+      if (k.startsWith("$") || k.startsWith("__") || v === undefined) {
         continue;
       }
-      if (authored.has(k) || v === undefined) {
-        continue;
+      const entry = authored.get(k);
+      if (!entry) {
+        table.addEntry(
+          new ObjectExpressionEntry(k, contextValueToExpression(v)),
+        );
+      } else if (
+        entry.value instanceof ObjectExpression &&
+        v !== null &&
+        typeof v === "object" &&
+        !Array.isArray(v)
+      ) {
+        this.backfillTable(entry.value, v);
       }
-      table.addEntry(new ObjectExpressionEntry(k, contextValueToExpression(v)));
     }
   }
 

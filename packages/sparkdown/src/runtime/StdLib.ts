@@ -2548,42 +2548,74 @@ function isRootTypeTable(v: AbstractValue | null, name: string): boolean {
   );
 }
 
-// A root define replacing the table that already holds its type's name takes
-// over what registered there: a project's `define color with … end`
-// overriding the builtin root runs after the prelude's `define red as color`
-// (and every other member) registered into the table then named `color`
-// (#454). Each member the new table does not hold itself moves to it, and a
-// member that inherited from a root table of the type inherits from the new
-// one, so `color.red` stays reachable and reads the authored root's props.
-// The declarations run on a fresh state, so the table found is always one
-// this run made.
-function adoptRootMembers(
+// The table that already holds the type `name` when a root define of it
+// runs, if one does: the flat global, or the displaced root `$name_name` of
+// a dual name (see `resolveParentType`).
+function rootTableFor(
   // `any` for the same circular-import reason as `StateAwareStdLibFn`.
   story: any,
   name: string,
   table: ObjectValue,
-  written: Written,
-): void {
-  const existing = story.state.variablesState.GetVariableWithName(
-    name,
-  ) as AbstractValue | null;
-  if (
-    !(existing instanceof ObjectValue) ||
-    existing === table ||
-    !isRootTypeTable(existing, name)
-  ) {
-    return;
-  }
-  const own = table.value!;
-  for (const [key, member] of existing.value!) {
-    if (own.has(key)) continue;
-    own.set(key, member);
-    const inherits = metatableMap(member)?.get("__index") ?? null;
-    if (inherits instanceof ObjectValue && isRootTypeTable(inherits, name)) {
-      written((member as ObjectValue).metatable);
-      metatableMap(member)!.set("__index", table);
+): ObjectValue | null {
+  for (const key of [name, `$${name}_${name}`]) {
+    const held = story.state.variablesState.GetVariableWithName(
+      key,
+    ) as AbstractValue | null;
+    if (
+      held instanceof ObjectValue &&
+      held !== table &&
+      isRootTypeTable(held, name)
+    ) {
+      return held;
     }
   }
+  return null;
+}
+
+// A root define of a type whose table already exists merges into that table
+// rather than replacing it, and returns it: a project's `define color with
+// … end` overriding the builtin root (#454) runs after the prelude's root and
+// every member that registered into its table (`define red as color`, the
+// structural blocks, the parent links still waiting there), and a project's
+// root written after its own members finds the table the first of them
+// minted. The authored values replace the table's own; each member keeps
+// inheriting from the same table, so it reads them, and takes the `store`
+// defaults the merge brings, as a member defined after it would. A root table
+// that already holds such defaults (neither the prelude's nor a minted one
+// does) keeps the copies its members took.
+// The declarations run on a fresh state, so the table found is always one
+// this run made.
+function mergeIntoRootTable(
+  story: any,
+  name: string,
+  table: ObjectValue,
+  written: Written,
+): ObjectValue | null {
+  const target = rootTableFor(story, name, table);
+  if (!target) return null;
+  written(target);
+  const into = target.value!;
+  for (const [key, value] of table.value!) {
+    into.set(key, value);
+  }
+  for (const [key, member] of into) {
+    const meta = metatableMap(member);
+    if (
+      !(member instanceof ObjectValue) ||
+      meta?.get(DEFINE_PARENT_MARKER) == null ||
+      coerceString(meta.get(DEFINE_MARKER) ?? null) !== key
+    ) {
+      continue;
+    }
+    const chain = defineChain(member);
+    if (!chain.includes(target)) continue;
+    if (structuralStoreCopies.has(member)) {
+      copyStructuralStoreDefaults(member, written);
+    } else {
+      copyStoreDefaults(chain.slice(1), member, written);
+    }
+  }
+  return target;
 }
 
 // A `display({ parts })` table carries words whose tags sit between pieces of
@@ -5313,8 +5345,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   //   3. Registers D into T and EVERY ancestor (`T.D`, `Grandparent.D`),
   //      so members are reachable through any type up the chain and
   //      `instances(T)` enumerates them.
-  //   4. A ROOT define (no T) takes over the members registered in the
-  //      table that held its name before it (`adoptRootMembers`).
+  //   4. A ROOT define (no T) whose type's table already exists merges
+  //      into that table and returns it (`mergeIntoRootTable`).
   // Returns D (the global VariableAssignment binds it to the name).
   "__def": {
     arity: 3,
@@ -5367,7 +5399,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
           linkWaitingStructuralChildren(level, name, table, written);
         }
       } else if (name) {
-        adoptRootMembers(story, name, table, written);
+        const merged = mergeIntoRootTable(story, name, table, written);
+        if (merged) return merged;
       }
       return table;
     },
