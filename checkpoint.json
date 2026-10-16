@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 97,
-  "previous": "35dacbd422e818297ad9ca50a8ef76faa9e1784a",
+  "seq": 98,
+  "previous": "24fc75a12dfa5a1ba6af2939cf0abd4c86573650",
   "snapshotParents": [],
-  "time": "2026-10-16T00:57:20.873Z",
+  "time": "2026-10-16T00:57:30.015Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1632",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 74,
+    "recordRevision": 75,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -297,60 +297,66 @@
       "results": []
     },
     "1632": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
-        "branch": "fix/1632-chunk-validity-dependencies",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "launchId": "2baa157e-585e-4be9-ac20-b04c4aae5774",
-        "handle": {
-          "kind": "process",
-          "pid": 50480,
-          "start": "639277056231944010",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-2ac8e804-2312-40b6-9318-b122cc1b3575"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 2baa157e-585e-4be9-ac20-b04c4aae5774. You are the writer for ImpowerGames/impower ticket #1632 (An incremental edit that puts a label between choices an if gates keeps statement chunks, where a cold compile falls back), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 2baa157e-585e-4be9-ac20-b04c4aae5774 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1632 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies on branch fix/1632-chunk-validity-dependencies from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit U2 of umbrella #1893, whose Description and Scope are the design of record: what a chunk's validity depends on is not part of its identity in ChunkStore.align's fit check. One PR on this branch fixes the three cases that share that cause, each with its own regression test: (a) #1632 as filed, a choose block kept by syntax after a label is inserted among if-gated choices, while the writer's refusal 'a label between choices an if gates' (BinaryProgramWriter.ts) runs only on emission; decide that refusal, and any other writer refusal that reads the shape of the bodies, at lowering time as a diagnostic or a recorded read, so the block is not kept. (b) The first cause of #1611 (seed 10 and seed 2 cases): VariableReference.EmitExpression calls recordResolution once per emission, and an unbracketed interpolated choice label is emitted twice, so the chunk records gold:variable twice while resolutionsOf records it once and fits never matches; record each object's resolution once, or count both sides the same way. (c) The call case of #1614 (function seed 3): a LuauExplicitStatement whose syntax and recorded reads omit the () continuation line the Luau reader joined into add(2)(), so align's back pass reuses an old chunk holding CallValue for a different program; a statement's syntax or reads must cover every node the reader consumed (lowerStatements' continuation handling in lower.ts). Read the 2026-10-15 root-cause comments on #1632, #1611 and #1614 before starting; they carry the traces.\n- Closes line: only Closes #1632. Name #1611 and #1614 in the PR body without a closing keyword (for example 'addresses the first cause of #1611 and the call case of #1614'); their remaining causes (the alternator case of #1611, the string case of #1614) land in later PRs, which carry their Closes lines. Do not fix twin alignment (align's run matching and the #1496 exchange pass) or keepCarried's enclosing-flow check here: they are units U1 and U3, sequenced after you on the same file.\n- Each regression test compiles the script incrementally and cold and asserts the same tree, program chunks and diagnostics, in the shapes under packages/sparkdown/src/tests/program (programIncrementalOracles.test.ts, programChunkIdentity.test.ts, programDiagnosticsParity.test.ts). For #1611 keep the seed 10 and seed 2 cases and the '* Two' control; leave the '-- c' variant and the alternator case out. For #1614 add only the call-continuation case. The incremental program of that case is wrong today, not only re-emitted, so its test must assert the chunk contents, not only reuse.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; no other writer edits it meanwhile, and units U1 (#1623) and U3 (#1627) wait for your merge. Keep the change inside the lowering, the chunk store's fit check and the writer; a change that reaches the parser or the memo session (statementMemo.ts, ProgramResolver.reported) belongs to another unit and is a question for the coordinator.\n- Hand-over notes with the probe scripts that reproduced every case on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Roaming/Claude/side-session-notes/local_f6397909-b97e-49a8-a27d-cdbf621c7487/incremental-vs-cold/NOTES.md (probe-program.ts, probe-store.ts 1611|1632|1614 for chunk-store traces, probe-fits.ts 1611, probe-more.ts 1611|1614, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since; re-establish each case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files under work> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). The cumulative randomized-edit run of programDifferential.test.ts is an acceptance criterion of #1893: run it on its committed seeds plus seeds 2 and 10 of #1611 and seed 3 of #1614, and report the result in Testing and verification.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "4ff786ad",
-          "attempts": 1,
-          "time": "2026-10-15T22:00:21.315Z",
-          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
-        },
-        "since": "2026-10-15T22:00:21.317Z",
-        "sessionId": "0d9b203c-af40-46b9-9a14-51bc116ba837",
-        "acknowledged": {
-          "time": "2026-10-15T22:01:14.994Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
+            "branch": "fix/1632-chunk-validity-dependencies",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+            "launchId": "2baa157e-585e-4be9-ac20-b04c4aae5774",
+            "handle": {
+              "kind": "process",
+              "pid": 50480,
+              "start": "639277056231944010",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-2ac8e804-2312-40b6-9318-b122cc1b3575"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 2baa157e-585e-4be9-ac20-b04c4aae5774. You are the writer for ImpowerGames/impower ticket #1632 (An incremental edit that puts a label between choices an if gates keeps statement chunks, where a cold compile falls back), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 2baa157e-585e-4be9-ac20-b04c4aae5774 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1632 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies on branch fix/1632-chunk-validity-dependencies from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit U2 of umbrella #1893, whose Description and Scope are the design of record: what a chunk's validity depends on is not part of its identity in ChunkStore.align's fit check. One PR on this branch fixes the three cases that share that cause, each with its own regression test: (a) #1632 as filed, a choose block kept by syntax after a label is inserted among if-gated choices, while the writer's refusal 'a label between choices an if gates' (BinaryProgramWriter.ts) runs only on emission; decide that refusal, and any other writer refusal that reads the shape of the bodies, at lowering time as a diagnostic or a recorded read, so the block is not kept. (b) The first cause of #1611 (seed 10 and seed 2 cases): VariableReference.EmitExpression calls recordResolution once per emission, and an unbracketed interpolated choice label is emitted twice, so the chunk records gold:variable twice while resolutionsOf records it once and fits never matches; record each object's resolution once, or count both sides the same way. (c) The call case of #1614 (function seed 3): a LuauExplicitStatement whose syntax and recorded reads omit the () continuation line the Luau reader joined into add(2)(), so align's back pass reuses an old chunk holding CallValue for a different program; a statement's syntax or reads must cover every node the reader consumed (lowerStatements' continuation handling in lower.ts). Read the 2026-10-15 root-cause comments on #1632, #1611 and #1614 before starting; they carry the traces.\n- Closes line: only Closes #1632. Name #1611 and #1614 in the PR body without a closing keyword (for example 'addresses the first cause of #1611 and the call case of #1614'); their remaining causes (the alternator case of #1611, the string case of #1614) land in later PRs, which carry their Closes lines. Do not fix twin alignment (align's run matching and the #1496 exchange pass) or keepCarried's enclosing-flow check here: they are units U1 and U3, sequenced after you on the same file.\n- Each regression test compiles the script incrementally and cold and asserts the same tree, program chunks and diagnostics, in the shapes under packages/sparkdown/src/tests/program (programIncrementalOracles.test.ts, programChunkIdentity.test.ts, programDiagnosticsParity.test.ts). For #1611 keep the seed 10 and seed 2 cases and the '* Two' control; leave the '-- c' variant and the alternator case out. For #1614 add only the call-continuation case. The incremental program of that case is wrong today, not only re-emitted, so its test must assert the chunk contents, not only reuse.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; no other writer edits it meanwhile, and units U1 (#1623) and U3 (#1627) wait for your merge. Keep the change inside the lowering, the chunk store's fit check and the writer; a change that reaches the parser or the memo session (statementMemo.ts, ProgramResolver.reported) belongs to another unit and is a question for the coordinator.\n- Hand-over notes with the probe scripts that reproduced every case on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Roaming/Claude/side-session-notes/local_f6397909-b97e-49a8-a27d-cdbf621c7487/incremental-vs-cold/NOTES.md (probe-program.ts, probe-store.ts 1611|1632|1614 for chunk-store traces, probe-fits.ts 1611, probe-more.ts 1611|1614, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since; re-establish each case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files under work> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). The cumulative randomized-edit run of programDifferential.test.ts is an acceptance criterion of #1893: run it on its committed seeds plus seeds 2 and 10 of #1611 and seed 3 of #1614, and report the result in Testing and verification.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "4ff786ad",
+              "attempts": 1,
+              "time": "2026-10-15T22:00:21.315Z",
+              "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+            },
+            "since": "2026-10-15T22:00:21.317Z",
+            "sessionId": "0d9b203c-af40-46b9-9a14-51bc116ba837",
+            "acknowledged": {
+              "time": "2026-10-15T22:01:14.994Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from the writer session (impower-23) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
+              "deliveryId": "4ff786ad"
+            },
+            "resumes": [
+              {
+                "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
+                "time": "2026-10-15T23:26:40.890Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42"
+              },
+              {
+                "id": "2ac8e804-2312-40b6-9318-b122cc1b3575",
+                "time": "2026-10-16T00:00:23.508Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-2ac8e804-2312-40b6-9318-b122cc1b3575"
+              }
+            ]
           },
-          "evidence": "cross-session message from the writer session (impower-23) at 2026-10-15 18:0x local naming assignment and confirming model, effort (--effort and CLAUDE_EFFORT) and mode; stream init line in launch dir names model claude-opus-5-5 and permissionMode bypassPermissions",
-          "deliveryId": "4ff786ad"
-        },
-        "resumes": [
-          {
-            "id": "4076565b-eaac-41e2-8a26-01fa4b674b42",
-            "time": "2026-10-15T23:26:40.890Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-4076565b-eaac-41e2-8a26-01fa4b674b42"
-          },
-          {
-            "id": "2ac8e804-2312-40b6-9318-b122cc1b3575",
-            "time": "2026-10-16T00:00:23.508Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-2ac8e804-2312-40b6-9318-b122cc1b3575"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 50480 is gone and no process names its launch directory; process 50480 is gone and no process names its launch directory; the resumed transcript /c/Users/Brode/AppData/Local/Temp/impower-writers/1893/resume-1632-2ac8e804-2312-40b6-9318-b122cc1b3575/out.jsonl ends with end_turn after reporting head 8c3effbc0 green; PR 1912 merged at e84cd48368b3362989776690ec88a1d1f5d05857 through the gate",
+          "time": "2026-10-16T00:57:27.690Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-15T23:24:06.136Z",
@@ -966,148 +972,12 @@
   ],
   "verifications": [],
   "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies": {
-      "ticket": 1632,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
-      "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-16T00:57:19.572Z",
-      "held": true,
-      "head": "8c3effbc01d165c9cc3a4be47e1ce8518380bce7",
-      "remoteHead": "8c3effbc01d165c9cc3a4be47e1ce8518380bce7",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1912,
-      "reviewJobs": [
-        {
-          "job": "pr-1912/round-1/launch-bound-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-bound",
-            "reviewerId": "bound",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
-            "completedRoundReviewers": {
-              "incr": 1
-            },
-            "time": "2026-10-15T22:47:41.335Z"
-          },
-          "round": 1,
-          "reviewerId": "bound",
-          "attempt": 1,
-          "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "incr": 1,
-            "bound": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6203924668
-          ]
-        },
-        {
-          "job": "pr-1912/round-1/launch-incr-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-incr",
-            "reviewerId": "incr",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
-            "completedRoundReviewers": null,
-            "time": "2026-10-15T22:43:49.139Z"
-          },
-          "round": 1,
-          "reviewerId": "incr",
-          "attempt": 1,
-          "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "incr": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "bound",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6203848869
-          ]
-        },
-        {
-          "job": "pr-1912/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
-            "completedRoundReviewers": {
-              "incr": 1,
-              "bound": 1
-            },
-            "time": "2026-10-15T22:52:14.141Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "9b9d1b7943a3675ca4d14f545b0725e1ae2909a0",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "incr": 1,
-            "bound": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6204168120
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally": {
       "ticket": 1846,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T00:57:19.572Z",
+      "observedAt": "2026-10-16T00:57:29.096Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1833,6 +1703,12 @@
       "event": "operation-outcome",
       "id": "e29af538",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T00:57:27.691Z",
+      "event": "released",
+      "ticket": 1632,
+      "reason": "process 50480 is gone and no process names its launch directory"
     }
   ]
 }
