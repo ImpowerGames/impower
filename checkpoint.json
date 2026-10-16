@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 14,
-  "previous": "20f68ec9eb4a4febdae21a37035231324ef463a9",
+  "seq": 15,
+  "previous": "80d658e2b977a99f0ab1827e3abce2adefbfd915",
   "snapshotParents": [],
-  "time": "2026-10-16T05:36:08.918Z",
+  "time": "2026-10-16T05:48:40.067Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 31,
+    "recordRevision": 32,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -429,7 +429,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T05:36:08.154Z",
+      "observedAt": "2026-10-16T05:48:39.130Z",
       "held": true,
       "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
       "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
@@ -901,6 +901,11 @@
       "time": "2026-10-16T05:36:06.766Z",
       "event": "check-in",
       "outcome": "no change: #1905 running (draft PR #1927 at an early head with 6 failing checks, writer queued on the test reservation and typechecking); no request pending"
+    },
+    {
+      "time": "2026-10-16T05:48:37.649Z",
+      "event": "check-in",
+      "outcome": "no change: #1905 running (lint rule tests pass, regenerating the grammar snapshot and running its test batch; draft PR #1927 still at its early head); no request pending"
     }
   ]
 }
