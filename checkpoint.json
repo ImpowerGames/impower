@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 125,
-  "previous": "651e17b3dd59d393ba9b1659719a667f0a68d619",
+  "seq": 126,
+  "previous": "399d64e3fe6189add29c4521647652fc3f126320",
   "snapshotParents": [],
-  "time": "2026-10-16T02:18:31.753Z",
+  "time": "2026-10-16T02:49:08.798Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 94,
@@ -1311,14 +1311,55 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T02:18:30.951Z",
+      "observedAt": "2026-10-16T02:49:07.732Z",
       "held": true,
-      "head": "ebdaaacb00109edecda42519a352456125186a77",
-      "remoteHead": "ebdaaacb00109edecda42519a352456125186a77",
+      "head": "500014ad35accab637cdd7366024d166da586bd6",
+      "remoteHead": "500014ad35accab637cdd7366024d166da586bd6",
       "unpushed": false,
       "dirty": true,
       "pr": 1918,
       "reviewJobs": [
+        {
+          "job": "pr-1918/round-1/launch-bound-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-bound",
+            "reviewerId": "bound",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "c18ffb8c0886c7e6c420ed8fab36484f629d363a",
+            "completedRoundReviewers": {
+              "incr": 1
+            },
+            "time": "2026-10-16T02:20:37.414Z"
+          },
+          "round": 1,
+          "reviewerId": "bound",
+          "attempt": 1,
+          "reviewedHead": "c18ffb8c0886c7e6c420ed8fab36484f629d363a",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6206725464
+          ]
+        },
         {
           "job": "pr-1918/round-1/launch-incr-1",
           "lastEvent": "finished",
@@ -1357,6 +1398,47 @@
           "commentIds": [
             6206311988
           ]
+        },
+        {
+          "job": "pr-1918/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "500014ad35accab637cdd7366024d166da586bd6",
+            "completedRoundReviewers": {
+              "incr": 1,
+              "bound": 1
+            },
+            "time": "2026-10-16T02:37:12.151Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "500014ad35accab637cdd7366024d166da586bd6",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6206879903
+          ]
         }
       ]
     },
@@ -1365,12 +1447,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T02:18:30.951Z",
+      "observedAt": "2026-10-16T02:49:07.732Z",
       "held": true,
-      "head": "164cead2492fe406853dfa165beff860a2bc12a1",
-      "remoteHead": "164cead2492fe406853dfa165beff860a2bc12a1",
+      "head": "5b408d57e22233a48ca7ff03f78d3de629530b73",
+      "remoteHead": "5b408d57e22233a48ca7ff03f78d3de629530b73",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1919,
       "reviewJobs": [
         {
@@ -1452,6 +1534,47 @@
           "commentIds": [
             6206157836
           ]
+        },
+        {
+          "job": "pr-1919/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "8ac011bdab2f32361fe17580e083588cb7ad7b5c",
+            "completedRoundReviewers": {
+              "incr": 1,
+              "bound": 1
+            },
+            "time": "2026-10-16T02:22:57.956Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "8ac011bdab2f32361fe17580e083588cb7ad7b5c",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6206706520
+          ]
         }
       ]
     }
@@ -1459,7 +1582,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T02:18:11.766Z",
+    "at": "2026-10-16T02:49:07.731Z",
     "tickets": [
       {
         "number": 1201,
@@ -1531,7 +1654,7 @@
         "number": 1638,
         "action": "adopt-pr",
         "pr": 1919,
-        "reason": "draft PR #1919 at 164cead2492fe406853dfa165beff860a2bc12a1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1919 at 5b408d57e22233a48ca7ff03f78d3de629530b73 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1846,
