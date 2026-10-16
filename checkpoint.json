@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 143,
-  "previous": "7b588166658e34603f9cb2db4bc9a0e5d2148918",
+  "seq": 144,
+  "previous": "c8937fbd77c47ab8063409c9b1262f87847c9f16",
   "snapshotParents": [],
-  "time": "2026-10-16T04:50:11.355Z",
+  "time": "2026-10-16T04:51:28.809Z",
   "kind": "auto",
-  "transition": "the merge of PR #1918 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 107,
@@ -1735,7 +1735,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T04:50:10.693Z",
+      "observedAt": "2026-10-16T04:51:28.019Z",
       "held": true,
       "head": "c447e94eb26675819ee800d3a6622b206590bbf2",
       "remoteHead": "c447e94eb26675819ee800d3a6622b206590bbf2",
@@ -1906,7 +1906,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T03:59:10.397Z",
+    "at": "2026-10-16T04:51:28.018Z",
     "tickets": [
       {
         "number": 1201,
@@ -1934,9 +1934,9 @@
       },
       {
         "number": 1611,
-        "action": "merge-gate",
-        "pr": 1918,
-        "reason": "PR #1918 is ready at 7c5f980fe7cf9609b0d6467628ff0446ec43566b; process 40848 is gone; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 40848 is gone): read its transcript, then record release with that evidence"
       },
       {
         "number": 1613,
@@ -1952,15 +1952,15 @@
       },
       {
         "number": 1623,
-        "action": "merge-gate",
-        "pr": 1918,
-        "reason": "PR #1918 is ready at 7c5f980fe7cf9609b0d6467628ff0446ec43566b; process 40848 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 58912 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1627,
-        "action": "wait-dependency",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "waiting for #1623 (open)"
+        "reason": "2 writers already hold tickets against a limit of 2"
       },
       {
         "number": 1628,
@@ -1990,7 +1990,7 @@
         "number": 1917,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1623 (open), #1627 (open)"
+        "reason": "waiting for #1627 (open)"
       }
     ],
     "remaining": [
