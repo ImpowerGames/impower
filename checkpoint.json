@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 158,
-  "previous": "36d50948cf55f48aaaa4fae18b6781a602473980",
+  "seq": 159,
+  "previous": "407acc738260639a60b487a02b4e410fbc99603c",
   "snapshotParents": [],
-  "time": "2026-10-16T05:48:47.625Z",
+  "time": "2026-10-16T06:18:30.869Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 116,
+    "recordRevision": 117,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1792,16 +1792,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T05:48:46.749Z",
+      "observedAt": "2026-10-16T06:18:30.076Z",
       "held": true,
-      "head": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
-      "remoteHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+      "head": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
+      "remoteHead": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 36512
-      },
       "pr": 1930,
       "reviewJobs": [
         {
@@ -1886,7 +1882,7 @@
         },
         {
           "job": "pr-1930/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -1903,7 +1899,27 @@
               "bound": 1
             },
             "time": "2026-10-16T05:45:34.205Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6209054850
+          ]
         }
       ]
     }
@@ -2006,11 +2022,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:17:54.437Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1743-step-in-after-parameters"
-    },
     {
       "time": "2026-10-15T22:18:03.292Z",
       "event": "disk-recovery",
@@ -2691,6 +2702,11 @@
       "time": "2026-10-16T05:48:45.046Z",
       "event": "check-in",
       "outcome": "no change: #1627 draft PR 1930 at cd6379dc7 in review round 1, two of three reviewers done with no findings, undirected launching; main at 8a191abf (#1925); hold released; no requests"
+    },
+    {
+      "time": "2026-10-16T06:18:28.750Z",
+      "event": "check-in",
+      "outcome": "no change yet: PR 1930 (#1627) marked ready at e58e9a932 after round 1 (three reviewers, no findings), writer sending its final report; main at 8a191abf; announcing the merge window to the other coordinators"
     }
   ]
 }
