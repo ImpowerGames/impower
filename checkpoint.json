@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 38,
-  "previous": "40a13e06b0902cf9a24258d534fd0c678de3dd54",
+  "seq": 39,
+  "previous": "2feea67dd6851eb038cf4fcffd9a2b4705452306",
   "snapshotParents": [],
-  "time": "2026-10-16T22:59:49.375Z",
+  "time": "2026-10-16T23:00:00.954Z",
   "kind": "auto",
-  "transition": "claim of #1963",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 37,
@@ -1397,7 +1397,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:59:48.345Z",
+      "observedAt": "2026-10-16T22:59:59.407Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1672,7 +1672,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-16T22:59:48.345Z",
+      "observedAt": "2026-10-16T22:59:59.407Z",
       "held": true,
       "exists": false
     }
@@ -1680,7 +1680,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T22:59:39.544Z",
+    "at": "2026-10-16T22:59:59.405Z",
     "tickets": [
       {
         "number": 1962,
@@ -1690,9 +1690,9 @@
       },
       {
         "number": 1963,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch c7b0d9e3-f7ae-4c8a-ae6a-e1ef52a07fba on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1964,
