@@ -2709,6 +2709,19 @@ export class SparkdownCompiler {
           // includes the script including it ends the descent there.
           const includedUris = state.fileResolutionState?.includedUris;
           if (!resolvedFilePath) {
+            // 1-based line/character, as the `run` branch below reports.
+            onDiagnostic(
+              `Could not find '${include}' for 'include' statement.`,
+              ErrorType.Error,
+              {
+                fileName,
+                filePath: uri,
+                startLineNumber: lineNumberOffset + 1,
+                endLineNumber: lineNumberOffset + 1,
+                startCharacterNumber: 1,
+                endCharacterNumber: 1,
+              },
+            );
             topLevelIncludedFileObjs.push(new IncludedFile(null));
           } else if (!includedUris?.has(resolvedFilePath)) {
             includedUris?.add(resolvedFilePath);
@@ -2825,20 +2838,28 @@ export class SparkdownCompiler {
             () => runCallText(wrapperName),
           ]);
           for (const [virtualUri, text] of runDocuments) {
-            this.documents.add({
-              textDocument: {
-                uri: virtualUri,
-                languageId: "sparkdown",
-                version: 1,
-                text: text(),
-              },
-            });
+            // A document is set again only when its text changed, under the
+            // next version, so the registry parses the new text (the .luau
+            // file was edited) and an unchanged one keeps its tree (#316).
+            const documentText = text().replace(/\r\n|\r/g, "\n");
+            const registered = this.documents.get(virtualUri);
+            if (registered?.getText() !== documentText) {
+              this.documents.add({
+                textDocument: {
+                  uri: virtualUri,
+                  languageId: "sparkdown",
+                  version: (registered?.version ?? 0) + 1,
+                  text: documentText,
+                },
+              });
+            }
             if (state.fileResolutionState) {
               state.fileResolutionState.runStack ??= [];
               state.fileResolutionState.runStack.push(resolvedFilePath);
             }
-            let runStory: ReturnType<typeof this.parseIncrementally> | null =
-              null;
+            let runStory: ReturnType<
+              SparkdownCompiler["parseIncrementally"]
+            > | null = null;
             try {
               runStory = this.parseIncrementally(
                 virtualUri,
