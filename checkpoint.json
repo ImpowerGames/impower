@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 2,
-  "previous": "41f1b83c1fb875f3a2fd02f7294866b82ac24df0",
+  "seq": 3,
+  "previous": "a7423a2eb3e935cc05a41006d4dab81ffcc2ab2c",
   "snapshotParents": [],
-  "time": "2026-10-16T16:19:02.593Z",
+  "time": "2026-10-16T16:19:11.341Z",
   "kind": "auto",
-  "transition": "check-in",
+  "transition": "group",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 3,
+    "recordRevision": 4,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -54,7 +54,10 @@
     "since": "2026-10-16T16:19:00.901Z",
     "expires": "2026-10-23T16:19:00.901Z"
   },
-  "group": null,
+  "group": {
+    "name": "Orchestrate #1940",
+    "id": "cg-14350a8e-773f-4354-beb9-a8637c9cb365"
+  },
   "title": "ORCH #1940: edit preview latency",
   "tickets": {},
   "operations": [],
@@ -82,6 +85,12 @@
       "time": "2026-10-16T16:19:00.902Z",
       "event": "check-in-scheduled",
       "job": "093a0670",
+      "none": null
+    },
+    {
+      "time": "2026-10-16T16:19:09.882Z",
+      "event": "group",
+      "id": "cg-14350a8e-773f-4354-beb9-a8637c9cb365",
       "none": null
     }
   ]
