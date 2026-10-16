@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 243,
-  "previous": "af3cca163886456da10403d4e2f1dfb7191d4829",
+  "seq": 244,
+  "previous": "3fc294d4e359df5ca7ad7981861bcc570ec75604",
   "snapshotParents": [],
-  "time": "2026-10-16T17:02:43.242Z",
+  "time": "2026-10-16T17:04:02.321Z",
   "kind": "auto",
-  "transition": "the merge of PR #1953 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 178,
@@ -2848,7 +2848,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T17:02:42.046Z",
+      "observedAt": "2026-10-16T17:04:01.373Z",
       "held": true,
       "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
       "remoteHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
@@ -2936,7 +2936,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T17:02:42.046Z",
+      "observedAt": "2026-10-16T17:04:01.373Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -3068,7 +3068,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:58:12.580Z",
+    "at": "2026-10-16T17:04:01.371Z",
     "tickets": [
       {
         "number": 1201,
@@ -3162,9 +3162,9 @@
       },
       {
         "number": 1934,
-        "action": "merge-gate",
-        "pr": 1953,
-        "reason": "PR #1953 is ready at 40f7f8169a627b4c27d81790110a3bf79bddf842; process 7864 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 7864 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       }
     ],
     "remaining": [
