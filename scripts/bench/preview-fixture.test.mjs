@@ -20,6 +20,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { workspaceAliases } from "./benchLauncher.mjs";
 import { totalLength, uncovered, within } from "./phaseGaps.mjs";
 import * as bench from "./preview-bench.mjs";
 import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
@@ -365,6 +366,20 @@ await check("heap-retained counts a WeakMap value whose key only a parsed object
   }
 });
 
+// The bundle's `@impower/*` aliases (#1950): every workspace package the
+// sources import by name, each at a directory of this checkout.
+await check("the bench bundle aliases every @impower workspace package to this checkout's own directory", () => {
+  const root = path.resolve(HERE, "..", "..");
+  const aliases = workspaceAliases();
+  const names = Object.keys(aliases);
+  for (const name of ["@impower/sparkdown", "@impower/spark-engine", "@impower/spark-web-player", "@impower/jsonrpc", "@impower/definitions"]) assert.ok(names.includes(name), `${name} among ${names.join(", ")}`);
+  for (const [name, dir] of Object.entries(aliases)) {
+    assert.ok(name.startsWith("@impower/"), name);
+    assert.ok(path.isAbsolute(dir) && !path.relative(root, dir).startsWith(".."), `${name} at ${dir}`);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).name, name);
+  }
+});
+
 // The benchmark end to end on the fixture: bundle, one process per mode, and
 // a report naming the route and the phases. It needs the workspace install
 // for esbuild and the compiler's dependencies, which the tooling workflow
@@ -380,6 +395,35 @@ const esbuildInstalled = (() => {
 if (!esbuildInstalled) {
   console.log("SKIP: the benchmark's end-to-end run needs the workspace install (esbuild is not resolvable)");
 } else {
+  // A bare `@impower/sparkdown/...` import reaches this checkout's module even
+  // when a `node_modules` above the entry offers another package of that
+  // name, as a parent checkout's does to an install-less copy (#1950): the
+  // class imported by name is the class imported by path.
+  await check("the bench bundle resolves a package-name import to this checkout's module, not to a node_modules above the entry", () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-bench-alias-test-"));
+    try {
+      const module = "src/inkjs/compiler/Parser/ParsedHierarchy/Object";
+      const decoy = path.join(scratch, "node_modules", "@impower", "sparkdown");
+      fs.mkdirSync(path.join(decoy, path.dirname(module)), { recursive: true });
+      fs.writeFileSync(path.join(decoy, "package.json"), JSON.stringify({ name: "@impower/sparkdown", type: "module" }));
+      fs.writeFileSync(path.join(decoy, `${module}.ts`), `export class ParsedObject { static decoy = true; }\n`);
+      const own = path.join(HERE, "..", "..", "packages", "sparkdown", module);
+      const entry = path.join(scratch, "entry.ts");
+      fs.writeFileSync(entry, [`import { ParsedObject as byName } from "@impower/sparkdown/${module}";`, `import { ParsedObject as byPath } from ${JSON.stringify(own.split(path.sep).join("/"))};`, `console.log(JSON.stringify({ same: byName === byPath, decoy: "decoy" in byName }));`].join("\n"));
+      const bundle = path.join(scratch, "out");
+      fs.mkdirSync(bundle);
+      const script = path.join(scratch, "bundle.mjs");
+      fs.writeFileSync(script, [`import { bundleBench } from ${JSON.stringify(pathToFileURL(path.join(HERE, "benchLauncher.mjs")).href)};`, `console.log(await bundleBench(${JSON.stringify(entry)}, ${JSON.stringify(bundle)}, null));`].join("\n"));
+      const built = spawnSync(process.execPath, [script], { encoding: "utf8", timeout: 120_000, windowsHide: true });
+      assert.equal(built.status, 0, built.stdout + built.stderr);
+      const run = spawnSync(process.execPath, [built.stdout.trim()], { encoding: "utf8", timeout: 120_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      assert.deepEqual(JSON.parse(run.stdout.trim().split("\n").at(-1)), { same: true, decoy: false });
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
   await check("the benchmark runs both modes on the fixture and reports route, phases, unattributed time and the display", () => {
     const profiles = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-bench-test-"));
     try {
