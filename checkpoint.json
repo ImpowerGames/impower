@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 27,
-  "previous": "3bcad5ad3b373972e369c0c97f23aa79f5b398bf",
+  "seq": 28,
+  "previous": "f038ad1d7f79a2a95f8a331b33ac8d0d3908b974",
   "snapshotParents": [],
-  "time": "2026-10-16T22:53:08.562Z",
+  "time": "2026-10-16T22:53:33.695Z",
   "kind": "auto",
-  "transition": "the intent to ready PR #1975",
+  "transition": "the outcome of operation 3000849c",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 28,
+    "recordRevision": 29,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1161,9 +1161,10 @@
       "ticket": 1962,
       "pr": 1975,
       "expectHead": "041d28169100232e321ebdc166009aa3dbd853e6",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T22:53:06.428Z",
-      "evidence": "acceptance 40630f59 (comment 6226188254) applies to head 041d28169 per acceptance-check"
+      "evidence": "gh pr ready 1975 succeeded; gh pr view read back isDraft false at head 041d28169100232e321ebdc166009aa3dbd853e6; ready comment posted",
+      "settled": "2026-10-16T22:53:31.312Z"
     }
   ],
   "decisions": [
@@ -1196,7 +1197,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:53:07.682Z",
+      "observedAt": "2026-10-16T22:53:33.008Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1715,6 +1716,12 @@
       "id": "3000849c",
       "kind": "ready",
       "pr": 1975
+    },
+    {
+      "time": "2026-10-16T22:53:31.312Z",
+      "event": "operation-outcome",
+      "id": "3000849c",
+      "state": "confirmed"
     }
   ]
 }
