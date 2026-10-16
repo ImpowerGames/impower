@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1940
 
-Checkpoint 66 (this commit), 2026-10-16T18:27:54.764Z, after release of #851. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
+Checkpoint 67 (this commit), 2026-10-16T18:29:26.867Z, after the intent before a side effect. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,10 +12,14 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1637
 
 - claude-cli claude-opus-5-5 at medium, process 47756 on DESKTOP-726EO47
-- as of 2026-10-16T18:27:52.802Z, DESKTOP-726EO47 held unfinished files in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1637-carry-declaration-run that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T18:29:26.044Z, DESKTOP-726EO47 held unfinished files in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1637-carry-declaration-run that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1960/round-1/launch-incremental-1 on DESKTOP-726EO47: round 1 reviewed 78f865241, completed {"incremental":1} of planned ["incremental","undirected"]; last launched reviewer incremental attempt 1 of round 1 (planned ["incremental","undirected"]), last event finished
 
 ## #1881
 
 - claude-cli claude-opus-5-5 at medium, process 35408 on DESKTOP-726EO47
-- as of 2026-10-16T18:27:52.802Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1881-compile-at-debounce that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T18:29:26.044Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1881-compile-at-debounce that may exist only there; recover those bytes there before restarting or overwriting this work
+
+## Unsettled operations
+
+- ea84b028: merge of PR #1959 at 419269e63a2599d5ae339c92645a1e015cc7ba16, intent; settle it with checkpoint.mjs reconcile-operations before any retry
