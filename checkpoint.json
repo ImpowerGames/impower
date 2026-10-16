@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 102,
-  "previous": "89a36286ea3950f67f093a04f84424ae20047380",
+  "seq": 103,
+  "previous": "b7f028075f98e8da85275c3fdbdfde9fd0dcc937",
   "snapshotParents": [],
-  "time": "2026-10-16T01:00:09.416Z",
+  "time": "2026-10-16T01:01:08.363Z",
   "kind": "auto",
-  "transition": "claim of #1614",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 77,
@@ -1015,7 +1015,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:00:08.721Z",
+      "observedAt": "2026-10-16T01:01:07.388Z",
       "held": true,
       "exists": false
     },
@@ -1024,7 +1024,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:00:08.721Z",
+      "observedAt": "2026-10-16T01:01:07.388Z",
       "held": true,
       "exists": false
     },
@@ -1033,7 +1033,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:00:08.721Z",
+      "observedAt": "2026-10-16T01:01:07.388Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1168,7 +1168,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T00:59:59.977Z",
+    "at": "2026-10-16T01:01:07.386Z",
     "tickets": [
       {
         "number": 1201,
@@ -1208,9 +1208,9 @@
       },
       {
         "number": 1614,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 7c11b706-71c6-420e-926d-8e14cbb1b6e2 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1623,
