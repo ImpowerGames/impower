@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 321,
-  "previous": "4d4a07b9e7e200ec3d98c24c702f79890d0dfd11",
+  "seq": 322,
+  "previous": "3a22d19a2ac8a72b1cbd59149c1e1a6824d15f4c",
   "snapshotParents": [],
-  "time": "2026-10-16T18:21:46.776Z",
+  "time": "2026-10-16T18:23:12.528Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1956 (confirmed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 269,
+    "recordRevision": 270,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4671,9 +4671,9 @@
       "ticket": 316,
       "pr": 1956,
       "expectHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T18:21:43.124Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1956 reads back merged as dc84c64704362ad6b6e9b300a65bf3338ef81777 at 74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a; the merge commit is on origin/main; it landed on 83964a70f800c799fee78baa0df6c21e44f89aed, while its CI covered main 7ae0fffa2bdbe14b34ae87eb62beaabccabf3464, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
@@ -4851,7 +4851,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T18:23:07.685Z",
+      "mergeCommit": "dc84c64704362ad6b6e9b300a65bf3338ef81777",
+      "mergedOnto": "83964a70f800c799fee78baa0df6c21e44f89aed",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -5271,7 +5276,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:21:44.633Z",
+      "observedAt": "2026-10-16T18:23:09.478Z",
       "held": true,
       "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
@@ -5394,7 +5399,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T18:21:44.633Z",
+      "observedAt": "2026-10-16T18:23:09.478Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -5520,7 +5525,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:21:44.633Z",
+      "observedAt": "2026-10-16T18:23:09.478Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5636,13 +5641,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:14:42.880Z",
-      "event": "resume-intent",
-      "ticket": 887,
-      "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
-      "sessionId": "13d51545-ae87-46e9-923a-a2ae8ed8de49"
-    },
     {
       "time": "2026-10-16T12:14:51.279Z",
       "event": "resumed",
@@ -6351,6 +6349,12 @@
       "id": "e5f9bbca",
       "kind": "merge",
       "pr": 1956
+    },
+    {
+      "time": "2026-10-16T18:23:07.685Z",
+      "event": "operation-outcome",
+      "id": "e5f9bbca",
+      "state": "confirmed"
     }
   ]
 }
