@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 240,
-  "previous": "cf091ee8145440435d6c682b060f5211f0b7155a",
+  "seq": 241,
+  "previous": "71b0943edd938d944cfd9edf4c250f740496fafe",
   "snapshotParents": [],
-  "time": "2026-10-16T15:37:57.427Z",
+  "time": "2026-10-16T15:41:38.258Z",
   "kind": "auto",
-  "transition": "the merge of PR #1928 (confirmed)",
+  "transition": "request of #454",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 200,
+    "recordRevision": 203,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -135,6 +135,305 @@
             "attempts": 1,
             "time": "2026-10-16T12:14:24.773Z",
             "to": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+          }
+        },
+        {
+          "id": "3a3efeb7",
+          "owner": "a77d8ee5-d75c-4a55-b475-f2b8b69eead6",
+          "time": "2026-10-16T15:41:30.196Z",
+          "text": "Checkpoint report after round 3 on PR #1929: head and last reviewed commit 5af99ac, round 3 clean, CI green, 12 accepted findings over rounds 1-2 all fixed. Sweep item needing a decision: FlowBase.ts's different-type branch (unchanged from base) silently drops a second same-type define of an already-qualified dual name; (a) extend by a round and fix it here, or (b) accept 5af99ac and file it as a separate Bug (writer recommends b). Item 2 filed as #1951 under #1895.",
+          "source": "cross-session messages from writer impower-d0",
+          "relayed": null,
+          "answer": null
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "69b392c5",
+          "kind": "finish",
+          "feature": 1895,
+          "ticket": 454,
+          "pr": 1929,
+          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+          "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
+          "time": "2026-10-16T15:41:03.936Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
+          "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
+          "range": {
+            "from": "5af99acef3f333d0cb5891bd50402faf19ada517",
+            "to": "5af99acef3f333d0cb5891bd50402faf19ada517",
+            "base": "a6c12061a6aeeaa15dd1820b88ee90669ac795fb",
+            "commits": [],
+            "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "reports": [
+            {
+              "comment": 6208911122,
+              "round": 1,
+              "reviewerId": "inc",
+              "adjudication": 6209161433
+            },
+            {
+              "comment": 6209304618,
+              "round": 1,
+              "reviewerId": "bound",
+              "adjudication": 6209532398
+            },
+            {
+              "comment": 6209618664,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6215643507
+            },
+            {
+              "comment": 6215992421,
+              "round": 2,
+              "reviewerId": "merge",
+              "adjudication": 6216503732
+            },
+            {
+              "comment": 6216661174,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6217813039
+            },
+            {
+              "comment": 6218611101,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6218648921
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Every accepted finding came from one design question: how an authored root define of a builtin type takes over the type's table at runtime in a seeded compile. Round 1 inc found that placing the authored root in the prelude's init slot ran its initializer before authored globals it reads; the answer (runtime adoption of members into a replacing table) lost everything keyed by the old table's identity, which round 1 bound found as four defects (the displaced typewriter root still dropped, adopted members without owned store defaults, pending structural parents stranded, nested defaults disagreeing with the context); round 1 undirected found the two nested-fill paths (compile-time back-fill and runtime replace) disagreeing. The design that ended the churn (d037751 onward, completed in a622c49, 7c62c9a and 5af99ac) keeps the prelude root's table and slot, registers the authored root under $override_<key> at its own source position, and merges its __def into the existing table: records merge key by key, lists (keys exactly 1..n) replace, function wrappers are never merged, {} is an empty record, and a shared destination is filled from each key. The compile side is back at base except for marking the prelude's roots. Rounds 2 and 3 then probed the merge's classification boundaries (mixed records, function wrappers, shared destinations, empty records) and round 3 found nothing, with controls over all 31 builtin roots and save/load.",
+            "regressions": "Corrections introduced defects twice and each was caught by the next reviewer: the slot fix (1d3085a) led to the adoption losses round 1 bound found; the adoption fix (d037751) led to replacing nested records, found by round 1 undirected. From a622c49 on, the findings were boundary cases of one classification function rather than new mechanisms, and 5af99ac was reviewed clean by round 3 with an isolated red/green of that last correction. The agreed behaviour is preserved: the ticket's documented override intent is implemented, the unseeded and seeded compiles agree, and no duplicate-identifier error located on null remains.",
+            "repairOptions": "Merge-in-place keeps table identity, so all identity-keyed state (members, store copies, pending structural links, aliases) follows automatically; it is simpler than the replacing designs that preceded it and no simpler repair is visible. The sweep item in FlowBase.ts (a second same-type define of an already-qualified dual name is dropped without a diagnostic) is unchanged from base, concerns typed project defines rather than builtin root overrides, and needs its own decision about where the error is located; it is filed separately rather than widened into this PR.",
+            "residualRisk": "The runtime merge changes behaviour for any root define whose type's table already exists: a project member written before its own root is now kept rather than dropped, disclosed in the PR body. One intermittent page error (Cannot read properties of undefined reading id) was logged on the first preview run after a cold start and not on three reruns; the writer does not attribute it to this change and earlier rounds' runs of the same scripts logged none. The typed-override back-fill's computed-key and nested-key gap is pre-existing and filed as #1951 under #1895. The FlowBase dual-name drop is pre-existing and goes to its own Bug.",
+            "coverage": "builtinRootDefineOverride.test.ts, 46 cases: the ticket's script seeded and unseeded, a sample of type roots, the reviewers' controls (grandchild parent, structural sibling, typed define leaving the root alone), variable-supplied tables, computed keys, restated members, list replacement, mixed records, function wrappers, aliases and empty records. Independent red/green by round 3's undirected reviewer against 13f6fd9f8: 43 failed / 3 passed on base with the ticket's null-located duplicate identifier, 46 passed on 5af99ac, restores matched; the last correction isolated against 7c62c9a (2 failed then 5 passed) with controls over all 31 builtin roots and save/load. Neighbouring suites pass (DefineTypes, DefineTypeNameCoexist, SameNameDefineRuntimeExport, DefineClosedStore, BuiltinNameSceneTargets, defineScopeIncremental, duplicateDeclarationResolution; engine preludeDualNames, preludeRuntimeGlobals, defineContextReuse, programUpdateDeclarations, animation-fill; player assetsConfigOverride, builtinColorOverride). Filtered typecheck clean for sparkdown and spark-engine. Live preview on 5af99ac plays the ticket's script and the override probes, screenshots inspected. CI on 5af99ac: 34 checks passed with the package jobs run.",
+            "nextRoundValue": "Only a review of the FlowBase dual-name diagnostic if it were fixed here, which it is not: that defect predates the PR and gets its own ticket. The head is the last reviewed commit, round 3 found nothing, and the merge's boundaries were probed by three independent reviewers.",
+            "rationale": "The round-3 gates pass on the current head 5af99ac, which is also the last reviewed commit; every finding of rounds 1 and 2 is accepted and fixed with a red test on the head it was reported on, round 3 reproduced red-on-base independently and found nothing, and CI is green. The mechanism converged in the merge-in-place design and the later findings were boundary cases that have stopped. This is a finish; the sweep item is filed separately with the writer's recommendation.",
+            "next": "Finish: the writer records #1951 and the new FlowBase Bug in the PR body, reads gh pr checks, and marks PR #1929 ready through ordinary review-pr readiness; the coordinator merges through the gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6208911122,
+                "finding": "the override ran before globals its initializer reads (prelude init slot)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209304618,
+                "finding": "the displaced typewriter root could not be overridden",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209304618,
+                "finding": "adopted members did not receive instance-owned store defaults",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209304618,
+                "finding": "replacing a root stranded structural children waiting for their parent",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209304618,
+                "finding": "nested defaults disagreed between compile-time context and the runtime table",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209618664,
+                "finding": "the runtime merge replaced nested tables including registered builtin members",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209618664,
+                "finding": "back-fill overwrote authored computed nested keys with builtin values",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215992421,
+                "finding": "mixed records were treated as lists and lost builtin fields",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215992421,
+                "finding": "function wrappers were merged as records",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215992421,
+                "finding": "visiting a shared destination twice turned merge into replacement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215992421,
+                "finding": "PR description described the removed implementation (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6216661174,
+                "finding": "empty records erased builtin defaults and registered members",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6218611101,
+                "disposition": "none"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: finish through ordinary readiness\n\nDecision `69b392c5` by coordinator `local_bede5658-a16d-4558-858b-9a8d10696a23` of Feature #1895 for #454.\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6208911122 in 6209161433, 6209304618 in 6209532398, 6209618664 in 6215643507, 6215992421 in 6216503732, 6216661174 in 6217813039, 6218611101 in 6218648921).\n- Independently reviewed through `5af99acef3f333d0cb5891bd50402faf19ada517`.\n- Head `5af99acef3f333d0cb5891bd50402faf19ada517`. Nothing after the reviewed head is unreviewed.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, test-suite passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 12 accepted, 1 none; unresolved: none.\n- Shared mechanisms: Every accepted finding came from one design question: how an authored root define of a builtin type takes over the type's table at runtime in a seeded compile. Round 1 inc found that placing the authored root in the prelude's init slot ran its initializer before authored globals it reads; the answer (runtime adoption of members into a replacing table) lost everything keyed by the old table's identity, which round 1 bound found as four defects (the displaced typewriter root still dropped, adopted members without owned store defaults, pending structural parents stranded, nested defaults disagreeing with the context); round 1 undirected found the two nested-fill paths (compile-time back-fill and runtime replace) disagreeing. The design that ended the churn (d037751 onward, completed in a622c49, 7c62c9a and 5af99ac) keeps the prelude root's table and slot, registers the authored root under $override_<key> at its own source position, and merges its __def into the existing table: records merge key by key, lists (keys exactly 1..n) replace, function wrappers are never merged, {} is an empty record, and a shared destination is filled from each key. The compile side is back at base except for marking the prelude's roots. Rounds 2 and 3 then probed the merge's classification boundaries (mixed records, function wrappers, shared destinations, empty records) and round 3 found nothing, with controls over all 31 builtin roots and save/load.\n- Defects introduced by corrections: Corrections introduced defects twice and each was caught by the next reviewer: the slot fix (1d3085a) led to the adoption losses round 1 bound found; the adoption fix (d037751) led to replacing nested records, found by round 1 undirected. From a622c49 on, the findings were boundary cases of one classification function rather than new mechanisms, and 5af99ac was reviewed clean by round 3 with an isolated red/green of that last correction. The agreed behaviour is preserved: the ticket's documented override intent is implemented, the unseeded and seeded compiles agree, and no duplicate-identifier error located on null remains.\n- Broader or simpler repair: Merge-in-place keeps table identity, so all identity-keyed state (members, store copies, pending structural links, aliases) follows automatically; it is simpler than the replacing designs that preceded it and no simpler repair is visible. The sweep item in FlowBase.ts (a second same-type define of an already-qualified dual name is dropped without a diagnostic) is unchanged from base, concerns typed project defines rather than builtin root overrides, and needs its own decision about where the error is located; it is filed separately rather than widened into this PR.\n- Residual risk: The runtime merge changes behaviour for any root define whose type's table already exists: a project member written before its own root is now kept rather than dropped, disclosed in the PR body. One intermittent page error (Cannot read properties of undefined reading id) was logged on the first preview run after a cold start and not on three reruns; the writer does not attribute it to this change and earlier rounds' runs of the same scripts logged none. The typed-override back-fill's computed-key and nested-key gap is pre-existing and filed as #1951 under #1895. The FlowBase dual-name drop is pre-existing and goes to its own Bug.\n- Verification coverage: builtinRootDefineOverride.test.ts, 46 cases: the ticket's script seeded and unseeded, a sample of type roots, the reviewers' controls (grandchild parent, structural sibling, typed define leaving the root alone), variable-supplied tables, computed keys, restated members, list replacement, mixed records, function wrappers, aliases and empty records. Independent red/green by round 3's undirected reviewer against 13f6fd9f8: 43 failed / 3 passed on base with the ticket's null-located duplicate identifier, 46 passed on 5af99ac, restores matched; the last correction isolated against 7c62c9a (2 failed then 5 passed) with controls over all 31 builtin roots and save/load. Neighbouring suites pass (DefineTypes, DefineTypeNameCoexist, SameNameDefineRuntimeExport, DefineClosedStore, BuiltinNameSceneTargets, defineScopeIncremental, duplicateDeclarationResolution; engine preludeDualNames, preludeRuntimeGlobals, defineContextReuse, programUpdateDeclarations, animation-fill; player assetsConfigOverride, builtinColorOverride). Filtered typecheck clean for sparkdown and spark-engine. Live preview on 5af99ac plays the ticket's script and the override probes, screenshots inspected. CI on 5af99ac: 34 checks passed with the package jobs run.\n- What another round would establish: Only a review of the FlowBase dual-name diagnostic if it were fixed here, which it is not: that defect predates the PR and gets its own ticket. The head is the last reviewed commit, round 3 found nothing, and the merge's boundaries were probed by three independent reviewers.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The round-3 gates pass on the current head 5af99ac, which is also the last reviewed commit; every finding of rounds 1 and 2 is accepted and fixed with a red test on the head it was reported on, round 3 reproduced red-on-base independently and found nothing, and CI is green. The mechanism converged in the merge-in-place design and the later findings were boundary cases that have stopped. This is a finish; the sweep item is filed separately with the writer's recommendation. Next: Finish: the writer records #1951 and the new FlowBase Bug in the PR body, reads gh pr checks, and marks PR #1929 ready through ordinary review-pr readiness; the coordinator merges through the gate.\n- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"69b392c5\",\n \"kind\": \"finish\",\n \"feature\": 1895,\n \"ticket\": 454,\n \"pr\": 1929,\n \"coordinator\": \"local_bede5658-a16d-4558-858b-9a8d10696a23\",\n \"runId\": \"2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4\",\n \"time\": \"2026-10-16T15:41:03.936Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"5af99acef3f333d0cb5891bd50402faf19ada517\",\n \"head\": \"5af99acef3f333d0cb5891bd50402faf19ada517\",\n \"range\": {\n  \"from\": \"5af99acef3f333d0cb5891bd50402faf19ada517\",\n  \"to\": \"5af99acef3f333d0cb5891bd50402faf19ada517\",\n  \"base\": \"a6c12061a6aeeaa15dd1820b88ee90669ac795fb\",\n  \"commits\": [],\n  \"diffSha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n },\n \"reports\": [\n  {\n   \"comment\": 6208911122,\n   \"round\": 1,\n   \"reviewerId\": \"inc\",\n   \"adjudication\": 6209161433\n  },\n  {\n   \"comment\": 6209304618,\n   \"round\": 1,\n   \"reviewerId\": \"bound\",\n   \"adjudication\": 6209532398\n  },\n  {\n   \"comment\": 6209618664,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6215643507\n  },\n  {\n   \"comment\": 6215992421,\n   \"round\": 2,\n   \"reviewerId\": \"merge\",\n   \"adjudication\": 6216503732\n  },\n  {\n   \"comment\": 6216661174,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6217813039\n  },\n  {\n   \"comment\": 6218611101,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6218648921\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Every accepted finding came from one design question: how an authored root define of a builtin type takes over the type's table at runtime in a seeded compile. Round 1 inc found that placing the authored root in the prelude's init slot ran its initializer before authored globals it reads; the answer (runtime adoption of members into a replacing table) lost everything keyed by the old table's identity, which round 1 bound found as four defects (the displaced typewriter root still dropped, adopted members without owned store defaults, pending structural parents stranded, nested defaults disagreeing with the context); round 1 undirected found the two nested-fill paths (compile-time back-fill and runtime replace) disagreeing. The design that ended the churn (d037751 onward, completed in a622c49, 7c62c9a and 5af99ac) keeps the prelude root's table and slot, registers the authored root under $override_<key> at its own source position, and merges its __def into the existing table: records merge key by key, lists (keys exactly 1..n) replace, function wrappers are never merged, {} is an empty record, and a shared destination is filled from each key. The compile side is back at base except for marking the prelude's roots. Rounds 2 and 3 then probed the merge's classification boundaries (mixed records, function wrappers, shared destinations, empty records) and round 3 found nothing, with controls over all 31 builtin roots and save/load.\",\n  \"regressions\": \"Corrections introduced defects twice and each was caught by the next reviewer: the slot fix (1d3085a) led to the adoption losses round 1 bound found; the adoption fix (d037751) led to replacing nested records, found by round 1 undirected. From a622c49 on, the findings were boundary cases of one classification function rather than new mechanisms, and 5af99ac was reviewed clean by round 3 with an isolated red/green of that last correction. The agreed behaviour is preserved: the ticket's documented override intent is implemented, the unseeded and seeded compiles agree, and no duplicate-identifier error located on null remains.\",\n  \"repairOptions\": \"Merge-in-place keeps table identity, so all identity-keyed state (members, store copies, pending structural links, aliases) follows automatically; it is simpler than the replacing designs that preceded it and no simpler repair is visible. The sweep item in FlowBase.ts (a second same-type define of an already-qualified dual name is dropped without a diagnostic) is unchanged from base, concerns typed project defines rather than builtin root overrides, and needs its own decision about where the error is located; it is filed separately rather than widened into this PR.\",\n  \"residualRisk\": \"The runtime merge changes behaviour for any root define whose type's table already exists: a project member written before its own root is now kept rather than dropped, disclosed in the PR body. One intermittent page error (Cannot read properties of undefined reading id) was logged on the first preview run after a cold start and not on three reruns; the writer does not attribute it to this change and earlier rounds' runs of the same scripts logged none. The typed-override back-fill's computed-key and nested-key gap is pre-existing and filed as #1951 under #1895. The FlowBase dual-name drop is pre-existing and goes to its own Bug.\",\n  \"coverage\": \"builtinRootDefineOverride.test.ts, 46 cases: the ticket's script seeded and unseeded, a sample of type roots, the reviewers' controls (grandchild parent, structural sibling, typed define leaving the root alone), variable-supplied tables, computed keys, restated members, list replacement, mixed records, function wrappers, aliases and empty records. Independent red/green by round 3's undirected reviewer against 13f6fd9f8: 43 failed / 3 passed on base with the ticket's null-located duplicate identifier, 46 passed on 5af99ac, restores matched; the last correction isolated against 7c62c9a (2 failed then 5 passed) with controls over all 31 builtin roots and save/load. Neighbouring suites pass (DefineTypes, DefineTypeNameCoexist, SameNameDefineRuntimeExport, DefineClosedStore, BuiltinNameSceneTargets, defineScopeIncremental, duplicateDeclarationResolution; engine preludeDualNames, preludeRuntimeGlobals, defineContextReuse, programUpdateDeclarations, animation-fill; player assetsConfigOverride, builtinColorOverride). Filtered typecheck clean for sparkdown and spark-engine. Live preview on 5af99ac plays the ticket's script and the override probes, screenshots inspected. CI on 5af99ac: 34 checks passed with the package jobs run.\",\n  \"nextRoundValue\": \"Only a review of the FlowBase dual-name diagnostic if it were fixed here, which it is not: that defect predates the PR and gets its own ticket. The head is the last reviewed commit, round 3 found nothing, and the merge's boundaries were probed by three independent reviewers.\",\n  \"rationale\": \"The round-3 gates pass on the current head 5af99ac, which is also the last reviewed commit; every finding of rounds 1 and 2 is accepted and fixed with a red test on the head it was reported on, round 3 reproduced red-on-base independently and found nothing, and CI is green. The mechanism converged in the merge-in-place design and the later findings were boundary cases that have stopped. This is a finish; the sweep item is filed separately with the writer's recommendation.\",\n  \"next\": \"Finish: the writer records #1951 and the new FlowBase Bug in the PR body, reads gh pr checks, and marks PR #1929 ready through ordinary review-pr readiness; the coordinator merges through the gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6208911122,\n    \"finding\": \"the override ran before globals its initializer reads (prelude init slot)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209304618,\n    \"finding\": \"the displaced typewriter root could not be overridden\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209304618,\n    \"finding\": \"adopted members did not receive instance-owned store defaults\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209304618,\n    \"finding\": \"replacing a root stranded structural children waiting for their parent\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209304618,\n    \"finding\": \"nested defaults disagreed between compile-time context and the runtime table\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209618664,\n    \"finding\": \"the runtime merge replaced nested tables including registered builtin members\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209618664,\n    \"finding\": \"back-fill overwrote authored computed nested keys with builtin values\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215992421,\n    \"finding\": \"mixed records were treated as lists and lost builtin fields\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215992421,\n    \"finding\": \"function wrappers were merged as records\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215992421,\n    \"finding\": \"visiting a shared destination twice turned merge into replacement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215992421,\n    \"finding\": \"PR description described the removed implementation (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6216661174,\n    \"finding\": \"empty records erased builtin defaults and registered members\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6218611101,\n    \"disposition\": \"none\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "74288b8b1446353d53c83d923ab9237a678f9f8adf7291b5ff777a6e94e35629",
+          "blockSha256": "a8f90de04b1b97fecb60d09e8983a501c759ab7334bf6fc1cf70d69a8980c8e3",
+          "published": {
+            "comment": 6219069197,
+            "time": "2026-10-16T15:41:07.129Z",
+            "headAtPublish": "5af99acef3f333d0cb5891bd50402faf19ada517"
           }
         }
       ]
@@ -3071,6 +3370,16 @@
   ],
   "decisions": [
     {
+      "pr": 1929,
+      "url": "https://github.com/ImpowerGames/impower/pull/1929#issuecomment-6219069197",
+      "kind": "review-checkpoint finish",
+      "ticket": 454,
+      "id": "69b392c5",
+      "round": 3,
+      "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
+      "time": "2026-10-16T15:41:07.129Z"
+    },
+    {
       "pr": 1911,
       "url": "https://github.com/ImpowerGames/impower/pull/1911#issuecomment-6205800664",
       "kind": "review-checkpoint finish",
@@ -3404,7 +3713,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:37:56.062Z",
+      "observedAt": "2026-10-16T15:41:34.581Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3652,7 +3961,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:37:56.062Z",
+      "observedAt": "2026-10-16T15:41:34.581Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -3668,7 +3977,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T15:37:56.062Z",
+      "observedAt": "2026-10-16T15:41:34.581Z",
       "held": true,
       "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
       "remoteHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
@@ -4036,33 +4345,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:22:57.169Z",
-      "event": "resumed",
-      "ticket": 457,
-      "id": "981691d5-4fda-4433-8ee6-993e106609ee",
-      "handle": {
-        "kind": "process",
-        "pid": 56604,
-        "start": "639277105766927743",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-457-981691d5-4fda-4433-8ee6-993e106609ee"
-      }
-    },
-    {
-      "time": "2026-10-16T01:23:06.946Z",
-      "event": "answered",
-      "ticket": 457,
-      "id": "9f80c2cb",
-      "deliveryId": "4bca9dd1"
-    },
-    {
-      "time": "2026-10-16T01:25:24.049Z",
-      "event": "operation-intent",
-      "id": "74faee27",
-      "kind": "merge",
-      "pr": 1916
-    },
     {
       "time": "2026-10-16T01:26:41.379Z",
       "event": "operation-outcome",
@@ -4748,6 +5030,28 @@
       "event": "operation-outcome",
       "id": "9e48e521",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T15:41:03.936Z",
+      "event": "checkpoint-intent",
+      "ticket": 454,
+      "id": "69b392c5",
+      "kind": "finish",
+      "round": 3,
+      "head": "5af99acef3f333d0cb5891bd50402faf19ada517"
+    },
+    {
+      "time": "2026-10-16T15:41:07.129Z",
+      "event": "checkpoint-published",
+      "ticket": 454,
+      "id": "69b392c5",
+      "comment": 6219069197
+    },
+    {
+      "time": "2026-10-16T15:41:30.199Z",
+      "event": "request",
+      "ticket": 454,
+      "id": "3a3efeb7"
     }
   ]
 }
