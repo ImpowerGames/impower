@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 186,
-  "previous": "84383f235083c6396a077eaebd9999823a43063a",
+  "seq": 187,
+  "previous": "a282861b65638289b9cbd34dc6997944a8859c24",
   "snapshotParents": [],
-  "time": "2026-10-16T06:47:29.734Z",
+  "time": "2026-10-16T06:47:38.382Z",
   "kind": "auto",
-  "transition": "request of #454",
+  "transition": "relay of #454",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 150,
+    "recordRevision": 151,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -112,7 +112,10 @@
           "time": "2026-10-16T06:47:27.319Z",
           "text": "Writer stopped by the account's weekly usage limit (API answer: You've hit your weekly limit, resets Oct 19, 1am America/New_York) while correcting round-1 findings on PR #1929 (head d037751d7, undirected report 6209618664 not yet adjudicated); its worktree holds uncommitted edits to SparkdownCompiler.ts, DefineScopeRecord.ts, StdLib.ts and builtinRootDefineOverride.test.ts. No writer can be resumed or relaunched on this account until the limit resets; the maintainer decides whether to wait or change account or writer model.",
           "source": "writer transcript out.jsonl, last result line is_error true with the weekly-limit text",
-          "relayed": null,
+          "relayed": {
+            "time": "2026-10-16T06:47:36.164Z",
+            "to": "the maintainer"
+          },
           "answer": null
         }
       ]
@@ -2490,7 +2493,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T06:47:28.788Z",
+      "observedAt": "2026-10-16T06:47:37.437Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2626,7 +2629,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T06:47:28.788Z",
+      "observedAt": "2026-10-16T06:47:37.437Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2869,11 +2872,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:23:06.539Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1709-program-address-number"
-    },
     {
       "time": "2026-10-15T22:23:15.127Z",
       "event": "disk-recovery",
@@ -3586,6 +3584,13 @@
       "event": "request",
       "ticket": 454,
       "id": "5b339599"
+    },
+    {
+      "time": "2026-10-16T06:47:36.165Z",
+      "event": "relayed",
+      "ticket": 454,
+      "id": "5b339599",
+      "to": "the maintainer"
     }
   ]
 }
