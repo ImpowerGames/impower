@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 74,
-  "previous": "eb15b781961d7dc28ed5606f1b0fc3113c1ce95a",
+  "seq": 75,
+  "previous": "a98ed2bd3c43dfd10a61fabb07576ebdccf0498e",
   "snapshotParents": [],
-  "time": "2026-10-16T19:36:38.652Z",
+  "time": "2026-10-16T19:36:47.010Z",
   "kind": "auto",
-  "transition": "claim of #1906",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 81,
@@ -1360,7 +1360,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-16T19:36:38.652Z",
+      "observedAt": "2026-10-16T19:36:47.010Z",
       "held": true,
       "exists": false
     }
@@ -1368,7 +1368,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:35:25.604Z",
+    "at": "2026-10-16T19:36:47.008Z",
     "tickets": [
       {
         "number": 984,
@@ -1582,9 +1582,9 @@
       },
       {
         "number": 1906,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch bb7eb9b8-394b-4504-a291-e7aa45147ebc on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1907,
