@@ -1929,6 +1929,7 @@ export class SparkdownCompiler {
           renamed: this._renamedNames,
           cold: false,
           memoCandidates: this._memoCandidates,
+          carriedMemos: (block) => this.noteCarriedMemos(block),
         },
         onDiagnostic,
       );
@@ -3809,12 +3810,18 @@ export class SparkdownCompiler {
     if (block.memoized?.length) {
       this._memoBlocks.add(block);
     }
-    if (
-      this._prevCompilationIds?.has(block) ||
-      !block.statement ||
-      !record.lineAt ||
-      !record.text
-    ) {
+    if (!this._prevCompilationIds?.has(block)) {
+      this.addMemoCandidates(block, record);
+    }
+  }
+
+  /** Adds to the compile's memo candidates the statements of `block` whose
+   *  memos its lowering made, with each statement's lines in its script. */
+  protected addMemoCandidates(
+    block: CompiledBlock,
+    record: StatementRecord,
+  ): void {
+    if (!block.statement || !record.lineAt || !record.text) {
       return;
     }
     for (const shape of memosOf(block.statement).lowered) {
@@ -3853,7 +3860,24 @@ export class SparkdownCompiler {
   }
 
   /**
-   * Completes the memos of the statements this compile lowered anew, once
+   * Adds to the compile's memo candidates the statements of `block`, a block
+   * the compile carried, a statement of which the resolver resolves again
+   * (`ResolveInput.carriedMemos`): their memos are completed with what this
+   * resolution reports and reads, so that the next lowering of the block
+   * serves them by what their names declare now (#1974).
+   */
+  protected noteCarriedMemos(block: object): void {
+    const record = this._statementRecords.get(block);
+    if (!record || !this._prevCompilationIds?.has(block)) {
+      return;
+    }
+    this.addMemoCandidates(block as CompiledBlock, record);
+    this.dropNumberedMemos();
+  }
+
+  /**
+   * Completes the memos of the statements this compile lowered anew, and of
+   * those of a carried block it resolved again (`noteCarriedMemos`), once
    * its build is committed: with what their resolution reported and read
    * (`ProgramResolver.memoResolutionsLastResolve`) and the chunk the store
    * gave them (`ChunkStore.memoChunk`).

@@ -720,9 +720,10 @@ describe("a statement whose objects another pass reads", () => {
     const s = warmed(kindsScript());
     s.edit("scene OTHER\n", "scene later\n  Later.\nend\n\nscene OTHER\n");
     s.edit("Line one.", "Line one, edited.");
-    // The divert too: its resolution read the scenes whole, which a scene
-    // written changes.
-    expect(loweredOutside(s)).toEqual(["label later", "-> OTHER"]);
+    // Not the divert, whose resolution read the scenes whole: the compile
+    // that wrote the scene carried the block and resolved the divert again,
+    // which completed its memo with what it reads now (#1974).
+    expect(loweredOutside(s)).toEqual(["label later"]);
     sameAsCold(s);
   });
 
@@ -784,20 +785,31 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("is lowered again with the line that reads it after a global of its name is declared above it (#1974), and compiles as cold", () => {
+  it("is served when a global of its name is declared above it, and no other statement is lowered", () => {
     // A global of the local's name, declared above the scene: the local
     // shadows it with no diagnostic (#1742), so nothing about the local
-    // changes, and the line that reads the local still reads the local. Its
-    // memo and the reader's should therefore be served on the next edit;
-    // until #1974 is fixed they are lowered again, and no other statement is.
+    // changes. The line that reads the local still reads the local its
+    // served declaration declares.
     const s = warmed(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1");
     s.edit("Line last.", "Line last, edited.");
-    // The rename carries the scene (#1637), so the memos of the two
-    // statements that read `here` keep the resolution recorded before it was
-    // a global, and the edit after it lowers them again (#1974). The fix of
-    // #1974 makes this `[]` again.
-    expect(loweredOutside(s)).toEqual(["local here = 2", "Here {here}."]);
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
+  it("leaves the line that reads it served by the edit after a compile that carried its block while a store of its name was written below it (#1974)", () => {
+    // The rename lowers only the store, and carries the scene: the two
+    // statements that read `here` are resolved again where they stand, and
+    // the reader's memo is completed again with what that resolution read,
+    // so the edit after it serves the reader. The store below the scene's
+    // `end` collides with the local, as in a cold compile, and a resolution
+    // that prints a position completes no memo, so the local is lowered.
+    const s = warmed(`${localScript()}\nstore other = 1\n`);
+    s.edit("store other = 1", "store here = 1");
+    expect(loweredOutside(s)).toEqual([]);
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual(["local here = 2"]);
+    expect(diagnostics(s.program).join("\n")).toContain("Duplicate identifier `here`");
     sameAsCold(s);
   });
 
