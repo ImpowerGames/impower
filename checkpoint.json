@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 40,
-  "previous": "a1671de456f034a38bab716dd73acfe8a7e69a06",
+  "seq": 41,
+  "previous": "605a691a74c22d734be324b6dc76d65e7831befa",
   "snapshotParents": [],
-  "time": "2026-10-16T13:18:39.782Z",
+  "time": "2026-10-16T13:53:25.648Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 52,
@@ -436,14 +436,59 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T13:18:39.005Z",
+      "observedAt": "2026-10-16T13:53:24.707Z",
       "held": true,
-      "head": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
-      "remoteHead": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
+      "head": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
+      "remoteHead": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 10072
+      },
       "pr": 1927,
       "reviewJobs": [
+        {
+          "job": "pr-1927/round-1/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "ax",
+              "undirected"
+            ],
+            "head": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
+            "completedRoundReviewers": {
+              "gram": 1
+            },
+            "time": "2026-10-16T13:33:17.583Z"
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "gram": 1,
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6216823012
+          ]
+        },
         {
           "job": "pr-1927/round-1/launch-gram-1",
           "lastEvent": "finished",
@@ -482,6 +527,27 @@
           "commentIds": [
             6215770014
           ]
+        },
+        {
+          "job": "pr-1927/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "ax",
+              "undirected"
+            ],
+            "head": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
+            "completedRoundReviewers": {
+              "gram": 1,
+              "ax": 1
+            },
+            "time": "2026-10-16T13:45:35.965Z"
+          }
         }
       ]
     }
@@ -489,7 +555,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T12:48:23.232Z",
+    "at": "2026-10-16T13:53:24.705Z",
     "tickets": [
       {
         "number": 984,
@@ -597,7 +663,7 @@
         "number": 1248,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at 55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1254,
@@ -609,13 +675,13 @@
         "number": 1258,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at 55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1261,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at 55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1266,
@@ -627,7 +693,7 @@
         "number": 1290,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at 55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1293,
@@ -639,7 +705,7 @@
         "number": 1318,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at 55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1329,
@@ -675,13 +741,13 @@
         "number": 1596,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at 55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1647,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at 55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1658,
