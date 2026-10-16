@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 239,
-  "previous": "46446d273bf0cfeb2737c93a284c3ee1d1d7e52a",
+  "seq": 240,
+  "previous": "3899c7ace183ec7aeaa452917ba728b0e6e66bd3",
   "snapshotParents": [],
-  "time": "2026-10-16T16:48:59.822Z",
+  "time": "2026-10-16T16:58:13.743Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 175,
@@ -2636,16 +2636,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:48:58.357Z",
+      "observedAt": "2026-10-16T16:58:12.582Z",
       "held": true,
       "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
       "remoteHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 51236
-      },
       "pr": 1953,
       "reviewJobs": [
         {
@@ -2686,7 +2682,7 @@
         },
         {
           "job": "pr-1953/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -2701,7 +2697,25 @@
               "ax": 1
             },
             "time": "2026-10-16T16:37:01.163Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6220408180
+          ]
         }
       ]
     },
@@ -2710,7 +2724,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:48:58.357Z",
+      "observedAt": "2026-10-16T16:58:12.582Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2842,7 +2856,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:48:37.118Z",
+    "at": "2026-10-16T16:58:12.580Z",
     "tickets": [
       {
         "number": 1201,
@@ -2936,9 +2950,9 @@
       },
       {
         "number": 1934,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1953,
-        "reason": "process 7864 started 639277624095413727 is running"
+        "reason": "PR #1953 is ready at 40f7f8169a627b4c27d81790110a3bf79bddf842; process 7864 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       }
     ],
     "remaining": [
