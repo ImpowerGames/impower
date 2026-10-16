@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 1,
-  "previous": null,
+  "seq": 2,
+  "previous": "41f1b83c1fb875f3a2fd02f7294866b82ac24df0",
   "snapshotParents": [],
-  "time": "2026-10-16T16:18:40.506Z",
+  "time": "2026-10-16T16:19:02.593Z",
   "kind": "auto",
-  "transition": "checkpoints were enabled",
+  "transition": "check-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 2,
+    "recordRevision": 3,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -43,7 +43,17 @@
     "limit": 3,
     "basis": "the smaller of 3 (reviewer slots) and 7 by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer"
   },
-  "checkIn": null,
+  "checkIn": {
+    "interval": 30,
+    "cron": "20,50 * * * *",
+    "prompt": "Orchestrate-feature check-in for Feature #1940, run record C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\C--Users-Brode-Documents-GitHub-impower\\1d4a9778-62f6-41b0-be15-18cd8ed93212\\scratchpad\\writer-1940-73eEfR\\run.json: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.",
+    "command": "node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\C--Users-Brode-Documents-GitHub-impower\\1d4a9778-62f6-41b0-be15-18cd8ed93212\\scratchpad\\writer-1940-73eEfR\\run.json'",
+    "job": "093a0670",
+    "none": null,
+    "state": "scheduled",
+    "since": "2026-10-16T16:19:00.901Z",
+    "expires": "2026-10-23T16:19:00.901Z"
+  },
   "group": null,
   "title": "ORCH #1940: edit preview latency",
   "tickets": {},
@@ -67,6 +77,12 @@
       "time": "2026-10-16T16:18:39.862Z",
       "event": "checkpoints-enabled",
       "remote": "origin"
+    },
+    {
+      "time": "2026-10-16T16:19:00.902Z",
+      "event": "check-in-scheduled",
+      "job": "093a0670",
+      "none": null
     }
   ]
 }
