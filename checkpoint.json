@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 47,
-  "previous": "eaeab383da8c3ba60c9620a6fb39c8a77ea917a4",
+  "seq": 48,
+  "previous": "80e6320597ce4bd6131552ff8315251e8ce728b6",
   "snapshotParents": [],
-  "time": "2026-10-16T17:15:06.196Z",
+  "time": "2026-10-16T17:16:18.545Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1798",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 40,
+    "recordRevision": 41,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -193,7 +193,25 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T17:16:15.249Z",
+          "report": {
+            "assignment": "cbb3d603-a40d-4802-af19-3b4cb8c6a743",
+            "source": "cross-session message from the writer (peer impower-0d) at 2026-10-16 ~17:20Z, confirmed against the SendMessage call and the final result line of launch-1798 out.jsonl (387 lines, result success, 76 turns)",
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions",
+            "pr": 1957,
+            "reviewedHead": "f61f8756e186753f83fe40c387723736bb66abe7",
+            "rounds": "1 of 3. Codex route gpt-5.6-terra high (defaults row: ticketEffort low, writer opus-5-5 low), one undirected reviewer u. Round state comment 6220403876, report 6220688203 (no findings), adjudication 6220716909. The reviewer exited with code 0 and its slot was released; probe clones were cleaned.",
+            "findings": "None. The reviewer's one verification gap was that it could not run red-on-base because the test reservation was busy; the adjudication covers it with the writer's own red run (the new case failed on base with a carried content read, 1 failed / 15 passed).",
+            "verification": "programResolver.test.ts red on base, green with the fix (16/16). The new case edits x to y to x after 30 carried statements; it asserts zero carried-subtree reads, boundLocally true for y and false for x, and diagnostics and chunks equal to a cold compile. Instrumented count of carried content reads inside decideWrites for N = 100/1000/2000 carried lines: base 200/2000/4000, fix 2/2/2 (the parent weave's own content). Recorded on the PR body and ticket comment 6220342324. Filtered sparkdown typecheck clean. Web editor preview screenshot inspected: 'Value 5.' from a local assignment, no console errors.",
+            "ci": "On f61f8756e every check passed (sparkdown shards 1-4/4, the other package jobs, Build, Typecheck, the test-suite gate, linked-issue). driver-checks, notifier, skills-checks and vitest-api-integration were skipped by their path filters.",
+            "next": "none; awaiting the merge. No changes after the reviewed commit; origin/main (41c4a6b2f at review time) had nothing new to merge before review."
+          }
+        }
+      ]
     }
   },
   "operations": [],
@@ -351,7 +369,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:15:03.512Z",
+      "observedAt": "2026-10-16T17:16:16.853Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -363,24 +381,59 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:15:03.512Z",
+      "observedAt": "2026-10-16T17:16:16.853Z",
       "held": true,
-      "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+      "head": "18722872bc484313b2c0220e5e176c1503deca00",
       "remoteHead": null,
       "unpushed": true,
-      "dirty": true
+      "dirty": false
     },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals": {
       "ticket": 1798,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:15:03.512Z",
+      "observedAt": "2026-10-16T17:16:16.853Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
       "unpushed": false,
-      "dirty": false
+      "dirty": false,
+      "pr": 1957,
+      "reviewJobs": [
+        {
+          "job": "pr-1957/round-1/launch-u-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review",
+            "reviewerId": "u",
+            "attempt": 1,
+            "plannedReviewers": [
+              "u"
+            ],
+            "head": "f61f8756e186753f83fe40c387723736bb66abe7",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T16:51:58.042Z"
+          },
+          "round": 1,
+          "reviewerId": "u",
+          "attempt": 1,
+          "reviewedHead": "f61f8756e186753f83fe40c387723736bb66abe7",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "u": 1
+          },
+          "plannedRoundReviewers": [
+            "u"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6220688203
+          ]
+        }
+      ]
     }
   },
   "snapshots": {},
@@ -669,6 +722,13 @@
       "time": "2026-10-16T17:14:30.233Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-wfs"
+    },
+    {
+      "time": "2026-10-16T17:16:15.251Z",
+      "event": "result",
+      "ticket": 1798,
+      "pr": 1957,
+      "reviewedHead": "f61f8756e186753f83fe40c387723736bb66abe7"
     }
   ]
 }
