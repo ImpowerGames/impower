@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 216,
-  "previous": "551f687b548b16a7f540dbf428feedf8f84972e1",
+  "seq": 217,
+  "previous": "cc6423d7fb96ff1447b667d74096e0e65d143b31",
   "snapshotParents": [],
-  "time": "2026-10-16T15:19:18.943Z",
+  "time": "2026-10-16T15:28:26.978Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 158,
@@ -2512,16 +2512,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T15:19:18.065Z",
+      "observedAt": "2026-10-16T15:28:26.086Z",
       "held": true,
       "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
       "remoteHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 57260
-      },
       "pr": 1947,
       "reviewJobs": [
         {
@@ -2605,7 +2601,7 @@
         },
         {
           "job": "pr-1947/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -2621,7 +2617,23 @@
               "undirected": 1
             },
             "time": "2026-10-16T15:12:48.314Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6218734677
+          ]
         }
       ]
     }
@@ -2629,7 +2641,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T15:18:58.393Z",
+    "at": "2026-10-16T15:28:26.085Z",
     "tickets": [
       {
         "number": 1201,
@@ -2717,9 +2729,9 @@
       },
       {
         "number": 1933,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1947,
-        "reason": "process 33756 started 639277518570225878 is running"
+        "reason": "PR #1947 is ready at ddc8852b9e9ccfdca4d759b878f1879bd7497f2c; process 33756 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1934,
