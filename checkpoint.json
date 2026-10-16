@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 238,
-  "previous": "24af1ee82461792ea6f3a02e9de4ec6689525d33",
+  "seq": 239,
+  "previous": "46446d273bf0cfeb2737c93a284c3ee1d1d7e52a",
   "snapshotParents": [],
-  "time": "2026-10-16T16:48:38.340Z",
+  "time": "2026-10-16T16:48:59.822Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 174,
+    "recordRevision": 175,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2636,7 +2636,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:48:37.120Z",
+      "observedAt": "2026-10-16T16:48:58.357Z",
       "held": true,
       "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
       "remoteHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
@@ -2710,7 +2710,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:48:37.120Z",
+      "observedAt": "2026-10-16T16:48:58.357Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2949,12 +2949,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:57:27.691Z",
-      "event": "released",
-      "ticket": 1632,
-      "reason": "process 50480 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-16T00:59:01.989Z",
       "event": "dispatch-intent",
@@ -3624,6 +3618,11 @@
       "time": "2026-10-16T16:09:57.718Z",
       "event": "check-in",
       "outcome": "no change: #1934 writer has its fix red on base and green on the fix and is running the parity files and the cumulative run; no PR yet; no requests; disk recovered to 34 GB"
+    },
+    {
+      "time": "2026-10-16T16:48:55.985Z",
+      "event": "check-in",
+      "outcome": "no change: #1934 draft PR 1953 at 40f7f8169 in review round 1 (ax posted no findings, undirected running, CI started); no requests"
     }
   ]
 }
