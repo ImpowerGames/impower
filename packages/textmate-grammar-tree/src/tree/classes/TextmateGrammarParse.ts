@@ -327,6 +327,63 @@ export class TextmateGrammarParse implements PartialParse {
     }
   }
 
+  /** Where the last tokenizer step started, so that a splice at a position
+   *  happens before any step there has added its tokens. */
+  protected lastStepFrom = -1;
+
+  /**
+   * Tries to splice the reused-ahead chunks in at a top-level boundary the
+   * head has just arrived at, before any step runs there (#1637).
+   * {@link tryToReuseAhead} looks only when a chunk is emitted, and a chunk
+   * is emitted when its held-back token is flushed, by the step that has
+   * already opened the next construct. So when top-level constructs follow
+   * one another with nothing between them (a run of declarations), the head
+   * never stands at an old pure boundary with no open frames, and the parse
+   * re-tokenizes everything after the edit.
+   *
+   * The boundary must start a line: the restart anchor keeps the line's
+   * prefix visible to `^` and lookbehind assertions, and the old chunks
+   * were tokenized with the prefix the line had then, which an edit earlier
+   * on the same line changes.
+   */
+  protected tryPureSplice(): boolean {
+    const ahead = this.compiler.ahead;
+    if (!ahead?.first || !this.region.contiguous) {
+      return false;
+    }
+    if (!this.tokenizer.flushableNow || this.tokenizer.done) {
+      return false;
+    }
+    const pos = this.parsedPos;
+    if (pos === this.lastStepFrom) {
+      return false;
+    }
+    if (pos > ahead.first.from) {
+      // Passed the first boundary: the next one at or after the head.
+      const splitAhead = ahead.findAheadSplitPoint(pos - 1);
+      if (!splitAhead.chunk || splitAhead.index == null) {
+        return false;
+      }
+      this.compiler.ahead = ahead.split(splitAhead.index).right;
+    }
+    const first = this.compiler.ahead!.first;
+    if (
+      !first ||
+      first.from !== pos ||
+      !first.startsPure ||
+      pos === 0 ||
+      this.region.input.read(pos - 1, pos) !== "\n"
+    ) {
+      return false;
+    }
+    this.flushPendingIntoCompiler();
+    this.compiler.append(this.compiler.ahead!);
+    this.compiler.ahead = undefined;
+    this.advanceTokenizerTo(this.compiler.packet.last!.to);
+    this.parsedPos = this.compiler.packet.last!.to;
+    return true;
+  }
+
   /**
    * Tries to splice the reused-ahead chunks in MID-scope: when the head
    * arrives exactly at an in-scope split point whose recorded entry state
@@ -424,11 +481,12 @@ export class TextmateGrammarParse implements PartialParse {
       this.parsedPos < this.region.to ||
       (this.tokenizer.hasOpenFrames && !this.tokenizer.done)
     ) {
-      if (this.tryImpureSplice()) {
+      if (this.tryImpureSplice() || this.tryPureSplice()) {
         return true;
       }
 
       const pos = this.parsedPos;
+      this.lastStepFrom = pos;
 
       const step = this.tokenizer.step();
       let matchLength = step.length;
