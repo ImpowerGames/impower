@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 119,
-  "previous": "bd8f1eb563b8cb65ae252f808891d39f0f4f33f7",
+  "seq": 120,
+  "previous": "017f09d84456dc687a6b1a8aa4410d5ee08e1776",
   "snapshotParents": [],
-  "time": "2026-10-16T01:25:26.995Z",
+  "time": "2026-10-16T01:26:44.025Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1916 (confirmed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 103,
+    "recordRevision": 104,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1124,9 +1124,9 @@
       "ticket": 1645,
       "pr": 1916,
       "expectHead": "8453e6f9c89315fc50d9738ac90fbe0aec51b61e",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T01:25:24.049Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1916 reads back merged as 690361109077c6851888e8867a60901323bd2656 at 8453e6f9c89315fc50d9738ac90fbe0aec51b61e; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
@@ -1298,7 +1298,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T01:26:41.379Z",
+      "mergeCommit": "690361109077c6851888e8867a60901323bd2656",
+      "mergedOnto": "e84cd48368b3362989776690ec88a1d1f5d05857",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -1616,7 +1621,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-16T01:25:25.774Z",
+      "observedAt": "2026-10-16T01:26:42.906Z",
       "held": true,
       "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
       "remoteHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
@@ -1905,7 +1910,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-16T01:25:25.774Z",
+      "observedAt": "2026-10-16T01:26:42.906Z",
       "held": true,
       "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
       "remoteHead": "8453e6f9c89315fc50d9738ac90fbe0aec51b61e",
@@ -2028,12 +2033,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T21:41:22.155Z",
-      "event": "group",
-      "id": "cg-8d1ca84b-4882-426b-b27c-2fa31e49b2b5",
-      "none": null
-    },
     {
       "time": "2026-10-15T21:48:00.003Z",
       "event": "dispatch-intent",
@@ -2670,6 +2669,12 @@
       "id": "74faee27",
       "kind": "merge",
       "pr": 1916
+    },
+    {
+      "time": "2026-10-16T01:26:41.379Z",
+      "event": "operation-outcome",
+      "id": "74faee27",
+      "state": "confirmed"
     }
   ]
 }
