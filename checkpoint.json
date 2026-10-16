@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 125,
-  "previous": "fc2b8f19aa1079ac4a81d45e86740d543976302c",
+  "seq": 126,
+  "previous": "03dbe7fb5c2e3216d1934ab77b37396db851e90f",
   "snapshotParents": [],
-  "time": "2026-10-16T02:23:12.202Z",
+  "time": "2026-10-16T02:25:58.419Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1911 (confirmed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 108,
+    "recordRevision": 109,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1342,9 +1342,9 @@
       "ticket": 457,
       "pr": 1911,
       "expectHead": "42fd65c550bce6ad0f8a47ad9a10dd357b49fd7d",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T02:23:10.103Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1911 reads back merged as 192b2f2dab673911ea2b397c7d852a2899563e3f at 42fd65c550bce6ad0f8a47ad9a10dd357b49fd7d; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
@@ -1515,7 +1515,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T02:25:56.494Z",
+      "mergeCommit": "192b2f2dab673911ea2b397c7d852a2899563e3f",
+      "mergedOnto": "135919bf66218cc31bcba96528d45ac406c1af8c",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -1833,7 +1838,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-16T02:23:11.370Z",
+      "observedAt": "2026-10-16T02:25:57.669Z",
       "held": true,
       "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
       "remoteHead": "42fd65c550bce6ad0f8a47ad9a10dd357b49fd7d",
@@ -2198,12 +2203,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:02:38.970Z",
-      "event": "request",
-      "ticket": 457,
-      "id": "8b85f0af"
-    },
     {
       "time": "2026-10-15T22:04:26.625Z",
       "event": "answer-intent",
@@ -2830,6 +2829,12 @@
       "id": "42ad4541",
       "kind": "merge",
       "pr": 1911
+    },
+    {
+      "time": "2026-10-16T02:25:56.494Z",
+      "event": "operation-outcome",
+      "id": "42ad4541",
+      "state": "confirmed"
     }
   ]
 }
