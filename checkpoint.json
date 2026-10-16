@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 172,
-  "previous": "4359af8bb25334040873877269944a1bcdcc20f6",
+  "seq": 173,
+  "previous": "88d67e6349343c14192dded03e69e32c92426eb6",
   "snapshotParents": [],
-  "time": "2026-10-16T06:30:04.898Z",
+  "time": "2026-10-16T06:47:24.680Z",
   "kind": "auto",
-  "transition": "verify of #1917",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 125,
@@ -2048,15 +2048,18 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T06:30:04.898Z",
+      "observedAt": "2026-10-16T06:47:23.360Z",
       "held": true,
-      "exists": false
+      "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T06:29:04.054Z",
+    "at": "2026-10-16T06:47:23.359Z",
     "tickets": [
       {
         "number": 1201,
@@ -2138,9 +2141,9 @@
       },
       {
         "number": 1917,
-        "action": "reconcile-pending",
+        "action": "collect-report",
         "pr": null,
-        "reason": "launch 4e3cff43-de59-4ecb-90b5-8869deb13480 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 12152 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1917-4e3cff43-de59-4ecb-90b5-8869deb13480\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       }
     ],
     "remaining": [
