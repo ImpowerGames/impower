@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 110,
-  "previous": "292afa54b7c1e2524e290a051e4aacaf0dc6176d",
+  "seq": 111,
+  "previous": "11a92ded38502b4b279c96829628aa4c065ee065",
   "snapshotParents": [],
-  "time": "2026-10-16T01:18:09.764Z",
+  "time": "2026-10-16T01:18:35.752Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 83,
+    "recordRevision": 84,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1067,7 +1067,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:18:08.041Z",
+      "observedAt": "2026-10-16T01:18:34.310Z",
       "held": true,
       "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
       "remoteHead": null,
@@ -1079,7 +1079,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:18:08.041Z",
+      "observedAt": "2026-10-16T01:18:34.310Z",
       "held": true,
       "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
       "remoteHead": null,
@@ -1091,7 +1091,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:18:08.041Z",
+      "observedAt": "2026-10-16T01:18:34.310Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1893,6 +1893,11 @@
       "time": "2026-10-16T01:02:53.527Z",
       "event": "verified",
       "ticket": 1614
+    },
+    {
+      "time": "2026-10-16T01:18:32.967Z",
+      "event": "check-in",
+      "outcome": "no change: #1623 and #1614 writers running (no PRs yet); PR 1915 ready and held behind #1916 (still open) per the merge queue; main at e84cd48 (#1912); no requests"
     }
   ]
 }
