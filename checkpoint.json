@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 145,
-  "previous": "86a64b17e97a6952c67c1fb583c77684fb3df43e",
+  "seq": 146,
+  "previous": "57e9cce978ca788c98fe0ee79e9cfd56f1514b59",
   "snapshotParents": [],
-  "time": "2026-10-16T04:51:36.789Z",
+  "time": "2026-10-16T04:52:11.888Z",
   "kind": "auto",
-  "transition": "release of #1623",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 108,
@@ -1741,7 +1741,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T04:51:36.127Z",
+      "observedAt": "2026-10-16T04:52:11.225Z",
       "held": true,
       "head": "c447e94eb26675819ee800d3a6622b206590bbf2",
       "remoteHead": "c447e94eb26675819ee800d3a6622b206590bbf2",
@@ -1912,7 +1912,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:51:28.018Z",
+    "at": "2026-10-16T04:52:11.224Z",
     "tickets": [
       {
         "number": 1201,
@@ -1958,15 +1958,15 @@
       },
       {
         "number": 1623,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 58912 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1627,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "2 writers already hold tickets against a limit of 2"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1628,
