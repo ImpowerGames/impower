@@ -117,20 +117,23 @@ export function lowerVariableDefinition(
   //   Globals don't emit procedural runtime objects — they register
   //   at the story level and the story evaluates each expression at
   //   init time, so the `MultiVariableAssignment` Pack/Unpack flow
-  //   doesn't apply. A store whose last value is a call or `...` with
-  //   names left after it (`store a, b = f()`) would give those names
-  //   nil where Luau gives them the call's further values, so it is an
-  //   error on the statement (#1325).
+  //   doesn't apply. A store whose last value is a call with names left
+  //   after it (`store a, b = f()`) gives those names the call's further
+  //   values, as Luau does: the call's global spreads to them (`spreadTo`),
+  //   and the declaration's chunk evaluates the call once and declares
+  //   each of them from its values (#1920). A store's values run when the
+  //   story starts, outside any function, so a `...` there has no values
+  //   to give the names after it, and is an error on the statement (#1325).
   if (targets.length > 1) {
     const last = stat.values[stat.values.length - 1];
     if (
       scope === "store" &&
       stat.values.length < targets.length &&
-      (last instanceof AstExprCall || last instanceof AstExprVarargs)
+      last instanceof AstExprVarargs
     ) {
       ctx.diagnostics?.push({
         message:
-          "A `store` takes one value for each name: a call or `...` gives a store only its first value",
+          "A `store` is set when the story starts, outside any function, where `...` has no values: give each name its own value, or call a function that returns them",
         severity: ErrorType.Error,
         source: statementSource(rangeOf(stat.location, ctx), ctx),
       });
@@ -153,16 +156,24 @@ export function lowerVariableDefinition(
         new MultiVariableAssignment(targetIdentifiers, multiExprs, true),
       ]);
     }
-    return wrapInWeave(
-      targetIdentifiers.map(
-        (identifier, i) =>
-          new VariableAssignment({
-            variableIdentifier: identifier,
-            assignedExpression: expressions[i] ?? new NullExpression(),
-            isGlobalDeclaration: true,
-          }),
-      ),
+    const assignments = targetIdentifiers.map(
+      (identifier, i) =>
+        new VariableAssignment({
+          variableIdentifier: identifier,
+          assignedExpression: expressions[i] ?? new NullExpression(),
+          isGlobalDeclaration: true,
+        }),
     );
+    if (
+      stat.values.length < targets.length &&
+      last instanceof AstExprCall &&
+      expressions.length === stat.values.length
+    ) {
+      assignments[stat.values.length - 1]!.spreadTo = assignments.slice(
+        stat.values.length,
+      );
+    }
+    return wrapInWeave(assignments);
   }
 
   // Single target. If there are multiple RHS expressions (`local x = a, b`),
