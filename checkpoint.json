@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 126,
-  "previous": "399d64e3fe6189add29c4521647652fc3f126320",
+  "seq": 127,
+  "previous": "a0a1174d29ea35925379b10057ee804f1c5f6598",
   "snapshotParents": [],
-  "time": "2026-10-16T02:49:08.798Z",
+  "time": "2026-10-16T02:49:40.949Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 94,
+    "recordRevision": 95,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1311,12 +1311,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T02:49:07.732Z",
+      "observedAt": "2026-10-16T02:49:39.982Z",
       "held": true,
-      "head": "500014ad35accab637cdd7366024d166da586bd6",
+      "head": "49de1ace82cf5c945a1d1f53cb50f27a32b506d5",
       "remoteHead": "500014ad35accab637cdd7366024d166da586bd6",
-      "unpushed": false,
-      "dirty": true,
+      "unpushed": true,
+      "dirty": false,
       "pr": 1918,
       "reviewJobs": [
         {
@@ -1447,7 +1447,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T02:49:07.732Z",
+      "observedAt": "2026-10-16T02:49:39.982Z",
       "held": true,
       "head": "5b408d57e22233a48ca7ff03f78d3de629530b73",
       "remoteHead": "5b408d57e22233a48ca7ff03f78d3de629530b73",
@@ -2328,6 +2328,11 @@
       "time": "2026-10-16T02:18:29.753Z",
       "event": "check-in",
       "outcome": "no change: PR 1918 (#1623/#1611) and PR 1919 (#1614/#1638, head 164cead after an accepted round-1 correction) both in review round 1; #1911 still open ahead in the merge queue; main at 135919bf (#1915); no requests"
+    },
+    {
+      "time": "2026-10-16T02:49:38.747Z",
+      "event": "check-in",
+      "outcome": "no change: PR 1918 (head 500014ad3) on its third round-1 reviewer, PR 1919 (head 5b408d57e) finishing round 1 with accepted corrections; both writers running; main at 192b2f2d (#1911), merge slot is ours; no requests"
     }
   ]
 }
