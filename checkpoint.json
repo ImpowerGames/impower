@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 231,
-  "previous": "0f0e42abeee53ad4828d7d606e81546bc093fdae",
+  "seq": 232,
+  "previous": "c5c297d54158408d438227cc0e8f3dfe270d6435",
   "snapshotParents": [],
-  "time": "2026-10-16T16:07:49.191Z",
+  "time": "2026-10-16T16:07:57.423Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 169,
+    "recordRevision": 170,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2603,6 +2603,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
       "classifier": "removed  impower.worktrees\\fix\\1645-scene-beats-document-order           fix/1645-scene-beats-document-order               938.9 MB   merged into origin/main; origin/fix/1645-scene-beats-document-order still exists; takes 15 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/nod"
+    },
+    {
+      "time": "2026-10-16T16:07:55.191Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1846-do-block-memo-tally",
+      "branch": "fix/1846-do-block-memo-tally",
+      "classifier": "removed  impower.worktrees\\fix\\1846-do-block-memo-tally                  fix/1846-do-block-memo-tally                      984.7 MB   merged into origin/main; origin/fix/1846-do-block-memo-tally still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark"
     }
   ],
   "verifications": [],
@@ -2612,7 +2618,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:07:48.461Z",
+      "observedAt": "2026-10-16T16:07:56.569Z",
       "held": true,
       "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
       "remoteHead": null,
@@ -2624,7 +2630,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:07:48.461Z",
+      "observedAt": "2026-10-16T16:07:56.569Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2863,19 +2869,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:00:23.508Z",
-      "event": "resumed",
-      "ticket": 1632,
-      "id": "2ac8e804-2312-40b6-9318-b122cc1b3575",
-      "handle": {
-        "kind": "process",
-        "pid": 50480,
-        "start": "639277056231944010",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-2ac8e804-2312-40b6-9318-b122cc1b3575"
-      }
-    },
     {
       "time": "2026-10-16T00:18:42.503Z",
       "event": "check-in",
@@ -3549,6 +3542,11 @@
       "time": "2026-10-16T16:07:47.102Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1645-scene-beats-document-order"
+    },
+    {
+      "time": "2026-10-16T16:07:55.192Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1846-do-block-memo-tally"
     }
   ]
 }
