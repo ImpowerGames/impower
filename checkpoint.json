@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 182,
-  "previous": "ce09d8506509ef8565c80fd8bccfe04bcff8b643",
+  "seq": 183,
+  "previous": "d5ce077c02096d88f4af96f781110060af7abe2a",
   "snapshotParents": [],
-  "time": "2026-10-16T05:57:52.738Z",
+  "time": "2026-10-16T06:15:15.199Z",
   "kind": "auto",
-  "transition": "answered of #887",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 148,
@@ -2479,14 +2479,55 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T05:57:51.803Z",
+      "observedAt": "2026-10-16T06:15:14.244Z",
       "held": true,
-      "head": "c9553cf457b333b5976d97cbeb62476af83ae27a",
-      "remoteHead": "c9553cf457b333b5976d97cbeb62476af83ae27a",
+      "head": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
+      "remoteHead": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
       "unpushed": false,
       "dirty": true,
       "pr": 1929,
       "reviewJobs": [
+        {
+          "job": "pr-1929/round-1/launch-bound-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-bound",
+            "reviewerId": "bound",
+            "attempt": 1,
+            "plannedReviewers": [
+              "inc",
+              "bound",
+              "undirected"
+            ],
+            "head": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
+            "completedRoundReviewers": {
+              "inc": 1
+            },
+            "time": "2026-10-16T06:02:05.144Z"
+          },
+          "round": 1,
+          "reviewerId": "bound",
+          "attempt": 1,
+          "reviewedHead": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "inc": 1,
+            "bound": 1
+          },
+          "plannedRoundReviewers": [
+            "inc",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6209304618
+          ]
+        },
         {
           "job": "pr-1929/round-1/launch-inc-1",
           "lastEvent": "finished",
@@ -2533,7 +2574,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T05:57:51.803Z",
+      "observedAt": "2026-10-16T06:15:14.244Z",
       "held": true,
       "head": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
       "remoteHead": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
@@ -2655,7 +2696,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T05:14:33.599Z",
+    "at": "2026-10-16T06:15:14.242Z",
     "tickets": [
       {
         "number": 316,
@@ -2679,7 +2720,7 @@
         "number": 887,
         "action": "observe",
         "pr": 1928,
-        "reason": "process 26336 started 639277219684181653 is running"
+        "reason": "process 51424 started 639277270618586713 is running"
       },
       {
         "number": 1103,
