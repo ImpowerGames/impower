@@ -236,6 +236,48 @@ done
     }
   });
 
+  // The wrapper's name is the file's alone: an edit elsewhere neither
+  // changes what `debug.info` reports for it nor makes it collide with an
+  // author's function (round 3 of PR #1928's review).
+  test("names the wrapper alike cold and after an edit above a run line", () => {
+    const text = `external harness_record(v)\nrun "helper"\nrun "helper"\ndone\nfunction __run_helper_2()\n  return 9\nend\nfunction __run_helper_3()\n  return 9\nend\n`;
+    const helper = {
+      uri: "inmemory:///helper.luau",
+      text: `& harness_record(debug.info(1, "n"))\n`,
+    };
+    const { compiler, result: first } = compileWithFiles([
+      { uri: "inmemory:///main.sd", text },
+      helper,
+    ]);
+    const before = recordedRun(first.program.chunks);
+    expect(before).toHaveLength(2);
+    expect(before[0]).toMatch(/^__run_helper_[0-9a-f]{8}$/);
+    expect(before[1]).toBe(before[0]);
+    compiler.updateDocument({
+      textDocument: { uri: "inmemory:///main.sd", version: 2 },
+      contentChanges: [
+        {
+          range: {
+            start: { line: 1, character: 0 },
+            end: { line: 1, character: 0 },
+          },
+          text: "; insert above\n",
+        },
+      ],
+    });
+    const warm = compiler.compile({
+      textDocument: { uri: "inmemory:///main.sd" },
+    });
+    const cold = compileWithFiles([
+      { uri: "inmemory:///main.sd", text: text.replace("run", "; insert above\nrun") },
+      helper,
+    ]);
+    expect(messagesOf(warm).errs).toEqual([]);
+    expect(cold.errs).toEqual([]);
+    expect(recordedRun(warm.program.chunks)).toEqual(before);
+    expect(recordedRun(cold.result.program.chunks)).toEqual(before);
+  });
+
   test("runs one file once per run line across incremental compiles", () => {
     const mainWith = (runLines: number) =>
       `external harness_record(v)\n${'run "helper"\n'.repeat(runLines)}done\n`;
