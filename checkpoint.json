@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 78,
-  "previous": "b1601c2977e943b36183002c5c3c411da3f440c5",
+  "seq": 79,
+  "previous": "08eba6c0ed050acf9d1ac80e717493f24a479967",
   "snapshotParents": [],
-  "time": "2026-10-16T19:37:09.855Z",
+  "time": "2026-10-16T19:37:17.568Z",
   "kind": "auto",
-  "transition": "claim of #1924",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 83,
@@ -1398,7 +1398,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-16T19:37:09.855Z",
+      "observedAt": "2026-10-16T19:37:17.567Z",
       "held": true,
       "exists": false
     },
@@ -1407,7 +1407,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
       "branch": "test/1908-luau-corpus-gate",
-      "observedAt": "2026-10-16T19:37:09.855Z",
+      "observedAt": "2026-10-16T19:37:17.567Z",
       "held": true,
       "exists": false
     },
@@ -1416,7 +1416,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-16T19:37:09.855Z",
+      "observedAt": "2026-10-16T19:37:17.567Z",
       "held": true,
       "exists": false
     }
@@ -1424,7 +1424,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:37:02.014Z",
+    "at": "2026-10-16T19:37:17.566Z",
     "tickets": [
       {
         "number": 984,
@@ -1662,9 +1662,9 @@
       },
       {
         "number": 1924,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch cb97a4cf-003c-46ed-aeaf-5b42615c3729 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1977,
