@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 159,
-  "previous": "407acc738260639a60b487a02b4e410fbc99603c",
+  "seq": 160,
+  "previous": "ff8329d8d772e999daecf3a91974c71ca0960994",
   "snapshotParents": [],
-  "time": "2026-10-16T06:18:30.869Z",
+  "time": "2026-10-16T06:20:07.043Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 117,
@@ -1792,7 +1792,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T06:18:30.076Z",
+      "observedAt": "2026-10-16T06:20:06.262Z",
       "held": true,
       "head": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
       "remoteHead": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
@@ -1927,7 +1927,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T05:48:19.014Z",
+    "at": "2026-10-16T06:20:06.260Z",
     "tickets": [
       {
         "number": 1201,
@@ -1979,9 +1979,9 @@
       },
       {
         "number": 1627,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1930,
-        "reason": "process 2528 started 639277232358933695 is running"
+        "reason": "PR #1930 is ready at e58e9a9329d96925ff3e5fde608cfc65d1124add; process 2528 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1628,
