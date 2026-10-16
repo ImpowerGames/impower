@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 1,
-  "previous": null,
+  "seq": 2,
+  "previous": "e52a2113bb942e0c9eee6aa4e7ad050cefcd6551",
   "snapshotParents": [],
-  "time": "2026-10-16T18:16:55.199Z",
+  "time": "2026-10-16T18:17:57.721Z",
   "kind": "auto",
-  "transition": "checkpoints were enabled",
+  "transition": "check-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 2,
+    "recordRevision": 3,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -43,7 +43,17 @@
     "limit": 3,
     "basis": "the smaller of 3 (reviewer slots) and 7 by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer"
   },
-  "checkIn": null,
+  "checkIn": {
+    "interval": 30,
+    "cron": "11,41 * * * *",
+    "prompt": "Orchestrate-feature check-in for Feature #1961, run record C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/ef5ffdf2-69b9-48fe-8a73-c572cee971e0/scratchpad/writer-1961-lLqMQS/run.json: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.",
+    "command": "node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/ef5ffdf2-69b9-48fe-8a73-c572cee971e0/scratchpad/writer-1961-lLqMQS/run.json'",
+    "job": "c87ab494",
+    "none": null,
+    "state": "scheduled",
+    "since": "2026-10-16T18:17:56.119Z",
+    "expires": "2026-10-23T18:17:56.119Z"
+  },
   "title": "ORCH #1961: private internal tracker",
   "tickets": {},
   "operations": [],
@@ -66,6 +76,12 @@
       "time": "2026-10-16T18:16:54.617Z",
       "event": "checkpoints-enabled",
       "remote": "origin"
+    },
+    {
+      "time": "2026-10-16T18:17:56.120Z",
+      "event": "check-in-scheduled",
+      "job": "c87ab494",
+      "none": null
     }
   ]
 }
