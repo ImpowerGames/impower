@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 208,
-  "previous": "87b991bd2a884a12d896a8dcf52114b86f80bbdd",
+  "seq": 209,
+  "previous": "2add4f57d1729d69d4cba46db787d64d34df7e1f",
   "snapshotParents": [],
-  "time": "2026-10-16T13:38:20.989Z",
+  "time": "2026-10-16T13:39:20.404Z",
   "kind": "auto",
-  "transition": "the merge of PR #1936 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 153,
@@ -2506,7 +2506,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T13:38:20.105Z",
+      "observedAt": "2026-10-16T13:39:19.582Z",
       "held": true,
       "head": "dd52a20c018b545998f8e0071972727b907bbc10",
       "remoteHead": "dd52a20c018b545998f8e0071972727b907bbc10",
@@ -2553,7 +2553,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T13:38:20.105Z",
+      "observedAt": "2026-10-16T13:39:19.582Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2564,7 +2564,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T13:30:54.509Z",
+    "at": "2026-10-16T13:39:19.580Z",
     "tickets": [
       {
         "number": 1201,
@@ -2646,9 +2646,9 @@
       },
       {
         "number": 1917,
-        "action": "merge-gate",
-        "pr": 1936,
-        "reason": "PR #1936 is ready at dd52a20c018b545998f8e0071972727b907bbc10; process 46624 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 46624 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1933,
@@ -2658,9 +2658,9 @@
       },
       {
         "number": 1934,
-        "action": "dispatch",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "2 writers already hold tickets against a limit of 2"
       }
     ],
     "remaining": [
