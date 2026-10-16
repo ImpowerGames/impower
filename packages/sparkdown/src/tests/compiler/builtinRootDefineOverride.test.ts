@@ -14,7 +14,12 @@
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
-import { errorsOf, programCompiler } from "../program/programHarness";
+import type { ProgramRoot } from "../../program/ProgramRoot";
+import {
+  errorsOf,
+  programCompiler,
+  programSession,
+} from "../program/programHarness";
 
 const MAIN = "inmemory:///main.sd";
 
@@ -172,6 +177,46 @@ end
     );
     expect(errorsOf(program)).toEqual([]);
     expect(play(program)).toEqual({ output: "7 0\n", errors: [] });
+  });
+
+  test("later compiles of an edited override agree with a cold compile", () => {
+    const text = `define game with
+  probe_field = 1
+end
+
+-> start
+scene start
+  {game.probe_field} {game.loading.percent} {type(color.red)}
+  fin
+
+end
+`;
+    const s = programSession(text, (compiler) =>
+      compiler.configure({ seedBuiltinsIntoStory: true }),
+    );
+    const output = (root: ProgramRoot) => {
+      expect(errorsOf(s.program)).toEqual([]);
+      const story = new ProgramStory(root);
+      const errors: string[] = [];
+      story.onError = (message: string) => errors.push(message);
+      return { output: story.ContinueMaximally(), errors };
+    };
+    expect(output(s.root)).toEqual({ output: "1 0 table\n", errors: [] });
+    // The authored value changes.
+    expect(output(s.edit("probe_field = 1", "probe_field = 2"))).toEqual({
+      output: "2 0 table\n",
+      errors: [],
+    });
+    // The override goes: the prelude's `game` holds the slot again.
+    expect(
+      output(s.edit("define game with\n  probe_field = 2\nend\n", "")),
+    ).toEqual({ output: "nil 0 table\n", errors: [] });
+    // And comes back.
+    expect(
+      output(
+        s.edit("-> start", "define game with\n  probe_field = 3\nend\n\n-> start"),
+      ),
+    ).toEqual({ output: "3 0 table\n", errors: [] });
   });
 
   test.each([true, false])(
