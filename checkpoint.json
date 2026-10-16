@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 63,
-  "previous": "6aea8247cd3ceeaf06baf16295f78ad1832f38a7",
+  "seq": 64,
+  "previous": "f8a56600769befd74a73208280320b97487534bc",
   "snapshotParents": [],
-  "time": "2026-10-16T19:01:53.456Z",
+  "time": "2026-10-16T19:16:23.782Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 68,
@@ -456,7 +456,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T19:01:52.563Z",
+      "observedAt": "2026-10-16T19:16:22.726Z",
       "held": true,
       "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
       "remoteHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
@@ -587,7 +587,7 @@
         },
         {
           "job": "pr-1927/round-2/launch-fix2-1",
-          "lastEvent": "blocked",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-fix2",
@@ -604,7 +604,24 @@
               "undirected": 1
             },
             "time": "2026-10-16T14:46:01.015Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "fix2",
+          "attempt": 1,
+          "reviewedHead": "af9645a2fc6bebb69bbe3547b67857d6d1ad1418",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "fix2": 1
+          },
+          "plannedRoundReviewers": [
+            "fix2",
+            "undirected2"
+          ],
+          "pendingReviewers": [
+            "undirected2"
+          ],
+          "finalCorrections": false,
+          "commentIds": []
         },
         {
           "job": "pr-1927/round-2/launch-undirected2-1",
@@ -727,7 +744,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T18:52:48.912Z",
+    "at": "2026-10-16T19:16:22.724Z",
     "tickets": [
       {
         "number": 984,
@@ -935,9 +952,9 @@
       },
       {
         "number": 1905,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 1927,
-        "reason": "process 20964 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1905-c04ac027-1dba-4d09-9570-d962dbca24a5\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 17180 started 639277740817667398 is running"
       },
       {
         "number": 1906,
