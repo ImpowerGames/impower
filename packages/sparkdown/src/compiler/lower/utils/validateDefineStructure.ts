@@ -2,6 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 
@@ -91,6 +92,12 @@ export function lineTextSpan(
 }
 
 const WITH_FORM = "`define hero as character with` … `end`";
+// The members a define reads, which may follow `with` on its header line.
+const DEFINE_MEMBERS = nodeNameSet([
+  "LuauPropertyDefinition",
+  "LuauMethodDefinition",
+  "LuauFunctionDefinition",
+]);
 const NAME_RULE =
   "Define names and `as` parents use only A–Z, a–z, 0–9 and `_`, and start with a letter or `_`.";
 
@@ -170,11 +177,26 @@ export function validateDefineStructure(
       ),
     );
   }
-  if (!content || !header || reachedWith) return diagnostics;
+  if (!content || !header) return diagnostics;
 
   let child = header.nextSibling;
   while (child && isTrivia(child)) child = child.nextSibling;
   if (!child) return diagnostics;
+  if (reachedWith) {
+    const afterWith = DEFINE_MEMBERS.has(child.name)
+      ? null
+      : lineTextSpan(child.from, content.to, ctx);
+    if (afterWith && onHeaderLine(afterWith.from)) {
+      diagnostics.push(
+        error(
+          `Unexpected \`${afterWith.text}\` after \`with\` in the define header. A define's properties go on the lines below its header: ${WITH_FORM}.`,
+          afterWith.from,
+          afterWith.to,
+        ),
+      );
+    }
+    return diagnostics;
+  }
   const unexpected = lineTextSpan(child.from, content.to, ctx);
   if (!unexpected) return diagnostics;
   if (onHeaderLine(unexpected.from)) {

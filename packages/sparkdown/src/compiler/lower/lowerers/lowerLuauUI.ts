@@ -8,6 +8,7 @@ import { parseStructBody } from "./lowerStructBody";
 import { readStructBodyEntries } from "../utils/structBodyEntries";
 import { buildSparkleBody } from "./lowerSparkleBody";
 import { validateSparkleBlocks } from "../utils/validateSparkleBlocks";
+import { validateBlockStructure } from "../utils/validateBlockStructure";
 import {
   type ComponentNode,
   type LayoutNode,
@@ -48,6 +49,7 @@ export function lowerLuauUI(
   ctx: LowerContext,
   uiType: "layout" | "component",
 ): CompiledBlock {
+  ctx.diagnostics?.push(...validateBlockStructure(nodeRef.node, ctx, uiType));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return { content: [] };
   const name = ctx.read(nameNode.from, nameNode.to).trim();
@@ -150,6 +152,7 @@ export function lowerLuauScreen(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
+  ctx.diagnostics?.push(...validateBlockStructure(nodeRef.node, ctx, "screen"));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return { content: [] };
   const name = ctx.read(nameNode.from, nameNode.to).trim();
