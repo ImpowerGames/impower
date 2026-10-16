@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 181,
-  "previous": "c3e989e52d21d9912591faaee1a36dce46a5f57c",
+  "seq": 182,
+  "previous": "ce09d8506509ef8565c80fd8bccfe04bcff8b643",
   "snapshotParents": [],
-  "time": "2026-10-16T05:57:44.682Z",
+  "time": "2026-10-16T05:57:52.738Z",
   "kind": "auto",
-  "transition": "resume of #887",
+  "transition": "answered of #887",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 147,
+    "recordRevision": 148,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -589,11 +589,11 @@
           "source": "cross-session message from writer impower-db",
           "relayed": null,
           "answer": {
-            "state": "intent",
+            "state": "delivered",
             "text": "Recovered by the coordinator, the way the runner recovers an interrupted reservation: I confirmed the owner 39160, child 57264, launcher 43072 and helper 25180 are all absent by pid and start time, that vitestProcesses() returns none, and that reservationState was unknown only because the attempt wrote no tree-proof.json; then I wrote C:/ProgramData/Impower/test-suite/recovered-4c19a43f-576b-4a52-8c98-4f532858c425.json (the record plus recoveredAt and who recovered it) and removed reservation.json. The store is free. Run the round-2 reviewer's broader incremental probe now through test-suite.mjs, adjudicate it on the PR, then proceed to readiness or send a checkpoint report as the brief says. Do not touch the reservation store yourself; if it is refused again, message me with the record and I recover it.",
             "deliveryId": "93e2552a",
             "attempts": 1,
-            "time": "2026-10-16T05:57:24.983Z",
+            "time": "2026-10-16T05:57:50.491Z",
             "to": "local_bede5658-a16d-4558-858b-9a8d10696a23"
           }
         }
@@ -2479,7 +2479,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T05:57:43.639Z",
+      "observedAt": "2026-10-16T05:57:51.803Z",
       "held": true,
       "head": "c9553cf457b333b5976d97cbeb62476af83ae27a",
       "remoteHead": "c9553cf457b333b5976d97cbeb62476af83ae27a",
@@ -2533,12 +2533,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T05:57:43.639Z",
+      "observedAt": "2026-10-16T05:57:51.803Z",
       "held": true,
       "head": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
       "remoteHead": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1928,
       "reviewJobs": [
         {
@@ -2738,11 +2738,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:22:41.417Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1759-program-update"
-    },
     {
       "time": "2026-10-15T22:22:49.969Z",
       "event": "disk-recovery",
@@ -3452,6 +3447,13 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-d079b78a-0330-4db4-9a57-8289b8ff7680"
       }
+    },
+    {
+      "time": "2026-10-16T05:57:50.492Z",
+      "event": "answered",
+      "ticket": 887,
+      "id": "3647ce66",
+      "deliveryId": "93e2552a"
     }
   ]
 }
