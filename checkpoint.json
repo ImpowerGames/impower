@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 136,
-  "previous": "1510791e2bcb2345fca5ae056bca3e1164ee15c1",
+  "seq": 137,
+  "previous": "95e90b56d35fc50697cac7983f9aaebc34755453",
   "snapshotParents": [],
-  "time": "2026-10-16T02:30:16.815Z",
+  "time": "2026-10-16T02:30:26.361Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1920",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 114,
+    "recordRevision": 115,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -827,10 +827,7 @@
       ]
     },
     "1920": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "46e210e6-d8a0-431e-9691-54f966c53260",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "medium",
@@ -839,9 +836,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
         "branch": "feat/1920-store-call-spread",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-16T02:30:07.218Z"
+        "launchId": "46e210e6-d8a0-431e-9691-54f966c53260",
+        "handle": {
+          "kind": "process",
+          "pid": 55752,
+          "start": "639277146245211808",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1920-46e210e6-d8a0-431e-9691-54f966c53260"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment 46e210e6-d8a0-431e-9691-54f966c53260. You are the writer for ImpowerGames/impower ticket #1920 (Spread a trailing call's values across a store declaration's names as Luau does), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment 46e210e6-d8a0-431e-9691-54f966c53260 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1920 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread on branch feat/1920-store-call-spread from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #1920 alone. A store declaration with more names than values whose last value is a call (store a, b = pair(), and store a, b, c = 1, pair()) spreads the call's results across the remaining names exactly as Luau does for local a, b = pair(): a gets 3 and b gets 4, extra names get nil, extra results are dropped, and a parenthesized call still truncates to one value. The declaration writer must evaluate the call once and set the several globals from its results; do not evaluate the call once per name. Replace the Error that lowerVariableDefinition.ts reports today for this shape (it was the fallback #1325 allowed) with the working spread, keeping an Error for shapes the writer still cannot express, and extend programStoreValues.test.ts so the pair() case asserts Value 3 and 4 and the existing pins keep holding; the test is red on origin/main 192b2f2d (it currently expects the Error) and green after. Varargs as the last value (store a, b = ...) follow the same rule where the context has varargs, else keep the existing Error. Verify in the web editor that the ticket's script plays Value 3 and 4 with no Error.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section), and the body of #1920 itself. Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer, writer or engine path swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch does this since PR #1911 merged as 192b2f2d).\n- Repository state: origin/main 192b2f2d or later, which holds PR #1911 (the #457 bundle). Relevant to you: lowerVariableDefinition.ts reports an Error on a store with more names than values whose last value is a call or varargs (the behaviour you replace); programStoreValues.test.ts pins the bare, one-value, two-value and parenthesized-call forms, which must keep holding; ProgramStory takes an onDeclarationIssue listener that counts the declaring global SetVars the declaration chunk's own frame runs (BinaryProgramWriter.writeDeclaration emits each global after its value, in order), and ChunkStore places a declaration failure over that global's lines. A declaration chunk that evaluates one call and sets several globals must keep that placement correct, so update the SetVar accounting and its test (programCompileThrow.test.ts) if your emission changes the per-global order. programHarness.ts asserts that a no-program compile carries an Error. One compile mode exists since #705: compileScript from packages/sparkdown/src/tests/program/programHarness.ts and ProgramStory over program.chunks. A sibling writer works on #1617 (sequential alternator lowerer and the engine's empty-sequence path); tell the coordinator before touching a file it needs.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run, since a fresh install has once come out incomplete with preflight passing. Disk has about 90 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "24a80efb",
+          "attempts": 1,
+          "time": "2026-10-16T02:30:24.841Z",
+          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+        },
+        "since": "2026-10-16T02:30:24.842Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     }
@@ -1908,7 +1923,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:30:16.814Z",
+      "observedAt": "2026-10-16T02:30:26.361Z",
       "held": true,
       "exists": false
     },
@@ -1917,7 +1932,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:30:16.814Z",
+      "observedAt": "2026-10-16T02:30:26.361Z",
       "held": true,
       "exists": false
     }
@@ -2008,11 +2023,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:06.131Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1429-save-alignment"
-    },
     {
       "time": "2026-10-15T22:18:14.322Z",
       "event": "disk-recovery",
@@ -2653,6 +2663,19 @@
       "ticket": 1920,
       "route": "claude-cli",
       "launchId": "46e210e6-d8a0-431e-9691-54f966c53260"
+    },
+    {
+      "time": "2026-10-16T02:30:24.842Z",
+      "event": "launched",
+      "ticket": 1920,
+      "launchId": "46e210e6-d8a0-431e-9691-54f966c53260",
+      "handle": {
+        "kind": "process",
+        "pid": 55752,
+        "start": "639277146245211808",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1920-46e210e6-d8a0-431e-9691-54f966c53260"
+      }
     }
   ]
 }
