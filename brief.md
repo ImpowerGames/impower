@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 246 (this commit), 2026-10-16T15:45:44.478Z, after a new plan. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 247 (this commit), 2026-10-16T15:45:55.124Z, after release of #887. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -26,14 +26,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1948/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 2fc0ccfd7, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
 - review job pr-1948/round-2/launch-ax2-1 on DESKTOP-726EO47: round 2 reviewed 5a6e07571, completed {"ax2":1} of planned ["ax2","undirected2"]; last launched reviewer ax2 attempt 1 of round 2 (planned ["ax2","undirected2"]), last event finished
 - review job pr-1948/round-2/launch-undirected2-1 on DESKTOP-726EO47: round 2 reviewed a9d427cc2, completed {"ax2":1,"undirected2":1} of planned ["ax2","undirected2"]; last launched reviewer undirected2 attempt 1 of round 2 (planned ["ax2","undirected2"]), last event finished
-
-## #887
-
-- claude-cli claude-opus-5-5 at medium, process 45104 on DESKTOP-726EO47
-- review job pr-1928/round-1/launch-inc-1 on DESKTOP-726EO47: round 1 reviewed 6ba48a482, completed {"inc":1} of planned ["inc","undirected"]; last launched reviewer inc attempt 1 of round 1 (planned ["inc","undirected"]), last event finished
-- review job pr-1928/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 589a987ee, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["inc","undirected"]), last event finished
-- review job pr-1928/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 156e83fe1, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["undirected"]), last event finished
-- review job pr-1928/round-3/launch-inc-1 on DESKTOP-726EO47: round 3 reviewed 3c1986e10, completed {"inc":1} of planned ["inc","undirected"]; last launched reviewer inc attempt 1 of round 3 (planned ["inc","undirected"]), last event finished
-- review job pr-1928/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 55c540149, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["inc","undirected"]), last event finished
-- review job pr-1928/round-4/launch-inc-1 on DESKTOP-726EO47: round 4 reviewed 6156c8716, completed {"inc":1} of planned ["inc","undirected"]; last launched reviewer inc attempt 1 of round 4 (planned ["inc","undirected"]), last event finished
-- review job pr-1928/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 9701b89b6, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["inc","undirected"]), last event finished
