@@ -91,15 +91,16 @@ function posAt(text: string, offset: number) {
 // and character): the typed one when it closes nothing (`null`), otherwise
 // the `}` that used to close the outermost block, which the `}` before it now
 // closes. Typed inside the `for` branch, the `}` after it closes the `for`
-// (reported as missing its `end`), and the `end` of the `for` then ends the
-// layout, so no `}` is left inside the layout to be stray.
+// (reported as missing its `end`), and the panel with it. The `else` below is
+// then a line the layout cannot read, so the layout stops there, before any
+// `}` is left inside it to be stray, and is reported as missing its `end`.
 const EDITS = [
   { name: "after a one-line block", after: "choice.0 { text }", stray: [{ line: 25, character: 2 }], missing: [] },
   {
     name: "inside a block in a `for` branch",
     after: "        image #src={item.icon}",
     stray: [],
-    missing: [15],
+    missing: [15, 11],
     // The row closes after its image, the button joins the `for`, and the
     // row's own `}` ends the `for` and then closes the panel.
     tree: ["column[text[],choice[text[]],for[row[image[]],button[]|else:]]"],

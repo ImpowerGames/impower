@@ -100,6 +100,41 @@ describe("a block without `end`", () => {
     expect(missing[0]!.startLine).toBe(0);
   });
 
+  test("a layout that stops at a body line it cannot read is an error on its header", () => {
+    // The `}` typed after the image closes the `for` and the column, so the
+    // `else` is a line the layout cannot read: the layout stops there, and
+    // the lines below it, its `end` among them, are read outside it.
+    const source = [
+      "layout inventory with",
+      "  column {",
+      "    for item in bag do",
+      "      row {",
+      "        image",
+      "        }",
+      "      }",
+      "    else",
+      '      text "Your bag is empty."',
+      "    end",
+      "    title",
+      "  }",
+      "end",
+      "",
+      "Hi.",
+      "",
+    ].join("\n");
+    const layout = errors(source).filter((e) =>
+      e.message.startsWith("This layout is missing its closing `end`"),
+    );
+    expect(layout).toHaveLength(1);
+    expect(layout[0]!.message).toContain("stops at a line its body cannot read");
+    expect(layout[0]).toMatchObject({
+      startLine: 0,
+      startCharacter: 0,
+      endLine: 0,
+      endCharacter: "layout inventory with".length,
+    });
+  });
+
   test("a body-less style with no `end` is an error", () => {
     const missing = errors("style s\n\nHi.\n").filter((e) =>
       e.message.includes(MISSING_END),
@@ -213,7 +248,10 @@ describe("valid blocks report nothing new", () => {
 describe("block diagnostics across incremental edits", () => {
   const summary = (diags: Diag[]) =>
     diags
-      .map((d) => `${d.severity} ${d.startLine}:${d.startCharacter} ${d.message}`)
+      .map(
+        (d) =>
+          `${d.severity} ${d.startLine}:${d.startCharacter}-${d.endLine}:${d.endCharacter} ${d.message}`,
+      )
       .sort();
 
   const run = (initial: string, steps: [string, string][]) => {
