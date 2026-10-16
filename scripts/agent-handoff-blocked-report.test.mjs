@@ -112,10 +112,13 @@ execFileSync(process.execPath, [launcher, "record-report", journal, "601", readB
 let recorded = rows();
 assert.deepEqual(recorded.map((row) => row.event).slice(-5), ["exited", "blocked", "completed", "report-posted", "finished"]);
 const completed = recorded.find((row) => row.event === "completed");
-assert.deepEqual({ ...completed, time: undefined }, { time: undefined, event: "completed", index: 0, step: "review-ax", head, next: null, commentIds: [], summary: JSON.parse(completion).summary, reviewerId: "ax", attempt: 1, completedRound: 1, reviewedHead: head, completedRoundReviews: 1, completedRoundReviewers: { ax: 1 }, plannedRoundReviewers: ["ax", "undirected"], pendingReviewers: ["undirected"], finalCorrections: false });
+const exitedAt = recorded.find((row) => row.event === "exited").time;
+assert.deepEqual({ ...completed, readBackSha256: undefined, recordedAt: undefined }, { time: exitedAt, event: "completed", index: 0, step: "review-ax", head, next: null, commentIds: [], summary: JSON.parse(completion).summary, reviewerId: "ax", attempt: 1, completedRound: 1, reviewedHead: head, completedRoundReviews: 1, completedRoundReviewers: { ax: 1 }, plannedRoundReviewers: ["ax", "undirected"], pendingReviewers: ["undirected"], finalCorrections: false, postedBy: "coordinator", commentId: 601, readBackSha256: undefined, recordedAt: undefined }, "the completion is dated at the reviewer's exit and names the posted comment");
+assert.ok(Date.parse(completed.recordedAt) > Date.parse(exitedAt), "recordedAt is when the row was written");
 const posted = recorded.find((row) => row.event === "report-posted");
 assert.deepEqual({ ...posted, time: undefined, readBackSha256: undefined }, { time: undefined, readBackSha256: undefined, event: "report-posted", index: 0, step: "review-ax", head, commentId: 601, postedBy: "coordinator" });
 assert.match(posted.readBackSha256, /^[0-9a-f]{64}$/);
+assert.equal(completed.readBackSha256, posted.readBackSha256);
 const accounting = reviewAccounting([{ file: journal, rows: recorded, plan }]);
 assert.deepEqual(accounting.rounds[0].completedReviewers, { ax: 1 });
 assert.deepEqual(accounting.rounds[0].pending, ["undirected"], "the round still plans only the reviewer that never ran");
@@ -127,11 +130,36 @@ assert.deepEqual(state.reports, [{ round: 1, reviewerId: "ax", attempt: 1, revie
 assert.throws(() => recordCoordinatorReport(journal, 601, readBack), /does not end/, "a completed journal is not completed twice");
 console.log("PASS: the posted comment completes the blocked journal and the round accounting counts the reviewer");
 
+// The round's other reviewer completed later on a corrected head, before
+// this journal was recorded: it stays the round's latest reviewed head, and
+// the round is complete.
+const corrected = "b".repeat(40);
+const laterTime = (ms) => new Date(Date.parse(exitedAt) + ms).toISOString();
+assert.ok(Date.parse(completed.recordedAt) > Date.parse(laterTime(1)), "the record came after the other reviewer's completion");
+const undirectedJournal = path.join(jobDir, "launch-undirected-1", "journal.jsonl");
+const undirectedRows = [
+  { time: laterTime(1), event: "coordinator" },
+  { time: laterTime(1), event: "launching", index: 0, step: "review-undirected", role: "review", model: "reviewer-test", round: 1, reviewerId: "undirected", attempt: 1, plannedReviewers: ["ax", "undirected"], completedRound: 1, reviewedHead: head, completedRoundReviews: 1, completedRoundReviewers: { ax: 1 }, plannedRoundReviewers: ["ax", "undirected"], finalCorrections: false, head: corrected },
+  { time: laterTime(2), event: "running", index: 0, step: "review-undirected", head: corrected },
+  { time: laterTime(3), event: "exited", index: 0, step: "review-undirected", code: 0 },
+  { time: laterTime(4), event: "completed", index: 0, step: "review-undirected", head: corrected, next: null, commentIds: [700], summary: "No findings.", reviewerId: "undirected", attempt: 1, completedRound: 1, reviewedHead: corrected, completedRoundReviews: 2, completedRoundReviewers: { ax: 1, undirected: 1 }, plannedRoundReviewers: ["ax", "undirected"], pendingReviewers: [], finalCorrections: false },
+  { time: laterTime(5), event: "finished" },
+];
+const both = [{ file: journal, rows: recorded, plan }, { file: undirectedJournal, rows: undirectedRows, plan: null }];
+assert.equal(reviewAccounting(both).reviewedHead, corrected, "the reviewer that completed later on the corrected head is still the latest");
+assert.deepEqual(reviewAccounting(both).recovery, { completedReviewRound: 1, reviewedHead: corrected, completedRoundReviews: 2, completedRoundReviewers: { ax: 1, undirected: 1 }, plannedRoundReviewers: ["ax", "undirected"] });
+assert.deepEqual(roundState(both).blockers, [], "the round is complete once both journals count");
+console.log("PASS: a reviewer that completed later in the round keeps the latest reviewed head when the earlier journal is recorded after it");
+
 // A record interrupted after either of its first rows is completed by the
-// same command without a second post; once the comment is recorded, a
-// different comment or read-back cannot complete it.
+// same command without a second post; a different comment or read-back
+// cannot complete it, since the first row already names them.
 const full = recorded;
 rewriteRows(full.slice(0, -2));
+assert.throws(() => recordCoordinatorReport(journal, 602, readBack), /already records comment 601/, "a different comment cannot complete a record interrupted after its completed row");
+post(report + "\n\n---\n_Generated by someone else_");
+assert.throws(() => recordCoordinatorReport(journal, 601, readBack), /already records comment 601/, "a different read-back cannot complete a record interrupted after its completed row");
+post();
 recordCoordinatorReport(journal, 601, readBack);
 recorded = rows();
 assert.deepEqual(recorded.map((row) => row.event).slice(-3), ["completed", "report-posted", "finished"]);

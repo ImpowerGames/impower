@@ -345,7 +345,7 @@ function blockedReview(rows, blocked) {
   if (!launching || launching.role !== "review" || typeof launching.reportToken !== "string" || !Number.isSafeInteger(launching.index)) throw new Error("Blocked journal records no review launch with a report token");
   const { index } = launching;
   const exited = rows.find((row) => row.event === "exited" && row.index === index);
-  if (!exited || exited.code !== 0) throw new Error(`Launch ${index} has no confirmed clean exit (an exited row with code 0), so its report cannot stand`);
+  if (!exited || exited.code !== 0 || typeof exited.time !== "string") throw new Error(`Launch ${index} has no confirmed clean exit (an exited row with code 0), so its report cannot stand`);
   if (rows.some((row) => row.event === "completed" && row.index === index)) throw new Error(`Launch ${index} already has a completed row`);
   const args = Array.isArray(launching.args) ? launching.args : [];
   const at = args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg));
@@ -357,7 +357,13 @@ function blockedReview(rows, blocked) {
   if (done?.head !== launching.head || !Array.isArray(done.commentIds) || done.commentIds.length || typeof done.summary !== "string" || !done.summary.trim() || !(done.next === null || typeof done.next === "string")) throw new Error(`Launch ${index} completion artifact at ${launching.completion} must name head ${launching.head}, no comment IDs, a summary and its transition`);
   const before = { completedRound: launching.completedRound, reviewedHead: launching.reviewedHead ?? null, completedRoundReviews: launching.completedRoundReviews ?? null, completedRoundReviewers: launching.completedRoundReviewers ?? null, plannedRoundReviewers: launching.plannedRoundReviewers ?? null, finalCorrections: launching.finalCorrections ?? false };
   const step = { round: launching.round, reviewerId: launching.reviewerId, attempt: launching.attempt, reviewers: launching.plannedReviewers };
-  const completed = { event: "completed", index, step: launching.step, head: done.head, next: done.next, commentIds: [], summary: done.summary, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1 } : {}), ...completeReviewAccounting(before, step, launching.head) };
+  // The completion is dated at the reviewer's exit, when the launcher would
+  // have written it, so a reviewer that later completed on a corrected head
+  // keeps its place as the round's latest; recordedAt says when the row was
+  // written. The comment is counted from the report-posted row, as for a
+  // coordinator-posted report, and named here so a retry after an
+  // interrupted record cannot substitute another comment.
+  const completed = { time: exited.time, event: "completed", index, step: launching.step, head: done.head, next: done.next, commentIds: [], summary: done.summary, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1 } : {}), ...completeReviewAccounting(before, step, launching.head), postedBy: "coordinator" };
   return { pending: { index, step: launching.step, head: launching.head, ...report }, completed };
 }
 
@@ -393,13 +399,20 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   const prefix = split > 0 ? content.slice(0, split) : "";
   if (!prefix || prefix.includes("\n") || !/behalf/i.test(prefix) || content.slice(split + 2) !== normalizeBody(report)) throw new Error("The posted comment must be one line saying it is posted on the reviewer's behalf and why, a blank line, then the reviewer's report verbatim");
   const record = { event: "report-posted", index: pending.index, step: pending.step, head: pending.head, commentId: Number(commentId), postedBy: "coordinator", readBackSha256: sha256(body) };
-  const posted = written.find((row) => row.event === "report-posted");
-  if (posted && (posted.commentId !== record.commentId || posted.readBackSha256 !== record.readBackSha256)) throw new Error(`Journal already records comment ${posted.commentId} for this report; a different comment or read-back cannot complete it`);
-  const missing = [...(completed && !written.some((row) => row.event === "completed") ? [completed] : []), ...(posted ? [] : [record]), { event: "finished" }];
+  // Every row this command writes names the comment and read-back, so the
+  // first row to survive an interruption fixes them for the retry.
+  const recorded = written.findLast((row) => row.event === "report-posted" || row.event === "completed");
+  if (recorded && (recorded.commentId !== record.commentId || recorded.readBackSha256 !== record.readBackSha256)) throw new Error(`Journal already records comment ${recorded.commentId} for this report; a different comment or read-back cannot complete it`);
+  const now = new Date().toISOString();
+  const missing = [
+    ...(completed && !written.some((row) => row.event === "completed") ? [{ ...completed, recordedAt: now, commentId: record.commentId, readBackSha256: record.readBackSha256 }] : []),
+    ...(written.some((row) => row.event === "report-posted") ? [] : [record]),
+    { event: "finished" },
+  ];
   const fd = fs.openSync(journalFile, "a");
   try {
     for (const row of missing) {
-      fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n");
+      fs.writeSync(fd, JSON.stringify({ time: now, ...row }) + "\n");
       fs.fsyncSync(fd);
     }
   } finally { fs.closeSync(fd); }
