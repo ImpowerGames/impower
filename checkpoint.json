@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 209,
-  "previous": "df6da90a5fc93437e940f74129524efafe74fcdc",
+  "seq": 210,
+  "previous": "c06ab46c5bb0a191e5af5cf67869add23bc96b80",
   "snapshotParents": [],
-  "time": "2026-10-16T12:15:01.881Z",
+  "time": "2026-10-16T12:15:22.330Z",
   "kind": "auto",
-  "transition": "answered of #887",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 172,
+    "recordRevision": 173,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2531,7 +2531,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:15:00.903Z",
+      "observedAt": "2026-10-16T12:15:21.357Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2667,7 +2667,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:15:00.903Z",
+      "observedAt": "2026-10-16T12:15:21.357Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2910,13 +2910,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:44:11.250Z",
-      "event": "answered",
-      "ticket": 1299,
-      "id": "8f092886",
-      "deliveryId": "a2332420"
-    },
     {
       "time": "2026-10-15T23:04:42.185Z",
       "event": "result",
@@ -3618,6 +3611,11 @@
       "ticket": 887,
       "id": "d8a61713",
       "deliveryId": "4c684b1a"
+    },
+    {
+      "time": "2026-10-16T12:15:20.016Z",
+      "event": "check-in",
+      "outcome": "Maintainer restored usage and relaxed the merge gate (PR #1931: a head need not contain main; red main freezes merges); answered requests 5b339599 and d8a61713 and resumed the #454 (pid 58112) and #887 (pid 48332) writers; #316 still waits for #887"
     }
   ]
 }
