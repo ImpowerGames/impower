@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 2,
-  "previous": "e52a2113bb942e0c9eee6aa4e7ad050cefcd6551",
+  "seq": 3,
+  "previous": "496e334b6b2e381c2a9507e3bb0d3b2673b8099d",
   "snapshotParents": [],
-  "time": "2026-10-16T18:17:57.721Z",
+  "time": "2026-10-16T18:18:37.297Z",
   "kind": "auto",
-  "transition": "check-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 3,
@@ -63,7 +63,53 @@
   "work": {},
   "snapshots": {},
   "handoff": null,
-  "observed": null,
+  "observed": {
+    "at": "2026-10-16T18:18:37.295Z",
+    "tickets": [
+      {
+        "number": 1962,
+        "action": "dispatch",
+        "pr": null,
+        "reason": "every blocker's deliverable is on origin/main"
+      },
+      {
+        "number": 1963,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1962 (open)"
+      },
+      {
+        "number": 1964,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1962 (open), #1963 (open)"
+      },
+      {
+        "number": 1965,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1962 (open), #1964 (open)"
+      },
+      {
+        "number": 1966,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1962 (open)"
+      },
+      {
+        "number": 1967,
+        "action": "wait-dependency",
+        "pr": null,
+        "reason": "waiting for #1963 (open), #1964 (open), #1965 (open), #1966 (open)"
+      }
+    ],
+    "remaining": [
+      "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
+      "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main.",
+      "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
+      "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone."
+    ]
+  },
   "log": [
     {
       "time": "2026-10-16T18:16:34.982Z",
