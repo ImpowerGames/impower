@@ -10,6 +10,18 @@ export const isScopedDefine = (obj: ParsedObject): obj is VariableAssignment =>
   obj.isDefineDeclaration &&
   !!obj.structDefinition;
 
+/** Whether `obj` is a root define declaration (`define game with … end`):
+ *  a define with no `as` parent, which declares the type named after it and
+ *  keeps its bare global, so no pass classifies it. A structural block
+ *  (`animation show`) carries no `structDefinition` either, but is bound to
+ *  its synthetic `$<type>_<name>` key from the start, which no script
+ *  identifier can spell. */
+export const isRootDefine = (obj: ParsedObject): obj is VariableAssignment =>
+  obj instanceof VariableAssignment &&
+  obj.isDefineDeclaration &&
+  !obj.structDefinition &&
+  !obj.identifier?.name?.startsWith("$");
+
 /** The global key a define declaration takes under `typeNames`, or undefined
  *  when it lacks a parent or a name (it is then left as it is). Read from the
  *  STABLE bare source (`structDefinition.name`/`.type`), which no pass
@@ -73,7 +85,8 @@ export function scopeDefineInstances(
   opts?: {
     // Define VAs to leave untouched.
     skip?: ReadonlySet<ParsedObject>;
-    // Populated with every define VA this call processes.
+    // Populated with every define VA this call processes, and every root
+    // define it meets (`isRootDefine`), which it leaves as it is.
     collect?: Set<ParsedObject>;
     // Given each define VA whose key this call changed, whose statement the
     // program path's resolver resolves again (`ProgramResolver`).
@@ -91,6 +104,8 @@ export function scopeDefineInstances(
       if (classifyDefine(obj, typeNames)) {
         renamed?.push(obj);
       }
+    } else if (isRootDefine(obj) && !(skip && skip.has(obj))) {
+      collect?.add(obj);
     }
     const content = obj.content;
     if (content) {
