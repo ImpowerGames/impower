@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 101,
-  "previous": "491947310e03b61ca2554f5856b81cc76ec52ccf",
+  "seq": 102,
+  "previous": "63f9a632c1b161841d208da6da24a6ff68b8214e",
   "snapshotParents": [],
-  "time": "2026-10-16T20:22:12.459Z",
+  "time": "2026-10-16T20:51:17.568Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 78,
+    "recordRevision": 79,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -1152,12 +1152,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T20:22:11.575Z",
+      "observedAt": "2026-10-16T20:51:16.652Z",
       "held": true,
-      "head": "f5af545356733453cfb0145ffc816c61b62d1c47",
-      "remoteHead": "f5af545356733453cfb0145ffc816c61b62d1c47",
+      "head": "1ce9d144f0f4b1f030c882479967f272625b1dfc",
+      "remoteHead": "1ce9d144f0f4b1f030c882479967f272625b1dfc",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1983,
       "reviewJobs": [
         {
@@ -1203,21 +1203,17 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T20:22:11.575Z",
+      "observedAt": "2026-10-16T20:51:16.652Z",
       "held": true,
       "head": "e83fefb53b039d981683520afe174b199552c884",
       "remoteHead": "e83fefb53b039d981683520afe174b199552c884",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 15404
-      },
+      "dirty": true,
       "pr": 1984,
       "reviewJobs": [
         {
           "job": "pr-1984/round-1/launch-incrementality-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-incrementality",
@@ -1231,7 +1227,28 @@
             "head": "e83fefb53b039d981683520afe174b199552c884",
             "completedRoundReviewers": null,
             "time": "2026-10-16T20:17:02.672Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "incrementality",
+          "attempt": 1,
+          "reviewedHead": "e83fefb53b039d981683520afe174b199552c884",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "incrementality": 1
+          },
+          "plannedRoundReviewers": [
+            "incrementality",
+            "blast-radius",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "blast-radius",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6224228197
+          ]
         }
       ]
     }
@@ -1800,6 +1817,11 @@
       "time": "2026-10-16T20:22:09.995Z",
       "event": "check-in",
       "outcome": "no change: #1881 (draft PR #1983) and #1974 (draft PR #1984) writers running; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T20:51:15.053Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (draft PR #1983, head 1ce9d144f) and #1974 (draft PR #1984) writers running in review round 1; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
     }
   ]
 }

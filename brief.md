@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1940
 
-Checkpoint 101 (this commit), 2026-10-16T20:22:12.459Z, after checked-in. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
+Checkpoint 102 (this commit), 2026-10-16T20:51:17.568Z, after checked-in. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,11 +12,10 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1881
 
 - claude-cli claude-opus-5-5 at medium, process 35408 on DESKTOP-726EO47
-- as of 2026-10-16T20:22:11.575Z, DESKTOP-726EO47 held unfinished files in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1881-compile-at-debounce that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1983/round-1/launch-ordering-1 on DESKTOP-726EO47: round 1 reviewed f5af54535, completed {"ordering":1} of planned ["ordering","undirected"]; last launched reviewer ordering attempt 1 of round 1 (planned ["ordering","undirected"]), last event finished
 
 ## #1974
 
 - claude-cli claude-opus-5-5 at medium, process 49176 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:\Users\Brode\Documents\GitHub\impower.worktrees\fix\1974-carried-memo-resolution; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:\Users\Brode\Documents\GitHub\impower.worktrees\fix\1974-carried-memo-resolution removes it once its coordinator and child are confirmed gone
-- review job pr-1984/round-1/launch-incrementality-1 on DESKTOP-726EO47: no completed review; last launched reviewer incrementality attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event identified
+- as of 2026-10-16T20:51:16.652Z, DESKTOP-726EO47 held unfinished files in C:\Users\Brode\Documents\GitHub\impower.worktrees\fix\1974-carried-memo-resolution that may exist only there; recover those bytes there before restarting or overwriting this work
+- review job pr-1984/round-1/launch-incrementality-1 on DESKTOP-726EO47: round 1 reviewed e83fefb53, completed {"incrementality":1} of planned ["incrementality","blast-radius","undirected"]; last launched reviewer incrementality attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event finished
