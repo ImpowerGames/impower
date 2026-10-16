@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 116 (this commit), 2026-10-16T01:49:35.942Z, after verify of #1611. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 117 (this commit), 2026-10-16T01:49:45.649Z, after checked-in. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -16,7 +16,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1614
 
 - claude-cli claude-opus-5-5 at medium, process 11208 on DESKTOP-726EO47
-- as of 2026-10-16T01:49:34.501Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T01:49:44.069Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1919/round-1/launch-incr-1 on DESKTOP-726EO47: round 1 reviewed 6cd26291e, completed {"incr":1} of planned ["incr","bound","undirected"]; last launched reviewer incr attempt 1 of round 1 (planned ["incr","bound","undirected"]), last event finished
 
 ## #1623
