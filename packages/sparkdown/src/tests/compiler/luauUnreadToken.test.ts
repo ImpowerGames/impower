@@ -151,6 +151,27 @@ const CASES: Record<string, Case> = {
     output: "false\n",
     luau: "function f(a, b)\n  local x = a && b\n  local y = a != b\n  return x\nend\n",
   },
+  // The forms of #1199, #1329 and #1376 this slice fixes; their other forms
+  // stay open (the story form of #1199, a top-level or `store` attributed
+  // function, an intersection inside `<< >>`).
+  "#1199 an if condition ending in a method colon, in a function": {
+    text: "function f()\n  local flag = true\n  if flag:\n    print(1)\n  end\nend\nAfter.\n",
+    fn: ["f", 0, 5],
+    output: "After.\n",
+    luau: "function f()\n  local flag = true\n  if flag:\n    print(1)\n  end\nend\n",
+  },
+  "#1329 an attribute list on a function value in a function": {
+    text: "function run()\nlocal f = @[native] function() return 7 end\nreturn f()\nend\nValue {run()}.\n",
+    fn: ["run", 0, 3],
+    output: "Value 7.\n",
+    luau: "function run()\nlocal f = @[native] function() return 7 end\nreturn f()\nend\n",
+  },
+  "#1376 a union inside explicit instantiation": {
+    text: "local function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\nValue {f()}.\n",
+    fn: ["f", 1, 4],
+    output: "Value 1.\n",
+    luau: "local function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\n",
+  },
   "#1370 a generic alias as an array element": {
     text: "type Box<T> = {value: T}\nfunction f()\n  local x: {Box<number>} = {}\n  return 1\nend\nValue {f()}.\n",
     fn: ["f", 1, 4],
