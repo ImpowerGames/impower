@@ -293,6 +293,19 @@ describe("statements that read the same as each other (twins)", () => {
     expect(reemitted).toBe(0);
   });
 
+  it("keep their own chunks after an edit to the first of 257 `do` blocks", () => {
+    // 257 twins and 256 old chunks: more pairs than a pairing of every twin
+    // with every chunk would weigh.
+    const many = Array.from({ length: 256 }, (_, i) => `do\n  function inner${i}()\n  end\nend\n`);
+    const before = SCENE + many.join("") + TAIL;
+    const at = before.indexOf("\nscene ");
+    const { incremental, cold, reemitted, moved } = editOnce(before, at, "\nscene ".length, EDIT);
+    expect(cold.chunks).not.toBeNull();
+    expect(incremental).toEqual(cold);
+    expect(moved).toEqual([]);
+    expect(reemitted).toBe(0);
+  });
+
   it("keep their own chunks when an edit makes them labels of different branches (#1611)", () => {
     // Before the edit the first line's alternator runs to the last line, so
     // the program holds one `label mid`, the one under `branch after`. The

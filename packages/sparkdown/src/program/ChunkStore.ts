@@ -3183,7 +3183,7 @@ export class ChunkStore {
       for (const group of alike.values()) {
         const n = group.news.length;
         const m = group.olds.length;
-        if (n === 0 || n === m || n * m > TWIN_CELLS) {
+        if (n === 0 || n === m || pairCells(n, m) > TWIN_CELLS) {
           continue;
         }
         const [above, below] = shiftsOf();
@@ -3780,69 +3780,84 @@ const sameChunks = (
 const sameNumbers = (a: readonly number[], b: readonly number[]): boolean =>
   a.length === b.length && a.every((n, i) => n === b[i]);
 
-// The most pairs of twins and old chunks the alignment weighs in one group;
-// a larger group is paired by position (`matchTwins`).
-const TWIN_CELLS = 1 << 16;
+// How far past the difference in their counts the pairing of twins with old
+// chunks lets one list run ahead of the other (`pairInOrder`).
+const TWIN_SLACK = 16;
+// The most pairs of twins and old chunks the alignment weighs in one group,
+// which a group reaches with thousands of twins; a larger group is paired by
+// position (`matchTwins`).
+const TWIN_CELLS = 1 << 20;
+
+/** How many pairs `pairInOrder` weighs for lists of `n` and `m` entries. */
+const pairCells = (n: number, m: number) =>
+  (Math.min(n, m) + 1) * (Math.abs(n - m) + 2 * TWIN_SLACK + 1);
 
 /** Pairs the entries of two lists in order, as `[entry of the first, entry
  *  of the second]`: as many pairs as `cost` allows (it gives nothing for a
  *  pair that may not be made), at the least total cost of those, and of
- *  equal ones the pairing that takes the earlier entries of the second. */
+ *  equal ones the pairing that takes the earlier entries of the second. The
+ *  pairs are weighed in a band about the lists' ends: the number of entries
+ *  of the second list passed less the number of the first stays between
+ *  the difference in their lengths and nothing, give or take `TWIN_SLACK`,
+ *  so the work grows with the shorter list times that difference. */
 const pairInOrder = (
   n: number,
   m: number,
   cost: (s: number, l: number) => number | undefined,
 ): [number, number][] => {
-  const width = m + 1;
+  const lo = Math.min(0, m - n) - TWIN_SLACK;
+  const hi = Math.max(0, m - n) + TWIN_SLACK;
+  const width = hi - lo + 1;
   // For the first s entries of the first list and the first l of the
-  // second: how many pairs, at what cost, and the step that got there
-  // (1 leaves out the second's entry, 2 the first's, 3 pairs them).
-  const count = new Int32Array((n + 1) * width);
-  const total = new Float64Array((n + 1) * width);
-  const step = new Uint8Array((n + 1) * width);
+  // second, at `s * width + l - s - lo`: how many pairs (-1 outside the
+  // band), at what cost, and the step that got there (1 leaves out the
+  // second's entry, 2 the first's, 3 pairs them).
+  const size = (n + 1) * width;
+  const count = new Int32Array(size).fill(-1);
+  const total = new Float64Array(size);
+  const step = new Uint8Array(size);
+  const at = (s: number, l: number) =>
+    s < 0 || l < 0 || l - s < lo || l - s > hi ? -1 : s * width + l - s - lo;
+  count[at(0, 0)] = 0;
   for (let s = 0; s <= n; s += 1) {
-    for (let l = 0; l <= m; l += 1) {
-      const k = s * width + l;
-      if (l > 0) {
-        count[k] = count[k - 1]!;
-        total[k] = total[k - 1]!;
-        step[k] = 1;
-      }
-      if (s > 0) {
-        const up = k - width;
+    for (let l = Math.max(0, s + lo); l <= Math.min(m, s + hi); l += 1) {
+      const k = at(s, l);
+      const offer = (from: number, pairs: number, sum: number, how: number) => {
         if (
-          l === 0 ||
-          count[up]! > count[k]! ||
-          (count[up] === count[k] && total[up]! < total[k]!)
+          from >= 0 &&
+          count[from]! >= 0 &&
+          (pairs > count[k]! || (pairs === count[k] && sum < total[k]!))
         ) {
-          count[k] = count[up]!;
-          total[k] = total[up]!;
-          step[k] = 2;
+          count[k] = pairs;
+          total[k] = sum;
+          step[k] = how;
         }
+      };
+      const left = at(s, l - 1);
+      if (left >= 0) {
+        offer(left, count[left]!, total[left]!, 1);
       }
-      if (s > 0 && l > 0) {
+      const up = at(s - 1, l);
+      if (up >= 0) {
+        offer(up, count[up]!, total[up]!, 2);
+      }
+      const diagonal = at(s - 1, l - 1);
+      if (diagonal >= 0 && count[diagonal]! >= 0) {
         const d = cost(s - 1, l - 1);
-        const diagonal = k - width - 1;
         if (d !== undefined) {
-          const pairs = count[diagonal]! + 1;
-          const sum = total[diagonal]! + d;
-          if (pairs > count[k]! || (pairs === count[k] && sum < total[k]!)) {
-            count[k] = pairs;
-            total[k] = sum;
-            step[k] = 3;
-          }
+          offer(diagonal, count[diagonal]! + 1, total[diagonal]! + d, 3);
         }
       }
     }
   }
   const pairs: [number, number][] = [];
-  for (let s = n, l = m; s > 0 && l > 0; ) {
-    const k = s * width + l;
-    if (step[k] === 3) {
+  for (let s = n, l = m; s > 0 || l > 0; ) {
+    const how = step[at(s, l)];
+    if (how === 3) {
       pairs.push([s - 1, l - 1]);
       s -= 1;
       l -= 1;
-    } else if (step[k] === 2) {
+    } else if (how === 2) {
       s -= 1;
     } else {
       l -= 1;
