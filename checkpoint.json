@@ -2,10 +2,10 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 86,
-  "previous": "06b88fc1e098205ddb35241c297cf3bea2f773cc",
+  "seq": 87,
+  "previous": "260ffddb93ad8806dac3eb902f5813f1ba602372",
   "snapshotParents": [],
-  "time": "2026-10-16T19:32:01.029Z",
+  "time": "2026-10-16T19:32:53.387Z",
   "kind": "auto",
   "transition": "a new plan",
   "run": {
@@ -890,7 +890,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:32:00.143Z",
+      "observedAt": "2026-10-16T19:32:52.551Z",
       "held": true,
       "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -1013,7 +1013,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:32:00.143Z",
+      "observedAt": "2026-10-16T19:32:52.551Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1024,7 +1024,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:32:00.142Z",
+    "at": "2026-10-16T19:32:52.549Z",
     "tickets": [
       {
         "number": 851,
@@ -1034,9 +1034,9 @@
       },
       {
         "number": 1637,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1960,
-        "reason": "process 1748, 36652, 33908 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-fcab34d9-879d-446e-9cc9-baf63a589624"
+        "reason": "PR #1960 is ready at d97776bf561f272db2223fbbe2411a70bd98a670; process 45152 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1798,
