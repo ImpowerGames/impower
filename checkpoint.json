@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 112,
-  "previous": "3318a15e2abc47900f0435ef91953ead8125d51d",
+  "seq": 113,
+  "previous": "1a233f77ee87151d9aaad3999030da484e855e5a",
   "snapshotParents": [],
-  "time": "2026-10-16T22:21:30.783Z",
+  "time": "2026-10-16T22:52:11.904Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 87,
+    "recordRevision": 88,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -1177,7 +1177,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T22:21:29.390Z",
+      "observedAt": "2026-10-16T22:52:10.436Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1322,12 +1322,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T22:21:29.390Z",
+      "observedAt": "2026-10-16T22:52:10.436Z",
       "held": true,
-      "head": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
-      "remoteHead": "df557a02b849e141ad5f43838f85d7a9c6658f3a",
+      "head": "f6c00cd3ff9fc02b94c9cf5bb011ff0efd8d30ad",
+      "remoteHead": "f6c00cd3ff9fc02b94c9cf5bb011ff0efd8d30ad",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 17044
+      },
       "pr": 1984,
       "reviewJobs": [
         {
@@ -1450,6 +1454,27 @@
           "commentIds": [
             6225755506
           ]
+        },
+        {
+          "job": "pr-1984/round-2/launch-incrementality-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-incrementality",
+            "reviewerId": "incrementality",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incrementality",
+              "undirected"
+            ],
+            "head": "f6c00cd3ff9fc02b94c9cf5bb011ff0efd8d30ad",
+            "completedRoundReviewers": {
+              "incrementality": 1,
+              "blast-radius": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T22:41:39.609Z"
+          }
         }
       ]
     }
@@ -2079,6 +2104,11 @@
       "time": "2026-10-16T22:21:27.519Z",
       "event": "check-in",
       "outcome": "no change: #1881 (PR #1983, round 3 on 2cd5a71ce) and #1974 (draft PR #1984, head df557a02b, round 1) writers running; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T22:52:08.767Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (PR #1983, round 3 on 2cd5a71ce) and #1974 (draft PR #1984, head f6c00cd3f) writers running; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
     }
   ]
 }
