@@ -1292,10 +1292,10 @@ const HTTP_URL = /^(?:-uri:|-url:|--url=)?(?:https?:\/\/)?(?:[^@/\s"']*@)?(api\.
 function checkGuardedUrl(args, curl) {
   const texts = args.map((a) => a.text);
   const text = texts.join("\n");
-  // An argument that starts with a GitHub URL is a URL whatever follows it;
-  // any other argument naming GitHub is a URL glob unless it carries quotes
-  // or spaces, as a body (JSON, prose) does.
-  if (curl && texts.some((t) => /[{}[\]]/.test(t) && (HTTP_URL.test(t) || (/github/i.test(t) && !/["\s]/.test(t))))) return GUARD.api();
+  // A URL glob is an argument holding a glob character whose text before its
+  // first quote or space names GitHub; a body (JSON, prose) names it, if at
+  // all, only after a quote or a space.
+  if (curl && texts.some((t) => /[{}[\]]/.test(t) && /github/i.test(t.split(/["\s]/)[0]))) return GUARD.api();
   for (const arg of texts) {
     const m = arg.match(HTTP_URL);
     if (!m) continue;
@@ -1337,6 +1337,12 @@ function collectionRepo(args) {
 function checkCurl(args) {
   const target = collectionRepo(args);
   if (target === null || !isTypedRepo(target)) return null;
+  // With the switch on, a batch of transfers (`--next`, `-:`) that reaches a
+  // typed collection is refused: each transfer has its own method and body,
+  // and the hook does not split them.
+  if (repos.cutover && args.some((a) => a.text === "--next" || a.text === "-:")) {
+    return "This curl batch (--next) posts to an issue collection, and the hook cannot tell which transfer carries which body. Create each issue in its own call: " + recipe();
+  }
   let method = null;
   const bodies = [];
   let get = false;

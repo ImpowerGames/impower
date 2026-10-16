@@ -840,6 +840,7 @@ for (const [label, command, shell] of allows) {
     typedApi: "This creates an issue without an issue type, and every ticket here carries one (Bug, Feature, or Task).",
     typedHttp: "This creates an issue without an issue type (or from a body the hook cannot read).",
     createIssue: "This GraphQL mutation creates an issue, and the hook cannot see whether it sets an issue type.",
+    typedBatch: "This curl batch (--next) posts to an issue collection, and the hook cannot tell which transfer carries which body.",
   };
   const code = "ImpowerGames/impower";
   const internal = "ImpowerGames/impower-internal";
@@ -1014,7 +1015,9 @@ for (const [label, command, shell] of allows) {
     ["curl read whose query string holds a quoted value", `curl 'https://api.github.com/repos/${code}/issues/1?note="x"'`, "api"],
     ["curl read whose query string holds a space", `curl 'https://api.github.com/repos/${code}/issues/1?note=a b'`, "api"],
     ["Invoke-RestMethod read whose query string holds a quote", `Invoke-RestMethod -Uri 'https://api.github.com/repos/${code}/issues/1?note="x"'`, "api", "powershell"],
-    ["curl glob with globbing off",`curl -g 'https://api.github.com/repos/ImpowerGames/{impower,server}/pulls/1'`, "api"],
+    ["curl host glob whose query string holds a quoted value", `curl 'https://{api.github.com,example.com}/repos/${code}/issues/1962?note="x"'`, "api"],
+    ["curl glob around whole URLs whose query holds a quoted value", `curl '{https://api.github.com/repos/${code}/issues/1,https://example.com}?note="x"'`, "api"],
+    ["curl glob with globbing off",`curl -g'https://api.github.com/repos/ImpowerGames/{impower,server}/pulls/1'`, "api"],
     ["curl of the code repository's issue page", `curl -L https://github.com/${code}/issues/1962`, "web"],
     ["curl of the code repository's pull request conversation page", `curl https://github.com/${code}/pull/1975`, "web"],
     ["curl of the code repository's discussions page", `curl https://github.com/${code}/discussions`, "web"],
@@ -1044,6 +1047,8 @@ for (const [label, command, shell] of allows) {
     ["irm create on the internal repository without type", `irm -Method Post -Uri https://api.github.com/repos/${internal}/issues -Body @{title='x'}`, "typedHttp"],
     ["curl create posting to another repository and the internal one without type", `curl -X POST https://api.github.com/repos/SomeOther/repo/issues https://api.github.com/repos/${internal}/issues -d '{"title":"x"}'`, "typedHttp"],
     ["curl create through a glob holding the internal repository", `curl -X POST 'https://api.github.com/repos/ImpowerGames/{server,impower-internal}/issues' -d '{"title":"x"}'`, "api"],
+    ["curl batch whose typed first transfer goes elsewhere and untyped second to the internal repository", `curl -X POST https://api.github.com/repos/SomeOther/repo/issues -d '{"title":"x","type":"Task"}' --next -X POST https://api.github.com/repos/${internal}/issues -d '{"title":"x"}'`, "typedBatch"],
+    ["curl batch with -: to the internal repository", `curl -X POST https://api.github.com/repos/${internal}/issues -d '{"title":"x","type":"Task"}' -: -X POST https://api.github.com/repos/${internal}/issues -d '{"title":"y"}'`, "typedBatch"],
     ["curl create on the internal repository through a port without type", `curl -X POST https://api.github.com:443/repos/${internal}/issues --data '{"title":"x"}'`, "typedHttp"],
     ["irm create on a percent-encoded internal repository without type", `irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower-%69nternal/issues -Body '{"title":"x"}'`, "typedHttp", "powershell"],
     ["GraphQL createIssue on the internal repository", "gh api graphql -f query='mutation { createIssue(input: {repositoryId: \"x\", title: \"y\"}) { issue { id } } }'", "createIssue"],
