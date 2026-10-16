@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 240,
-  "previous": "3899c7ace183ec7aeaa452917ba728b0e6e66bd3",
+  "seq": 241,
+  "previous": "3ab04880c124759d739fab68d748cd27505afed4",
   "snapshotParents": [],
-  "time": "2026-10-16T16:58:13.743Z",
+  "time": "2026-10-16T16:58:38.822Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1934",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 175,
+    "recordRevision": 176,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -918,7 +918,26 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T16:58:34.855Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions",
+            "pr": 1953,
+            "reviewedHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
+            "rounds": "1 of 3 on gpt-5.6-terra at high (defaults row for a Low ticket and an Opus low writer), Codex CLI via start-coordinator with nativeResult codex-jsonl; round state parent 6219840933; ax (author-experience short plus incrementality) report 6220115350 adjudication 6220144177, undirected report 6220408180 adjudication 6220482125; both exited, both journals completed; one launch refused at validation (ticketEffort with an explicit reviewer) was fixed and relaunched before any review ran",
+            "findings": "None",
+            "verification": "Cause confirmed by tracing: in an incremental compile the kept label's definition comes from the previous root, so definitionArrays' flows loop meets the clash first and blames the flow, while a cold compile meets it in the placed loop and blames the label. Fix inside ChunkStore only: when a build with a previous root finds a clash, coldClash walks the new rows in cold placement order (each flow's sequence, the bodies of a sequence's entries before the entries, then the declaration sequences) and reports the first clash; the line expression factored into clashAt unchanged, #1721 left alone; nothing reaches the parser or the memo session. New cases in programChunkValidity.test.ts: label-then-branch red on base (expected 1:2, received 4:4) and green on the fix; the reverse and two-label cases pass on both because the parser reports those duplicates first (disclosed). On head: programChunkValidity, programDiagnosticsParity, programIncrementalColdParity and programCumulativeEdits short form 51 passed, 1 pre-existing short-form skip; SPARKDOWN_CUMULATIVE=1 full form 25 passed, 0 skipped with flow seed 3 un-skipped (run on ea16a4874 before the main merge that brought in #1929 only); filtered typecheck clean. Web editor: before the fix the error sat on the branch body (line 5), after on label extra (line 2), matching cold; screenshots in the PR. Coverage gap: the undirected reviewer could not get the test reservation for its own red-on-base run and established the base behavior statically; the writer's recorded red run covers it.",
+            "ci": "every check on 40f7f8169 passed; package jobs ran including sparkdown 1/4 to 4/4, test-suite, typecheck and tsc; driver-checks, notifier, skills-checks, vitest-api-integration skipped by path",
+            "next": "none from the writer; PR 1953 awaits the merge gate; ChunkStore.ts held until it merges",
+            "changesAfterReviewedCommit": "none; head equals the reviewed commit (origin/main merged once as 40f7f8169)",
+            "notes": "No tickets filed.",
+            "source": "cross-session message from writer session impower-47 after its turn ended; transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1934-fdf8e099-6449-4a65-b797-0cd95778f581/out.jsonl; PR facts confirmed on GitHub"
+          }
+        }
+      ]
     }
   },
   "operations": [
@@ -2636,7 +2655,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:58:12.582Z",
+      "observedAt": "2026-10-16T16:58:37.692Z",
       "held": true,
       "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
       "remoteHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
@@ -2724,7 +2743,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:58:12.582Z",
+      "observedAt": "2026-10-16T16:58:37.692Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2963,13 +2982,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:59:01.989Z",
-      "event": "dispatch-intent",
-      "ticket": 1623,
-      "route": "claude-cli",
-      "launchId": "e5b583ab-32cc-45f0-a078-087926aa6f19"
-    },
     {
       "time": "2026-10-16T01:00:07.313Z",
       "event": "dispatch-intent",
@@ -3637,6 +3649,13 @@
       "time": "2026-10-16T16:48:55.985Z",
       "event": "check-in",
       "outcome": "no change: #1934 draft PR 1953 at 40f7f8169 in review round 1 (ax posted no findings, undirected running, CI started); no requests"
+    },
+    {
+      "time": "2026-10-16T16:58:34.856Z",
+      "event": "result",
+      "ticket": 1934,
+      "pr": 1953,
+      "reviewedHead": "40f7f8169a627b4c27d81790110a3bf79bddf842"
     }
   ]
 }
