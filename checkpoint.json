@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 249,
-  "previous": "5c0bca86437fe0e87365da1e45db8220bd08a697",
+  "seq": 250,
+  "previous": "3805a58ddf1760344e7118167c183fc2c66f6f67",
   "snapshotParents": [],
-  "time": "2026-10-16T17:29:03.996Z",
+  "time": "2026-10-16T17:29:45.425Z",
   "kind": "auto",
-  "transition": "closing the Feature (confirmed)",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 182,
+    "recordRevision": 183,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2931,7 +2931,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T17:29:03.983Z",
+      "observedAt": "2026-10-16T17:29:45.407Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -3170,11 +3170,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:02:53.527Z",
-      "event": "verified",
-      "ticket": 1614
-    },
     {
       "time": "2026-10-16T01:18:32.967Z",
       "event": "check-in",
@@ -3825,6 +3820,11 @@
       "event": "operation-outcome",
       "id": "96fca801",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T17:29:43.183Z",
+      "event": "check-in",
+      "outcome": "run complete: Feature #1893 verified complete (verification 4c8c8717) and closed with final report comment 6221026246; the periodic check-in job e8a7ccb0 is cancelled since no writer remains"
     }
   ]
 }
