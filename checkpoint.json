@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 132,
-  "previous": "70067938db746f46748b219fe53001ed1e39d182",
+  "seq": 133,
+  "previous": "af397c59d71915a7daa572f2489ac89f14265159",
   "snapshotParents": [],
-  "time": "2026-10-16T02:28:54.434Z",
+  "time": "2026-10-16T02:29:51.116Z",
   "kind": "auto",
-  "transition": "launch of #1617",
+  "transition": "acknowledged of #1617",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 112,
+    "recordRevision": 113,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -711,7 +711,18 @@
           "time": "2026-10-16T02:28:53.211Z",
           "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
         },
-        "since": "2026-10-16T02:28:53.212Z"
+        "since": "2026-10-16T02:28:53.212Z",
+        "sessionId": "3ff64464-ab96-4bdb-b5b4-dc012740eac7",
+        "acknowledged": {
+          "time": "2026-10-16T02:29:49.679Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer impower-e5 naming assignment a187fa84, read from its claude process command line (--model claude-opus-5-5 --effort low --permission-mode bypassPermissions); CLAUDE_EFFORT unset in its shell, not a differing value",
+          "deliveryId": "61e8b18a"
+        }
       },
       "pending": null,
       "history": [],
@@ -1878,7 +1889,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:28:54.434Z",
+      "observedAt": "2026-10-16T02:29:51.115Z",
       "held": true,
       "exists": false
     }
@@ -1969,11 +1980,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:17:49.607Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\docs\\1707-runtime-guide"
-    },
     {
       "time": "2026-10-15T22:17:57.977Z",
       "event": "disk-recovery",
@@ -2606,6 +2612,16 @@
         "start": "639277145329133458",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1617-a187fa84-2b3c-42c2-9c97-533c81fa5cdb"
+      }
+    },
+    {
+      "time": "2026-10-16T02:29:49.680Z",
+      "event": "acknowledged",
+      "ticket": 1617,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "low",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
