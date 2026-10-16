@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 178,
-  "previous": "70846f839fe330951bbbe99d7237cf64f10b2e59",
+  "seq": 179,
+  "previous": "cfa3e698d059d7824f703b95ecab147bef168600",
   "snapshotParents": [],
-  "time": "2026-10-16T08:47:27.164Z",
+  "time": "2026-10-16T09:17:26.759Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 130,
+    "recordRevision": 131,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2048,7 +2048,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T08:47:26.444Z",
+      "observedAt": "2026-10-16T09:17:26.017Z",
       "held": true,
       "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
       "remoteHead": null,
@@ -2154,11 +2154,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:19:56.241Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\1729-untypeable-synthetic-names"
-    },
     {
       "time": "2026-10-15T22:20:05.851Z",
       "event": "disk-recovery",
@@ -2858,6 +2853,11 @@
     },
     {
       "time": "2026-10-16T08:47:25.156Z",
+      "event": "check-in",
+      "outcome": "no change: #1917 writer stalled on the weekly usage limit, no PR; awaiting the maintainer's choice"
+    },
+    {
+      "time": "2026-10-16T09:17:24.651Z",
       "event": "check-in",
       "outcome": "no change: #1917 writer stalled on the weekly usage limit, no PR; awaiting the maintainer's choice"
     }
