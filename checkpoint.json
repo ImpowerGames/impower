@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 131,
-  "previous": "535166cb9aef378e9af5dc1261be0ce428ab8a26",
+  "seq": 132,
+  "previous": "6a2df44c7e19879959da73c07d152c5ae0a50b2e",
   "snapshotParents": [],
-  "time": "2026-10-16T03:14:40.669Z",
+  "time": "2026-10-16T03:17:27.126Z",
   "kind": "auto",
-  "transition": "the merge of PR #1919 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 98,
@@ -1516,12 +1516,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T03:14:39.278Z",
+      "observedAt": "2026-10-16T03:17:25.836Z",
       "held": true,
       "head": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
       "remoteHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 1900
+      },
       "pr": 1918,
       "reviewJobs": [
         {
@@ -1644,6 +1648,26 @@
           "commentIds": [
             6206879903
           ]
+        },
+        {
+          "job": "pr-1918/round-2/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
+            "completedRoundReviewers": {
+              "incr": 1,
+              "bound": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T03:14:55.237Z"
+          }
         }
       ]
     },
@@ -1652,7 +1676,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T03:14:39.278Z",
+      "observedAt": "2026-10-16T03:17:25.836Z",
       "held": true,
       "head": "5b408d57e22233a48ca7ff03f78d3de629530b73",
       "remoteHead": "5b408d57e22233a48ca7ff03f78d3de629530b73",
@@ -1787,7 +1811,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T03:11:20.609Z",
+    "at": "2026-10-16T03:17:25.833Z",
     "tickets": [
       {
         "number": 1201,
@@ -1827,9 +1851,9 @@
       },
       {
         "number": 1614,
-        "action": "merge-gate",
-        "pr": 1919,
-        "reason": "PR #1919 is ready at 5b408d57e22233a48ca7ff03f78d3de629530b73; process 11208 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 11208 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1623,
@@ -1857,9 +1881,9 @@
       },
       {
         "number": 1638,
-        "action": "merge-gate",
-        "pr": 1919,
-        "reason": "PR #1919 is ready at 5b408d57e22233a48ca7ff03f78d3de629530b73 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1846,
@@ -1871,7 +1895,7 @@
         "number": 1917,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1614 (open), #1623 (open), #1627 (open)"
+        "reason": "waiting for #1623 (open), #1627 (open)"
       }
     ],
     "remaining": [
