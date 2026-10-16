@@ -784,11 +784,12 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("is served when a global of its name is declared above it, and no other statement is lowered", () => {
+  it("is lowered again with the line that reads it after a global of its name is declared above it (#1974), and compiles as cold", () => {
     // A global of the local's name, declared above the scene: the local
     // shadows it with no diagnostic (#1742), so nothing about the local
-    // changes. The line that reads the local still reads the local its
-    // served declaration declares.
+    // changes, and the line that reads the local still reads the local. Its
+    // memo and the reader's should therefore be served on the next edit;
+    // until #1974 is fixed they are lowered again, and no other statement is.
     const s = warmed(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1");
     s.edit("Line last.", "Line last, edited.");
