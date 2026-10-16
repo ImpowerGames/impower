@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 181,
-  "previous": "d916d02845cae66b16ffb33f4e8f0d7590c40210",
+  "seq": 182,
+  "previous": "c576349e5a97aca883bedc5e13767081e50b0d32",
   "snapshotParents": [],
-  "time": "2026-10-16T10:17:27.863Z",
+  "time": "2026-10-16T10:47:24.277Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 133,
+    "recordRevision": 134,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2048,7 +2048,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T10:17:27.140Z",
+      "observedAt": "2026-10-16T10:47:23.560Z",
       "held": true,
       "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
       "remoteHead": null,
@@ -2154,11 +2154,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:20:25.059Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\refactor\\705-delete-object-engine"
-    },
     {
       "time": "2026-10-15T22:20:34.833Z",
       "event": "disk-recovery",
@@ -2858,6 +2853,11 @@
     },
     {
       "time": "2026-10-16T10:17:25.856Z",
+      "event": "check-in",
+      "outcome": "no change: #1917 writer stalled on the weekly usage limit, no PR; awaiting the maintainer's choice"
+    },
+    {
+      "time": "2026-10-16T10:47:22.252Z",
       "event": "check-in",
       "outcome": "no change: #1917 writer stalled on the weekly usage limit, no PR; awaiting the maintainer's choice"
     }
