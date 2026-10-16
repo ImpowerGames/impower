@@ -226,4 +226,10 @@ describe("an include of a script that does not exist", () => {
     });
     expect(errorLines(program)).toEqual([missing]);
   });
+
+  // An `include` with no path is the neighbouring mistake (#1956 review).
+  it.each(["include", "include  # tag"])("is an error at `%s`, which names no script", (line) => {
+    const text = main.replace("include nope.sd", line);
+    expect(errorLines(compileOnce({ main: text }))).toEqual([[1, "Expected a file path after 'include'."]]);
+  });
 });

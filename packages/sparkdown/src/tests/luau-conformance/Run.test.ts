@@ -86,6 +86,18 @@ done
     expect(errs.some((m) => m.includes("doesnotexist"))).toBe(true);
   });
 
+  // #316: a run that names no file is an error, not a statement that runs
+  // nothing.
+  test.each(["run", 'run ""', "run ''", 'run ".luau"', "run  # tag"])(
+    "errors on a run with no path: %s",
+    (runLine) => {
+      const { errs } = compileWithFiles([
+        { uri: "inmemory:///main.sd", text: `${runLine}\ndone\n` },
+      ]);
+      expect(errs).toEqual(["Expected a file path after 'run'."]);
+    },
+  );
+
   // #887: a file run from two places declares its wrapper function once and
   // calls it from each place.
   function recordedRun(chunks: unknown) {
