@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 26,
-  "previous": "40b3d49e4f4235ce729f9f750ba5cd77a99f981a",
+  "seq": 27,
+  "previous": "3bcad5ad3b373972e369c0c97f23aa79f5b398bf",
   "snapshotParents": [],
-  "time": "2026-10-16T22:07:26.060Z",
+  "time": "2026-10-16T22:53:08.562Z",
   "kind": "auto",
-  "transition": "request of #1962",
+  "transition": "the intent to ready PR #1975",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 25,
+    "recordRevision": 28,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -799,11 +799,373 @@
             "time": "2026-10-16T21:34:22.468Z",
             "headAtPublish": "3626459970eba05554ed39a5c677fb570ba585ef"
           }
+        },
+        {
+          "version": 1,
+          "id": "40630f59",
+          "kind": "accept-unreviewed",
+          "feature": 1961,
+          "ticket": 1962,
+          "pr": 1975,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-16T22:52:10.691Z",
+          "round": 4,
+          "limitBefore": 4,
+          "reviewedHead": "5415ccea549dc6631fed6412162345fa6af13210",
+          "head": "041d28169100232e321ebdc166009aa3dbd853e6",
+          "range": {
+            "from": "5415ccea549dc6631fed6412162345fa6af13210",
+            "to": "041d28169100232e321ebdc166009aa3dbd853e6",
+            "base": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+            "commits": [
+              "041d28169100232e321ebdc166009aa3dbd853e6"
+            ],
+            "diffSha256": "506bae7ad9a194c657362a757879420215d79410e34d182230f752e101c12235"
+          },
+          "reports": [
+            {
+              "comment": 6222795139,
+              "round": 1,
+              "reviewerId": "guard",
+              "adjudication": 6222927525
+            },
+            {
+              "comment": 6223054405,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6223147680
+            },
+            {
+              "comment": 6223383016,
+              "round": 2,
+              "reviewerId": "fidelity",
+              "adjudication": 6223516563
+            },
+            {
+              "comment": 6223680529,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6223816400
+            },
+            {
+              "comment": 6224347210,
+              "round": 3,
+              "reviewerId": "boundary",
+              "adjudication": 6224554059
+            },
+            {
+              "comment": 6224851543,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6224992329
+            },
+            {
+              "comment": 6225503433,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6225586928
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "authority": "/orchestrate-feature #1961",
+          "assessment": {
+            "mechanisms": "Round 4's one accepted finding is the same mechanism as the 30 before it: the guard's static reading of a command against a tool's real semantics, here curl's per-transfer option reset at --next, which let a typed body in one transfer vouch for an untyped POST to the internal issue collection in another. It is an incomplete earlier correction (round 3's 'check every curl destination'), not a defect the round 3 blanket rules introduced; the reviewer traced the four blanket rules (curl glob refusal, GraphQL ticket reads refused for any repository, OR searches unscoped, every destination checked) and raised no soundness finding against them beyond the quoted-query glob edge the previous checkpoint had already named, which the writer closed before launch in 5415ccea5 (any argument starting with a GitHub URL is a destination and a glob candidate). The round 4 correction at 041d28169 closes both remaining points by refusing outright rather than modelling curl: a batch (--next or -:) that reaches a typed issue collection is refused with the switch on, and the glob test becomes one rule (an argument holding a glob character whose text before its first quote or space names GitHub). I read the unreviewed diff: the new glob predicate is a superset of the two-clause one it replaces, since every argument the old clauses matched has no quote or space and so is its own first segment, and the batch check returns a refusal or falls through to the existing logic. Both changes only add refusals, both are reached only under repos.cutover, and the off position is untouched.",
+            "regressions": "None found in round 4. Rounds 1 and 3 had introduced three defects by modelling tool syntax; the fail-closed rules that replaced those models held under an independent reviewer in round 4. The one finding was an omission in an earlier repair, and its correction and the glob simplification can only refuse more, so neither can introduce a leak; the only possible defect in them is an over-refusal, bounded to curl --next batches that post to the internal issue collection and to curl arguments whose pre-quote text names GitHub and holds a glob character, neither of which any skill text or workflow script runs.",
+            "repairOptions": "Both round 4 fixes are already the simplest sound repair, refusing outright. The allow-list alternative (enumerated gh subcommands and REST paths, no GraphQL) remains available with the same trade-off as before and is not taken: the ticket scopes the hook as a guardrail against forgetting the type or the repository, not against evasion, and the fail-closed rules already cover every form an agent retargeting a command would produce. No further simplification is worth a round.",
+            "residualRisk": "1. Switch off, which merges and runs until #1967: none; every commit of the PR leaves the off position identical to origin/main, compared by four reviewers over the rounds. 2. Switch on: 041d28169 is unreviewed by an independent reviewer, but it is one commit of two refusal-only changes with four new rows that fail at 5415ccea5 and pass at 041d28169, verified by snapshot and restore; the remaining exposure is an over-refusal of a curl batch or a GitHub-naming glob argument, which the workflow never runs. Forms outside the disclosed static scope (variables, earlier exports, query files, curl -K, other clients, aliases, wrappers) remain by design and are listed in the PR's Notes, as are the accepted over-refusals including GraphQL ticket reads on the internal repository. 3. The round 4 reviewer's own head probes did not run because the shared test reservation was held by other worktrees; its red evidence came from the base clone (40 behavioural failures against the prior reviewed source) and its green evidence from the head's hook-tests CI job, which is adequate for a diff of this size.",
+            "coverage": "At 041d28169: node --test .claude/hooks/typed-issue-hook.test.mjs passes with 1350 checks (original tables under an explicit off config, wired fixture checkouts in both positions and with a malformed repos file, and the switch-on refusal and allowance table through the real hook script); the shared-stash, policy, portability and local-test hook tests pass; the four new rows fail against 5415ccea5's hook (snapshot and restore, cmp verified). Hook Tests CI passed in full on 5415ccea5, 2fb944aa7 and da29d919f. Every CI check on 041d28169 has finished and passed at the time of this decision, as the evidence block records.",
+            "nextRoundValue": "A fifth round could only establish whether two refusal-only changes over-refuse a command the workflow runs, and no skill text or script runs a curl --next batch against an issue collection or a curl glob near GitHub. It cannot find a leak in them. The defect class has stopped recurring: round 4 found no soundness defect in the round 3 rules, only an omission in an earlier repair, and the review is converged. Another round has diminishing benefit against its cost of a reviewer slot and about an hour, so the unreviewed correction is accepted on this head.",
+            "rationale": "Accepting unreviewed corrections is allowed only once the defect classes have stopped recurring and what remains unreviewed is small and verified, and both hold: round 4 found no new defect class and no regression from the fail-closed rules, and the unreviewed range is one commit that only adds refusals, with red-then-green rows and every CI check on the head passed. The root causes were addressed by removing the tool modelling that produced every regression. This acceptance applies to head 041d28169 only, bound to the unreviewed diff's SHA-256; a new push ends it and a new checkpoint decides the new head. With it, the coordinator marks the PR ready and merges only through the merge gate; the writer does not mark it ready. The switch-off gh issue new gap stays disclosed, as decided at the round 3 checkpoint. The PR's Notes for reviewers already distinguish the independently reviewed code through 5415ccea5 from the unreviewed range.",
+            "next": "The coordinator records and publishes this acceptance on the PR, marks PR #1975 ready with a comment naming the decision, runs integration.mjs gate and merges through integration.mjs merge once the gate admits head 041d28169; the writer records its final report and ends. After the merge is on origin/main, #1963 and #1966 become eligible and are dispatched with the cutover-switch decision in their briefs.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "verification": [
+              "node --test .claude/hooks/typed-issue-hook.test.mjs passes at 041d28169 with 1350 checks, including the four new rows that fail against 5415ccea5's hook (snapshot and restore, cmp verified)",
+              "shared-stash-hook, policy, portability and local-test hook tests pass at 041d28169",
+              "Hook Tests CI passed in full on 5415ccea5, 2fb944aa7 and da29d919f; every check on 041d28169 passed as the evidence block records",
+              "the unreviewed diff (SHA-256 506bae7ad9a194c657362a757879420215d79410e34d182230f752e101c12235) was read by the coordinator: a one-line glob predicate that is a superset of the two clauses it replaces, and a batch refusal in checkCurl under repos.cutover, both refusal-only"
+            ],
+            "findings": [
+              {
+                "comment": 6222795139,
+                "finding": "repository resolution disagrees with gh (flag order, URL selector precedence)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6222795139,
+                "finding": "GraphQL timeline, IssueComment and PullRequestReview selections bypass the comment and review boundary",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6222795139,
+                "finding": "HTTP body text mistaken for a request destination, refusing permitted PR PATCH",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6222795139,
+                "finding": "nested shells lose a visible internal GH_REPO",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223054405,
+                "finding": "attached curl method values (-XGET, -XPOST) bypass the destination check",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223054405,
+                "finding": "attached flag text (--body=<internal url>) mistaken for a repository selector",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223383016,
+                "finding": "a consumed curl value (-d -X <url>) mistaken for an option consuming the destination",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223383016,
+                "finding": "a URL fragment hides a guarded HTTP destination",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223383016,
+                "finding": "search --repo and --owner not split as pflag string slices",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223383016,
+                "finding": "an explicit port in a selector URL defeats precedence over -R",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223383016,
+                "finding": "redirections and flagless env lose a known internal GH_REPO",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223383016,
+                "finding": "--comments=false still counted as requesting comments",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223383016,
+                "finding": "GraphQL field test matches operation names such as ReviewTitle",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223680529,
+                "finding": "gh pr list --author can export comments and reviews as JSON",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223680529,
+                "finding": "organization-scoped or unscoped GraphQL searches read public issues without naming the repository",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223680529,
+                "finding": "quoted search qualifiers hide the public repository",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223680529,
+                "finding": "gh api paths checked before percent-decoding and fragment removal",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224347210,
+                "finding": "the gh discussion command family is unguarded",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224347210,
+                "finding": "a permitted GraphQL repository lookup does not confine its connections (owner traversal, viewer behind a directive)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224347210,
+                "finding": "unrelated request fields falsely establish REST search scope",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224347210,
+                "finding": "URL userinfo and curl brace globs bypass HTTP destination recognition",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224347210,
+                "finding": "GitHub web pages of issues, pull request conversations and discussions remain open to HTTP clients",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224347210,
+                "finding": "gh pr ls alias escapes the required --author filter",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224347210,
+                "finding": "canonical HTTP URLs (port, percent-encoding) evade internal typed creation",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224851543,
+                "finding": "an attached curl option value holding g disables glob expansion",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224851543,
+                "finding": "hostname globs discarded before expansion",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224851543,
+                "finding": "internal typed creation checks only one unexpanded collection URL",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224851543,
+                "finding": "a named GraphQL repository does not contain all sensitive descendants (closingIssuesReferences, headRepository)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224851543,
+                "finding": "one safe repository qualifier does not scope every OR branch",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224851543,
+                "finding": "curl ranges checked only at their first value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225503433,
+                "finding": "a curl --next batch shares type evidence across independent transfers, letting an untyped POST to the internal issue collection pass",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225503433,
+                "finding": "evasion-grade concern: a host glob or whole-URL glob with a quoted query string escaped the glob test (fixed as a simplification in 041d28169)",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 4: accept the final verified corrections without another independent round\n\nDecision `40630f59` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1962. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1961\"\n\n- Round state: round 4 is complete (limit 4 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6222795139 in 6222927525, 6223054405 in 6223147680, 6223383016 in 6223516563, 6223680529 in 6223816400, 6224347210 in 6224554059, 6224851543 in 6224992329, 6225503433 in 6225586928).\n- Independently reviewed through `5415ccea549dc6631fed6412162345fa6af13210`.\n- Head `041d28169100232e321ebdc166009aa3dbd853e6`. Unreviewed: `5415ccea5..041d28169`, 1 commit (`041d28169` fix(github): refuse curl batches to issue collections and simplify the glob rule (#1962)), diff SHA-256 `506bae7ad9a194c657362a757879420215d79410e34d182230f752e101c12235`.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, test-suite passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, driver-checks (windows-latest) passed, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) passed, vitest-api-integration (windows-latest, 3.2.6) passed, hook-tests passed.\n- Findings across all rounds: 32 accepted; unresolved: none.\n- Shared mechanisms: Round 4's one accepted finding is the same mechanism as the 30 before it: the guard's static reading of a command against a tool's real semantics, here curl's per-transfer option reset at --next, which let a typed body in one transfer vouch for an untyped POST to the internal issue collection in another. It is an incomplete earlier correction (round 3's 'check every curl destination'), not a defect the round 3 blanket rules introduced; the reviewer traced the four blanket rules (curl glob refusal, GraphQL ticket reads refused for any repository, OR searches unscoped, every destination checked) and raised no soundness finding against them beyond the quoted-query glob edge the previous checkpoint had already named, which the writer closed before launch in 5415ccea5 (any argument starting with a GitHub URL is a destination and a glob candidate). The round 4 correction at 041d28169 closes both remaining points by refusing outright rather than modelling curl: a batch (--next or -:) that reaches a typed issue collection is refused with the switch on, and the glob test becomes one rule (an argument holding a glob character whose text before its first quote or space names GitHub). I read the unreviewed diff: the new glob predicate is a superset of the two-clause one it replaces, since every argument the old clauses matched has no quote or space and so is its own first segment, and the batch check returns a refusal or falls through to the existing logic. Both changes only add refusals, both are reached only under repos.cutover, and the off position is untouched.\n- Defects introduced by corrections: None found in round 4. Rounds 1 and 3 had introduced three defects by modelling tool syntax; the fail-closed rules that replaced those models held under an independent reviewer in round 4. The one finding was an omission in an earlier repair, and its correction and the glob simplification can only refuse more, so neither can introduce a leak; the only possible defect in them is an over-refusal, bounded to curl --next batches that post to the internal issue collection and to curl arguments whose pre-quote text names GitHub and holds a glob character, neither of which any skill text or workflow script runs.\n- Broader or simpler repair: Both round 4 fixes are already the simplest sound repair, refusing outright. The allow-list alternative (enumerated gh subcommands and REST paths, no GraphQL) remains available with the same trade-off as before and is not taken: the ticket scopes the hook as a guardrail against forgetting the type or the repository, not against evasion, and the fail-closed rules already cover every form an agent retargeting a command would produce. No further simplification is worth a round.\n- Residual risk: 1. Switch off, which merges and runs until #1967: none; every commit of the PR leaves the off position identical to origin/main, compared by four reviewers over the rounds. 2. Switch on: 041d28169 is unreviewed by an independent reviewer, but it is one commit of two refusal-only changes with four new rows that fail at 5415ccea5 and pass at 041d28169, verified by snapshot and restore; the remaining exposure is an over-refusal of a curl batch or a GitHub-naming glob argument, which the workflow never runs. Forms outside the disclosed static scope (variables, earlier exports, query files, curl -K, other clients, aliases, wrappers) remain by design and are listed in the PR's Notes, as are the accepted over-refusals including GraphQL ticket reads on the internal repository. 3. The round 4 reviewer's own head probes did not run because the shared test reservation was held by other worktrees; its red evidence came from the base clone (40 behavioural failures against the prior reviewed source) and its green evidence from the head's hook-tests CI job, which is adequate for a diff of this size.\n- Verification coverage: At 041d28169: node --test .claude/hooks/typed-issue-hook.test.mjs passes with 1350 checks (original tables under an explicit off config, wired fixture checkouts in both positions and with a malformed repos file, and the switch-on refusal and allowance table through the real hook script); the shared-stash, policy, portability and local-test hook tests pass; the four new rows fail against 5415ccea5's hook (snapshot and restore, cmp verified). Hook Tests CI passed in full on 5415ccea5, 2fb944aa7 and da29d919f. Every CI check on 041d28169 has finished and passed at the time of this decision, as the evidence block records.\n- What another round would establish: A fifth round could only establish whether two refusal-only changes over-refuse a command the workflow runs, and no skill text or script runs a curl --next batch against an issue collection or a curl glob near GitHub. It cannot find a leak in them. The defect class has stopped recurring: round 4 found no soundness defect in the round 3 rules, only an omission in an earlier repair, and the review is converged. Another round has diminishing benefit against its cost of a reviewer slot and about an hour, so the unreviewed correction is accepted on this head.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: Accepting unreviewed corrections is allowed only once the defect classes have stopped recurring and what remains unreviewed is small and verified, and both hold: round 4 found no new defect class and no regression from the fail-closed rules, and the unreviewed range is one commit that only adds refusals, with red-then-green rows and every CI check on the head passed. The root causes were addressed by removing the tool modelling that produced every regression. This acceptance applies to head 041d28169 only, bound to the unreviewed diff's SHA-256; a new push ends it and a new checkpoint decides the new head. With it, the coordinator marks the PR ready and merges only through the merge gate; the writer does not mark it ready. The switch-off gh issue new gap stays disclosed, as decided at the round 3 checkpoint. The PR's Notes for reviewers already distinguish the independently reviewed code through 5415ccea5 from the unreviewed range. Next: The coordinator records and publishes this acceptance on the PR, marks PR #1975 ready with a comment naming the decision, runs integration.mjs gate and merges through integration.mjs merge once the gate admits head 041d28169; the writer records its final report and ends. After the merge is on origin/main, #1963 and #1966 become eligible and are dispatched with the cutover-switch decision in their briefs.\n- Verification on the head: node --test .claude/hooks/typed-issue-hook.test.mjs passes at 041d28169 with 1350 checks, including the four new rows that fail against 5415ccea5's hook (snapshot and restore, cmp verified); shared-stash-hook, policy, portability and local-test hook tests pass at 041d28169; Hook Tests CI passed in full on 5415ccea5, 2fb944aa7 and da29d919f; every check on 041d28169 passed as the evidence block records; the unreviewed diff (SHA-256 506bae7ad9a194c657362a757879420215d79410e34d182230f752e101c12235) was read by the coordinator: a one-line glob predicate that is a superset of the two clauses it replaces, and a batch refusal in checkCurl under repos.cutover, both refusal-only.\n- This is the coordinator's exception for an orchestrated Feature: not ordinary readiness and not an independent review. Reviewed code ends at `5415ccea549dc6631fed6412162345fa6af13210`; the range above is accepted unreviewed. It applies to head `041d28169100232e321ebdc166009aa3dbd853e6` only: any later push invalidates it and needs a new checkpoint.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"40630f59\",\n \"kind\": \"accept-unreviewed\",\n \"feature\": 1961,\n \"ticket\": 1962,\n \"pr\": 1975,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-16T22:52:10.691Z\",\n \"round\": 4,\n \"limitBefore\": 4,\n \"reviewedHead\": \"5415ccea549dc6631fed6412162345fa6af13210\",\n \"head\": \"041d28169100232e321ebdc166009aa3dbd853e6\",\n \"range\": {\n  \"from\": \"5415ccea549dc6631fed6412162345fa6af13210\",\n  \"to\": \"041d28169100232e321ebdc166009aa3dbd853e6\",\n  \"base\": \"f654256e7b6f330ac05c06a99310aea05ddad2ff\",\n  \"commits\": [\n   \"041d28169100232e321ebdc166009aa3dbd853e6\"\n  ],\n  \"diffSha256\": \"506bae7ad9a194c657362a757879420215d79410e34d182230f752e101c12235\"\n },\n \"reports\": [\n  {\n   \"comment\": 6222795139,\n   \"round\": 1,\n   \"reviewerId\": \"guard\",\n   \"adjudication\": 6222927525\n  },\n  {\n   \"comment\": 6223054405,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6223147680\n  },\n  {\n   \"comment\": 6223383016,\n   \"round\": 2,\n   \"reviewerId\": \"fidelity\",\n   \"adjudication\": 6223516563\n  },\n  {\n   \"comment\": 6223680529,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6223816400\n  },\n  {\n   \"comment\": 6224347210,\n   \"round\": 3,\n   \"reviewerId\": \"boundary\",\n   \"adjudication\": 6224554059\n  },\n  {\n   \"comment\": 6224851543,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6224992329\n  },\n  {\n   \"comment\": 6225503433,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6225586928\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"authority\": \"/orchestrate-feature #1961\",\n \"assessment\": {\n  \"mechanisms\": \"Round 4's one accepted finding is the same mechanism as the 30 before it: the guard's static reading of a command against a tool's real semantics, here curl's per-transfer option reset at -\\u002dnext, which let a typed body in one transfer vouch for an untyped POST to the internal issue collection in another. It is an incomplete earlier correction (round 3's 'check every curl destination'), not a defect the round 3 blanket rules introduced; the reviewer traced the four blanket rules (curl glob refusal, GraphQL ticket reads refused for any repository, OR searches unscoped, every destination checked) and raised no soundness finding against them beyond the quoted-query glob edge the previous checkpoint had already named, which the writer closed before launch in 5415ccea5 (any argument starting with a GitHub URL is a destination and a glob candidate). The round 4 correction at 041d28169 closes both remaining points by refusing outright rather than modelling curl: a batch (-\\u002dnext or -:) that reaches a typed issue collection is refused with the switch on, and the glob test becomes one rule (an argument holding a glob character whose text before its first quote or space names GitHub). I read the unreviewed diff: the new glob predicate is a superset of the two-clause one it replaces, since every argument the old clauses matched has no quote or space and so is its own first segment, and the batch check returns a refusal or falls through to the existing logic. Both changes only add refusals, both are reached only under repos.cutover, and the off position is untouched.\",\n  \"regressions\": \"None found in round 4. Rounds 1 and 3 had introduced three defects by modelling tool syntax; the fail-closed rules that replaced those models held under an independent reviewer in round 4. The one finding was an omission in an earlier repair, and its correction and the glob simplification can only refuse more, so neither can introduce a leak; the only possible defect in them is an over-refusal, bounded to curl -\\u002dnext batches that post to the internal issue collection and to curl arguments whose pre-quote text names GitHub and holds a glob character, neither of which any skill text or workflow script runs.\",\n  \"repairOptions\": \"Both round 4 fixes are already the simplest sound repair, refusing outright. The allow-list alternative (enumerated gh subcommands and REST paths, no GraphQL) remains available with the same trade-off as before and is not taken: the ticket scopes the hook as a guardrail against forgetting the type or the repository, not against evasion, and the fail-closed rules already cover every form an agent retargeting a command would produce. No further simplification is worth a round.\",\n  \"residualRisk\": \"1. Switch off, which merges and runs until #1967: none; every commit of the PR leaves the off position identical to origin/main, compared by four reviewers over the rounds. 2. Switch on: 041d28169 is unreviewed by an independent reviewer, but it is one commit of two refusal-only changes with four new rows that fail at 5415ccea5 and pass at 041d28169, verified by snapshot and restore; the remaining exposure is an over-refusal of a curl batch or a GitHub-naming glob argument, which the workflow never runs. Forms outside the disclosed static scope (variables, earlier exports, query files, curl -K, other clients, aliases, wrappers) remain by design and are listed in the PR's Notes, as are the accepted over-refusals including GraphQL ticket reads on the internal repository. 3. The round 4 reviewer's own head probes did not run because the shared test reservation was held by other worktrees; its red evidence came from the base clone (40 behavioural failures against the prior reviewed source) and its green evidence from the head's hook-tests CI job, which is adequate for a diff of this size.\",\n  \"coverage\": \"At 041d28169: node -\\u002dtest .claude/hooks/typed-issue-hook.test.mjs passes with 1350 checks (original tables under an explicit off config, wired fixture checkouts in both positions and with a malformed repos file, and the switch-on refusal and allowance table through the real hook script); the shared-stash, policy, portability and local-test hook tests pass; the four new rows fail against 5415ccea5's hook (snapshot and restore, cmp verified). Hook Tests CI passed in full on 5415ccea5, 2fb944aa7 and da29d919f. Every CI check on 041d28169 has finished and passed at the time of this decision, as the evidence block records.\",\n  \"nextRoundValue\": \"A fifth round could only establish whether two refusal-only changes over-refuse a command the workflow runs, and no skill text or script runs a curl -\\u002dnext batch against an issue collection or a curl glob near GitHub. It cannot find a leak in them. The defect class has stopped recurring: round 4 found no soundness defect in the round 3 rules, only an omission in an earlier repair, and the review is converged. Another round has diminishing benefit against its cost of a reviewer slot and about an hour, so the unreviewed correction is accepted on this head.\",\n  \"rationale\": \"Accepting unreviewed corrections is allowed only once the defect classes have stopped recurring and what remains unreviewed is small and verified, and both hold: round 4 found no new defect class and no regression from the fail-closed rules, and the unreviewed range is one commit that only adds refusals, with red-then-green rows and every CI check on the head passed. The root causes were addressed by removing the tool modelling that produced every regression. This acceptance applies to head 041d28169 only, bound to the unreviewed diff's SHA-256; a new push ends it and a new checkpoint decides the new head. With it, the coordinator marks the PR ready and merges only through the merge gate; the writer does not mark it ready. The switch-off gh issue new gap stays disclosed, as decided at the round 3 checkpoint. The PR's Notes for reviewers already distinguish the independently reviewed code through 5415ccea5 from the unreviewed range.\",\n  \"next\": \"The coordinator records and publishes this acceptance on the PR, marks PR #1975 ready with a comment naming the decision, runs integration.mjs gate and merges through integration.mjs merge once the gate admits head 041d28169; the writer records its final report and ends. After the merge is on origin/main, #1963 and #1966 become eligible and are dispatched with the cutover-switch decision in their briefs.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"verification\": [\n   \"node -\\u002dtest .claude/hooks/typed-issue-hook.test.mjs passes at 041d28169 with 1350 checks, including the four new rows that fail against 5415ccea5's hook (snapshot and restore, cmp verified)\",\n   \"shared-stash-hook, policy, portability and local-test hook tests pass at 041d28169\",\n   \"Hook Tests CI passed in full on 5415ccea5, 2fb944aa7 and da29d919f; every check on 041d28169 passed as the evidence block records\",\n   \"the unreviewed diff (SHA-256 506bae7ad9a194c657362a757879420215d79410e34d182230f752e101c12235) was read by the coordinator: a one-line glob predicate that is a superset of the two clauses it replaces, and a batch refusal in checkCurl under repos.cutover, both refusal-only\"\n  ],\n  \"findings\": [\n   {\n    \"comment\": 6222795139,\n    \"finding\": \"repository resolution disagrees with gh (flag order, URL selector precedence)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6222795139,\n    \"finding\": \"GraphQL timeline, IssueComment and PullRequestReview selections bypass the comment and review boundary\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6222795139,\n    \"finding\": \"HTTP body text mistaken for a request destination, refusing permitted PR PATCH\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6222795139,\n    \"finding\": \"nested shells lose a visible internal GH_REPO\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223054405,\n    \"finding\": \"attached curl method values (-XGET, -XPOST) bypass the destination check\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223054405,\n    \"finding\": \"attached flag text (-\\u002dbody=<internal url>) mistaken for a repository selector\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223383016,\n    \"finding\": \"a consumed curl value (-d -X <url>) mistaken for an option consuming the destination\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223383016,\n    \"finding\": \"a URL fragment hides a guarded HTTP destination\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223383016,\n    \"finding\": \"search -\\u002drepo and -\\u002downer not split as pflag string slices\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223383016,\n    \"finding\": \"an explicit port in a selector URL defeats precedence over -R\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223383016,\n    \"finding\": \"redirections and flagless env lose a known internal GH_REPO\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223383016,\n    \"finding\": \"-\\u002dcomments=false still counted as requesting comments\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223383016,\n    \"finding\": \"GraphQL field test matches operation names such as ReviewTitle\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223680529,\n    \"finding\": \"gh pr list -\\u002dauthor can export comments and reviews as JSON\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223680529,\n    \"finding\": \"organization-scoped or unscoped GraphQL searches read public issues without naming the repository\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223680529,\n    \"finding\": \"quoted search qualifiers hide the public repository\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223680529,\n    \"finding\": \"gh api paths checked before percent-decoding and fragment removal\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224347210,\n    \"finding\": \"the gh discussion command family is unguarded\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224347210,\n    \"finding\": \"a permitted GraphQL repository lookup does not confine its connections (owner traversal, viewer behind a directive)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224347210,\n    \"finding\": \"unrelated request fields falsely establish REST search scope\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224347210,\n    \"finding\": \"URL userinfo and curl brace globs bypass HTTP destination recognition\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224347210,\n    \"finding\": \"GitHub web pages of issues, pull request conversations and discussions remain open to HTTP clients\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224347210,\n    \"finding\": \"gh pr ls alias escapes the required -\\u002dauthor filter\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224347210,\n    \"finding\": \"canonical HTTP URLs (port, percent-encoding) evade internal typed creation\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224851543,\n    \"finding\": \"an attached curl option value holding g disables glob expansion\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224851543,\n    \"finding\": \"hostname globs discarded before expansion\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224851543,\n    \"finding\": \"internal typed creation checks only one unexpanded collection URL\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224851543,\n    \"finding\": \"a named GraphQL repository does not contain all sensitive descendants (closingIssuesReferences, headRepository)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224851543,\n    \"finding\": \"one safe repository qualifier does not scope every OR branch\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224851543,\n    \"finding\": \"curl ranges checked only at their first value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225503433,\n    \"finding\": \"a curl -\\u002dnext batch shares type evidence across independent transfers, letting an untyped POST to the internal issue collection pass\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225503433,\n    \"finding\": \"evasion-grade concern: a host glob or whole-URL glob with a quoted query string escaped the glob test (fixed as a simplification in 041d28169)\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "9b3220dfeaa5d292b0b42445bcdbfe686e9920864170ff059138da7968e847c5",
+          "blockSha256": "8b6a2705c6db459f010cfff53ef73e04b2c8335cb2d0932d0e5f8568c1a10f27",
+          "published": {
+            "comment": 6226188254,
+            "time": "2026-10-16T22:52:30.277Z",
+            "headAtPublish": "041d28169100232e321ebdc166009aa3dbd853e6"
+          }
         }
       ]
     }
   },
-  "operations": [],
+  "operations": [
+    {
+      "id": "3000849c",
+      "kind": "ready",
+      "ticket": 1962,
+      "pr": 1975,
+      "expectHead": "041d28169100232e321ebdc166009aa3dbd853e6",
+      "state": "intent",
+      "time": "2026-10-16T22:53:06.428Z",
+      "evidence": "acceptance 40630f59 (comment 6226188254) applies to head 041d28169 per acceptance-check"
+    }
+  ],
   "decisions": [
     {
       "pr": 1975,
@@ -814,6 +1176,16 @@
       "round": 3,
       "head": "3626459970eba05554ed39a5c677fb570ba585ef",
       "time": "2026-10-16T21:34:22.468Z"
+    },
+    {
+      "pr": 1975,
+      "url": "https://github.com/ImpowerGames/impower/pull/1975#issuecomment-6226188254",
+      "kind": "review-checkpoint accept-unreviewed",
+      "ticket": 1962,
+      "id": "40630f59",
+      "round": 4,
+      "head": "041d28169100232e321ebdc166009aa3dbd853e6",
+      "time": "2026-10-16T22:52:30.277Z"
     }
   ],
   "diskRecoveries": [],
@@ -824,7 +1196,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:07:25.118Z",
+      "observedAt": "2026-10-16T22:53:07.682Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1320,6 +1692,29 @@
       "event": "request",
       "ticket": 1962,
       "id": "c6158772"
+    },
+    {
+      "time": "2026-10-16T22:52:10.691Z",
+      "event": "checkpoint-intent",
+      "ticket": 1962,
+      "id": "40630f59",
+      "kind": "accept-unreviewed",
+      "round": 4,
+      "head": "041d28169100232e321ebdc166009aa3dbd853e6"
+    },
+    {
+      "time": "2026-10-16T22:52:30.277Z",
+      "event": "checkpoint-published",
+      "ticket": 1962,
+      "id": "40630f59",
+      "comment": 6226188254
+    },
+    {
+      "time": "2026-10-16T22:53:06.428Z",
+      "event": "operation-intent",
+      "id": "3000849c",
+      "kind": "ready",
+      "pr": 1975
     }
   ]
 }
