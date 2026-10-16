@@ -750,8 +750,9 @@ function ghArgs(args) {
       positional.push(...args.slice(i + 1).map((a) => a.text));
       break;
     }
-    // A quoted word with a space is a value, never a flag.
-    const name = /\s/.test(t) ? null : flagName(t);
+    // gh reads any argument that starts with a dash as a flag, quoted or
+    // not, with its value attached after `=` or after a short name.
+    const name = flagName(t);
     if (name === null) {
       positional.push(t);
       continue;
@@ -774,7 +775,7 @@ function ghArgs(args) {
  * repository, which is the code repository. An empty value names nothing.
  */
 function ghTargetRepo(invocation, parsed, envRepo) {
-  const url = (parsed.positional[0] ?? "").match(/github\.com\/([^/\s]+\/[^/\s]+)\/(?:issues|pull|discussions)\/\d/i);
+  const url = (parsed.positional[0] ?? "").match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+\/[^/\s]+)\/(?:issues|pull)\/\d+(?:[/?#]\S*)?$/i);
   if (url) return url[1];
   const named = [invocation.repo ?? "", ...parsed.repos].filter((r) => r.trim() !== "");
   if (named.length) return named[named.length - 1];
@@ -832,8 +833,9 @@ function checkGhGuarded(invocation, envRepo) {
   const parsed = ghArgs(invocation.rest);
   if (command === "search") {
     if (action !== "issues" && action !== "prs") return null;
-    const named = [invocation.repo, ...(parsed.flags.get("-R") ?? []), ...(parsed.flags.get("--repo") ?? [])].filter((r) => r !== null);
-    return searchScoped([...named, ...parsed.positional].join(" "), named) ? null : GUARD.search();
+    const named = [invocation.repo, ...parsed.repos].filter((r) => r !== null);
+    const owners = (parsed.flags.get("--owner") ?? []).map((o) => `owner:${o}`);
+    return searchScoped([...named, ...owners, ...parsed.positional].join(" "), named) ? null : GUARD.search();
   }
   const target = ghTargetRepo(invocation, parsed, envRepo);
   if (target !== null && !isCodeRepo(target)) return null;
@@ -853,8 +855,9 @@ function checkGhGuarded(invocation, envRepo) {
 
 /**
  * True when a search names at least one repository, by flag or by `repo:`
- * qualifier, and none of them is the code repository. An unscoped search
- * covers the code repository too.
+ * qualifier, none of them is the code repository, and no `org:`, `user:` or
+ * `owner:` qualifier names the code repository's owner, which an `OR` could
+ * widen to it. An unscoped search covers the code repository too.
  */
 function searchScoped(text, named = []) {
   let decoded = text;
@@ -863,9 +866,11 @@ function searchScoped(text, named = []) {
   } catch {
     // A malformed escape: read the text as it is.
   }
-  const qualified = [...decoded.matchAll(/(?:^|[\s"'&=(])repo:([^\s"'&)]+)/gi)].map((m) => m[1]);
-  const all = [...named, ...qualified];
-  return all.length > 0 && !all.some(isCodeRepo);
+  const qualifier = (key) => [...decoded.matchAll(new RegExp(`(?:^|[\\s"'&=(])${key}:([^\\s"'&)]+)`, "gi"))].map((m) => m[1]);
+  const all = [...named, ...qualifier("repo")];
+  const owner = repos.code.split("/")[0].toLowerCase();
+  const ownerNamed = qualifier("(?:org|user|owner)").some((o) => o.toLowerCase() === owner);
+  return all.length > 0 && !all.some(isCodeRepo) && !ownerNamed;
 }
 
 /** True when an API path (after the host, lower-cased) reaches outsider-writable text on the code repository. */
@@ -1160,6 +1165,18 @@ const CURL_LONG_VALUE = /^--(data(-ascii|-raw|-binary|-urlencode)?|json|form(-st
 const PS_NON_URL_VALUE = /^-(body|headers|infile|outfile|contenttype|useragent|proxy|websession|sessionvariable|method|credential|certificate|form|token|authentication|transferencoding|maximumredirection|timeoutsec)(:)?$/i;
 
 /**
+ * True when a curl short-flag cluster ends in a flag that takes its value
+ * from the next argument: the same walk checkCurl makes, where the first
+ * value flag ends the cluster and takes any rest of it (`-XGET`) as its
+ * value.
+ */
+function curlClusterTakesNext(t) {
+  if (!/^-[A-Za-z0-9]+$/.test(t)) return false;
+  for (let p = 1; p < t.length; p++) if (CURL_VALUE.includes(t[p])) return p === t.length - 1;
+  return false;
+}
+
+/**
  * The guard's reason for an HTTP client invocation whose request URL reaches
  * a guarded API path, or null. A URL is a token that is entirely an
  * api.github.com URL and is not the value of a body, header or other flag,
@@ -1174,7 +1191,7 @@ function checkGuardedUrl(args, powershell) {
     const prev = args[k - 1]?.text ?? "";
     const valueOf = powershell
       ? PS_NON_URL_VALUE.test(prev)
-      : CURL_LONG_VALUE.test(prev) || (/^-[A-Za-z0-9]+$/.test(prev) && CURL_VALUE.includes(prev[prev.length - 1]));
+      : CURL_LONG_VALUE.test(prev) || curlClusterTakesNext(prev);
     if (valueOf) continue;
     const endpoint = normalizeEndpoint(url.replace(/^(?:https?:\/\/)?api\.github\.com(?::\d+)?\//i, ""));
     const reason = checkGuardedRequest(endpoint, text);

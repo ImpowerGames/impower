@@ -873,6 +873,11 @@ for (const [label, command, shell] of allows) {
     ["gh pr comment", "gh pr comment 12 --body-file r.md", "prComment"],
     ["gh pr comment naming the code repository", `gh pr comment 12 -R ${code} --body x`, "prComment"],
     ["gh pr review", "gh pr review 12 --approve", "prReview"],
+    // A URL inside an attached flag value is not the selector.
+    ["gh pr comment whose attached --body= links an internal issue, before the number", `gh pr comment --body="See https://github.com/${internal}/issues/12" 1975`, "prComment"],
+    ["gh pr review whose attached --body= links an internal issue, before the number", `gh pr review --body="See https://github.com/${internal}/issues/12" 1975 --comment`, "prReview"],
+    ["gh pr comment whose attached -b links an internal issue", `gh pr comment -b"See https://github.com/${internal}/issues/12" 1975`, "prComment"],
+    ["gh issue view whose selector only contains an internal URL", `gh issue view "see https://github.com/${internal}/issues/12"`, "issue"],
     ["gh pr edit --add-label", "gh pr edit 12 --add-label bug", "prEdit"],
     ["gh pr edit --add-label=", "gh pr edit 12 --add-label=bug", "prEdit"],
     ["gh pr edit --remove-label", "gh pr edit 12 --remove-label bug", "prEdit"],
@@ -896,6 +901,8 @@ for (const [label, command, shell] of allows) {
     ["gh search issues by repo: qualifier", `gh search issues "repo:${code} crash"`, "search"],
     ["gh search issues by owner only", "gh search issues crash --owner ImpowerGames", "search"],
     ["gh search prs naming both repositories", `gh search prs fix --repo ${internal} --repo ${code}`, "search"],
+    ["gh search issues on the internal repository with --owner of the code repository", `gh search issues crash --repo ${internal} --owner ImpowerGames`, "search"],
+    ["gh search issues on the internal repository OR the owner", `gh search issues "repo:${internal} OR org:ImpowerGames crash"`, "search"],
     // gh api, every method
     ["gh api issue comments, paginated", `gh api repos/${code}/issues/12/comments --paginate`, "api"],
     ["gh api issues collection", `gh api repos/${code}/issues`, "api"],
@@ -931,6 +938,10 @@ for (const [label, command, shell] of allows) {
     ["irm read of discussions", `irm https://api.github.com/repos/${code}/discussions`, "api"],
     ["Invoke-WebRequest read of review requests", `Invoke-WebRequest -Uri https://api.github.com/repos/${code}/pulls/12/requested_reviewers`, "api"],
     ["iwr read of the issues collection", `iwr https://api.github.com/repos/${code}/issues`, "api"],
+    // An attached method value does not take the URL after it.
+    ["curl -XGET read of issue comments", `curl -XGET https://api.github.com/repos/${code}/issues/12/comments`, "api"],
+    ["curl -XPOST review", `curl -XPOST https://api.github.com/repos/${code}/pulls/12/reviews -d '{"event":"APPROVE"}'`, "api"],
+    ["curl clustered -sSLXGET read", `curl -sSLXGET https://api.github.com/repos/${code}/issues/12`, "api"],
     ["curl read with an explicit port", `curl https://api.github.com:443/repos/${code}/issues/12`, "api"],
     ["curl read through --url=", `curl --url=https://api.github.com/repos/${code}/issues/12`, "api"],
     ["irm read through -Uri:", `irm -Uri:https://api.github.com/repos/${code}/issues/12`, "api", "powershell"],
