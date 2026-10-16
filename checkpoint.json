@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 13,
-  "previous": "046753cdeb052b753ed35117646e94280e15740f",
+  "seq": 14,
+  "previous": "20f68ec9eb4a4febdae21a37035231324ef463a9",
   "snapshotParents": [],
-  "time": "2026-10-16T05:33:53.054Z",
+  "time": "2026-10-16T05:36:08.918Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 30,
+    "recordRevision": 31,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -429,7 +429,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T05:33:52.248Z",
+      "observedAt": "2026-10-16T05:36:08.154Z",
       "held": true,
       "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
       "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
@@ -896,6 +896,11 @@
       "time": "2026-10-16T05:33:50.888Z",
       "event": "check-in",
       "outcome": "merged PR #1925 (#1909) at 70264631 as merge commit 8a191abf after ORCH #1893 and ORCH #1895 agreed to hold main; hold released; #1909, #1093, #1205, #1206, #1243, #1293, #923, #924, #1373 closed; #1905 running on draft PR #1927 whose Closes lines make seven Bugs plan adopt-pr under its writer"
+    },
+    {
+      "time": "2026-10-16T05:36:06.766Z",
+      "event": "check-in",
+      "outcome": "no change: #1905 running (draft PR #1927 at an early head with 6 failing checks, writer queued on the test reservation and typechecking); no request pending"
     }
   ]
 }
