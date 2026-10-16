@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 239,
-  "previous": "d2903d98b794131f7db2ad79178499001cf33cd0",
+  "seq": 240,
+  "previous": "cf091ee8145440435d6c682b060f5211f0b7155a",
   "snapshotParents": [],
-  "time": "2026-10-16T15:34:00.686Z",
+  "time": "2026-10-16T15:37:57.427Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1928 (confirmed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 199,
+    "recordRevision": 200,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2867,9 +2867,9 @@
       "ticket": 887,
       "pr": 1928,
       "expectHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T15:33:57.971Z",
-      "evidence": "admitted as accepted-unreviewed",
+      "evidence": "PR #1928 reads back merged as a6c12061a6aeeaa15dd1820b88ee90669ac795fb at 950ebc2d0de11eea19e757c82b4663637fea5de3; the merge commit is on origin/main; it landed on ba9269abc8c630eefb50f208ad0db2f0920c504f, while its CI covered main 13f6fd9f8f9ed1f0527e1215fc934019bb1e389f, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "accepted-unreviewed",
         "reviewedHead": "9701b89b6c35ec7a78203e1e1ea26324070be7a9",
@@ -3061,7 +3061,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T15:37:54.611Z",
+      "mergeCommit": "a6c12061a6aeeaa15dd1820b88ee90669ac795fb",
+      "mergedOnto": "ba9269abc8c630eefb50f208ad0db2f0920c504f",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -3399,7 +3404,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:33:59.315Z",
+      "observedAt": "2026-10-16T15:37:56.062Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3647,15 +3652,15 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:33:59.315Z",
+      "observedAt": "2026-10-16T15:37:56.062Z",
       "held": true,
-      "head": "5a6e075719aa50331866237a5753e148173f64bb",
-      "remoteHead": "5a6e075719aa50331866237a5753e148173f64bb",
+      "head": "a9d427cc24c26205d3890719f94ff33992476127",
+      "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
       "unpushed": false,
       "dirty": false,
       "handoffLock": {
         "host": "DESKTOP-726EO47",
-        "pid": 34244
+        "pid": 16388
       }
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice": {
@@ -3663,7 +3668,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T15:33:59.315Z",
+      "observedAt": "2026-10-16T15:37:56.062Z",
       "held": true,
       "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
       "remoteHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
@@ -4031,13 +4036,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:22:47.685Z",
-      "event": "resume-intent",
-      "ticket": 457,
-      "id": "981691d5-4fda-4433-8ee6-993e106609ee",
-      "sessionId": "3906b568-1ed4-4cf5-ac78-f977e89dbce9"
-    },
     {
       "time": "2026-10-16T01:22:57.169Z",
       "event": "resumed",
@@ -4744,6 +4742,12 @@
       "id": "9e48e521",
       "kind": "merge",
       "pr": 1928
+    },
+    {
+      "time": "2026-10-16T15:37:54.611Z",
+      "event": "operation-outcome",
+      "id": "9e48e521",
+      "state": "confirmed"
     }
   ]
 }
