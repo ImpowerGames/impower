@@ -286,7 +286,7 @@ sparkdown [0..203]
  │   │       │   │   │       └─ LuauAssignmentOperation_end 73
  │   │       │   │   └─ LuauReassignment_end 73
  │   │       │   ├─ Newline [73..74]: "\n"
- │   │       │   ├─ LuauRepeatLoop [74..92]
+ │   │       │   ├─ LuauRepeatLoop [74..98]
  │   │       │   │   ├─ LuauRepeatLoop_begin [74..83]
  │   │       │   │   │   ├─ LuauRepeatLoop_begin_c1 [74..76]
  │   │       │   │   │   │   └─ OptionalWhitespace [74..76]: "  "
@@ -355,17 +355,18 @@ sparkdown [0..203]
  │   │       │   │   │       │       │       └─ LuauArithmeticOperation_end 92
  │   │       │   │   │       │       └─ LuauAssignmentOperation_end 92
  │   │       │   │   │       └─ LuauReassignment_end 92
- │   │       │   │   └─ LuauRepeatLoop_end 92
- │   │       │   ├─ LuauUntilStatement [92..112]
- │   │       │   │   ├─ LuauUntilStatement_begin [92..99]
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c1 [92..93]
- │   │       │   │   │   │   └─ OptionalWhitespace [92..93]: " "
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c2 [93..98]
- │   │       │   │   │   │   └─ LuauUntilKeyword [93..98]: "until"
- │   │       │   │   │   └─ LuauUntilStatement_begin_c3 [98..99]
- │   │       │   │   │       └─ LuauUntilStatement_begin_c3 [98..99]
+ │   │       │   │   └─ LuauRepeatLoop_end [92..98]
+ │   │       │   │       ├─ LuauRepeatLoop_end_c1 [92..93]
+ │   │       │   │       │   └─ LuauRepeatLoop_end_c1 [92..93]
+ │   │       │   │       │       └─ OptionalWhitespace [92..93]: " "
+ │   │       │   │       └─ LuauRepeatLoop_end_c2 [93..98]
+ │   │       │   │           └─ LuauUntilKeyword [93..98]: "until"
+ │   │       │   ├─ LuauUntilCondition [98..112]
+ │   │       │   │   ├─ LuauUntilCondition_begin [98..99]
+ │   │       │   │   │   └─ LuauUntilCondition_begin_c1 [98..99]
+ │   │       │   │   │       └─ LuauUntilCondition_begin_c1 [98..99]
  │   │       │   │   │           └─ OptionalWhitespace [98..99]: " "
- │   │       │   │   ├─ LuauUntilStatement_content [99..112]
+ │   │       │   │   ├─ LuauUntilCondition_content [99..112]
  │   │       │   │   │   ├─ LuauAccessPath [99..101]
  │   │       │   │   │   │   ├─ LuauAccessPath_begin 99
  │   │       │   │   │   │   ├─ LuauAccessPath_content [99..100]
@@ -428,7 +429,7 @@ sparkdown [0..203]
  │   │       │   │   │       │       │           └─ LuauParenthetical_end_c2 112
  │   │       │   │   │       │       └─ LuauLogicalOperation_end 112
  │   │       │   │   │       └─ LuauCompareOperation_end 112
- │   │       │   │   └─ LuauUntilStatement_end 112
+ │   │       │   │   └─ LuauUntilCondition_end 112
  │   │       │   ├─ ExtraWhitespace [112..113]: " "
  │   │       │   ├─ LuauAccessPath [113..121]
  │   │       │   │   ├─ LuauAccessPath_begin 113
@@ -461,7 +462,7 @@ sparkdown [0..203]
  │   │       │   │   └─ LuauAccessPath_end 121
  │   │       │   │       └─ LuauAccessPath_end_c1 121
  │   │       │   ├─ Newline [121..122]: "\n"
- │   │       │   ├─ LuauRepeatLoop [122..140]
+ │   │       │   ├─ LuauRepeatLoop [122..146]
  │   │       │   │   ├─ LuauRepeatLoop_begin [122..131]
  │   │       │   │   │   ├─ LuauRepeatLoop_begin_c1 [122..124]
  │   │       │   │   │   │   └─ OptionalWhitespace [122..124]: "  "
@@ -530,17 +531,18 @@ sparkdown [0..203]
  │   │       │   │   │       │       │       └─ LuauArithmeticOperation_end 140
  │   │       │   │   │       │       └─ LuauAssignmentOperation_end 140
  │   │       │   │   │       └─ LuauReassignment_end 140
- │   │       │   │   └─ LuauRepeatLoop_end 140
- │   │       │   ├─ LuauUntilStatement [140..154]
- │   │       │   │   ├─ LuauUntilStatement_begin [140..147]
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c1 [140..141]
- │   │       │   │   │   │   └─ OptionalWhitespace [140..141]: " "
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c2 [141..146]
- │   │       │   │   │   │   └─ LuauUntilKeyword [141..146]: "until"
- │   │       │   │   │   └─ LuauUntilStatement_begin_c3 [146..147]
- │   │       │   │   │       └─ LuauUntilStatement_begin_c3 [146..147]
+ │   │       │   │   └─ LuauRepeatLoop_end [140..146]
+ │   │       │   │       ├─ LuauRepeatLoop_end_c1 [140..141]
+ │   │       │   │       │   └─ LuauRepeatLoop_end_c1 [140..141]
+ │   │       │   │       │       └─ OptionalWhitespace [140..141]: " "
+ │   │       │   │       └─ LuauRepeatLoop_end_c2 [141..146]
+ │   │       │   │           └─ LuauUntilKeyword [141..146]: "until"
+ │   │       │   ├─ LuauUntilCondition [146..154]
+ │   │       │   │   ├─ LuauUntilCondition_begin [146..147]
+ │   │       │   │   │   └─ LuauUntilCondition_begin_c1 [146..147]
+ │   │       │   │   │       └─ LuauUntilCondition_begin_c1 [146..147]
  │   │       │   │   │           └─ OptionalWhitespace [146..147]: " "
- │   │       │   │   ├─ LuauUntilStatement_content [147..154]
+ │   │       │   │   ├─ LuauUntilCondition_content [147..154]
  │   │       │   │   │   └─ LuauLogicalOperation [147..154]
  │   │       │   │   │       ├─ LuauLogicalOperation_begin 147
  │   │       │   │   │       │   └─ LuauLogicalOperation_begin_c1 147
@@ -573,7 +575,7 @@ sparkdown [0..203]
  │   │       │   │   │       │           │   └─ PunctuationParenClose [153..154]: ")"
  │   │       │   │   │       │           └─ LuauParenthetical_end_c2 154
  │   │       │   │   │       └─ LuauLogicalOperation_end 154
- │   │       │   │   └─ LuauUntilStatement_end 154
+ │   │       │   │   └─ LuauUntilCondition_end 154
  │   │       │   ├─ ExtraWhitespace [154..155]: " "
  │   │       │   ├─ LuauAccessPath [155..163]
  │   │       │   │   ├─ LuauAccessPath_begin 155
@@ -606,7 +608,7 @@ sparkdown [0..203]
  │   │       │   │   └─ LuauAccessPath_end 163
  │   │       │   │       └─ LuauAccessPath_end_c1 163
  │   │       │   ├─ Newline [163..164]: "\n"
- │   │       │   ├─ LuauRepeatLoop [164..182]
+ │   │       │   ├─ LuauRepeatLoop [164..188]
  │   │       │   │   ├─ LuauRepeatLoop_begin [164..173]
  │   │       │   │   │   ├─ LuauRepeatLoop_begin_c1 [164..166]
  │   │       │   │   │   │   └─ OptionalWhitespace [164..166]: "  "
@@ -675,17 +677,18 @@ sparkdown [0..203]
  │   │       │   │   │       │       │       └─ LuauArithmeticOperation_end 182
  │   │       │   │   │       │       └─ LuauAssignmentOperation_end 182
  │   │       │   │   │       └─ LuauReassignment_end 182
- │   │       │   │   └─ LuauRepeatLoop_end 182
- │   │       │   ├─ LuauUntilStatement [182..198]
- │   │       │   │   ├─ LuauUntilStatement_begin [182..189]
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c1 [182..183]
- │   │       │   │   │   │   └─ OptionalWhitespace [182..183]: " "
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c2 [183..188]
- │   │       │   │   │   │   └─ LuauUntilKeyword [183..188]: "until"
- │   │       │   │   │   └─ LuauUntilStatement_begin_c3 [188..189]
- │   │       │   │   │       └─ LuauUntilStatement_begin_c3 [188..189]
+ │   │       │   │   └─ LuauRepeatLoop_end [182..188]
+ │   │       │   │       ├─ LuauRepeatLoop_end_c1 [182..183]
+ │   │       │   │       │   └─ LuauRepeatLoop_end_c1 [182..183]
+ │   │       │   │       │       └─ OptionalWhitespace [182..183]: " "
+ │   │       │   │       └─ LuauRepeatLoop_end_c2 [183..188]
+ │   │       │   │           └─ LuauUntilKeyword [183..188]: "until"
+ │   │       │   ├─ LuauUntilCondition [188..198]
+ │   │       │   │   ├─ LuauUntilCondition_begin [188..189]
+ │   │       │   │   │   └─ LuauUntilCondition_begin_c1 [188..189]
+ │   │       │   │   │       └─ LuauUntilCondition_begin_c1 [188..189]
  │   │       │   │   │           └─ OptionalWhitespace [188..189]: " "
- │   │       │   │   ├─ LuauUntilStatement_content [189..198]
+ │   │       │   │   ├─ LuauUntilCondition_content [189..198]
  │   │       │   │   │   ├─ LuauAccessPath [189..191]
  │   │       │   │   │   │   ├─ LuauAccessPath_begin 189
  │   │       │   │   │   │   ├─ LuauAccessPath_content [189..190]
@@ -729,7 +732,7 @@ sparkdown [0..203]
  │   │       │   │   │       │           │   └─ PunctuationParenClose [197..198]: ")"
  │   │       │   │   │       │           └─ LuauParenthetical_end_c2 198
  │   │       │   │   │       └─ LuauLogicalOperation_end 198
- │   │       │   │   └─ LuauUntilStatement_end 198
+ │   │       │   │   └─ LuauUntilCondition_end 198
  │   │       │   └─ Newline [198..199]: "\n"
  │   │       └─ LuauFunctionBody_end 199
  │   └─ LuauFunctionDefinition_end [199..202]

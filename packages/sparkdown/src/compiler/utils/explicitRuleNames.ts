@@ -75,7 +75,7 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauAccessPath": "LuauSparkdownExplicitAccessPath",
   "LuauDataTypeDeclaration": "LuauSparkdownExplicitDataTypeDeclaration",
   "LuauTypeAssignment": "LuauSparkdownExplicitTypeAssignment",
-  "LuauUntilStatement": "LuauSparkdownExplicitUntilStatement",
+  "LuauUntilCondition": "LuauSparkdownExplicitUntilCondition",
   "LuauSparkdownVariableDefinition": "LuauSparkdownExplicitStoryVariableDefinition",
   "Tag": "SparkdownExplicitTag",
   "LuauDeclarations": "LuauSparkdownExplicitDeclarations",

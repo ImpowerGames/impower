@@ -34,7 +34,7 @@ sparkdown [0..177]
  │   │   └─ LuauFunctionBody [16..173]
  │   │       ├─ LuauFunctionBody_begin [16..17]: "\n"
  │   │       ├─ LuauFunctionBody_content [17..173]
- │   │       │   ├─ LuauRepeatLoop [17..39]
+ │   │       │   ├─ LuauRepeatLoop [17..44]
  │   │       │   │   ├─ LuauRepeatLoop_begin [17..25]
  │   │       │   │   │   ├─ LuauRepeatLoop_begin_c1 [17..19]
  │   │       │   │   │   │   └─ OptionalWhitespace [17..19]: "  "
@@ -62,21 +62,22 @@ sparkdown [0..177]
  │   │       │   │   │       │       │   └─ ExtraWhitespace [37..39]: "  "
  │   │       │   │   │       │       └─ LuauReturnLineBreak_end 39
  │   │       │   │   │       └─ LuauReturnStatement_end 39
- │   │       │   │   └─ LuauRepeatLoop_end 39
- │   │       │   ├─ LuauUntilStatement [39..49]
- │   │       │   │   ├─ LuauUntilStatement_begin [39..45]
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c1 39
- │   │       │   │   │   │   └─ OptionalWhitespace 39
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c2 [39..44]
- │   │       │   │   │   │   └─ LuauUntilKeyword [39..44]: "until"
- │   │       │   │   │   └─ LuauUntilStatement_begin_c3 [44..45]
- │   │       │   │   │       └─ LuauUntilStatement_begin_c3 [44..45]
+ │   │       │   │   └─ LuauRepeatLoop_end [39..44]
+ │   │       │   │       ├─ LuauRepeatLoop_end_c1 39
+ │   │       │   │       │   └─ LuauRepeatLoop_end_c1 39
+ │   │       │   │       │       └─ OptionalWhitespace 39
+ │   │       │   │       └─ LuauRepeatLoop_end_c2 [39..44]
+ │   │       │   │           └─ LuauUntilKeyword [39..44]: "until"
+ │   │       │   ├─ LuauUntilCondition [44..49]
+ │   │       │   │   ├─ LuauUntilCondition_begin [44..45]
+ │   │       │   │   │   └─ LuauUntilCondition_begin_c1 [44..45]
+ │   │       │   │   │       └─ LuauUntilCondition_begin_c1 [44..45]
  │   │       │   │   │           └─ OptionalWhitespace [44..45]: " "
- │   │       │   │   ├─ LuauUntilStatement_content [45..49]
+ │   │       │   │   ├─ LuauUntilCondition_content [45..49]
  │   │       │   │   │   └─ LuauBoolean [45..49]
  │   │       │   │   │       ├─ LuauBoolean_c1 [45..49]: "true"
  │   │       │   │   │       └─ LuauBoolean_c2 49
- │   │       │   │   └─ LuauUntilStatement_end 49
+ │   │       │   │   └─ LuauUntilCondition_end 49
  │   │       │   ├─ Newline [49..50]: "\n"
  │   │       │   ├─ LuauIfBlock [50..116]
  │   │       │   │   ├─ LuauIfBlock_begin [50..55]

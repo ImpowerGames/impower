@@ -154,7 +154,7 @@ sparkdown [0..228]
  │   │       │   │   │               └─ LuauEndKeyword [66..69]: "end"
  │   │       │   │   └─ LuauForLoop_end 69
  │   │       │   ├─ Newline [69..70]: "\n"
- │   │       │   ├─ LuauRepeatLoop [70..86]
+ │   │       │   ├─ LuauRepeatLoop [70..93]
  │   │       │   │   ├─ LuauRepeatLoop_begin [70..79]
  │   │       │   │   │   ├─ LuauRepeatLoop_begin_c1 [70..72]
  │   │       │   │   │   │   └─ OptionalWhitespace [70..72]: "  "
@@ -175,21 +175,22 @@ sparkdown [0..228]
  │   │       │   │   │   │   │           └─ OptionalWhitespace 85
  │   │       │   │   │   │   └─ LuauReturnStatement_end 85
  │   │       │   │   │   └─ Newline [85..86]: "\n"
- │   │       │   │   └─ LuauRepeatLoop_end 86
- │   │       │   ├─ LuauUntilStatement [86..98]
- │   │       │   │   ├─ LuauUntilStatement_begin [86..94]
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c1 [86..88]
- │   │       │   │   │   │   └─ OptionalWhitespace [86..88]: "  "
- │   │       │   │   │   ├─ LuauUntilStatement_begin_c2 [88..93]
- │   │       │   │   │   │   └─ LuauUntilKeyword [88..93]: "until"
- │   │       │   │   │   └─ LuauUntilStatement_begin_c3 [93..94]
- │   │       │   │   │       └─ LuauUntilStatement_begin_c3 [93..94]
+ │   │       │   │   └─ LuauRepeatLoop_end [86..93]
+ │   │       │   │       ├─ LuauRepeatLoop_end_c1 [86..88]
+ │   │       │   │       │   └─ LuauRepeatLoop_end_c1 [86..88]
+ │   │       │   │       │       └─ OptionalWhitespace [86..88]: "  "
+ │   │       │   │       └─ LuauRepeatLoop_end_c2 [88..93]
+ │   │       │   │           └─ LuauUntilKeyword [88..93]: "until"
+ │   │       │   ├─ LuauUntilCondition [93..98]
+ │   │       │   │   ├─ LuauUntilCondition_begin [93..94]
+ │   │       │   │   │   └─ LuauUntilCondition_begin_c1 [93..94]
+ │   │       │   │   │       └─ LuauUntilCondition_begin_c1 [93..94]
  │   │       │   │   │           └─ OptionalWhitespace [93..94]: " "
- │   │       │   │   ├─ LuauUntilStatement_content [94..98]
+ │   │       │   │   ├─ LuauUntilCondition_content [94..98]
  │   │       │   │   │   └─ LuauBoolean [94..98]
  │   │       │   │   │       ├─ LuauBoolean_c1 [94..98]: "true"
  │   │       │   │   │       └─ LuauBoolean_c2 98
- │   │       │   │   └─ LuauUntilStatement_end 98
+ │   │       │   │   └─ LuauUntilCondition_end 98
  │   │       │   └─ Newline [98..99]: "\n"
  │   │       └─ LuauFunctionBody_end 99
  │   └─ LuauFunctionDefinition_end [99..102]
@@ -319,6 +320,8 @@ sparkdown [0..228]
  │   │       │       │           └─ OptionalWhitespace 169
  │   │       │       └─ LuauSparkdownExplicitReturnStatement_end 169
  │   │       └─ LuauSparkdownExplicitRepeatLoop_end 169
+ │   │           ├─ LuauSparkdownExplicitRepeatLoop_end_c1 169
+ │   │           └─ LuauSparkdownExplicitRepeatLoop_end_c2 169
  │   └─ LuauSparkdownExplicitStatement_end 169
  ├─ Newline [169..170]: "\n"
  ├─ ImplicitAction [170..184]

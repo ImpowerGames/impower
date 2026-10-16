@@ -349,7 +349,7 @@ sparkdown [0..292]
  │   │       │       └─ LuauSparkdownExplicitDoBlock_begin_c3 [103..104]
  │   │       │           └─ OptionalWhitespace [103..104]: " "
  │   │       ├─ LuauSparkdownExplicitDoBlock_content [104..132]
- │   │       │   ├─ LuauSparkdownExplicitRepeatLoop [104..119]
+ │   │       │   ├─ LuauSparkdownExplicitRepeatLoop [104..125]
  │   │       │   │   ├─ LuauSparkdownExplicitRepeatLoop_begin [104..111]
  │   │       │   │   │   ├─ LuauSparkdownExplicitRepeatLoop_begin_c1 104
  │   │       │   │   │   │   └─ OptionalWhitespace 104
@@ -403,17 +403,18 @@ sparkdown [0..292]
  │   │       │   │   │       │       │       └─ LuauSparkdownExplicitAssignmentOperation_end 119
  │   │       │   │   │       │       └─ LuauSparkdownExplicitReassignment_end 119
  │   │       │   │   │       └─ LuauSparkdownExplicitBlockStatement_end 119
- │   │       │   │   └─ LuauSparkdownExplicitRepeatLoop_end 119
- │   │       │   └─ LuauSparkdownExplicitUntilStatement [119..132]
- │   │       │       ├─ LuauSparkdownExplicitUntilStatement_begin [119..126]
- │   │       │       │   ├─ LuauSparkdownExplicitUntilStatement_begin_c1 [119..120]
- │   │       │       │   │   └─ OptionalWhitespace [119..120]: " "
- │   │       │       │   ├─ LuauSparkdownExplicitUntilStatement_begin_c2 [120..125]
- │   │       │       │   │   └─ LuauUntilKeyword [120..125]: "until"
- │   │       │       │   └─ LuauSparkdownExplicitUntilStatement_begin_c3 [125..126]
- │   │       │       │       └─ LuauSparkdownExplicitUntilStatement_begin_c3 [125..126]
+ │   │       │   │   └─ LuauSparkdownExplicitRepeatLoop_end [119..125]
+ │   │       │   │       ├─ LuauSparkdownExplicitRepeatLoop_end_c1 [119..120]
+ │   │       │   │       │   └─ LuauSparkdownExplicitRepeatLoop_end_c1 [119..120]
+ │   │       │   │       │       └─ OptionalWhitespace [119..120]: " "
+ │   │       │   │       └─ LuauSparkdownExplicitRepeatLoop_end_c2 [120..125]
+ │   │       │   │           └─ LuauUntilKeyword [120..125]: "until"
+ │   │       │   └─ LuauSparkdownExplicitUntilCondition [125..132]
+ │   │       │       ├─ LuauSparkdownExplicitUntilCondition_begin [125..126]
+ │   │       │       │   └─ LuauSparkdownExplicitUntilCondition_begin_c1 [125..126]
+ │   │       │       │       └─ LuauSparkdownExplicitUntilCondition_begin_c1 [125..126]
  │   │       │       │           └─ OptionalWhitespace [125..126]: " "
- │   │       │       ├─ LuauSparkdownExplicitUntilStatement_content [126..132]
+ │   │       │       ├─ LuauSparkdownExplicitUntilCondition_content [126..132]
  │   │       │       │   ├─ LuauSparkdownExplicitAccessPath [126..128]
  │   │       │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 126
  │   │       │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [126..127]
@@ -442,7 +443,7 @@ sparkdown [0..292]
  │   │       │       │       │       ├─ LuauNumericDecimal_c1 [131..132]: "4"
  │   │       │       │       │       └─ LuauNumericDecimal_c2 132
  │   │       │       │       └─ LuauSparkdownExplicitCompareOperation_end 132
- │   │       │       └─ LuauSparkdownExplicitUntilStatement_end 132
+ │   │       │       └─ LuauSparkdownExplicitUntilCondition_end 132
  │   │       └─ LuauSparkdownExplicitDoBlock_end [132..136]
  │   │           ├─ LuauSparkdownExplicitDoBlock_end_c1 [132..133]
  │   │           │   └─ LuauSparkdownExplicitDoBlock_end_c1 [132..133]

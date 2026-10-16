@@ -518,6 +518,9 @@ const KEYWORDS = new Set([
   "while",
 ]);
 
+// The keywords that close a block, which the grammar reads only as closers.
+const BLOCK_CLOSERS = new Set(["end", "else", "elseif", "until"]);
+
 // Luau's symbols, longest first, so that a symbol's text is read whole.
 const SYMBOLS = [
   "...",
@@ -634,6 +637,12 @@ class Tokenizer {
    * as Luau, as a `run` file's text is: Luau throughout.
    */
   luauThroughout = false;
+  /**
+   * The index the next token takes when the tree has just closed a block
+   * before a closer it could not read (an error node): an `end`, `else`,
+   * `elseif` or `until` that closes a block around it, as Luau closes it.
+   */
+  private incompleteAt = -1;
 
   constructor(
     readonly text: string,
@@ -647,6 +656,11 @@ class Tokenizer {
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
     const token: Token = { kind, text: this.text.slice(from, to), from, to, location: this.location(from, to), source: this.source };
     if (node) token.node = node;
+    // A closer right after a block the tree closed before it (`until` after
+    // an `if` with no `end`, #1209) is where Luau reports the block left
+    // open, so the errors there are Luau's to report, as at a token the
+    // grammar left unread.
+    if (this.incompleteAt === this.tokens.length && kind === "keyword" && BLOCK_CLOSERS.has(token.text)) token.unread = true;
     this.tokens.push(token);
   }
 
@@ -670,6 +684,10 @@ class Tokenizer {
     const [from, to] = trimmedRange(this.text, node.from, node.to);
     if (this.luauThroughout && node.type.isError) {
       this.lex(from, to);
+      return;
+    }
+    if (node.type.isError && from === to) {
+      this.incompleteAt = this.tokens.length;
       return;
     }
     // A token the grammar left unread is read as Luau's lexer reads it.

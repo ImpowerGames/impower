@@ -292,7 +292,7 @@ const getLocalScope = (
     while (after && (after.name === "Newline" || after.name.endsWith("Whitespace"))) {
       after = after.nextSibling;
     }
-    if (after && isExplicitRuleName(after.name, "LuauUntilStatement")) {
+    if (after && isExplicitRuleName(after.name, "LuauUntilCondition")) {
       to = after.to;
     }
   }

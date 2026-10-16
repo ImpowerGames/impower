@@ -275,9 +275,9 @@ function lowerInner(
       return lowerLuauStructDefine(nodeRef, ctx, "morph");
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
-    case "LuauUntilStatement":
-    case "LuauSparkdownExplicitUntilStatement":
-      // A `repeat` loop reads the `until` line after it as its own
+    case "LuauUntilCondition":
+    case "LuauSparkdownExplicitUntilCondition":
+      // A `repeat` loop reads the condition after its `until` as its own
       // (`lowerLuauStatementNode`), so the line lowers to nothing here.
       return {};
     case "LuauEndKeyword":

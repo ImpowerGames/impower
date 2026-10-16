@@ -15,7 +15,7 @@ variables:
   # lookaround: LuauFunctionAccessor owns a colon followed by a method call; LuauAccessPath must leave that suffix to it.
   LUAU_SHARED_PATH_NO_METHOD_CALL: "(?!{{WS}}*[:]{{WS}}*{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_TRIVIA}}*{{LUAU_FUNCTION_CALL_START}})"
   # lookaround: LuauForLoop owns binding names before its condition; LuauAccessPath must finish each binding there.
-  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_IDENTIFIER}}|\\bfor\\b[^\\n\\r]*[,]{{WS}}*{{LUAU_IDENTIFIER}})"
+  LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_NAME_BEHIND}}|\\bfor\\b[^\\n\\r]*[,]{{WS}}*{{LUAU_NAME_BEHIND}})"
   # lookaround: LuauChainedPropertyAccess and LuauChainedFunctionCall keep member and call continuations inside the path.
   # A name goes on the path only right after its accessor: after whitespace
   # it begins the next statement (`Hello there`), which no path reads on to.
@@ -67,6 +67,9 @@ variables:
   # closers, which can close a block the unread run cannot see, so
   # LuauUnreadName and LuauUnreadCharacter leave them to those rules.
   LUAU_UNREAD_NOT_CLOSER: (?!{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})
+  # lookaround: a statement whose own blocks take their closers ends before
+  # one of the four closers, which belongs to a block around it.
+  LUAU_CLOSER_AHEAD: (?={{WS}}*(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}))
   # The symbols of more than one character that Luau's lexer reads whole,
   # longest first, with the other languages' operators it reads to report
   # them (`&&`, `||`, `!=`), as `readLuauAst.ts` lists them in `SYMBOLS`.
@@ -111,7 +114,9 @@ variables:
   LUAU_JUMP_KEYWORDS: ["goto"]
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
-  LUAU_MODULE_KEYWORDS: ["require", "export"]
+  # `require` is not here: it is the global function Luau reads it as
+  # (`LUAU_STANDARD_LIB_FUNCTIONS`), so a path may begin with it (#879).
+  LUAU_MODULE_KEYWORDS: ["export"]
   LUAU_PRESENTATION_DEFINITION_KEYWORDS: ["animation", "theme", "morph"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
   # The keywords an expression can follow, so an `if` right after one begins
@@ -120,8 +125,9 @@ variables:
   # `if`, `elseif`, `while` and `until` or the iterated value after `in`.
   LUAU_TERNARY_PRECEDING_KEYWORDS: ["return", "and", "or", "not", "then", "else", "if", "elseif", "while", "until", "in"]
   # Statement-boundary keywords that end an `until` condition
-  # (`LuauUntilStatement`); `until` itself is left out.
+  # (`LuauUntilCondition`), with the `until` of a loop around its loop.
   LUAU_UNTIL_CONDITION_END_KEYWORDS:
+    - "until"
     - "if"
     - "while"
     - "for"
@@ -136,6 +142,12 @@ variables:
     - "elseif"
     - "else"
     - "then"
+  # A token an `until` condition can start with (`LuauUntilCondition`): a
+  # name or a word that begins an expression, a number, a quote, a bracket
+  # that opens a value, `#`, `-`, `@`, a long string or a leading `.`.
+  # lookaround: the condition opens with no text of its own, so the begin
+  # must refuse what `LuauExpression` cannot read.
+  LUAU_UNTIL_CONDITION_START: '(?=[a-zA-Z0-9_"''`({#@-]|\[=*\[|[.][0-9.])(?!{{LUAU_NON_EXPRESSION_KEYWORDS}})'
   # Keywords that end a `return` statement's value list
   # (`LuauReturnStatement`).
   LUAU_RETURN_END_KEYWORDS:
@@ -520,7 +532,24 @@ variables:
   LUAU_COMMENT_START: (?:[-][-])
   # The end of the line, or the start of a comment.
   LUAU_LINE_END_OR_COMMENT: (?:$|{{LUAU_COMMENT_START}})
-  LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
+  # A Luau name, as Luau's lexer reads one: ASCII letters, digits and `_`,
+  # not starting with a digit, and never one of Luau's reserved words, so
+  # `end`, `until`, `else` or `elseif` never becomes a variable, field or
+  # parameter name (#922, #924). The name ends where no ASCII name character
+  # follows, which both engines read alike (`\b` is Unicode-aware in VS
+  # Code's Oniguruma and ASCII-only in JavaScript). Lookbehinds use
+  # `LUAU_NAME_BEHIND`, since Oniguruma refuses a lookaround inside one.
+  LUAU_IDENTIFIER: (?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})
+  # A name or a reserved word, as one token of Luau's lexer.
+  LUAU_WORD: (?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))
+  # A name where a type stands: also `nil`, `true` and `false`, which are
+  # types (`LUAU_NON_TYPE_KEYWORDS`).
+  LUAU_TYPE_IDENTIFIER: (?:(?:nil|true|false)(?![a-zA-Z0-9_])|{{LUAU_IDENTIFIER}})
+  # One of Luau's reserved words as a whole name. `continue` is not one:
+  # Luau reads it as a keyword only where a statement begins.
+  LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_]))
+  # `LUAU_IDENTIFIER` inside a lookbehind, with no lookaround of its own.
+  LUAU_NAME_BEHIND: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
   # Style/UI property names follow CSS/sparkle spelling — hyphens are
   # allowed (e.g. `bg-color`, `corner-top-left`, `c-tl`). This is
   # deliberately wider than LUAU_IDENTIFIER (which forbids hyphens) and
@@ -875,7 +904,7 @@ variables:
   # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
   # opens its `(` only right after one, and `LuauFunctionBody` never opens
   # there.
-  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_NAME_BEHIND}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_NAME_BEHIND}})*)?(?:<[^<>\n]*>)?)
   # A token that a declaration's comma line break (`LuauCommaLineBreak`)
   # can reach but that begins a statement rather than a value: a statement
   # keyword or a type declaration. An `if` there is an if expression, as in
@@ -990,7 +1019,7 @@ variables:
   # The `else`, `elseif` or `}` that marks an inline `if` expression.
   LUAU_TERNARY_ELSE_OR_CLOSE: (?:\belse(?:if)?\b|\})
   # Just after a braced alternator's `|`, with any `name =` of a match arm.
-  AFTER_ALTERNATOR_ARM_SEPARATOR: (?<=[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?)
+  AFTER_ALTERNATOR_ARM_SEPARATOR: (?<=[|]{{WS}}*(?:{{LUAU_NAME_BEHIND}}{{WS}}*[=]{{WS}}*)?)
   # A `-> end` that the alternator's `}` directly follows.
   END_DIVERT_CLOSING_ALTERNATOR: '{{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}]'
   # A block comment between `.` and a member; captures the comment's level,
@@ -4091,7 +4120,6 @@ repository:
       - { include: "#LuauVariableDefinition" }
       - { include: "#LuauFunctionTypeDeclaration" }
       - { include: "#LuauDataTypeDeclaration" }
-      - { include: "#LuauUntilStatement" }
       - { include: "#LuauGotoStatement" }
       - { include: "#LuauBreakStatement" }
       - { include: "#LuauContinueStatement" }
@@ -4116,6 +4144,8 @@ repository:
         patterns:
           - { include: "#RequiredWhitespace" }
     patterns:
+      # First: it opens only right after a `repeat` loop's `until`.
+      - { include: "#LuauSparkdownExplicitUntilCondition" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       # The bounded control blocks a `& do` island holds also stand on
@@ -4134,7 +4164,9 @@ repository:
       # Keep unmatched punctuation in the authored code island so the
       # checker reports its written token rather than losing it to prose.
       - { include: "#LuauInvalidStatementToken" }
-    end: (?={{BEAT}})|$|(?=^)
+    # A closer the statement's own blocks did not take closes a block around
+    # the statement (`repeat & x() until c`), so the statement ends before it.
+    end: (?={{BEAT}})|$|(?=^)|{{LUAU_CLOSER_AHEAD}}
 
   LuauExplicitStatement:
     begin: ({{WS}}*)([&])($|{{WS}}+)
@@ -4175,7 +4207,9 @@ repository:
     # A statement ends at its line's end; it only stands at the start of a
     # line when a value that spans lines, such as an unfinished if
     # expression, took the line break and ended there, which ends it too.
-    end: (?={{BEAT}})|$|(?=^)
+    # It ends before a closer of a block around it, as
+    # `LuauSparkdownExplicitStatement` does.
+    end: (?={{BEAT}})|$|(?=^)|{{LUAU_CLOSER_AHEAD}}
 
   LuauExplicitStatementMark:
     tag: keyword
@@ -7376,7 +7410,7 @@ repository:
     # parameter list: in
     #   function pack(first, ...) table.insert(t, 1, first) end
     # `table.insert(` has no header keyword before it and is mid-line.
-    begin: ((?<={{LUAU_FUNCTION_HEADER}}{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
+    begin: ((?<={{LUAU_FUNCTION_HEADER}}{{WS}}*|^{{WS}}*{{LUAU_NAME_BEHIND}}{{WS}}*)[(])
     beginCaptures:
       1:
         patterns:
@@ -7654,6 +7688,8 @@ repository:
 
   LuauSparkdownControlBlock:
     patterns:
+      # First: it opens only right after a `repeat` loop's `until`.
+      - { include: "#LuauUntilCondition" }
       - { include: "#LuauSparkdownForLoop" }
       - { include: "#LuauSparkdownWhileLoop" }
       - { include: "#LuauSparkdownRepeatLoop" }
@@ -7667,6 +7703,8 @@ repository:
 
   LuauControlBlock:
     patterns:
+      # First: it opens only right after a `repeat` loop's `until`.
+      - { include: "#LuauUntilCondition" }
       - { include: "#LuauForLoop" }
       - { include: "#LuauWhileLoop" }
       - { include: "#LuauRepeatLoop" }
@@ -7773,7 +7811,9 @@ repository:
   LuauUnreadName:
     tag: variableName
     name: variable.other.readwrite.luau
-    match: "{{LUAU_UNREAD_NOT_CLOSER}}{{LUAU_IDENTIFIER}}"
+    # A reserved word other than a closer is one token too (`then` where no
+    # `if` owns it), which the converter reads as Luau's keyword.
+    match: "{{LUAU_UNREAD_NOT_CLOSER}}{{LUAU_WORD}}"
 
   # No scope or tag: where a statement rule is open at such a character,
   # vscode-textmate passes over it inside that rule, with the rule's scopes,
@@ -7810,10 +7850,12 @@ repository:
     name: keyword.operator.logical.luau keyword.operator.wordlike.luau
     match: \b(?:{{LUAU_LOGICAL_KEYWORDS}})\b
 
+  # Not `end`, `else`, `elseif` or `until`, which close a block around the
+  # statement (see `LuauUnreadToken`).
   LuauInvalidStatementKeyword:
     tag: controlKeyword
     name: keyword.control.luau
-    match: \b(?:{{LUAU_RESERVED_WORDS}})\b
+    match: "{{LUAU_UNREAD_NOT_CLOSER}}\\b(?:{{LUAU_RESERVED_WORDS}})\\b"
 
   LuauInvalidStatementName:
     tag: variableName
@@ -7838,7 +7880,7 @@ repository:
   LuauInvalidStatementCharacter:
     tag: invalid
     name: invalid.illegal.luau
-    match: "[^\\s]"
+    match: "{{LUAU_UNREAD_NOT_CLOSER}}[^\\s]"
 
   # ----------------------------------------------------------------------------
   # For Loop
@@ -8007,7 +8049,16 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
+    # See `LuauRepeatLoop`: the loop takes its own `until`.
+    end: (?={{BEAT}})|({{WS}}*)(until)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauUntilKeyword" }
 
   LuauRepeatLoop:
     begin: ({{WS}}*)(repeat)\b({{WS}}*)
@@ -8025,18 +8076,33 @@ repository:
     patterns:
       - { include: "#LuauBlockBody" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
-
-  LuauUntilStatement:
-    begin: ({{WS}}*)(until)\b({{WS}}*)
-    beginCaptures:
+    # The loop takes its own `until`, as a block takes its `end`, so a
+    # `repeat` nested in another closes at the first `until` and leaves the
+    # next one to the loop around it (#1195). A zero-width end would close
+    # every `repeat` open at that `until` at once. Its condition is the
+    # `LuauUntilCondition` that follows the loop.
+    end: (?={{BEAT}})|({{WS}}*)(until)\b
+    endCaptures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauUntilKeyword" }
-      3:
+
+  # The condition after a `repeat` loop's `until`, which the loop's end
+  # took. `until` is readable nowhere else (GRAMMAR.md §13.2), so the
+  # lookbehind holds only right after a loop's end, and the condition is
+  # read by the body around the loop, where it is included first. The
+  # begin looks ahead for a token an expression can start with
+  # (`LUAU_UNTIL_CONDITION_START`), so it never opens where the expression
+  # can read nothing: an empty condition would open again at the same
+  # position until the parser's empty-match limit stopped it.
+  LuauUntilCondition:
+    begin: (?<=\buntil)({{WS}}*){{LUAU_UNTIL_CONDITION_START}}
+    beginCaptures:
+      1:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
@@ -8048,9 +8114,9 @@ repository:
     # `repeat BODY until cond return x` doesn't swallow `return x`
     # into the condition expression. Mirrors LuauReassignment's end
     # lookaheads (see there for why the call-statement alternative's name
-    # is `LUAU_UNRESERVED_IDENTIFIER`). (`until` itself is excluded —
-    # it's this rule's own keyword; nested repeats close their own
-    # until first.)
+    # is `LUAU_UNRESERVED_IDENTIFIER`). `until` is one of the keywords: in
+    # `repeat repeat f() until a until b`, the inner loop's condition ends
+    # before the outer loop's `until`.
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$"
 
   # ----------------------------------------------------------------------------
@@ -8216,10 +8282,16 @@ repository:
       3: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
     patterns:
       - { include: "#LuauSparkdownExplicitBlockBody" }
-    end: (?={{BEAT}})|(?={{WS}}*until\b)|$
+    # See `LuauRepeatLoop`: the loop takes its own `until`.
+    end: (?={{BEAT}})|({{WS}}*)(until)\b|$
+    endCaptures:
+      1: { emit: true, patterns: [{ include: "#OptionalWhitespace" }] }
+      2: { patterns: [{ include: "#LuauUntilKeyword" }] }
 
   LuauSparkdownExplicitBlockBody:
     patterns:
+      # First: it opens only right after a `repeat` loop's `until`.
+      - { include: "#LuauSparkdownExplicitUntilCondition" }
       - { include: "#LuauSparkdownExplicitBlockStatement" }
       - { include: "#LuauSparkdownExplicitDoBlock" }
       - { include: "#LuauSparkdownExplicitIfBlock" }
@@ -8456,7 +8528,7 @@ repository:
   LuauSparkdownExplicitTypeLiteral:
     # lookaround: LuauExpression owns non-type keywords and values; this type scope opens only at a valid type introducer.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
+    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_TYPE_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -8627,7 +8699,7 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})|({{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}*)|$
 
   LuauSparkdownExplicitNamedTypeReference:
-    begin: ({{LUAU_IDENTIFIER}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    begin: ({{LUAU_TYPE_IDENTIFIER}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     beginCaptures:
       1:
         patterns:
@@ -8672,7 +8744,7 @@ repository:
     # read, LuauQualifiedTypeFinalName owns the identifier after dot trivia;
     # only a completed name may return another token to the statement.
     # A missing final name must also leave the type's closer to its parent.
-    end: (?={{BEAT}})|(?<=[>]{{WS}}*)|(?<={{LUAU_IDENTIFIER}}{{WS}}*)(?={{LUAU_NAMED_TYPE_FOLLOW}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})|$
+    end: (?={{BEAT}})|(?<=[>]{{WS}}*)|(?<={{LUAU_NAME_BEHIND}}{{WS}}*)(?={{LUAU_NAMED_TYPE_FOLLOW}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})|$
 
   LuauSparkdownExplicitTypeFunctionParameters:
     brackets: true
@@ -9782,7 +9854,7 @@ repository:
     # there ("invalid pattern in look-behind").
     # lookaround: LuauVariableDefinition owns bindings; this target cast opens only after a scope modifier and binding name.
     # See bounded-entry rationale above for the structural alternatives.
-    begin: "(?<=\\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
+    begin: "(?<=\\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_NAME_BEHIND}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -9985,30 +10057,19 @@ repository:
     # See bounded-exit rationale above for the structural alternatives.
     end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
-  LuauSparkdownExplicitUntilStatement:
-    begin: ({{WS}}*)(until)\b({{WS}}*)
+  # The bounded counterpart of `LuauUntilCondition`, after the `until` a
+  # `LuauSparkdownExplicitRepeatLoop` took.
+  LuauSparkdownExplicitUntilCondition:
+    begin: (?<=\buntil)({{WS}}*){{LUAU_UNTIL_CONDITION_START}}
     beginCaptures:
       1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauUntilKeyword" }
-      3:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
-    # Terminate the until-condition at an upcoming statement-boundary
-    # keyword, bare reassignment, or bare call statement so a one-line
-    # `repeat BODY until cond return x` doesn't swallow `return x`
-    # into the condition expression. Mirrors LuauReassignment's end
-    # lookaheads (see there for why the call-statement alternative's name
-    # is `LUAU_UNRESERVED_IDENTIFIER`). (`until` itself is excluded —
-    # it's this rule's own keyword; nested repeats close their own
-    # until first.)
+    # See `LuauUntilCondition`.
     end: "(?={{BEAT}})|(?={{WS}}+{{LUAU_UNTIL_CONDITION_END_KEYWORDS}})|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+{{LUAU_UNRESERVED_IDENTIFIER}}{{LUAU_SHARED_UNTIL_ACCESS_SUFFIX}}*{{WS}}*[(])|$"
 
   LuauSparkdownExplicitStoryVariableDefinition:
@@ -10080,7 +10141,6 @@ repository:
       - { include: "#LuauSparkdownExplicitVariableDefinition" }
       - { include: "#LuauFunctionTypeDeclaration" }
       - { include: "#LuauSparkdownExplicitDataTypeDeclaration" }
-      - { include: "#LuauSparkdownExplicitUntilStatement" }
       - { include: "#LuauGotoStatement" }
       - { include: "#LuauBreakStatement" }
       - { include: "#LuauContinueStatement" }
@@ -12647,7 +12707,7 @@ repository:
   LuauTargetTypeCast:
     # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
     # there ("invalid pattern in look-behind").
-    begin: "(?<=\\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
+    begin: "(?<=\\b{{LUAU_SHARED_SCOPE_MODIFIER_WORD}}{{WS}}+[^=\\n\\r]*{{LUAU_NAME_BEHIND}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)"
     beginCaptures:
       1:
         patterns:
@@ -13209,7 +13269,7 @@ repository:
   # `LuauTypeNameExtraQualifier`, so the validator can report them and the
   # rest of the line stays inside the enclosing scope.
   LuauTypeName:
-    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}+)?{{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_TYPE_IDENTIFIER}})({{LUAU_TYPE_QUALIFIED_NAME_SEGMENT}}+)?{{_LUAU_TYPE_OPERATOR_AHEAD_}}
     captures:
       1:
         patterns:
@@ -13252,7 +13312,7 @@ repository:
   # type-name variable used only here would hold the lookahead without
   # replacing it.
   LuauTypeLiteral:
-    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
+    begin: "(?={{LUAU_SHARED_TYPE_KEYWORD_GUARD}}{{LUAU_TYPE_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>]|[:])"
     patterns:
       - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
@@ -13682,7 +13742,7 @@ repository:
   # close a `<` is a comparison instead of a second argument list. Existing
   # name/primitive/comment tokens retain their captures and source locations.
   LuauNamedTypeReference:
-    begin: ({{LUAU_IDENTIFIER}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    begin: ({{LUAU_TYPE_IDENTIFIER}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     beginCaptures:
       1:
         patterns:
@@ -13783,7 +13843,7 @@ repository:
     # read, LuauQualifiedTypeFinalName owns the identifier after dot trivia;
     # only a completed name may return another token to the statement.
     # A missing final name must also leave the type's closer to its parent.
-    end: (?={{BEAT}})|(?<=[>]{{WS}}*)|(?<={{LUAU_IDENTIFIER}}{{WS}}*)(?={{LUAU_NAMED_TYPE_FOLLOW}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})
+    end: (?={{BEAT}})|(?<=[>]{{WS}}*)|(?<={{LUAU_NAME_BEHIND}}{{WS}}*)(?={{LUAU_NAMED_TYPE_FOLLOW}})|(?={{WS}}*{{LUAU_TYPE_QUALIFICATION_RECOVERY}})
 
   LuauQualifiedTypeFinalName:
     match: ({{LUAU_IDENTIFIER}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
