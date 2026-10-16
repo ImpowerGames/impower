@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 77,
-  "previous": "0cdfdfd4bb42925c95d459adfa94ed975ae9c5d0",
+  "seq": 78,
+  "previous": "e4f0d49f66f280ac35c90d06f6eee915c86b2372",
   "snapshotParents": [],
-  "time": "2026-10-16T19:00:33.859Z",
+  "time": "2026-10-16T19:14:01.245Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 62,
@@ -869,16 +869,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:00:32.737Z",
+      "observedAt": "2026-10-16T19:13:59.626Z",
       "held": true,
-      "head": "9a1b6f64d741a08cb81e787614da8705679ce30e",
-      "remoteHead": "9a1b6f64d741a08cb81e787614da8705679ce30e",
+      "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
+      "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 56496
-      },
       "pr": 1960,
       "reviewJobs": [
         {
@@ -919,7 +915,7 @@
         },
         {
           "job": "pr-1960/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -934,7 +930,25 @@
               "incremental": 1
             },
             "time": "2026-10-16T18:54:49.689Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "9a1b6f64d741a08cb81e787614da8705679ce30e",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "incremental": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "incremental",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6222725017
+          ]
         }
       ]
     },
@@ -943,7 +957,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:00:32.737Z",
+      "observedAt": "2026-10-16T19:13:59.626Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -954,7 +968,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T18:59:25.042Z",
+    "at": "2026-10-16T19:13:59.624Z",
     "tickets": [
       {
         "number": 851,
@@ -982,9 +996,9 @@
       },
       {
         "number": 1974,
-        "action": "blocked-route",
+        "action": "wait-dependency",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "reason": "waiting for #1637 (open)"
       }
     ],
     "remaining": [
