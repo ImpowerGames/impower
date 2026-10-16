@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 199,
-  "previous": "331a77a9c445aba2c6d4448fcc33e58a10fb84d8",
+  "seq": 200,
+  "previous": "87538ea7b65febca4de95dfcdfc290ded8674037",
   "snapshotParents": [],
-  "time": "2026-10-16T12:51:41.812Z",
+  "time": "2026-10-16T12:51:50.289Z",
   "kind": "auto",
-  "transition": "acknowledged of #1933",
+  "transition": "verify of #1933",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 146,
+    "recordRevision": 147,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -798,7 +798,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1933-9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -2105,7 +2105,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:51:41.025Z",
+      "observedAt": "2026-10-16T12:51:49.529Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2117,7 +2117,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T12:51:41.025Z",
+      "observedAt": "2026-10-16T12:51:49.529Z",
       "held": true,
       "exists": false
     }
@@ -2232,11 +2232,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:27:37.128Z",
-      "event": "verified",
-      "ticket": 1628
-    },
     {
       "time": "2026-10-15T22:27:45.410Z",
       "event": "check-in",
@@ -2933,6 +2928,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-16T12:51:48.105Z",
+      "event": "verified",
+      "ticket": 1933
     }
   ]
 }
