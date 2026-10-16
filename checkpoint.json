@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 217,
-  "previous": "c7c0dee8aedb01ad86e3034ba2a2d6eb098fcffd",
+  "seq": 218,
+  "previous": "56994de01b4c689da6ce147cfe6e6e8cb53943de",
   "snapshotParents": [],
-  "time": "2026-10-16T12:46:28.128Z",
+  "time": "2026-10-16T12:46:49.526Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 178,
+    "recordRevision": 179,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2541,7 +2541,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:46:27.023Z",
+      "observedAt": "2026-10-16T12:46:48.452Z",
       "held": true,
       "head": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
       "remoteHead": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
@@ -2702,7 +2702,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:46:27.023Z",
+      "observedAt": "2026-10-16T12:46:48.452Z",
       "held": true,
       "head": "55c5401496e7778684794ceb146ee2f6f71be912",
       "remoteHead": "55c5401496e7778684794ceb146ee2f6f71be912",
@@ -2968,12 +2968,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:13:19.897Z",
-      "event": "request",
-      "ticket": 1645,
-      "id": "cd9cd4a0"
-    },
     {
       "time": "2026-10-15T23:13:31.096Z",
       "event": "resume-intent",
@@ -3677,6 +3671,11 @@
       "time": "2026-10-16T12:20:22.833Z",
       "event": "check-in",
       "outcome": "First resumes of #454 and #887 were refused at once by the weekly limit; after the maintainer fixed the CLI account a clean probe succeeded and both writers were resumed again (pids 42664 and 48396) and are past their first API calls; #316 waits for #887"
+    },
+    {
+      "time": "2026-10-16T12:46:47.090Z",
+      "event": "check-in",
+      "outcome": "no change: both resumed writers running and pushing corrections (PR #1928 at 55c540149 with 14 comments, PR #1929 at a622c49fc with 10 comments), both still drafts; #316 waits for #887; no transcripts to read, no dead launches"
     }
   ]
 }
