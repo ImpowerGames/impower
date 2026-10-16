@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 264,
-  "previous": "67c6d572812e64241324dc8a57c88545edc63a3e",
+  "seq": 265,
+  "previous": "9ee9fe2aceef169df70817a9bb030b1625c2a91a",
   "snapshotParents": [],
-  "time": "2026-10-16T16:08:28.277Z",
+  "time": "2026-10-16T16:08:37.046Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 223,
+    "recordRevision": 224,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4020,6 +4020,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
       "classifier": "removed  impower.worktrees\\fix\\1617-empty-alternator-arms                fix/1617-empty-alternator-arms                    984.7 MB   merged into origin/main; origin/fix/1617-empty-alternator-arms still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-16T16:08:34.507Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1627-carried-block-flow-change",
+      "branch": "fix/1627-carried-block-flow-change",
+      "classifier": "removed  impower.worktrees\\fix\\1627-carried-block-flow-change            fix/1627-carried-block-flow-change                984.8 MB   merged into origin/main; origin/fix/1627-carried-block-flow-change still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -4029,7 +4035,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:08:27.185Z",
+      "observedAt": "2026-10-16T16:08:36.309Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4274,13 +4280,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T03:42:02.438Z",
-      "event": "result",
-      "ticket": 1617,
-      "pr": 1921,
-      "reviewedHead": "7402a36baf3ef413cfb0eb48d6a4feff50664399"
-    },
     {
       "time": "2026-10-16T04:06:00.340Z",
       "event": "operation-intent",
@@ -4984,6 +4983,11 @@
       "time": "2026-10-16T16:08:25.594Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1617-empty-alternator-arms"
+    },
+    {
+      "time": "2026-10-16T16:08:34.509Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1627-carried-block-flow-change"
     }
   ]
 }
