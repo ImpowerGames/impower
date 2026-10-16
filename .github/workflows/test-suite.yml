@@ -184,3 +184,5 @@ jobs:
             skipped) echo "Package suites skipped: the change touches nothing they cover";;
             *) echo "Package suites did not pass: $VITEST"; exit 1;;
           esac
+
+# Probe for #1937: a workflow-only change; this pull request is closed without merging.
