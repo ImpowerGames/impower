@@ -841,7 +841,7 @@ const GUARD = {
   prComment: () => guardReason("gh pr comment", `Post it as a comment on the ticket in ${repos.internal} instead.`),
   prReview: () => guardReason("gh pr review", `Post the review on the ticket in ${repos.internal} instead.`),
   prEdit: () => guardReason("a gh pr edit of labels, assignees, reviewers or projects", "Only --title, --body and --body-file may change on a public pull request."),
-  prView: () => guardReason("a gh pr view of comments or reviews", "Read permitted fields only: gh pr view <n> --json number,title,body,isDraft,mergeStateStatus"),
+  prView: () => guardReason("a gh pr read of comments or reviews", "Read permitted fields only: gh pr view <n> --json number,title,body,isDraft,mergeStateStatus"),
   prList: () => guardReason("gh pr list without --author", "Find pull requests by author and branch: gh pr list --author @me --head <branch>"),
   search: () => guardReason("a search of issues or pull requests", `Scope the search to the internal repository: gh search issues <query> --repo ${repos.internal}`),
   api: () => guardReason("an issue, comment, review or discussion API call", `Call the same endpoint on repos/${repos.internal} instead.`),
@@ -868,12 +868,14 @@ function checkGhGuarded(invocation, envRepo) {
   if (action === "comment") return GUARD.prComment();
   if (action === "review") return GUARD.prReview();
   if (action === "edit") return has("--add-label", "--remove-label", "--add-assignee", "--add-reviewer", "--add-project") ? GUARD.prEdit() : null;
+  // Any gh pr subcommand that exports JSON (view, list, status) may not
+  // export comment or review text, whatever else selects the pull requests.
+  const fields = (parsed.flags.get("--json") ?? []).join(",").toLowerCase().split(/[\s,]+/);
+  if (fields.some((f) => ["comments", "reviews", "latestreviews", "reviewrequests"].includes(f))) return GUARD.prView();
   if (action === "view") {
     // A boolean flag given false (`--comments=false`) is off; any other value, or none, is on.
     const comments = [...(parsed.flags.get("--comments") ?? []), ...(parsed.flags.get("-c") ?? [])].some((v) => !/^(false|f|0)$/i.test(v));
-    if (comments || !parsed.flags.has("--json")) return GUARD.prView();
-    const fields = parsed.flags.get("--json").join(",").toLowerCase().split(/[\s,]+/);
-    return fields.some((f) => ["comments", "reviews", "latestreviews", "reviewrequests"].includes(f)) ? GUARD.prView() : null;
+    return comments || !parsed.flags.has("--json") ? GUARD.prView() : null;
   }
   if (action === "list") return has("--author", "-A") ? null : GUARD.prList();
   return null;
@@ -892,20 +894,58 @@ function searchScoped(text, named = []) {
   } catch {
     // A malformed escape: read the text as it is.
   }
-  const qualifier = (key) => [...decoded.matchAll(new RegExp(`(?:^|[\\s"'&=(])${key}:([^\\s"'&)]+)`, "gi"))].map((m) => m[1]);
+  // A qualifier's value may be quoted (`repo:"owner/name"`).
+  const qualifier = (key) => [...decoded.matchAll(new RegExp(`(?:^|[\\s"'&=(+])${key}:(?:"([^"]*)"|'([^']*)'|([^\\s"'&)]+))`, "gi"))].map((m) => m[1] ?? m[2] ?? m[3]);
   const all = [...named, ...qualifier("repo")];
   const owner = repos.code.split("/")[0].toLowerCase();
   const ownerNamed = qualifier("(?:org|user|owner)").some((o) => o.toLowerCase() === owner);
   return all.length > 0 && !all.some(isCodeRepo) && !ownerNamed;
 }
 
-/** True when an API path (after the host, lower-cased) reaches outsider-writable text on the code repository. */
+/**
+ * An API path as GitHub resolves it, for the guard: the host, fragment and
+ * query cut, percent-escapes decoded, empty and `.` segments dropped and `..`
+ * applied, lower-cased. The typed-creation rule with the switch off keeps
+ * normalizeEndpoint, so that position decides exactly as before.
+ */
+function canonicalEndpoint(raw) {
+  let path = raw.replace(/^https?:\/\/[^/]+\//i, "").split("#")[0].split("?")[0];
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // A malformed escape: read the path as it is.
+  }
+  const out = [];
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") out.pop();
+    else out.push(part);
+  }
+  return out.join("/").toLowerCase();
+}
+
+/**
+ * True when an API path reaches outsider-writable text on the code
+ * repository: its issue, review, review request and discussion endpoints,
+ * its event feed, and any feed that gathers issues or events across
+ * repositories (`issues`, `user/issues`, `orgs/<o>/issues`, notifications,
+ * events) or names a repository by ID, which the hook cannot resolve.
+ */
 function guardedEndpoint(endpoint) {
+  if (/^(issues|user\/issues|orgs\/[^/]+\/issues|notifications)(\/|$)/.test(endpoint)) return true;
+  if (/^(events|networks\/[^/]+\/[^/]+\/events|orgs\/[^/]+\/events|users\/[^/]+\/(received_)?events)(\/|$)/.test(endpoint)) return true;
+  const byId = endpoint.match(/^repositories\/\d+(?:\/(.*))?$/);
+  if (byId) return guardedPath(byId[1] ?? "");
   const m = endpoint.match(/^repos\/([^/]+\/[^/]+)(?:\/(.*))?$/);
   if (!m || !isCodeRepo(m[1])) return false;
-  const path = m[2] ?? "";
-  // `pulls/comments` is the repository-wide list of review comments.
-  return /^issues(\/|$)/.test(path) || /^pulls\/[^/]+\/(comments|reviews|requested_reviewers)(\/|$)/.test(path) || /^pulls\/comments(\/|$)/.test(path) || /^discussion/.test(path);
+  return guardedPath(m[2] ?? "");
+}
+
+/** True when a path under one repository reaches its outsider-writable text. */
+function guardedPath(path) {
+  // `pulls/comments` is the repository-wide list of review comments; the
+  // event feed carries issue and comment payloads.
+  return /^(issues|pulls\/comments|events|notifications)(\/|$)/.test(path) || /^pulls\/[^/]+\/(comments|reviews|requested_reviewers)(\/|$)/.test(path) || /^discussion/.test(path);
 }
 
 /**
@@ -930,7 +970,19 @@ function graphqlReadsCode(text) {
     .replace(/\$[A-Za-z_]\w*/g, "$")
     .replace(/\b[A-Za-z_]\w*\s*:/g, ":")
     .replace(/(^|\n)[A-Za-z_][\w[\]]*=/g, "$1=");
-  return named && /issue|comment|review|discussion|timeline/i.test(selections);
+  if (!/issue|comment|review|discussion|timeline/i.test(selections)) return false;
+  if (named) return true;
+  // Without naming the code repository, a query still reaches its issues
+  // through an entry point that is not one repository: a search scoped
+  // more widely than named repositories, a global node ID, the viewer, a
+  // user or an organization, or a mutation on an object by ID. Only a
+  // `repository(...)` entry, or a search scoped as a REST search must be,
+  // passes.
+  // Root fields with arguments: `nodes(ids:)` is an entry point, a
+  // connection's `nodes { ... }` is not.
+  if (/\b(node|nodes|user|organization|repositoryOwner|enterprise|resource)\s*\(|\bviewer\s*\{/.test(selections)) return true;
+  if (/\bsearch\s*\(/.test(selections)) return !searchScoped(text);
+  return !/\brepository\s*\(/.test(selections);
 }
 
 /** The guard's reason for an API URL path and the request text around it, or null. */
@@ -992,7 +1044,9 @@ function checkGhApi(args) {
     }
     // boolean flag: --paginate, --slurp, --silent, -i, --verbose, ...
   }
-  const endpoint = normalizeEndpoint(positional[0] ?? "");
+  // With the switch on, the path is read as GitHub resolves it, for the
+  // guard and the typed-creation rule alike.
+  const endpoint = repos.cutover ? canonicalEndpoint(positional[0] ?? "") : normalizeEndpoint(positional[0] ?? "");
 
   if (endpoint === "graphql" && fields.some((f) => /createissue/i.test(f.value))) {
     return (
@@ -1208,7 +1262,7 @@ function checkGuardedUrl(args) {
   for (let k = 0; k < args.length; k++) {
     const url = args[k].text.match(API_URL)?.[1];
     if (!url) continue;
-    const endpoint = normalizeEndpoint(url.replace(/^(?:https?:\/\/)?api\.github\.com(?::\d+)?\//i, "").split("#")[0]);
+    const endpoint = canonicalEndpoint(url.replace(/^(?:https?:\/\/)?api\.github\.com(?::\d+)?\//i, ""));
     const reason = checkGuardedRequest(endpoint, text);
     if (reason) return reason;
   }
