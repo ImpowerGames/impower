@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 237,
-  "previous": "151bf91bd3070c3f73441a66327bfcb5283add2e",
+  "seq": 238,
+  "previous": "24af1ee82461792ea6f3a02e9de4ec6689525d33",
   "snapshotParents": [],
-  "time": "2026-10-16T16:10:00.167Z",
+  "time": "2026-10-16T16:48:38.340Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 174,
@@ -2636,19 +2636,81 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:09:59.206Z",
+      "observedAt": "2026-10-16T16:48:37.120Z",
       "held": true,
-      "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
+      "remoteHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 51236
+      },
+      "pr": 1953,
+      "reviewJobs": [
+        {
+          "job": "pr-1953/round-1/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T16:21:26.023Z"
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6220115350
+          ]
+        },
+        {
+          "job": "pr-1953/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-16T16:37:01.163Z"
+          }
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block": {
       "ticket": 1933,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:09:59.206Z",
+      "observedAt": "2026-10-16T16:48:37.120Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2780,7 +2842,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:09:41.623Z",
+    "at": "2026-10-16T16:48:37.118Z",
     "tickets": [
       {
         "number": 1201,
@@ -2875,7 +2937,7 @@
       {
         "number": 1934,
         "action": "observe",
-        "pr": null,
+        "pr": 1953,
         "reason": "process 7864 started 639277624095413727 is running"
       }
     ],
