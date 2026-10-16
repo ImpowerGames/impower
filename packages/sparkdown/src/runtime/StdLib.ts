@@ -2579,15 +2579,18 @@ function isPlainTable(v: AbstractValue | null | undefined): v is ObjectValue {
 }
 
 // Whether `v` is a record a root's merge descends into: a table that is not a
-// define, holds keys, and is not a list. A list is a table whose keys are
+// define and is not a list. A list is a non-empty table whose keys are
 // exactly `"1"`..`"n"`, as the context converters classify one
-// (`expressionToContextValue`, `buildDefinesContext`); a list and an empty
-// table replace what they meet whole, as `inheritDefaults` replaces arrays in
-// the compile-time context. A table mixing positions with names is a record.
+// (`expressionToContextValue`, `buildDefinesContext`), and replaces what it
+// meets whole, as `inheritDefaults` replaces arrays in the compile-time
+// context. A table mixing positions with names is a record, and so is an
+// empty table, which those converters read as an empty object: it fills a
+// record with nothing and replaces a list.
 function isRecordTable(v: AbstractValue | null | undefined): v is ObjectValue {
   if (!isPlainTable(v)) return false;
   const map = v.value;
-  if (!map?.size || isDefineTable(v)) return false;
+  if (!map || isDefineTable(v)) return false;
+  if (map.size === 0) return true;
   for (let i = 1; i <= map.size; i++) {
     if (!map.has(String(i))) return true;
   }

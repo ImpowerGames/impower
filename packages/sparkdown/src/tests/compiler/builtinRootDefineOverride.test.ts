@@ -613,6 +613,45 @@ end
     );
   });
 
+  test("an empty table restating a nested record keeps the builtin's fields", () => {
+    const program = shows(
+      `define game with
+  loading = {}
+end
+`,
+      "{game.loading.active} {game.loading.percent}",
+      "false 0",
+    );
+    expect(program.context?.["game"]?.["$default"]?.loading).toMatchObject({
+      active: false,
+      percent: 0,
+    });
+  });
+
+  test("an empty table restating a member keeps the member", () => {
+    shows(
+      `define config with
+  probe = 7
+  ui = {}
+end
+`,
+      "{config.ui.layouts_element_name} {config.ui.probe}",
+      "layouts 7",
+    );
+  });
+
+  test("an empty table restating a list empties it, as the context does", () => {
+    const program = shows(
+      `define inflection with
+  lilt = {}
+end
+`,
+      "{#inflection.lilt}",
+      "0",
+    );
+    expect(program.context?.["inflection"]?.["$default"]?.lilt).toEqual({});
+  });
+
   test("a list the override restates replaces the builtin's list whole", () => {
     shows(
       `define inflection with
