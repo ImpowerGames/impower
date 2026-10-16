@@ -388,6 +388,15 @@ describe("each error has one reader", () => {
     ]) {
       expect(read(luau).errors).toEqual(officialErrors(luau));
     }
+    // In a define's method, in either spelling, as in a function's body.
+    for (const header of ["f()", "function f()"]) {
+      for (const line of ["local x = @5", "local a, b = 1, @5"]) {
+        const errors = read(`define X with\n  ${header}\n    ${line}\n  end\nend\n`).errors;
+        const inFunction = read(`function f()\n    ${line}\nend\n`).errors;
+        expect(inFunction).toHaveLength(2);
+        expect(errors).toEqual(inFunction.map((e) => e.replace(/^1:/, "2:").replace(/-1:/, "-2:")));
+      }
+    }
     // Inside an interpolation too, which the parser reads from tokens of its own.
     const interpolated = read("function f()\n  local s = `{function(@) end}`\nend\n").errors;
     expect(interpolated).toEqual(["1:23-1:24 Expected identifier when parsing variable name, got ''"]);

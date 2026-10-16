@@ -174,7 +174,8 @@ function siblingAssignmentOperation(node: SyntaxNode): SyntaxNode | null {
 /**
  * Whether the token at `offset` is one the grammar left unread whose errors
  * a reading of Luau reports: the type checker's, or the lowerer's of a
- * define's method or a Sparkle closure (`reportBodySyntaxErrors`). A define's
+ * define's method, in either spelling (`f()` … `end`, `function f()` …
+ * `end`), or of a Sparkle closure (`reportBodySyntaxErrors`). A define's
  * property value has no such reading.
  */
 function luauReadingReportsUnread(node: SyntaxNode, offset: number, read: (from: number, to: number) => string): boolean {
@@ -182,6 +183,7 @@ function luauReadingReportsUnread(node: SyntaxNode, offset: number, read: (from:
   if (checkerReadsOnTo(node, offset, read)) return true;
   for (let parent = node.parent; parent; parent = parent.parent) {
     if (parent.name === "LuauMethodDefinition_content" || parent.name === "LuauSparkleHandlerClosure_content") return true;
+    if (parent.name === "LuauFunctionDefinition" && parent.parent?.name === "LuauDefine_content") return true;
   }
   return false;
 }
