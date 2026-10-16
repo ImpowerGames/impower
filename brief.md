@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 112 (this commit), 2026-10-16T01:27:45.190Z, after the intent before a side effect. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 113 (this commit), 2026-10-16T01:27:55.009Z, after resume of #1846. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,16 +12,16 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1614
 
 - claude-cli claude-opus-5-5 at medium, process 11208 on DESKTOP-726EO47
-- as of 2026-10-16T01:27:43.667Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T01:27:53.415Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1623
 
 - claude-cli claude-opus-5-5 at medium, process 40848 on DESKTOP-726EO47
-- as of 2026-10-16T01:27:43.667Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T01:27:53.415Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1846
 
-- claude-cli claude-opus-5-5 at medium, process 53964 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at medium, process 59960 on DESKTOP-726EO47
 - review job pr-1915/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed a21e38293, completed {"ax":1} of planned ["ax","incr","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","incr","undirected"]), last event finished
 - review job pr-1915/round-1/launch-incr-1 on DESKTOP-726EO47: round 1 reviewed a9838d755, completed {"ax":1,"incr":1} of planned ["ax","incr","undirected"]; last launched reviewer incr attempt 1 of round 1 (planned ["ax","incr","undirected"]), last event finished
 - review job pr-1915/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed a9838d755, completed {"ax":1,"incr":1,"undirected":1} of planned ["ax","incr","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","incr","undirected"]), last event finished

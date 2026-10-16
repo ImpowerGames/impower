@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 112,
-  "previous": "16fc3abd8e4d4a3e412aa10174f61740575d556c",
+  "seq": 113,
+  "previous": "333489f83a8d4c33eadf6db73b81aa6e95d3816b",
   "snapshotParents": [],
-  "time": "2026-10-16T01:27:45.190Z",
+  "time": "2026-10-16T01:27:55.009Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #1846",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 85,
+    "recordRevision": 86,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -481,10 +481,10 @@
         "launchId": "01c5d730-a671-44d3-98f5-684890d101cd",
         "handle": {
           "kind": "process",
-          "pid": 53964,
-          "start": "639277016822063214",
+          "pid": 59960,
+          "start": "639277108713379831",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1846-01c5d730-a671-44d3-98f5-684890d101cd"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875"
         },
         "verified": true,
         "brief": {
@@ -508,11 +508,13 @@
           "evidence": "cross-session message from writer session impower-f0 at 2026-10-15 18:56 local naming assignment 01c5d730 and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
           "deliveryId": "cdae556f"
         },
-        "resuming": {
-          "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875",
-          "time": "2026-10-16T01:27:42.101Z"
-        }
+        "resumes": [
+          {
+            "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
+            "time": "2026-10-16T01:27:51.927Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875"
+          }
+        ]
       },
       "pending": null,
       "history": [],
@@ -1072,7 +1074,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:27:43.667Z",
+      "observedAt": "2026-10-16T01:27:53.415Z",
       "held": true,
       "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
       "remoteHead": null,
@@ -1084,7 +1086,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:27:43.667Z",
+      "observedAt": "2026-10-16T01:27:53.415Z",
       "held": true,
       "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
       "remoteHead": null,
@@ -1096,7 +1098,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:27:43.667Z",
+      "observedAt": "2026-10-16T01:27:53.415Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1910,6 +1912,19 @@
       "ticket": 1846,
       "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
       "sessionId": "0658610c-7e0e-4886-b19f-ca2a5e791f2f"
+    },
+    {
+      "time": "2026-10-16T01:27:51.927Z",
+      "event": "resumed",
+      "ticket": 1846,
+      "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
+      "handle": {
+        "kind": "process",
+        "pid": 59960,
+        "start": "639277108713379831",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875"
+      }
     }
   ]
 }
