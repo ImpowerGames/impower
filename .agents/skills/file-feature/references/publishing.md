@@ -4,7 +4,7 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 5. Write the ticket
 
-Follow `.github/ISSUE_TEMPLATE/feature_request.md`: same headings, same order; its leading comment gives the title convention and the label list. GitHub applies templates only through the web form, so read the file and produce the body yourself, and write it to a file first.
+Follow `.agents/templates/issues/feature_request.md`: same headings, same order; its leading comment gives the title convention and the label list. GitHub applies templates only through the web form, so read the file and produce the body yourself, and write it to a file first.
 
 What goes where:
 
@@ -31,9 +31,11 @@ Strip the template's HTML comments. Write "Open" under a heading that is still u
 
 ## 6. File it and read it back
 
+`<tickets>` is the [tickets repository](../../references/publishing.md#the-tickets-repository) that `node .agents/repos.mjs tickets` prints.
+
 ```sh
-gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Feature -f "labels[]=system: sparkdown" -f "labels[]=app: web-editor" --jq '{number, url: .html_url, type: .type.name}'
-gh issue view <N> --json title,body,labels
+gh api -X POST repos/<tickets>/issues -f title="<title>" -F body=@ticket.md -f type=Feature -f "labels[]=system: sparkdown" -f "labels[]=app: web-editor" --jq '{number, url: .html_url, type: .type.name}'
+gh issue view <N> -R <tickets> --json title,body,labels
 ```
 
 One call creates the issue with its type and labels, so it never exists untyped. Always supply the type in the creation call, whether hooks run or not: `gh issue create --type` or a REST creation call with `type=`. `-F body=@ticket.md` reads the body from the file; never pass `--body @-` or `-f body=@-`, which `gh` takes as literal text. Read the body back and check that it is the body you wrote.

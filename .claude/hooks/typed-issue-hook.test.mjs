@@ -15,7 +15,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRepos } from "../../.agents/repos.mjs";
+import { readRepos, ticketsRepo } from "../../.agents/repos.mjs";
 import { decide as decideWith } from "./typed-issue-hook.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -810,6 +810,18 @@ for (const [label, command, shell] of allows) {
   bad("a code value that is not a slug", JSON.stringify({ ...OFF, code: "impower" }), "code");
   bad("an internal repository equal to the code repository", JSON.stringify({ ...OFF, internal: "impowergames/IMPOWER" }), "internal");
   bad("an autolink prefix without its dash", JSON.stringify({ ...OFF, autolinkPrefix: "I" }), "autolinkPrefix");
+  bad("a missing feedback inbox", JSON.stringify({ ...OFF, feedbackInbox: undefined }), "feedbackInbox");
+  bad("a feedback inbox that is not an issue number", JSON.stringify({ ...OFF, feedbackInbox: "510" }), "feedbackInbox");
+  check(Number.isSafeInteger(committed.feedbackInbox) && committed.feedbackInbox > 0, "the repos file names the feedback inbox issue", JSON.stringify(committed));
+  check(ticketsRepo(OFF) === OFF.code && ticketsRepo(ON) === ON.internal, "tickets live in the code repository with the switch off and in the internal one with it on", `${ticketsRepo(OFF)} ${ticketsRepo(ON)}`);
+  check(ticketsRepo() === ticketsRepo(committed), "ticketsRepo() reads the committed switch by default", ticketsRepo());
+  const cli = (...args) => spawnSync(process.execPath, [fileURLToPath(new URL("../../.agents/repos.mjs", import.meta.url)), ...args], { encoding: "utf8", windowsHide: true });
+  const tickets = cli("tickets");
+  check(tickets.status === 0 && tickets.stdout.trim() === ticketsRepo(committed), "node .agents/repos.mjs tickets prints the tickets repository", JSON.stringify(tickets));
+  const inbox = cli("inbox");
+  check(inbox.status === 0 && inbox.stdout.trim() === String(committed.feedbackInbox), "node .agents/repos.mjs inbox prints the inbox number", JSON.stringify(inbox));
+  const usage = cli("code");
+  check(usage.status === 2 && /Usage/.test(usage.stderr), "node .agents/repos.mjs refuses an unknown value", JSON.stringify(usage));
 }
 
 // The public-repository guard, with the switch on. Every row runs the hook

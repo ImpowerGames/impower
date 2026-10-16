@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { interfaceElements, missingItems, reviewability, reviewabilityReport, walkthroughRecord, main, ghIssueCommand, REQUIRED_ITEMS, REQUIRED_TASKS, COLUMNS } from "./interface-exercise.mjs";
+import { readRepos, ticketsRepo } from "../../repos.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../../..");
@@ -93,7 +94,8 @@ assert.equal((record.match(/^\| 1 \|  \|  \|  \|$/gm) || []).length, 4, "each ta
 assert.match(record, /third column is a finding/);
 
 // Live issues are read through an injected fetch here; the command line uses gh.
-assert.deepEqual(ghIssueCommand(565), ["api", "repos/ImpowerGames/impower/issues/565"]);
+assert.deepEqual(ghIssueCommand(565), ["api", `repos/${ticketsRepo()}/issues/565`]);
+assert.deepEqual(ghIssueCommand(565, ticketsRepo({ ...readRepos(), cutover: true })), ["api", `repos/${readRepos().internal}/issues/565`], "with the switch on, tickets are read from the internal repository");
 const fetched = [];
 const fetchIssue = (number) => { fetched.push(number); return number === 570 ? partial : prose; };
 const live = main(["check", "--issue", "565", "--issue", "570"], { fetchIssue });

@@ -15,7 +15,9 @@ name: Check Linked Issue
 #
 # The body is read from the event payload, so no checkout of the pull
 # request's own code runs here. Both scripts live in .github/scripts/ and
-# have a test beside them.
+# have a test beside them. The linked-issue check also reads the cutover
+# switch in .agents/repos.json: once it is on, a bare "Closes #123" no longer
+# counts alone and the body must close an issue in the internal repository.
 
 on:
   pull_request:
@@ -30,7 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            /.github/scripts/
+            /.agents/repos.json
+            /.agents/repos.mjs
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24

@@ -15,7 +15,7 @@ Route reported wrong behavior to [file-bug](../file-bug/SKILL.md) for its reprod
 
 ## Draft and estimate
 
-Before drafting or editing the ticket, read [shared publishing rules](../references/publishing.md) and `.github/ISSUE_TEMPLATE/task.md`. Keep the template headings in order. Define the concrete work, motivation, included and excluded scope, verifiable acceptance criteria, and related issues. Distinguish observed facts from assumptions; resolve factual uncertainty from the repository where possible.
+Before drafting or editing the ticket, read [shared publishing rules](../references/publishing.md) and `.agents/templates/issues/task.md`. Keep the template headings in order. Define the concrete work, motivation, included and excluded scope, verifiable acceptance criteria, and related issues. Distinguish observed facts from assumptions; resolve factual uncertainty from the repository where possible.
 
 Read [shared issue-field guidance](../references/issue-fields.md) to estimate the complete applicable work and discover the current Effort field and options. Include a concise estimate rationale and material uncertainty under Additional context. Effort describes the filed work, including its verification, rather than the time spent writing the ticket. This workflow assigns Effort; it does not change Priority policy or unrelated metadata.
 

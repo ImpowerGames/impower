@@ -6,9 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { readReports } from './feedback-reports.mjs';
 import { hydrateReports, persistReports, prepareReports, inspectReportsArchive } from './feedback-archive.mjs';
+import { readRepos, ticketsRepo } from '../../repos.mjs';
 
-const REPO = 'ImpowerGames/impower';
-const INBOX = 510;
+// The inbox and its tickets live in the tickets repository the repos file names.
+const REPOS = readRepos();
+const REPO = ticketsRepo(REPOS);
+const INBOX = REPOS.feedbackInbox;
 const PLAN_VERSION = 4;
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 20);
 const clean = value => value.replace(/\r\n/g, '\n').trim();
@@ -27,7 +30,7 @@ const reportExcerpt = text => { const points = Array.from(text); return points.l
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
 // A row needs a group when it has no Task yet or carries a new observation for its Task.
 const needsGroup = row => row.status === 'open' || Boolean(row.observations?.length);
-const DEFER_REMOVED = 'The defer action was removed by #947: every counted problem is filed as a workflow: skills Task attached to #510. Group the problem as ticket, existing or applied; close an unwanted Task as not planned.';
+const DEFER_REMOVED = `The defer action was removed by #947: every counted problem is filed as a workflow: skills Task attached to #${INBOX}. Group the problem as ticket, existing or applied; close an unwanted Task as not planned.`;
 
 function fencedAt(body, offset = body.length) {
   let fence;
@@ -289,12 +292,12 @@ function referenceContext(rows, context, target) {
 
 function evidenceBody(rows, marker, context, target) {
   context = referenceContext(rows, context, target);
-  return `## Feedback from #510\n\n${description(rows)}${context ? `\n\n## Additional context\n\n${context}` : ''}\n\n${marker}\n`;
+  return `## Feedback from #${INBOX}\n\n${description(rows)}${context ? `\n\n## Additional context\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 function ticketBody(rows, marker, context) {
   context = referenceContext(rows, context);
-  return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #510.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
+  return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #${INBOX}.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 export function preview(plan) {

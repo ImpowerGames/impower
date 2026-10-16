@@ -2,10 +2,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { checkLinkedIssue } from "./check-linked-issue.mjs";
+import { readRepos } from "../../.agents/repos.mjs";
+
+// Both positions of the cutover switch, whatever the committed file says.
+const OFF = { ...readRepos(), cutover: false };
+const ON = { ...readRepos(), cutover: true };
 
 const passes = [
   "## Summary\n\nDoes a thing.\n\nCloses #394\n",
@@ -13,8 +18,8 @@ const passes = [
   "resolves #12",
   "Closes: #7",
   "Closed #7",
-  "Fixed ImpowerGames/impower#394",
-  "Resolves https://github.com/ImpowerGames/impower/issues/394",
+  `Fixed ${OFF.code}#394`,
+  `Resolves https://github.com/${OFF.code}/issues/394`,
   "Closes #12, closes #34",
   "## Summary\n\nTemplate chore.\n\nNo linked issue.\n",
   "no linked issue",
@@ -33,16 +38,52 @@ const fails = [
 ];
 
 for (const body of passes) {
-  const r = checkLinkedIssue(body);
+  const r = checkLinkedIssue(body, OFF);
   assert.ok(r.ok, `expected pass for ${JSON.stringify(body)}: ${r.reason}`);
 }
 for (const body of fails) {
-  const r = checkLinkedIssue(body);
+  const r = checkLinkedIssue(body, OFF);
   assert.ok(!r.ok, `expected fail for ${JSON.stringify(body)}: ${r.reason}`);
 }
 
 console.log(
-  `ok: ${passes.length} passing bodies, ${fails.length} failing bodies`,
+  `ok: switch off, ${passes.length} passing bodies, ${fails.length} failing bodies`,
+);
+
+// With the switch on, tickets live in the internal repository: a bare #N
+// names a pull request in the code repository, so it passes only beside a
+// closing reference to the internal repository.
+const internalPasses = [
+  `Closes ${ON.internal}#5`,
+  `Closes #5\nCloses ${ON.internal}#5`,
+  `Closes #5, closes ${ON.internal}#6`,
+  `Fixes https://github.com/${ON.internal}/issues/5`,
+  `resolves ${ON.internal.toUpperCase()}#5`,
+  "No linked issue.",
+];
+const internalFails = [
+  "Closes #5",
+  "Closes #5, closes #6",
+  `Fixed ${ON.code}#394`,
+  `Resolves https://github.com/${ON.code}/issues/394`,
+  `Closes ${ON.internal}-old#5`,
+  `See ${ON.internal}#5`,
+  `<!-- Closes ${ON.internal}#5 -->\nCloses #5`,
+  "",
+];
+for (const body of internalPasses) {
+  const r = checkLinkedIssue(body, ON);
+  assert.ok(r.ok, `expected pass with the switch on for ${JSON.stringify(body)}: ${r.reason}`);
+}
+for (const body of internalFails) {
+  const r = checkLinkedIssue(body, ON);
+  assert.ok(!r.ok, `expected fail with the switch on for ${JSON.stringify(body)}: ${r.reason}`);
+  assert.ok(r.reason.includes(`Closes ${ON.internal}#123`), `the failure names the internal form: ${r.reason}`);
+}
+assert.match(checkLinkedIssue("Closes #5", ON).reason, /found "Closes #5", which names no issue there/);
+
+console.log(
+  `ok: switch on, ${internalPasses.length} passing bodies, ${internalFails.length} failing bodies`,
 );
 
 // The entry-point guard (`import.meta.url === pathToFileURL(process.argv[1]).href`)
@@ -60,9 +101,14 @@ const scriptSource = readFileSync(
   fileURLToPath(new URL("./check-linked-issue.mjs", import.meta.url)),
   "utf8",
 );
+// The script reads the switch from .agents/repos.json two levels up, so the
+// copy keeps that layout.
 const spaceDir = mkdtempSync(join(tmpdir(), "check linked issue "));
-const scriptCopy = join(spaceDir, "check-linked-issue.mjs");
+mkdirSync(join(spaceDir, ".github", "scripts"), { recursive: true });
+mkdirSync(join(spaceDir, ".agents"));
+const scriptCopy = join(spaceDir, ".github", "scripts", "check-linked-issue.mjs");
 writeFileSync(scriptCopy, scriptSource);
+for (const name of ["repos.mjs", "repos.json"]) writeFileSync(join(spaceDir, ".agents", name), readFileSync(fileURLToPath(new URL(`../../.agents/${name}`, import.meta.url))));
 
 function runScript(prBody) {
   return spawnSync(process.execPath, [scriptCopy], {

@@ -48,7 +48,7 @@
 // Decision tables and runner wiring checks exercise this shared policy.
 
 import { pathToFileURL } from "node:url";
-import { readRepos } from "../repos.mjs";
+import { readRepos, ticketsRepo } from "../repos.mjs";
 
 // The repositories the command under analysis is checked against, set by
 // decide() from the repos file or from the caller's override.
@@ -56,8 +56,7 @@ let repos = null;
 let defaultRepos = null;
 
 function recipe() {
-  const target = repos.cutover ? repos.internal : repos.code;
-  return `gh api -X POST repos/${target}/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=<label>"   # type is Bug, Feature, or Task; repeat labels[] per label`;
+  return `gh api -X POST repos/${ticketsRepo(repos)}/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=<label>"   # type is Bug, Feature, or Task; repeat labels[] per label`;
 }
 
 // gh api flags that take a value which is not a request field.

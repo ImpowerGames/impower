@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { ticketsRepo } from '../../repos.mjs';
 import { parseLegacyTable, parseIntake, keyOf, fold, makePlan, readPlan, preview, applyPlan, lookupReports } from './triage-skill-feedback.mjs';
 
 const body = 'Intro\n\n## Intake\n\nPost one report per comment.\n\nFooter stays.\n';
@@ -27,7 +28,7 @@ function fixture(comments = [reported(1, 'codex:alpha')], initialBody = body) {
       const issue = find(number);
       if (!issue) throw new Error(`Fixture has no issue #${number}`);
       const parent = state.parents.get(number);
-      return { id: databaseId(number), parent_issue_url: parent ? `https://api.github.com/repos/${parent.repo || 'ImpowerGames/impower'}/issues/${parent.number}` : null, ...structuredClone(issue) };
+      return { id: databaseId(number), parent_issue_url: parent ? `https://api.github.com/repos/${parent.repo || ticketsRepo()}/issues/${parent.number}` : null, ...structuredClone(issue) };
     },
     subIssues: async () => [...state.parents].filter(([, parent]) => parent.number === 510 && !parent.repo).map(([number]) => ({ number, id: databaseId(number) })),
     addSubIssue: async id => {
@@ -526,6 +527,7 @@ await test('CLI rejects inside ..prefix paths and accepts outside siblings', () 
     copyFileSync(fileURLToPath(new URL('./triage-skill-feedback.mjs', import.meta.url)), script);
     copyFileSync(fileURLToPath(new URL('./feedback-reports.mjs', import.meta.url)), resolve(script, '../feedback-reports.mjs'));
     copyFileSync(fileURLToPath(new URL('./feedback-archive.mjs', import.meta.url)), resolve(script, '../feedback-archive.mjs'));
+    for (const name of ['repos.mjs', 'repos.json']) copyFileSync(fileURLToPath(new URL(`../../${name}`, import.meta.url)), resolve(checkout, '.agents', name));
     const otherRepo = resolve(scratch, 'other-repo');
     mkdirSync(resolve(otherRepo, '.git'), { recursive: true });
     const otherWorktree = resolve(scratch, 'other-worktree');

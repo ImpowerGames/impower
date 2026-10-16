@@ -10,7 +10,7 @@ Before reading the design, compare models. The ticket's Additional context recor
 
 ## What is reviewed
 
-The parent Feature and every slice Task it lists, read live from the tracker (`gh issue view N --json title,body,issueType`), and the code at the head of a clean, committed checkout; record that commit so every `file:line` in a finding names it. Keep the whole design in context: a finding either quotes the ticket text or cites the code.
+The parent Feature and every slice Task it lists, read live from the tracker (`gh issue view N -R <tickets> --json title,body,issueType`, with `<tickets>` the [tickets repository](publishing.md#the-tickets-repository)), and the code at the head of a clean, committed checkout; record that commit so every `file:line` in a finding names it. Keep the whole design in context: a finding either quotes the ticket text or cites the code.
 
 ## Anchoring rule
 
@@ -26,7 +26,7 @@ After the review pass, group the findings into decisions: one decision per desig
 
 ## Apply
 
-When the frontier is empty, edit the tickets under the [shared publishing rules](publishing.md): write each new body with an editor, publish it with `gh issue edit N --body-file <file>`, and read every edited body back. Keep the headings of `.github/ISSUE_TEMPLATE/feature_request.md` and `task.md` in order; mark undeliberated choices "decided by default" and undecided ones "Open". A change to the slicing edits or files Task tickets through [file-task](../file-task/SKILL.md), with the user's agreement. Post one comment on the parent naming the reviewing model, the commit reviewed, each edited ticket with one line on what changed, and the follow-ups proposed with their titles. File a follow-up only when the user asks.
+When the frontier is empty, edit the tickets under the [shared publishing rules](publishing.md): write each new body with an editor, publish it with `gh issue edit N -R <tickets> --body-file <file>`, and read every edited body back. Keep the headings of `.agents/templates/issues/feature_request.md` and `task.md` in order; mark undeliberated choices "decided by default" and undecided ones "Open". A change to the slicing edits or files Task tickets through [file-task](../file-task/SKILL.md), with the user's agreement. Post one comment on the parent naming the reviewing model, the commit reviewed, each edited ticket with one line on what changed, and the follow-ups proposed with their titles. File a follow-up only when the user asks.
 
 ## Hand off
 
