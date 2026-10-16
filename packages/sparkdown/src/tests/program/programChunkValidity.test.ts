@@ -469,3 +469,38 @@ describe("a `do` block holding `function inner()` inserted above twins (#1933)",
     expect(reemitted).toBe(0);
   });
 });
+
+describe("a name two definitions share (#1934)", () => {
+  const CLASH = "a label named as another";
+  const after = (text: string, line: string) => text.indexOf(line) + line.length;
+  const expectSameClash = ({ incremental, cold }: ReturnType<typeof editOnce>) => {
+    expect(cold.diagnostics.some((d) => d.includes(CLASH))).toBe(true);
+    expect(incremental.diagnostics).toEqual(cold.diagnostics);
+  };
+  // The parse reports these names itself, before the chunk store meets
+  // them, so they are the same both ways whichever definition it reaches.
+  const expectSameDuplicate = ({ incremental, cold }: ReturnType<typeof editOnce>) => {
+    expect(cold.diagnostics).toHaveLength(1);
+    expect(incremental.diagnostics).toEqual(cold.diagnostics);
+  };
+
+  it("is reported where a cold compile reports it when a branch is inserted after a label", () => {
+    const before = "scene S\n  label extra\n  B\n  Line.\nend\n";
+    expectSameClash(editOnce(before, after(before, "  B"), 0, "\n  branch extra\n    Extra.\n  end"));
+  });
+
+  it("is reported where a cold compile reports it when a label is inserted after a branch", () => {
+    const before = "scene S\n  B\n  branch extra\n    Extra.\n  end\n  Line.\nend\n";
+    expectSameDuplicate(editOnce(before, after(before, "  Line."), 0, "\n  label extra"));
+  });
+
+  it("is reported where a cold compile reports it when a label is inserted before a label", () => {
+    const before = "scene S\n  B\n  label extra\n  Line.\nend\n";
+    expectSameDuplicate(editOnce(before, after(before, "  B"), 0, "\n  label extra"));
+  });
+
+  it("is reported where a cold compile reports it when a label is inserted after a label", () => {
+    const before = "scene S\n  label extra\n  B\n  Line.\nend\n";
+    expectSameDuplicate(editOnce(before, after(before, "  Line."), 0, "\n  label extra"));
+  });
+});
