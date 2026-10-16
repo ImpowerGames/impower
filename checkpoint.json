@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 132,
-  "previous": "6a2df44c7e19879959da73c07d152c5ae0a50b2e",
+  "seq": 133,
+  "previous": "72939a3dd4eb00ec04c74c69ce8436e1f12fef44",
   "snapshotParents": [],
-  "time": "2026-10-16T03:17:27.126Z",
+  "time": "2026-10-16T03:17:36.019Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1614",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 98,
+    "recordRevision": 99,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -291,48 +291,54 @@
       "results": []
     },
     "1614": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
-        "branch": "fix/1614-parser-restart-zero-width",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "launchId": "7c11b706-71c6-420e-926d-8e14cbb1b6e2",
-        "handle": {
-          "kind": "process",
-          "pid": 11208,
-          "start": "639277093053655172",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1614-7c11b706-71c6-420e-926d-8e14cbb1b6e2"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 7c11b706-71c6-420e-926d-8e14cbb1b6e2. You are the writer for ImpowerGames/impower ticket #1614 (An incremental edit adding a > below an unclosed < keeps the < line as text and compiles the block under it, which a cold compile reads as one display string (TextCommand match crosses lines)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 7c11b706-71c6-420e-926d-8e14cbb1b6e2 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1614 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width on branch fix/1614-parser-restart-zero-width from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit D of umbrella #1893, whose Description and Scope are the design of record: the parser. One PR on this branch fixes two parser defects, each with its own regression test. (1) The string case of #1614 (capture seed 7): after an unterminated string such as t(\"end, the # at the start of the next line matches nothing and the tokenizer goes through its empty-match backstop (TextmateGrammarParse.ts around 447-463: after more than 100 consecutive empty matches, skip one character), which lands zero-width ImplicitAction nodes in the tree with a 'Possible infinite loop at pos=106' warning; a cold parse holds 51 of them at that offset, the incremental parse 102, because the parse restarts exactly there (reparsed 106..140) and keeps the old chunk's 51 before emitting its own. Two defects to fix: the grammar hole (a # line after an unterminated string must tokenize without the backstop, in a cold parse too) and the restart that keeps zero-width nodes at its restart point. (2) #1638: TextmateParseRegion.next advances by the accumulated string length (pos += str.length, TextmateParseRegion.ts around 229-232), so an Input that serves a line in three or more chunks gives a different tree than the same text as a string (3, 5 and 7-character chunks give 154, 151 and 133 nodes against the string parse's 135). Read the 2026-10-15 root-cause comments on #1614 and #1638 first.\n- Closes lines: Closes #1614 and Closes #1638, both in Summary. #1614's other causes are already on main: the <> text command case was fixed by #1583 and the call-continuation case landed in PR #1912 (programChunkValidity.test.ts), so this PR is the second to land and carries #1614's Closes line. Confirm on your base that programChunkValidity.test.ts still passes before you start, and say in the PR body which of #1614's three cases each landed in.\n- Regression tests: for #1638, parse the same text through a fixed-size-chunk Input at 3, 5 and 7 characters and through a string and assert identical trees, in packages/textmate-grammar-tree's test style. For #1614's string case, compile the text incrementally through the ticket's edit and cold and assert the same tree, program chunks and diagnostics, in the shapes under packages/sparkdown/src/tests/program (programIncrementalColdParity.test.ts, programChunkValidity.test.ts), and assert that neither parse emits the empty-match backstop warning. Keep the hole's cold-parse behavior covered too: the # line after an unterminated string must tokenize without zero-width nodes.\n- Grammar changes go through the YAML sources and regenerate both output locations: read .agents/skills/references/language-definitions.md before touching the grammar, configuration or snippets. Stay out of packages/sparkdown/src/program/ChunkStore.ts and the memo session: another writer takes ChunkStore.ts next (unit U1, #1623) and unit C's memo fix is PR #1915. If the restart fix needs a change outside the parser packages (textmate-grammar-tree, the sparkdown grammar and its incremental parse glue), message the coordinator before making it.\n- Hand-over notes with the probe scripts that reproduced both cases on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/incremental-vs-cold/NOTES.md (probe-1614-empties.ts for the zero-width node counts, probe-program.ts for #1614, probe-1638.ts run with tsx from the repo root, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since (PRs #1910, #1912, #1913, #1914); re-establish each case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run <package-dir> <test files relative to that package> --wait <seconds>, naming the files you touch (packages/textmate-grammar-tree and packages/sparkdown separately); never a whole package suite locally (CI runs packages). Run the incremental parse suites that cover restarts (packages/sparkdown/src/tests/incremental) on your head and report them.\n- Another coordinator merges PRs on this repository at the same time and the merge gate admits only a head that contains current origin/main with CI green on it. Just before you mark the PR ready, fetch origin main and merge it in as a merge commit if it moved, let CI finish on that head in the foreground, and report that head; the coordinator may later resume you to merge main once more if it moves again before your turn in the merge queue.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "e0e4691d",
-          "attempts": 1,
-          "time": "2026-10-16T01:01:45.713Z",
-          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
-        },
-        "since": "2026-10-16T01:01:45.714Z",
-        "sessionId": "8eefdb72-ac0e-49b6-92fe-d7a4bf11c350",
-        "acknowledged": {
-          "time": "2026-10-16T01:02:43.678Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
+            "branch": "fix/1614-parser-restart-zero-width",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+            "launchId": "7c11b706-71c6-420e-926d-8e14cbb1b6e2",
+            "handle": {
+              "kind": "process",
+              "pid": 11208,
+              "start": "639277093053655172",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1614-7c11b706-71c6-420e-926d-8e14cbb1b6e2"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 7c11b706-71c6-420e-926d-8e14cbb1b6e2. You are the writer for ImpowerGames/impower ticket #1614 (An incremental edit adding a > below an unclosed < keeps the < line as text and compiles the block under it, which a cold compile reads as one display string (TextCommand match crosses lines)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 7c11b706-71c6-420e-926d-8e14cbb1b6e2 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1614 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width on branch fix/1614-parser-restart-zero-width from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit D of umbrella #1893, whose Description and Scope are the design of record: the parser. One PR on this branch fixes two parser defects, each with its own regression test. (1) The string case of #1614 (capture seed 7): after an unterminated string such as t(\"end, the # at the start of the next line matches nothing and the tokenizer goes through its empty-match backstop (TextmateGrammarParse.ts around 447-463: after more than 100 consecutive empty matches, skip one character), which lands zero-width ImplicitAction nodes in the tree with a 'Possible infinite loop at pos=106' warning; a cold parse holds 51 of them at that offset, the incremental parse 102, because the parse restarts exactly there (reparsed 106..140) and keeps the old chunk's 51 before emitting its own. Two defects to fix: the grammar hole (a # line after an unterminated string must tokenize without the backstop, in a cold parse too) and the restart that keeps zero-width nodes at its restart point. (2) #1638: TextmateParseRegion.next advances by the accumulated string length (pos += str.length, TextmateParseRegion.ts around 229-232), so an Input that serves a line in three or more chunks gives a different tree than the same text as a string (3, 5 and 7-character chunks give 154, 151 and 133 nodes against the string parse's 135). Read the 2026-10-15 root-cause comments on #1614 and #1638 first.\n- Closes lines: Closes #1614 and Closes #1638, both in Summary. #1614's other causes are already on main: the <> text command case was fixed by #1583 and the call-continuation case landed in PR #1912 (programChunkValidity.test.ts), so this PR is the second to land and carries #1614's Closes line. Confirm on your base that programChunkValidity.test.ts still passes before you start, and say in the PR body which of #1614's three cases each landed in.\n- Regression tests: for #1638, parse the same text through a fixed-size-chunk Input at 3, 5 and 7 characters and through a string and assert identical trees, in packages/textmate-grammar-tree's test style. For #1614's string case, compile the text incrementally through the ticket's edit and cold and assert the same tree, program chunks and diagnostics, in the shapes under packages/sparkdown/src/tests/program (programIncrementalColdParity.test.ts, programChunkValidity.test.ts), and assert that neither parse emits the empty-match backstop warning. Keep the hole's cold-parse behavior covered too: the # line after an unterminated string must tokenize without zero-width nodes.\n- Grammar changes go through the YAML sources and regenerate both output locations: read .agents/skills/references/language-definitions.md before touching the grammar, configuration or snippets. Stay out of packages/sparkdown/src/program/ChunkStore.ts and the memo session: another writer takes ChunkStore.ts next (unit U1, #1623) and unit C's memo fix is PR #1915. If the restart fix needs a change outside the parser packages (textmate-grammar-tree, the sparkdown grammar and its incremental parse glue), message the coordinator before making it.\n- Hand-over notes with the probe scripts that reproduced both cases on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/incremental-vs-cold/NOTES.md (probe-1614-empties.ts for the zero-width node counts, probe-program.ts for #1614, probe-1638.ts run with tsx from the repo root, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved since (PRs #1910, #1912, #1913, #1914); re-establish each case on your base before changing anything.\n- Run vitest only through node scripts/test-suite.mjs run <package-dir> <test files relative to that package> --wait <seconds>, naming the files you touch (packages/textmate-grammar-tree and packages/sparkdown separately); never a whole package suite locally (CI runs packages). Run the incremental parse suites that cover restarts (packages/sparkdown/src/tests/incremental) on your head and report them.\n- Another coordinator merges PRs on this repository at the same time and the merge gate admits only a head that contains current origin/main with CI green on it. Just before you mark the PR ready, fetch origin main and merge it in as a merge commit if it moved, let CI finish on that head in the foreground, and report that head; the coordinator may later resume you to merge main once more if it moves again before your turn in the merge queue.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "e0e4691d",
+              "attempts": 1,
+              "time": "2026-10-16T01:01:45.713Z",
+              "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+            },
+            "since": "2026-10-16T01:01:45.714Z",
+            "sessionId": "8eefdb72-ac0e-49b6-92fe-d7a4bf11c350",
+            "acknowledged": {
+              "time": "2026-10-16T01:02:43.678Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from the writer session (impower-3a) at 2026-10-15 ~21:05 local naming the assignment and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+              "deliveryId": "e0e4691d"
+            }
           },
-          "evidence": "cross-session message from the writer session (impower-3a) at 2026-10-15 ~21:05 local naming the assignment and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
-          "deliveryId": "e0e4691d"
+          "released": "process 11208 is gone and no process names its launch directory; process 11208 is gone and no process names its launch directory; its transcript ends with end_turn after the final report (PR 1919, reviewed head 8ac011bda, 1 round, no outstanding findings); PR 1919 merged at 50335b0153700bd8b78b21dc1cb385729363cd39 through the gate",
+          "time": "2026-10-16T03:17:33.917Z"
         }
-      },
-      "pending": null,
-      "history": [],
+      ],
       "results": [
         {
           "time": "2026-10-16T03:11:45.034Z",
@@ -1516,7 +1522,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T03:17:25.836Z",
+      "observedAt": "2026-10-16T03:17:35.060Z",
       "held": true,
       "head": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
       "remoteHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
@@ -1668,142 +1674,6 @@
             },
             "time": "2026-10-16T03:14:55.237Z"
           }
-        }
-      ]
-    },
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width": {
-      "ticket": 1614,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
-      "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T03:17:25.836Z",
-      "held": true,
-      "head": "5b408d57e22233a48ca7ff03f78d3de629530b73",
-      "remoteHead": "5b408d57e22233a48ca7ff03f78d3de629530b73",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1919,
-      "reviewJobs": [
-        {
-          "job": "pr-1919/round-1/launch-bound-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-bound",
-            "reviewerId": "bound",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "164cead2492fe406853dfa165beff860a2bc12a1",
-            "completedRoundReviewers": {
-              "incr": 1
-            },
-            "time": "2026-10-16T02:00:17.760Z"
-          },
-          "round": 1,
-          "reviewerId": "bound",
-          "attempt": 1,
-          "reviewedHead": "164cead2492fe406853dfa165beff860a2bc12a1",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "incr": 1,
-            "bound": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6206539683
-          ]
-        },
-        {
-          "job": "pr-1919/round-1/launch-incr-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-incr",
-            "reviewerId": "incr",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "6cd26291eafeb05b9149785cadaee9ff64ffb481",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T01:43:26.130Z"
-          },
-          "round": 1,
-          "reviewerId": "incr",
-          "attempt": 1,
-          "reviewedHead": "6cd26291eafeb05b9149785cadaee9ff64ffb481",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "incr": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "bound",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6206157836
-          ]
-        },
-        {
-          "job": "pr-1919/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incr",
-              "bound",
-              "undirected"
-            ],
-            "head": "8ac011bdab2f32361fe17580e083588cb7ad7b5c",
-            "completedRoundReviewers": {
-              "incr": 1,
-              "bound": 1
-            },
-            "time": "2026-10-16T02:22:57.956Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "8ac011bdab2f32361fe17580e083588cb7ad7b5c",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "incr": 1,
-            "bound": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "incr",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6206706520
-          ]
         }
       ]
     }
@@ -2582,6 +2452,12 @@
       "event": "operation-outcome",
       "id": "07586b5c",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T03:17:33.918Z",
+      "event": "released",
+      "ticket": 1614,
+      "reason": "process 11208 is gone and no process names its launch directory"
     }
   ]
 }
