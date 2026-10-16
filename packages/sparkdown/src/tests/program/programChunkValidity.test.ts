@@ -270,17 +270,23 @@ describe("statements that read the same as each other (twins)", () => {
   const SCENE = "do\n\nscene FN_0\nend\n";
   const TAIL = "  Made {make(0)()} total return {total} twice {twic";
 
-  const cases: [string, string][] = [
-    ["the first of two `do` blocks (#1623)", SCENE + FN + TAIL],
-    ["the second of two `do` blocks", FN + SCENE + TAIL],
-    ["the first of three `do` blocks", SCENE + FN + OTHER + TAIL],
-    ["the second of three `do` blocks", FN + SCENE + OTHER + TAIL],
-    ["the third of three `do` blocks", FN + OTHER + SCENE + TAIL],
+  // The edit, and the same edit adding five lines, which moves the blocks
+  // below it away from the lines their chunks stood at.
+  const EDIT = "  & add(2)\n";
+  const LONGER = EDIT + "\n".repeat(5);
+  const cases: [string, string, string][] = [
+    ["the first of two `do` blocks (#1623)", SCENE + FN + TAIL, EDIT],
+    ["the first of two `do` blocks, adding lines", SCENE + FN + TAIL, LONGER],
+    ["the second of two `do` blocks", FN + SCENE + TAIL, EDIT],
+    ["the first of three `do` blocks", SCENE + FN + OTHER + TAIL, EDIT],
+    ["the first of three `do` blocks, adding lines", SCENE + FN + OTHER + TAIL, LONGER],
+    ["the second of three `do` blocks", FN + SCENE + OTHER + TAIL, EDIT],
+    ["the third of three `do` blocks", FN + OTHER + SCENE + TAIL, EDIT],
   ];
 
-  it.each(cases)("keep their own chunks after an edit to %s", (_, before) => {
+  it.each(cases)("keep their own chunks after an edit to %s", (_, before, insert) => {
     const at = before.indexOf("\nscene ");
-    const { incremental, cold, reemitted, moved } = editOnce(before, at, "\nscene ".length, "  & add(2)\n");
+    const { incremental, cold, reemitted, moved } = editOnce(before, at, "\nscene ".length, insert);
     expect(cold.chunks).not.toBeNull();
     expect(incremental).toEqual(cold);
     expect(moved).toEqual([]);

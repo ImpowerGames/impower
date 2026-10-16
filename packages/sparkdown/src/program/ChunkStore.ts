@@ -2898,13 +2898,13 @@ export class ChunkStore {
    * aligned with the old chunks in two steps.
    *
    * By position: between two statements that kept old chunks, twins (more
-   * than one statement or old chunk of the same syntax and lowering reads)
-   * that can keep an old chunk are paired first with the chunks they can
-   * keep, in order and at the least distance in lines (`matchTwins`); the
-   * other old and new statements are matched from both ends and then in
-   * order by their syntax, and the one statement left on each side of a run
-   * with the one
-   * old statement left; of the statements left, only the outermost count:
+   * statements than old chunks of the same syntax and lowering reads, or
+   * fewer) are paired first, in order, each with a chunk it can keep or one
+   * whose parts it would take, at the least distance in lines across the
+   * edit (`matchTwins`); the other old and new statements are matched from
+   * both ends and then in order by their syntax, and the one statement left
+   * on each side of a run with the one old statement left; of the
+   * statements left, only the outermost count:
    * the statements of a left statement's bodies are part of it, as the
    * statements of a function written on its owner's line are, whose columns
    * move when a function is inserted before it (`nesting`). The statements
@@ -3113,19 +3113,25 @@ export class ChunkStore {
     const outermostNew = outermostOf(statements, nesting?.owner);
     const outermostOld = outermostOf(old, nesting?.oldOwner);
     // Twins: statements of a run that read alike in their syntax and their
-    // lowering reads, of which the run holds more than one, or more than one
-    // old chunk (a block statement's own syntax leaves its bodies out, so
-    // blocks with different bodies read alike). The passes by position would
+    // lowering reads (a block statement's own syntax leaves its bodies out,
+    // so blocks with different bodies read alike), where the run holds more
+    // of them than of their old chunks, or fewer. The passes by position
     // pair them by their order alone, so of twins the one an edit changed
-    // takes the chunk of one it did not (#1623), or a twin takes for an edit
-    // in place the chunk another can keep (#1611). Before those passes, each
-    // twin that can keep an old chunk of the run is paired among the chunks
-    // it can keep by where they stood: in order, at the least distance in
-    // lines between each statement and its chunk. Returns the old chunks it
-    // paired.
+    // took the chunk of one it did not (#1623), or a twin took for an edit
+    // in place the chunk another could keep (#1611). Before those passes,
+    // the twins are paired with their old chunks by where they stood: in
+    // order, as many as can be, at the least distance in lines between each
+    // statement and its chunk, measured across the edit (the lines the run
+    // gained above or below it). A twin is paired with a chunk it can keep,
+    // or with one whose parts it would take when emitted again in place
+    // (`ownsParts`), since those parts' ids and symbols go with the edit in
+    // place. Where a run holds as many twins as chunks, or the pairing would
+    // weigh more than `TWIN_CELLS` pairs, the passes by position pair them as
+    // before. Returns the old chunks it paired.
     const matchTwins = (
       candidates: readonly number[],
       olds: readonly number[],
+      infoOf: (o: number) => ChunkInfo | undefined,
     ): Set<number> => {
       const paired = new Set<number>();
       const oldLine = nesting?.oldLine;
@@ -3134,7 +3140,7 @@ export class ChunkStore {
       }
       const alike = new Map<string, { news: number[]; olds: number[] }>();
       for (const o of olds) {
-        const info = this._info.get(old[o]!);
+        const info = infoOf(o);
         if (info && !used.has(old[o]!)) {
           const reads = `${info.syntax}\u0000${info.reads}`;
           const group = alike.get(reads);
@@ -3149,36 +3155,76 @@ export class ChunkStore {
         const statement = statements[i]!;
         alike.get(`${statement.syntax()}\u0000${statement.reads}`)?.news.push(i);
       }
-      for (const group of alike.values()) {
-        if (group.news.length === 0 || group.news.length + group.olds.length < 3) {
-          continue;
-        }
-        // The twins that read the same in everything else a kept chunk
-        // depends on, with the chunks whose facts hold.
-        const same = new Map<string, { news: number[]; olds: number[] }>();
-        for (const o of group.olds) {
-          const identity = this.chunkIdentity(old[o]!);
-          if (identity !== undefined && factsHold(old[o]!)) {
-            const twins = same.get(identity);
-            if (twins) {
-              twins.olds.push(o);
-            } else {
-              same.set(identity, { news: [], olds: [o] });
+      // How many lines the run gained above its edit and below it: from its
+      // first lines and from its last, old and new.
+      let shifts: readonly [number, number] | undefined;
+      const shiftsOf = (): readonly [number, number] => {
+        if (!shifts) {
+          let newFirst = Infinity;
+          let newLast = -Infinity;
+          let oldFirst = Infinity;
+          let oldLast = -Infinity;
+          for (const i of candidates) {
+            newFirst = Math.min(newFirst, statements[i]!.firstLine);
+            newLast = Math.max(newLast, statements[i]!.firstLine);
+          }
+          for (const o of olds) {
+            const line = oldLine(old[o]!);
+            if (line >= 0) {
+              oldFirst = Math.min(oldFirst, line);
+              oldLast = Math.max(oldLast, line);
             }
           }
+          shifts =
+            oldFirst <= oldLast ? [newFirst - oldFirst, newLast - oldLast] : [0, 0];
         }
-        for (const i of group.news) {
-          same.get(this.statementIdentity(statements[i]!))?.news.push(i);
+        return shifts;
+      };
+      for (const group of alike.values()) {
+        const n = group.news.length;
+        const m = group.olds.length;
+        if (n === 0 || n === m || n * m > TWIN_CELLS) {
+          continue;
         }
-        for (const twins of same.values()) {
-          const pairs = nearestInOrder(
-            twins.news.map((i) => statements[i]!.firstLine),
-            twins.olds.map((o) => oldLine(old[o]!)),
-          );
-          for (const [n, k] of pairs) {
-            if (take(twins.news[n]!, twins.olds[k]!)) {
-              paired.add(twins.olds[k]!);
-            }
+        const [above, below] = shiftsOf();
+        const news = group.news.map((i) => {
+          const statement = statements[i]!;
+          return {
+            line: statement.firstLine,
+            identity: this.statementIdentity(statement),
+            bodied: (statement.bodies?.length ?? 0) > 0,
+            alternating: writesAlternators(statement),
+            choosing: raisesChoices(statement),
+          };
+        });
+        const chunks = group.olds.map((o) => {
+          const chunk = old[o]!;
+          const info = infoOf(o)!;
+          return {
+            line: oldLine(chunk),
+            identity: factsHold(chunk) ? this.chunkIdentity(chunk) : undefined,
+            bodied: blockCount(chunk) > 0,
+            alternating: info.alternators.length > 0,
+            choosing: info.choices.length > 0,
+          };
+        });
+        const pairs = pairInOrder(n, m, (s, l) => {
+          const twin = news[s]!;
+          const chunk = chunks[l]!;
+          const keeps = chunk.identity !== undefined && chunk.identity === twin.identity;
+          const inherits =
+            (twin.bodied && chunk.bodied) ||
+            (twin.alternating && chunk.alternating) ||
+            (twin.choosing && chunk.choosing);
+          if (!keeps && !inherits) {
+            return undefined;
+          }
+          const moved = twin.line - chunk.line;
+          return Math.min(Math.abs(moved - above), Math.abs(moved - below));
+        });
+        for (const [s, l] of pairs) {
+          if (take(group.news[s]!, group.olds[l]!)) {
+            paired.add(group.olds[l]!);
           }
         }
       }
@@ -3198,13 +3244,21 @@ export class ChunkStore {
       for (let o = oldFrom; o < oldTo; o += 1) {
         run.push(o);
       }
-      const twins = matchTwins(unmatched, run);
+      // Each old chunk's record, read once for the twins and the passes.
+      const infos = new Map<number, ChunkInfo | undefined>();
+      const infoOf = (o: number) => {
+        if (!infos.has(o)) {
+          infos.set(o, this._info.get(old[o]!));
+        }
+        return infos.get(o);
+      };
+      const twins = matchTwins(unmatched, run, infoOf);
       const candidates = twins.size ? unmatched.filter((i) => !result[i]) : unmatched;
       const olds = twins.size ? run.filter((o) => !twins.has(o)) : run;
       if (candidates.length === 0 || olds.length === 0) {
         return;
       }
-      const syntaxOf = (o: number) => this._info.get(old[o]!)?.syntax;
+      const syntaxOf = (o: number) => infoOf(o)?.syntax;
       // From the front, then from the back, while the syntax matches.
       let front = 0;
       while (
@@ -3726,56 +3780,75 @@ const sameChunks = (
 const sameNumbers = (a: readonly number[], b: readonly number[]): boolean =>
   a.length === b.length && a.every((n, i) => n === b[i]);
 
-// Past this many cells, twins are paired in order rather than by distance.
-const NEAREST_CELLS = 1 << 16;
+// The most pairs of twins and old chunks the alignment weighs in one group;
+// a larger group is paired by position (`matchTwins`).
+const TWIN_CELLS = 1 << 16;
 
-/** Pairs every entry of the shorter of two lists of lines with one of the
- *  longer, in order, at the least total distance between the lines paired,
- *  as `[entry of a, entry of b]`; in order from the first of each when the
- *  lists are too long to weigh every pairing. */
-const nearestInOrder = (
-  a: readonly number[],
-  b: readonly number[],
+/** Pairs the entries of two lists in order, as `[entry of the first, entry
+ *  of the second]`: as many pairs as `cost` allows (it gives nothing for a
+ *  pair that may not be made), at the least total cost of those, and of
+ *  equal ones the pairing that takes the earlier entries of the second. */
+const pairInOrder = (
+  n: number,
+  m: number,
+  cost: (s: number, l: number) => number | undefined,
 ): [number, number][] => {
-  const swap = a.length > b.length;
-  const short = swap ? b : a;
-  const long = swap ? a : b;
-  const n = short.length;
-  const m = long.length;
-  const pairs: [number, number][] = [];
-  const pair = (s: number, l: number) => pairs.push(swap ? [l, s] : [s, l]);
-  if (n === 0) {
-    return pairs;
-  }
-  if (n === m || n * m > NEAREST_CELLS) {
-    for (let s = 0; s < n; s += 1) {
-      pair(s, s);
-    }
-    return pairs;
-  }
-  // cost[s][l]: the least distance pairing the first s entries of the short
-  // list within the first l of the long one, row by row.
   const width = m + 1;
-  const cost = new Float64Array((n + 1) * width).fill(Infinity);
-  for (let l = 0; l <= m; l += 1) {
-    cost[l] = 0;
-  }
-  for (let s = 1; s <= n; s += 1) {
-    for (let l = s; l <= m; l += 1) {
-      const skip = cost[s * width + l - 1]!;
-      const take =
-        cost[(s - 1) * width + l - 1]! + Math.abs(short[s - 1]! - long[l - 1]!);
-      cost[s * width + l] = Math.min(skip, take);
+  // For the first s entries of the first list and the first l of the
+  // second: how many pairs, at what cost, and the step that got there
+  // (1 leaves out the second's entry, 2 the first's, 3 pairs them).
+  const count = new Int32Array((n + 1) * width);
+  const total = new Float64Array((n + 1) * width);
+  const step = new Uint8Array((n + 1) * width);
+  for (let s = 0; s <= n; s += 1) {
+    for (let l = 0; l <= m; l += 1) {
+      const k = s * width + l;
+      if (l > 0) {
+        count[k] = count[k - 1]!;
+        total[k] = total[k - 1]!;
+        step[k] = 1;
+      }
+      if (s > 0) {
+        const up = k - width;
+        if (
+          l === 0 ||
+          count[up]! > count[k]! ||
+          (count[up] === count[k] && total[up]! < total[k]!)
+        ) {
+          count[k] = count[up]!;
+          total[k] = total[up]!;
+          step[k] = 2;
+        }
+      }
+      if (s > 0 && l > 0) {
+        const d = cost(s - 1, l - 1);
+        const diagonal = k - width - 1;
+        if (d !== undefined) {
+          const pairs = count[diagonal]! + 1;
+          const sum = total[diagonal]! + d;
+          if (pairs > count[k]! || (pairs === count[k] && sum < total[k]!)) {
+            count[k] = pairs;
+            total[k] = sum;
+            step[k] = 3;
+          }
+        }
+      }
     }
   }
-  for (let s = n, l = m; s > 0; l -= 1) {
-    if (cost[s * width + l] !== cost[s * width + l - 1]) {
-      pair(s - 1, l - 1);
+  const pairs: [number, number][] = [];
+  for (let s = n, l = m; s > 0 && l > 0; ) {
+    const k = s * width + l;
+    if (step[k] === 3) {
+      pairs.push([s - 1, l - 1]);
       s -= 1;
+      l -= 1;
+    } else if (step[k] === 2) {
+      s -= 1;
+    } else {
+      l -= 1;
     }
   }
-  pairs.reverse();
-  return pairs;
+  return pairs.reverse();
 };
 
 /** A sequence's arrays, sharing with the current root's `before` each array
