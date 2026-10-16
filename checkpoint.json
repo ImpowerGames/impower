@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 150,
-  "previous": "d45319ee5e008221bcc12f34edd7de211c58eb9d",
+  "seq": 151,
+  "previous": "30e48881b49004d49d73cc2fc6061f429b3a6b8a",
   "snapshotParents": [],
-  "time": "2026-10-16T04:53:49.637Z",
+  "time": "2026-10-16T04:53:57.339Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1627",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 110,
+    "recordRevision": 111,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -444,10 +444,7 @@
       ]
     },
     "1627": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "medium",
@@ -456,9 +453,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
         "branch": "fix/1627-carried-block-flow-change",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-16T04:53:11.511Z"
+        "launchId": "4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8",
+        "handle": {
+          "kind": "process",
+          "pid": 2528,
+          "start": "639277232358933695",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1627-4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment 4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8. You are the writer for ImpowerGames/impower ticket #1627 (After one incremental edit the compile of a script with two do blocks holding function inner() builds no chunks and no fallback (the chunk table disagrees with its sequence rows)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment 4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1627 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change on branch fix/1627-carried-block-flow-change from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- Unit U3 of umbrella #1893, whose Description and Scope are the design of record: a carried block whose enclosing flow changed. The parse carries the second do block past the edit, so its block object keeps its chunk through ChunkStore.keepCarried (around line 2313 at e912fc40c) with nothing read again, and its function inner() keeps its chunk the same way; but the edit left function helper() unclosed, which moves the block out of scene FN_0 into the root flow, where function inner() is a flow of its own (kind 3, as the cold root has it) and the block's body holds no statement, while the carried chunk's block table still names the body holding the function's chunk. keepCarried compares none of this (the memo path's memoChunk does check blockCount against the heads), and CompilationAnnotator.staleRanges does not lower a carried top-level node again when the flow it belongs to changes (it re-lowers only for callable names, define type names and recorded LoweringReads). On e912fc40c the failing check is ChunkStore.verifyBuilds: flow , entry 1, body 0 holds 1 entries, not 0; with verifyBuilds off the root holds a body sequence whose statement list is empty. It is not a twin problem (renaming the second function fails the same; removing the scene FN_0 header passes). Fix direction from the 2026-10-15 root-cause comment: record the enclosing flow (scene or root) as a lowering read so the block is lowered again when it changes, or make keepCarried refuse a chunk whose block table does not match the statement's bodies; prefer the recorded read, since it makes the dependency explicit in the same mechanism the other units used. Read the comments on #1627 first, including the reduced reproduction of 2026-10-16 (comment 6207397449): the same mechanism with a different stale part, where describeRoot differs only in the function wrapper of the carried function inner() chunk (incremental keeps Const void; Return that the cold compile lacks) while tree and diagnostics are equal.\n- Closes line: Closes #1627 only. Regression tests: the ticket's two-block script with the edit that leaves function helper() unclosed, and the reduced reproduction from comment 6207397449 (the editOnce shape of programChunkValidity.test.ts), each compiling incrementally and cold and asserting the same tree, program chunks by describeRoot and diagnostics with ChunkStore.verifyBuilds on; add a control where the carried block's enclosing flow does not change and its chunk is kept, and a case where a scene header is inserted above a carried block (the flow changes from root to scene). Place them in programChunkValidity.test.ts or a sibling under packages/sparkdown/src/tests/program.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; you are the last of its three writers. Build on what PR #1912 (the fit check: values and resolutions as key sets, recorded reads, statement extent) and PR #1918 (twin pairing by fit and distance in align) landed; do not undo either. Keep the change inside ChunkStore.keepCarried, the lowering's recorded reads and CompilationAnnotator.staleRanges; a change that reaches the parser or the memo session (statementMemo.ts, ProgramResolver.ts) is a question for the coordinator before you make it.\n- Hand-over notes with the probe scripts that reproduced the case on 2026-10-15 against e912fc40c: C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/incremental-vs-cold/NOTES.md (probe-store.ts 1627 for the keepCarried trace, probe-fits.ts 1627, probe-more.ts 1627, probe-program.ts, common.ts). Treat that folder as read-only: copy what you use into your artifact directory and fix the relative import prefix the notes describe. origin/main has moved far since (PRs #1910, #1912, #1915, #1918, #1919 of this umbrella and others); re-establish the case on your base before changing anything, and expect the failing check or the stale part to differ from the comment's wording.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files relative to the package> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Run programChunkValidity, programChunkCrossing, programChunkIdentity, programIncrementalOracles and programIncrementalColdParity on your head and report them; the cumulative randomized-edit run is tracked by #1917, which follows your merge, and is not yours to commit.\n- Another coordinator merges PRs on this repository at the same time and the merge gate admits only a head that contains current origin/main with CI green on it. Just before you mark the PR ready, fetch origin main and merge it in as a merge commit if it moved, let CI finish on that head in the foreground, and report that head; the coordinator may later resume you to merge main once more if it moves again before your turn in the merge queue.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep. A filer's scratch worktree from PR #1918's sweep remains at C:/Users/Brode/Documents/GitHub/impower.worktrees/repro/filer-f0d14c2f55e04b00a60a2cbe0222659d; leave it alone.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- A second coordinator runs tickets of #1895 on this machine at the same time. The machine-wide reviewer and test reservations are shared with its writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "7e6ae326",
+          "attempts": 1,
+          "time": "2026-10-16T04:53:56.185Z",
+          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+        },
+        "since": "2026-10-16T04:53:56.186Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     },
@@ -1766,7 +1781,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T04:53:49.637Z",
+      "observedAt": "2026-10-16T04:53:57.339Z",
       "held": true,
       "exists": false
     }
@@ -1869,16 +1884,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:01:35.846Z",
-      "event": "acknowledged",
-      "ticket": 1201,
-      "confirmed": {
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "permissionMode": "bypassPermissions"
-      }
-    },
     {
       "time": "2026-10-15T22:01:46.731Z",
       "event": "verified",
@@ -2546,6 +2551,19 @@
       "ticket": 1627,
       "route": "claude-cli",
       "launchId": "4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8"
+    },
+    {
+      "time": "2026-10-16T04:53:56.186Z",
+      "event": "launched",
+      "ticket": 1627,
+      "launchId": "4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8",
+      "handle": {
+        "kind": "process",
+        "pid": 2528,
+        "start": "639277232358933695",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1627-4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8"
+      }
     }
   ]
 }
