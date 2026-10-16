@@ -3625,6 +3625,10 @@ export class ProgramStory implements StoryEngine {
     if (!(elements instanceof IntValue) || elements.value === null) {
       this.Error("expected number of elements in sequence for shuffle index");
     }
+    // A sequence of no elements has no arm to draw (#1617).
+    if (elements.value <= 0) {
+      this.Error("a sequence with no elements has no arm to shuffle to");
+    }
     const index = state.PopEvaluationStack();
     const count = index instanceof IntValue ? (index.value ?? 0) : 0;
     state.PushEvaluationStack(
