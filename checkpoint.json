@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 37,
-  "previous": "e8d0a174b34202c750f3f2863cc26a1735b38183",
+  "seq": 38,
+  "previous": "468a0f5e515d03bcd79313b1d1f7ad10ffafc671",
   "snapshotParents": [],
-  "time": "2026-10-16T12:20:21.798Z",
+  "time": "2026-10-16T12:48:24.021Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 50,
@@ -436,20 +436,60 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T12:20:21.140Z",
+      "observedAt": "2026-10-16T12:48:23.234Z",
       "held": true,
       "head": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
       "remoteHead": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1927,
-      "reviewJobs": []
+      "reviewJobs": [
+        {
+          "job": "pr-1927/round-1/launch-gram-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-gram",
+            "reviewerId": "gram",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "ax",
+              "undirected"
+            ],
+            "head": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T12:32:00.236Z"
+          },
+          "round": 1,
+          "reviewerId": "gram",
+          "attempt": 1,
+          "reviewedHead": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "gram": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6215770014
+          ]
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T12:20:03.283Z",
+    "at": "2026-10-16T12:48:23.232Z",
     "tickets": [
       {
         "number": 984,
@@ -557,7 +597,7 @@
         "number": 1248,
         "action": "adopt-pr",
         "pr": 1927,
-        "reason": "draft PR #1927 at a322a5d0a067c3f5070e314d4b0287a1d8e048b5 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1927 at a9bc434f8c1a429e8b44a3d62de41b46e2ee3915 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1254,
