@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 11,
-  "previous": "869683c17f448f166ebd78dc5834a77281faa31e",
+  "seq": 12,
+  "previous": "b1f0a76c0689a1f2ede005177b5b055126bb0715",
   "snapshotParents": [],
-  "time": "2026-10-16T16:24:13.189Z",
+  "time": "2026-10-16T16:25:05.415Z",
   "kind": "auto",
-  "transition": "launch of #1637",
+  "transition": "acknowledged of #851",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 8,
+    "recordRevision": 9,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -88,7 +88,18 @@
           "time": "2026-10-16T16:23:02.776Z",
           "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29"
         },
-        "since": "2026-10-16T16:23:02.776Z"
+        "since": "2026-10-16T16:23:02.776Z",
+        "sessionId": "5a7aa508-6593-4813-b867-0a01f1ae081f",
+        "acknowledged": {
+          "time": "2026-10-16T16:25:04.186Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from the writer (peer impower-00 for #851 at 16:24Z, impower-d7 for #1637 at 16:27Z) naming the assignment id and the model, effort and mode read from its own command line and CLAUDE_EFFORT; the launch directory's out.jsonl init line names model claude-opus-5-5 and permissionMode bypassPermissions",
+          "deliveryId": "3c9134d5"
+        }
       },
       "pending": null,
       "history": [],
@@ -139,7 +150,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T16:24:13.189Z",
+      "observedAt": "2026-10-16T16:25:05.415Z",
       "held": true,
       "exists": false
     },
@@ -148,7 +159,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T16:24:13.189Z",
+      "observedAt": "2026-10-16T16:25:05.415Z",
       "held": true,
       "exists": false
     }
@@ -253,6 +264,16 @@
         "start": "639277646500257141",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1637-6a277fa9-157c-4586-a29f-df6814e10c3e"
+      }
+    },
+    {
+      "time": "2026-10-16T16:25:04.187Z",
+      "event": "acknowledged",
+      "ticket": 851,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
