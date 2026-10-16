@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 276,
-  "previous": "b7715f61f938dc5dc0751812a09cca422b3e9eae",
+  "seq": 277,
+  "previous": "c5400e7b7f9f742c61d42b10ccd5bdbacc9074b4",
   "snapshotParents": [],
-  "time": "2026-10-16T16:11:34.156Z",
+  "time": "2026-10-16T16:12:32.405Z",
   "kind": "auto",
-  "transition": "claim of #316",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 234,
@@ -4108,7 +4108,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:11:33.255Z",
+      "observedAt": "2026-10-16T16:12:31.527Z",
       "held": true,
       "exists": false
     },
@@ -4117,7 +4117,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:11:33.255Z",
+      "observedAt": "2026-10-16T16:12:31.527Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4261,13 +4261,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:11:23.076Z",
+    "at": "2026-10-16T16:12:31.525Z",
     "tickets": [
       {
         "number": 316,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 7d758442-e0f0-4ff2-b298-18525c405e4b on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 454,
@@ -4351,7 +4351,7 @@
         "number": 1951,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "1 writers already hold tickets against a limit of 3"
+        "reason": "2 writers already hold tickets against a limit of 3"
       }
     ],
     "remaining": [

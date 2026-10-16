@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 276 (this commit), 2026-10-16T16:11:34.156Z, after claim of #316. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 277 (this commit), 2026-10-16T16:12:32.405Z, after a new plan. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
