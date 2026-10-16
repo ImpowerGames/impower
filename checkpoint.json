@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 99,
-  "previous": "96d8d5e83482b635fe20ead170047d721854f1f3",
+  "seq": 100,
+  "previous": "da9728c97b49f042dadcd009c43281f6147edd98",
   "snapshotParents": [],
-  "time": "2026-10-16T19:51:17.563Z",
+  "time": "2026-10-16T20:21:52.374Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 77,
@@ -1152,30 +1152,94 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:51:16.730Z",
+      "observedAt": "2026-10-16T20:21:51.444Z",
       "held": true,
-      "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "f5af545356733453cfb0145ffc816c61b62d1c47",
+      "remoteHead": "f5af545356733453cfb0145ffc816c61b62d1c47",
+      "unpushed": false,
+      "dirty": true,
+      "pr": 1983,
+      "reviewJobs": [
+        {
+          "job": "pr-1983/round-1/launch-ordering-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-ordering",
+            "reviewerId": "ordering",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ordering",
+              "undirected"
+            ],
+            "head": "f5af545356733453cfb0145ffc816c61b62d1c47",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T20:05:14.599Z"
+          },
+          "round": 1,
+          "reviewerId": "ordering",
+          "attempt": 1,
+          "reviewedHead": "f5af545356733453cfb0145ffc816c61b62d1c47",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ordering": 1
+          },
+          "plannedRoundReviewers": [
+            "ordering",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6223851126
+          ]
+        }
+      ]
     },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution": {
       "ticket": 1974,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T19:51:16.730Z",
+      "observedAt": "2026-10-16T20:21:51.444Z",
       "held": true,
-      "head": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "e83fefb53b039d981683520afe174b199552c884",
+      "remoteHead": "e83fefb53b039d981683520afe174b199552c884",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 15404
+      },
+      "pr": 1984,
+      "reviewJobs": [
+        {
+          "job": "pr-1984/round-1/launch-incrementality-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-incrementality",
+            "reviewerId": "incrementality",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incrementality",
+              "blast-radius",
+              "undirected"
+            ],
+            "head": "e83fefb53b039d981683520afe174b199552c884",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T20:17:02.672Z"
+          }
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:50:56.947Z",
+    "at": "2026-10-16T20:21:51.443Z",
     "tickets": [
       {
         "number": 851,
@@ -1198,13 +1262,13 @@
       {
         "number": 1881,
         "action": "observe",
-        "pr": null,
+        "pr": 1983,
         "reason": "process 35408 started 639277678901320254 is running"
       },
       {
         "number": 1974,
         "action": "observe",
-        "pr": null,
+        "pr": 1984,
         "reason": "process 49176 started 639277762017008569 is running"
       }
     ],
