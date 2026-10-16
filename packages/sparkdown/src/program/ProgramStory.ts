@@ -381,6 +381,18 @@ interface SuspendedStep {
   running: RunningInstruction | null;
 }
 
+/** Told an issue the declarations' run raises or throws, as it does: the
+ *  declaration chunk running, whether the issue is a warning, and the index,
+ *  among the globals the chunk declares, of the one whose value raised it.
+ *  A chunk declares its globals one after another, each after its value, in
+ *  its own frame: a function its value calls does not count, whatever
+ *  globals it assigns. */
+export type DeclarationIssueListener = (
+  declarationChunk: number,
+  isWarning: boolean,
+  globalIndex: number,
+) => void;
+
 /** What the engine of the program before hands the engine of the next one
  *  of the same game in place of a run of the declarations, when the next
  *  program runs the same declarations (`ProgramStory.declarationsFor`,
@@ -476,6 +488,16 @@ export class ProgramStory implements StoryEngine {
    *  chunk without an error or a warning, as one handed on to the next
    *  engine must. */
   protected _declarationsClean = false;
+  /** Told each issue the declarations' run raises or throws (the
+   *  constructor's `onDeclarationIssue`). */
+  protected _onDeclarationIssue?: DeclarationIssueListener;
+  /** The declaration chunk the declarations' run is running, or null when
+   *  it runs none; the depth of the call stack its own frame stands at; and
+   *  how many globals its own frame has declared, which is the index of the
+   *  global whose value it is running. */
+  protected _declarationRunning: number | null = null;
+  protected _declarationDepth = 0;
+  protected _declarationGlobals = 0;
 
   protected _state!: ProgramStoryState;
   protected _reader: BinaryProgramReader;
@@ -553,8 +575,13 @@ export class ProgramStory implements StoryEngine {
        *  `declarationsFor` gave for this root: the first state takes it over
        *  in place of running the declarations. */
       declarations?: CarriedDeclarations;
+      /** Told each error or warning the declarations' run raises, and an
+       *  error it throws, as it raises or throws it: a compile reports the
+       *  issue at the declaration (`ChunkStore.build`). */
+      onDeclarationIssue?: DeclarationIssueListener;
     } = {},
   ) {
+    this._onDeclarationIssue = options.onDeclarationIssue;
     this._reader = new BinaryProgramReader(root);
     this.history = options.history ?? new BeatHistory(options.rewindBeats ?? 128);
     if (options.rewindBeats !== undefined) {
@@ -2082,6 +2109,20 @@ export class ProgramStory implements StoryEngine {
     this.AddError(message, true);
   }
 
+  /** Tells the declarations' listener of an issue raised while a
+   *  declaration chunk runs, with that chunk and the index of the global
+   *  whose value raised it. */
+  protected tellDeclarationIssue(isWarning: boolean): void {
+    if (this._declarationRunning === null || !this._onDeclarationIssue) {
+      return;
+    }
+    this._onDeclarationIssue(
+      this._declarationRunning,
+      isWarning,
+      this._declarationGlobals,
+    );
+  }
+
   /** Records an error or warning at the instruction running, prefixed with
    *  its script and line as the object engine prefixed it
    *  (`Story.AddError`). An error a callback raised names the instruction
@@ -2111,6 +2152,7 @@ export class ProgramStory implements StoryEngine {
     } else {
       message = `RUNTIME ${kind}: ${message}`;
     }
+    this.tellDeclarationIssue(isWarning);
     this._state.AddError(message, isWarning, raised);
     if (!isWarning) this._state.ForceEnd();
   }
@@ -2336,9 +2378,14 @@ export class ProgramStory implements StoryEngine {
       const first = state.hasError
         ? state.currentErrors![0]!
         : state.currentWarnings![0]!;
-      throw new StoryException(
+      const e = new StoryException(
         `Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: ${first}`,
       );
+      // Where the first issue was raised, which a compile whose declarations
+      // raise it reports the error at (`ChunkStore.build`).
+      const raised = state.hasError ? state.raisedErrors : state.raisedWarnings;
+      e.raisedAddress = raised[0]?.address ?? null;
+      throw e;
     }
   }
 
@@ -2694,6 +2741,16 @@ export class ProgramStory implements StoryEngine {
           value = oneValue(value);
         }
         state.variablesState.Assign(this.assignment(arg, flags), value);
+        // A declaration chunk declares its globals one after another, each
+        // after its value, in its own frame.
+        if (
+          this._declarationRunning !== null &&
+          flags & SET_DECLARE &&
+          flags & SET_GLOBAL &&
+          state.callStack.elements.length <= this._declarationDepth
+        ) {
+          this._declarationGlobals += 1;
+        }
         break;
       }
       case Op.Native: {
@@ -3604,7 +3661,10 @@ export class ProgramStory implements StoryEngine {
     const beatLog = this.beatLog;
     this.beatLog = null;
     const depth = state.callStack.elements.length;
+    this._declarationDepth = depth;
     for (const chunk of this.root.initialization) {
+      this._declarationRunning = chunkId(chunk);
+      this._declarationGlobals = 0;
       const at = this.root.position(chunkId(chunk));
       if (!at) {
         // The root places every declaration chunk it lists. One it cannot
@@ -3639,6 +3699,8 @@ export class ProgramStory implements StoryEngine {
         this.declarationsRun += 1;
       } catch (e) {
         if (!(e instanceof StoryException)) {
+          this.tellDeclarationIssue(false);
+          this._declarationRunning = null;
           throw e;
         }
         this.AddError(
@@ -3653,6 +3715,7 @@ export class ProgramStory implements StoryEngine {
         break;
       }
     }
+    this._declarationRunning = null;
     this.pauseBeforeEvaluatingConditions = pause;
     this.onExecute = onExecute;
     this.executedLog = executedLog;

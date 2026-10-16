@@ -45,6 +45,9 @@ const NOT_SYNTAX: RegExp[] = [
   /^`external` functions are not supported: /,
   /^A function can't be diverted to: /,
   /^This statement cannot be compiled: /,
+  // A compile that stopped, such as at a `store` whose value raises an error
+  // when the declarations run (`reportCompileThrow`).
+  /^The compile stopped /,
 ];
 
 function messageOf(d: SparkDiagnostic): string {
