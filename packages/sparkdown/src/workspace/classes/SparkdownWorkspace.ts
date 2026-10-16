@@ -1425,21 +1425,53 @@ export abstract class SparkdownWorkspace {
   protected _lastCompileStartFrom?: { file: string; line: number };
 
   /** Whether the edit to `uri` the editor has just sent a selection after
-   *  is answered by a compile that routes to the point compiles route to
-   *  now: one still to be sent, or one sent for the document's current
-   *  version that routes there. The timer that sends a compile can fire
-   *  before the selection the editor sent after the edit is handled. */
+   *  is answered by a compile that publishes a program for the document's
+   *  current version and routes to the point compiles route to now: one sent
+   *  for that version that routes there, or one still to be sent. The timer
+   *  that sends a compile can fire before the selection the editor sent after
+   *  the edit is handled. A version already compiled, by a forced compile
+   *  say, gets no compile from the timer, which finds nothing changed. */
   protected compileAnswersEditSelection(uri: string) {
-    if (this._pendingChangeCompileUris.has(uri)) {
-      return true;
+    const version = this._documentVersions.get(uri);
+    const state = this.getProgramState(uri);
+    if (
+      state.compilingDocumentVersion != null &&
+      state.compilingDocumentVersion === version
+    ) {
+      const sent = this._lastCompileStartFrom;
+      const now = this.compileStartFrom();
+      return sent?.file === now?.file && sent?.line === now?.line;
     }
-    const compiling = this.getProgramState(uri).compilingDocumentVersion;
-    if (compiling == null || compiling !== this._documentVersions.get(uri)) {
+    if (state.compiledDocumentVersion === version) {
       return false;
     }
-    const sent = this._lastCompileStartFrom;
-    const now = this.compileStartFrom();
-    return sent?.file === now?.file && sent?.line === now?.line;
+    return this._pendingChangeCompileUris.has(uri);
+  }
+
+  // The selections in the order they arrived, and the last one whose answer
+  // was published. An answer is published only when no later selection's
+  // has been: one the compiler answers can come back after a later one the
+  // workspace answered at once, and the page takes each as the author's
+  // current point (#1881).
+  protected _selectionsReceived = 0;
+  protected _selectionPublished = 0;
+
+  /** Number a selection as it arrives, for `publishSelection`. */
+  protected receiveSelection() {
+    return ++this._selectionsReceived;
+  }
+
+  /** Tell the page of the answer to selection `received`, unless the answer
+   *  to a later selection has been published already. */
+  protected publishSelection(
+    received: number,
+    result: SelectCompilerDocumentResult,
+  ) {
+    if (received < this._selectionPublished) {
+      return;
+    }
+    this._selectionPublished = received;
+    this.sendNotification(SelectedCompilerDocumentMessage.method, result);
   }
 
   /** Where a compile routes the preview to: the author's selection. */
@@ -1540,6 +1572,7 @@ export abstract class SparkdownWorkspace {
     userEvent?: boolean;
   }) {
     const { textDocument, selectedRange } = params;
+    const received = this.receiveSelection();
     const movesCompilePoint = this.movesCompilePoint(params);
     if (movesCompilePoint) {
       this._documentSelected = {
@@ -1562,7 +1595,7 @@ export abstract class SparkdownWorkspace {
         ...params,
         programOutdated: true,
       };
-      this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+      this.publishSelection(received, result);
       return result;
     }
     await this.compilerReady();
@@ -1581,7 +1614,7 @@ export abstract class SparkdownWorkspace {
       // it from that compile.
       return { ...params };
     }
-    this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+    this.publishSelection(received, result);
     return result;
   }
 

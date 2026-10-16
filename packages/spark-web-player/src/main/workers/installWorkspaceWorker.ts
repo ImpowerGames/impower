@@ -11,7 +11,6 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import type { File, Range } from "@impower/sparkdown/src/compiler";
 import type { SelectCompilerDocumentResult } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
-import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
 import { applyPreviewHint } from "../utils/previewHint";
@@ -185,6 +184,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       if (!this.isSetAside(point)) {
         return super.selectTextDocument(params);
       }
+      const received = this.receiveSelection();
       // The worker routes to a selection as it arrives, and a route to this
       // point is what stopped it answering: the selection is the author's,
       // but the worker is not asked to route to it until the project changes.
@@ -192,7 +192,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
         this._documentSelected = point;
       }
       const result: SelectCompilerDocumentResult = { ...params };
-      this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+      this.publishSelection(received, result);
       return result;
     }
 

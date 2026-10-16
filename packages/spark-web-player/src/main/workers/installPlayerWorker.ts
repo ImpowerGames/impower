@@ -253,6 +253,14 @@ export function installPlayerWorker(connection: MessageConnection) {
   let routingTo: { file: string; line: number } | null = null;
 
   compiler.addEventListener("compiler/didCompile", (params) => {
+    if (params.program.startFrom) {
+      // A compile routes to the point compiles route to from now on, as a
+      // selection does (`rememberStartFrom` below): the workspace answers the
+      // selection an edit leaves itself, so that point reaches the compiler
+      // only with the edit's compile (#1881). A compile sent without a point
+      // was given this one.
+      compiler.config.startFrom = params.program.startFrom;
+    }
     if (
       params.produced &&
       compiledElsewhere(params.program, params.program.startFrom)
