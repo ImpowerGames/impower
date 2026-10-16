@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 236 (this commit), 2026-10-16T14:44:25.121Z, after checked-in. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 237 (this commit), 2026-10-16T15:19:46.085Z, after the intent to ready PR #1928. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -17,20 +17,24 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1929/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed d037751d7, completed {"inc":1,"bound":1,"undirected":1} of planned ["inc","bound","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["inc","bound","undirected"]), last event finished
 - review job pr-1929/round-2/launch-merge-1 on DESKTOP-726EO47: round 2 reviewed a622c49fc, completed {"merge":1} of planned ["merge","undirected"]; last launched reviewer merge attempt 1 of round 2 (planned ["merge","undirected"]), last event finished
 - review job pr-1929/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 7c62c9a8c, completed {"merge":1,"undirected":1} of planned ["merge","undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["merge","undirected"]), last event finished
+- review job pr-1929/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 5af99acef, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["undirected"]), last event finished
 
 ## #839
 
 - claude-cli claude-opus-5-5 at medium, process 34548 on DESKTOP-726EO47
-- as of 2026-10-16T14:44:22.166Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T15:19:42.161Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #887
 
 - claude-cli claude-opus-5-5 at medium, process 45104 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice removes it once its coordinator and child are confirmed gone
 - review job pr-1928/round-1/launch-inc-1 on DESKTOP-726EO47: round 1 reviewed 6ba48a482, completed {"inc":1} of planned ["inc","undirected"]; last launched reviewer inc attempt 1 of round 1 (planned ["inc","undirected"]), last event finished
 - review job pr-1928/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 589a987ee, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["inc","undirected"]), last event finished
 - review job pr-1928/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 156e83fe1, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["undirected"]), last event finished
 - review job pr-1928/round-3/launch-inc-1 on DESKTOP-726EO47: round 3 reviewed 3c1986e10, completed {"inc":1} of planned ["inc","undirected"]; last launched reviewer inc attempt 1 of round 3 (planned ["inc","undirected"]), last event finished
 - review job pr-1928/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 55c540149, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["inc","undirected"]), last event finished
 - review job pr-1928/round-4/launch-inc-1 on DESKTOP-726EO47: round 4 reviewed 6156c8716, completed {"inc":1} of planned ["inc","undirected"]; last launched reviewer inc attempt 1 of round 4 (planned ["inc","undirected"]), last event finished
-- review job pr-1928/round-4/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 4 (planned ["inc","undirected"]), last event identified
+- review job pr-1928/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 9701b89b6, completed {"inc":1,"undirected":1} of planned ["inc","undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["inc","undirected"]), last event finished
+
+## Unsettled operations
+
+- 02611c11: ready of PR #1928 at 950ebc2d0de11eea19e757c82b4663637fea5de3, intent; settle it with checkpoint.mjs reconcile-operations before any retry

@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 236,
-  "previous": "860d1c523f32736dd073a3f671e1cdef7eb5ab35",
+  "seq": 237,
+  "previous": "994ecfabdc322f502784cdd15b400094327565cf",
   "snapshotParents": [],
-  "time": "2026-10-16T14:44:25.121Z",
+  "time": "2026-10-16T15:19:46.085Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "the intent to ready PR #1928",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 194,
+    "recordRevision": 197,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -987,6 +987,301 @@
             "comment": 6216915208,
             "time": "2026-10-16T13:48:21.399Z",
             "headAtPublish": "6156c871695ca66489dab3e473e5ac1199f68443"
+          }
+        },
+        {
+          "version": 1,
+          "id": "51ff191a",
+          "kind": "accept-unreviewed",
+          "feature": 1895,
+          "ticket": 887,
+          "pr": 1928,
+          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+          "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
+          "time": "2026-10-16T15:18:54.786Z",
+          "round": 4,
+          "limitBefore": 4,
+          "reviewedHead": "9701b89b6c35ec7a78203e1e1ea26324070be7a9",
+          "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
+          "range": {
+            "from": "9701b89b6c35ec7a78203e1e1ea26324070be7a9",
+            "to": "950ebc2d0de11eea19e757c82b4663637fea5de3",
+            "base": "8b466a5cd497e3b3a61433546e046d5b71149d89",
+            "commits": [
+              "950ebc2d0de11eea19e757c82b4663637fea5de3"
+            ],
+            "diffSha256": "3c95d661389df31bab5d33cf35a370a9c20130629b0ad52a62098539f4645d67"
+          },
+          "reports": [
+            {
+              "comment": 6208415409,
+              "round": 1,
+              "reviewerId": "inc",
+              "adjudication": 6208474653
+            },
+            {
+              "comment": 6208652985,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6208678287
+            },
+            {
+              "comment": 6209069707,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6209103191
+            },
+            {
+              "comment": 6209677385,
+              "round": 3,
+              "reviewerId": "inc",
+              "adjudication": 6215635849
+            },
+            {
+              "comment": 6215969878,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6216359175
+            },
+            {
+              "comment": 6217149871,
+              "round": 4,
+              "reviewerId": "inc",
+              "adjudication": 6217802438
+            },
+            {
+              "comment": 6218062082,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6218104468
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "authority": "Use orchestrate-feature for #1895. I give you explicit permission to approve as many review rounds as are reasonable for each ticket and merge the PRs yourself.\n\n#1895 is a Task umbrella, not a Feature; its Description and Scope are the design of record. Its 11 children are compiles that produce no program, or a wrong one, with no diagnostic. #1617 is the one engine-divergence bug left from the two-engine sweep, retitled on 2026-10-15 to describe the program engine alone, with a failing test already in its body; the other eight were closed that day and are not to be reopened.\n\nThe children carry no blockers, so plan them in these units:\n- One writer for the four no-program compiles, which share the compile pipeline and the umbrella's new harness assertion that a compile yielding no program carries at least one Error diagnostic: #457, #1325, #1502 and #1641.\n- #1103, #1299, #1617 and #1645 are independent wrong-lowering fixes. Several are likely to touch SparkdownCompiler.ts or the same lowerer, so before dispatching a second writer read the first writer's draft PR for the files it touches and hold any ticket likely to collide.\n- #454, #887 and #316 come last. #316 holds three pre-existing defects; its writer may split it into three tickets under this umbrella if the fixes share no cause.\n\nA second coordinator is running #1893 on this machine at the same time, so init with --concurrency 3. Any new ticket filed under the umbrella gets the \"Compilation robustness\" milestone.",
+          "assessment": {
+            "mechanisms": "Round 4 confirmed the mechanism the earlier rounds converged on. The inc reviewer, on 6156c871 (the head whose tree is now the PR's), found no correctness defect: its 19 probes held warm and cold names and output alike through entry and included-script edits, include changes, preview rollback and distinct files, and the harness's declaration selection. Its one finding was presentation: the documentTag-spelled wrapper reaches authors unchanged in debug.info, tracebacks and frames, about 120 characters for a file URI. The writer's answer, 9701b89b, decoded the label by its text in readableSymbolLabel, and the undirected reviewer found that this put display text in charge of identity: author identifiers such as __run_helper__ matched the wrapper pattern and were renamed, which corrupted table keys built from the readable label, one such name threw RangeError, and URI percent escapes leaked into the shown name. That is the same mechanism as every earlier finding, identity depending on something other than the file, now on the presentation side. The writer reverted 9701b89b in 950ebc2d, whose tree is byte-identical to 6156c871 (verified: both trees are 2b87fc11bb4074c42ccb41193618f09c5d579b45), and deferred the readable label to Task #1949 with the provenance requirement, URI decoding, table-key independence from display text and both failure cases.",
+            "regressions": "9701b89b introduced both of round 4's blocking defects; the revert removes them and restores the tree inc reviewed with no defect. No defect is known on that tree. The pattern of corrections reaching untraced consumers ended with the revert, because the revert adds nothing.",
+            "repairOptions": "A safe readable label needs the compiler to record which symbols it generated as run wrappers in the program root, and a presentation that reads that provenance; that is a design change in the runtime symbol layer outside #887, and any text-based recognition can match an author's name. Deferring it to #1949 and keeping main's readableSymbolLabel is the simpler and safer repair; the wrapper's long spelling is a disclosed presentation regression from main, not a wrong program.",
+            "residualRisk": "The wrapper reads to authors as __run_ plus the documentTag spelling of its whole URI wherever a generated name reaches them (debug.info, tracebacks, frame names), disclosed in the PR body and tracked in #1949. One one-line call document per run statement ever compiled stays in the registry for the compiler's lifetime, disclosed. An edited .luau body stays stale, which is #316's. The unreviewed range is one revert commit whose resulting tree a reviewer read in full this round.",
+            "coverage": "On the 6156c871 tree: Run.test.ts 16/16; inc's independent 19/19 probes (warm/cold names and output, include changes, preview rollback, distinct files, harness selection); CI green with every package job on 6156c871 and again on 950ebc2d (34 checks passed on the head). The undirected reviewer's red-on-base run on 13f6fd9f8 shows the ticket's two shapes failing with A flow stands in two places of the story and passing on the head with [42, 42]; its head runs: Run.test.ts 17/17, typecheckModes 9/9, harness 55/55 on 9701b89b, whose run-wrapper code equals the head's (the revert touches only ProgramSymbols.ts, its test and a docs line).",
+            "nextRoundValue": "None worth its cost: the head's tree was reviewed in full by inc in round 4 with no correctness defect, undirected confirmed red-on-base and the fix on top of the same run-wrapper code, and the only unreviewed commit is a revert that changes nothing relative to that reviewed tree. Another round would re-read a tree a reviewer already read.",
+            "rationale": "The unreviewed range after the last reviewed commit 9701b89b is the single revert 950ebc2d, and I verified that its tree is identical to 6156c871, which round 4's inc reviewed with no defect and whose CI was green; CI on 950ebc2d itself passed every check. Every finding of every round is accepted and fixed, or deferred to #1949 with the writer's reasoning, which I accept: the defect class stopped recurring once the presentation change was withdrawn, and what remains unreviewed is small (one revert) and verified by a reviewer's full read of the resulting tree. The maintainer's invocation authorizes the coordinator to accept such corrections.",
+            "next": "Accept 950ebc2d: the coordinator marks PR #1928 ready itself under this decision, says so in a comment naming it, and merges through integration.mjs merge; the writer sends its final report and ends. #316 becomes eligible once the merge commit is on origin/main.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "verification": [
+              "head 950ebc2d tree 2b87fc11bb4074c42ccb41193618f09c5d579b45 equals the tree of 6156c871, the head round-4 inc reviewed with no correctness defect (verified with git rev-parse on both commits)",
+              "CI on 950ebc2d: 34 checks passed, none failed or pending (evidence read through review-checkpoint.mjs evidence)",
+              "Run.test.ts 16/16 on the 6156c871 tree; inc's independent probes 19/19 (warm/cold names and output, include changes, preview rollback, distinct files, harness declaration selection)",
+              "undirected's red-on-base on merge base 13f6fd9f8: the ticket's two shapes fail with A flow stands in two places of the story and pass on the head recording [42, 42]; head runs Run.test.ts 17/17, typecheckModes 9/9, typecheckTestHarness 55/55",
+              "the revert's diff (sha256 3c95d661389df31bab5d33cf35a370a9c20130629b0ad52a62098539f4645d67) touches only ProgramSymbols.ts, Run.test.ts and one docs line, restoring main's readableSymbolLabel"
+            ],
+            "findings": [
+              {
+                "comment": 6208415409,
+                "finding": "deduplicating by resolved URI while naming calls by authored path broke alias and cross-directory runs",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6208652985,
+                "finding": "runWrapperName returned site metadata for a call document's URI (optional)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209069707,
+                "finding": "verification gap: the supplemental 24-order incremental probe hung, settled as a real order-dependence defect fixed in 3c1986e1",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209677385,
+                "finding": "an unrelated edit could introduce a generated-name collision through the compiler-lifetime counter",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209677385,
+                "finding": "the counter changed debug.info output between warm and cold compiles",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6209677385,
+                "finding": "retention cost of discarded previews and full parsed bodies undisclosed (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215969878,
+                "finding": "the conformance harness was not updated for the split run documents, failing all sparkdown CI shards",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215969878,
+                "finding": "a 32-bit hash could give two files the same wrapper name",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6217149871,
+                "finding": "the documentTag-spelled wrapper reaches authors unchanged in debug.info, tracebacks and frames (should-fix); attempted in 9701b89b, reverted, deferred to Task #1949 with the provenance requirement",
+                "disposition": "deferred"
+              },
+              {
+                "comment": 6218062082,
+                "finding": "author-written names matching the wrapper pattern were renamed, corrupting table keys and throwing RangeError (introduced by 9701b89b)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6218062082,
+                "finding": "readable wrapper names kept URI percent escapes (introduced by 9701b89b)",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 4: accept the final verified corrections without another independent round\n\nDecision `51ff191a` by coordinator `local_bede5658-a16d-4558-858b-9a8d10696a23` of Feature #1895 for #887. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"Use orchestrate-feature for #1895. I give you explicit permission to approve as many review rounds as are reasonable for each ticket and merge the PRs yourself. #1895 is a Task umbrella, not a Feature; its Description and Scope are the design of record. Its 11 children are compiles that produce no program, or a wrong one, with no diagnostic. #1617 is the one engine-divergence bug left from the two-engine sweep, retitled on 2026-10-15 to describe the program engine alone, with a failing test already in its body; the other eight were closed that day and are not to be reopened. The children carry no blockers, so plan them in these units: - One writer for the four no-program compiles, which share the compile pipeline and the umbrella's new harness assertion that a compile yielding no program carries at least one Error diagnostic: #457, #1325, #1502 and #1641. - #1103, #1299, #1617 and #1645 are independent wrong-lowering fixes. Several are likely to touch SparkdownCompiler.ts or the same lowerer, so before dispatching a second writer read the first writer's draft PR for the files it touches and hold any ticket likely to collide. - #454, #887 and #316 come last. #316 holds three pre-existing defects; its writer may split it into three tickets under this umbrella if the fixes share no cause. A second coordinator is running #1893 on this machine at the same time, so init with --concurrency 3. Any new ticket filed under the umbrella gets the \"Compilation robustness\" milestone.\"\n\n- Round state: round 4 is complete (limit 4 before this decision); its planned reviewers (inc, undirected) exited, and every report has its adjudication (6208415409 in 6208474653, 6208652985 in 6208678287, 6209069707 in 6209103191, 6209677385 in 6215635849, 6215969878 in 6216359175, 6217149871 in 6217802438, 6218062082 in 6218104468).\n- Independently reviewed through `9701b89b6c35ec7a78203e1e1ea26324070be7a9`.\n- Head `950ebc2d0de11eea19e757c82b4663637fea5de3`. Unreviewed: `9701b89b6..950ebc2d0`, 1 commit (`950ebc2d0` Revert \"fix(engine): show a run file's wrapper by the file's name (#887)\"), diff SHA-256 `3c95d661389df31bab5d33cf35a370a9c20130629b0ad52a62098539f4645d67`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, test-suite passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 10 accepted, 1 deferred; unresolved: none.\n- Shared mechanisms: Round 4 confirmed the mechanism the earlier rounds converged on. The inc reviewer, on 6156c871 (the head whose tree is now the PR's), found no correctness defect: its 19 probes held warm and cold names and output alike through entry and included-script edits, include changes, preview rollback and distinct files, and the harness's declaration selection. Its one finding was presentation: the documentTag-spelled wrapper reaches authors unchanged in debug.info, tracebacks and frames, about 120 characters for a file URI. The writer's answer, 9701b89b, decoded the label by its text in readableSymbolLabel, and the undirected reviewer found that this put display text in charge of identity: author identifiers such as __run_helper__ matched the wrapper pattern and were renamed, which corrupted table keys built from the readable label, one such name threw RangeError, and URI percent escapes leaked into the shown name. That is the same mechanism as every earlier finding, identity depending on something other than the file, now on the presentation side. The writer reverted 9701b89b in 950ebc2d, whose tree is byte-identical to 6156c871 (verified: both trees are 2b87fc11bb4074c42ccb41193618f09c5d579b45), and deferred the readable label to Task #1949 with the provenance requirement, URI decoding, table-key independence from display text and both failure cases.\n- Defects introduced by corrections: 9701b89b introduced both of round 4's blocking defects; the revert removes them and restores the tree inc reviewed with no defect. No defect is known on that tree. The pattern of corrections reaching untraced consumers ended with the revert, because the revert adds nothing.\n- Broader or simpler repair: A safe readable label needs the compiler to record which symbols it generated as run wrappers in the program root, and a presentation that reads that provenance; that is a design change in the runtime symbol layer outside #887, and any text-based recognition can match an author's name. Deferring it to #1949 and keeping main's readableSymbolLabel is the simpler and safer repair; the wrapper's long spelling is a disclosed presentation regression from main, not a wrong program.\n- Residual risk: The wrapper reads to authors as __run_ plus the documentTag spelling of its whole URI wherever a generated name reaches them (debug.info, tracebacks, frame names), disclosed in the PR body and tracked in #1949. One one-line call document per run statement ever compiled stays in the registry for the compiler's lifetime, disclosed. An edited .luau body stays stale, which is #316's. The unreviewed range is one revert commit whose resulting tree a reviewer read in full this round.\n- Verification coverage: On the 6156c871 tree: Run.test.ts 16/16; inc's independent 19/19 probes (warm/cold names and output, include changes, preview rollback, distinct files, harness selection); CI green with every package job on 6156c871 and again on 950ebc2d (34 checks passed on the head). The undirected reviewer's red-on-base run on 13f6fd9f8 shows the ticket's two shapes failing with A flow stands in two places of the story and passing on the head with [42, 42]; its head runs: Run.test.ts 17/17, typecheckModes 9/9, harness 55/55 on 9701b89b, whose run-wrapper code equals the head's (the revert touches only ProgramSymbols.ts, its test and a docs line).\n- What another round would establish: None worth its cost: the head's tree was reviewed in full by inc in round 4 with no correctness defect, undirected confirmed red-on-base and the fix on top of the same run-wrapper code, and the only unreviewed commit is a revert that changes nothing relative to that reviewed tree. Another round would re-read a tree a reviewer already read.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The unreviewed range after the last reviewed commit 9701b89b is the single revert 950ebc2d, and I verified that its tree is identical to 6156c871, which round 4's inc reviewed with no defect and whose CI was green; CI on 950ebc2d itself passed every check. Every finding of every round is accepted and fixed, or deferred to #1949 with the writer's reasoning, which I accept: the defect class stopped recurring once the presentation change was withdrawn, and what remains unreviewed is small (one revert) and verified by a reviewer's full read of the resulting tree. The maintainer's invocation authorizes the coordinator to accept such corrections. Next: Accept 950ebc2d: the coordinator marks PR #1928 ready itself under this decision, says so in a comment naming it, and merges through integration.mjs merge; the writer sends its final report and ends. #316 becomes eligible once the merge commit is on origin/main.\n- Verification on the head: head 950ebc2d tree 2b87fc11bb4074c42ccb41193618f09c5d579b45 equals the tree of 6156c871, the head round-4 inc reviewed with no correctness defect (verified with git rev-parse on both commits); CI on 950ebc2d: 34 checks passed, none failed or pending (evidence read through review-checkpoint.mjs evidence); Run.test.ts 16/16 on the 6156c871 tree; inc's independent probes 19/19 (warm/cold names and output, include changes, preview rollback, distinct files, harness declaration selection); undirected's red-on-base on merge base 13f6fd9f8: the ticket's two shapes fail with A flow stands in two places of the story and pass on the head recording [42, 42]; head runs Run.test.ts 17/17, typecheckModes 9/9, typecheckTestHarness 55/55; the revert's diff (sha256 3c95d661389df31bab5d33cf35a370a9c20130629b0ad52a62098539f4645d67) touches only ProgramSymbols.ts, Run.test.ts and one docs line, restoring main's readableSymbolLabel.\n- This is the coordinator's exception for an orchestrated Feature: not ordinary readiness and not an independent review. Reviewed code ends at `9701b89b6c35ec7a78203e1e1ea26324070be7a9`; the range above is accepted unreviewed. It applies to head `950ebc2d0de11eea19e757c82b4663637fea5de3` only: any later push invalidates it and needs a new checkpoint.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"51ff191a\",\n \"kind\": \"accept-unreviewed\",\n \"feature\": 1895,\n \"ticket\": 887,\n \"pr\": 1928,\n \"coordinator\": \"local_bede5658-a16d-4558-858b-9a8d10696a23\",\n \"runId\": \"2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4\",\n \"time\": \"2026-10-16T15:18:54.786Z\",\n \"round\": 4,\n \"limitBefore\": 4,\n \"reviewedHead\": \"9701b89b6c35ec7a78203e1e1ea26324070be7a9\",\n \"head\": \"950ebc2d0de11eea19e757c82b4663637fea5de3\",\n \"range\": {\n  \"from\": \"9701b89b6c35ec7a78203e1e1ea26324070be7a9\",\n  \"to\": \"950ebc2d0de11eea19e757c82b4663637fea5de3\",\n  \"base\": \"8b466a5cd497e3b3a61433546e046d5b71149d89\",\n  \"commits\": [\n   \"950ebc2d0de11eea19e757c82b4663637fea5de3\"\n  ],\n  \"diffSha256\": \"3c95d661389df31bab5d33cf35a370a9c20130629b0ad52a62098539f4645d67\"\n },\n \"reports\": [\n  {\n   \"comment\": 6208415409,\n   \"round\": 1,\n   \"reviewerId\": \"inc\",\n   \"adjudication\": 6208474653\n  },\n  {\n   \"comment\": 6208652985,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6208678287\n  },\n  {\n   \"comment\": 6209069707,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6209103191\n  },\n  {\n   \"comment\": 6209677385,\n   \"round\": 3,\n   \"reviewerId\": \"inc\",\n   \"adjudication\": 6215635849\n  },\n  {\n   \"comment\": 6215969878,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6216359175\n  },\n  {\n   \"comment\": 6217149871,\n   \"round\": 4,\n   \"reviewerId\": \"inc\",\n   \"adjudication\": 6217802438\n  },\n  {\n   \"comment\": 6218062082,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6218104468\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"authority\": \"Use orchestrate-feature for #1895. I give you explicit permission to approve as many review rounds as are reasonable for each ticket and merge the PRs yourself.\\n\\n#1895 is a Task umbrella, not a Feature; its Description and Scope are the design of record. Its 11 children are compiles that produce no program, or a wrong one, with no diagnostic. #1617 is the one engine-divergence bug left from the two-engine sweep, retitled on 2026-10-15 to describe the program engine alone, with a failing test already in its body; the other eight were closed that day and are not to be reopened.\\n\\nThe children carry no blockers, so plan them in these units:\\n- One writer for the four no-program compiles, which share the compile pipeline and the umbrella's new harness assertion that a compile yielding no program carries at least one Error diagnostic: #457, #1325, #1502 and #1641.\\n- #1103, #1299, #1617 and #1645 are independent wrong-lowering fixes. Several are likely to touch SparkdownCompiler.ts or the same lowerer, so before dispatching a second writer read the first writer's draft PR for the files it touches and hold any ticket likely to collide.\\n- #454, #887 and #316 come last. #316 holds three pre-existing defects; its writer may split it into three tickets under this umbrella if the fixes share no cause.\\n\\nA second coordinator is running #1893 on this machine at the same time, so init with -\\u002dconcurrency 3. Any new ticket filed under the umbrella gets the \\\"Compilation robustness\\\" milestone.\",\n \"assessment\": {\n  \"mechanisms\": \"Round 4 confirmed the mechanism the earlier rounds converged on. The inc reviewer, on 6156c871 (the head whose tree is now the PR's), found no correctness defect: its 19 probes held warm and cold names and output alike through entry and included-script edits, include changes, preview rollback and distinct files, and the harness's declaration selection. Its one finding was presentation: the documentTag-spelled wrapper reaches authors unchanged in debug.info, tracebacks and frames, about 120 characters for a file URI. The writer's answer, 9701b89b, decoded the label by its text in readableSymbolLabel, and the undirected reviewer found that this put display text in charge of identity: author identifiers such as __run_helper__ matched the wrapper pattern and were renamed, which corrupted table keys built from the readable label, one such name threw RangeError, and URI percent escapes leaked into the shown name. That is the same mechanism as every earlier finding, identity depending on something other than the file, now on the presentation side. The writer reverted 9701b89b in 950ebc2d, whose tree is byte-identical to 6156c871 (verified: both trees are 2b87fc11bb4074c42ccb41193618f09c5d579b45), and deferred the readable label to Task #1949 with the provenance requirement, URI decoding, table-key independence from display text and both failure cases.\",\n  \"regressions\": \"9701b89b introduced both of round 4's blocking defects; the revert removes them and restores the tree inc reviewed with no defect. No defect is known on that tree. The pattern of corrections reaching untraced consumers ended with the revert, because the revert adds nothing.\",\n  \"repairOptions\": \"A safe readable label needs the compiler to record which symbols it generated as run wrappers in the program root, and a presentation that reads that provenance; that is a design change in the runtime symbol layer outside #887, and any text-based recognition can match an author's name. Deferring it to #1949 and keeping main's readableSymbolLabel is the simpler and safer repair; the wrapper's long spelling is a disclosed presentation regression from main, not a wrong program.\",\n  \"residualRisk\": \"The wrapper reads to authors as __run_ plus the documentTag spelling of its whole URI wherever a generated name reaches them (debug.info, tracebacks, frame names), disclosed in the PR body and tracked in #1949. One one-line call document per run statement ever compiled stays in the registry for the compiler's lifetime, disclosed. An edited .luau body stays stale, which is #316's. The unreviewed range is one revert commit whose resulting tree a reviewer read in full this round.\",\n  \"coverage\": \"On the 6156c871 tree: Run.test.ts 16/16; inc's independent 19/19 probes (warm/cold names and output, include changes, preview rollback, distinct files, harness selection); CI green with every package job on 6156c871 and again on 950ebc2d (34 checks passed on the head). The undirected reviewer's red-on-base run on 13f6fd9f8 shows the ticket's two shapes failing with A flow stands in two places of the story and passing on the head with [42, 42]; its head runs: Run.test.ts 17/17, typecheckModes 9/9, harness 55/55 on 9701b89b, whose run-wrapper code equals the head's (the revert touches only ProgramSymbols.ts, its test and a docs line).\",\n  \"nextRoundValue\": \"None worth its cost: the head's tree was reviewed in full by inc in round 4 with no correctness defect, undirected confirmed red-on-base and the fix on top of the same run-wrapper code, and the only unreviewed commit is a revert that changes nothing relative to that reviewed tree. Another round would re-read a tree a reviewer already read.\",\n  \"rationale\": \"The unreviewed range after the last reviewed commit 9701b89b is the single revert 950ebc2d, and I verified that its tree is identical to 6156c871, which round 4's inc reviewed with no defect and whose CI was green; CI on 950ebc2d itself passed every check. Every finding of every round is accepted and fixed, or deferred to #1949 with the writer's reasoning, which I accept: the defect class stopped recurring once the presentation change was withdrawn, and what remains unreviewed is small (one revert) and verified by a reviewer's full read of the resulting tree. The maintainer's invocation authorizes the coordinator to accept such corrections.\",\n  \"next\": \"Accept 950ebc2d: the coordinator marks PR #1928 ready itself under this decision, says so in a comment naming it, and merges through integration.mjs merge; the writer sends its final report and ends. #316 becomes eligible once the merge commit is on origin/main.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"verification\": [\n   \"head 950ebc2d tree 2b87fc11bb4074c42ccb41193618f09c5d579b45 equals the tree of 6156c871, the head round-4 inc reviewed with no correctness defect (verified with git rev-parse on both commits)\",\n   \"CI on 950ebc2d: 34 checks passed, none failed or pending (evidence read through review-checkpoint.mjs evidence)\",\n   \"Run.test.ts 16/16 on the 6156c871 tree; inc's independent probes 19/19 (warm/cold names and output, include changes, preview rollback, distinct files, harness declaration selection)\",\n   \"undirected's red-on-base on merge base 13f6fd9f8: the ticket's two shapes fail with A flow stands in two places of the story and pass on the head recording [42, 42]; head runs Run.test.ts 17/17, typecheckModes 9/9, typecheckTestHarness 55/55\",\n   \"the revert's diff (sha256 3c95d661389df31bab5d33cf35a370a9c20130629b0ad52a62098539f4645d67) touches only ProgramSymbols.ts, Run.test.ts and one docs line, restoring main's readableSymbolLabel\"\n  ],\n  \"findings\": [\n   {\n    \"comment\": 6208415409,\n    \"finding\": \"deduplicating by resolved URI while naming calls by authored path broke alias and cross-directory runs\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6208652985,\n    \"finding\": \"runWrapperName returned site metadata for a call document's URI (optional)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209069707,\n    \"finding\": \"verification gap: the supplemental 24-order incremental probe hung, settled as a real order-dependence defect fixed in 3c1986e1\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209677385,\n    \"finding\": \"an unrelated edit could introduce a generated-name collision through the compiler-lifetime counter\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209677385,\n    \"finding\": \"the counter changed debug.info output between warm and cold compiles\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6209677385,\n    \"finding\": \"retention cost of discarded previews and full parsed bodies undisclosed (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215969878,\n    \"finding\": \"the conformance harness was not updated for the split run documents, failing all sparkdown CI shards\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215969878,\n    \"finding\": \"a 32-bit hash could give two files the same wrapper name\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6217149871,\n    \"finding\": \"the documentTag-spelled wrapper reaches authors unchanged in debug.info, tracebacks and frames (should-fix); attempted in 9701b89b, reverted, deferred to Task #1949 with the provenance requirement\",\n    \"disposition\": \"deferred\"\n   },\n   {\n    \"comment\": 6218062082,\n    \"finding\": \"author-written names matching the wrapper pattern were renamed, corrupting table keys and throwing RangeError (introduced by 9701b89b)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6218062082,\n    \"finding\": \"readable wrapper names kept URI percent escapes (introduced by 9701b89b)\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "19104a66829b98d52196ea8b78d7a8a141487af2b607022cf540e05902fc2278",
+          "blockSha256": "ff108d58a3608c8038bc401fa5a1d921c937708dfa8e88992bea2823e86e1712",
+          "published": {
+            "comment": 6218648915,
+            "time": "2026-10-16T15:18:58.605Z",
+            "headAtPublish": "950ebc2d0de11eea19e757c82b4663637fea5de3"
           }
         }
       ]
@@ -2554,6 +2849,15 @@
       "mergedOnto": "7cab47f9ee16fa1901724a5250cf57c431bbffef",
       "baseMoved": false,
       "onMain": true
+    },
+    {
+      "id": "02611c11",
+      "kind": "ready",
+      "ticket": 887,
+      "pr": 1928,
+      "expectHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
+      "state": "intent",
+      "time": "2026-10-16T15:19:37.406Z"
     }
   ],
   "decisions": [
@@ -2576,6 +2880,16 @@
       "round": 3,
       "head": "6156c871695ca66489dab3e473e5ac1199f68443",
       "time": "2026-10-16T13:48:21.399Z"
+    },
+    {
+      "pr": 1928,
+      "url": "https://github.com/ImpowerGames/impower/pull/1928#issuecomment-6218648915",
+      "kind": "review-checkpoint accept-unreviewed",
+      "ticket": 887,
+      "id": "51ff191a",
+      "round": 4,
+      "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
+      "time": "2026-10-16T15:18:58.605Z"
     }
   ],
   "diskRecoveries": [
@@ -2881,7 +3195,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T14:44:22.166Z",
+      "observedAt": "2026-10-16T15:19:42.161Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3086,6 +3400,41 @@
           "commentIds": [
             6216661174
           ]
+        },
+        {
+          "job": "pr-1929/round-3/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
+            "completedRoundReviewers": {
+              "merge": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T15:03:10.573Z"
+          },
+          "round": 3,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6218611101
+          ]
         }
       ]
     },
@@ -3094,11 +3443,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T14:44:22.166Z",
+      "observedAt": "2026-10-16T15:19:42.161Z",
       "held": true,
-      "head": "8b466a5cd497e3b3a61433546e046d5b71149d89",
-      "remoteHead": null,
-      "unpushed": true,
+      "head": "2fc0ccfd7e7ad0500bc32b4b05cb217353b85cb6",
+      "remoteHead": "2fc0ccfd7e7ad0500bc32b4b05cb217353b85cb6",
+      "unpushed": false,
       "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice": {
@@ -3106,16 +3455,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T14:44:22.166Z",
+      "observedAt": "2026-10-16T15:19:42.161Z",
       "held": true,
-      "head": "9701b89b6c35ec7a78203e1e1ea26324070be7a9",
-      "remoteHead": "9701b89b6c35ec7a78203e1e1ea26324070be7a9",
+      "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
+      "remoteHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 50304
-      },
       "pr": 1928,
       "reviewJobs": [
         {
@@ -3342,7 +3687,7 @@
         },
         {
           "job": "pr-1928/round-4/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 4,
             "step": "review-undirected",
@@ -3357,7 +3702,25 @@
               "inc": 1
             },
             "time": "2026-10-16T14:35:41.451Z"
-          }
+          },
+          "round": 4,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "9701b89b6c35ec7a78203e1e1ea26324070be7a9",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "inc": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "inc",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6218062082
+          ]
         }
       ]
     }
@@ -3460,27 +3823,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:24:28.523Z",
-      "event": "check-in",
-      "outcome": "Merged #1913 (6692a9a3) and #1914 (fe765851) through the gate; released writers for #1103 and #1299; #1916 ready and holding for ORCH #1893's #1912 under the shared merge queue; #457 bundle in review; #1617 held behind #457"
-    },
-    {
-      "time": "2026-10-16T01:16:50.080Z",
-      "event": "checkpoint-intent",
-      "ticket": 457,
-      "id": "3ec341bd",
-      "kind": "finish",
-      "round": 3,
-      "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2"
-    },
-    {
-      "time": "2026-10-16T01:17:41.277Z",
-      "event": "checkpoint-published",
-      "ticket": 457,
-      "id": "3ec341bd",
-      "comment": 6205800664
-    },
     {
       "time": "2026-10-16T01:22:03.549Z",
       "event": "request",
@@ -4172,6 +4514,29 @@
       "time": "2026-10-16T14:44:19.025Z",
       "event": "check-in",
       "outcome": "no change: the first snapshot hit the GitHub GraphQL rate limit (shared by three coordinators), retried after refill; writers for #454, #887 (round 4) and #839 running; #1800 waits for capacity, #316 for #887; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T15:18:54.786Z",
+      "event": "checkpoint-intent",
+      "ticket": 887,
+      "id": "51ff191a",
+      "kind": "accept-unreviewed",
+      "round": 4,
+      "head": "950ebc2d0de11eea19e757c82b4663637fea5de3"
+    },
+    {
+      "time": "2026-10-16T15:18:58.605Z",
+      "event": "checkpoint-published",
+      "ticket": 887,
+      "id": "51ff191a",
+      "comment": 6218648915
+    },
+    {
+      "time": "2026-10-16T15:19:37.406Z",
+      "event": "operation-intent",
+      "id": "02611c11",
+      "kind": "ready",
+      "pr": 1928
     }
   ]
 }
