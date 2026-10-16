@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 300,
-  "previous": "66a7fd696aa4a1b8179c5128e2af6bd55ef65941",
+  "seq": 301,
+  "previous": "70624e160fbc16c9bdd88ae5b563731420a573f8",
   "snapshotParents": [],
-  "time": "2026-10-16T16:44:41.168Z",
+  "time": "2026-10-16T16:44:55.755Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 249,
+    "recordRevision": 250,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4234,7 +4234,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:44:39.891Z",
+      "observedAt": "2026-10-16T16:44:53.622Z",
       "held": true,
       "head": "5ac47e2b05d0a587a91e203f37c4fe440cebb9d5",
       "remoteHead": null,
@@ -4246,7 +4246,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:44:39.891Z",
+      "observedAt": "2026-10-16T16:44:53.622Z",
       "held": true,
       "head": "af8a77a2142f050823b820dba61958da3735b98d",
       "remoteHead": "af8a77a2142f050823b820dba61958da3735b98d",
@@ -4297,7 +4297,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T16:44:39.891Z",
+      "observedAt": "2026-10-16T16:44:53.622Z",
       "held": true,
       "head": "41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8",
       "remoteHead": null,
@@ -4409,12 +4409,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T06:47:27.320Z",
-      "event": "request",
-      "ticket": 454,
-      "id": "5b339599"
-    },
     {
       "time": "2026-10-16T06:47:36.165Z",
       "event": "relayed",
@@ -5112,6 +5106,11 @@
       "time": "2026-10-16T16:34:08.288Z",
       "event": "verified",
       "ticket": 1951
+    },
+    {
+      "time": "2026-10-16T16:44:51.811Z",
+      "event": "check-in",
+      "outcome": "no change: writers for #316, #1800 and #1951 running; no transcripts to read, no dead launches; all other tickets delivered"
     }
   ]
 }
