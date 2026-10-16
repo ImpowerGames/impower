@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 67,
-  "previous": "c745518fc206af5323321eb82d7c68a1d2b9343d",
+  "seq": 68,
+  "previous": "28c70b65b74ec54c64ff3af21dcf8c875bede5bf",
   "snapshotParents": [],
-  "time": "2026-10-16T19:25:32.241Z",
+  "time": "2026-10-16T19:25:44.621Z",
   "kind": "auto",
-  "transition": "the intent to ready PR #1927",
+  "transition": "the outcome of operation e46013e2",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 76,
+    "recordRevision": 77,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1102,8 +1102,10 @@
       "ticket": 1905,
       "pr": 1927,
       "expectHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
-      "state": "intent",
-      "time": "2026-10-16T19:25:30.262Z"
+      "state": "confirmed",
+      "time": "2026-10-16T19:25:30.262Z",
+      "evidence": "gh pr ready 1927 succeeded and gh pr view reads back draft=false head=77fcc6ed63a764a85a71d5569838241ccf5c1438; readiness comment posted naming decision 41203445",
+      "settled": "2026-10-16T19:25:42.712Z"
     }
   ],
   "decisions": [
@@ -1126,7 +1128,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T19:25:31.499Z",
+      "observedAt": "2026-10-16T19:25:43.881Z",
       "held": true,
       "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
       "remoteHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
@@ -2149,6 +2151,12 @@
       "id": "e46013e2",
       "kind": "ready",
       "pr": 1927
+    },
+    {
+      "time": "2026-10-16T19:25:42.712Z",
+      "event": "operation-outcome",
+      "id": "e46013e2",
+      "state": "confirmed"
     }
   ]
 }
