@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 323,
-  "previous": "987e7bfd77fd97888f8a97bcf96e8e393c70e348",
+  "seq": 324,
+  "previous": "c0bd91314dc85a43f9d02097b2d6db961e053c61",
   "snapshotParents": [],
-  "time": "2026-10-16T18:25:31.619Z",
+  "time": "2026-10-16T18:25:46.053Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 270,
+    "recordRevision": 271,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5276,7 +5276,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:25:28.775Z",
+      "observedAt": "2026-10-16T18:25:44.353Z",
       "held": true,
       "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
@@ -5399,7 +5399,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T18:25:28.775Z",
+      "observedAt": "2026-10-16T18:25:44.353Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -5525,7 +5525,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:25:28.775Z",
+      "observedAt": "2026-10-16T18:25:44.353Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5745,19 +5745,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:14:51.279Z",
-      "event": "resumed",
-      "ticket": 887,
-      "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
-      "handle": {
-        "kind": "process",
-        "pid": 48332,
-        "start": "639277496908566478",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d"
-      }
-    },
     {
       "time": "2026-10-16T12:14:59.709Z",
       "event": "answered",
@@ -6459,6 +6446,11 @@
       "event": "operation-outcome",
       "id": "e5f9bbca",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T18:25:42.162Z",
+      "event": "check-in",
+      "outcome": "Merged #1955 (83964a70, #1800) and #1956 (dc84c647, #316) through the gate after main stopped moving under the final read; released both writers; #1951 is the last ticket in progress; checkout back on main with the #1954 launcher fix"
     }
   ]
 }
