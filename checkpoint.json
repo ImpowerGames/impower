@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 157,
-  "previous": "57316b754be7fb7253da261308097bbdc6206872",
+  "seq": 158,
+  "previous": "d8547ba51c1ae7ac98c49452d276c1bcb1df48ba",
   "snapshotParents": [],
-  "time": "2026-10-16T04:30:10.887Z",
+  "time": "2026-10-16T04:30:18.818Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1617",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 129,
+    "recordRevision": 130,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -684,48 +684,54 @@
       ]
     },
     "1617": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "low",
-        "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
-        "branch": "fix/1617-empty-alternator-arms",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
-        "launchId": "a187fa84-2b3c-42c2-9c97-533c81fa5cdb",
-        "handle": {
-          "kind": "process",
-          "pid": 60224,
-          "start": "639277145329133458",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1617-a187fa84-2b3c-42c2-9c97-533c81fa5cdb"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment a187fa84-2b3c-42c2-9c97-533c81fa5cdb. You are the writer for ImpowerGames/impower ticket #1617 (An alternator keyword with no arms makes the program engine throw \"Should never reach here\" out of Continue (the lowerer builds a sequence of zero elements)), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort low in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment a187fa84-2b3c-42c2-9c97-533c81fa5cdb and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1617 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms on branch fix/1617-empty-alternator-arms from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #1617 alone (sibling writers hold #1920, the store call spread in the declaration writer, and later #316, #454, #887). An alternator keyword with no | arms (shuffle done, shuffle cycle x, shuffle once x, an inline {shuffle}, cycle x, queue done, shuffle queue x, in the scene and top-level forms of the ticket) must never make the program engine throw Should never reach here out of ProgramStory.Continue. Two layers: (1) the sequential alternator lowerer (packages/sparkdown/src/compiler/lower/lowerers/lowerSparkdownSequentialAlternatorBlock.ts, shared lowerArms in lower/utils/alternatorArms.ts) reports an Error at the keyword for an alternator with no arm, mirroring the no-arm match rule PR #1911 added to the conditional alternator, and builds no zero-element sequence; (2) the engine treats a zero-element sequence it still meets as a story error at that address, not a JavaScript throw. Keep the scene forms in mind: the ticket notes the alternator takes the scene's end keyword, so the scene reports Scene is missing its closing end keyword; a fix that reports the no-arm Error beside that is enough, and re-parenting the end is out of scope unless the lowerer owns it. Regression test: the ticket body carries programEmptyAlternator.test.ts; run each of the ticket's scripts through compileScript and storyRun, assert the diagnostic and that Continue does not throw; red on origin/main, green after. Cover the inline {shuffle} display form, which goes through lowerDisplay's forwarded diagnostics.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section). Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer or engine path swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch now does this since PR #1911 merged as 192b2f2d).\n- Repository state: origin/main 192b2f2d or later, which holds PR #1911 (the #457 bundle): the compile catch reports a thrown error as an Error at the statement, programHarness.ts asserts in every programCompiler compile that a no-program compile carries an Error (never write a test that expects a silent no-program compile), a match or plural with no arm is an Error at its keyword (lowerSparkdownConditionalAlternatorBlock.ts), and lowerDisplay.ts forwards an inline alternator's block diagnostics. One compile mode exists since #705: compile with compileScript from packages/sparkdown/src/tests/program/programHarness.ts and run with ProgramStory over program.chunks. Two sibling writers of this umbrella run beside you; their tickets are named in your scope line, keep to your own files and tell the coordinator before touching a file another ticket needs.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. The eight engine-sweep bugs closed on 2026-10-15 are not to be reopened. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run, since a fresh install has once come out incomplete with preflight passing. Disk has about 90 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "61e8b18a",
-          "attempts": 1,
-          "time": "2026-10-16T02:28:53.211Z",
-          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
-        },
-        "since": "2026-10-16T02:28:53.212Z",
-        "sessionId": "3ff64464-ab96-4bdb-b5b4-dc012740eac7",
-        "acknowledged": {
-          "time": "2026-10-16T02:29:49.679Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "low",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
+            "branch": "fix/1617-empty-alternator-arms",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
+            "launchId": "a187fa84-2b3c-42c2-9c97-533c81fa5cdb",
+            "handle": {
+              "kind": "process",
+              "pid": 60224,
+              "start": "639277145329133458",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1617-a187fa84-2b3c-42c2-9c97-533c81fa5cdb"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment a187fa84-2b3c-42c2-9c97-533c81fa5cdb. You are the writer for ImpowerGames/impower ticket #1617 (An alternator keyword with no arms makes the program engine throw \"Should never reach here\" out of Continue (the lowerer builds a sequence of zero elements)), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort low in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment a187fa84-2b3c-42c2-9c97-533c81fa5cdb and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1617 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms on branch fix/1617-empty-alternator-arms from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #1617 alone (sibling writers hold #1920, the store call spread in the declaration writer, and later #316, #454, #887). An alternator keyword with no | arms (shuffle done, shuffle cycle x, shuffle once x, an inline {shuffle}, cycle x, queue done, shuffle queue x, in the scene and top-level forms of the ticket) must never make the program engine throw Should never reach here out of ProgramStory.Continue. Two layers: (1) the sequential alternator lowerer (packages/sparkdown/src/compiler/lower/lowerers/lowerSparkdownSequentialAlternatorBlock.ts, shared lowerArms in lower/utils/alternatorArms.ts) reports an Error at the keyword for an alternator with no arm, mirroring the no-arm match rule PR #1911 added to the conditional alternator, and builds no zero-element sequence; (2) the engine treats a zero-element sequence it still meets as a story error at that address, not a JavaScript throw. Keep the scene forms in mind: the ticket notes the alternator takes the scene's end keyword, so the scene reports Scene is missing its closing end keyword; a fix that reports the no-arm Error beside that is enough, and re-parenting the end is out of scope unless the lowerer owns it. Regression test: the ticket body carries programEmptyAlternator.test.ts; run each of the ticket's scripts through compileScript and storyRun, assert the diagnostic and that Continue does not throw; red on origin/main, green after. Cover the inline {shuffle} display form, which goes through lowerDisplay's forwarded diagnostics.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section). Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer or engine path swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch now does this since PR #1911 merged as 192b2f2d).\n- Repository state: origin/main 192b2f2d or later, which holds PR #1911 (the #457 bundle): the compile catch reports a thrown error as an Error at the statement, programHarness.ts asserts in every programCompiler compile that a no-program compile carries an Error (never write a test that expects a silent no-program compile), a match or plural with no arm is an Error at its keyword (lowerSparkdownConditionalAlternatorBlock.ts), and lowerDisplay.ts forwards an inline alternator's block diagnostics. One compile mode exists since #705: compile with compileScript from packages/sparkdown/src/tests/program/programHarness.ts and run with ProgramStory over program.chunks. Two sibling writers of this umbrella run beside you; their tickets are named in your scope line, keep to your own files and tell the coordinator before touching a file another ticket needs.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. The eight engine-sweep bugs closed on 2026-10-15 are not to be reopened. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run, since a fresh install has once come out incomplete with preflight passing. Disk has about 90 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "61e8b18a",
+              "attempts": 1,
+              "time": "2026-10-16T02:28:53.211Z",
+              "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+            },
+            "since": "2026-10-16T02:28:53.212Z",
+            "sessionId": "3ff64464-ab96-4bdb-b5b4-dc012740eac7",
+            "acknowledged": {
+              "time": "2026-10-16T02:29:49.679Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "low",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from writer impower-e5 naming assignment a187fa84, read from its claude process command line (--model claude-opus-5-5 --effort low --permission-mode bypassPermissions); CLAUDE_EFFORT unset in its shell, not a differing value",
+              "deliveryId": "61e8b18a"
+            }
           },
-          "evidence": "cross-session message from writer impower-e5 naming assignment a187fa84, read from its claude process command line (--model claude-opus-5-5 --effort low --permission-mode bypassPermissions); CLAUDE_EFFORT unset in its shell, not a differing value",
-          "deliveryId": "61e8b18a"
+          "released": "process 60224 is gone and no process names its launch directory; PR #1921 merged at d3cb2b87 as merge commit 13f6fd9f, closing #1617; writer process 60224 (session 3ff64464) and every process naming its launch directory ended after its final report",
+          "time": "2026-10-16T04:30:17.007Z"
         }
-      },
-      "pending": null,
-      "history": [],
+      ],
       "results": [
         {
           "time": "2026-10-16T03:42:02.438Z",
@@ -2352,96 +2358,7 @@
     }
   ],
   "verifications": [],
-  "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms": {
-      "ticket": 1617,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
-      "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T04:30:10.179Z",
-      "held": true,
-      "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
-      "remoteHead": "d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1921,
-      "reviewJobs": [
-        {
-          "job": "pr-1921/round-1/launch-ax-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-ax",
-            "reviewerId": "ax",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "undirected"
-            ],
-            "head": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T02:41:26.883Z"
-          },
-          "round": 1,
-          "reviewerId": "ax",
-          "attempt": 1,
-          "reviewedHead": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "ax": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6206897215
-          ]
-        },
-        {
-          "job": "pr-1921/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "undirected"
-            ],
-            "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
-            "completedRoundReviewers": {
-              "ax": 1
-            },
-            "time": "2026-10-16T03:15:25.476Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "ax": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6207394775
-          ]
-        }
-      ]
-    }
-  },
+  "work": {},
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -2528,11 +2445,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:20:11.572Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1692-outside-write-pristine"
-    },
     {
       "time": "2026-10-15T22:20:20.806Z",
       "event": "disk-recovery",
@@ -3197,6 +3109,12 @@
       "event": "operation-outcome",
       "id": "76097f85",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T04:30:17.008Z",
+      "event": "released",
+      "ticket": 1617,
+      "reason": "process 60224 is gone and no process names its launch directory"
     }
   ]
 }
