@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 140,
-  "previous": "53a29a1b5c138fd1fdf69a8668e954734aca173a",
+  "seq": 141,
+  "previous": "05cd459b75980bf86a6c1b0232ff5246507c8690",
   "snapshotParents": [],
-  "time": "2026-10-16T02:31:19.715Z",
+  "time": "2026-10-16T02:31:27.528Z",
   "kind": "auto",
-  "transition": "verify of #1617",
+  "transition": "verify of #1920",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 118,
+    "recordRevision": 119,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -844,7 +844,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1920-46e210e6-d8a0-431e-9691-54f966c53260"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -1934,7 +1934,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:31:19.714Z",
+      "observedAt": "2026-10-16T02:31:27.528Z",
       "held": true,
       "exists": false
     },
@@ -1943,7 +1943,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:31:19.714Z",
+      "observedAt": "2026-10-16T02:31:27.528Z",
       "held": true,
       "exists": false
     }
@@ -2034,11 +2034,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:39.548Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1727-frame-scoped-variables"
-    },
     {
       "time": "2026-10-15T22:18:47.826Z",
       "event": "disk-recovery",
@@ -2692,6 +2687,11 @@
       "time": "2026-10-16T02:31:18.463Z",
       "event": "verified",
       "ticket": 1617
+    },
+    {
+      "time": "2026-10-16T02:31:25.876Z",
+      "event": "verified",
+      "ticket": 1920
     }
   ]
 }
