@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 116,
-  "previous": "25f529e32ac6e56e7f1aa4f4fe2eafa44ec9cca8",
+  "seq": 117,
+  "previous": "28f76b71a970b8af606cf3a1ea057dbd41013553",
   "snapshotParents": [],
-  "time": "2026-10-16T01:22:50.246Z",
+  "time": "2026-10-16T01:23:00.168Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #457",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 100,
+    "recordRevision": 101,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -74,10 +74,10 @@
         "launchId": "aa2733e6-4028-47ec-981f-f17d4cad4da8",
         "handle": {
           "kind": "process",
-          "pid": 21264,
-          "start": "639276977403890485",
+          "pid": 56604,
+          "start": "639277105766927743",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-457-aa2733e6-4028-47ec-981f-f17d4cad4da8"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-457-981691d5-4fda-4433-8ee6-993e106609ee"
         },
         "verified": true,
         "brief": {
@@ -101,11 +101,13 @@
           "evidence": "cross-session message from the writer (session impower-cb, pid 55220) received 2026-10-15T21:5x UTC naming assignment aa2733e6 and all three values read from its command line and CLAUDE_EFFORT; out.jsonl init line also reports model claude-opus-5-5 and permissionMode bypassPermissions",
           "deliveryId": "a23b03b6"
         },
-        "resuming": {
-          "id": "981691d5-4fda-4433-8ee6-993e106609ee",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-457-981691d5-4fda-4433-8ee6-993e106609ee",
-          "time": "2026-10-16T01:22:47.684Z"
-        }
+        "resumes": [
+          {
+            "id": "981691d5-4fda-4433-8ee6-993e106609ee",
+            "time": "2026-10-16T01:22:57.169Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-457-981691d5-4fda-4433-8ee6-993e106609ee"
+          }
+        ]
       },
       "pending": null,
       "history": [],
@@ -1432,7 +1434,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-16T01:22:49.163Z",
+      "observedAt": "2026-10-16T01:22:58.736Z",
       "held": true,
       "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
       "remoteHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
@@ -1721,7 +1723,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-16T01:22:49.163Z",
+      "observedAt": "2026-10-16T01:22:58.736Z",
       "held": true,
       "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
       "remoteHead": "8453e6f9c89315fc50d9738ac90fbe0aec51b61e",
@@ -1844,13 +1846,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T21:38:05.298Z",
-      "event": "init",
-      "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
-      "writer": "claude-opus-5-5",
-      "concurrency": 3
-    },
     {
       "time": "2026-10-15T21:38:15.377Z",
       "event": "checkpoints-enabled",
@@ -2477,6 +2472,19 @@
       "ticket": 457,
       "id": "981691d5-4fda-4433-8ee6-993e106609ee",
       "sessionId": "3906b568-1ed4-4cf5-ac78-f977e89dbce9"
+    },
+    {
+      "time": "2026-10-16T01:22:57.169Z",
+      "event": "resumed",
+      "ticket": 457,
+      "id": "981691d5-4fda-4433-8ee6-993e106609ee",
+      "handle": {
+        "kind": "process",
+        "pid": 56604,
+        "start": "639277105766927743",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-457-981691d5-4fda-4433-8ee6-993e106609ee"
+      }
     }
   ]
 }
