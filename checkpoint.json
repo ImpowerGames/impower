@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 34,
-  "previous": "a14dc61c106ecac827c50a30219459ee194c681c",
+  "seq": 35,
+  "previous": "aa52965eb65103f98a0623fa834b0499c157ce80",
   "snapshotParents": [],
-  "time": "2026-10-16T17:11:55.248Z",
+  "time": "2026-10-16T17:12:06.733Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 28,
+    "recordRevision": 29,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -270,6 +270,12 @@
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-callback-error-line",
       "branch": "repro/program-engine-callback-error-line",
       "classifier": "removed 112.8 MB by --remove: #1691 closed (PR #1697); the half-deleted tree was restored with git checkout first; its branch stays"
+    },
+    {
+      "time": "2026-10-16T17:12:03.090Z",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-chunks-nested-do",
+      "branch": "repro/chunks-nested-do-stack-overflow",
+      "classifier": "removed 112.8 MB by --remove: #1688 closed; its branch stays"
     }
   ],
   "verifications": [],
@@ -279,7 +285,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:11:53.330Z",
+      "observedAt": "2026-10-16T17:12:05.022Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -291,7 +297,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:11:53.330Z",
+      "observedAt": "2026-10-16T17:12:05.022Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -303,7 +309,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:11:53.330Z",
+      "observedAt": "2026-10-16T17:12:05.022Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
@@ -537,6 +543,11 @@
       "time": "2026-10-16T17:11:51.773Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-callback-error-line"
+    },
+    {
+      "time": "2026-10-16T17:12:03.092Z",
+      "event": "disk-recovery",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-chunks-nested-do"
     }
   ]
 }
