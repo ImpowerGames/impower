@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 152,
-  "previous": "e70de86c60c94a8d0b65495cf80efa6fb09acabf",
+  "seq": 153,
+  "previous": "9501196388ba2dd1603451d5f917cf1dada12601",
   "snapshotParents": [],
-  "time": "2026-10-16T04:54:36.488Z",
+  "time": "2026-10-16T04:54:43.262Z",
   "kind": "auto",
-  "transition": "acknowledged of #1627",
+  "transition": "verify of #1627",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 112,
+    "recordRevision": 113,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -461,7 +461,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1627-4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -1792,7 +1792,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T04:54:36.487Z",
+      "observedAt": "2026-10-16T04:54:43.262Z",
       "held": true,
       "exists": false
     }
@@ -1895,11 +1895,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:17:20.257Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1706-glued-shuffle"
-    },
     {
       "time": "2026-10-15T22:17:29.428Z",
       "event": "disk-recovery",
@@ -2580,6 +2575,11 @@
         "effort": "medium",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-16T04:54:42.182Z",
+      "event": "verified",
+      "ticket": 1627
     }
   ]
 }
