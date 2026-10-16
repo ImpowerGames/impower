@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 72,
-  "previous": "bf27c61c48fda8eee8090d4d454fc950ce556092",
+  "seq": 73,
+  "previous": "b64f885746a909950e5edb1299aaa45b3a48d95c",
   "snapshotParents": [],
-  "time": "2026-10-16T19:35:17.498Z",
+  "time": "2026-10-16T19:35:25.605Z",
   "kind": "auto",
-  "transition": "release of #1905",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 80,
@@ -1339,7 +1339,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:35:07.230Z",
+    "at": "2026-10-16T19:35:25.604Z",
     "tickets": [
       {
         "number": 984,
@@ -1547,9 +1547,9 @@
       },
       {
         "number": 1905,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 17180 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1906,
@@ -1577,9 +1577,9 @@
       },
       {
         "number": 1924,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "1 writers already hold tickets against a limit of 3"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1977,
