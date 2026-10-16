@@ -1075,7 +1075,11 @@ export class ProgramResolver {
    *  statement that declares the outer function whole; a closure written at
    *  the top level is filled where its value is made, which the statements'
    *  function values hold: those of `units` as lowered, those of every
-   *  other statement as it was last generated. Nothing else is read. */
+   *  other statement as it was last generated. A `local` declared before an
+   *  assignment is found from the locals each statement before it declares
+   *  (`_locals`, through the tap), so a carried statement's content is not
+   *  walked; a statement lowered anew has none kept yet, and its content is
+   *  walked. Nothing else is read. */
   protected decideWrites(
     units: readonly Unit[],
     shapes: Map<Unit, UnitShape> | null,
@@ -1083,6 +1087,18 @@ export class ProgramResolver {
     if (units.length === 0) {
       return;
     }
+    const tap = tapResolution(this.tap);
+    try {
+      this.decideWritesTapped(units, shapes);
+    } finally {
+      tapResolution(tap);
+    }
+  }
+
+  protected decideWritesTapped(
+    units: readonly Unit[],
+    shapes: Map<Unit, UnitShape> | null,
+  ): void {
     const deciding = new Set(units);
     let storyValues: Map<string, ParsedObject[]> | null = null;
     const topLevelValues = (): Map<string, ParsedObject[]> => {
