@@ -697,7 +697,8 @@ describe("Luau block without `end`", () => {
     // `Text here.` is a line of the function's body, as any Luau line is
     // (#1158), so the function and the branch take the two `end`s. `Text` is
     // not a statement, which is Luau's first error for the line; Luau reads
-    // `done` on the next line as the name after the `.`.
+    // `done` on the next line as the name after the `.`, which a Sparkdown
+    // access path cannot, reported at the `.`.
     const errs = compile(
       [
         "-> main.one",
@@ -717,6 +718,7 @@ describe("Luau block without `end`", () => {
     ).diags.filter((d) => d.severity === 1);
     expect(lineStarts(errs)).toEqual([
       [2, "Scene"],
+      [8, "Expected"],
       [8, "Incomplete"],
     ]);
   });

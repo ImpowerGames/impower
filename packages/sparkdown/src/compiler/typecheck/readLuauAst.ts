@@ -1461,8 +1461,9 @@ class Parser {
    * Not part of Luau: ends the statement just read, marking its errors as
    * `unread` when a token of its own, not of a statement nested in it, is
    * one the grammar left unread, when one of its own errors is at such a
-   * token (`{ 1 ? 2 }` ends at the `?`), or when it was read in the
-   * recovery from such errors (`recovery`). Luau's reading then reports
+   * token (`{ 1 ? 2 }` ends at the `?`), when such a token follows it on
+   * its line, or when it was read in the recovery from such errors
+   * (`recovery`). Luau's reading then reports
    * every error of the statement and of its recovery, since no rule of the
    * grammar reports any of them; a statement nested in it marks its own.
    * Returns whether the statement's errors are Luau's to report.
@@ -1482,6 +1483,11 @@ class Parser {
       }
       if (span.tokens[i]?.unread) unread = true;
     }
+    // A statement that a token the grammar left unread follows on its line
+    // (`return 0x` before `.i`), as the validator leaves it to this reading.
+    const last = span.tokens[span.end - 1];
+    const after = span.tokens[span.end];
+    if (after?.unread && last && after.location.begin.line === last.location.end.line) unread = true;
     if (unread) {
       for (let e = span.errorsFrom; e < span.errorsTo; e++) if (own(e)) this.errors[e]!.unread = true;
     }
@@ -3160,8 +3166,11 @@ class Parser {
     const start = this.current().location.begin;
     let expr = this.parsePrefixExpr();
     // Not part of Luau: what follows a value that never began (`{1 +}` as a
-    // statement) is not read as its call, which would report it again.
-    if (expr instanceof AstExprError) return expr;
+    // statement) is not read as its call, which would report it again;
+    // after a token the grammar left unread, whose errors are Luau's to
+    // report (`markUnreadErrors`), it is read as Luau reads it (`.x` after a
+    // line-ending comma is a member of the missing value).
+    if (expr instanceof AstExprError && !this.current().unread) return expr;
     const oldRecursionCount = this.recursionCounter;
     for (;;) {
       if (this.is(".")) {

@@ -12,6 +12,7 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { readBodyAst, reportBodySyntaxErrors } from "../expression/lowerFunction";
 import { lowerStatements } from "../lower";
 import {
   type Binding,
@@ -542,6 +543,7 @@ function lowerHandlerClosure(
     // the evaluator's body, for the binary program (`openEvaluatorBody`).
     const shape = openEvaluatorBody(ctx, closureNode.from, closureNode.to);
     const stmts = lowerStatements(body, ctx, undefined, shape);
+    reportBodySyntaxErrors(readBodyAst(body, new Set(), ctx), ctx);
     const fn = new Function(
       new Identifier(exprId),
       stmts,

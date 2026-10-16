@@ -14,13 +14,14 @@ import { findChildByName } from "./alternatorArms";
 //     reads a number there) and `define "hero"` quotes `"hero"`. Otherwise
 //     (`define` alone, or `define .hero`, whose `.hero` parses outside the
 //     define) the define is reported as having no name.
-//   - A header the grammar stops reading on its own line, with no `end`, cuts
-//     the define off there and leaves the rest of the script to parse as
-//     top-level lines. That shape is reported on the readable part of the
-//     header rather than as a missing `end`. When the header stopped before
-//     `with`, the unread text is in the name or `as` parent (a dotted name such
-//     as `config.thing`, or a letter outside `[A-Za-z0-9_]`); after `with`, it
-//     is whatever followed on that line.
+//   - A header line that goes on with a token the grammar left unread is
+//     reported on the readable part of the header, and nothing else is: the
+//     define's body takes that token and reads on to its own `end`
+//     (`LuauUnreadToken`), so a missing `end` there is the header's mistake.
+//     When the token is written right after the name or `as` parent, the
+//     unread text is in the name (a dotted name such as `config.thing`, or a
+//     letter outside `[A-Za-z0-9_]`); after `with`, it is whatever followed on
+//     that line.
 //   - Otherwise the grammar ends a define at its `end` keyword or, failing
 //     that, at the next `scene` / `branch` beat or the end of the document, so
 //     a missing `end` makes the define swallow every top-level line up to that
@@ -90,6 +91,9 @@ export function lineTextSpan(
   };
 }
 
+// The leaves of `LuauUnreadToken`: a token no rule of the define's body read.
+const UNREAD_TOKENS = new Set(["LuauUnreadName", "LuauUnreadCharacter"]);
+
 const WITH_FORM = "`define hero as character with` … `end`";
 const NAME_RULE =
   "Define names and `as` parents use only A–Z, a–z, 0–9 and `_`, and start with a letter or `_`.";
@@ -144,18 +148,26 @@ export function validateDefineStructure(
     !!headerEnd && !!getDescendent("LuauWithKeyword", headerEnd);
   const endNode = findChildByName(node, "LuauDefine_end");
   const hasEnd = !!endNode && !!getDescendent("LuauEndKeyword", endNode);
+  // The first token after the header on its line, when the grammar left it
+  // unread: the rest of a name or `as` parent written right after it
+  // (`config.thing`, `héro`), or what follows `with`.
+  let rest = header?.nextSibling ?? null;
+  while (rest && isTrivia(rest)) rest = rest.nextSibling;
   if (
-    !hasEnd &&
-    onHeaderLine(node.to) &&
-    findChildByName(node, "ERROR_INCOMPLETE")
+    header &&
+    rest &&
+    onHeaderLine(rest.from) &&
+    UNREAD_TOKENS.has(rest.name) &&
+    (reachedWith || rest.from === header.to)
   ) {
+    const readable = lineTextSpan(headerLine.from, header.to, ctx) ?? headerLine;
     return [
       error(
         reachedWith
-          ? `This define cannot be read past \`${headerLine.text}\`. Its properties go on the lines below the header, and it closes with \`end\`.`
-          : `${NAME_RULE} This define header cannot be read past \`${headerLine.text}\`.`,
-        headerLine.from,
-        headerLine.to,
+          ? `This define cannot be read past \`${readable.text}\`. Its properties go on the lines below the header, and it closes with \`end\`.`
+          : `${NAME_RULE} This define header cannot be read past \`${readable.text}\`.`,
+        readable.from,
+        readable.to,
       ),
     ];
   }

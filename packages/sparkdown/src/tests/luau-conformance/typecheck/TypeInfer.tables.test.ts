@@ -4900,7 +4900,6 @@ end
     // TypeInfer.tables.test.cpp:6116 TEST_CASE_FIXTURE(BuiltinsFixture, "oss_1797_intersection_of_tables_arent_disjoint")
     name: "oss_1797_intersection_of_tables_arent_disjoint",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         --!strict
 
@@ -5449,7 +5448,6 @@ end
     name: "bidirectional_inference_variadic_type_pack",
     fixture: "BuiltinsFixture",
     flags: { DebugLuauAssertOnForcedConstraint: true },
-    unparsed: { defect: 876 }, // a variadic type written ...T, or T... inside << >>
     source: `
         local foo: { (...string) -> () } = {
             function (foobar)

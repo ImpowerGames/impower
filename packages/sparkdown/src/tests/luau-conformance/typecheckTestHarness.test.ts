@@ -48,12 +48,19 @@ describe("syntax diagnostics", () => {
   });
 
   test("a construct the parser cannot finish is reported, once per place", () => {
+    // Luau reads the attributed function value; the grammar's declaration
+    // value stops at the `@` it has no rule for, and the function body takes
+    // the rest as tokens it left unread (`LuauUnreadToken`).
+    const found = checkLuau("\n\n    local f = @[native] function() end\n").syntaxDiagnostics;
+    expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
+      [2, 14, `Sparkdown could not finish reading the Luau before "@[native] function() end"`],
+    ]);
+  });
+
+  test("Luau the grammar leaves unread is Luau's to report, and the function keeps its end", () => {
     const found = checkLuau("\n\n    local x = 1 )\n").syntaxDiagnostics;
     expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
-      // Luau's own error there, which the checker reports.
       [2, 16, "Expected identifier when parsing expression, got ')'"],
-      [2, 16, `Sparkdown ended the snippet's function before ")"`],
-      [2, 16, `Sparkdown could not finish reading the Luau before ")"`],
     ]);
   });
 

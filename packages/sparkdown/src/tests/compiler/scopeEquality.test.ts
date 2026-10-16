@@ -153,6 +153,11 @@ const TARGETED: Record<string, string> = {
   "unread-stray-then-1596": "function f(c)\nthen\nend\nAfter.\n",
   "unread-if-expression-after-comment-1647":
     "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
+  // A statement rule open at a character it cannot read: vscode-textmate
+  // passes over it inside the rule, and the tree ends the rule there and
+  // reads it as an unread token of the body.
+  "unread-character-in-open-statement":
+    "function f()\n  x = 1 @@ 2\n  y = $5\nend\ndefine X with\n  b = $5\nend\nlayout main with\n  button @click={ x = 1 @@ 2 }\nend\n",
 };
 
 interface Fixture {

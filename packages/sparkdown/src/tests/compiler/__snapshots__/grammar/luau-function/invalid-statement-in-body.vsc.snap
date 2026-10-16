@@ -44,10 +44,10 @@ text.source.sparkdown [0..402]
  │       └─ invalid.illegal.luau [84..85]: "."
  ├─ Newline [85..86]: "\n"
  ├─ meta.function.luau [86..94]
- │   └─ meta.function.body.luau [86..94]
- │       ├─ punctuation.whitespace.extra.sd [86..88]: "  "
- │       ├─ variable.other.readwrite.luau [88..93]: "Hello"
- │       └─ invalid.illegal.unread.luau [93..94]: "!"
+ │   ├─ meta.function.body.luau [86..93]
+ │   │   ├─ punctuation.whitespace.extra.sd [86..88]: "  "
+ │   │   └─ variable.other.readwrite.luau [88..93]: "Hello"
+ │   └─ meta.function.body.luau [93..94]: "!"
  ├─ Newline [94..95]: "\n"
  ├─ meta.function.luau [95..109]
  │   └─ meta.function.body.luau [95..109]
@@ -126,14 +126,14 @@ text.source.sparkdown [0..402]
  │       └─ keyword.control.then.luau [215..219]: "then"
  ├─ Newline [219..220]: "\n"
  ├─ meta.function.luau [220..236]
- │   └─ meta.function.body.luau [220..236]
- │       ├─ punctuation.whitespace.extra.sd [220..224]: "    "
- │       ├─ variable.other.readwrite.luau [224..227]: "How"
- │       ├─ punctuation.whitespace.extra.sd [227..228]: " "
- │       ├─ variable.other.readwrite.luau [228..231]: "are"
- │       ├─ punctuation.whitespace.extra.sd [231..232]: " "
- │       ├─ variable.other.readwrite.luau [232..235]: "you"
- │       └─ invalid.illegal.unread.luau [235..236]: "?"
+ │   ├─ meta.function.body.luau [220..235]
+ │   │   ├─ punctuation.whitespace.extra.sd [220..224]: "    "
+ │   │   ├─ variable.other.readwrite.luau [224..227]: "How"
+ │   │   ├─ punctuation.whitespace.extra.sd [227..228]: " "
+ │   │   ├─ variable.other.readwrite.luau [228..231]: "are"
+ │   │   ├─ punctuation.whitespace.extra.sd [231..232]: " "
+ │   │   └─ variable.other.readwrite.luau [232..235]: "you"
+ │   └─ meta.function.body.luau [235..236]: "?"
  ├─ Newline [236..237]: "\n"
  ├─ meta.function.luau [237..242]
  │   └─ meta.function.body.luau [237..242]
@@ -211,10 +211,11 @@ text.source.sparkdown [0..402]
  │       └─ constant.numeric.decimal.luau [328..329]: "2"
  ├─ Newline [329..330]: "\n"
  ├─ meta.function.luau [330..346]
- │   └─ meta.function.body.luau [330..346]
- │       ├─ punctuation.whitespace.extra.sd [330..332]: "  "
- │       ├─ variable.other.readwrite.luau [332..337]: "Hello"
- │       ├─ invalid.illegal.unread.luau [337..338]: "!"
+ │   ├─ meta.function.body.luau [330..337]
+ │   │   ├─ punctuation.whitespace.extra.sd [330..332]: "  "
+ │   │   └─ variable.other.readwrite.luau [332..337]: "Hello"
+ │   ├─ meta.function.body.luau [337..338]: "!"
+ │   └─ meta.function.body.luau [338..346]
  │       ├─ punctuation.whitespace.extra.sd [338..339]: " "
  │       └─ string.other.multiline.luau [339..346]
  │           ├─ punctuation.definition.string.bracket.begin.sd [339..340]: "["
@@ -224,12 +225,12 @@ text.source.sparkdown [0..402]
  │           └─ punctuation.definition.string.bracket.end.sd [345..346]: "]"
  ├─ Newline [346..347]: "\n"
  ├─ meta.function.luau [347..360]
- │   └─ meta.function.body.luau [347..360]
- │       ├─ punctuation.whitespace.extra.sd [347..349]: "  "
- │       ├─ variable.other.readwrite.luau [349..354]: "Hello"
- │       ├─ punctuation.whitespace.extra.sd [354..355]: " "
- │       ├─ constant.numeric.hex.luau [355..359]: "0xFF"
- │       └─ invalid.illegal.unread.luau [359..360]: "!"
+ │   ├─ meta.function.body.luau [347..359]
+ │   │   ├─ punctuation.whitespace.extra.sd [347..349]: "  "
+ │   │   ├─ variable.other.readwrite.luau [349..354]: "Hello"
+ │   │   ├─ punctuation.whitespace.extra.sd [354..355]: " "
+ │   │   └─ constant.numeric.hex.luau [355..359]: "0xFF"
+ │   └─ meta.function.body.luau [359..360]: "!"
  ├─ Newline [360..361]: "\n"
  ├─ meta.function.luau [361..380]
  │   └─ meta.function.body.luau [361..380]

@@ -45,6 +45,7 @@ import {
   type AstLocal,
   type AstNode,
 } from "../../typecheck/Ast";
+import type { LuauAstUnit } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
@@ -54,6 +55,7 @@ import {
   enclosingNode,
   nodeAfterAttributes,
   offsetAt,
+  rangeOf,
   readBlockAst,
   type LuauSource,
 } from "../utils/luauAst";
@@ -97,20 +99,55 @@ export function parameterNames(func: AstExprFunction): string[] {
 }
 
 /**
- * The AST of a function body's statements, read from the body's syntax
- * nodes, for a function whose header Luau has no syntax for (a `define`'s
- * `name(args) ... end` method), so that only its body is read.
+ * A function body's statements, read from the body's syntax nodes as one
+ * block, for a function whose header Luau has no syntax for (a `define`'s
+ * `name(args) ... end` method, a sparkle handler's closure), so that only
+ * its body is read.
  */
-export function bodyAst(
+export function readBodyAst(
   content: SyntaxNode | null,
   skipNames: ReadonlySet<string>,
   ctx: LowerContext,
-): AstStatBlock | null {
+): { unit: LuauAstUnit } | null {
   const nodes: SyntaxNode[] = [];
   for (let child = content?.firstChild ?? null; child; child = child.nextSibling) {
     if (!skipNames.has(child.name)) nodes.push(child);
   }
-  return readBlockAst(nodes, ctx)?.unit.root ?? null;
+  return readBlockAst(nodes, ctx);
+}
+
+/**
+ * Reports, for a body the type checker does not read (a `define`'s method,
+ * a sparkle handler's closure), the syntax errors of Luau's reading that
+ * the type checker reports in a function's body and the validator leaves
+ * to it: those of a statement that holds a token the grammar left unread
+ * (`LuauSyntaxError.unread`), and those that find a statement malformed
+ * (`Hello` on a line of its own). Called once the body is lowered, it
+ * leaves out an error the lowering already reported at the same place.
+ */
+export function reportBodySyntaxErrors(
+  reading: { unit: LuauAstUnit } | null,
+  ctx: LowerContext,
+): void {
+  const diagnostics = ctx.diagnostics;
+  if (!diagnostics) return;
+  const reported = new Set(
+    diagnostics.map((d) => `${d.source?.startLineNumber}:${d.source?.startCharacterNumber} ${d.message}`),
+  );
+  for (const error of reading?.unit.errors ?? []) {
+    if (!error.unread && error.malformed !== "statement") continue;
+    const { from, to } = rangeOf(error.location, ctx);
+    const source = {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(from) + 1,
+      endLineNumber: ctx.lineNumber(to) + 1,
+      startCharacterNumber: ctx.characterNumber(from) + 1,
+      endCharacterNumber: ctx.characterNumber(to) + 1,
+    };
+    if (reported.has(`${source.startLineNumber}:${source.startCharacterNumber} ${error.message}`)) continue;
+    diagnostics.push({ message: error.message, severity: ErrorType.Error, source });
+  }
 }
 
 /**

@@ -7380,7 +7380,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|([)])
+    end: ([)])
     endCaptures:
       1:
         patterns:
@@ -7736,9 +7736,10 @@ repository:
   # those rules hold. It takes one token that no pattern before it could
   # read (a comment, a string, a number, a name, one of Luau's symbols of
   # more than one character, or one character other than a space), so the
-  # rule never closes before its closer, a beat (each such rule's `end`
-  # has `(?={{BEAT}})`) or the end of the input, and the text after the
-  # token is read by the rule's own patterns again. The converter reads the run of tokens as Luau reads them
+  # rule never closes before its closer, a bail-out its own `end` has (a
+  # beat for a body; a bracket has none, so `scene` on its own line inside
+  # one stays a name) or the end of the input, and the text after the token
+  # is read by the rule's own patterns again. The converter reads the run of tokens as Luau reads them
   # (`readLuauAst.ts`), and Luau's errors for it are reported there.
   #
   # The name and the character refuse `end`, `else`, `elseif` and `until`:
@@ -7761,9 +7762,12 @@ repository:
     name: variable.other.readwrite.luau
     match: "{{LUAU_UNREAD_NOT_CLOSER}}{{LUAU_IDENTIFIER}}"
 
+  # No scope or tag: where a statement rule is open at such a character,
+  # vscode-textmate passes over it inside that rule, with the rule's scopes,
+  # and the tree ends the rule there and reads it here, with the body's.
+  # The statement rules of a pure-Luau body have no scope of their own, so
+  # both give the character the body's scopes. Its error marks it.
   LuauUnreadCharacter:
-    tag: invalid
-    name: invalid.illegal.unread.luau
     match: "{{LUAU_UNREAD_NOT_CLOSER}}(?:{{LUAU_UNREAD_SYMBOL}}|[^\\s])"
 
   # The tokens of a `&` statement's code that its rules could not read
@@ -11721,7 +11725,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|([)])
+    end: ([)])
     endCaptures:
       1:
         patterns:
@@ -11809,7 +11813,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(\])
+    end: (\])
     endCaptures:
       1:
         patterns:
@@ -12435,7 +12439,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|([}]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
+    end: ([}]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -12460,7 +12464,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(\])
+    end: (\])
     endCaptures:
       1:
         patterns:
@@ -12485,7 +12489,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
+    end: ([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -13022,7 +13026,9 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|([>])
+    # A type never holds a keyword that cannot begin one, so an unclosed
+    # generic list ends before it, as `LuauTypeGenerics` does.
+    end: ([>])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -13040,7 +13046,9 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauTypeLiteral" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|([>][>])
+    # A type never holds a keyword that cannot begin one, so an unclosed
+    # instantiation ends before it, as `LuauTypeGenerics` does.
+    end: ([>][>])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -13639,7 +13647,7 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -13817,7 +13825,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape an unfinished generic type.
     # Splitting the type patterns cannot return indentation to its statement.
-    end: (?={{BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: ([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -13851,7 +13859,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape an unfinished table type.
     # Splitting the type patterns cannot return indentation to its statement.
-    end: (?={{BEAT}})|([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: ([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -13877,7 +13885,9 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
       - { include: "#LuauUnreadToken" }
-    end: (?={{BEAT}})|(\])
+    # A type never holds a keyword that cannot begin one, so an unclosed
+    # indexer ends before it, as `LuauTypeTableStruct` around it does.
+    end: (\])|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -13934,7 +13944,7 @@ repository:
     # lookaround: LuauReturnStatement and other statements must start outside
     # an unclosed type parameter list. Reordering its type patterns cannot
     # return already-consumed indentation; yield before that whitespace.
-    end: (?={{BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:

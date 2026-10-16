@@ -1,5 +1,6 @@
-// A pure-Luau body or bracket never closes before its closer, a beat or the
-// end of the input (#1905, slice S1 of #1904). A token none of its patterns
+// A pure-Luau body or bracket never closes before its closer, a bail-out its
+// own end has (a body's beat) or the end of the input (#1905, slice S1 of
+// #1904). A token none of its patterns
 // reads is taken by `LuauUnreadToken`, the converter reads it as Luau's lexer
 // does, and every error of its statement is reported as Luau reports it,
 // with Luau's cascade. So the function keeps its own `end`, the story line
@@ -289,6 +290,22 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
     expect(reading.functions).toEqual([{ path: "greet", lines: [0, 0, 3] }]);
     expect(reading.output).toBe("Value 1.\n");
   });
+
+  // The type checker reads neither body, so their lowerers report what it
+  // reports in a function's body, once each.
+  it("a define's method and a sparkle handler's closure report Luau's errors as a function's body does", () => {
+    const attribute = (line: number, at: number) => [
+      `${line}:${at}-${line}:${at + 1} Attribute name is missing`,
+      `${line}:${at + 1}-${line}:${at + 2} Attribute name is missing`,
+      `${line}:${at + 3}-${line}:${at + 4} Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got '2' instead`,
+    ];
+    expect(read("function f()\n  x = 1 @@ 2\nend\n").errors).toEqual(attribute(1, 8).sort());
+    expect(read("define X with\n  greet()\n    x = 1 @@ 2\n    Hello\n  end\nend\n").errors).toEqual([
+      ...attribute(2, 10),
+      "3:4-3:9 Incomplete statement: expected assignment or a function call",
+    ].sort());
+    expect(read("layout main with\n  button @click={ x = 1 @@ 2 }\nend\n").errors).toEqual(attribute(1, 24).sort());
+  });
 });
 
 describe("the syntax tree holds the whole function", () => {
@@ -335,7 +352,7 @@ describe("the syntax tree holds the whole function", () => {
   });
 });
 
-describe("a body or bracket closes only at its closer, a beat or the end of the input", () => {
+describe("a body or bracket closes only at its closer, a bail-out of its own or the end of the input", () => {
   it("takes every token it cannot read, in every pure-Luau body and bracket", () => {
     const bodies = [
       "  if c then @ end",
@@ -354,15 +371,6 @@ describe("a body or bracket closes only at its closer, a beat or the end of the 
       expect(reading.errors, body).toEqual(officialErrors(luau));
       expect(reading.errors.length, body).toBeGreaterThan(0);
     }
-  });
-
-  it("an unclosed bracket ends at the next scene, whose story plays", () => {
-    const text = "-> next\nfunction f()\n  print(\nscene next\n  Hello.\nend\n";
-    const reading = read(text);
-    const top: string[] = [];
-    for (let node = reading.tree.topNode.firstChild; node; node = node.nextSibling) if (node.name !== "Newline") top.push(node.name);
-    expect(top.slice(1, 3)).toEqual(["LuauFunctionDefinition", "Scene"]);
-    expect(reading.output).toBe("Hello.\n");
   });
 
   it("an end inside a bracket closes the bracket and the block the end belongs to", () => {
