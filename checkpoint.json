@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 155,
-  "previous": "e37f982df5051a928b307f10d2a4f5d85a90e38f",
+  "seq": 156,
+  "previous": "dc0ef7ea9070d0e6d796f44cbf9b51a3be4b0bb1",
   "snapshotParents": [],
-  "time": "2026-10-16T04:26:11.752Z",
+  "time": "2026-10-16T04:27:04.237Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1921 (confirmed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 128,
+    "recordRevision": 129,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1862,9 +1862,9 @@
       "ticket": 1617,
       "pr": 1921,
       "expectHead": "d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T04:26:09.988Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1921 reads back merged as 13f6fd9f8f9ed1f0527e1215fc934019bb1e389f at d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
@@ -2035,7 +2035,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T04:27:02.449Z",
+      "mergeCommit": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
+      "mergedOnto": "7cab47f9ee16fa1901724a5250cf57c431bbffef",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -2353,7 +2358,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T04:26:11.086Z",
+      "observedAt": "2026-10-16T04:27:03.583Z",
       "held": true,
       "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
       "remoteHead": "d3cb2b872f13ef0b46ce8e07a20fef4bfe5b8ab4",
@@ -2523,11 +2528,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:20:02.410Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1691-callback-error-line"
-    },
     {
       "time": "2026-10-15T22:20:11.572Z",
       "event": "disk-recovery",
@@ -3191,6 +3191,12 @@
       "id": "76097f85",
       "kind": "merge",
       "pr": 1921
+    },
+    {
+      "time": "2026-10-16T04:27:02.449Z",
+      "event": "operation-outcome",
+      "id": "76097f85",
+      "state": "confirmed"
     }
   ]
 }
