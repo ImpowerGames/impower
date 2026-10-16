@@ -367,9 +367,14 @@ await check("heap-retained counts a WeakMap value whose key only a parsed object
 });
 
 // The bundle's `@impower/*` aliases (#1950): every workspace package the
-// sources import by name, each at a directory of this checkout.
+// sources import by name, each at a directory of this checkout. The map is
+// read from the package manifests, which the tooling workflow's sparse
+// checkout does not hold, so the check says it skipped there.
+const root = path.resolve(HERE, "..", "..");
+if (!fs.existsSync(path.join(root, "packages"))) {
+  console.log("SKIP: the workspace alias check needs the package manifests under packages/ (a sparse checkout has none)");
+} else
 await check("the bench bundle aliases every @impower workspace package to this checkout's own directory", () => {
-  const root = path.resolve(HERE, "..", "..");
   const aliases = workspaceAliases();
   const names = Object.keys(aliases);
   for (const name of ["@impower/sparkdown", "@impower/spark-engine", "@impower/spark-web-player", "@impower/jsonrpc", "@impower/definitions"]) assert.ok(names.includes(name), `${name} among ${names.join(", ")}`);
