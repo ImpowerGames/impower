@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 5,
-  "previous": "f63d08be84b26d058913fc168045c27582ae8c45",
+  "seq": 6,
+  "previous": "2bdde088b02fe36e8fc767ad629eb10e4d2059ac",
   "snapshotParents": [],
-  "time": "2026-10-16T04:18:12.233Z",
+  "time": "2026-10-16T04:20:07.082Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 24,
+    "recordRevision": 25,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -239,7 +239,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T04:18:11.635Z",
+      "observedAt": "2026-10-16T04:20:06.488Z",
       "held": true,
       "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
       "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
@@ -673,6 +673,11 @@
       "time": "2026-10-16T03:48:18.191Z",
       "event": "check-in",
       "outcome": "no change: PR #1925 CI still pending on head d0059ccd (8 pending, 19 passed); #1905 running"
+    },
+    {
+      "time": "2026-10-16T04:20:05.332Z",
+      "event": "check-in",
+      "outcome": "PR #1925 CI passed on d0059ccd but the merge gate refused: main moved again to 7cab47f9; the PR branch is updated with main a second time and the gate re-runs after CI; #1905 running"
     }
   ]
 }
