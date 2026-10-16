@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 127,
-  "previous": "a0a1174d29ea35925379b10057ee804f1c5f6598",
+  "seq": 128,
+  "previous": "4a8f97df914ce2ba4d5f0eee0429d761378c36ea",
   "snapshotParents": [],
-  "time": "2026-10-16T02:49:40.949Z",
+  "time": "2026-10-16T03:11:21.559Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 95,
@@ -1311,11 +1311,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T02:49:39.982Z",
+      "observedAt": "2026-10-16T03:11:20.610Z",
       "held": true,
-      "head": "49de1ace82cf5c945a1d1f53cb50f27a32b506d5",
-      "remoteHead": "500014ad35accab637cdd7366024d166da586bd6",
-      "unpushed": true,
+      "head": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
+      "remoteHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
+      "unpushed": false,
       "dirty": false,
       "pr": 1918,
       "reviewJobs": [
@@ -1447,7 +1447,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T02:49:39.982Z",
+      "observedAt": "2026-10-16T03:11:20.610Z",
       "held": true,
       "head": "5b408d57e22233a48ca7ff03f78d3de629530b73",
       "remoteHead": "5b408d57e22233a48ca7ff03f78d3de629530b73",
@@ -1582,7 +1582,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T02:49:07.731Z",
+    "at": "2026-10-16T03:11:20.609Z",
     "tickets": [
       {
         "number": 1201,
@@ -1622,9 +1622,9 @@
       },
       {
         "number": 1614,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1919,
-        "reason": "process 11208 started 639277093053655172 is running"
+        "reason": "PR #1919 is ready at 5b408d57e22233a48ca7ff03f78d3de629530b73; process 11208 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1623,
@@ -1652,9 +1652,9 @@
       },
       {
         "number": 1638,
-        "action": "adopt-pr",
+        "action": "merge-gate",
         "pr": 1919,
-        "reason": "draft PR #1919 at 5b408d57e22233a48ca7ff03f78d3de629530b73 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "PR #1919 is ready at 5b408d57e22233a48ca7ff03f78d3de629530b73 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
       },
       {
         "number": 1846,
