@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 90,
-  "previous": "2b2dfb617111ada9fc0decb8d8d06da8a21131a0",
+  "seq": 91,
+  "previous": "6b1fbe3a61e5baf00ccc29f57b63da1e42c02a94",
   "snapshotParents": [],
-  "time": "2026-10-16T19:34:34.870Z",
+  "time": "2026-10-16T19:35:14.758Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1960 (confirmed)",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 71,
+    "recordRevision": 72,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -765,9 +765,9 @@
       "ticket": 1637,
       "pr": 1960,
       "expectHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T19:34:33.055Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1960 reads back merged as f654256e7b6f330ac05c06a99310aea05ddad2ff at d97776bf561f272db2223fbbe2411a70bd98a670; the merge commit is on origin/main; it landed on bdba348d58275f65d3a05a7daae00309bf0c0e42, while its CI covered main e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -945,7 +945,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T19:35:12.581Z",
+      "mergeCommit": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+      "mergedOnto": "bdba348d58275f65d3a05a7daae00309bf0c0e42",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -1102,7 +1107,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:34:34.254Z",
+      "observedAt": "2026-10-16T19:35:13.977Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1623,6 +1628,12 @@
       "id": "2db22ebc",
       "kind": "merge",
       "pr": 1960
+    },
+    {
+      "time": "2026-10-16T19:35:12.581Z",
+      "event": "operation-outcome",
+      "id": "2db22ebc",
+      "state": "confirmed"
     }
   ]
 }
