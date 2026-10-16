@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 109,
-  "previous": "e8cccc96c45462284ba4ab05ede31b731d86288c",
+  "seq": 110,
+  "previous": "292afa54b7c1e2524e290a051e4aacaf0dc6176d",
   "snapshotParents": [],
-  "time": "2026-10-16T01:02:56.593Z",
+  "time": "2026-10-16T01:18:09.764Z",
   "kind": "auto",
-  "transition": "verify of #1614",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 83,
@@ -1067,25 +1067,31 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:02:55.502Z",
+      "observedAt": "2026-10-16T01:18:08.041Z",
       "held": true,
-      "exists": false
+      "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment": {
       "ticket": 1623,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:02:55.502Z",
+      "observedAt": "2026-10-16T01:18:08.041Z",
       "held": true,
-      "exists": false
+      "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally": {
       "ticket": 1846,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:02:55.502Z",
+      "observedAt": "2026-10-16T01:18:08.041Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1220,7 +1226,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T01:01:07.386Z",
+    "at": "2026-10-16T01:18:08.038Z",
     "tickets": [
       {
         "number": 1201,
@@ -1260,15 +1266,15 @@
       },
       {
         "number": 1614,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 7c11b706-71c6-420e-926d-8e14cbb1b6e2 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 11208 started 639277093053655172 is running"
       },
       {
         "number": 1623,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch e5b583ab-32cc-45f0-a078-087926aa6f19 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 40848 started 639277092958357626 is running"
       },
       {
         "number": 1627,
