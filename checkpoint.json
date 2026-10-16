@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 220,
-  "previous": "e5191a318bc6fa4e3b5bb96aa0d7adb77139f4d0",
+  "seq": 221,
+  "previous": "126f077af643441e9b403bb5a54fd749970a858d",
   "snapshotParents": [],
-  "time": "2026-10-16T15:45:05.279Z",
+  "time": "2026-10-16T15:45:50.684Z",
   "kind": "auto",
-  "transition": "release of #1933",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 160,
@@ -2537,7 +2537,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T15:45:04.383Z",
+      "observedAt": "2026-10-16T15:45:49.874Z",
       "held": false,
       "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
       "remoteHead": null,
@@ -2666,7 +2666,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T15:44:54.647Z",
+    "at": "2026-10-16T15:45:49.872Z",
     "tickets": [
       {
         "number": 1201,
@@ -2754,15 +2754,15 @@
       },
       {
         "number": 1933,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 33756 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1934,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
+        "reason": "every blocker's deliverable is on origin/main"
       }
     ],
     "remaining": [
