@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 38,
-  "previous": "468a0f5e515d03bcd79313b1d1f7ad10ffafc671",
+  "seq": 39,
+  "previous": "306983a054ec8d7a106e1743ec7943aa3637f5df",
   "snapshotParents": [],
-  "time": "2026-10-16T12:48:24.021Z",
+  "time": "2026-10-16T12:48:43.999Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 50,
+    "recordRevision": 51,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -436,7 +436,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T12:48:23.234Z",
+      "observedAt": "2026-10-16T12:48:43.262Z",
       "held": true,
       "head": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
       "remoteHead": "a9bc434f8c1a429e8b44a3d62de41b46e2ee3915",
@@ -1058,6 +1058,11 @@
       "time": "2026-10-16T12:20:20.006Z",
       "event": "check-in",
       "outcome": "no change: #1905 running after its resume, pushed head a9bc434f to draft PR #1927 (CI 8 passed, 18 pending) and is preparing its review round; no request pending"
+    },
+    {
+      "time": "2026-10-16T12:48:41.911Z",
+      "event": "check-in",
+      "outcome": "no change: #1905 running; PR #1927 head a9bc434f CI all green (28 passed, 4 skipped); review round 1 launched, reviewer report posted (2 PR comments), writer reproducing the findings before adjudication; no request pending"
     }
   ]
 }
