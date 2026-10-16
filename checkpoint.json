@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 29,
-  "previous": "d3da0003fd21b75a762d3731c63e9d66858f0eeb",
+  "seq": 30,
+  "previous": "155b5dc368d7194e520ca709218d65907371d0c4",
   "snapshotParents": [],
-  "time": "2026-10-16T22:54:59.904Z",
+  "time": "2026-10-16T22:56:21.960Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1975 (confirmed)",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 30,
+    "recordRevision": 31,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1172,9 +1172,9 @@
       "ticket": 1962,
       "pr": 1975,
       "expectHead": "041d28169100232e321ebdc166009aa3dbd853e6",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T22:54:58.132Z",
-      "evidence": "admitted as accepted-unreviewed",
+      "evidence": "PR #1975 reads back merged as e2f91499ffa0eea13870e0ea468e3a42fe11f484 at 041d28169100232e321ebdc166009aa3dbd853e6; the merge commit is on origin/main",
       "gate": {
         "disposition": "accepted-unreviewed",
         "reviewedHead": "5415ccea549dc6631fed6412162345fa6af13210",
@@ -1311,7 +1311,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T22:56:18.140Z",
+      "mergeCommit": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
+      "mergedOnto": "f654256e7b6f330ac05c06a99310aea05ddad2ff",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -1344,7 +1349,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:54:59.258Z",
+      "observedAt": "2026-10-16T22:56:20.756Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1876,6 +1881,12 @@
       "id": "dde965b3",
       "kind": "merge",
       "pr": 1975
+    },
+    {
+      "time": "2026-10-16T22:56:18.140Z",
+      "event": "operation-outcome",
+      "id": "dde965b3",
+      "state": "confirmed"
     }
   ]
 }
