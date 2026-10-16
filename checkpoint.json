@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 15,
-  "previous": "f4660e5a8dede2c405c21a7bb1caa0cf244a7728",
+  "seq": 16,
+  "previous": "1c0c87992678f5886570850c04bf166f5803759b",
   "snapshotParents": [],
-  "time": "2026-10-16T16:25:34.501Z",
+  "time": "2026-10-16T16:26:08.774Z",
   "kind": "auto",
-  "transition": "verify of #1637",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 12,
@@ -161,16 +161,19 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T16:25:34.501Z",
+      "observedAt": "2026-10-16T16:26:07.750Z",
       "held": true,
-      "exists": false
+      "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run": {
       "ticket": 1637,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T16:25:34.501Z",
+      "observedAt": "2026-10-16T16:26:07.750Z",
       "held": true,
       "exists": false
     }
@@ -178,7 +181,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:24:00.354Z",
+    "at": "2026-10-16T16:26:07.747Z",
     "tickets": [
       {
         "number": 851,
@@ -188,9 +191,9 @@
       },
       {
         "number": 1637,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 6a277fa9-157c-4586-a29f-df6814e10c3e on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 47756 started 639277646500257141 is running"
       },
       {
         "number": 1798,
