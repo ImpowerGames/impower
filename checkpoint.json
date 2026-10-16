@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 335,
-  "previous": "8f16b64cca8521c4e0011b15864c08b98a6e68ba",
+  "seq": 336,
+  "previous": "cb8c8d41fdbcfb00c732803f958e04381a8cc4eb",
   "snapshotParents": [],
-  "time": "2026-10-16T18:54:25.051Z",
+  "time": "2026-10-16T18:56:55.967Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "feature verification 39795293 (complete)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 279,
+    "recordRevision": 280,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5503,7 +5503,70 @@
       "classifier": "129 directories: 53 removable (365.0 KB), 76 kept."
     }
   ],
-  "verifications": [],
+  "verifications": [
+    {
+      "id": "39795293",
+      "time": "2026-10-16T18:56:54.360Z",
+      "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+      "mainSha": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e",
+      "snapshotAt": "2026-10-16T18:56:53.238Z",
+      "verdict": "complete",
+      "criteria": [
+        {
+          "index": 1,
+          "criterion": "Every sub-issue is closed, each with a regression test that fails before its fix.",
+          "status": "met",
+          "evidence": [
+            "All fifteen sub-issues are closed by merged PRs on origin/main: #457, #1325, #1502, #1641 by PR #1911 (192b2f2d); #1103 by PR #1913 (6692a9a3); #1299 by PR #1914 (fe765851); #1645 by PR #1916 (69036110); #1617 by PR #1921 (13f6fd9f); #1920 by PR #1923 (7cab47f9); #887 by PR #1928 (a6c12061, under acceptance 51ff191a of a tree-identical revert); #454 by PR #1929 (7ae0fffa); #839 by PR #1948 (9ac2da5d, merged by the coordinator on the maintainer's direction outside the gate after the gate refused only on a reviewer journal that could not post); #1800 by PR #1955 (83964a70); #316 by PR #1956 (dc84c647); #1951 by PR #1971 (e7fffe0c).",
+            "Red-on-base regression tests, each reproduced independently by a reviewer: #1502 and #1325 in programMatchArms.test.ts and programStoreValues.test.ts (PR #1911: 18 failed on c47d43421, 247 passed on head across the changed files); #1103 programWholeLineConditional.test.ts (2 of 4 red); #1617 programEmptyAlternator.test.ts (9 of 10 red) and programEmptySequenceShuffle.test.ts; #1920 programStoreValues.test.ts (7 of 23 red); #887 Run.test.ts (7 of 15 red, the ticket's two shapes); #454 builtinRootDefineOverride.test.ts (43 of 46 red); #839 blockStructure.test.ts (40 of 64 red); #1800 valuelessGlobal.test.ts (red: no program); #316 includeOnce.test.ts and Run.test.ts (red 2 of 12 and 2 of 17); #1951 typedDefineOverrideBackfill.test.ts (5 of 6 red).",
+            "Four tickets were found already fixed on main when their writers started, and their tests are regression guards whose red evidence comes from the commit before the historical fix or from a mutation: #1299 programMultipleAssignment.test.ts, 20 of 24 red at 87feec963 (the parent of PR #1324's fix); #1645's two new programLocations.test.ts cases red at 513af8254 (the parent of #1618's sort commit); #457 programDivertTargetLiteral.test.ts and #1641 programTunnelOnwardArguments.test.ts, green on base and disclosed in PR #1911 as pins of behaviour #705 fixed (the serializer that threw no longer exists, so no earlier base can run them); #316's second defect (define trailing comment) fixed by #1287, with defineTrailingComment.test.ts failing under a mutation that restores the old raw-text read. These exceptions are disclosed in each PR body."
+          ]
+        },
+        {
+          "index": 2,
+          "criterion": "A harness assertion over the compiler fixtures holds that a compile which yields no program carries at least one Error diagnostic.",
+          "status": "met",
+          "evidence": [
+            "PR #1911 (merged as 192b2f2d) added assertNoSilentNoProgram to packages/sparkdown/src/tests/program/programHarness.ts, run by every programCompiler compile, and packages/sparkdown/src/tests/compiler/compileNoProgramDiagnostic.test.ts, which compiles each of the compile-snapshot fixtures whole under it; both are present on origin/main (git grep on origin/main).",
+            "The assertion is live: later writers' tests ran under it (#1617, #1920, #454, #839, #316, #1951 all used programCompiler), and the round-1 undirected reviewer of PR #1911 confirmed the fixture sweep passes on base and on head (86 fixtures, 87 tests).",
+            "Local run by the coordinator on the main checkout at e7fffe0c (the last merge) through node scripts/test-suite.mjs run packages/sparkdown: compileNoProgramDiagnostic.test.ts 87 passed (every compile-snapshot fixture makes a program or reports an error), programCompileThrow.test.ts 16 passed, valuelessGlobal.test.ts 1 passed; 104 tests, 3 files, exit 0 (verify-suites.log in the run's artifact directory)."
+          ]
+        },
+        {
+          "index": 3,
+          "criterion": "No lowerer or serializer swallows a thrown error; a thrown error becomes a diagnostic at the statement's position.",
+          "status": "met",
+          "evidence": [
+            "PR #1911: the compile's catch keeps the throw and reports it after the validators as the Error 'The compile stopped at this statement, so no program was made: ...' over the statement that threw (StatementFailure from ChunkStore's emit catches and the declarations' run through ProgramStory's onDeclarationIssue listener), or over line 1 when no statement is known; memo-retry exhaustion reports the same way; programCompileThrow.test.ts covers 14 cases (emit throw, store raising, host error, warning, store inside a function body, included script, called function raising or assigning the global, unrelated errors beside, spacing-only line, resolver-like error text, retry exhaustion, recompile after an edit).",
+            "PR #1911 also made Conditional.EmitProgram stop dereferencing a missing branch (#1502) and forwarded inline alternator diagnostics in lowerDisplay; PR #1921 made ProgramStory.shuffleIndex raise a story error for a zero-element sequence instead of throwing (#1617); PR #1955 replaced Story.EachGlobal's bare throw with a named diagnostic at the declaration while still producing a program (#1800); PR #1956 reports a missing include or run file at the statement instead of swallowing ResolveInkFilename's throw (#316).",
+            "Inspection of origin/main after the last merge: git grep finds no catch in packages/sparkdown/src/compiler, program or inkjs/compiler that only logs, and the only two empty catches (SparkdownCompiler.ts include and run file resolution) turn the null result into the Error at the statement that PR #1956 added; the serializer that threw NullException (JsonSerialisation) was removed by #705 and the program writer's emit errors go through StatementFailure.",
+            "Local run by the coordinator on the main checkout at e7fffe0c (the last merge) through node scripts/test-suite.mjs run packages/sparkdown: compileNoProgramDiagnostic.test.ts 87 passed (every compile-snapshot fixture makes a program or reports an error), programCompileThrow.test.ts 16 passed, valuelessGlobal.test.ts 1 passed; 104 tests, 3 files, exit 0 (verify-suites.log in the run's artifact directory)."
+          ]
+        }
+      ],
+      "acceptanceSha256": "6d078c9cbd1fb40d832f345088a07bbaa76ec85dcc3d50639027d64cf6fe8324",
+      "incomplete": [],
+      "unsettled": [],
+      "tickets": [
+        316,
+        454,
+        457,
+        887,
+        1103,
+        1299,
+        1325,
+        1502,
+        1617,
+        1641,
+        1645,
+        1920,
+        839,
+        1800,
+        1951
+      ],
+      "report": "<!-- orchestrate-feature final report: verification 39795293 -->\n## Final report: Feature #1895\n\nVerdict: complete. Verified on main at `e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e` at 2026-10-16T18:56:54.360Z by coordinator `local_bede5658-a16d-4558-858b-9a8d10696a23`, from the snapshot of 2026-10-16T18:56:53.238Z.\n\n### Slices\n\n| Ticket | State | PR | Integration |\n| --- | --- | --- | --- |\n| #316 | delivered | #1956 | merged by the coordinator as `dc84c6470`; independently reviewed through `74ad2fdbe`; it landed on main `83964a70f`, while its CI covered main `7ae0fffa2`, so CI never ran on that combination before main's own run |\n| #454 | delivered | #1929 | merged by the coordinator as `7ae0fffa2`; independently reviewed through `5af99acef`; it landed on main `4f9480fb8`, while its CI covered main `13f6fd9f8`, so CI never ran on that combination before main's own run |\n| #457 | delivered | #1911 | merged by the coordinator as `192b2f2da`; independently reviewed through `ce894ea79` plus 1 clean merge of main |\n| #887 | delivered | #1928 | merged by the coordinator as `a6c12061a` under acceptance `51ff191a`: reviewed through `9701b89b6`, `9701b89b6..950ebc2d0` accepted unreviewed; it landed on main `ba9269abc`, while its CI covered main `13f6fd9f8`, so CI never ran on that combination before main's own run |\n| #1103 | delivered | #1913 | merged by the coordinator as `6692a9a32`; independently reviewed through `f4212693b` plus 1 clean merge of main |\n| #1299 | delivered | #1914 | merged by the coordinator as `fe765851c`; independently reviewed through `7144777e7` plus 1 clean merge of main |\n| #1325 | delivered | #1911 | merged by the coordinator as `192b2f2da`; independently reviewed through `ce894ea79` plus 1 clean merge of main |\n| #1502 | delivered | #1911 | merged by the coordinator as `192b2f2da`; independently reviewed through `ce894ea79` plus 1 clean merge of main |\n| #1617 | delivered | #1921 | merged by the coordinator as `13f6fd9f8`; independently reviewed through `7402a36ba` plus 1 clean merge of main |\n| #1641 | delivered | #1911 | merged by the coordinator as `192b2f2da`; independently reviewed through `ce894ea79` plus 1 clean merge of main |\n| #1645 | delivered | #1916 | merged by the coordinator as `690361109`; independently reviewed through `fd81f7e1b` plus 2 clean merges of main |\n| #1920 | delivered | #1923 | merged by the coordinator as `7cab47f9e`; independently reviewed through `f150c88da` plus 1 clean merge of main |\n| #839 | delivered | #1948 | merged as `9ac2da5da` outside this run's merge gate (by the maintainer or before this run merged) |\n| #1800 | delivered | #1955 | merged by the coordinator as `83964a70f`; independently reviewed through `4c07b893a`; it landed on main `3fe6f3797`, while its CI covered main `7ae0fffa2`, so CI never ran on that combination before main's own run |\n| #1951 | delivered | #1971 | merged by the coordinator as `e7fffe0c0`; independently reviewed through `2e3664603`; it landed on main `59739ecf7`, while its CI covered main `41c4a6b2f`, so CI never ran on that combination before main's own run |\n\n### Accepted unreviewed corrections\n\n- #887, PR #1928: decision `51ff191a` ([comment](https://github.com/ImpowerGames/impower/pull/1928#issuecomment-6218648915)) accepted `9701b89b6..950ebc2d0` (1 commit) unreviewed on head `950ebc2d0`; that head merged.\n\n### Acceptance criteria\n\n- [x] Every sub-issue is closed, each with a regression test that fails before its fix. Evidence: All fifteen sub-issues are closed by merged PRs on origin/main: #457, #1325, #1502, #1641 by PR #1911 (192b2f2d); #1103 by PR #1913 (6692a9a3); #1299 by PR #1914 (fe765851); #1645 by PR #1916 (69036110); #1617 by PR #1921 (13f6fd9f); #1920 by PR #1923 (7cab47f9); #887 by PR #1928 (a6c12061, under acceptance 51ff191a of a tree-identical revert); #454 by PR #1929 (7ae0fffa); #839 by PR #1948 (9ac2da5d, merged by the coordinator on the maintainer's direction outside the gate after the gate refused only on a reviewer journal that could not post); #1800 by PR #1955 (83964a70); #316 by PR #1956 (dc84c647); #1951 by PR #1971 (e7fffe0c).; Red-on-base regression tests, each reproduced independently by a reviewer: #1502 and #1325 in programMatchArms.test.ts and programStoreValues.test.ts (PR #1911: 18 failed on c47d43421, 247 passed on head across the changed files); #1103 programWholeLineConditional.test.ts (2 of 4 red); #1617 programEmptyAlternator.test.ts (9 of 10 red) and programEmptySequenceShuffle.test.ts; #1920 programStoreValues.test.ts (7 of 23 red); #887 Run.test.ts (7 of 15 red, the ticket's two shapes); #454 builtinRootDefineOverride.test.ts (43 of 46 red); #839 blockStructure.test.ts (40 of 64 red); #1800 valuelessGlobal.test.ts (red: no program); #316 includeOnce.test.ts and Run.test.ts (red 2 of 12 and 2 of 17); #1951 typedDefineOverrideBackfill.test.ts (5 of 6 red).; Four tickets were found already fixed on main when their writers started, and their tests are regression guards whose red evidence comes from the commit before the historical fix or from a mutation: #1299 programMultipleAssignment.test.ts, 20 of 24 red at 87feec963 (the parent of PR #1324's fix); #1645's two new programLocations.test.ts cases red at 513af8254 (the parent of #1618's sort commit); #457 programDivertTargetLiteral.test.ts and #1641 programTunnelOnwardArguments.test.ts, green on base and disclosed in PR #1911 as pins of behaviour #705 fixed (the serializer that threw no longer exists, so no earlier base can run them); #316's second defect (define trailing comment) fixed by #1287, with defineTrailingComment.test.ts failing under a mutation that restores the old raw-text read. These exceptions are disclosed in each PR body.\n- [x] A harness assertion over the compiler fixtures holds that a compile which yields no program carries at least one Error diagnostic. Evidence: PR #1911 (merged as 192b2f2d) added assertNoSilentNoProgram to packages/sparkdown/src/tests/program/programHarness.ts, run by every programCompiler compile, and packages/sparkdown/src/tests/compiler/compileNoProgramDiagnostic.test.ts, which compiles each of the compile-snapshot fixtures whole under it; both are present on origin/main (git grep on origin/main).; The assertion is live: later writers' tests ran under it (#1617, #1920, #454, #839, #316, #1951 all used programCompiler), and the round-1 undirected reviewer of PR #1911 confirmed the fixture sweep passes on base and on head (86 fixtures, 87 tests).; Local run by the coordinator on the main checkout at e7fffe0c (the last merge) through node scripts/test-suite.mjs run packages/sparkdown: compileNoProgramDiagnostic.test.ts 87 passed (every compile-snapshot fixture makes a program or reports an error), programCompileThrow.test.ts 16 passed, valuelessGlobal.test.ts 1 passed; 104 tests, 3 files, exit 0 (verify-suites.log in the run's artifact directory).\n- [x] No lowerer or serializer swallows a thrown error; a thrown error becomes a diagnostic at the statement's position. Evidence: PR #1911: the compile's catch keeps the throw and reports it after the validators as the Error 'The compile stopped at this statement, so no program was made: ...' over the statement that threw (StatementFailure from ChunkStore's emit catches and the declarations' run through ProgramStory's onDeclarationIssue listener), or over line 1 when no statement is known; memo-retry exhaustion reports the same way; programCompileThrow.test.ts covers 14 cases (emit throw, store raising, host error, warning, store inside a function body, included script, called function raising or assigning the global, unrelated errors beside, spacing-only line, resolver-like error text, retry exhaustion, recompile after an edit).; PR #1911 also made Conditional.EmitProgram stop dereferencing a missing branch (#1502) and forwarded inline alternator diagnostics in lowerDisplay; PR #1921 made ProgramStory.shuffleIndex raise a story error for a zero-element sequence instead of throwing (#1617); PR #1955 replaced Story.EachGlobal's bare throw with a named diagnostic at the declaration while still producing a program (#1800); PR #1956 reports a missing include or run file at the statement instead of swallowing ResolveInkFilename's throw (#316).; Inspection of origin/main after the last merge: git grep finds no catch in packages/sparkdown/src/compiler, program or inkjs/compiler that only logs, and the only two empty catches (SparkdownCompiler.ts include and run file resolution) turn the null result into the Error at the statement that PR #1956 added; the serializer that threw NullException (JsonSerialisation) was removed by #705 and the program writer's emit errors go through StatementFailure.; Local run by the coordinator on the main checkout at e7fffe0c (the last merge) through node scripts/test-suite.mjs run packages/sparkdown: compileNoProgramDiagnostic.test.ts 87 passed (every compile-snapshot fixture makes a program or reports an error), programCompileThrow.test.ts 16 passed, valuelessGlobal.test.ts 1 passed; 104 tests, 3 files, exit 0 (verify-suites.log in the run's artifact directory).\n\n### Incomplete work\n\nNone.\n\n### Next action\n\nNone: every slice is delivered on main and every criterion has evidence, so this report accompanies the Feature's closure."
+    }
+  ],
   "work": {},
   "snapshots": {},
   "handoff": null,
@@ -5609,11 +5672,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T13:16:48.058Z",
-      "event": "check-in",
-      "outcome": "no change: both writers running in review (PR #1928 at 55c540149, 15 comments; PR #1929 at a622c49fc, 11 comments), both drafts; #316 waits for #887; no transcripts to read, no dead launches"
-    },
     {
       "time": "2026-10-16T13:48:18.068Z",
       "event": "checkpoint-intent",
@@ -6301,6 +6359,13 @@
       "event": "released",
       "ticket": 1951,
       "reason": "process 9444 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T18:56:54.360Z",
+      "event": "feature-verification",
+      "id": "39795293",
+      "verdict": "complete",
+      "mainSha": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e"
     }
   ]
 }
