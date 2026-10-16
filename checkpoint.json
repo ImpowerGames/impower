@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 87,
-  "previous": "260ffddb93ad8806dac3eb902f5813f1ba602372",
+  "seq": 88,
+  "previous": "7fff48b442bf62bc10ad0c9508df812eab5677af",
   "snapshotParents": [],
-  "time": "2026-10-16T19:32:53.387Z",
+  "time": "2026-10-16T19:33:02.003Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1637",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 68,
+    "recordRevision": 69,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -180,7 +180,25 @@
       },
       "pending": null,
       "history": [],
-      "results": [],
+      "results": [
+        {
+          "time": "2026-10-16T19:32:59.488Z",
+          "report": {
+            "assignment": "6a277fa9-157c-4586-a29f-df6814e10c3e",
+            "source": "cross-session message from the writer (peer impower-d9) at ~19:45Z, confirmed against the SendMessage call and the success result line of resume-1637-fcab34d9 out.jsonl (58 lines, 13 turns)",
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1960,
+            "reviewedHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
+            "rounds": "2 of 3, route gpt-6.1-sol high (codex native via start-coordinator, reviewer defaults). Round 1: incremental on 78f8652 (report 6221582779, adjudications 6222231176 and 6222549276), then undirected on 9a1b6f6 (report 6222725017, adjudication 6222804488). Round 2: undirected on d97776b (report 6223128601, no findings; adjudication 6223149661); launcher exited 0, coordinator.err.log empty, journal finished.",
+            "findings": "None",
+            "verification": "redgreen ok: 244/233 to 2/2/2 for the ticket's edits, and the region bound red 494 > 145 to green. The round 2 reviewer independently reproduced red/green against merge base e7fffe0 and ran 74 changed-file tests plus 7 private probes, all green. Measurement table on the PR and on #1637 (comment 6221068465); bench medians 103-135 ms to 19-23 ms. Filtered typecheck clean. Round 1's F1 (splice appended nodes past a bounded parse range) fixed in 99f1372 for both splice paths; F2 (memo reuse after a carried rename) is pre-existing and filed as Bug #1974 with the programStatementMemo :794 assertion pinned to current behaviour and sameAsCold kept, per the coordinator's decision B; the undirected optional naming finding fixed in d97776b.",
+            "ci": "d97776b: 28 checks passed, 0 failed, 0 pending (all sparkdown shards, test-suite gate, tsc, typecheck); 4 skipped by path gating (driver-checks, notifier, skills-checks, vitest-api-integration).",
+            "next": "none; waiting for the merge gate, the writer will not merge. No changes after the reviewed commit. Also filed: Bug #1974 under #1940 and skill feedback on #510 (comment 6222811528)."
+          }
+        }
+      ],
       "requests": [
         {
           "id": "adaa1fa4",
@@ -890,7 +908,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:32:52.551Z",
+      "observedAt": "2026-10-16T19:33:00.786Z",
       "held": true,
       "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -1013,7 +1031,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:32:52.551Z",
+      "observedAt": "2026-10-16T19:33:00.786Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1514,6 +1532,13 @@
       "ticket": 1637,
       "id": "edccbd38",
       "deliveryId": "5bce1b2c"
+    },
+    {
+      "time": "2026-10-16T19:32:59.489Z",
+      "event": "result",
+      "ticket": 1637,
+      "pr": 1960,
+      "reviewedHead": "d97776bf561f272db2223fbbe2411a70bd98a670"
     }
   ]
 }
