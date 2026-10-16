@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 137,
-  "previous": "95e90b56d35fc50697cac7983f9aaebc34755453",
+  "seq": 138,
+  "previous": "aefcbfdbcec3659ad9b7d54d0f4c8c97e048dfe0",
   "snapshotParents": [],
-  "time": "2026-10-16T02:30:26.361Z",
+  "time": "2026-10-16T02:30:49.197Z",
   "kind": "auto",
-  "transition": "launch of #1920",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 115,
+    "recordRevision": 116,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1923,7 +1923,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:30:26.361Z",
+      "observedAt": "2026-10-16T02:30:49.196Z",
       "held": true,
       "exists": false
     },
@@ -1932,7 +1932,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:30:26.361Z",
+      "observedAt": "2026-10-16T02:30:49.196Z",
       "held": true,
       "exists": false
     }
@@ -2023,11 +2023,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:14.322Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\1503-preamble-block-choices"
-    },
     {
       "time": "2026-10-15T22:18:22.387Z",
       "event": "disk-recovery",
@@ -2676,6 +2671,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1920-46e210e6-d8a0-431e-9691-54f966c53260"
       }
+    },
+    {
+      "time": "2026-10-16T02:30:47.731Z",
+      "event": "check-in",
+      "outcome": "Merged #1911 (192b2f2d) closing #457, #1325, #1502 and #1641; released its writer; #1920 filed and held behind #457 until the merge; dispatched writers for #1617 (low) and #1920 (medium); #316, #454 and #887 wait for #1617"
     }
   ]
 }
