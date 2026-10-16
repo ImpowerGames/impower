@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 245,
-  "previous": "7a72a15f84c6e9d2cf8da7990d71459bf272290c",
+  "seq": 246,
+  "previous": "93dcec0bc02547429fbbee766c6ae3fd3fb0762f",
   "snapshotParents": [],
-  "time": "2026-10-16T15:42:23.932Z",
+  "time": "2026-10-16T15:45:44.478Z",
   "kind": "auto",
-  "transition": "answered of #454",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 207,
@@ -3725,7 +3725,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:42:22.743Z",
+      "observedAt": "2026-10-16T15:45:42.941Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3973,23 +3973,152 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:42:22.743Z",
+      "observedAt": "2026-10-16T15:45:42.941Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 16388
-      }
+      "pr": 1948,
+      "reviewJobs": [
+        {
+          "job": "pr-1948/round-1/launch-ax-1",
+          "lastEvent": "blocked",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "eaa3bdf48d3528e7dcb79ba038bb382d9ffa2e91",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T14:50:05.911Z"
+          }
+        },
+        {
+          "job": "pr-1948/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "2fc0ccfd7e7ad0500bc32b4b05cb217353b85cb6",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-16T15:10:21.418Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "2fc0ccfd7e7ad0500bc32b4b05cb217353b85cb6",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6218578351
+          ]
+        },
+        {
+          "job": "pr-1948/round-2/launch-ax2-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-ax2",
+            "reviewerId": "ax2",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax2",
+              "undirected2"
+            ],
+            "head": "5a6e075719aa50331866237a5753e148173f64bb",
+            "completedRoundReviewers": {
+              "ax": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T15:30:18.788Z"
+          },
+          "round": 2,
+          "reviewerId": "ax2",
+          "attempt": 1,
+          "reviewedHead": "5a6e075719aa50331866237a5753e148173f64bb",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax2": 1
+          },
+          "plannedRoundReviewers": [
+            "ax2",
+            "undirected2"
+          ],
+          "pendingReviewers": [
+            "undirected2"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6218960289
+          ]
+        },
+        {
+          "job": "pr-1948/round-2/launch-undirected2-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected2",
+            "reviewerId": "undirected2",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax2",
+              "undirected2"
+            ],
+            "head": "a9d427cc24c26205d3890719f94ff33992476127",
+            "completedRoundReviewers": {
+              "ax2": 1
+            },
+            "time": "2026-10-16T15:37:50.334Z"
+          },
+          "round": 2,
+          "reviewerId": "undirected2",
+          "attempt": 1,
+          "reviewedHead": "a9d427cc24c26205d3890719f94ff33992476127",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax2": 1,
+            "undirected2": 1
+          },
+          "plannedRoundReviewers": [
+            "ax2",
+            "undirected2"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6219098887
+          ]
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice": {
       "ticket": 887,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T15:42:22.743Z",
+      "observedAt": "2026-10-16T15:45:42.941Z",
       "held": true,
       "head": "950ebc2d0de11eea19e757c82b4663637fea5de3",
       "remoteHead": "950ebc2d0de11eea19e757c82b4663637fea5de3",
@@ -4262,19 +4391,19 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T14:28:38.498Z",
+    "at": "2026-10-16T15:45:42.939Z",
     "tickets": [
       {
         "number": 316,
-        "action": "wait-dependency",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "waiting for #887 (open)"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       },
       {
         "number": 454,
         "action": "observe",
         "pr": 1929,
-        "reason": "process 42664 started 639277499372042368 is running"
+        "reason": "process 55476 started 639277621309918460 is running"
       },
       {
         "number": 457,
@@ -4285,14 +4414,14 @@
       {
         "number": 839,
         "action": "observe",
-        "pr": null,
+        "pr": 1948,
         "reason": "process 34548 started 639277574440592944 is running"
       },
       {
         "number": 887,
-        "action": "observe",
-        "pr": 1928,
-        "reason": "process 45104 started 639277553763131012 is running"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 45104 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1103,
@@ -4340,13 +4469,19 @@
         "number": 1800,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "3 writers already hold tickets against a limit of 3"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       },
       {
         "number": 1920,
         "action": "done",
         "pr": null,
         "reason": "closed with its merged deliverable on origin/main"
+      },
+      {
+        "number": 1951,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
       }
     ],
     "remaining": [
