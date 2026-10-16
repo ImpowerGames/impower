@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 298,
-  "previous": "c5e6cb59195139314918898420947a929780784c",
+  "seq": 299,
+  "previous": "c9a9fbfdd22e826c96fedf31af6c29d14448eba2",
   "snapshotParents": [],
-  "time": "2026-10-16T16:34:01.489Z",
+  "time": "2026-10-16T16:34:11.915Z",
   "kind": "auto",
-  "transition": "acknowledged of #1951",
+  "transition": "verify of #1951",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 248,
+    "recordRevision": 249,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2259,7 +2259,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1951-dc0ede5e-386e-45aa-819d-e548b87f1da2"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -4234,7 +4234,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:34:00.142Z",
+      "observedAt": "2026-10-16T16:34:10.220Z",
       "held": true,
       "head": "39bbb08d03ecc0250435d41479f4baf55d2d40f8",
       "remoteHead": null,
@@ -4246,7 +4246,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:34:00.142Z",
+      "observedAt": "2026-10-16T16:34:10.220Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -4258,7 +4258,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T16:34:00.142Z",
+      "observedAt": "2026-10-16T16:34:10.220Z",
       "held": true,
       "exists": false
     }
@@ -4367,11 +4367,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T06:15:32.254Z",
-      "event": "check-in",
-      "outcome": "no change: #887 writer resumed (pid 51424) and running its probe on PR #1928 at 156e83fe; #454 writer running on PR #1929 at 1d3085aaf; both drafts in review; #316 waits for #887; reservation store free; no transcripts to read, no dead launches"
-    },
     {
       "time": "2026-10-16T06:47:27.320Z",
       "event": "request",
@@ -5070,6 +5065,11 @@
         "effort": "low",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-16T16:34:08.288Z",
+      "event": "verified",
+      "ticket": 1951
     }
   ]
 }
