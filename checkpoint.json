@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 130,
-  "previous": "444608a4b571fd174857daa44454f9e7937f6c34",
+  "seq": 131,
+  "previous": "701216d845440f5c4385c6a06faed3659d64f321",
   "snapshotParents": [],
-  "time": "2026-10-16T02:28:39.755Z",
+  "time": "2026-10-16T02:28:46.550Z",
   "kind": "auto",
-  "transition": "claim of #1617",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 111,
@@ -1863,7 +1863,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:28:39.755Z",
+      "observedAt": "2026-10-16T02:28:46.550Z",
       "held": true,
       "exists": false
     }
@@ -1871,7 +1871,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T02:27:49.147Z",
+    "at": "2026-10-16T02:28:46.549Z",
     "tickets": [
       {
         "number": 316,
@@ -1923,9 +1923,9 @@
       },
       {
         "number": 1617,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch a187fa84-2b3c-42c2-9c97-533c81fa5cdb on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1641,
