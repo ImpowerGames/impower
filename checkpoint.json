@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 43,
-  "previous": "c8c9fd4b230a0bb0aea49d8218383c61df7ff488",
+  "seq": 44,
+  "previous": "a65580984270be1252cc5c1e9e89991412f279ec",
   "snapshotParents": [],
-  "time": "2026-10-16T17:14:00.692Z",
+  "time": "2026-10-16T17:14:10.707Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 37,
+    "recordRevision": 38,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -324,6 +324,12 @@
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-runwrap",
       "branch": null,
       "classifier": "removed 60.0 MB by --remove: not a registered worktree (interrupted removal, no .git, partial tree)"
+    },
+    {
+      "time": "2026-10-16T17:14:07.828Z",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-shadowed-global-local",
+      "branch": null,
+      "classifier": "removed 621.3 MB by --remove: not a registered worktree (interrupted removal, no .git); 9 links unlinked first"
     }
   ],
   "verifications": [],
@@ -333,7 +339,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:13:58.979Z",
+      "observedAt": "2026-10-16T17:14:09.496Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -345,7 +351,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:13:58.979Z",
+      "observedAt": "2026-10-16T17:14:09.496Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -357,7 +363,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:13:58.979Z",
+      "observedAt": "2026-10-16T17:14:09.496Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
@@ -636,6 +642,11 @@
       "time": "2026-10-16T17:13:56.974Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-runwrap"
+    },
+    {
+      "time": "2026-10-16T17:14:07.829Z",
+      "event": "disk-recovery",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/repro-shadowed-global-local"
     }
   ]
 }
