@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 126,
-  "previous": "03dbe7fb5c2e3216d1934ab77b37396db851e90f",
+  "seq": 127,
+  "previous": "8677a93bfaf5355607189dd40335b0c281705850",
   "snapshotParents": [],
-  "time": "2026-10-16T02:25:58.419Z",
+  "time": "2026-10-16T02:27:08.780Z",
   "kind": "auto",
-  "transition": "the merge of PR #1911 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 109,
@@ -1838,7 +1838,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-16T02:25:57.669Z",
+      "observedAt": "2026-10-16T02:27:07.987Z",
       "held": true,
       "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
       "remoteHead": "42fd65c550bce6ad0f8a47ad9a10dd357b49fd7d",
@@ -2126,31 +2126,31 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T01:30:52.245Z",
+    "at": "2026-10-16T02:27:07.986Z",
     "tickets": [
       {
         "number": 316,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1617 (open)"
+        "reason": "waiting for #1617 (open)"
       },
       {
         "number": 454,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1617 (open)"
+        "reason": "waiting for #1617 (open)"
       },
       {
         "number": 457,
-        "action": "merge-gate",
-        "pr": 1911,
-        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2; process 56604 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 56604 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 887,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #457 (open), #1617 (open)"
+        "reason": "waiting for #1617 (open)"
       },
       {
         "number": 1103,
@@ -2166,33 +2166,39 @@
       },
       {
         "number": 1325,
-        "action": "merge-gate",
-        "pr": 1911,
-        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1502,
-        "action": "merge-gate",
-        "pr": 1911,
-        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1617,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #457 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1641,
-        "action": "merge-gate",
-        "pr": 1911,
-        "reason": "PR #1911 is ready at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 after 0 review rounds; run integration.mjs gate, and merge only when it admits that head; its writer is not settled in the record and may still be running, so find it and record it with adopt, then release it once it ends"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1645,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 21792 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
+      },
+      {
+        "number": 1920,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
       }
     ],
     "remaining": [
