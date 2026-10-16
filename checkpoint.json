@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 142,
-  "previous": "2805bbaf75720ef0a9dcca528be4d1fd9b8ff1e1",
+  "seq": 143,
+  "previous": "7b588166658e34603f9cb2db4bc9a0e5d2148918",
   "snapshotParents": [],
-  "time": "2026-10-16T04:48:06.661Z",
+  "time": "2026-10-16T04:50:11.355Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1918 (confirmed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 106,
+    "recordRevision": 107,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1393,9 +1393,9 @@
       "ticket": 1623,
       "pr": 1918,
       "expectHead": "c447e94eb26675819ee800d3a6622b206590bbf2",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T04:48:04.541Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1918 reads back merged as d6d6f27200c062972a71d30e4adcbe4dc8ca6648 at c447e94eb26675819ee800d3a6622b206590bbf2; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
@@ -1567,7 +1567,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T04:50:09.566Z",
+      "mergeCommit": "d6d6f27200c062972a71d30e4adcbe4dc8ca6648",
+      "mergedOnto": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -1730,7 +1735,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T04:48:05.961Z",
+      "observedAt": "2026-10-16T04:50:10.693Z",
       "held": true,
       "head": "c447e94eb26675819ee800d3a6622b206590bbf2",
       "remoteHead": "c447e94eb26675819ee800d3a6622b206590bbf2",
@@ -1996,19 +2001,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:00:21.317Z",
-      "event": "launched",
-      "ticket": 1632,
-      "launchId": "2baa157e-585e-4be9-ac20-b04c4aae5774",
-      "handle": {
-        "kind": "process",
-        "pid": 11296,
-        "start": "639276984208921192",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1632-2baa157e-585e-4be9-ac20-b04c4aae5774"
-      }
-    },
     {
       "time": "2026-10-15T22:00:32.141Z",
       "event": "launched",
@@ -2689,6 +2681,12 @@
       "id": "ed21a3fb",
       "kind": "merge",
       "pr": 1918
+    },
+    {
+      "time": "2026-10-16T04:50:09.566Z",
+      "event": "operation-outcome",
+      "id": "ed21a3fb",
+      "state": "confirmed"
     }
   ]
 }
