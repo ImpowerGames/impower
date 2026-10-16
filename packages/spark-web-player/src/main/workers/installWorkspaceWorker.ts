@@ -52,6 +52,10 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     // display the story compile took over a new one (#1874).
     protected override publishesStoryOfStandaloneCompiles = true;
 
+    // The preview's compile waits a debounce from the key, not from when the
+    // edit got here past the editor's own work on it (#1881).
+    protected override debouncesFromEdit = true;
+
     protected _watchdog!: WorkerWatchdog;
 
     protected _hangListeners = new Set<(hang: WorkerHang) => void>();
@@ -130,6 +134,25 @@ export function installWorkspaceWorker(connection: MessageConnection) {
 
     override onChangeTextDocument() {
       this._documentsRevision += 1;
+    }
+
+    /** An edit that says where it left the author's selection moves the
+     *  point its compile routes to at once. The selection the editor sends
+     *  after it can be handled after the compile is sent, which would route
+     *  to where the author was before the edit (#1881). */
+    override async changeTextDocument(
+      params: Parameters<SparkdownWorkspace["changeTextDocument"]>[0] & {
+        selection?: { selectedRange: Range; userEvent?: boolean };
+      },
+    ) {
+      const { selection, textDocument } = params;
+      if (selection && this.movesCompilePoint(selection)) {
+        this._documentSelected = {
+          file: textDocument.uri,
+          line: selection.selectedRange.start.line,
+        };
+      }
+      return super.changeTextDocument(params);
     }
 
     protected override compileStartFrom() {

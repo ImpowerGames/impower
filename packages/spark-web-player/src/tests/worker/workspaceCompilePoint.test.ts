@@ -84,4 +84,29 @@ describe("the point the player's workspace compiles toward (#1874)", () => {
     const workspace = createWorkspace();
     expect((workspace as any).publishesStoryOfStandaloneCompiles).toBe(true);
   });
+
+  it("moves with an edit that says where it left the author's selection (#1881)", () => {
+    const workspace = createWorkspace();
+    void workspace.selectTextDocument(select(MAIN, 5, true));
+    // The edit's compile can be sent before the selection the editor sent
+    // after the edit is handled; it routes to where the edit left the author.
+    const edit = (version: number, line: number, userEvent: boolean) =>
+      void workspace.changeTextDocument({
+        textDocument: { uri: MAIN, version },
+        contentChanges: [{ text: "" }],
+        selection: {
+          selectedRange: {
+            start: { line, character: 0 },
+            end: { line, character: 0 },
+          },
+          userEvent,
+        },
+      });
+    edit(2, 6, true);
+    expect((workspace as any).compileStartFrom()).toEqual({ file: MAIN, line: 6 });
+    // A selection the author did not make moves it no more than it would
+    // when it came on its own.
+    edit(3, 9, false);
+    expect((workspace as any).compileStartFrom()).toEqual({ file: MAIN, line: 6 });
+  });
 });

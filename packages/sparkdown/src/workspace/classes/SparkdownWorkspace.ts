@@ -846,7 +846,9 @@ export abstract class SparkdownWorkspace {
     textDocument: { uri: string; version?: number },
     contentChanges: SparkdownDocumentContentChangeEvent[],
   ) {
-    const update = (async () => {
+    // Settles once the request is posted, with its answer still to come
+    // (wrapped, so awaiting the post does not await the answer).
+    const posted = (async () => {
       await this.compilerReady();
       const configured = this._configuredDocumentVersions.get(
         textDocument.uri,
@@ -860,7 +862,7 @@ export abstract class SparkdownWorkspace {
         return undefined;
       }
       this._configuredDocumentVersions.delete(textDocument.uri);
-      return this._compilerChannelConnection
+      const answer = this._compilerChannelConnection
         .sendRequest(UpdateCompilerDocumentMessage.type, {
           textDocument,
           contentChanges,
@@ -873,14 +875,26 @@ export abstract class SparkdownWorkspace {
           }
           throw e;
         });
+      return { answer };
     })();
+    const update = posted.then((p) => p?.answer);
     this._documentUpdates = update.catch(() => {});
+    this._documentUpdatesPosted = posted.then(
+      () => {},
+      () => {},
+    );
     return update;
   }
 
   // Settles once every document update sent so far has reached the compiler,
   // so a request that must see them (a preview compile) can wait for them.
   protected _documentUpdates: Promise<unknown> = Promise.resolve();
+
+  // Settles once every document update so far has been posted to the
+  // compiler. The compiler answers requests in the order they were posted, so
+  // a compile posted after this has settled sees those updates, without
+  // waiting for the compiler to answer them (#1881).
+  protected _documentUpdatesPosted: Promise<void> = Promise.resolve();
 
   // Pairs with the encoder in the compiler worker. Every program response is
   // decoded as soon as it arrives, in the order it arrives, except a summary,
@@ -984,6 +998,12 @@ export abstract class SparkdownWorkspace {
   // table (#1815). A host can override it (`compileDebounceDelay` on
   // initialize); 0 compiles at every keystroke, still one compile at a time.
   protected _changeCompileDebounceDelay = 50;
+  // Whether the debounce counts from when the editor says it made the edit
+  // (`changedAt`) rather than from its arrival. Off here: the language
+  // server's diagnostics keep their own pace, and a compile of theirs started
+  // as early as the preview's competes with it for the machine. The player
+  // turns it on (#1881).
+  protected debouncesFromEdit = false;
   protected _changeCompileTimer?: ReturnType<typeof setTimeout>;
   protected _changeCompileDeadline?: number;
   // EVERY document with a pending debounced compile. A multi-file change
@@ -1000,7 +1020,13 @@ export abstract class SparkdownWorkspace {
   protected _changeCompileDue = false;
   protected _compilesInFlight = 0;
 
-  protected scheduleChangeCompile(uri: string) {
+  /** Schedule the keystroke compile for an edit to `uri`, made at
+   *  `changedAt` (by `Date.now()`) when the editor says when. The debounce
+   *  runs from then: the editor's own work on the key can hold its message
+   *  back by more than the debounce (#1881). The edit's time counts for no
+   *  more than the debounce and no less than nothing, so a clock that does
+   *  not agree with this one neither skips nor stretches it. */
+  protected scheduleChangeCompile(uri: string, changedAt?: number) {
     const delay = this._changeCompileDebounceDelay;
     this._pendingChangeCompileUris.add(uri);
     if (this._changeCompileDue) {
@@ -1017,10 +1043,19 @@ export abstract class SparkdownWorkspace {
       return;
     }
     const now = Date.now();
+    const elapsed =
+      changedAt == null ? 0 : Math.min(delay, Math.max(0, now - changedAt));
     if (this._changeCompileDeadline == null) {
-      this._changeCompileDeadline = now + delay * 4;
+      this._changeCompileDeadline = now - elapsed + delay * 4;
     }
-    const wait = Math.min(delay, Math.max(0, this._changeCompileDeadline - now));
+    const wait = Math.min(
+      delay - elapsed,
+      Math.max(0, this._changeCompileDeadline - now),
+    );
+    // Timed even when nothing is left to wait, so the selection the editor
+    // sent after the edit is usually handled before the compile is sent; one
+    // handled after it is answered by it when it routes there
+    // (`compileAnswersEditSelection`).
     this._changeCompileTimer = setTimeout(() => {
       this._changeCompileTimer = undefined;
       this.runChangeCompiles();
@@ -1335,12 +1370,17 @@ export abstract class SparkdownWorkspace {
     // Wait out initialization rather than throwing "Compiler has not been
     // configured!" at whoever asked first (see `whenCompilerConfigured`).
     await this.compilerReady();
+    // Posted after the document updates sent before it, which the compiler
+    // then applies first.
+    await this._documentUpdatesPosted;
     this._lastCompiledUri = uri;
+    const startFrom = this.compileStartFrom();
+    this._lastCompileStartFrom = startFrom;
     const result = await this._compilerChannelConnection.sendRequest(
       CompileProgramMessage.type,
       {
         textDocument: { uri },
-        startFrom: this.compileStartFrom(),
+        startFrom,
       },
     );
     if (!result.program?.summary) {
@@ -1379,6 +1419,27 @@ export abstract class SparkdownWorkspace {
       beatAt: async (uri, line, query) =>
         (await ask({ beatAt: { uri, line, query } })) as LineBeat | undefined,
     };
+  }
+
+  /** Where the compile sent last routes the preview to. */
+  protected _lastCompileStartFrom?: { file: string; line: number };
+
+  /** Whether the edit to `uri` the editor has just sent a selection after
+   *  is answered by a compile that routes to the point compiles route to
+   *  now: one still to be sent, or one sent for the document's current
+   *  version that routes there. The timer that sends a compile can fire
+   *  before the selection the editor sent after the edit is handled. */
+  protected compileAnswersEditSelection(uri: string) {
+    if (this._pendingChangeCompileUris.has(uri)) {
+      return true;
+    }
+    const compiling = this.getProgramState(uri).compilingDocumentVersion;
+    if (compiling == null || compiling !== this._documentVersions.get(uri)) {
+      return false;
+    }
+    const sent = this._lastCompileStartFrom;
+    const now = this.compileStartFrom();
+    return sent?.file === now?.file && sent?.line === now?.line;
   }
 
   /** Where a compile routes the preview to: the author's selection. */
@@ -1444,6 +1505,8 @@ export abstract class SparkdownWorkspace {
       version: number;
     };
     contentChanges: SparkdownDocumentContentChangeEvent[];
+    /** When the editor made the change, by `Date.now()`, if it says. */
+    changedAt?: number;
   }) {
     const textDocument = params.textDocument;
     const contentChanges = params.contentChanges;
@@ -1452,9 +1515,16 @@ export abstract class SparkdownWorkspace {
     if (mirrored) {
       TextDocument.update(mirrored, contentChanges, textDocument.version);
     }
-    this.updateCompilerDocument(textDocument, contentChanges).then(() => {
-      this.scheduleChangeCompile(textDocument.uri);
-    });
+    // The compile is scheduled now, not once the compiler has answered the
+    // update: it is posted after the update (`compileDocument`), and the
+    // compiler applies the update first (#1881).
+    this.updateCompilerDocument(textDocument, contentChanges).catch((e) =>
+      console.error(e),
+    );
+    this.scheduleChangeCompile(
+      textDocument.uri,
+      this.debouncesFromEdit ? params.changedAt : undefined,
+    );
     this.onChangeTextDocument(params);
   }
 
@@ -1470,11 +1540,30 @@ export abstract class SparkdownWorkspace {
     userEvent?: boolean;
   }) {
     const { textDocument, selectedRange } = params;
-    if (this.movesCompilePoint(params)) {
+    const movesCompilePoint = this.movesCompilePoint(params);
+    if (movesCompilePoint) {
       this._documentSelected = {
         file: textDocument.uri,
         line: selectedRange.start.line,
       };
+    }
+    if (
+      movesCompilePoint &&
+      params.docChanged &&
+      this.compileAnswersEditSelection(textDocument.uri)
+    ) {
+      // The selection an edit left, which the edit's compile routes to
+      // (`compileStartFrom`) and answers when it lands (#1881). Sent to the
+      // compiler, it would be handled ahead of a compile still to be sent,
+      // which would wait for it, and could only learn that the program it
+      // routes against is outdated; or after one already sent, when it would
+      // route to the point again and have the page display it a second time.
+      const result: SelectCompilerDocumentResult = {
+        ...params,
+        programOutdated: true,
+      };
+      this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+      return result;
     }
     await this.compilerReady();
     let result: SelectCompilerDocumentResult;
