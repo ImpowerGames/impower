@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 317 (this commit), 2026-10-16T18:16:35.277Z, after the merge of PR #1955 (failed). Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 318 (this commit), 2026-10-16T18:18:10.862Z, after the intent before a side effect. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,10 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #316
 
 - claude-cli claude-opus-5-5 at medium, process 29340 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run removes it once its coordinator and child are confirmed gone
 - review job pr-1956/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 5ac47e2b0, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
 - review job pr-1956/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed eae96dcea, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
-- review job pr-1956/round-2/launch-undirected2-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected2 attempt 1 of round 2 (planned ["undirected2"]), last event identified
+- review job pr-1956/round-2/launch-undirected2-1 on DESKTOP-726EO47: round 2 reviewed 74ad2fdbe, completed {"undirected2":1} of planned ["undirected2"]; last launched reviewer undirected2 attempt 1 of round 2 (planned ["undirected2"]), last event finished
 
 ## #1800
 
@@ -28,3 +27,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 - claude-cli claude-opus-5-5 at low, process 9444 on DESKTOP-726EO47
 - a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill removes it once its coordinator and child are confirmed gone
+
+## Unsettled operations
+
+- 620142be: merge of PR #1955 at 4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33, intent; settle it with checkpoint.mjs reconcile-operations before any retry

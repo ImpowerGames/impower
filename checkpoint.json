@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 317,
-  "previous": "fbce03e04b06299ab66b96ea501944cca2f3dbeb",
+  "seq": 318,
+  "previous": "53a2fa8bab482766011fc3e23ff4b1a690c55e0f",
   "snapshotParents": [],
-  "time": "2026-10-16T18:16:35.277Z",
+  "time": "2026-10-16T18:18:10.862Z",
   "kind": "auto",
-  "transition": "the merge of PR #1955 (failed)",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 265,
+    "recordRevision": 266,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -54,10 +54,6 @@
     "state": "scheduled",
     "since": "2026-10-15T21:41:15.059Z",
     "expires": "2026-10-22T21:41:15.059Z"
-  },
-  "group": {
-    "name": "Orchestrate #1895",
-    "id": "cg-8d1ca84b-4882-426b-b27c-2fa31e49b2b5"
   },
   "title": "ORCH #1895: compile without diagnostic",
   "tickets": {
@@ -4453,6 +4449,194 @@
         ]
       },
       "settled": "2026-10-16T18:16:31.845Z"
+    },
+    {
+      "id": "620142be",
+      "kind": "merge",
+      "ticket": 1800,
+      "pr": 1955,
+      "expectHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
+      "state": "intent",
+      "time": "2026-10-16T18:18:06.642Z",
+      "evidence": "admitted as reviewed",
+      "gate": {
+        "disposition": "reviewed",
+        "reviewedHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
+        "completedRound": 1,
+        "mergedSince": [],
+        "originMain": "3fe6f37971bb2366c9b414f524c5ab0873bb88db",
+        "ciMain": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+        "containsMain": false,
+        "mainCi": {
+          "verdict": "green",
+          "head": "791b877f3e0651e7c55f051330c30471b5bd5191",
+          "run": 38944813355,
+          "conclusion": "success",
+          "url": "https://github.com/ImpowerGames/impower/actions/runs/38944813355"
+        },
+        "checks": [
+          {
+            "name": "changes / detect",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "build",
+            "workflow": "Build VS Code Extension",
+            "result": "passed"
+          },
+          {
+            "name": "linked-issue",
+            "workflow": "Check Linked Issue",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "notifier",
+            "workflow": "Agent Notification Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "driver-changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "impower-dev",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "tsc",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "packages/jsonrpc",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/opfs-workspace",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-editor-protocol",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-engine (1/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-engine (2/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-morph",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-web-player (1/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/spark-web-player (2/2)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (1/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (2/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (3/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown (4/4)",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown-document-views",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "packages/sparkdown-language-server",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "vscode-sparkdown",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks",
+            "workflow": "Hook Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "notifier-tests",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "test-suite",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "typecheck",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks",
+            "workflow": "Hook Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "vitest-api-integration",
+            "workflow": "Hook Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "hook-tests",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          }
+        ]
+      }
     }
   ],
   "decisions": [
@@ -4872,16 +5056,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:16:33.327Z",
+      "observedAt": "2026-10-16T18:18:08.582Z",
       "held": true,
       "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 52552
-      },
       "pr": 1956,
       "reviewJobs": [
         {
@@ -4959,7 +5139,7 @@
         },
         {
           "job": "pr-1956/round-2/launch-undirected2-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected2",
@@ -4974,7 +5154,23 @@
               "undirected": 1
             },
             "time": "2026-10-16T18:10:47.058Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected2",
+          "attempt": 1,
+          "reviewedHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected2": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected2"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6221898247
+          ]
         }
       ]
     },
@@ -4983,7 +5179,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T18:16:33.327Z",
+      "observedAt": "2026-10-16T18:18:08.582Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -5109,7 +5305,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:16:33.327Z",
+      "observedAt": "2026-10-16T18:18:08.582Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5225,13 +5421,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:14:08.900Z",
-      "event": "resume-intent",
-      "ticket": 454,
-      "id": "01e967a7-bd98-427a-8bed-7fa6540319d9",
-      "sessionId": "b483900d-bfad-4f3d-bff3-87e961965503"
-    },
     {
       "time": "2026-10-16T12:14:16.755Z",
       "event": "resumed",
@@ -5948,6 +6137,13 @@
       "event": "operation-outcome",
       "id": "e61e0c20",
       "state": "failed"
+    },
+    {
+      "time": "2026-10-16T18:18:06.642Z",
+      "event": "operation-intent",
+      "id": "620142be",
+      "kind": "merge",
+      "pr": 1955
     }
   ]
 }
