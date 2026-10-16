@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 7,
-  "previous": "b39982c03203e8b11984727a417623d3f186bb08",
+  "seq": 8,
+  "previous": "b2d6f0b9e019f90eeefa2e6e8d7bec840c5fee1b",
   "snapshotParents": [],
-  "time": "2026-10-16T16:23:04.660Z",
+  "time": "2026-10-16T16:23:41.908Z",
   "kind": "auto",
-  "transition": "launch of #851",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 6,
@@ -105,7 +105,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T16:23:04.659Z",
+      "observedAt": "2026-10-16T16:23:41.908Z",
       "held": true,
       "exists": false
     }
@@ -113,13 +113,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:22:30.789Z",
+    "at": "2026-10-16T16:23:41.907Z",
     "tickets": [
       {
         "number": 851,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 432efd6d-c055-4f07-a9f3-7b88b1ab2f3a on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 21604 started 639277645823815597 is running"
       },
       {
         "number": 1637,
