@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 65,
-  "previous": "1032b18ec17ca7a82a08790b0d50dbf6f3886e74",
+  "seq": 66,
+  "previous": "838ce4e3eb294ec6765294c44ffdf87a4a09edab",
   "snapshotParents": [],
-  "time": "2026-10-16T19:17:00.668Z",
+  "time": "2026-10-16T19:25:22.580Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "result of #1905",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 69,
+    "recordRevision": 75,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -27,7 +27,7 @@
   },
   "previousCoordinators": [],
   "invocation": {
-    "text": "C:/Program Files/Git/orchestrate-feature #1904",
+    "text": "/orchestrate-feature #1904",
     "merging": "coordinator"
   },
   "authority": {
@@ -142,7 +142,30 @@
       },
       "pending": null,
       "history": [],
-      "results": [],
+      "results": [
+        {
+          "time": "2026-10-16T19:25:19.527Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "permissionMode": "bypassPermissions",
+            "pr": 1927,
+            "reviewedHead": "0a820cb1f43026402f8affa25240491729ee5eee",
+            "rounds": {
+              "codex-cli gpt-6.1-sol xhigh": 3,
+              "cap": 3,
+              "reviewers": "round 1 gram/ax/undirected, round 2 fix2/undirected2, round 3 fix3/undirected3; every launcher exited 0, every coordinator.err.log empty"
+            },
+            "findings": "None outstanding: 13 blocking and 1 optional across three rounds, all accepted, fixed and red/green-verified; none rejected or deferred",
+            "verification": "77fcc6ed6 (one ancestor condition in validateAssignmentValue.ts) red/green against 0a820cb1f: red 1 failed / 43 passed, green 44; workbench-checked; earlier rounds' verification recorded in each adjudication",
+            "ci": "head 77fcc6ed6 all green: 29 passed, 4 skipped",
+            "next": "none from the writer: no round 4 launched, PR left draft for the coordinator's checkpoint (decided 41203445, accept-unreviewed, comment 6223037563); the coordinator marks ready and merges",
+            "changesAfterReviewedCommit": "77fcc6ed6 only, accepted unreviewed by decision 41203445",
+            "tracker": "filed from the PR's Notes, each reproduced on main e7fffe0c0: Bugs #1978, #1979, #1980, #1981, #1982 and Task #1977 (tokenizer-level attribute lexemes, sub-issue of #1904, blocked by #1905); the glued `x = (if c)then` 1-character divergence is not filed until #1927 merges (its main form is #1596, closed by this PR); seven repro/filer-* branches were left behind by filer worktree removals and need removing",
+            "source": "cross-session message from impower-26 (writer session c7930980, second resume) on 2026-10-16: the round 3 checkpoint report resent after completing fix2's journal (report 6222666060, adjudication 6222679619)"
+          }
+        }
+      ],
       "requests": [
         {
           "id": "3a331217",
@@ -159,6 +182,633 @@
             "time": "2026-10-16T19:01:31.900Z",
             "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
             "evidence": "resumed writer session c7930980 with the answer as its prompt on 2026-10-16 (second resume); the resume helper reported started"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "8ceff1f0",
+          "kind": "accept-unreviewed",
+          "feature": 1904,
+          "ticket": 1905,
+          "pr": 1927,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-16T19:21:08.449Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "0a820cb1f43026402f8affa25240491729ee5eee",
+          "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
+          "range": {
+            "from": "0a820cb1f43026402f8affa25240491729ee5eee",
+            "to": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
+            "base": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e",
+            "commits": [
+              "77fcc6ed63a764a85a71d5569838241ccf5c1438"
+            ],
+            "diffSha256": "e2d8190969f954eb38cc7fc218d7f8383254df7ce7c1db99ec20f4335cecb83d"
+          },
+          "reports": [
+            {
+              "comment": 6215770014,
+              "round": 1,
+              "reviewerId": "gram",
+              "adjudication": 6216603174
+            },
+            {
+              "comment": 6216823012,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6216854758
+            },
+            {
+              "comment": 6217199688,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6217992013
+            },
+            {
+              "comment": 6222666060,
+              "round": 2,
+              "reviewerId": "fix2",
+              "adjudication": 6222679619
+            },
+            {
+              "comment": 6218944652,
+              "round": 2,
+              "reviewerId": "undirected2",
+              "adjudication": 6219867901
+            },
+            {
+              "comment": 6220119935,
+              "round": 3,
+              "reviewerId": "fix3",
+              "adjudication": 6220503066
+            },
+            {
+              "comment": 6221175710,
+              "round": 3,
+              "reviewerId": "undirected3",
+              "adjudication": 6221888891
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "authority": "C:/Program Files/Git/orchestrate-feature #1904",
+          "assessment": {
+            "mechanisms": "Two mechanisms produced the 13 blocking findings. (1) Ownership of an unread token's diagnostics between the validator and the converter: round 1's gram findings 1-4 and undirected findings 1-2, round 2's fix2 finding and undirected2 finding 1, and round 3's undirected3 finding. Round 1's correction replaced the validator's guess (ownedByUnreadReading) with the converter recording the statements it marks as Luau's (Parser.unreadStatements), which removed the second implementation rather than patching instances; the later findings in this class were each one body kind the readers did not yet cover (bracketed alternator arms, a closure read as a chunk, the define method's explicit `function f()` spelling), and the last of them is a one-line ancestor condition. (2) Luau's attribute lexeme emulated in the parser (introduced by round 2's correction to undirected2 finding 2): round 3's fix3 findings 1 and 2 were a zero-width synthetic `end` taken as a glued name and a second token-entry path (interpolations) that skipped the emulation; the fix makes both entries call readAttributeLexemes and excludes zero-width tokens from adjacency. Round 1's gram finding 5 (grammar lookahead justification) stands alone and was fixed by restructuring the rule.",
+            "regressions": "Corrections introduced three defects, all caught by review or the writer: round 2's 5b4a980b2 dropped the missing-type error for a grammar-read `@native` (self-caught, fixed in 23f8b6b48), and round 3's fix3 findings were both edges of the attribute emulation that 5b4a980b2 added. The ownership replacement in round 1's correction (af9645a2f) introduced none that later rounds found; round 2's and round 3's ownership findings were coverage gaps of the same rule, not regressions. Each correction since round 1 was red/green-verified against the head before it, and the unreviewed 77fcc6ed6 is one ancestor condition plus a test, verified the same way; stability is adequate and the verification practice held throughout.",
+            "repairOptions": "The writer names a simpler repair for mechanism 2: have the converter's Tokenizer emit Luau's attribute lexeme (`@name`, `@[`, bare `@`) as one token, removing the parser-side emulation and its location mutation (attributesStart, parseAttributes, isAttribute). It would remove the hazard the round 3 findings came from, but it is a tokenizer change outside this slice's scope and the emulation now runs on every token-entry path with the synthetic-token case excluded; it is better taken as a follow-up Task than as a widening of this PR. No simpler repair exists for mechanism 1: the converter already owns the reporting, and what remains is the enumeration of which lowerer readings cover a body, now covering both define-member spellings, closures and alternator arms.",
+            "residualRisk": "77fcc6ed6 (4 code lines in validateAssignmentValue.ts plus 9 test lines) has had no independent review. The attribute emulation mutates the `@` token's location in the parser; fix3 traced every reader of those locations and both token entries now run it, but a third entry path added later would need the same call. Define property values and Luau-value alternators keep their older, non-Luau reporting, which the PR discloses and which is on the base too. Six out-of-scope findings are listed in the PR's Notes and are not yet filed.",
+            "coverage": "luauUnreadToken.test.ts (44 tests, each unread case compared with the official Luau parser's message and range), red/green for 77fcc6ed6 against 0a820cb1f (1 failed / 43 passed red, 44 green, restored and hash-matched), local runs on 77fcc6ed6 of TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14, tsc clean, the served VS Code workbench showing squiggles only at `@5` for both member spellings, and CI on 77fcc6ed6 all green (29 passed, 4 skipped). Rounds 1 and 2's undirected reviewers ran the changed tests on the merge base (70 and 72 failed red) and round 3's undirected reviewer read the head's Test Suite (526 files, 12,931 tests) and Typecheck (41/41) runs.",
+            "nextRoundValue": "A round 4 would independently read the four-line condition in 77fcc6ed6 and take one more pass over the attribute emulation and the converter-backed ownership. The findings have shrunk to edges of the previous round's corrections (round 3: two emulation edges and one missing spelling in an ancestor list), so a further round is expected to find at most another edge of the same two mechanisms, which the tokenizer follow-up addresses at the root for mechanism 2.",
+            "rationale": "All 14 findings across three rounds are accepted and fixed with red/green-verified tests, and nothing is open. The defect classes converged to edge cases of the two mechanisms rather than new root causes, round 1's correction removed the duplicate ownership implementation, and the only unreviewed change is a narrow condition that extends an existing rule to the second spelling of the same construct, verified by test, by red/green and in the served workbench, with CI green on the head. Under the coordinator's rule for this Feature, unforeseeable edge cases merge and root-cause simplifications become their own tickets: the tokenizer-level attribute lexeme is filed as a follow-up rather than widening a 42-file slice that three dependent slices wait on.",
+            "next": "Accept head 77fcc6ed6 unreviewed; the writer files the six out-of-scope findings and the tokenizer attribute-lexeme simplification as tickets and sends its final report without marking the PR ready; the coordinator marks the PR ready naming this decision and merges it through the integration gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "verification": [
+              "red/green for 77fcc6ed6 against 0a820cb1f: 1 failed / 43 passed red, 44 passed green, worktree restored and hash-matched",
+              "luauUnreadToken 44, TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14 passing on 77fcc6ed6; tsc --noEmit -p packages/sparkdown clean",
+              "served VS Code workbench on 77fcc6ed6: both define-member spellings show Luau's two errors at @5 and nothing at the =, story line after the define plain (screenshot inspected by the writer)",
+              "CI on 77fcc6ed6: 29 checks passed, 4 skipped, none failed or pending"
+            ],
+            "findings": [
+              {
+                "comment": 6215770014,
+                "finding": "unread tokens in a define body had no diagnostic owner",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "an unread token in a nested function hid an outer type error",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "a comment before an unread follower restored a duplicate, misranged validation",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "method diagnostics used an artificial EOF instead of the written closer",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "the type-property lookahead lacked its structural justification",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6216823012,
+                "finding": "the PR's description of the dangling-accessor check was backwards (optional)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6217199688,
+                "finding": "bracketed alternator arms lost their Luau errors",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6217199688,
+                "finding": "unread ownership outlived Luau's recovery",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6222666060,
+                "finding": "a Sparkle closure's recovery statement got both readers' errors (report reposted verbatim for fix2 after its own post hit the rate limit; first posted as 6218265947, adjudicated in 6218526861 and 6222679619)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6218944652,
+                "finding": "a Sparkle closure was read as a top-level chunk",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6218944652,
+                "finding": "an unread @ was not read as Luau's attribute lexeme",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6220119935,
+                "finding": "a closure's synthetic end became an @end attribute at an unspaced brace",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6220119935,
+                "finding": "interpolation token streams bypassed the attribute lexeme emulation",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6221175710,
+                "finding": "a define's explicit function f() member missed the missing-value deferral",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "abandoned",
+          "body": "### Coordinator checkpoint after review round 3: accept the final verified corrections without another independent round\n\nDecision `8ceff1f0` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1905. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"C:/Program Files/Git/orchestrate-feature #1904\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (fix3, undirected3) exited, and every report has its adjudication (6215770014 in 6216603174, 6216823012 in 6216854758, 6217199688 in 6217992013, 6222666060 in 6222679619, 6218944652 in 6219867901, 6220119935 in 6220503066, 6221175710 in 6221888891).\n- Independently reviewed through `0a820cb1f43026402f8affa25240491729ee5eee`.\n- Head `77fcc6ed63a764a85a71d5569838241ccf5c1438`. Unreviewed: `0a820cb1f..77fcc6ed6`, 1 commit (`77fcc6ed6` fix(sparkdown): defer a missing value in a define's `function f()` member too (#1905)), diff SHA-256 `e2d8190969f954eb38cc7fc218d7f8383254df7ce7c1db99ec20f4335cecb83d`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, test-suite passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 14 accepted; unresolved: none.\n- Shared mechanisms: Two mechanisms produced the 13 blocking findings. (1) Ownership of an unread token's diagnostics between the validator and the converter: round 1's gram findings 1-4 and undirected findings 1-2, round 2's fix2 finding and undirected2 finding 1, and round 3's undirected3 finding. Round 1's correction replaced the validator's guess (ownedByUnreadReading) with the converter recording the statements it marks as Luau's (Parser.unreadStatements), which removed the second implementation rather than patching instances; the later findings in this class were each one body kind the readers did not yet cover (bracketed alternator arms, a closure read as a chunk, the define method's explicit `function f()` spelling), and the last of them is a one-line ancestor condition. (2) Luau's attribute lexeme emulated in the parser (introduced by round 2's correction to undirected2 finding 2): round 3's fix3 findings 1 and 2 were a zero-width synthetic `end` taken as a glued name and a second token-entry path (interpolations) that skipped the emulation; the fix makes both entries call readAttributeLexemes and excludes zero-width tokens from adjacency. Round 1's gram finding 5 (grammar lookahead justification) stands alone and was fixed by restructuring the rule.\n- Defects introduced by corrections: Corrections introduced three defects, all caught by review or the writer: round 2's 5b4a980b2 dropped the missing-type error for a grammar-read `@native` (self-caught, fixed in 23f8b6b48), and round 3's fix3 findings were both edges of the attribute emulation that 5b4a980b2 added. The ownership replacement in round 1's correction (af9645a2f) introduced none that later rounds found; round 2's and round 3's ownership findings were coverage gaps of the same rule, not regressions. Each correction since round 1 was red/green-verified against the head before it, and the unreviewed 77fcc6ed6 is one ancestor condition plus a test, verified the same way; stability is adequate and the verification practice held throughout.\n- Broader or simpler repair: The writer names a simpler repair for mechanism 2: have the converter's Tokenizer emit Luau's attribute lexeme (`@name`, `@[`, bare `@`) as one token, removing the parser-side emulation and its location mutation (attributesStart, parseAttributes, isAttribute). It would remove the hazard the round 3 findings came from, but it is a tokenizer change outside this slice's scope and the emulation now runs on every token-entry path with the synthetic-token case excluded; it is better taken as a follow-up Task than as a widening of this PR. No simpler repair exists for mechanism 1: the converter already owns the reporting, and what remains is the enumeration of which lowerer readings cover a body, now covering both define-member spellings, closures and alternator arms.\n- Residual risk: 77fcc6ed6 (4 code lines in validateAssignmentValue.ts plus 9 test lines) has had no independent review. The attribute emulation mutates the `@` token's location in the parser; fix3 traced every reader of those locations and both token entries now run it, but a third entry path added later would need the same call. Define property values and Luau-value alternators keep their older, non-Luau reporting, which the PR discloses and which is on the base too. Six out-of-scope findings are listed in the PR's Notes and are not yet filed.\n- Verification coverage: luauUnreadToken.test.ts (44 tests, each unread case compared with the official Luau parser's message and range), red/green for 77fcc6ed6 against 0a820cb1f (1 failed / 43 passed red, 44 green, restored and hash-matched), local runs on 77fcc6ed6 of TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14, tsc clean, the served VS Code workbench showing squiggles only at `@5` for both member spellings, and CI on 77fcc6ed6 all green (29 passed, 4 skipped). Rounds 1 and 2's undirected reviewers ran the changed tests on the merge base (70 and 72 failed red) and round 3's undirected reviewer read the head's Test Suite (526 files, 12,931 tests) and Typecheck (41/41) runs.\n- What another round would establish: A round 4 would independently read the four-line condition in 77fcc6ed6 and take one more pass over the attribute emulation and the converter-backed ownership. The findings have shrunk to edges of the previous round's corrections (round 3: two emulation edges and one missing spelling in an ancestor list), so a further round is expected to find at most another edge of the same two mechanisms, which the tokenizer follow-up addresses at the root for mechanism 2.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: All 14 findings across three rounds are accepted and fixed with red/green-verified tests, and nothing is open. The defect classes converged to edge cases of the two mechanisms rather than new root causes, round 1's correction removed the duplicate ownership implementation, and the only unreviewed change is a narrow condition that extends an existing rule to the second spelling of the same construct, verified by test, by red/green and in the served workbench, with CI green on the head. Under the coordinator's rule for this Feature, unforeseeable edge cases merge and root-cause simplifications become their own tickets: the tokenizer-level attribute lexeme is filed as a follow-up rather than widening a 42-file slice that three dependent slices wait on. Next: Accept head 77fcc6ed6 unreviewed; the writer files the six out-of-scope findings and the tokenizer attribute-lexeme simplification as tickets and sends its final report without marking the PR ready; the coordinator marks the PR ready naming this decision and merges it through the integration gate.\n- Verification on the head: red/green for 77fcc6ed6 against 0a820cb1f: 1 failed / 43 passed red, 44 passed green, worktree restored and hash-matched; luauUnreadToken 44, TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14 passing on 77fcc6ed6; tsc --noEmit -p packages/sparkdown clean; served VS Code workbench on 77fcc6ed6: both define-member spellings show Luau's two errors at @5 and nothing at the =, story line after the define plain (screenshot inspected by the writer); CI on 77fcc6ed6: 29 checks passed, 4 skipped, none failed or pending.\n- This is the coordinator's exception for an orchestrated Feature: not ordinary readiness and not an independent review. Reviewed code ends at `0a820cb1f43026402f8affa25240491729ee5eee`; the range above is accepted unreviewed. It applies to head `77fcc6ed63a764a85a71d5569838241ccf5c1438` only: any later push invalidates it and needs a new checkpoint.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"8ceff1f0\",\n \"kind\": \"accept-unreviewed\",\n \"feature\": 1904,\n \"ticket\": 1905,\n \"pr\": 1927,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-16T19:21:08.449Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"0a820cb1f43026402f8affa25240491729ee5eee\",\n \"head\": \"77fcc6ed63a764a85a71d5569838241ccf5c1438\",\n \"range\": {\n  \"from\": \"0a820cb1f43026402f8affa25240491729ee5eee\",\n  \"to\": \"77fcc6ed63a764a85a71d5569838241ccf5c1438\",\n  \"base\": \"e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e\",\n  \"commits\": [\n   \"77fcc6ed63a764a85a71d5569838241ccf5c1438\"\n  ],\n  \"diffSha256\": \"e2d8190969f954eb38cc7fc218d7f8383254df7ce7c1db99ec20f4335cecb83d\"\n },\n \"reports\": [\n  {\n   \"comment\": 6215770014,\n   \"round\": 1,\n   \"reviewerId\": \"gram\",\n   \"adjudication\": 6216603174\n  },\n  {\n   \"comment\": 6216823012,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6216854758\n  },\n  {\n   \"comment\": 6217199688,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6217992013\n  },\n  {\n   \"comment\": 6222666060,\n   \"round\": 2,\n   \"reviewerId\": \"fix2\",\n   \"adjudication\": 6222679619\n  },\n  {\n   \"comment\": 6218944652,\n   \"round\": 2,\n   \"reviewerId\": \"undirected2\",\n   \"adjudication\": 6219867901\n  },\n  {\n   \"comment\": 6220119935,\n   \"round\": 3,\n   \"reviewerId\": \"fix3\",\n   \"adjudication\": 6220503066\n  },\n  {\n   \"comment\": 6221175710,\n   \"round\": 3,\n   \"reviewerId\": \"undirected3\",\n   \"adjudication\": 6221888891\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"authority\": \"C:/Program Files/Git/orchestrate-feature #1904\",\n \"assessment\": {\n  \"mechanisms\": \"Two mechanisms produced the 13 blocking findings. (1) Ownership of an unread token's diagnostics between the validator and the converter: round 1's gram findings 1-4 and undirected findings 1-2, round 2's fix2 finding and undirected2 finding 1, and round 3's undirected3 finding. Round 1's correction replaced the validator's guess (ownedByUnreadReading) with the converter recording the statements it marks as Luau's (Parser.unreadStatements), which removed the second implementation rather than patching instances; the later findings in this class were each one body kind the readers did not yet cover (bracketed alternator arms, a closure read as a chunk, the define method's explicit `function f()` spelling), and the last of them is a one-line ancestor condition. (2) Luau's attribute lexeme emulated in the parser (introduced by round 2's correction to undirected2 finding 2): round 3's fix3 findings 1 and 2 were a zero-width synthetic `end` taken as a glued name and a second token-entry path (interpolations) that skipped the emulation; the fix makes both entries call readAttributeLexemes and excludes zero-width tokens from adjacency. Round 1's gram finding 5 (grammar lookahead justification) stands alone and was fixed by restructuring the rule.\",\n  \"regressions\": \"Corrections introduced three defects, all caught by review or the writer: round 2's 5b4a980b2 dropped the missing-type error for a grammar-read `@native` (self-caught, fixed in 23f8b6b48), and round 3's fix3 findings were both edges of the attribute emulation that 5b4a980b2 added. The ownership replacement in round 1's correction (af9645a2f) introduced none that later rounds found; round 2's and round 3's ownership findings were coverage gaps of the same rule, not regressions. Each correction since round 1 was red/green-verified against the head before it, and the unreviewed 77fcc6ed6 is one ancestor condition plus a test, verified the same way; stability is adequate and the verification practice held throughout.\",\n  \"repairOptions\": \"The writer names a simpler repair for mechanism 2: have the converter's Tokenizer emit Luau's attribute lexeme (`@name`, `@[`, bare `@`) as one token, removing the parser-side emulation and its location mutation (attributesStart, parseAttributes, isAttribute). It would remove the hazard the round 3 findings came from, but it is a tokenizer change outside this slice's scope and the emulation now runs on every token-entry path with the synthetic-token case excluded; it is better taken as a follow-up Task than as a widening of this PR. No simpler repair exists for mechanism 1: the converter already owns the reporting, and what remains is the enumeration of which lowerer readings cover a body, now covering both define-member spellings, closures and alternator arms.\",\n  \"residualRisk\": \"77fcc6ed6 (4 code lines in validateAssignmentValue.ts plus 9 test lines) has had no independent review. The attribute emulation mutates the `@` token's location in the parser; fix3 traced every reader of those locations and both token entries now run it, but a third entry path added later would need the same call. Define property values and Luau-value alternators keep their older, non-Luau reporting, which the PR discloses and which is on the base too. Six out-of-scope findings are listed in the PR's Notes and are not yet filed.\",\n  \"coverage\": \"luauUnreadToken.test.ts (44 tests, each unread case compared with the official Luau parser's message and range), red/green for 77fcc6ed6 against 0a820cb1f (1 failed / 43 passed red, 44 green, restored and hash-matched), local runs on 77fcc6ed6 of TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14, tsc clean, the served VS Code workbench showing squiggles only at `@5` for both member spellings, and CI on 77fcc6ed6 all green (29 passed, 4 skipped). Rounds 1 and 2's undirected reviewers ran the changed tests on the merge base (70 and 72 failed red) and round 3's undirected reviewer read the head's Test Suite (526 files, 12,931 tests) and Typecheck (41/41) runs.\",\n  \"nextRoundValue\": \"A round 4 would independently read the four-line condition in 77fcc6ed6 and take one more pass over the attribute emulation and the converter-backed ownership. The findings have shrunk to edges of the previous round's corrections (round 3: two emulation edges and one missing spelling in an ancestor list), so a further round is expected to find at most another edge of the same two mechanisms, which the tokenizer follow-up addresses at the root for mechanism 2.\",\n  \"rationale\": \"All 14 findings across three rounds are accepted and fixed with red/green-verified tests, and nothing is open. The defect classes converged to edge cases of the two mechanisms rather than new root causes, round 1's correction removed the duplicate ownership implementation, and the only unreviewed change is a narrow condition that extends an existing rule to the second spelling of the same construct, verified by test, by red/green and in the served workbench, with CI green on the head. Under the coordinator's rule for this Feature, unforeseeable edge cases merge and root-cause simplifications become their own tickets: the tokenizer-level attribute lexeme is filed as a follow-up rather than widening a 42-file slice that three dependent slices wait on.\",\n  \"next\": \"Accept head 77fcc6ed6 unreviewed; the writer files the six out-of-scope findings and the tokenizer attribute-lexeme simplification as tickets and sends its final report without marking the PR ready; the coordinator marks the PR ready naming this decision and merges it through the integration gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"verification\": [\n   \"red/green for 77fcc6ed6 against 0a820cb1f: 1 failed / 43 passed red, 44 passed green, worktree restored and hash-matched\",\n   \"luauUnreadToken 44, TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14 passing on 77fcc6ed6; tsc -\\u002dnoEmit -p packages/sparkdown clean\",\n   \"served VS Code workbench on 77fcc6ed6: both define-member spellings show Luau's two errors at @5 and nothing at the =, story line after the define plain (screenshot inspected by the writer)\",\n   \"CI on 77fcc6ed6: 29 checks passed, 4 skipped, none failed or pending\"\n  ],\n  \"findings\": [\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"unread tokens in a define body had no diagnostic owner\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"an unread token in a nested function hid an outer type error\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"a comment before an unread follower restored a duplicate, misranged validation\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"method diagnostics used an artificial EOF instead of the written closer\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"the type-property lookahead lacked its structural justification\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6216823012,\n    \"finding\": \"the PR's description of the dangling-accessor check was backwards (optional)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6217199688,\n    \"finding\": \"bracketed alternator arms lost their Luau errors\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6217199688,\n    \"finding\": \"unread ownership outlived Luau's recovery\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6222666060,\n    \"finding\": \"a Sparkle closure's recovery statement got both readers' errors (report reposted verbatim for fix2 after its own post hit the rate limit; first posted as 6218265947, adjudicated in 6218526861 and 6222679619)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6218944652,\n    \"finding\": \"a Sparkle closure was read as a top-level chunk\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6218944652,\n    \"finding\": \"an unread @ was not read as Luau's attribute lexeme\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6220119935,\n    \"finding\": \"a closure's synthetic end became an @end attribute at an unspaced brace\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6220119935,\n    \"finding\": \"interpolation token streams bypassed the attribute lexeme emulation\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6221175710,\n    \"finding\": \"a define's explicit function f() member missed the missing-value deferral\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "9f29d427da0fdc4bb4cb33857e8d68715327965d73debabc7387743bccf26337",
+          "blockSha256": "750d68c5c1108fca8966b17b89505e1c293cc9bc58065ba9dce7321f5be55def",
+          "abandoned": {
+            "time": "2026-10-16T19:21:45.026Z",
+            "evidence": "never posted: the decision body quoted the invocation as 'C:/Program Files/Git/orchestrate-feature #1904' because Git Bash path-converted the init argument; the invocation is being re-recorded and the decision remade"
+          }
+        },
+        {
+          "version": 1,
+          "id": "41203445",
+          "kind": "accept-unreviewed",
+          "feature": 1904,
+          "ticket": 1905,
+          "pr": 1927,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-16T19:24:11.885Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "0a820cb1f43026402f8affa25240491729ee5eee",
+          "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
+          "range": {
+            "from": "0a820cb1f43026402f8affa25240491729ee5eee",
+            "to": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
+            "base": "e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e",
+            "commits": [
+              "77fcc6ed63a764a85a71d5569838241ccf5c1438"
+            ],
+            "diffSha256": "e2d8190969f954eb38cc7fc218d7f8383254df7ce7c1db99ec20f4335cecb83d"
+          },
+          "reports": [
+            {
+              "comment": 6215770014,
+              "round": 1,
+              "reviewerId": "gram",
+              "adjudication": 6216603174
+            },
+            {
+              "comment": 6216823012,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6216854758
+            },
+            {
+              "comment": 6217199688,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6217992013
+            },
+            {
+              "comment": 6222666060,
+              "round": 2,
+              "reviewerId": "fix2",
+              "adjudication": 6222679619
+            },
+            {
+              "comment": 6218944652,
+              "round": 2,
+              "reviewerId": "undirected2",
+              "adjudication": 6219867901
+            },
+            {
+              "comment": 6220119935,
+              "round": 3,
+              "reviewerId": "fix3",
+              "adjudication": 6220503066
+            },
+            {
+              "comment": 6221175710,
+              "round": 3,
+              "reviewerId": "undirected3",
+              "adjudication": 6221888891
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "authority": "/orchestrate-feature #1904",
+          "assessment": {
+            "mechanisms": "Two mechanisms produced the 13 blocking findings. (1) Ownership of an unread token's diagnostics between the validator and the converter: round 1's gram findings 1-4 and undirected findings 1-2, round 2's fix2 finding and undirected2 finding 1, and round 3's undirected3 finding. Round 1's correction replaced the validator's guess (ownedByUnreadReading) with the converter recording the statements it marks as Luau's (Parser.unreadStatements), which removed the second implementation rather than patching instances; the later findings in this class were each one body kind the readers did not yet cover (bracketed alternator arms, a closure read as a chunk, the define method's explicit `function f()` spelling), and the last of them is a one-line ancestor condition. (2) Luau's attribute lexeme emulated in the parser (introduced by round 2's correction to undirected2 finding 2): round 3's fix3 findings 1 and 2 were a zero-width synthetic `end` taken as a glued name and a second token-entry path (interpolations) that skipped the emulation; the fix makes both entries call readAttributeLexemes and excludes zero-width tokens from adjacency. Round 1's gram finding 5 (grammar lookahead justification) stands alone and was fixed by restructuring the rule.",
+            "regressions": "Corrections introduced three defects, all caught by review or the writer: round 2's 5b4a980b2 dropped the missing-type error for a grammar-read `@native` (self-caught, fixed in 23f8b6b48), and round 3's fix3 findings were both edges of the attribute emulation that 5b4a980b2 added. The ownership replacement in round 1's correction (af9645a2f) introduced none that later rounds found; round 2's and round 3's ownership findings were coverage gaps of the same rule, not regressions. Each correction since round 1 was red/green-verified against the head before it, and the unreviewed 77fcc6ed6 is one ancestor condition plus a test, verified the same way; stability is adequate and the verification practice held throughout.",
+            "repairOptions": "The writer names a simpler repair for mechanism 2: have the converter's Tokenizer emit Luau's attribute lexeme (`@name`, `@[`, bare `@`) as one token, removing the parser-side emulation and its location mutation (attributesStart, parseAttributes, isAttribute). It would remove the hazard the round 3 findings came from, but it is a tokenizer change outside this slice's scope and the emulation now runs on every token-entry path with the synthetic-token case excluded; it is better taken as a follow-up Task than as a widening of this PR. No simpler repair exists for mechanism 1: the converter already owns the reporting, and what remains is the enumeration of which lowerer readings cover a body, now covering both define-member spellings, closures and alternator arms.",
+            "residualRisk": "77fcc6ed6 (4 code lines in validateAssignmentValue.ts plus 9 test lines) has had no independent review. The attribute emulation mutates the `@` token's location in the parser; fix3 traced every reader of those locations and both token entries now run it, but a third entry path added later would need the same call. Define property values and Luau-value alternators keep their older, non-Luau reporting, which the PR discloses and which is on the base too. Six out-of-scope findings are listed in the PR's Notes and are not yet filed.",
+            "coverage": "luauUnreadToken.test.ts (44 tests, each unread case compared with the official Luau parser's message and range), red/green for 77fcc6ed6 against 0a820cb1f (1 failed / 43 passed red, 44 green, restored and hash-matched), local runs on 77fcc6ed6 of TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14, tsc clean, the served VS Code workbench showing squiggles only at `@5` for both member spellings, and CI on 77fcc6ed6 all green (29 passed, 4 skipped). Rounds 1 and 2's undirected reviewers ran the changed tests on the merge base (70 and 72 failed red) and round 3's undirected reviewer read the head's Test Suite (526 files, 12,931 tests) and Typecheck (41/41) runs.",
+            "nextRoundValue": "A round 4 would independently read the four-line condition in 77fcc6ed6 and take one more pass over the attribute emulation and the converter-backed ownership. The findings have shrunk to edges of the previous round's corrections (round 3: two emulation edges and one missing spelling in an ancestor list), so a further round is expected to find at most another edge of the same two mechanisms, which the tokenizer follow-up addresses at the root for mechanism 2.",
+            "rationale": "All 14 findings across three rounds are accepted and fixed with red/green-verified tests, and nothing is open. The defect classes converged to edge cases of the two mechanisms rather than new root causes, round 1's correction removed the duplicate ownership implementation, and the only unreviewed change is a narrow condition that extends an existing rule to the second spelling of the same construct, verified by test, by red/green and in the served workbench, with CI green on the head. Under the coordinator's rule for this Feature, unforeseeable edge cases merge and root-cause simplifications become their own tickets: the tokenizer-level attribute lexeme is filed as a follow-up rather than widening a 42-file slice that three dependent slices wait on.",
+            "next": "Accept head 77fcc6ed6 unreviewed; the writer files the six out-of-scope findings and the tokenizer attribute-lexeme simplification as tickets and sends its final report without marking the PR ready; the coordinator marks the PR ready naming this decision and merges it through the integration gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "verification": [
+              "red/green for 77fcc6ed6 against 0a820cb1f: 1 failed / 43 passed red, 44 passed green, worktree restored and hash-matched",
+              "luauUnreadToken 44, TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14 passing on 77fcc6ed6; tsc --noEmit -p packages/sparkdown clean",
+              "served VS Code workbench on 77fcc6ed6: both define-member spellings show Luau's two errors at @5 and nothing at the =, story line after the define plain (screenshot inspected by the writer)",
+              "CI on 77fcc6ed6: 29 checks passed, 4 skipped, none failed or pending"
+            ],
+            "findings": [
+              {
+                "comment": 6215770014,
+                "finding": "unread tokens in a define body had no diagnostic owner",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "an unread token in a nested function hid an outer type error",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "a comment before an unread follower restored a duplicate, misranged validation",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "method diagnostics used an artificial EOF instead of the written closer",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6215770014,
+                "finding": "the type-property lookahead lacked its structural justification",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6216823012,
+                "finding": "the PR's description of the dangling-accessor check was backwards (optional)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6217199688,
+                "finding": "bracketed alternator arms lost their Luau errors",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6217199688,
+                "finding": "unread ownership outlived Luau's recovery",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6222666060,
+                "finding": "a Sparkle closure's recovery statement got both readers' errors (report reposted verbatim for fix2 after its own post hit the rate limit; first posted as 6218265947, adjudicated in 6218526861 and 6222679619)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6218944652,
+                "finding": "a Sparkle closure was read as a top-level chunk",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6218944652,
+                "finding": "an unread @ was not read as Luau's attribute lexeme",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6220119935,
+                "finding": "a closure's synthetic end became an @end attribute at an unspaced brace",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6220119935,
+                "finding": "interpolation token streams bypassed the attribute lexeme emulation",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6221175710,
+                "finding": "a define's explicit function f() member missed the missing-value deferral",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: accept the final verified corrections without another independent round\n\nDecision `41203445` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1905. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1904\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (fix3, undirected3) exited, and every report has its adjudication (6215770014 in 6216603174, 6216823012 in 6216854758, 6217199688 in 6217992013, 6222666060 in 6222679619, 6218944652 in 6219867901, 6220119935 in 6220503066, 6221175710 in 6221888891).\n- Independently reviewed through `0a820cb1f43026402f8affa25240491729ee5eee`.\n- Head `77fcc6ed63a764a85a71d5569838241ccf5c1438`. Unreviewed: `0a820cb1f..77fcc6ed6`, 1 commit (`77fcc6ed6` fix(sparkdown): defer a missing value in a define's `function f()` member too (#1905)), diff SHA-256 `e2d8190969f954eb38cc7fc218d7f8383254df7ce7c1db99ec20f4335cecb83d`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, test-suite passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 14 accepted; unresolved: none.\n- Shared mechanisms: Two mechanisms produced the 13 blocking findings. (1) Ownership of an unread token's diagnostics between the validator and the converter: round 1's gram findings 1-4 and undirected findings 1-2, round 2's fix2 finding and undirected2 finding 1, and round 3's undirected3 finding. Round 1's correction replaced the validator's guess (ownedByUnreadReading) with the converter recording the statements it marks as Luau's (Parser.unreadStatements), which removed the second implementation rather than patching instances; the later findings in this class were each one body kind the readers did not yet cover (bracketed alternator arms, a closure read as a chunk, the define method's explicit `function f()` spelling), and the last of them is a one-line ancestor condition. (2) Luau's attribute lexeme emulated in the parser (introduced by round 2's correction to undirected2 finding 2): round 3's fix3 findings 1 and 2 were a zero-width synthetic `end` taken as a glued name and a second token-entry path (interpolations) that skipped the emulation; the fix makes both entries call readAttributeLexemes and excludes zero-width tokens from adjacency. Round 1's gram finding 5 (grammar lookahead justification) stands alone and was fixed by restructuring the rule.\n- Defects introduced by corrections: Corrections introduced three defects, all caught by review or the writer: round 2's 5b4a980b2 dropped the missing-type error for a grammar-read `@native` (self-caught, fixed in 23f8b6b48), and round 3's fix3 findings were both edges of the attribute emulation that 5b4a980b2 added. The ownership replacement in round 1's correction (af9645a2f) introduced none that later rounds found; round 2's and round 3's ownership findings were coverage gaps of the same rule, not regressions. Each correction since round 1 was red/green-verified against the head before it, and the unreviewed 77fcc6ed6 is one ancestor condition plus a test, verified the same way; stability is adequate and the verification practice held throughout.\n- Broader or simpler repair: The writer names a simpler repair for mechanism 2: have the converter's Tokenizer emit Luau's attribute lexeme (`@name`, `@[`, bare `@`) as one token, removing the parser-side emulation and its location mutation (attributesStart, parseAttributes, isAttribute). It would remove the hazard the round 3 findings came from, but it is a tokenizer change outside this slice's scope and the emulation now runs on every token-entry path with the synthetic-token case excluded; it is better taken as a follow-up Task than as a widening of this PR. No simpler repair exists for mechanism 1: the converter already owns the reporting, and what remains is the enumeration of which lowerer readings cover a body, now covering both define-member spellings, closures and alternator arms.\n- Residual risk: 77fcc6ed6 (4 code lines in validateAssignmentValue.ts plus 9 test lines) has had no independent review. The attribute emulation mutates the `@` token's location in the parser; fix3 traced every reader of those locations and both token entries now run it, but a third entry path added later would need the same call. Define property values and Luau-value alternators keep their older, non-Luau reporting, which the PR discloses and which is on the base too. Six out-of-scope findings are listed in the PR's Notes and are not yet filed.\n- Verification coverage: luauUnreadToken.test.ts (44 tests, each unread case compared with the official Luau parser's message and range), red/green for 77fcc6ed6 against 0a820cb1f (1 failed / 43 passed red, 44 green, restored and hash-matched), local runs on 77fcc6ed6 of TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14, tsc clean, the served VS Code workbench showing squiggles only at `@5` for both member spellings, and CI on 77fcc6ed6 all green (29 passed, 4 skipped). Rounds 1 and 2's undirected reviewers ran the changed tests on the merge base (70 and 72 failed red) and round 3's undirected reviewer read the head's Test Suite (526 files, 12,931 tests) and Typecheck (41/41) runs.\n- What another round would establish: A round 4 would independently read the four-line condition in 77fcc6ed6 and take one more pass over the attribute emulation and the converter-backed ownership. The findings have shrunk to edges of the previous round's corrections (round 3: two emulation edges and one missing spelling in an ancestor list), so a further round is expected to find at most another edge of the same two mechanisms, which the tokenizer follow-up addresses at the root for mechanism 2.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: All 14 findings across three rounds are accepted and fixed with red/green-verified tests, and nothing is open. The defect classes converged to edge cases of the two mechanisms rather than new root causes, round 1's correction removed the duplicate ownership implementation, and the only unreviewed change is a narrow condition that extends an existing rule to the second spelling of the same construct, verified by test, by red/green and in the served workbench, with CI green on the head. Under the coordinator's rule for this Feature, unforeseeable edge cases merge and root-cause simplifications become their own tickets: the tokenizer-level attribute lexeme is filed as a follow-up rather than widening a 42-file slice that three dependent slices wait on. Next: Accept head 77fcc6ed6 unreviewed; the writer files the six out-of-scope findings and the tokenizer attribute-lexeme simplification as tickets and sends its final report without marking the PR ready; the coordinator marks the PR ready naming this decision and merges it through the integration gate.\n- Verification on the head: red/green for 77fcc6ed6 against 0a820cb1f: 1 failed / 43 passed red, 44 passed green, worktree restored and hash-matched; luauUnreadToken 44, TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14 passing on 77fcc6ed6; tsc --noEmit -p packages/sparkdown clean; served VS Code workbench on 77fcc6ed6: both define-member spellings show Luau's two errors at @5 and nothing at the =, story line after the define plain (screenshot inspected by the writer); CI on 77fcc6ed6: 29 checks passed, 4 skipped, none failed or pending.\n- This is the coordinator's exception for an orchestrated Feature: not ordinary readiness and not an independent review. Reviewed code ends at `0a820cb1f43026402f8affa25240491729ee5eee`; the range above is accepted unreviewed. It applies to head `77fcc6ed63a764a85a71d5569838241ccf5c1438` only: any later push invalidates it and needs a new checkpoint.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"41203445\",\n \"kind\": \"accept-unreviewed\",\n \"feature\": 1904,\n \"ticket\": 1905,\n \"pr\": 1927,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-16T19:24:11.885Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"0a820cb1f43026402f8affa25240491729ee5eee\",\n \"head\": \"77fcc6ed63a764a85a71d5569838241ccf5c1438\",\n \"range\": {\n  \"from\": \"0a820cb1f43026402f8affa25240491729ee5eee\",\n  \"to\": \"77fcc6ed63a764a85a71d5569838241ccf5c1438\",\n  \"base\": \"e7fffe0c03aaaa808e4bc1e9ebacd50f859fed9e\",\n  \"commits\": [\n   \"77fcc6ed63a764a85a71d5569838241ccf5c1438\"\n  ],\n  \"diffSha256\": \"e2d8190969f954eb38cc7fc218d7f8383254df7ce7c1db99ec20f4335cecb83d\"\n },\n \"reports\": [\n  {\n   \"comment\": 6215770014,\n   \"round\": 1,\n   \"reviewerId\": \"gram\",\n   \"adjudication\": 6216603174\n  },\n  {\n   \"comment\": 6216823012,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6216854758\n  },\n  {\n   \"comment\": 6217199688,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6217992013\n  },\n  {\n   \"comment\": 6222666060,\n   \"round\": 2,\n   \"reviewerId\": \"fix2\",\n   \"adjudication\": 6222679619\n  },\n  {\n   \"comment\": 6218944652,\n   \"round\": 2,\n   \"reviewerId\": \"undirected2\",\n   \"adjudication\": 6219867901\n  },\n  {\n   \"comment\": 6220119935,\n   \"round\": 3,\n   \"reviewerId\": \"fix3\",\n   \"adjudication\": 6220503066\n  },\n  {\n   \"comment\": 6221175710,\n   \"round\": 3,\n   \"reviewerId\": \"undirected3\",\n   \"adjudication\": 6221888891\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"authority\": \"/orchestrate-feature #1904\",\n \"assessment\": {\n  \"mechanisms\": \"Two mechanisms produced the 13 blocking findings. (1) Ownership of an unread token's diagnostics between the validator and the converter: round 1's gram findings 1-4 and undirected findings 1-2, round 2's fix2 finding and undirected2 finding 1, and round 3's undirected3 finding. Round 1's correction replaced the validator's guess (ownedByUnreadReading) with the converter recording the statements it marks as Luau's (Parser.unreadStatements), which removed the second implementation rather than patching instances; the later findings in this class were each one body kind the readers did not yet cover (bracketed alternator arms, a closure read as a chunk, the define method's explicit `function f()` spelling), and the last of them is a one-line ancestor condition. (2) Luau's attribute lexeme emulated in the parser (introduced by round 2's correction to undirected2 finding 2): round 3's fix3 findings 1 and 2 were a zero-width synthetic `end` taken as a glued name and a second token-entry path (interpolations) that skipped the emulation; the fix makes both entries call readAttributeLexemes and excludes zero-width tokens from adjacency. Round 1's gram finding 5 (grammar lookahead justification) stands alone and was fixed by restructuring the rule.\",\n  \"regressions\": \"Corrections introduced three defects, all caught by review or the writer: round 2's 5b4a980b2 dropped the missing-type error for a grammar-read `@native` (self-caught, fixed in 23f8b6b48), and round 3's fix3 findings were both edges of the attribute emulation that 5b4a980b2 added. The ownership replacement in round 1's correction (af9645a2f) introduced none that later rounds found; round 2's and round 3's ownership findings were coverage gaps of the same rule, not regressions. Each correction since round 1 was red/green-verified against the head before it, and the unreviewed 77fcc6ed6 is one ancestor condition plus a test, verified the same way; stability is adequate and the verification practice held throughout.\",\n  \"repairOptions\": \"The writer names a simpler repair for mechanism 2: have the converter's Tokenizer emit Luau's attribute lexeme (`@name`, `@[`, bare `@`) as one token, removing the parser-side emulation and its location mutation (attributesStart, parseAttributes, isAttribute). It would remove the hazard the round 3 findings came from, but it is a tokenizer change outside this slice's scope and the emulation now runs on every token-entry path with the synthetic-token case excluded; it is better taken as a follow-up Task than as a widening of this PR. No simpler repair exists for mechanism 1: the converter already owns the reporting, and what remains is the enumeration of which lowerer readings cover a body, now covering both define-member spellings, closures and alternator arms.\",\n  \"residualRisk\": \"77fcc6ed6 (4 code lines in validateAssignmentValue.ts plus 9 test lines) has had no independent review. The attribute emulation mutates the `@` token's location in the parser; fix3 traced every reader of those locations and both token entries now run it, but a third entry path added later would need the same call. Define property values and Luau-value alternators keep their older, non-Luau reporting, which the PR discloses and which is on the base too. Six out-of-scope findings are listed in the PR's Notes and are not yet filed.\",\n  \"coverage\": \"luauUnreadToken.test.ts (44 tests, each unread case compared with the official Luau parser's message and range), red/green for 77fcc6ed6 against 0a820cb1f (1 failed / 43 passed red, 44 green, restored and hash-matched), local runs on 77fcc6ed6 of TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14, tsc clean, the served VS Code workbench showing squiggles only at `@5` for both member spellings, and CI on 77fcc6ed6 all green (29 passed, 4 skipped). Rounds 1 and 2's undirected reviewers ran the changed tests on the merge base (70 and 72 failed red) and round 3's undirected reviewer read the head's Test Suite (526 files, 12,931 tests) and Typecheck (41/41) runs.\",\n  \"nextRoundValue\": \"A round 4 would independently read the four-line condition in 77fcc6ed6 and take one more pass over the attribute emulation and the converter-backed ownership. The findings have shrunk to edges of the previous round's corrections (round 3: two emulation edges and one missing spelling in an ancestor list), so a further round is expected to find at most another edge of the same two mechanisms, which the tokenizer follow-up addresses at the root for mechanism 2.\",\n  \"rationale\": \"All 14 findings across three rounds are accepted and fixed with red/green-verified tests, and nothing is open. The defect classes converged to edge cases of the two mechanisms rather than new root causes, round 1's correction removed the duplicate ownership implementation, and the only unreviewed change is a narrow condition that extends an existing rule to the second spelling of the same construct, verified by test, by red/green and in the served workbench, with CI green on the head. Under the coordinator's rule for this Feature, unforeseeable edge cases merge and root-cause simplifications become their own tickets: the tokenizer-level attribute lexeme is filed as a follow-up rather than widening a 42-file slice that three dependent slices wait on.\",\n  \"next\": \"Accept head 77fcc6ed6 unreviewed; the writer files the six out-of-scope findings and the tokenizer attribute-lexeme simplification as tickets and sends its final report without marking the PR ready; the coordinator marks the PR ready naming this decision and merges it through the integration gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"verification\": [\n   \"red/green for 77fcc6ed6 against 0a820cb1f: 1 failed / 43 passed red, 44 passed green, worktree restored and hash-matched\",\n   \"luauUnreadToken 44, TrailingCommaReassignment 101, TrailingCommaValueList 68, listCommaToken 7, MultilineAssignment1306 46, DefineUnterminated 27, invalidStatementInFunctionBody 105, typecheckSparkdown 14 passing on 77fcc6ed6; tsc -\\u002dnoEmit -p packages/sparkdown clean\",\n   \"served VS Code workbench on 77fcc6ed6: both define-member spellings show Luau's two errors at @5 and nothing at the =, story line after the define plain (screenshot inspected by the writer)\",\n   \"CI on 77fcc6ed6: 29 checks passed, 4 skipped, none failed or pending\"\n  ],\n  \"findings\": [\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"unread tokens in a define body had no diagnostic owner\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"an unread token in a nested function hid an outer type error\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"a comment before an unread follower restored a duplicate, misranged validation\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"method diagnostics used an artificial EOF instead of the written closer\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6215770014,\n    \"finding\": \"the type-property lookahead lacked its structural justification\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6216823012,\n    \"finding\": \"the PR's description of the dangling-accessor check was backwards (optional)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6217199688,\n    \"finding\": \"bracketed alternator arms lost their Luau errors\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6217199688,\n    \"finding\": \"unread ownership outlived Luau's recovery\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6222666060,\n    \"finding\": \"a Sparkle closure's recovery statement got both readers' errors (report reposted verbatim for fix2 after its own post hit the rate limit; first posted as 6218265947, adjudicated in 6218526861 and 6222679619)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6218944652,\n    \"finding\": \"a Sparkle closure was read as a top-level chunk\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6218944652,\n    \"finding\": \"an unread @ was not read as Luau's attribute lexeme\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6220119935,\n    \"finding\": \"a closure's synthetic end became an @end attribute at an unspaced brace\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6220119935,\n    \"finding\": \"interpolation token streams bypassed the attribute lexeme emulation\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6221175710,\n    \"finding\": \"a define's explicit function f() member missed the missing-value deferral\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "eb6490d27b8c02bacaf410396e5dc4942868ea0cc64a86adfb2e16203eac7856",
+          "blockSha256": "582829d932aa9ac1c8adc0d3b691de8ca800057d34478318a1564eca5d99251f",
+          "published": {
+            "comment": 6223037563,
+            "time": "2026-10-16T19:24:26.369Z",
+            "headAtPublish": "77fcc6ed63a764a85a71d5569838241ccf5c1438"
           }
         }
       ]
@@ -447,7 +1097,18 @@
       "onMain": true
     }
   ],
-  "decisions": [],
+  "decisions": [
+    {
+      "pr": 1927,
+      "url": "https://github.com/ImpowerGames/impower/pull/1927#issuecomment-6223037563",
+      "kind": "review-checkpoint accept-unreviewed",
+      "ticket": 1905,
+      "id": "41203445",
+      "round": 3,
+      "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
+      "time": "2026-10-16T19:24:26.369Z"
+    }
+  ],
   "diskRecoveries": [],
   "verifications": [],
   "work": {
@@ -456,7 +1117,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T19:16:59.723Z",
+      "observedAt": "2026-10-16T19:25:21.577Z",
       "held": true,
       "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
       "remoteHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
@@ -1424,6 +2085,54 @@
       "time": "2026-10-16T19:16:58.421Z",
       "event": "check-in",
       "outcome": "#1905 writer (second resume) completed fix2's journal (completed, report-posted, finished) and posted the reposted report and adjudication (PR #1927 now 23 comments); writer still running on the filing steps; checkpoint evidence being re-gathered"
+    },
+    {
+      "time": "2026-10-16T19:21:08.449Z",
+      "event": "checkpoint-intent",
+      "ticket": 1905,
+      "id": "8ceff1f0",
+      "kind": "accept-unreviewed",
+      "round": 3,
+      "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438"
+    },
+    {
+      "time": "2026-10-16T19:21:45.026Z",
+      "event": "checkpoint-abandoned",
+      "ticket": 1905,
+      "id": "8ceff1f0"
+    },
+    {
+      "time": "2026-10-16T19:21:45.575Z",
+      "event": "invocation",
+      "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+      "replaced": {
+        "text": "C:/Program Files/Git/orchestrate-feature #1904",
+        "merging": "coordinator"
+      },
+      "merging": "coordinator"
+    },
+    {
+      "time": "2026-10-16T19:24:11.885Z",
+      "event": "checkpoint-intent",
+      "ticket": 1905,
+      "id": "41203445",
+      "kind": "accept-unreviewed",
+      "round": 3,
+      "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438"
+    },
+    {
+      "time": "2026-10-16T19:24:26.369Z",
+      "event": "checkpoint-published",
+      "ticket": 1905,
+      "id": "41203445",
+      "comment": 6223037563
+    },
+    {
+      "time": "2026-10-16T19:25:19.528Z",
+      "event": "result",
+      "ticket": 1905,
+      "pr": 1927,
+      "reviewedHead": "0a820cb1f43026402f8affa25240491729ee5eee"
     }
   ]
 }
