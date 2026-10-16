@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 248,
-  "previous": "32dcf977343f1ba81014decd358d148c19ef4c93",
+  "seq": 249,
+  "previous": "5c0bca86437fe0e87365da1e45db8220bd08a697",
   "snapshotParents": [],
-  "time": "2026-10-16T17:26:47.895Z",
+  "time": "2026-10-16T17:29:03.996Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "closing the Feature (confirmed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 181,
+    "recordRevision": 182,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2645,9 +2645,15 @@
       "ticket": 1893,
       "pr": 1893,
       "expectHead": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T17:26:45.431Z",
-      "evidence": "verification 4c8c8717"
+      "evidence": "Feature #1893 reads back closed, with the final report in comment 6221026246",
+      "settled": "2026-10-16T17:29:00.466Z",
+      "comment": {
+        "id": 6221026246,
+        "url": "https://github.com/ImpowerGames/impower/issues/1893#issuecomment-6221026246",
+        "reused": false
+      }
     }
   ],
   "decisions": [],
@@ -2925,7 +2931,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T17:26:47.887Z",
+      "observedAt": "2026-10-16T17:29:03.983Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -3164,16 +3170,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:02:43.679Z",
-      "event": "acknowledged",
-      "ticket": 1614,
-      "confirmed": {
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "permissionMode": "bypassPermissions"
-      }
-    },
     {
       "time": "2026-10-16T01:02:53.527Z",
       "event": "verified",
@@ -3823,6 +3819,12 @@
       "id": "96fca801",
       "kind": "close",
       "pr": 1893
+    },
+    {
+      "time": "2026-10-16T17:29:00.466Z",
+      "event": "operation-outcome",
+      "id": "96fca801",
+      "state": "confirmed"
     }
   ]
 }
