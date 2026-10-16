@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 23,
-  "previous": "869667f320d599abb8a1814ab6af420de70a3ac3",
+  "seq": 24,
+  "previous": "ad417924b1592dd3f7248c15db9b143f76b1ce34",
   "snapshotParents": [],
-  "time": "2026-10-16T08:48:27.360Z",
+  "time": "2026-10-16T09:18:32.915Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 38,
+    "recordRevision": 39,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -429,7 +429,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T08:48:26.586Z",
+      "observedAt": "2026-10-16T09:18:32.126Z",
       "held": true,
       "head": "b457d0aa5480939884e63198a5c7147b56edbef8",
       "remoteHead": "a322a5d0a067c3f5070e314d4b0287a1d8e048b5",
@@ -934,6 +934,11 @@
     },
     {
       "time": "2026-10-16T08:48:25.266Z",
+      "event": "check-in",
+      "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
+    },
+    {
+      "time": "2026-10-16T09:18:30.786Z",
       "event": "check-in",
       "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
     }
