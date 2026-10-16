@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 108 (this commit), 2026-10-16T00:19:41.755Z, after the intent before a side effect. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 109 (this commit), 2026-10-16T00:21:50.320Z, after the merge of PR #1914 (confirmed). Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,10 +12,12 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #457
 
 - claude-cli claude-opus-5-5 at medium, process 21264 on DESKTOP-726EO47
+- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics removes it once its coordinator and child are confirmed gone
 - review job pr-1911/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 71b26c87a, completed {"ax":1} of planned ["ax","bound","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","bound","undirected"]), last event finished
 - review job pr-1911/round-1/launch-bound-1 on DESKTOP-726EO47: round 1 reviewed a18f82340, completed {"ax":1,"bound":1} of planned ["ax","bound","undirected"]; last launched reviewer bound attempt 1 of round 1 (planned ["ax","bound","undirected"]), last event finished
 - review job pr-1911/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 6a8847302, completed {"ax":1,"bound":1,"undirected":1} of planned ["ax","bound","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","bound","undirected"]), last event finished
 - review job pr-1911/round-2/launch-bound-1 on DESKTOP-726EO47: round 2 reviewed 178637495, completed {"bound":1} of planned ["bound","undirected"]; last launched reviewer bound attempt 1 of round 2 (planned ["bound","undirected"]), last event finished
+- review job pr-1911/round-2/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 2 (planned ["bound","undirected"]), last event identified
 
 ## #1299
 
@@ -27,7 +29,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 - claude-cli claude-opus-5-5 at low, process 21792 on DESKTOP-726EO47
 - review job pr-1916/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed fd81f7e1b, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["undirected"]), last event finished
-
-## Unsettled operations
-
-- e7e6e291: merge of PR #1914 at 83217dfd4742fdb7e2df0034950015bfcb3edd25, intent; settle it with checkpoint.mjs reconcile-operations before any retry
