@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 64,
-  "previous": "b3ef44e4d337199d30fc8bfeefe609420e15b0d5",
+  "seq": 65,
+  "previous": "3a347e2ed721e00da159d3741ff95e0ece4d03e4",
   "snapshotParents": [],
-  "time": "2026-10-16T18:26:51.887Z",
+  "time": "2026-10-16T18:27:38.967Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #851",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 52,
+    "recordRevision": 53,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -99,7 +99,25 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T18:27:34.673Z",
+          "report": {
+            "assignment": "432efd6d-c055-4f07-a9f3-7b88b1ab2f3a",
+            "source": "cross-session message from the writer (peer impower-00, session title PERF #851: flow scoped renumbering) at 2026-10-16 ~18:40Z, confirmed against the SendMessage call and the final result line of launch-851 out.jsonl (1500 lines, result success, 246 turns)",
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1959,
+            "reviewedHead": "419269e63a2599d5ae339c92645a1e015cc7ba16",
+            "rounds": "2 of the default cap of 3, all gpt-6.1-sol at high from .claude/reviewer-defaults.json (native-codex-jsonl via start-coordinator). Round 1 on 2928727: reviewer incremental (exit 0, report 6221134958, no findings, adjudication 6221174298) and reviewer undirected (exit 0, report 6221555488, one optional quality finding accepted and fixed in 419269e, adjudication 6221872690). Round 2 on 419269e: reviewer undirected2 (exit 0, report 6222000505, no findings, adjudication 6222026713). Round-state comments 6220962871 and 6221884313.",
+            "findings": "None",
+            "verification": "The one accepted finding (the collector's SYNTH spelled the canonical pattern inline) shares no mechanism with anything else; its correction introduced no new defect (regex source proven identical, confirmed by round 2); no broader or simpler repair indicated. Fix numbers __synth and __group names within the top-level flow each name first stands in (__synth$<flow>$<n>), with the canonical shape shared as NUMBERED_SYNTHETIC_NAME across its seven readers. New test packages/sparkdown/src/tests/program/flowScopedRenumbering.test.ts: redgreen ok on both heads (merge base 7ae0fffa2), red 'expected 11 to be less than or equal to 2' and a name-list mismatch, green 3/3. Locally 8 related files passed at 2928727 (126 tests) and 6 at 419269e (96 tests); filtered sparkdown typecheck clean. Live web-editor incremental edit at both heads, screenshots inspected. Measurement on ticket comment 6220925517 and the PR body: 12-scene fixture, continuation typed into scene 3, 11 chunks emitted before and 2 after; function typed into scene 3, 20 flows held renamed names before and 2 after, 18 statements re-resolved before and 0 after. Private project line 3514 preview-bench --structural is a control (no other continuation group): identical work and medians within noise.",
+            "ci": "On 419269e at report time: 25 passed (tsc/typecheck, build, sparkdown shards 1, 3 and 4, spark-engine 1/2, both spark-web-player shards), 2 pending (packages/sparkdown 2/4 and packages/spark-engine 2/2), 4 skipped by path filters, none failed. On 2928727 all four sparkdown shards and Typecheck passed.",
+            "next": "none from the writer unless a pending check fails. No changes after the reviewed commit; the PR body was updated with the CI, review and measurement record, no code changed. Writer notes: the id-<uuid> container sequence (matchedUuids) in the same pass is still numbered story-wide and excluded by the ticket; the brief's local_ id was unreachable by SendMessage (added to #510 problem F-6203550972, comment 6222040284); a duplicate empty allocation writer-851-T0086P exists under orchestrate-1940."
+          }
+        }
+      ]
     },
     "1637": {
       "owner": {
@@ -627,7 +645,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T18:26:49.344Z",
+      "observedAt": "2026-10-16T18:27:36.696Z",
       "held": true,
       "head": "419269e63a2599d5ae339c92645a1e015cc7ba16",
       "remoteHead": "419269e63a2599d5ae339c92645a1e015cc7ba16",
@@ -750,7 +768,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:26:49.344Z",
+      "observedAt": "2026-10-16T18:27:36.696Z",
       "held": true,
       "head": "78f865241113d8f9ebbc810fe500821defc75df0",
       "remoteHead": "78f865241113d8f9ebbc810fe500821defc75df0",
@@ -801,7 +819,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:26:49.344Z",
+      "observedAt": "2026-10-16T18:27:36.696Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1178,6 +1196,13 @@
       "time": "2026-10-16T18:21:48.902Z",
       "event": "check-in",
       "outcome": "no change: #851 (draft PR #1959, head 419269e63), #1637 (draft PR #1960) and #1881 writers running; #1798 done; no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T18:27:34.674Z",
+      "event": "result",
+      "ticket": 851,
+      "pr": 1959,
+      "reviewedHead": "419269e63a2599d5ae339c92645a1e015cc7ba16"
     }
   ]
 }
