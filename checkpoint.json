@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 201,
-  "previous": "4c60f8fa20f73c86a24ffcf7179ea2456ac50200",
+  "seq": 202,
+  "previous": "eca9eadebb07bd43c6ed49a14edfd11f2b1ee596",
   "snapshotParents": [],
-  "time": "2026-10-16T13:17:50.762Z",
+  "time": "2026-10-16T13:18:07.541Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 147,
+    "recordRevision": 148,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2105,7 +2105,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T13:17:49.574Z",
+      "observedAt": "2026-10-16T13:18:06.353Z",
       "held": true,
       "head": "dd52a20c018b545998f8e0071972727b907bbc10",
       "remoteHead": "dd52a20c018b545998f8e0071972727b907bbc10",
@@ -2140,7 +2140,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T13:17:49.574Z",
+      "observedAt": "2026-10-16T13:18:06.353Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2258,11 +2258,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:27:45.410Z",
-      "event": "check-in",
-      "outcome": "both writers running; draft PR #1910 (unit E) opened at f771ccc with six Closes lines, CI in progress; adopted and verified its writer for #1211 #1249 #1295 #1613 #1628; #1846 waits for capacity; no requests"
-    },
     {
       "time": "2026-10-15T22:46:19.529Z",
       "event": "result",
@@ -2959,6 +2954,11 @@
       "time": "2026-10-16T12:51:48.105Z",
       "event": "verified",
       "ticket": 1933
+    },
+    {
+      "time": "2026-10-16T13:18:04.990Z",
+      "event": "check-in",
+      "outcome": "no change: #1917 draft PR 1936 at dd52a20c0 in review round 1 (first reviewer launching, CI started); #1933 writer reproducing (its first reduction passed on base, comparing with the cumulative harness); #1934 waits for capacity; no requests"
     }
   ]
 }
