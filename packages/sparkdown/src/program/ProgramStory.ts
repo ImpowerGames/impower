@@ -381,6 +381,17 @@ interface SuspendedStep {
   running: RunningInstruction | null;
 }
 
+/** Told an issue the declarations' run raises or throws, as it does: the
+ *  declaration chunk running, whether the issue is a warning, and whether a
+ *  global of that name is declared yet. A chunk declares its globals one
+ *  after another, each after its value, so the first of its globals not yet
+ *  declared is the one whose value raised the issue. */
+export type DeclarationIssueListener = (
+  declarationChunk: number,
+  isWarning: boolean,
+  declared: (name: string) => boolean,
+) => void;
+
 /** What the engine of the program before hands the engine of the next one
  *  of the same game in place of a run of the declarations, when the next
  *  program runs the same declarations (`ProgramStory.declarationsFor`,
@@ -476,9 +487,12 @@ export class ProgramStory implements StoryEngine {
    *  chunk without an error or a warning, as one handed on to the next
    *  engine must. */
   protected _declarationsClean = false;
-  /** Told the declaration chunk whose run failed (the constructor's
-   *  `onDeclarationFailure`). */
-  protected _onDeclarationFailure?: (declarationChunk: number) => void;
+  /** Told each issue the declarations' run raises or throws (the
+   *  constructor's `onDeclarationIssue`). */
+  protected _onDeclarationIssue?: DeclarationIssueListener;
+  /** The declaration chunk the declarations' run is running, or null when
+   *  it runs none. */
+  protected _declarationRunning: number | null = null;
 
   protected _state!: ProgramStoryState;
   protected _reader: BinaryProgramReader;
@@ -556,13 +570,13 @@ export class ProgramStory implements StoryEngine {
        *  `declarationsFor` gave for this root: the first state takes it over
        *  in place of running the declarations. */
       declarations?: CarriedDeclarations;
-      /** Told the id of the declaration chunk whose run raised an error or
-       *  threw, before the error is reported or rethrown: a compile reports
-       *  it at that declaration (`ChunkStore.build`). */
-      onDeclarationFailure?: (declarationChunk: number) => void;
+      /** Told each error or warning the declarations' run raises, and an
+       *  error it throws, as it raises or throws it: a compile reports the
+       *  issue at the declaration (`ChunkStore.build`). */
+      onDeclarationIssue?: DeclarationIssueListener;
     } = {},
   ) {
-    this._onDeclarationFailure = options.onDeclarationFailure;
+    this._onDeclarationIssue = options.onDeclarationIssue;
     this._reader = new BinaryProgramReader(root);
     this.history = options.history ?? new BeatHistory(options.rewindBeats ?? 128);
     if (options.rewindBeats !== undefined) {
@@ -2090,6 +2104,19 @@ export class ProgramStory implements StoryEngine {
     this.AddError(message, true);
   }
 
+  /** Tells the declarations' listener of an issue raised while a
+   *  declaration chunk runs, with that chunk and which globals the run has
+   *  declared so far, which names the global whose value raised it. */
+  protected tellDeclarationIssue(isWarning: boolean): void {
+    if (this._declarationRunning === null || !this._onDeclarationIssue) {
+      return;
+    }
+    const variables = this._state.variablesState;
+    this._onDeclarationIssue(this._declarationRunning, isWarning, (name) =>
+      variables.GlobalVariableExistsWithName(name),
+    );
+  }
+
   /** Records an error or warning at the instruction running, prefixed with
    *  its script and line as the object engine prefixed it
    *  (`Story.AddError`). An error a callback raised names the instruction
@@ -2119,6 +2146,7 @@ export class ProgramStory implements StoryEngine {
     } else {
       message = `RUNTIME ${kind}: ${message}`;
     }
+    this.tellDeclarationIssue(isWarning);
     this._state.AddError(message, isWarning, raised);
     if (!isWarning) this._state.ForceEnd();
   }
@@ -3617,10 +3645,8 @@ export class ProgramStory implements StoryEngine {
     const beatLog = this.beatLog;
     this.beatLog = null;
     const depth = state.callStack.elements.length;
-    // The declaration chunk running, which an error stops the run at.
-    let running: number | null = null;
     for (const chunk of this.root.initialization) {
-      running = chunkId(chunk);
+      this._declarationRunning = chunkId(chunk);
       const at = this.root.position(chunkId(chunk));
       if (!at) {
         // The root places every declaration chunk it lists. One it cannot
@@ -3655,7 +3681,8 @@ export class ProgramStory implements StoryEngine {
         this.declarationsRun += 1;
       } catch (e) {
         if (!(e instanceof StoryException)) {
-          this._onDeclarationFailure?.(running);
+          this.tellDeclarationIssue(false);
+          this._declarationRunning = null;
           throw e;
         }
         this.AddError(
@@ -3670,9 +3697,7 @@ export class ProgramStory implements StoryEngine {
         break;
       }
     }
-    if (state.hasError && running !== null) {
-      this._onDeclarationFailure?.(running);
-    }
+    this._declarationRunning = null;
     this.pauseBeforeEvaluatingConditions = pause;
     this.onExecute = onExecute;
     this.executedLog = executedLog;

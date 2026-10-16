@@ -110,6 +110,35 @@ describe("a compile whose statement throws", () => {
     expect(errorsOf(program).map(([line]) => line)).toEqual([1]);
   });
 
+  it("reports a store inside a function body at the store, not the function", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const value of ['string.rep("", math.huge)', "1 // nil"]) {
+      const { program } = compileScript(
+        `function holder()\n  store b = 1\n  store a = ${value}\n  return 0\nend\nHello.\n`,
+      );
+      expect(program.chunks, value).toBeUndefined();
+      expect(errorsOf(program).map(([line]) => line), value).toEqual([2]);
+    }
+  });
+
+  it("reports that store beside an error elsewhere in the same function", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      'function holder()\n  store a = string.rep("", math.huge)\n  match 1\n    case 1\n      One.\n  end\n  return 0\nend\nHello.\n',
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line)).toContain(1);
+  });
+
+  it("reports a store whose value raises a warning inside a function it calls at the store", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      'function trigger()\n  display({text = "A", continues = true})\n  return 0\nend\n\nstore a = trigger()\n',
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line)).toEqual([5]);
+  });
+
   it("reports a compile whose memo retries run out", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
