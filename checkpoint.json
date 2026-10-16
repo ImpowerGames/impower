@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 84,
-  "previous": "b80ed7846f18368a7fec52d5945c47e45ac9bdd5",
+  "seq": 85,
+  "previous": "9e0d996b9a34186a4eb5f5825dc09028a2de0669",
   "snapshotParents": [],
-  "time": "2026-10-16T19:38:51.420Z",
+  "time": "2026-10-16T19:39:01.223Z",
   "kind": "auto",
-  "transition": "acknowledged of #1908",
+  "transition": "acknowledged of #1924",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 88,
+    "recordRevision": 89,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1029,7 +1029,18 @@
           "time": "2026-10-16T19:37:59.314Z",
           "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
         },
-        "since": "2026-10-16T19:37:59.314Z"
+        "since": "2026-10-16T19:37:59.314Z",
+        "sessionId": "18a46342-5e1d-4f43-b931-ad056aac78a7",
+        "acknowledged": {
+          "time": "2026-10-16T19:38:58.975Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from impower-fa on 2026-10-16 naming assignment cb97a4cf with claude-opus-5-5, high (CLAUDE_EFFORT=high), bypassPermissions, sent by session title; out.jsonl init line of launch-1924 reports model claude-opus-5-5, bypassPermissions, session 18a46342",
+          "deliveryId": "969d14a9"
+        }
       },
       "pending": null,
       "history": [],
@@ -1465,7 +1476,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-16T19:38:51.419Z",
+      "observedAt": "2026-10-16T19:39:01.222Z",
       "held": true,
       "exists": false
     },
@@ -1474,7 +1485,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
       "branch": "test/1908-luau-corpus-gate",
-      "observedAt": "2026-10-16T19:38:51.419Z",
+      "observedAt": "2026-10-16T19:39:01.222Z",
       "held": true,
       "exists": false
     },
@@ -1483,7 +1494,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-16T19:38:51.419Z",
+      "observedAt": "2026-10-16T19:39:01.222Z",
       "held": true,
       "exists": false
     }
@@ -2335,6 +2346,16 @@
       "confirmed": {
         "model": "claude-opus-5-5",
         "effort": "medium",
+        "permissionMode": "bypassPermissions"
+      }
+    },
+    {
+      "time": "2026-10-16T19:38:58.976Z",
+      "event": "acknowledged",
+      "ticket": 1924,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "high",
         "permissionMode": "bypassPermissions"
       }
     }
