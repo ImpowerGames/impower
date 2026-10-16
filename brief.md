@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 315 (this commit), 2026-10-16T18:13:47.250Z, after the merge of PR #1955 (failed). Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 316 (this commit), 2026-10-16T18:15:26.178Z, after the intent before a side effect. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -28,3 +28,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 - claude-cli claude-opus-5-5 at low, process 9444 on DESKTOP-726EO47
 - a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill removes it once its coordinator and child are confirmed gone
+
+## Unsettled operations
+
+- e61e0c20: merge of PR #1955 at 4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33, intent; settle it with checkpoint.mjs reconcile-operations before any retry
