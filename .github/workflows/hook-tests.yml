@@ -4,10 +4,11 @@ name: Hook Tests
 # runs, so it always reports; the workflow has no trigger path filter, because
 # a filtered-out workflow reports nothing and leaves the pull request blocked.
 # Two `changes` jobs decide which tier of standalone checks needs to run: the
-# skills tier (skill prose, hooks and GitHub scripts, about a minute) on any
-# agent-tooling change, and the drivers tier (worktree, browser, bench and
-# reviewer-process checks, ten minutes or more) only when the code those
-# checks drive changes. The gate passes when every leg passed or was skipped
+# skills tier (skill prose, hooks and GitHub scripts, about a minute on Linux
+# and ten on Windows) on any agent-tooling change, and the drivers tier
+# (worktree, browser, bench and reviewer-process checks, run four at a time)
+# only when the code those checks drive changes; a change to a workflow file
+# or docs alone does not run it. The gate passes when every leg passed or was skipped
 # as irrelevant, and fails when any failed or when detection itself failed.
 
 on:
@@ -46,10 +47,16 @@ jobs:
         .github/workflows/changed-paths.yml
 
   # The drivers tier reads these paths: the driver skills' own scripts and
-  # SKILL.md files, everything under scripts/, the reviewer prompt template
-  # the prompt builder tests, the generated reviewer definitions, and the
-  # package manifests and ignore file the link and test-suite checks read.
-  # The filing preservation check also reads the hooks and their adapter wiring.
+  # SKILL.md files, the scripts/ tree minus what no drivers-tier check reads
+  # (the notifier has its own workflow, the bench TypeScript sources run
+  # through the workspace install the tier does not have, the lowerer baseline
+  # belongs to the typecheck workflow, and the two unreferenced scripts), the
+  # reviewer prompt template the prompt builder tests, the generated reviewer
+  # definitions, and the package manifests and ignore file the link and
+  # test-suite checks read. The filing preservation check also reads the hooks
+  # and their adapter wiring. The Test Suite workflow is read only by the
+  # skills-tier checks under .github/scripts, so it is not listed here; the two
+  # workflow files that define this leg are, so a change to the leg runs it.
   driver-changes:
     uses: ./.github/workflows/changed-paths.yml
     with:
@@ -66,12 +73,16 @@ jobs:
         .claude/reviewer-models.json
         .codex/**
         scripts/**
+        !scripts/agent-notification-alerts/**
+        !scripts/bench/*.ts
+        !scripts/lowerer-conventions-baseline.json
+        !scripts/dev-preview.mjs
+        !scripts/transplant-desktop-sessions.ps1
         .gitignore
         package.json
         vscode-sparkdown/package.json
         vscode-sparkdown/scripts/f5.mjs
         .vscode/tasks.json
-        .github/workflows/test-suite.yml
         .github/workflows/hook-tests.yml
         .github/workflows/changed-paths.yml
 
@@ -125,8 +136,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows completed all checks near 30m; allow setup/teardown margin.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 40 || 30 }}
+    # The runner launches up to four checks at a time (the hosted runners'
+    # core count). Serially, Windows took 34m and Linux 5m on run
+    # 38904176418; the parallel durations are recorded on #1937, and the
+    # bounds below allow margin over them.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 25 || 15 }}
     steps:
       - uses: actions/checkout@v4
         with:
