@@ -140,6 +140,7 @@ try {
     pull: (pr) => { if (gh.readFail > 0) { gh.readFail--; throw new Error("HTTP 502 while reading the PR"); } return structuredClone(gh.pulls.get(pr)); },
     comments: (n) => { gh.onComments?.(n); return structuredClone(gh.comments.get(n) ?? []); },
     protection: () => structuredClone(gh.protection),
+    mainRuns: () => { if (gh.mainRunsFail) throw new Error(gh.mainRunsFail); return structuredClone(gh.mainRuns ?? []); },
     merge: (pr, head) => {
       gh.mergeCalls.push(ig.mergeArgs(REPO, pr, head));
       gh.beforeMerge?.(pr, head);
@@ -364,17 +365,37 @@ try {
   blocked(gate(41, noReport), /holds no writer report for PR #141/, "no writer report");
   assert.ok(gate(41).admitted);
 
-  // Main advances: the head no longer contains it, so integration is checked
-  // again on a head that merges it. A clean merge of main keeps the review.
-  advanceMain("other.txt", "another PR\n", "feat: another PR");
-  blocked(gate(41), /main has moved to .* which head .* does not contain/, "target-branch advancement");
+  // Main advances: the head no longer contains it, and the gate still admits
+  // it, naming the main its CI covered; main's own run after the merge is the
+  // integration check. A clean merge of main keeps the review and the head
+  // then covers main again.
+  const mainBefore = git(src, "rev-parse", "origin/main");
+  const mainAfter = advanceMain("other.txt", "another PR\n", "feat: another PR");
+  g41 = gate(41);
+  assert.deepEqual([g41.admitted, g41.containsMain, g41.ciMain, g41.originMain], [true, false, mainBefore, mainAfter], `a head behind main is admitted and the main its CI covered is named: ${g41.blockers.join(" | ")}`);
+  // Main's own CI decides: a red main holds every merge, a cancelled newer
+  // run says nothing, a pending run on the newest main does not hold it, and
+  // unreadable runs do not hold it either.
+  const mainRun = (more) => ({ id: 1, headSha: mainAfter, status: "completed", conclusion: "success", createdAt: at(), url: "https://github.com/x/y/actions/runs/1", ...more });
+  gh.mainRuns = [mainRun({ conclusion: "failure" })];
+  blocked(gate(41), /main's own CI is red: the latest completed push run of Test Suite on main concluded failure at .*; no merge lands on a red main/, "a red main");
+  gh.mainRuns = [mainRun({ conclusion: "failure" }), mainRun({ id: 2, conclusion: "cancelled" })];
+  blocked(gate(41), /main's own CI is red/, "a cancelled newer run does not clear a red main");
+  gh.mainRuns = [mainRun({ conclusion: "failure" }), mainRun({ id: 2 })];
+  assert.deepEqual([gate(41).admitted, gate(41).mainCi.verdict], [true, "green"], "a later green run clears it");
+  gh.mainRuns = [mainRun({ id: 3, status: "in_progress", conclusion: "" })];
+  assert.deepEqual([gate(41).admitted, gate(41).mainCi.verdict], [true, "none"], "a pending run on the newest main does not hold the gate");
+  gh.mainRunsFail = "HTTP 502 while listing runs";
+  assert.deepEqual([gate(41).admitted, gate(41).mainCi.verdict], [true, "none"], "unreadable runs do not hold the gate");
+  gh.mainRunsFail = null;
+  gh.mainRuns = [mainRun()];
   git(worktrees[41], "fetch", "-q", "origin");
   git(worktrees[41], "merge", "-q", "--no-edit", "origin/main");
   const h41m = push(41);
   setHead(41, h41m);
   g41 = gate(41);
   trace("gate-41-after-main-merge", g41);
-  assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince], [true, "reviewed", h41, [h41m]], "a clean merge of main on the reviewed head is admitted, and named");
+  assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince, g41.containsMain, g41.ciMain], [true, "reviewed", h41, [h41m], true, mainAfter], "a clean merge of main on the reviewed head is admitted, and named");
 
   // The plan: #41 merges through the gate once its writer is settled; #42
   // waits for it. Under stop-at-ready the same PR waits for the maintainer.
@@ -398,10 +419,11 @@ try {
   assert.deepEqual([unscoped.merged, unscoped.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], unscoped.evidence);
   assert.match(unscoped.evidence, /not run: #41 is not a sub-issue of Feature #40/);
   // Main moves while the intent is saved: the gate runs again after the save
-  // and stops the merge, since the admitted head no longer contains main.
+  // and stops the merge, since the intent named another main; the gate is
+  // run again, which costs seconds, not a CI run.
   const moved = merge(41, recordFile, "local_coord", src, () => { advanceMain("other2.txt", "another PR\n", "feat: a PR merged during the save"); cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); });
   assert.deepEqual([moved.merged, moved.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], moved.evidence);
-  assert.match(moved.evidence, /not run: .*main has moved to .* which head .* does not contain/);
+  assert.match(moved.evidence, /not run: .*origin\/main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
   git(worktrees[41], "fetch", "-q", "origin");
   git(worktrees[41], "merge", "-q", "--no-edit", "origin/main");
   let h41n = push(41);
@@ -412,7 +434,7 @@ try {
   const catchUp = () => { git(worktrees[41], "fetch", "-q", "origin"); git(worktrees[41], "merge", "-q", "--no-edit", "origin/main"); h41n = push(41); setHead(41, h41n); };
   const duringReads = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onComments = () => { gh.onComments = null; advanceMain("during-reads.txt", "lands during the gate's reads\n", "feat: a PR merged during the second gate"); }; });
   assert.deepEqual([duringReads.merged, duringReads.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], duringReads.evidence);
-  assert.match(duringReads.evidence, /not run: .*main has moved to .* which head .* does not contain/);
+  assert.match(duringReads.evidence, /not run: .*origin\/main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
   catchUp();
   const beforeCall = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onFetch = (pr) => { if (pr === undefined) { gh.onFetch = null; advanceMain("before-call.txt", "lands just before the call\n", "feat: a PR merged just before the call"); } }; });
   assert.deepEqual([beforeCall.merged, beforeCall.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], beforeCall.evidence);
@@ -489,7 +511,7 @@ try {
   gh.mode = "main-moves";
   const merged42 = merge(42);
   assert.deepEqual([merged42.state, merged42.gate.disposition, merged42.baseMoved], ["confirmed", "accepted-unreviewed", true], merged42.evidence);
-  assert.match(merged42.evidence, /landed on [0-9a-f]{40}, not the admitted [0-9a-f]{40}, so CI never ran on that combination/);
+  assert.match(merged42.evidence, /landed on [0-9a-f]{40}, while its CI covered main [0-9a-f]{40}, so CI never ran on that combination before main's own run/);
 
   // --- #43: a changed head, a conflicting main merge, failed CI, a refused
   // merge and an interrupted one ----------------------------------------------
@@ -604,7 +626,7 @@ try {
   const settled = change((r) => cp.reconcileOperations(r, { snapshot: snapshotNow(dst), firstParent: (sha) => git(dst, "rev-parse", `${sha}^1`) }), dstRecord, "local_dst");
   trace("reconcile-43", settled);
   assert.deepEqual(settled.filter((s) => s.pr === 143).map((s) => s.state), ["confirmed"], "GitHub's merged state confirms the merge, with no second call");
-  assert.match(settled.find((s) => s.pr === 143).evidence, /it landed on [0-9a-f]{40}, not the admitted [0-9a-f]{40}, so CI never ran on that combination/, "the recovery keeps where the merge landed");
+  assert.match(settled.find((s) => s.pr === 143).evidence, /it landed on [0-9a-f]{40}, while its CI covered main [0-9a-f]{40}, so CI never ran on that combination before main's own run/, "the recovery keeps where the merge landed");
   assert.equal(run.readRecord(dstRecord).operations.find((o) => o.id === lost.operation).baseMoved, true);
   // Without the merge's first parent, the recovery says where it landed is unknown.
   const unread = structuredClone(run.readRecord(dstRecord));
@@ -701,9 +723,9 @@ try {
   trace("final-report", final.report);
   assert.equal(final.verdict, "complete");
   assert.match(final.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 4 clean merges of main \|/);
-  assert.match(final.report, /\| #42 \| delivered \| #142 \| .*; it landed on main `[0-9a-f]{9}`, not the admitted `[0-9a-f]{9}`, so CI never ran on that combination \|/, "a merge that landed on a main CI never checked is named");
+  assert.match(final.report, /\| #42 \| delivered \| #142 \| .*; it landed on main `[0-9a-f]{9}`, while its CI covered main `[0-9a-f]{9}`, so CI never ran on that combination before main's own run \|/, "a merge that landed on a main CI never checked is named");
   assert.match(final.report, new RegExp(`#42, PR #142: decision \`${decided.id}\` .* accepted \`${h42[3].slice(0, 9)}\\.\\.${correction.slice(0, 9)}\` \\(1 commit\\) unreviewed on head \`${correction.slice(0, 9)}\`; that head merged`));
-  assert.match(final.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\`; it landed on main \`[0-9a-f]{9}\`, not the admitted \`[0-9a-f]{9}\`, so CI never ran on that combination \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover with where it landed");
+  assert.match(final.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\`; it landed on main \`[0-9a-f]{9}\`, while its CI covered main \`[0-9a-f]{9}\`, so CI never ran on that combination before main's own run \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover with where it landed");
   // A slice merged without this run's gate (by the maintainer) is reported
   // as such, never as reviewed or accepted by the gate.
   const withoutGate = { ...run.readRecord(dstRecord), operations: [] };

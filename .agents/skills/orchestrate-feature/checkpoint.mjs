@@ -957,15 +957,18 @@ export function outcome(record, { id, state, evidence }) {
   return op;
 }
 // Where a confirmed merge landed: the merge commit's first parent, against
-// the main commit its gate admitted. A merge that landed elsewhere put code
-// on main that CI never ran; one whose first parent could not be read says
-// so, rather than passing for one that landed where it was admitted.
+// the main commit the head's CI covered (older records hold only the main the
+// gate admitted). A merge that landed elsewhere put a combination on main that
+// CI never ran before main's own run; one whose first parent could not be
+// read says so, rather than passing for one that landed where it was checked.
 export function landing(op, mergeCommit, firstParent) {
   let mergedOnto = null;
   try { mergedOnto = firstParent ? firstParent(mergeCommit) : null; } catch { mergedOnto = null; }
-  return { mergeCommit, mergedOnto, baseMoved: mergedOnto === null || !op.gate?.originMain ? null : mergedOnto !== op.gate.originMain };
+  const covered = ciCovered(op);
+  return { mergeCommit, mergedOnto, baseMoved: mergedOnto === null || !covered ? null : mergedOnto !== covered };
 }
-export const landingText = (l, admitted) => (l.baseMoved ? `; it landed on ${l.mergedOnto}, not the admitted ${admitted}, so CI never ran on that combination` : l.baseMoved === null ? "; where it landed could not be read" : "");
+export const ciCovered = (op) => op.gate?.ciMain ?? op.gate?.originMain;
+export const landingText = (l, covered) => (l.baseMoved ? `; it landed on ${l.mergedOnto}, while its CI covered main ${covered}, so CI never ran on that combination before main's own run` : l.baseMoved === null ? "; where it landed could not be read" : "");
 
 export function reconcileOperations(record, { snapshot, firstParent }) {
   const prs = new Map(snapshot.tickets.flatMap((t) => t.prs.map((p) => [p.number, p])));
@@ -980,7 +983,7 @@ export function reconcileOperations(record, { snapshot, firstParent }) {
       else if (feature.state === "closed") { state = "confirmed"; evidence = `Feature #${op.pr} is closed`; }
       else { state = "not-applied"; retry = true; evidence = `Feature #${op.pr} is still ${feature.state}`; }
     } else if (pr && op.kind === "merge") {
-      if (pr.state === "MERGED" && pr.head === op.expectHead) { state = "confirmed"; landed = landing(op, pr.mergeCommit, firstParent); evidence = `PR #${op.pr} is merged as ${pr.mergeCommit} at ${pr.head}${landingText(landed, op.gate?.originMain)}`; }
+      if (pr.state === "MERGED" && pr.head === op.expectHead) { state = "confirmed"; landed = landing(op, pr.mergeCommit, firstParent); evidence = `PR #${op.pr} is merged as ${pr.mergeCommit} at ${pr.head}${landingText(landed, ciCovered(op))}`; }
       else if (pr.state === "MERGED") { state = "superseded"; evidence = `PR #${op.pr} was merged as ${pr.mergeCommit} at ${pr.head}, not at ${op.expectHead}; this operation's expected-head merge did not apply`; }
       else if (pr.state === "OPEN" && pr.head === op.expectHead) { state = "not-applied"; retry = true; evidence = `PR #${op.pr} is still open at ${pr.head}`; }
       else if (pr.state === "OPEN") { state = "superseded"; evidence = `PR #${op.pr} moved to ${pr.head}; a decision for ${op.expectHead} does not apply to it`; }
