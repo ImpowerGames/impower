@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 291,
-  "previous": "ba24c77c40a040f285134da75815841356944647",
+  "seq": 292,
+  "previous": "339c087fd297e9e55ab70542404297c3f0b84ca9",
   "snapshotParents": [],
-  "time": "2026-10-16T16:29:39.706Z",
+  "time": "2026-10-16T16:30:36.231Z",
   "kind": "auto",
-  "transition": "release of #839",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 244,
@@ -4189,7 +4189,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:29:37.528Z",
+      "observedAt": "2026-10-16T16:30:34.265Z",
       "held": true,
       "head": "54947268cf63b5bf999d270b1702af0bdf31ed03",
       "remoteHead": null,
@@ -4201,7 +4201,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:29:37.528Z",
+      "observedAt": "2026-10-16T16:30:34.265Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -4212,7 +4212,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:29:22.426Z",
+    "at": "2026-10-16T16:30:34.263Z",
     "tickets": [
       {
         "number": 316,
@@ -4234,9 +4234,9 @@
       },
       {
         "number": 839,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 15932 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 887,
@@ -4300,9 +4300,9 @@
       },
       {
         "number": 1951,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
+        "reason": "every blocker's deliverable is on origin/main"
       }
     ],
     "remaining": [
