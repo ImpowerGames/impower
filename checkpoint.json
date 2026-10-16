@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 232,
-  "previous": "c5c297d54158408d438227cc0e8f3dfe270d6435",
+  "seq": 233,
+  "previous": "b88b0dda534eb48b3195a1d015a3ed246f552542",
   "snapshotParents": [],
-  "time": "2026-10-16T16:07:57.423Z",
+  "time": "2026-10-16T16:08:06.192Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 170,
+    "recordRevision": 171,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2609,6 +2609,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
       "classifier": "removed  impower.worktrees\\fix\\1846-do-block-memo-tally                  fix/1846-do-block-memo-tally                      984.7 MB   merged into origin/main; origin/fix/1846-do-block-memo-tally still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark"
+    },
+    {
+      "time": "2026-10-16T16:08:04.033Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1933-inserted-twin-do-block",
+      "branch": "fix/1933-inserted-twin-do-block",
+      "classifier": "removed  impower.worktrees\\fix\\1933-inserted-twin-do-block               fix/1933-inserted-twin-do-block                   984.8 MB   merged into origin/main; no origin/fix/1933-inserted-twin-do-block; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine"
     }
   ],
   "verifications": [],
@@ -2618,7 +2624,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:07:56.569Z",
+      "observedAt": "2026-10-16T16:08:05.444Z",
       "held": true,
       "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
       "remoteHead": null,
@@ -2630,7 +2636,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:07:56.569Z",
+      "observedAt": "2026-10-16T16:08:05.444Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2869,11 +2875,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:18:42.503Z",
-      "event": "check-in",
-      "outcome": "no change: #1632 writer re-merged main 6692a9a onto PR 1912 (head 58391f096), CI shard 1/4 pending; PR 1915 ready and held behind #1914 and #1916 per the merge queue agreed with ORCH #1895; main unchanged since 6692a9a"
-    },
     {
       "time": "2026-10-16T00:48:54.234Z",
       "event": "check-in",
@@ -3547,6 +3548,11 @@
       "time": "2026-10-16T16:07:55.192Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1846-do-block-memo-tally"
+    },
+    {
+      "time": "2026-10-16T16:08:04.034Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1933-inserted-twin-do-block"
     }
   ]
 }
