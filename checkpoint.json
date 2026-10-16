@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 25,
-  "previous": "0c1f80476d15b548d65dc0b0a3aaa93aecbce626",
+  "seq": 26,
+  "previous": "40b3d49e4f4235ce729f9f750ba5cd77a99f981a",
   "snapshotParents": [],
-  "time": "2026-10-16T22:06:55.274Z",
+  "time": "2026-10-16T22:07:26.060Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1962",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 24,
+    "recordRevision": 25,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -123,6 +123,15 @@
             "time": "2026-10-16T21:36:01.111Z",
             "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
           }
+        },
+        {
+          "id": "c6158772",
+          "owner": "21e53437-583d-4ff6-b398-939b1a758fff",
+          "time": "2026-10-16T22:07:23.121Z",
+          "text": "Round 4 checkpoint report for PR #1975 under decision 0538d010: round 4 complete with one undirected reviewer (report 6225503433, adjudication 6225586928, round state 6225221174), reviewed head 5415ccea5 (which also fixed the coordinator's quoted-query point before launch). Current head 041d28169 is the unreviewed round 4 correction: a curl --next batch reaching a typed issue collection is refused, and the glob test becomes one rule on the text before the first quote or space; both only add refusals, switch-on only. Verification 1350 checks; CI pending on the head when sent. Writer asks for the checkpoint decision: accept the unreviewed correction or extend.",
+          "source": "cross-session message from writer session impower-c2 (CLI session 9ca34572, resumed) received 2026-10-16 ~22:35Z",
+          "relayed": null,
+          "answer": null
         }
       ],
       "checkpoints": [
@@ -815,7 +824,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:06:54.256Z",
+      "observedAt": "2026-10-16T22:07:25.118Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1305,6 +1314,12 @@
       "time": "2026-10-16T21:54:32.062Z",
       "event": "check-in",
       "outcome": "no change: #1962 writer resumed and running (pid 31640), PR #1975 head 5415ccea5, round 4 launched with one undirected reviewer under decision 0538d010; CI green except the Windows driver check in progress"
+    },
+    {
+      "time": "2026-10-16T22:07:23.122Z",
+      "event": "request",
+      "ticket": 1962,
+      "id": "c6158772"
     }
   ]
 }
