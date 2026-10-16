@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 328,
-  "previous": "377d779aaf3e740fe7dd1d6cd34ddd60a1b8e76b",
+  "seq": 329,
+  "previous": "4eb929a23f5685f9dd4bed11b8ab49287fabca9c",
   "snapshotParents": [],
-  "time": "2026-10-16T18:28:06.663Z",
+  "time": "2026-10-16T18:45:11.389Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 274,
+    "recordRevision": 275,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5288,7 +5288,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:28:05.204Z",
+      "observedAt": "2026-10-16T18:45:10.518Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5382,7 +5382,7 @@
         },
         {
           "job": "pr-1971/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "exited",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -5508,19 +5508,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:18:57.526Z",
-      "event": "resumed",
-      "ticket": 454,
-      "id": "41d54a93-5a95-40c3-8969-2b9551d1c06b",
-      "handle": {
-        "kind": "process",
-        "pid": 42664,
-        "start": "639277499372042368",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-41d54a93-5a95-40c3-8969-2b9551d1c06b"
-      }
-    },
     {
       "time": "2026-10-16T12:19:08.106Z",
       "event": "resume-intent",
@@ -6212,6 +6199,11 @@
       "time": "2026-10-16T18:28:02.963Z",
       "event": "check-in",
       "outcome": "no change: #1951 writer running (the only open ticket); every other ticket delivered; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T18:45:08.649Z",
+      "event": "check-in",
+      "outcome": "no change: #1951 writer running in review on draft PR #1971; every other ticket delivered; no transcripts to read, no dead launches"
     }
   ]
 }
