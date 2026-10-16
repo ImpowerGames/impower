@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 19,
-  "previous": "d60cf5cb93e91d8286d1355de623e4dd56aa3ae7",
+  "seq": 20,
+  "previous": "463378f08a37882f220394d2758b308851280b54",
   "snapshotParents": [],
-  "time": "2026-10-16T16:26:49.435Z",
+  "time": "2026-10-16T16:27:42.095Z",
   "kind": "auto",
-  "transition": "launch of #1798",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 14,
@@ -195,7 +195,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T16:26:46.852Z",
+      "observedAt": "2026-10-16T16:27:38.981Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -207,16 +207,19 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T16:26:46.852Z",
+      "observedAt": "2026-10-16T16:27:38.981Z",
       "held": true,
-      "exists": false
+      "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals": {
       "ticket": 1798,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T16:26:46.852Z",
+      "observedAt": "2026-10-16T16:27:38.981Z",
       "held": true,
       "exists": false
     }
@@ -224,7 +227,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:26:29.185Z",
+    "at": "2026-10-16T16:27:38.979Z",
     "tickets": [
       {
         "number": 851,
@@ -240,15 +243,15 @@
       },
       {
         "number": 1798,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch cbb3d603-a40d-4802-af19-3b4cb8c6a743 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 40624 started 639277648017542271 is running"
       },
       {
         "number": 1881,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "3 writers already hold tickets against a limit of 3"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       }
     ],
     "remaining": [
