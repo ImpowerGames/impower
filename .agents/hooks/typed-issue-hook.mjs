@@ -767,37 +767,59 @@ function ghArgs(args) {
   return { flags, repos, positional };
 }
 
+// An issue or pull request URL on github.com, with any scheme, `www.` or port.
+const GITHUB_ITEM_URL = /(?:^|[^\w.-])(?:https?:\/\/)?(?:www\.)?github\.com(?::\d+)?\/([^/\s"'#?]+\/[^/\s"'#?]+)\/(?:issues|pull)\/\d+/gi;
+
 /**
- * The repository a gh issue, pr or search invocation targets, in gh's own
- * order: an issue or pull request URL as the selector argument, else the
- * last `-R`/`--repo` in argument order (one before the action comes first),
- * else the `GH_REPO` gh inherits, else null for the checkout's own
- * repository, which is the code repository. An empty value names nothing.
+ * The repository a gh issue or pr invocation targets, read so that it fails
+ * closed rather than following gh's precedence: the code repository when any
+ * `-R`/`--repo` value, or any issue or pull request URL among the positional
+ * arguments, names it; otherwise a selector argument that is wholly such a
+ * URL, else the last non-empty repo flag, else the `GH_REPO` gh inherits.
+ * Null stands for the checkout's own repository, the code repository.
  */
 function ghTargetRepo(invocation, parsed, envRepo) {
-  const url = (parsed.positional[0] ?? "").match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+\/[^/\s]+)\/(?:issues|pull)\/\d+(?:[/?#]\S*)?$/i);
-  if (url) return url[1];
   const named = [invocation.repo ?? "", ...parsed.repos].filter((r) => r.trim() !== "");
+  const linked = parsed.positional.flatMap((p) => [...p.matchAll(GITHUB_ITEM_URL)].map((m) => m[1]));
+  if ([...named, ...linked].some(isCodeRepo)) return repos.code;
+  const selector = parsed.positional[0] ?? "";
+  const whole = [...selector.matchAll(GITHUB_ITEM_URL)];
+  if (whole.length === 1 && whole[0].index === 0 && !/\s/.test(selector)) return whole[0][1];
   if (named.length) return named[named.length - 1];
   return envRepo?.trim() ? envRepo : null;
 }
 
+// Wrappers that run the program with the environment they were given.
+const ENV_PRESERVING = new Set(["env", "nohup", "command", "time"]);
+
 /**
- * The `GH_REPO` a program at index `at` of a segment runs with: the last one
- * in the run of assignments directly before it, so a wrapper between the
- * assignment and the program (sudo, `env -i`, `env -u`), which may drop it,
- * never counts. Without one, `inherited` (the value a nested command gets
- * from its enclosing command) applies only when nothing but shell keywords
- * precedes that run. Null when gh would read no repository from the
- * environment, or the hook cannot tell.
+ * The `GH_REPO` a program at index `at` of a segment runs with: the last
+ * assignment before it, walking back over other assignments, redirections,
+ * shell keywords and wrappers that keep the environment (`env`, `nohup`,
+ * `command`, `time`) when they carry no flags. Any other word between them
+ * (sudo, `env -i`, `env -u`), which may drop it, ends the walk with null.
+ * Without an assignment, `inherited` (the value a nested command gets from
+ * its enclosing command) applies. Null when gh would read no repository
+ * from the environment, or the hook cannot tell.
  */
 function assignedRepo(seg, at, inherited) {
-  let k = at - 1;
-  for (; k >= 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(seg[k].text); k--) {
-    const m = seg[k].text.match(/^GH_REPO=(.*)$/s);
-    if (m) return m[1];
+  for (let k = at - 1; k >= 0; k--) {
+    const tok = seg[k];
+    const t = tok.text;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(t)) {
+      const m = t.match(/^GH_REPO=(.*)$/s);
+      if (m) return m[1];
+      continue;
+    }
+    if (tok.quoted) return null;
+    if (REDIRECT_DUP.test(t) || REDIRECT_OP.test(t) || REDIRECT_GLUED.test(t)) continue;
+    if (k > 0 && !seg[k - 1].quoted && REDIRECT_OP.test(seg[k - 1].text)) {
+      k--; // a redirection's target, then its operator
+      continue;
+    }
+    if (KEYWORDS.has(t.toLowerCase()) || ENV_PRESERVING.has(baseName(tok))) continue;
+    return null;
   }
-  for (; k >= 0; k--) if (seg[k].quoted || !KEYWORDS.has(seg[k].text.toLowerCase())) return null;
   return inherited;
 }
 
@@ -833,8 +855,10 @@ function checkGhGuarded(invocation, envRepo) {
   const parsed = ghArgs(invocation.rest);
   if (command === "search") {
     if (action !== "issues" && action !== "prs") return null;
-    const named = [invocation.repo, ...parsed.repos].filter((r) => r !== null);
-    const owners = (parsed.flags.get("--owner") ?? []).map((o) => `owner:${o}`);
+    // gh search reads --repo and --owner as string slices, which split on commas.
+    const csv = (values) => values.flatMap((v) => v.split(",")).map((v) => v.trim()).filter(Boolean);
+    const named = csv([invocation.repo ?? "", ...parsed.repos]);
+    const owners = csv(parsed.flags.get("--owner") ?? []).map((o) => `owner:${o}`);
     return searchScoped([...named, ...owners, ...parsed.positional].join(" "), named) ? null : GUARD.search();
   }
   const target = ghTargetRepo(invocation, parsed, envRepo);
@@ -845,7 +869,9 @@ function checkGhGuarded(invocation, envRepo) {
   if (action === "review") return GUARD.prReview();
   if (action === "edit") return has("--add-label", "--remove-label", "--add-assignee", "--add-reviewer", "--add-project") ? GUARD.prEdit() : null;
   if (action === "view") {
-    if (has("--comments", "-c") || !parsed.flags.has("--json")) return GUARD.prView();
+    // A boolean flag given false (`--comments=false`) is off; any other value, or none, is on.
+    const comments = [...(parsed.flags.get("--comments") ?? []), ...(parsed.flags.get("-c") ?? [])].some((v) => !/^(false|f|0)$/i.test(v));
+    if (comments || !parsed.flags.has("--json")) return GUARD.prView();
     const fields = parsed.flags.get("--json").join(",").toLowerCase().split(/[\s,]+/);
     return fields.some((f) => ["comments", "reviews", "latestreviews", "reviewrequests"].includes(f)) ? GUARD.prView() : null;
   }
@@ -888,14 +914,23 @@ function guardedEndpoint(endpoint) {
  * comments, reviews, discussions or a timeline. The field test matches inside
  * camel-case names (`closingIssuesReferences`, `IssueComment`,
  * `PullRequestReview`, `timeline`), so a query for pull request state that
- * also names `reviewDecision` is refused too.
+ * also names `reviewDecision` is refused too. Operation names, aliases,
+ * argument names, variables and the keys of gh's field flags (`query
+ * ReviewTitle`, `reviewish: title`, `$reviewId`, `-F reviewId=1`) are left
+ * out of it; string values and comments stay in, because the query itself
+ * may sit inside a JSON string.
  */
 function graphqlReadsCode(text) {
   const [owner, name] = repos.code.toLowerCase().split("/");
   const words = new Set(text.toLowerCase().split(/[^\w.-]+/));
   const slug = new RegExp(`(^|[^\\w.-])${repos.code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.-])`, "i");
   const named = slug.test(text) || (words.has(owner) && words.has(name));
-  return named && /issue|comment|review|discussion|timeline/i.test(text);
+  const selections = text
+    .replace(/\b(query|mutation|subscription|fragment)\s+[A-Za-z_]\w*/g, "$1")
+    .replace(/\$[A-Za-z_]\w*/g, "$")
+    .replace(/\b[A-Za-z_]\w*\s*:/g, ":")
+    .replace(/(^|\n)[A-Za-z_][\w[\]]*=/g, "$1=");
+  return named && /issue|comment|review|discussion|timeline/i.test(selections);
 }
 
 /** The guard's reason for an API URL path and the request text around it, or null. */
@@ -1157,43 +1192,23 @@ function unwrapBody(body) {
 const CURL_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
-const API_URL = /^(?:-uri:|-url:|--url=)?((?:https?:\/\/)?api\.github\.com(?::\d+)?\/[^\s"'#]*)$/i;
-// Flags whose value is a body, a header, a file or another setting, never
-// the request URL: curl's long forms and short flags that take a value, and
-// Invoke-RestMethod's and Invoke-WebRequest's parameters other than -Uri.
-const CURL_LONG_VALUE = /^--(data(-ascii|-raw|-binary|-urlencode)?|json|form(-string)?|header|cookie|referer|user-agent|output|upload-file|proxy|write-out|user|request)$/;
-const PS_NON_URL_VALUE = /^-(body|headers|infile|outfile|contenttype|useragent|proxy|websession|sessionvariable|method|credential|certificate|form|token|authentication|transferencoding|maximumredirection|timeoutsec)(:)?$/i;
-
-/**
- * True when a curl short-flag cluster ends in a flag that takes its value
- * from the next argument: the same walk checkCurl makes, where the first
- * value flag ends the cluster and takes any rest of it (`-XGET`) as its
- * value.
- */
-function curlClusterTakesNext(t) {
-  if (!/^-[A-Za-z0-9]+$/.test(t)) return false;
-  for (let p = 1; p < t.length; p++) if (CURL_VALUE.includes(t[p])) return p === t.length - 1;
-  return false;
-}
+const API_URL = /^(?:-uri:|-url:|--url=)?((?:https?:\/\/)?api\.github\.com(?::\d+)?\/[^\s"']*)$/i;
 
 /**
  * The guard's reason for an HTTP client invocation whose request URL reaches
- * a guarded API path, or null. A URL is a token that is entirely an
- * api.github.com URL and is not the value of a body, header or other flag,
- * so a link inside a pull request body is not taken for a destination. The
- * request text the GraphQL and search checks read is every argument.
+ * a guarded API path, or null. Every argument that is wholly an
+ * api.github.com URL counts as a destination, whichever flag precedes it,
+ * since telling a flag's value from the URL would mean modelling every
+ * option of every client; a link inside a body is part of a longer argument
+ * and does not count. The request text the GraphQL and search checks read
+ * is every argument.
  */
-function checkGuardedUrl(args, powershell) {
+function checkGuardedUrl(args) {
   const text = args.map((a) => a.text).join("\n");
   for (let k = 0; k < args.length; k++) {
     const url = args[k].text.match(API_URL)?.[1];
     if (!url) continue;
-    const prev = args[k - 1]?.text ?? "";
-    const valueOf = powershell
-      ? PS_NON_URL_VALUE.test(prev)
-      : CURL_LONG_VALUE.test(prev) || curlClusterTakesNext(prev);
-    if (valueOf) continue;
-    const endpoint = normalizeEndpoint(url.replace(/^(?:https?:\/\/)?api\.github\.com(?::\d+)?\//i, ""));
+    const endpoint = normalizeEndpoint(url.replace(/^(?:https?:\/\/)?api\.github\.com(?::\d+)?\//i, "").split("#")[0]);
     const reason = checkGuardedRequest(endpoint, text);
     if (reason) return reason;
   }
@@ -1461,9 +1476,9 @@ function decideAt(command, shell, depth, envRepo) {
         if (words[0] === "issue" && words[1] === "create") reason = checkGhIssueCreate(rest, repo);
         else if (words[0] === "api") reason = checkGhApi(rest);
       } else if (base === "curl") {
-        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1), false) : null) ?? checkCurl(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkCurl(seg.slice(i + 1));
       } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
-        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1), true) : null) ?? checkInvokeRestMethod(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkInvokeRestMethod(seg.slice(i + 1));
       }
       if (reason) return reason;
     }
