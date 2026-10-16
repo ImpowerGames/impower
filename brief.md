@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 282 (this commit), 2026-10-16T16:15:41.673Z, after launch of #1800. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 283 (this commit), 2026-10-16T16:17:26.880Z, after a new plan. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,6 +12,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #316
 
 - claude-cli claude-opus-5-5 at medium, process 60204 on DESKTOP-726EO47
+- as of 2026-10-16T16:17:24.302Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #839
 

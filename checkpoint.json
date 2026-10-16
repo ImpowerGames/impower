@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 282,
-  "previous": "450ad29c4a7242b3c021405d16e8bce344664b71",
+  "seq": 283,
+  "previous": "52adaf570abe0349850b6923dc480d56cedd4e24",
   "snapshotParents": [],
-  "time": "2026-10-16T16:15:41.673Z",
+  "time": "2026-10-16T16:17:26.880Z",
   "kind": "auto",
-  "transition": "launch of #1800",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 237,
@@ -4157,16 +4157,19 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:15:40.282Z",
+      "observedAt": "2026-10-16T16:17:24.302Z",
       "held": true,
-      "exists": false
+      "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": false
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end": {
       "ticket": 839,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:15:40.282Z",
+      "observedAt": "2026-10-16T16:17:24.302Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4311,7 +4314,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:15:40.282Z",
+      "observedAt": "2026-10-16T16:17:24.302Z",
       "held": true,
       "exists": false
     }
@@ -4319,7 +4322,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:15:25.485Z",
+    "at": "2026-10-16T16:17:24.299Z",
     "tickets": [
       {
         "number": 316,
@@ -4395,9 +4398,9 @@
       },
       {
         "number": 1800,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 31d5b5cf-d978-4fc3-8b44-fd76e05930c7 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 41376 started 639277641377453150 is running"
       },
       {
         "number": 1920,
