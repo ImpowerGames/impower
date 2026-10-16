@@ -48,10 +48,14 @@ export class Conditional extends ParsedObject {
     for (const branch of this.branches) {
       branch.EmitBranch(emitter, end);
     }
+    // With no branch to take the value (a `match` with no arm, which the
+    // lowering reports), it is popped as well.
+    const first = this.branches[0];
     if (
       this.initialCondition !== null &&
-      this.branches[0]!.ownExpression !== null &&
-      !this.branches[this.branches.length - 1]!.isElse
+      (!first ||
+        (first.ownExpression !== null &&
+          !this.branches[this.branches.length - 1]!.isElse))
     ) {
       emitter.emit(Op.Pop);
     }
