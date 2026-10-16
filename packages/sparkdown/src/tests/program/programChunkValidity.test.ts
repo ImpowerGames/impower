@@ -11,6 +11,7 @@
 // falls among them (#1893, unit U1).
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { pairCells, pairInOrder } from "../../program/ChunkStore";
 import {
   describeRoot,
   MAIN_URI,
@@ -304,6 +305,33 @@ describe("statements that read the same as each other (twins)", () => {
     expect(incremental).toEqual(cold);
     expect(moved).toEqual([]);
     expect(reemitted).toBe(0);
+  });
+
+  it("are paired in tables that grow with the fewer of them and their chunks", () => {
+    // A paste of 10000 twins beside one old chunk, either way round: the
+    // chunk goes to the twin on its line, and each table the pairing makes
+    // holds no more entries than `pairCells` counts (a larger one is refused
+    // before it is made).
+    const lines = Array.from({ length: 10000 }, (_, i) => i);
+    const limit = pairCells(10000, 1);
+    const sizes: number[] = [];
+    const Real = globalThis.Int32Array;
+    globalThis.Int32Array = class extends Real {
+      constructor(length: number) {
+        if (length > limit) {
+          throw new RangeError(`a pairing table of ${length} entries, over ${limit}`);
+        }
+        super(length);
+        sizes.push(length);
+      }
+    } as Int32ArrayConstructor;
+    try {
+      expect(pairInOrder(10000, 1, (s) => Math.abs(lines[s]! - 5000))).toEqual([[5000, 0]]);
+      expect(pairInOrder(1, 10000, (_, l) => Math.abs(lines[l]! - 5000))).toEqual([[0, 5000]]);
+    } finally {
+      globalThis.Int32Array = Real;
+    }
+    expect(sizes.length).toBe(2);
   });
 
   it("keep their own chunks when an edit makes them labels of different branches (#1611)", () => {

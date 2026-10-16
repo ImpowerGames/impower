@@ -3788,19 +3788,32 @@ const TWIN_SLACK = 16;
 // position (`matchTwins`).
 const TWIN_CELLS = 1 << 20;
 
-/** How many pairs `pairInOrder` weighs for lists of `n` and `m` entries. */
-const pairCells = (n: number, m: number) =>
+/** How many pairs `pairInOrder` weighs for lists of `n` and `m` entries,
+ *  which is also how many entries each of its tables holds. */
+export const pairCells = (n: number, m: number) =>
   (Math.min(n, m) + 1) * (Math.abs(n - m) + 2 * TWIN_SLACK + 1);
 
-/** Pairs the entries of two lists in order, as `[entry of the first, entry
- *  of the second]`: as many pairs as `cost` allows (it gives nothing for a
- *  pair that may not be made), at the least total cost of those, and of
- *  equal ones the pairing that takes the earlier entries of the second. The
- *  pairs are weighed in a band about the lists' ends: the number of entries
- *  of the second list passed less the number of the first stays between
- *  the difference in their lengths and nothing, give or take `TWIN_SLACK`,
- *  so the work grows with the shorter list times that difference. */
-const pairInOrder = (
+/** Pairs the entries of two lists of `n` and `m` entries in order, as
+ *  `[entry of the first, entry of the second]`: as many pairs as `cost`
+ *  allows (it gives nothing for a pair that may not be made), at the least
+ *  total cost of those, and of equal ones the pairing that takes the
+ *  earlier entries of the longer list. The pairs are weighed in a band
+ *  about the lists' ends: the number of entries of the longer list passed
+ *  less the number of the shorter stays between the difference in their
+ *  lengths and nothing, give or take `TWIN_SLACK`, so the work and the
+ *  storage grow with the shorter list times that difference
+ *  (`pairCells`). */
+export const pairInOrder = (
+  n: number,
+  m: number,
+  cost: (s: number, l: number) => number | undefined,
+): [number, number][] =>
+  n > m
+    ? pairShorterFirst(m, n, (l, s) => cost(s, l)).map(([l, s]) => [s, l])
+    : pairShorterFirst(n, m, cost);
+
+/** `pairInOrder` for a first list no longer than the second. */
+const pairShorterFirst = (
   n: number,
   m: number,
   cost: (s: number, l: number) => number | undefined,
