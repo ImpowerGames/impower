@@ -650,8 +650,15 @@ export class Story extends FlowBase {
         if (value.expression) {
           initializer(key, value);
         } else if (!value.structDefinition) {
-          // Non-struct global declaration must have an expression.
-          throw new Error();
+          // A non-struct global declaration must have an expression. No
+          // source makes one without (#1792), but one that does is reported
+          // at the declaration and left uninitialized, so the compile still
+          // makes a program (#1800).
+          this.Error(
+            `Global \`${key}\` is declared without a value, so it is not initialized.`,
+            value.identifier?.debugMetadata ?? value,
+            false,
+          );
         }
       }
     }
