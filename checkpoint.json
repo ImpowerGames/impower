@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 259,
-  "previous": "a6621d4ae9fd45c16463f66e03af5ede67c60b9b",
+  "seq": 260,
+  "previous": "511b4e882220bfda6684920b11ad52bc3fd0317c",
   "snapshotParents": [],
-  "time": "2026-10-16T16:07:05.103Z",
+  "time": "2026-10-16T16:07:21.439Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #454",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 218,
+    "recordRevision": 219,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -62,65 +62,71 @@
   "title": "ORCH #1895: compile without diagnostic",
   "tickets": {
     "454": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
-        "branch": "fix/454-builtin-root-define",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
-        "launchId": "a77d8ee5-d75c-4a55-b475-f2b8b69eead6",
-        "handle": {
-          "kind": "process",
-          "pid": 55476,
-          "start": "639277621309918460",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment a77d8ee5-d75c-4a55-b475-f2b8b69eead6. You are the writer for ImpowerGames/impower ticket #454 (Seeded compile of a root define that overrides a builtin type fails with a duplicate identifier and no program), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment a77d8ee5-d75c-4a55-b475-f2b8b69eead6 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #454 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define on branch fix/454-builtin-root-define from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #454 alone (siblings: #887 owns the run-file wrapper path of SparkdownCompiler.ts; #316 later owns its include branch, lowerLuauDefine rawValue and the run virtual-document version). A seeded compile (seedBuiltinsIntoStory true, the player's mode) of a project whose root define names a builtin type root (define game with ... end, and likewise config, color, world, image and the other type roots) must either apply the documented override (the authored table takes the slot and the prelude's values are back-filled for keys the author did not restate, per FlowBase.AddNewVariableDeclaration and SparkdownCompiler.applyBuiltinOverrides) or report an Error at the authored define saying a builtin type cannot be redefined. Prefer the override where the documented path supports it; whichever you choose, the unseeded (editor) compile and the seeded (runtime) compile must agree, and the result is never a duplicate-identifier error located on null with no program. Regression test: the ticket's script under configure({ seedBuiltinsIntoStory: true, files }), asserting the program is produced (or the Error is at the define) and the diagnostics, over game plus a sample of other type roots (the ticket swept all 31; cover at least game, config, color and world), red on origin/main and green after; and one case showing the unseeded compile agrees. Verify in the web editor preview that the ticket's script plays Chose A.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section). Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer, compiler path or serializer swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch does this since PR #1911 merged, and programHarness.ts asserts that a no-program compile carries an Error, so never write a test that expects a silent no-program compile).\n- Repository state: origin/main 13f6fd9f or later. One compile mode exists since #705 (no programChunks flag, no ink JSON serializer): compile with compileScript from packages/sparkdown/src/tests/program/programHarness.ts, or SparkdownCompiler directly with configure({ files }) for multi-file scripts, and run with ProgramStory over program.chunks. The ticket's line numbers and some file paths predate #705 and the #1895 PRs (#1911, #1913, #1914, #1916, #1921, #1923); verify every cited location on the current code before fixing. Sibling writers of this umbrella run beside you, each with its own area named in your scope line; several of you touch SparkdownCompiler.ts in different regions, so keep your hunks to your own region and tell the coordinator before touching a region named for another ticket.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run; the redgreen driver can exceed the Bash tool's 600 s limit when queued behind another test run, so run it in the background and poll its output in the foreground. Disk has about 55 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "8877cac3",
-          "attempts": 1,
-          "time": "2026-10-16T04:31:31.324Z",
-          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
-        },
-        "since": "2026-10-16T04:31:31.325Z",
-        "sessionId": "b483900d-bfad-4f3d-bff3-87e961965503",
-        "acknowledged": {
-          "time": "2026-10-16T04:33:54.234Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
+            "branch": "fix/454-builtin-root-define",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-orch-1895",
+            "launchId": "a77d8ee5-d75c-4a55-b475-f2b8b69eead6",
+            "handle": {
+              "kind": "process",
+              "pid": 55476,
+              "start": "639277621309918460",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment a77d8ee5-d75c-4a55-b475-f2b8b69eead6. You are the writer for ImpowerGames/impower ticket #454 (Seeded compile of a root define that overrides a builtin type fails with a duplicate identifier and no program), a slice of Feature #1895, coordinated by coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 an acknowledgement naming assignment a77d8ee5-d75c-4a55-b475-f2b8b69eead6 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #454 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define on branch fix/454-builtin-root-define from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-orch-1895, and keep every artifact in it.\nSettled decisions:\n- Scope: #454 alone (siblings: #887 owns the run-file wrapper path of SparkdownCompiler.ts; #316 later owns its include branch, lowerLuauDefine rawValue and the run virtual-document version). A seeded compile (seedBuiltinsIntoStory true, the player's mode) of a project whose root define names a builtin type root (define game with ... end, and likewise config, color, world, image and the other type roots) must either apply the documented override (the authored table takes the slot and the prelude's values are back-filled for keys the author did not restate, per FlowBase.AddNewVariableDeclaration and SparkdownCompiler.applyBuiltinOverrides) or report an Error at the authored define saying a builtin type cannot be redefined. Prefer the override where the documented path supports it; whichever you choose, the unseeded (editor) compile and the seeded (runtime) compile must agree, and the result is never a duplicate-identifier error located on null with no program. Regression test: the ticket's script under configure({ seedBuiltinsIntoStory: true, files }), asserting the program is produced (or the Error is at the define) and the diagnostics, over game plus a sample of other type roots (the ticket swept all 31; cover at least game, config, color and world), red on origin/main and green after; and one case showing the unseeded compile agrees. Verify in the web editor preview that the ticket's script plays Chose A.\n- Design of record: the Description, Scope and Acceptance criteria of parent #1895, a Task umbrella (no Proposed solution section). Its criteria that bind you: the ticket closes with a regression test that fails before your fix, and no lowerer, compiler path or serializer swallows a thrown error (a throw becomes an Error diagnostic at the statement position; the compile-level catch does this since PR #1911 merged, and programHarness.ts asserts that a no-program compile carries an Error, so never write a test that expects a silent no-program compile).\n- Repository state: origin/main 13f6fd9f or later. One compile mode exists since #705 (no programChunks flag, no ink JSON serializer): compile with compileScript from packages/sparkdown/src/tests/program/programHarness.ts, or SparkdownCompiler directly with configure({ files }) for multi-file scripts, and run with ProgramStory over program.chunks. The ticket's line numbers and some file paths predate #705 and the #1895 PRs (#1911, #1913, #1914, #1916, #1921, #1923); verify every cited location on the current code before fixing. Sibling writers of this umbrella run beside you, each with its own area named in your scope line; several of you touch SparkdownCompiler.ts in different regions, so keep your hunks to your own region and tell the coordinator before touching a region named for another ticket.\n- Coordinator address: SendMessage to the local_ id in this brief does not resolve on this machine; ListAgents lists the coordinator as the session titled ORCH #1895: compile without diagnostic, and messages sent to that name arrive. Use it for the acknowledgement and every report. Merging: never merge and never merge main into your branch after the PR is marked ready; the coordinator brings the branch up to date through GitHub when the PR reaches the head of a merge queue shared with another coordinator on this machine.\n- Tickets you file: a new ticket from your sweep that belongs to the no-program or wrong-lowering class gets #1895 as its parent and the milestone Compilation robustness; read each filed ticket back. Review rounds: the maintainer authorized the coordinator to extend review rounds as reasonable; ask through your checkpoint report and launch a further round only under the published extension.\n- Practical rules on this machine: a subagent you launch (a filer, a helper) reports to the coordinator session, not to you, so record filer launched, report pending, and continue; keep every scratch file under your allocated artifact directory; scripts/agent-handoff.mjs refuses a plan whose reviewer artifact directory does not exist yet, a dirty package-lock.json left by the install, and camelCase delegated operation IDs; check node_modules before the first test run; the redgreen driver can exceed the Bash tool's 600 s limit when queued behind another test run, so run it in the background and poll its output in the foreground. Disk has about 55 GB free.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bede5658-a16d-4558-858b-9a8d10696a23 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "8877cac3",
+              "attempts": 1,
+              "time": "2026-10-16T04:31:31.324Z",
+              "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+            },
+            "since": "2026-10-16T04:31:31.325Z",
+            "sessionId": "b483900d-bfad-4f3d-bff3-87e961965503",
+            "acknowledged": {
+              "time": "2026-10-16T04:33:54.234Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from writer impower-5c naming assignment a77d8ee5, read from its claude process command line (--model claude-opus-5-5 --effort medium --permission-mode bypassPermissions) and CLAUDE_EFFORT=medium; out.jsonl init line agrees on model and mode",
+              "deliveryId": "8877cac3"
+            },
+            "resumes": [
+              {
+                "id": "01e967a7-bd98-427a-8bed-7fa6540319d9",
+                "time": "2026-10-16T12:14:16.755Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-01e967a7-bd98-427a-8bed-7fa6540319d9"
+              },
+              {
+                "id": "41d54a93-5a95-40c3-8969-2b9551d1c06b",
+                "time": "2026-10-16T12:18:57.526Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-41d54a93-5a95-40c3-8969-2b9551d1c06b"
+              },
+              {
+                "id": "8fb130a9-3869-4d4d-9c99-83434b433b22",
+                "time": "2026-10-16T15:42:11.320Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22"
+              }
+            ]
           },
-          "evidence": "cross-session message from writer impower-5c naming assignment a77d8ee5, read from its claude process command line (--model claude-opus-5-5 --effort medium --permission-mode bypassPermissions) and CLAUDE_EFFORT=medium; out.jsonl init line agrees on model and mode",
-          "deliveryId": "8877cac3"
-        },
-        "resumes": [
-          {
-            "id": "01e967a7-bd98-427a-8bed-7fa6540319d9",
-            "time": "2026-10-16T12:14:16.755Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-01e967a7-bd98-427a-8bed-7fa6540319d9"
-          },
-          {
-            "id": "41d54a93-5a95-40c3-8969-2b9551d1c06b",
-            "time": "2026-10-16T12:18:57.526Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-41d54a93-5a95-40c3-8969-2b9551d1c06b"
-          },
-          {
-            "id": "8fb130a9-3869-4d4d-9c99-83434b433b22",
-            "time": "2026-10-16T15:42:11.320Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-8fb130a9-3869-4d4d-9c99-83434b433b22"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 55476 is gone and no process names its launch directory; PR #1929 merged at 5af99ac as merge commit 7ae0fffa, closing #454; writer process 55476 (session b483900d) and every process naming its launch directory ended after its final report",
+          "time": "2026-10-16T16:07:18.590Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-16T15:50:22.225Z",
@@ -3994,260 +4000,12 @@
   ],
   "verifications": [],
   "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define": {
-      "ticket": 454,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
-      "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T16:07:03.981Z",
-      "held": true,
-      "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
-      "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1929,
-      "reviewJobs": [
-        {
-          "job": "pr-1929/round-1/launch-bound-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-bound",
-            "reviewerId": "bound",
-            "attempt": 1,
-            "plannedReviewers": [
-              "inc",
-              "bound",
-              "undirected"
-            ],
-            "head": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
-            "completedRoundReviewers": {
-              "inc": 1
-            },
-            "time": "2026-10-16T06:02:05.144Z"
-          },
-          "round": 1,
-          "reviewerId": "bound",
-          "attempt": 1,
-          "reviewedHead": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "inc": 1,
-            "bound": 1
-          },
-          "plannedRoundReviewers": [
-            "inc",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6209304618
-          ]
-        },
-        {
-          "job": "pr-1929/round-1/launch-inc-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-inc",
-            "reviewerId": "inc",
-            "attempt": 1,
-            "plannedReviewers": [
-              "inc",
-              "bound",
-              "undirected"
-            ],
-            "head": "c9553cf457b333b5976d97cbeb62476af83ae27a",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T05:17:11.286Z"
-          },
-          "round": 1,
-          "reviewerId": "inc",
-          "attempt": 1,
-          "reviewedHead": "c9553cf457b333b5976d97cbeb62476af83ae27a",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "inc": 1
-          },
-          "plannedRoundReviewers": [
-            "inc",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "bound",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6208911122
-          ]
-        },
-        {
-          "job": "pr-1929/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "inc",
-              "bound",
-              "undirected"
-            ],
-            "head": "d037751d70a869aad360a331f27e008c57b942c8",
-            "completedRoundReviewers": {
-              "inc": 1,
-              "bound": 1
-            },
-            "time": "2026-10-16T06:29:27.056Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "d037751d70a869aad360a331f27e008c57b942c8",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "inc": 1,
-            "bound": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "inc",
-            "bound",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6209618664
-          ]
-        },
-        {
-          "job": "pr-1929/round-2/launch-merge-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-merge",
-            "reviewerId": "merge",
-            "attempt": 1,
-            "plannedReviewers": [
-              "merge",
-              "undirected"
-            ],
-            "head": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
-            "completedRoundReviewers": {
-              "inc": 1,
-              "bound": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-16T12:37:48.060Z"
-          },
-          "round": 2,
-          "reviewerId": "merge",
-          "attempt": 1,
-          "reviewedHead": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "merge": 1
-          },
-          "plannedRoundReviewers": [
-            "merge",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6215992421
-          ]
-        },
-        {
-          "job": "pr-1929/round-2/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "merge",
-              "undirected"
-            ],
-            "head": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
-            "completedRoundReviewers": {
-              "merge": 1
-            },
-            "time": "2026-10-16T13:26:28.652Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "7c62c9a8c18f63aeb78e5e5929e99cc039bdca33",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "merge": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "merge",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6216661174
-          ]
-        },
-        {
-          "job": "pr-1929/round-3/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
-            "completedRoundReviewers": {
-              "merge": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-16T15:03:10.573Z"
-          },
-          "round": 3,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6218611101
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end": {
       "ticket": 839,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:07:03.981Z",
+      "observedAt": "2026-10-16T16:07:20.283Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4492,11 +4250,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T02:31:25.876Z",
-      "event": "verified",
-      "ticket": 1920
-    },
     {
       "time": "2026-10-16T02:32:38.297Z",
       "event": "check-in",
@@ -5200,6 +4953,12 @@
       "ticket": 839,
       "id": "149526e5",
       "deliveryId": "be1ece72"
+    },
+    {
+      "time": "2026-10-16T16:07:18.591Z",
+      "event": "released",
+      "ticket": 454,
+      "reason": "process 55476 is gone and no process names its launch directory"
     }
   ]
 }
