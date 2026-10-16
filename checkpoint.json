@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 111,
-  "previous": "ca052592977487cba39b57b116089b6c1f2b0aa6",
+  "seq": 112,
+  "previous": "8579ea0fe8bcd354acf1d847450887c6a85c8faa",
   "snapshotParents": [],
-  "time": "2026-10-16T00:24:22.256Z",
+  "time": "2026-10-16T00:24:31.192Z",
   "kind": "auto",
-  "transition": "release of #1299",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 94,
+    "recordRevision": 95,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1094,7 +1094,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-16T00:24:20.946Z",
+      "observedAt": "2026-10-16T00:24:29.779Z",
       "held": true,
       "head": "2204e9ac508e0d339fbd02189eaff9d0f6cddd7c",
       "remoteHead": "2204e9ac508e0d339fbd02189eaff9d0f6cddd7c",
@@ -1293,7 +1293,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-16T00:24:20.946Z",
+      "observedAt": "2026-10-16T00:24:29.779Z",
       "held": true,
       "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
       "remoteHead": "08944010cf0084b50e279b64ecffe8536695ef75",
@@ -2007,6 +2007,11 @@
       "event": "released",
       "ticket": 1299,
       "reason": "process 20144 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T00:24:28.523Z",
+      "event": "check-in",
+      "outcome": "Merged #1913 (6692a9a3) and #1914 (fe765851) through the gate; released writers for #1103 and #1299; #1916 ready and holding for ORCH #1893's #1912 under the shared merge queue; #457 bundle in review; #1617 held behind #457"
     }
   ]
 }
