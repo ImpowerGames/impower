@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 147,
-  "previous": "3cc6883e632d58445fd3540ef5f79f47335bd33a",
+  "seq": 148,
+  "previous": "f0ab5ab26b9baef1f7f53edf0fb16926a0594c50",
   "snapshotParents": [],
-  "time": "2026-10-16T03:14:31.084Z",
+  "time": "2026-10-16T03:41:56.265Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "result of #1920",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 122,
+    "recordRevision": 123,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -869,7 +869,30 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T03:41:54.130Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1923,
+            "reviewedHead": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
+            "rounds": {
+              "gpt-6.1-sol (native-codex-jsonl, high)": 1,
+              "cap": 3,
+              "round1": "state 6206893511; ax report 6206951971 (on a35d4062) adjudication 6207368153 with two accepted findings fixed in f150c88; bound report 6207417318 adjudication 6207427405 (none); undirected report 6207474266 adjudication 6207482445 (none); both reviewed f150c88"
+            },
+            "findings": "None",
+            "verification": "writeDeclaration evaluates the trailing call once, then Unpack, then a SetVar per global in order; the SetVar count that places a declaration failure is unchanged and programCompileThrow pins it. Red/green with --base origin/main: red 7 failed / 16 passed of 23, green 23 passed (green half rerun by hand after the driver hit the tool time limit; restore checked by hash and bytes); the undirected reviewer's own run agrees (7/16 on the merge base, 23 on head). programDeclarations 12 passed; filtered sparkdown typecheck clean. Web editor: the ticket's script plays Value 3 and 4. with no Error, and a second script shows the call runs once and extra values are dropped (screenshots inspected). store a, b = ... stays an Error (a store runs at story start, where ... has no values), reworded per the ax finding.",
+            "ci": "Head f150c88: every check finished; passed test-suite gate, all package jobs (sparkdown 1-4/4, spark-engine 1-2/2, spark-web-player 1-2/2 and the rest), typecheck, tsc, build, linked-issue, hook-tests, notifier-tests; skipped for paths: driver-checks, skills-checks, vitest-api-integration, notifier.",
+            "next": "None from the writer; PR #1923 (closes #1920, ready, branched from 192b2f2d) waits for the coordinator's merge queue.",
+            "changesAfterReviewedCommit": "none in code; PR body updated with CI and review evidence",
+            "other": "Sweep filed #1926 (Bug, milestone Compilation robustness, parent #1894: a wrong diagnostic position plus a leaked __varargs$ name). Skill feedback on #510 comment 6207549563: redgreen can exceed the Bash tool's 600 s limit when queued behind another test run.",
+            "source": "cross-session message from writer impower-45 (session 8b354c79-be70-4644-9c37-bf3126adf7bb), final report for assignment 46e210e6"
+          }
+        }
+      ]
     }
   },
   "operations": [
@@ -1934,12 +1957,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T03:14:30.284Z",
+      "observedAt": "2026-10-16T03:41:55.228Z",
       "held": true,
-      "head": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
-      "remoteHead": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
+      "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
+      "remoteHead": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1921,
       "reviewJobs": [
         {
@@ -1977,6 +2000,43 @@
           "commentIds": [
             6206897215
           ]
+        },
+        {
+          "job": "pr-1921/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-16T03:15:25.476Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6207394775
+          ]
         }
       ]
     },
@@ -1985,12 +2045,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T03:14:30.284Z",
+      "observedAt": "2026-10-16T03:41:55.228Z",
       "held": true,
-      "head": "a35d4062e2d2ed286a4b456a59f39055da6ec9b1",
-      "remoteHead": "a35d4062e2d2ed286a4b456a59f39055da6ec9b1",
-      "unpushed": false,
-      "dirty": true,
+      "head": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
+      "remoteHead": "e3c7af01568fe8b8c928450fe906376e2f18ff58",
+      "unpushed": true,
+      "dirty": false,
       "pr": 1923,
       "reviewJobs": [
         {
@@ -2030,6 +2090,88 @@
           "finalCorrections": false,
           "commentIds": [
             6206951971
+          ]
+        },
+        {
+          "job": "pr-1923/round-1/launch-bound-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-bound",
+            "reviewerId": "bound",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "bound",
+              "undirected"
+            ],
+            "head": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-16T03:25:06.958Z"
+          },
+          "round": 1,
+          "reviewerId": "bound",
+          "attempt": 1,
+          "reviewedHead": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "bound": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6207417318
+          ]
+        },
+        {
+          "job": "pr-1923/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "bound",
+              "undirected"
+            ],
+            "head": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
+            "completedRoundReviewers": {
+              "ax": 1,
+              "bound": 1
+            },
+            "time": "2026-10-16T03:29:29.394Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6207474266
           ]
         }
       ]
@@ -2121,11 +2263,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:19:11.621Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\704-language-server-program"
-    },
     {
       "time": "2026-10-15T22:19:19.875Z",
       "event": "disk-recovery",
@@ -2779,6 +2916,13 @@
       "time": "2026-10-16T03:14:29.157Z",
       "event": "check-in",
       "outcome": "no change: #1617 in review on draft PR #1921 (3f1bf5782); #1920 opened draft PR #1923 (a35d4062e) and is in review; both writers running; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T03:41:54.130Z",
+      "event": "result",
+      "ticket": 1920,
+      "pr": 1923,
+      "reviewedHead": "f150c88daa6f4a1acc8115f99662b4df3e0061e4"
     }
   ]
 }
