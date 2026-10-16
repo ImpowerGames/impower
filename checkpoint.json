@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 65,
-  "previous": "3a347e2ed721e00da159d3741ff95e0ece4d03e4",
+  "seq": 66,
+  "previous": "6e4e53b04e5d2835f46f21d781816bfc71429f58",
   "snapshotParents": [],
-  "time": "2026-10-16T18:27:38.967Z",
+  "time": "2026-10-16T18:27:54.764Z",
   "kind": "auto",
-  "transition": "result of #851",
+  "transition": "release of #851",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 53,
+    "recordRevision": 54,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -57,48 +57,54 @@
   "title": "ORCH #1940: edit preview latency",
   "tickets": {
     "851": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
-        "branch": "perf/851-flow-scoped-renumbering",
-        "artifactParent": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940",
-        "launchId": "432efd6d-c055-4f07-a9f3-7b88b1ab2f3a",
-        "handle": {
-          "kind": "process",
-          "pid": 21604,
-          "start": "639277645823815597",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-851-432efd6d-c055-4f07-a9f3-7b88b1ab2f3a"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 432efd6d-c055-4f07-a9f3-7b88b1ab2f3a. You are the writer for ImpowerGames/impower ticket #851 (Renumber synthetic and continuation-group names only within the flow an edit touches), a slice of Feature #1940, coordinated by coordinator session local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 an acknowledgement naming assignment 432efd6d-c055-4f07-a9f3-7b88b1ab2f3a and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #851 exactly as written.\nCreate your worktree at C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering on branch perf/851-flow-scoped-renumbering from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940, and keep every artifact in it.\nSettled decisions:\n- Feature #1940 (filed 2026-10-16) includes #851 in its scope and is the design of record. The 2026-09-26 comment on #851 that called it superseded by #692 predates the Feature, and canonicalizeSyntheticFlowNames at origin/main 7ae0fffa2 still numbers __synth_<n> and __group_<n> names by document order across the story after #701 and #705 closed, so resolve the ticket as its body describes.\n- The before-and-after measurement of the typed-continuation case uses the maintainer's private project at C:/Users/Brode/Documents/GitHub/raffles-and-bunny-screenplay/project, passed as --project to the drive-web-editor driver's measure command and the bench scripts under scripts/bench. Its reference line is main.sd line 3514, word inquisitive; follow the line, not the word, and check it with sed -n 3514p main.sd before measuring. Never paste the script's text into a ticket, PR or comment beyond a line number and one word.\n- Record the before-and-after measurement on the pull request as well as on the ticket: Feature #1940's acceptance criteria require every sub-issue closed with its measurement recorded on the pull request.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "3c9134d5",
-          "attempts": 1,
-          "time": "2026-10-16T16:23:02.776Z",
-          "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29"
-        },
-        "since": "2026-10-16T16:23:02.776Z",
-        "sessionId": "5a7aa508-6593-4813-b867-0a01f1ae081f",
-        "acknowledged": {
-          "time": "2026-10-16T16:25:04.186Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
+            "branch": "perf/851-flow-scoped-renumbering",
+            "artifactParent": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940",
+            "launchId": "432efd6d-c055-4f07-a9f3-7b88b1ab2f3a",
+            "handle": {
+              "kind": "process",
+              "pid": 21604,
+              "start": "639277645823815597",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-851-432efd6d-c055-4f07-a9f3-7b88b1ab2f3a"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 432efd6d-c055-4f07-a9f3-7b88b1ab2f3a. You are the writer for ImpowerGames/impower ticket #851 (Renumber synthetic and continuation-group names only within the flow an edit touches), a slice of Feature #1940, coordinated by coordinator session local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 an acknowledgement naming assignment 432efd6d-c055-4f07-a9f3-7b88b1ab2f3a and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #851 exactly as written.\nCreate your worktree at C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering on branch perf/851-flow-scoped-renumbering from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940, and keep every artifact in it.\nSettled decisions:\n- Feature #1940 (filed 2026-10-16) includes #851 in its scope and is the design of record. The 2026-09-26 comment on #851 that called it superseded by #692 predates the Feature, and canonicalizeSyntheticFlowNames at origin/main 7ae0fffa2 still numbers __synth_<n> and __group_<n> names by document order across the story after #701 and #705 closed, so resolve the ticket as its body describes.\n- The before-and-after measurement of the typed-continuation case uses the maintainer's private project at C:/Users/Brode/Documents/GitHub/raffles-and-bunny-screenplay/project, passed as --project to the drive-web-editor driver's measure command and the bench scripts under scripts/bench. Its reference line is main.sd line 3514, word inquisitive; follow the line, not the word, and check it with sed -n 3514p main.sd before measuring. Never paste the script's text into a ticket, PR or comment beyond a line number and one word.\n- Record the before-and-after measurement on the pull request as well as on the ticket: Feature #1940's acceptance criteria require every sub-issue closed with its measurement recorded on the pull request.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "3c9134d5",
+              "attempts": 1,
+              "time": "2026-10-16T16:23:02.776Z",
+              "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29"
+            },
+            "since": "2026-10-16T16:23:02.776Z",
+            "sessionId": "5a7aa508-6593-4813-b867-0a01f1ae081f",
+            "acknowledged": {
+              "time": "2026-10-16T16:25:04.186Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from the writer (peer impower-00 for #851 at 16:24Z, impower-d7 for #1637 at 16:27Z) naming the assignment id and the model, effort and mode read from its own command line and CLAUDE_EFFORT; the launch directory's out.jsonl init line names model claude-opus-5-5 and permissionMode bypassPermissions",
+              "deliveryId": "3c9134d5"
+            }
           },
-          "evidence": "cross-session message from the writer (peer impower-00 for #851 at 16:24Z, impower-d7 for #1637 at 16:27Z) naming the assignment id and the model, effort and mode read from its own command line and CLAUDE_EFFORT; the launch directory's out.jsonl init line names model claude-opus-5-5 and permissionMode bypassPermissions",
-          "deliveryId": "3c9134d5"
+          "released": "process 21604 is gone and no process names its launch directory; process 21604 gone and no process names launch-851; out.jsonl ends with a success result after the writer's final report message to this coordinator at ~18:40Z",
+          "time": "2026-10-16T18:27:50.070Z"
         }
-      },
-      "pending": null,
-      "history": [],
+      ],
       "results": [
         {
           "time": "2026-10-16T18:27:34.673Z",
@@ -640,135 +646,12 @@
   ],
   "verifications": [],
   "work": {
-    "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering": {
-      "ticket": 851,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
-      "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T18:27:36.696Z",
-      "held": true,
-      "head": "419269e63a2599d5ae339c92645a1e015cc7ba16",
-      "remoteHead": "419269e63a2599d5ae339c92645a1e015cc7ba16",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1959,
-      "reviewJobs": [
-        {
-          "job": "pr-1959/round-1/launch-incremental-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-incremental",
-            "reviewerId": "incremental",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incremental",
-              "undirected"
-            ],
-            "head": "2928727422dfbbd147efa1b7789f9e634a9793ab",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T17:24:13.215Z"
-          },
-          "round": 1,
-          "reviewerId": "incremental",
-          "attempt": 1,
-          "reviewedHead": "2928727422dfbbd147efa1b7789f9e634a9793ab",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "incremental": 1
-          },
-          "plannedRoundReviewers": [
-            "incremental",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6221134958
-          ]
-        },
-        {
-          "job": "pr-1959/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "incremental",
-              "undirected"
-            ],
-            "head": "2928727422dfbbd147efa1b7789f9e634a9793ab",
-            "completedRoundReviewers": {
-              "incremental": 1
-            },
-            "time": "2026-10-16T17:36:57.106Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "2928727422dfbbd147efa1b7789f9e634a9793ab",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "incremental": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "incremental",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6221555488
-          ]
-        },
-        {
-          "job": "pr-1959/round-2/launch-undirected2-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected2",
-            "reviewerId": "undirected2",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected2"
-            ],
-            "head": "419269e63a2599d5ae339c92645a1e015cc7ba16",
-            "completedRoundReviewers": {
-              "incremental": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-16T18:15:42.813Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected2",
-          "attempt": 1,
-          "reviewedHead": "419269e63a2599d5ae339c92645a1e015cc7ba16",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected2": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected2"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6222000505
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run": {
       "ticket": 1637,
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:27:36.696Z",
+      "observedAt": "2026-10-16T18:27:52.802Z",
       "held": true,
       "head": "78f865241113d8f9ebbc810fe500821defc75df0",
       "remoteHead": "78f865241113d8f9ebbc810fe500821defc75df0",
@@ -819,7 +702,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:27:36.696Z",
+      "observedAt": "2026-10-16T18:27:52.802Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1203,6 +1086,12 @@
       "ticket": 851,
       "pr": 1959,
       "reviewedHead": "419269e63a2599d5ae339c92645a1e015cc7ba16"
+    },
+    {
+      "time": "2026-10-16T18:27:50.071Z",
+      "event": "released",
+      "ticket": 851,
+      "reason": "process 21604 is gone and no process names its launch directory"
     }
   ]
 }
