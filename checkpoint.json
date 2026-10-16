@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 82,
-  "previous": "c1547ca4d91ff05aadc5afdb38939bc52974c393",
+  "seq": 83,
+  "previous": "d9aa329190c2249c310285f7af1c185356bbc0af",
   "snapshotParents": [],
-  "time": "2026-10-16T19:23:30.192Z",
+  "time": "2026-10-16T19:23:41.723Z",
   "kind": "auto",
-  "transition": "answer of #1637",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 65,
+    "recordRevision": 66,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -171,7 +171,12 @@
             "time": "2026-10-16T18:44:43.184Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-3fdbdbbe-1842-4e9e-8411-5c7587308fe4"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "fcab34d9-879d-446e-9cc9-baf63a589624",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-fcab34d9-879d-446e-9cc9-baf63a589624",
+          "time": "2026-10-16T19:23:38.797Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -885,7 +890,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:23:29.276Z",
+      "observedAt": "2026-10-16T19:23:40.487Z",
       "held": true,
       "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -973,7 +978,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:23:29.276Z",
+      "observedAt": "2026-10-16T19:23:40.487Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1447,6 +1452,13 @@
       "id": "edccbd38",
       "deliveryId": "5bce1b2c",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-16T19:23:38.798Z",
+      "event": "resume-intent",
+      "ticket": 1637,
+      "id": "fcab34d9-879d-446e-9cc9-baf63a589624",
+      "sessionId": "01a84990-6733-433b-807b-8af331dfa40b"
     }
   ]
 }
