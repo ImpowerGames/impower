@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 190,
-  "previous": "a7dc9d4f50ba04b20164da773aa491eb2790fa30",
+  "seq": 191,
+  "previous": "6d8a3684575b59cc7cdfe639d2e85b461360a819",
   "snapshotParents": [],
-  "time": "2026-10-16T12:17:41.808Z",
+  "time": "2026-10-16T12:18:47.770Z",
   "kind": "auto",
-  "transition": "resume of #1917",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 141,
@@ -2060,9 +2060,9 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:17:41.055Z",
+      "observedAt": "2026-10-16T12:18:47.038Z",
       "held": true,
-      "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
+      "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
       "unpushed": true,
       "dirty": true
@@ -2071,7 +2071,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T12:16:50.646Z",
+    "at": "2026-10-16T12:18:47.037Z",
     "tickets": [
       {
         "number": 1201,
@@ -2153,9 +2153,9 @@
       },
       {
         "number": 1917,
-        "action": "collect-report",
+        "action": "observe",
         "pr": null,
-        "reason": "process 58900 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1917-92387613-a3f8-4ae5-adcd-5deffdb94a85\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 46624 started 639277498593512774 is running"
       }
     ],
     "remaining": [
