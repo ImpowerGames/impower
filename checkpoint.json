@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 207,
-  "previous": "66637b6e0f98f7c8dc95b0ac2bd2d45b849bf802",
+  "seq": 208,
+  "previous": "33c72b486595eadf7617f9b891fb908732525f14",
   "snapshotParents": [],
-  "time": "2026-10-16T12:14:45.130Z",
+  "time": "2026-10-16T12:14:53.351Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #887",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 170,
+    "recordRevision": 171,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -570,10 +570,10 @@
         "launchId": "6944980d-0e0e-4dfc-bfbc-6851e5e74f98",
         "handle": {
           "kind": "process",
-          "pid": 51424,
-          "start": "639277270618586713",
+          "pid": 48332,
+          "start": "639277496908566478",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-d079b78a-0330-4db4-9a57-8289b8ff7680"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d"
         },
         "verified": true,
         "brief": {
@@ -602,13 +602,13 @@
             "id": "d079b78a-0330-4db4-9a57-8289b8ff7680",
             "time": "2026-10-16T05:57:42.241Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-d079b78a-0330-4db4-9a57-8289b8ff7680"
+          },
+          {
+            "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
+            "time": "2026-10-16T12:14:51.279Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d"
           }
-        ],
-        "resuming": {
-          "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d",
-          "time": "2026-10-16T12:14:42.879Z"
-        }
+        ]
       },
       "pending": null,
       "history": [],
@@ -2531,7 +2531,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:14:44.170Z",
+      "observedAt": "2026-10-16T12:14:52.514Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2667,7 +2667,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:14:44.170Z",
+      "observedAt": "2026-10-16T12:14:52.514Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2910,13 +2910,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:43:41.273Z",
-      "event": "resume-intent",
-      "ticket": 1299,
-      "id": "93576762-116f-4e96-b08d-b5285c0cabc9",
-      "sessionId": "e37f8bfb-7b87-4f9e-8818-efe1125742bd"
-    },
     {
       "time": "2026-10-15T22:43:50.215Z",
       "event": "resumed",
@@ -3618,6 +3611,19 @@
       "ticket": 887,
       "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
       "sessionId": "13d51545-ae87-46e9-923a-a2ae8ed8de49"
+    },
+    {
+      "time": "2026-10-16T12:14:51.279Z",
+      "event": "resumed",
+      "ticket": 887,
+      "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
+      "handle": {
+        "kind": "process",
+        "pid": 48332,
+        "start": "639277496908566478",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d"
+      }
     }
   ]
 }
