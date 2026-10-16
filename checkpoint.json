@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 184,
-  "previous": "2610f8b752e0d5fc644b6ed6f6018aec09c51ab4",
+  "seq": 185,
+  "previous": "36e5717d7f133a39bf007a989bf320aaa42e3788",
   "snapshotParents": [],
-  "time": "2026-10-16T06:15:34.504Z",
+  "time": "2026-10-16T06:45:57.007Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 149,
@@ -2479,10 +2479,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T06:15:33.639Z",
+      "observedAt": "2026-10-16T06:45:55.988Z",
       "held": true,
-      "head": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
-      "remoteHead": "1d3085aaf72e7cb1982c1ec9e5c771c06bd75ccb",
+      "head": "d037751d70a869aad360a331f27e008c57b942c8",
+      "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
       "unpushed": false,
       "dirty": true,
       "pr": 1929,
@@ -2566,6 +2566,47 @@
           "commentIds": [
             6208911122
           ]
+        },
+        {
+          "job": "pr-1929/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "inc",
+              "bound",
+              "undirected"
+            ],
+            "head": "d037751d70a869aad360a331f27e008c57b942c8",
+            "completedRoundReviewers": {
+              "inc": 1,
+              "bound": 1
+            },
+            "time": "2026-10-16T06:29:27.056Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "d037751d70a869aad360a331f27e008c57b942c8",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "inc": 1,
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "inc",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6209618664
+          ]
         }
       ]
     },
@@ -2574,12 +2615,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T06:15:33.639Z",
+      "observedAt": "2026-10-16T06:45:55.988Z",
       "held": true,
-      "head": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
-      "remoteHead": "156e83fe15ef1c790fe22d0e12f53ee34c5f3415",
+      "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
+      "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1928,
       "reviewJobs": [
         {
@@ -2689,6 +2730,44 @@
           "commentIds": [
             6209069707
           ]
+        },
+        {
+          "job": "pr-1928/round-3/launch-inc-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-inc",
+            "reviewerId": "inc",
+            "attempt": 1,
+            "plannedReviewers": [
+              "inc",
+              "undirected"
+            ],
+            "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
+            "completedRoundReviewers": {
+              "undirected": 1
+            },
+            "time": "2026-10-16T06:27:54.314Z"
+          },
+          "round": 3,
+          "reviewerId": "inc",
+          "attempt": 1,
+          "reviewedHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "inc": 1
+          },
+          "plannedRoundReviewers": [
+            "inc",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6209677385
+          ]
         }
       ]
     }
@@ -2696,7 +2775,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T06:15:14.242Z",
+    "at": "2026-10-16T06:45:55.987Z",
     "tickets": [
       {
         "number": 316,
@@ -2706,9 +2785,9 @@
       },
       {
         "number": 454,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1929,
-        "reason": "process 13860 started 639277218910543405 is running"
+        "reason": "process 13860 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-454-a77d8ee5-d75c-4a55-b475-f2b8b69eead6\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 457,
@@ -2718,9 +2797,9 @@
       },
       {
         "number": 887,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1928,
-        "reason": "process 51424 started 639277270618586713 is running"
+        "reason": "process 51424 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-d079b78a-0330-4db4-9a57-8289b8ff7680\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1103,
