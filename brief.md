@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 185 (this commit), 2026-10-16T12:14:59.861Z, after the intent before a side effect. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 186 (this commit), 2026-10-16T12:15:07.978Z, after resume of #1917. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -11,5 +11,5 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1917
 
-- claude-cli claude-opus-5-5 at medium, process 12152 on DESKTOP-726EO47
-- as of 2026-10-16T12:14:59.271Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run that may exist only there; recover those bytes there before restarting or overwriting this work
+- claude-cli claude-opus-5-5 at medium, process 58900 on DESKTOP-726EO47
+- as of 2026-10-16T12:15:07.303Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run that may exist only there; recover those bytes there before restarting or overwriting this work
