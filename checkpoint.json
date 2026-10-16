@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 247,
-  "previous": "5a4c343b70c34692b0873a0070f3ff9e737690b0",
+  "seq": 248,
+  "previous": "32dcf977343f1ba81014decd358d148c19ef4c93",
   "snapshotParents": [],
-  "time": "2026-10-16T17:25:16.252Z",
+  "time": "2026-10-16T17:26:47.895Z",
   "kind": "auto",
-  "transition": "feature verification 4c8c8717 (complete)",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 180,
+    "recordRevision": 181,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2638,6 +2638,16 @@
       "mergedOnto": "41c4a6b2f3f5d4489a0f46a1fbc1c7d481d860c8",
       "baseMoved": true,
       "onMain": true
+    },
+    {
+      "id": "96fca801",
+      "kind": "close",
+      "ticket": 1893,
+      "pr": 1893,
+      "expectHead": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
+      "state": "intent",
+      "time": "2026-10-16T17:26:45.431Z",
+      "evidence": "verification 4c8c8717"
     }
   ],
   "decisions": [],
@@ -2915,7 +2925,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T17:25:16.201Z",
+      "observedAt": "2026-10-16T17:26:47.887Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -3154,11 +3164,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:02:33.802Z",
-      "event": "verified",
-      "ticket": 1623
-    },
     {
       "time": "2026-10-16T01:02:43.679Z",
       "event": "acknowledged",
@@ -3811,6 +3816,13 @@
       "id": "4c8c8717",
       "verdict": "complete",
       "mainSha": "cd50ceb1e81f6d7d996149a79db9442d7da104a0"
+    },
+    {
+      "time": "2026-10-16T17:26:45.431Z",
+      "event": "operation-intent",
+      "id": "96fca801",
+      "kind": "close",
+      "pr": 1893
     }
   ]
 }
