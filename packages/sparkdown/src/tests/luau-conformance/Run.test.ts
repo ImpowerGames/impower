@@ -8,8 +8,6 @@ import {
   testStory,
   withTestExternals,
 } from "../engineUnderTest";
-import { runWrapperFunctionName } from "../../compiler/utils/runWrapper";
-import { readableSymbolLabel } from "../../program/ProgramSymbols";
 
 function compileWithFiles(files: Array<{ uri: string; text: string }>) {
   const compiler = testCompiler();
@@ -274,7 +272,7 @@ done
     ]);
     const before = recordedRun(first.program.chunks);
     expect(before).toHaveLength(2);
-    expect(before[0]).toBe("__run_helper");
+    expect(before[0]).toMatch(/^__run_\w+helper\w*__$/);
     expect(before[1]).toBe(before[0]);
     compiler.updateDocument({
       textDocument: { uri: "inmemory:///main.sd", version: 2 },
@@ -299,34 +297,6 @@ done
     expect(cold.errs).toEqual([]);
     expect(recordedRun(warm.program.chunks)).toEqual(before);
     expect(recordedRun(cold.result.program.chunks)).toEqual(before);
-  });
-
-  // The wrapper's name spells the file's whole URI; an author reads it by
-  // the file's name (round 4 of PR #1928's review).
-  test("shows a run file's wrapper by the file's name", () => {
-    const helper = "file:///C:/Users/me/my-story/scripts/lib/my-helper.luau";
-    const wrapper = runWrapperFunctionName(helper);
-    expect(wrapper.length).toBeGreaterThan(60);
-    expect(readableSymbolLabel(wrapper)).toBe("__run_my_helper");
-    expect(readableSymbolLabel(`${wrapper}.inner`)).toBe(
-      "__run_my_helper.inner",
-    );
-    expect(readableSymbolLabel("__run_helper")).toBe("__run_helper");
-    const { result, errs } = compileWithFiles([
-      {
-        uri: "file:///C:/Users/me/my-story/scripts/main.sd",
-        text: `external harness_record(v)\nrun "lib/my-helper"\ndone\n`,
-      },
-      {
-        uri: helper,
-        text: `& harness_record(debug.info(1, "n"))\n& harness_record(debug.traceback())\n`,
-      },
-    ]);
-    expect(errs).toEqual([]);
-    const [name, trace] = recordedRun(result.program.chunks) as string[];
-    expect(name).toBe("__run_my_helper");
-    expect(trace).toContain("__run_my_helper");
-    expect(trace).not.toContain("_2f");
   });
 
   test("runs one file once per run line across incremental compiles", () => {

@@ -48,43 +48,17 @@ export const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
  *  docs/engine/binary-program.md, section 2). */
 const GENERATED_LABEL_PART = /^__[A-Za-z]\w*\$/;
 
-/** The wrapper of a `run` statement's `.luau` file
- *  (`runWrapperFunctionName`): `__run_`, then the file's URI spelled by
- *  `documentTag` (letters and digits, `_` and two hex digits, or `_u` and
- *  six), which ends at its first `__`. */
-const RUN_WRAPPER_LABEL_PART =
-  /^__run_((?:[A-Za-z0-9]|_[0-9a-f]{2}|_u[0-9a-f]{6})*)__$/;
-
-/** How a `run` file's wrapper is shown to an author: `__run_` and the
- *  file's name without `.luau`, identifier-safe, as `run "helper"` named it
- *  before the wrapper was named after the whole URI (#887). */
-const readableRunWrapper = (tag: string): string => {
-  const uri = tag.replace(/_u([0-9a-f]{6})|_([0-9a-f]{2})/g, (_, wide, byte) =>
-    String.fromCodePoint(parseInt(wide ?? byte, 16)),
-  );
-  const path = uri.split(/[?#]/, 1)[0]!;
-  const name = path
-    .slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1)
-    .replace(/\.luau$/i, "")
-    .replace(/[^A-Za-z0-9_]/g, "_");
-  return `__run_${name}`;
-};
-
 /** A symbol's label (`ProgramRoot.labelOf`) as an author reads it in a
  *  stack trace, `debug.info`, the frames view or a function value: each
- *  part the compiler named read as anonymous (#1729), and a `run` file's
- *  wrapper by the file's name. The label itself stays the symbol's
- *  identity, which data breakpoints name a scope by, so two anonymous
- *  functions, or the wrappers of two files of one name, keep scopes of
- *  their own. */
+ *  part the compiler named read as anonymous (#1729). The label itself
+ *  stays the symbol's identity, which data breakpoints name a scope by, so
+ *  two anonymous functions keep scopes of their own. */
 export const readableSymbolLabel = (label: string): string =>
   label
     .split(".")
-    .map((part) => {
-      if (GENERATED_LABEL_PART.test(part)) return ANONYMOUS_FUNCTION_LABEL;
-      const run = RUN_WRAPPER_LABEL_PART.exec(part);
-      return run ? readableRunWrapper(run[1]!) : part;
-    })
+    .map((part) =>
+      GENERATED_LABEL_PART.test(part) ? ANONYMOUS_FUNCTION_LABEL : part,
+    )
     .join(".");
 
 /** The id of the symbol named `name`, interned when it is new, with a count
