@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 136,
-  "previous": "003aac30347d9a2bafb03e1a40eb615db95a7175",
+  "seq": 137,
+  "previous": "a7778b4f9bef4ba33363bf287fb0867f260c3bb1",
   "snapshotParents": [],
-  "time": "2026-10-16T03:48:54.086Z",
+  "time": "2026-10-16T03:59:11.056Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 101,
@@ -1522,7 +1522,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T03:48:53.410Z",
+      "observedAt": "2026-10-16T03:59:10.398Z",
       "held": true,
       "head": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
       "remoteHead": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
@@ -1693,7 +1693,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T03:19:13.441Z",
+    "at": "2026-10-16T03:59:10.397Z",
     "tickets": [
       {
         "number": 1201,
@@ -1721,9 +1721,9 @@
       },
       {
         "number": 1611,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1918,
-        "reason": "process 40848 started 639277092958357626 is running"
+        "reason": "PR #1918 is ready at 7c5f980fe7cf9609b0d6467628ff0446ec43566b; process 40848 is gone; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1613,
@@ -1739,9 +1739,9 @@
       },
       {
         "number": 1623,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1918,
-        "reason": "process 40848 started 639277092958357626 is running"
+        "reason": "PR #1918 is ready at 7c5f980fe7cf9609b0d6467628ff0446ec43566b; process 40848 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1627,
