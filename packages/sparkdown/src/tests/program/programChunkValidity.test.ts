@@ -87,10 +87,10 @@ function editOnce(before: string, at: number, remove: number, insert: string) {
     });
     const after = before.slice(0, at) + insert + before.slice(at + remove);
     const incremental = c.compile().program;
-    const cold = programCompiler({ [MAIN_URI]: after }, { programChunks: true } as never);
-    const coldProgram = cold.compile().program;
     // The chunks of the statements away from the edit that the compile
-    // emitted again.
+    // emitted again. A statement's key holds how its names resolved, which
+    // the parsed objects report only until any compiler compiles again
+    // (`CompileEpoch.ts`), so these are found before the cold compile.
     const untouched = untouchedChunks(c.compiler, at, at + insert.length, keysBefore);
     const reemitted = untouched.filter((chunk) => !held.has(chunk)).length;
     // The statements away from the edit that hold a chunk other than their
@@ -99,6 +99,8 @@ function editOnce(before: string, at: number, remove: number, insert: string) {
     const moved = programStatements(c.compiler)
       .filter((s) => own.has(s.chunk) && chunkBefore.get(s.key) !== s.chunk)
       .map((s) => s.syntax);
+    const cold = programCompiler({ [MAIN_URI]: after }, { programChunks: true } as never);
+    const coldProgram = cold.compile().program;
     return {
       incremental: surface(c, incremental),
       cold: surface(cold, coldProgram),
