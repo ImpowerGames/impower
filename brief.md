@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 89 (this commit), 2026-10-16T00:00:09.436Z, after a new plan. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 90 (this commit), 2026-10-16T00:00:18.275Z, after the intent before a side effect. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
