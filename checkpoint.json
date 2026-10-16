@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 175,
-  "previous": "c88a30408b9d9cbb27227a9018ecf3dc5e7471c2",
+  "seq": 176,
+  "previous": "4bc8d4b066f894071aa354bdec2f95dfd0953e07",
   "snapshotParents": [],
-  "time": "2026-10-16T05:14:34.469Z",
+  "time": "2026-10-16T05:14:51.035Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 141,
+    "recordRevision": 142,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2454,7 +2454,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T05:14:33.600Z",
+      "observedAt": "2026-10-16T05:14:50.200Z",
       "held": true,
       "head": "beae9a8cbe9cc0bb0a88a77db0c34dd7200f8a09",
       "remoteHead": "beae9a8cbe9cc0bb0a88a77db0c34dd7200f8a09",
@@ -2468,7 +2468,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T05:14:33.600Z",
+      "observedAt": "2026-10-16T05:14:50.200Z",
       "held": true,
       "head": "589a987eedd96a6cbfed3b027356adc3d563a6f9",
       "remoteHead": "589a987eedd96a6cbfed3b027356adc3d563a6f9",
@@ -2624,11 +2624,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:21:55.834Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1874-preview-cold-start"
-    },
     {
       "time": "2026-10-15T22:22:03.464Z",
       "event": "disk-recovery",
@@ -3324,6 +3319,11 @@
       "time": "2026-10-16T04:44:29.000Z",
       "event": "check-in",
       "outcome": "no change: writers for #454 and #887 running (transcripts growing, no PR yet); #316 waits for #887; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T05:14:49.079Z",
+      "event": "check-in",
+      "outcome": "no change: #454 opened draft PR #1929 (beae9a8cb) and #887 draft PR #1928 (589a987ee), both in review with writers running; #316 waits for #887; no transcripts to read, no dead launches; holding merges for ORCH #1904's PR #1925"
     }
   ]
 }
