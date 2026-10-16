@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 34,
-  "previous": "a423648093c144c452fca27cacc0af2cd740f635",
+  "seq": 35,
+  "previous": "f7fc07c1d435227af4f7f82023c16b89bc3e52ed",
   "snapshotParents": [],
-  "time": "2026-10-16T22:57:29.119Z",
+  "time": "2026-10-16T22:58:07.370Z",
   "kind": "auto",
-  "transition": "answered of #1962",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 35,
@@ -1361,7 +1361,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T22:57:28.471Z",
+      "observedAt": "2026-10-16T22:58:06.710Z",
       "held": true,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "remoteHead": "041d28169100232e321ebdc166009aa3dbd853e6",
@@ -1635,37 +1635,37 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T22:06:54.255Z",
+    "at": "2026-10-16T22:58:06.709Z",
     "tickets": [
       {
         "number": 1962,
-        "action": "collect-report",
-        "pr": 1975,
-        "reason": "process 31640 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1962-9b86a7f5-eda8-418c-bc46-fcfbbe241d53\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1963,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1962 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1964,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1962 (open), #1963 (open)"
+        "reason": "waiting for #1963 (open)"
       },
       {
         "number": 1965,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1962 (open), #1964 (open)"
+        "reason": "waiting for #1964 (open)"
       },
       {
         "number": 1966,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1962 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1967,
