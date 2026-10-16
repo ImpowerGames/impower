@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 72,
-  "previous": "6eed0648064fec807f68f02cd37e971aca7c4fb6",
+  "seq": 73,
+  "previous": "1af5675fb5a9f5376d398fb47b0fcdeca0545eaf",
   "snapshotParents": [],
-  "time": "2026-10-16T18:44:08.258Z",
+  "time": "2026-10-16T18:44:36.545Z",
   "kind": "auto",
-  "transition": "answer of #1637",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 58,
+    "recordRevision": 59,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -164,6 +164,11 @@
           },
           "evidence": "cross-session message from the writer (peer impower-00 for #851 at 16:24Z, impower-d7 for #1637 at 16:27Z) naming the assignment id and the model, effort and mode read from its own command line and CLAUDE_EFFORT; the launch directory's out.jsonl init line names model claude-opus-5-5 and permissionMode bypassPermissions",
           "deliveryId": "cd33b411"
+        },
+        "resuming": {
+          "id": "3fdbdbbe-1842-4e9e-8411-5c7587308fe4",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-3fdbdbbe-1842-4e9e-8411-5c7587308fe4",
+          "time": "2026-10-16T18:44:34.026Z"
         }
       },
       "pending": null,
@@ -862,7 +867,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:44:07.232Z",
+      "observedAt": "2026-10-16T18:44:35.307Z",
       "held": true,
       "head": "99f13721c737d931e3462c9875ee432fce5c3017",
       "remoteHead": "99f13721c737d931e3462c9875ee432fce5c3017",
@@ -913,7 +918,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:44:07.232Z",
+      "observedAt": "2026-10-16T18:44:35.307Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1330,6 +1335,13 @@
       "id": "adaa1fa4",
       "deliveryId": "5054f865",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-16T18:44:34.027Z",
+      "event": "resume-intent",
+      "ticket": 1637,
+      "id": "3fdbdbbe-1842-4e9e-8411-5c7587308fe4",
+      "sessionId": "01a84990-6733-433b-807b-8af331dfa40b"
     }
   ]
 }
