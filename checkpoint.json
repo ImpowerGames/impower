@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 4,
-  "previous": "18b1e847aa57d980ec8f82c7516cf4edad0dbc71",
+  "seq": 5,
+  "previous": "f63d08be84b26d058913fc168045c27582ae8c45",
   "snapshotParents": [],
-  "time": "2026-10-16T03:48:19.880Z",
+  "time": "2026-10-16T04:18:12.233Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 24,
@@ -239,18 +239,20 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T03:48:19.291Z",
+      "observedAt": "2026-10-16T04:18:11.635Z",
       "held": true,
-      "head": "192b2f2dab673911ea2b397c7d852a2899563e3f",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
+      "remoteHead": "920f99ef56a83056bb48068e2757fcd8fe6b6d0b",
+      "unpushed": false,
+      "dirty": true,
+      "pr": 1927,
+      "reviewJobs": []
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T03:48:02.447Z",
+    "at": "2026-10-16T04:18:11.634Z",
     "tickets": [
       {
         "number": 984,
@@ -356,9 +358,9 @@
       },
       {
         "number": 1248,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1927,
+        "reason": "draft PR #1927 at 920f99ef56a83056bb48068e2757fcd8fe6b6d0b has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1254,
@@ -368,15 +370,15 @@
       },
       {
         "number": 1258,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1927,
+        "reason": "draft PR #1927 at 920f99ef56a83056bb48068e2757fcd8fe6b6d0b has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1261,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1927,
+        "reason": "draft PR #1927 at 920f99ef56a83056bb48068e2757fcd8fe6b6d0b has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1266,
@@ -386,9 +388,9 @@
       },
       {
         "number": 1290,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1927,
+        "reason": "draft PR #1927 at 920f99ef56a83056bb48068e2757fcd8fe6b6d0b has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1293,
@@ -398,9 +400,9 @@
       },
       {
         "number": 1318,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1927,
+        "reason": "draft PR #1927 at 920f99ef56a83056bb48068e2757fcd8fe6b6d0b has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1329,
@@ -434,15 +436,15 @@
       },
       {
         "number": 1596,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1927,
+        "reason": "draft PR #1927 at 920f99ef56a83056bb48068e2757fcd8fe6b6d0b has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1647,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1927,
+        "reason": "draft PR #1927 at 920f99ef56a83056bb48068e2757fcd8fe6b6d0b has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1658,
@@ -459,7 +461,7 @@
       {
         "number": 1905,
         "action": "observe",
-        "pr": null,
+        "pr": 1927,
         "reason": "process 47220 started 639277164087901651 is running"
       },
       {
