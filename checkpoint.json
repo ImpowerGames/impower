@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 112,
-  "previous": "8579ea0fe8bcd354acf1d847450887c6a85c8faa",
+  "seq": 113,
+  "previous": "5ac700d467c2377fde790572ebbea825892bbbe2",
   "snapshotParents": [],
-  "time": "2026-10-16T00:24:31.192Z",
+  "time": "2026-10-16T01:21:56.977Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 95,
+    "recordRevision": 97,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -120,6 +120,312 @@
             "attempts": 1,
             "time": "2026-10-15T22:05:02.144Z",
             "to": "local_bede5658-a16d-4558-858b-9a8d10696a23"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "3ec341bd",
+          "kind": "finish",
+          "feature": 1895,
+          "ticket": 457,
+          "pr": 1911,
+          "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23",
+          "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
+          "time": "2026-10-16T01:16:50.080Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+          "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+          "range": {
+            "from": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+            "to": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+            "base": "e84cd48368b3362989776690ec88a1d1f5d05857",
+            "commits": [],
+            "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "reports": [
+            {
+              "comment": 6204282403,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6204374119
+            },
+            {
+              "comment": 6204448140,
+              "round": 1,
+              "reviewerId": "bound",
+              "adjudication": 6204578168
+            },
+            {
+              "comment": 6204677944,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6204767124
+            },
+            {
+              "comment": 6204954724,
+              "round": 2,
+              "reviewerId": "bound",
+              "adjudication": 6205072054
+            },
+            {
+              "comment": 6205210744,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6205313804
+            },
+            {
+              "comment": 6205401377,
+              "round": 3,
+              "reviewerId": "bound",
+              "adjudication": 6205411743
+            },
+            {
+              "comment": 6205529265,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6205576145
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Eight of the nine blocking defects across rounds 1 and 2 are one mechanism: where the new compile-stop Error is placed (which statement, which global, which script) and when an existing Error nearby suppresses it. The instances were an unrelated Error anywhere in the script, a failure inside a called function, a host error rather than a story error, a spacing-only line whose trimmed range getDiagnostic drops, a store inside a function body (the declaration chunk is per block), a warning, a called function assigning the store's own global, and the resolver temp-collision filter matching the error text. The ninth was separate: lowerDisplay dropped inline and glued match diagnostics. The corrections ended as one mechanism rather than eight patches: ProgramStory tells ChunkStore the running declaration chunk and the index of the declaring SetVar the chunk's own frame has run (a called function runs deeper and does not count), ChunkStore places the first error or the first warning over that global's own lines in its own script, suppression is limited to an Error that starts within those lines, lineSource spans a spacing-only line whole, and the resolver filter is anchored to the resolver's own message. Round 3 ran 17 boundary probes over that mechanism (mixed value kinds, zero and many globals, chunk resets, nested calls, pcall/xpcall, callbacks, coroutines, seeded builtins) and found nothing, and an honesty check reverting the three correction files failed exactly the two new tests.",
+            "regressions": "Two corrections introduced defects, both found by the next round and fixed: a18f82340's suppression used the enclosing block's whole span, so an unrelated Error elsewhere in the same function hid a store's failure (round 2, bound); 2204e9ac5's global-existence check could be fooled by a called function assigning the store's global before the initializer finished (round 2, undirected). ce894ea79 replaced the existence check with the per-frame SetVar count and limited the span to the failing global's lines; round 3 found no defect in it. This says the placement rule was unstable while it was expressed in terms of mutable runtime state, and stable once expressed in terms of the writer's own emission order, which the probes and the mutation check now pin.",
+            "repairOptions": "The broader repair the writer names, never suppressing the compile-stop Error, would remove the suppression class outright at the cost of a duplicate Error wherever a malformed store already carries a syntax error, which changes the 981 pinned Luau-parity layouts in MalformedExpressionAtEveryPosition. With suppression now limited to the failing global's own lines, the remaining failure mode is a syntax Error on the same lines hiding a runtime failure of the same statement, which is the case the suppression was written for and reads as one error to the author. I do not widen the PR for it: the agreed behavior (every no-program compile carries an Error, guaranteed independently by assertNoSilentNoProgram over 86 fixtures) holds either way, and the narrower rule keeps the parity pins. No simpler repair of the placement mechanism was found by the three rounds.",
+            "residualRisk": "Placement relies on BinaryProgramWriter.writeDeclaration emitting one declaring global SetVar per global, in order, in the declaration's frame; a future writer change there would misplace the Error (some Error would still exist). Throws from the resolver, lowering or programFlows reach the catch with no statement and land on line 1 of the compiled script. Preview compiles take the same reportCompileThrow path but have no dedicated assertion. The per-SetVar null test in ProgramStory's step loop was not measured for cost. For #1325, store a, b = pair() is an Error on the statement rather than a spread of the call's values, which the ticket allowed, and the Error does not stop the program, so the preview still plays Value 3 and nil beside the Error.",
+            "coverage": "programCompileThrow.test.ts, 14 cases, each added for a finding red on the head it was reported on; assertNoSilentNoProgram in every programCompiler compile and compileNoProgramDiagnostic over the 86 compile-snapshot fixtures; programMatchArms (block, inline and glued forms), programStoreValues (the call spread plus four pins), programDivertTargetLiteral and programTunnelOnwardArguments (pins, green on base, disclosed as fixed by #705). Independent base-versus-head run by the round-3 undirected reviewer: 18 failed and 229 passed on c47d43421, 247 passed on ce894ea79. MalformedExpressionAtEveryPosition 981, localShadowsStore 14, programDeclarations 12, luauSyntaxAgreement 132 pass. CI on ce894ea79: Test Suite run 38830424898 with every package job run and passing, typecheck 41/41, build, hook-tests, notifier-tests, linked-issue. Live editor after-shots for each correction and before/after for #1502 and #1325, inspected by the writer.",
+            "nextRoundValue": "Only an independent re-review of an unchanged head. Round 3's two lenses (boundaries with 17 probes and a mutation check; undirected with the full base/head comparison and adjacent-error probes) reported no blocking or should-fix finding, every finding of rounds 1 and 2 is closed with a red-on-reported-head test, and the defect class stopped recurring once the placement rule was rewritten. Another round is not expected to establish anything the evidence does not already show.",
+            "rationale": "The review gates pass at round 3 on the current head ce894ea79: every planned reviewer exited with a completed journal, every report is adjudicated, nothing is outstanding, no code changed after the reviewed head, CI on the head is green. The one mechanism that produced findings converged in ce894ea79 and held under round 3's targeted probes, so this is a finish, not a repair or an extension. The agreed behavior of parent #1895 is preserved and no architecture changed.",
+            "next": "Finish: ordinary review-pr readiness marks PR #1911 ready. The coordinator adds the Closes lines for #1325, #1502 and #1641 to the body, as the writer's brief and the PR body say, then the PR joins the shared merge queue with the #1893 run behind #1915 and merges through integration.mjs merge once its head contains current main with CI green.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6204282403,
+                "finding": "an unrelated Error anywhere in the script suppressed the failing store's diagnostic",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6204448140,
+                "finding": "inline and glued match diagnostics dropped by lowerDisplay callers",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6204448140,
+                "finding": "a store initializer failing inside a called function was attributed to the function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6204448140,
+                "finding": "retry exhaustion had no diagnostic path (unverified concern, established and fixed)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6204448140,
+                "finding": "programDeclarations log-format assertion compatibility (unverified concern, resolved)",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6204448140,
+                "finding": "incremental and preview compile coverage gap (recompile case added; preview retained as a gap)",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6204677944,
+                "finding": "a whitespace-only first line let the fallback diagnostic be dropped as a reversed range",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6204677944,
+                "finding": "host errors in initializers lost the store location unless they were StoryExceptions",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6204954724,
+                "finding": "a store inside a function used the enclosing function's range, letting unrelated Errors hide its failure",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6204954724,
+                "finding": "warnings thrown by declaration reporting bypassed the declaration callback",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6205210744,
+                "finding": "the compile-stop Error could be filtered by the unanchored resolver temp-collision filter",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6205210744,
+                "finding": "a called function assigning the store's global moved the diagnostic to another store",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6205210744,
+                "finding": "PR description named superseded implementation (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6205401377,
+                "disposition": "none"
+              },
+              {
+                "comment": 6205529265,
+                "finding": "PR body claim that the recompile case passes on both heads (optional)",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: finish through ordinary readiness\n\nDecision `3ec341bd` by coordinator `local_bede5658-a16d-4558-858b-9a8d10696a23` of Feature #1895 for #457.\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (bound, undirected) exited, and every report has its adjudication (6204282403 in 6204374119, 6204448140 in 6204578168, 6204677944 in 6204767124, 6204954724 in 6205072054, 6205210744 in 6205313804, 6205401377 in 6205411743, 6205529265 in 6205576145).\n- Independently reviewed through `ce894ea79ad62c8b9fce9eabe9290c0df33d6be2`.\n- Head `ce894ea79ad62c8b9fce9eabe9290c0df33d6be2`. Nothing after the reviewed head is unreviewed.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, test-suite passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 12 accepted, 2 covered, 1 none; unresolved: none.\n- Shared mechanisms: Eight of the nine blocking defects across rounds 1 and 2 are one mechanism: where the new compile-stop Error is placed (which statement, which global, which script) and when an existing Error nearby suppresses it. The instances were an unrelated Error anywhere in the script, a failure inside a called function, a host error rather than a story error, a spacing-only line whose trimmed range getDiagnostic drops, a store inside a function body (the declaration chunk is per block), a warning, a called function assigning the store's own global, and the resolver temp-collision filter matching the error text. The ninth was separate: lowerDisplay dropped inline and glued match diagnostics. The corrections ended as one mechanism rather than eight patches: ProgramStory tells ChunkStore the running declaration chunk and the index of the declaring SetVar the chunk's own frame has run (a called function runs deeper and does not count), ChunkStore places the first error or the first warning over that global's own lines in its own script, suppression is limited to an Error that starts within those lines, lineSource spans a spacing-only line whole, and the resolver filter is anchored to the resolver's own message. Round 3 ran 17 boundary probes over that mechanism (mixed value kinds, zero and many globals, chunk resets, nested calls, pcall/xpcall, callbacks, coroutines, seeded builtins) and found nothing, and an honesty check reverting the three correction files failed exactly the two new tests.\n- Defects introduced by corrections: Two corrections introduced defects, both found by the next round and fixed: a18f82340's suppression used the enclosing block's whole span, so an unrelated Error elsewhere in the same function hid a store's failure (round 2, bound); 2204e9ac5's global-existence check could be fooled by a called function assigning the store's global before the initializer finished (round 2, undirected). ce894ea79 replaced the existence check with the per-frame SetVar count and limited the span to the failing global's lines; round 3 found no defect in it. This says the placement rule was unstable while it was expressed in terms of mutable runtime state, and stable once expressed in terms of the writer's own emission order, which the probes and the mutation check now pin.\n- Broader or simpler repair: The broader repair the writer names, never suppressing the compile-stop Error, would remove the suppression class outright at the cost of a duplicate Error wherever a malformed store already carries a syntax error, which changes the 981 pinned Luau-parity layouts in MalformedExpressionAtEveryPosition. With suppression now limited to the failing global's own lines, the remaining failure mode is a syntax Error on the same lines hiding a runtime failure of the same statement, which is the case the suppression was written for and reads as one error to the author. I do not widen the PR for it: the agreed behavior (every no-program compile carries an Error, guaranteed independently by assertNoSilentNoProgram over 86 fixtures) holds either way, and the narrower rule keeps the parity pins. No simpler repair of the placement mechanism was found by the three rounds.\n- Residual risk: Placement relies on BinaryProgramWriter.writeDeclaration emitting one declaring global SetVar per global, in order, in the declaration's frame; a future writer change there would misplace the Error (some Error would still exist). Throws from the resolver, lowering or programFlows reach the catch with no statement and land on line 1 of the compiled script. Preview compiles take the same reportCompileThrow path but have no dedicated assertion. The per-SetVar null test in ProgramStory's step loop was not measured for cost. For #1325, store a, b = pair() is an Error on the statement rather than a spread of the call's values, which the ticket allowed, and the Error does not stop the program, so the preview still plays Value 3 and nil beside the Error.\n- Verification coverage: programCompileThrow.test.ts, 14 cases, each added for a finding red on the head it was reported on; assertNoSilentNoProgram in every programCompiler compile and compileNoProgramDiagnostic over the 86 compile-snapshot fixtures; programMatchArms (block, inline and glued forms), programStoreValues (the call spread plus four pins), programDivertTargetLiteral and programTunnelOnwardArguments (pins, green on base, disclosed as fixed by #705). Independent base-versus-head run by the round-3 undirected reviewer: 18 failed and 229 passed on c47d43421, 247 passed on ce894ea79. MalformedExpressionAtEveryPosition 981, localShadowsStore 14, programDeclarations 12, luauSyntaxAgreement 132 pass. CI on ce894ea79: Test Suite run 38830424898 with every package job run and passing, typecheck 41/41, build, hook-tests, notifier-tests, linked-issue. Live editor after-shots for each correction and before/after for #1502 and #1325, inspected by the writer.\n- What another round would establish: Only an independent re-review of an unchanged head. Round 3's two lenses (boundaries with 17 probes and a mutation check; undirected with the full base/head comparison and adjacent-error probes) reported no blocking or should-fix finding, every finding of rounds 1 and 2 is closed with a red-on-reported-head test, and the defect class stopped recurring once the placement rule was rewritten. Another round is not expected to establish anything the evidence does not already show.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The review gates pass at round 3 on the current head ce894ea79: every planned reviewer exited with a completed journal, every report is adjudicated, nothing is outstanding, no code changed after the reviewed head, CI on the head is green. The one mechanism that produced findings converged in ce894ea79 and held under round 3's targeted probes, so this is a finish, not a repair or an extension. The agreed behavior of parent #1895 is preserved and no architecture changed. Next: Finish: ordinary review-pr readiness marks PR #1911 ready. The coordinator adds the Closes lines for #1325, #1502 and #1641 to the body, as the writer's brief and the PR body say, then the PR joins the shared merge queue with the #1893 run behind #1915 and merges through integration.mjs merge once its head contains current main with CI green.\n- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"3ec341bd\",\n \"kind\": \"finish\",\n \"feature\": 1895,\n \"ticket\": 457,\n \"pr\": 1911,\n \"coordinator\": \"local_bede5658-a16d-4558-858b-9a8d10696a23\",\n \"runId\": \"2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4\",\n \"time\": \"2026-10-16T01:16:50.080Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"ce894ea79ad62c8b9fce9eabe9290c0df33d6be2\",\n \"head\": \"ce894ea79ad62c8b9fce9eabe9290c0df33d6be2\",\n \"range\": {\n  \"from\": \"ce894ea79ad62c8b9fce9eabe9290c0df33d6be2\",\n  \"to\": \"ce894ea79ad62c8b9fce9eabe9290c0df33d6be2\",\n  \"base\": \"e84cd48368b3362989776690ec88a1d1f5d05857\",\n  \"commits\": [],\n  \"diffSha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n },\n \"reports\": [\n  {\n   \"comment\": 6204282403,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6204374119\n  },\n  {\n   \"comment\": 6204448140,\n   \"round\": 1,\n   \"reviewerId\": \"bound\",\n   \"adjudication\": 6204578168\n  },\n  {\n   \"comment\": 6204677944,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6204767124\n  },\n  {\n   \"comment\": 6204954724,\n   \"round\": 2,\n   \"reviewerId\": \"bound\",\n   \"adjudication\": 6205072054\n  },\n  {\n   \"comment\": 6205210744,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6205313804\n  },\n  {\n   \"comment\": 6205401377,\n   \"round\": 3,\n   \"reviewerId\": \"bound\",\n   \"adjudication\": 6205411743\n  },\n  {\n   \"comment\": 6205529265,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6205576145\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Eight of the nine blocking defects across rounds 1 and 2 are one mechanism: where the new compile-stop Error is placed (which statement, which global, which script) and when an existing Error nearby suppresses it. The instances were an unrelated Error anywhere in the script, a failure inside a called function, a host error rather than a story error, a spacing-only line whose trimmed range getDiagnostic drops, a store inside a function body (the declaration chunk is per block), a warning, a called function assigning the store's own global, and the resolver temp-collision filter matching the error text. The ninth was separate: lowerDisplay dropped inline and glued match diagnostics. The corrections ended as one mechanism rather than eight patches: ProgramStory tells ChunkStore the running declaration chunk and the index of the declaring SetVar the chunk's own frame has run (a called function runs deeper and does not count), ChunkStore places the first error or the first warning over that global's own lines in its own script, suppression is limited to an Error that starts within those lines, lineSource spans a spacing-only line whole, and the resolver filter is anchored to the resolver's own message. Round 3 ran 17 boundary probes over that mechanism (mixed value kinds, zero and many globals, chunk resets, nested calls, pcall/xpcall, callbacks, coroutines, seeded builtins) and found nothing, and an honesty check reverting the three correction files failed exactly the two new tests.\",\n  \"regressions\": \"Two corrections introduced defects, both found by the next round and fixed: a18f82340's suppression used the enclosing block's whole span, so an unrelated Error elsewhere in the same function hid a store's failure (round 2, bound); 2204e9ac5's global-existence check could be fooled by a called function assigning the store's global before the initializer finished (round 2, undirected). ce894ea79 replaced the existence check with the per-frame SetVar count and limited the span to the failing global's lines; round 3 found no defect in it. This says the placement rule was unstable while it was expressed in terms of mutable runtime state, and stable once expressed in terms of the writer's own emission order, which the probes and the mutation check now pin.\",\n  \"repairOptions\": \"The broader repair the writer names, never suppressing the compile-stop Error, would remove the suppression class outright at the cost of a duplicate Error wherever a malformed store already carries a syntax error, which changes the 981 pinned Luau-parity layouts in MalformedExpressionAtEveryPosition. With suppression now limited to the failing global's own lines, the remaining failure mode is a syntax Error on the same lines hiding a runtime failure of the same statement, which is the case the suppression was written for and reads as one error to the author. I do not widen the PR for it: the agreed behavior (every no-program compile carries an Error, guaranteed independently by assertNoSilentNoProgram over 86 fixtures) holds either way, and the narrower rule keeps the parity pins. No simpler repair of the placement mechanism was found by the three rounds.\",\n  \"residualRisk\": \"Placement relies on BinaryProgramWriter.writeDeclaration emitting one declaring global SetVar per global, in order, in the declaration's frame; a future writer change there would misplace the Error (some Error would still exist). Throws from the resolver, lowering or programFlows reach the catch with no statement and land on line 1 of the compiled script. Preview compiles take the same reportCompileThrow path but have no dedicated assertion. The per-SetVar null test in ProgramStory's step loop was not measured for cost. For #1325, store a, b = pair() is an Error on the statement rather than a spread of the call's values, which the ticket allowed, and the Error does not stop the program, so the preview still plays Value 3 and nil beside the Error.\",\n  \"coverage\": \"programCompileThrow.test.ts, 14 cases, each added for a finding red on the head it was reported on; assertNoSilentNoProgram in every programCompiler compile and compileNoProgramDiagnostic over the 86 compile-snapshot fixtures; programMatchArms (block, inline and glued forms), programStoreValues (the call spread plus four pins), programDivertTargetLiteral and programTunnelOnwardArguments (pins, green on base, disclosed as fixed by #705). Independent base-versus-head run by the round-3 undirected reviewer: 18 failed and 229 passed on c47d43421, 247 passed on ce894ea79. MalformedExpressionAtEveryPosition 981, localShadowsStore 14, programDeclarations 12, luauSyntaxAgreement 132 pass. CI on ce894ea79: Test Suite run 38830424898 with every package job run and passing, typecheck 41/41, build, hook-tests, notifier-tests, linked-issue. Live editor after-shots for each correction and before/after for #1502 and #1325, inspected by the writer.\",\n  \"nextRoundValue\": \"Only an independent re-review of an unchanged head. Round 3's two lenses (boundaries with 17 probes and a mutation check; undirected with the full base/head comparison and adjacent-error probes) reported no blocking or should-fix finding, every finding of rounds 1 and 2 is closed with a red-on-reported-head test, and the defect class stopped recurring once the placement rule was rewritten. Another round is not expected to establish anything the evidence does not already show.\",\n  \"rationale\": \"The review gates pass at round 3 on the current head ce894ea79: every planned reviewer exited with a completed journal, every report is adjudicated, nothing is outstanding, no code changed after the reviewed head, CI on the head is green. The one mechanism that produced findings converged in ce894ea79 and held under round 3's targeted probes, so this is a finish, not a repair or an extension. The agreed behavior of parent #1895 is preserved and no architecture changed.\",\n  \"next\": \"Finish: ordinary review-pr readiness marks PR #1911 ready. The coordinator adds the Closes lines for #1325, #1502 and #1641 to the body, as the writer's brief and the PR body say, then the PR joins the shared merge queue with the #1893 run behind #1915 and merges through integration.mjs merge once its head contains current main with CI green.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6204282403,\n    \"finding\": \"an unrelated Error anywhere in the script suppressed the failing store's diagnostic\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6204448140,\n    \"finding\": \"inline and glued match diagnostics dropped by lowerDisplay callers\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6204448140,\n    \"finding\": \"a store initializer failing inside a called function was attributed to the function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6204448140,\n    \"finding\": \"retry exhaustion had no diagnostic path (unverified concern, established and fixed)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6204448140,\n    \"finding\": \"programDeclarations log-format assertion compatibility (unverified concern, resolved)\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6204448140,\n    \"finding\": \"incremental and preview compile coverage gap (recompile case added; preview retained as a gap)\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6204677944,\n    \"finding\": \"a whitespace-only first line let the fallback diagnostic be dropped as a reversed range\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6204677944,\n    \"finding\": \"host errors in initializers lost the store location unless they were StoryExceptions\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6204954724,\n    \"finding\": \"a store inside a function used the enclosing function's range, letting unrelated Errors hide its failure\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6204954724,\n    \"finding\": \"warnings thrown by declaration reporting bypassed the declaration callback\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6205210744,\n    \"finding\": \"the compile-stop Error could be filtered by the unanchored resolver temp-collision filter\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6205210744,\n    \"finding\": \"a called function assigning the store's global moved the diagnostic to another store\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6205210744,\n    \"finding\": \"PR description named superseded implementation (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6205401377,\n    \"disposition\": \"none\"\n   },\n   {\n    \"comment\": 6205529265,\n    \"finding\": \"PR body claim that the recompile case passes on both heads (optional)\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "78ed9df35178c4751eb3c7ea26fd09321086ddae30d07a3d693542d9c2951863",
+          "blockSha256": "d1f05242bbccb135c88ccecc10e20a2f1279c63c79ba6da5c6b0ded4482115b8",
+          "published": {
+            "comment": 6205800664,
+            "time": "2026-10-16T01:17:41.277Z",
+            "headAtPublish": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2"
           }
         }
       ]
@@ -790,7 +1096,18 @@
       "onMain": true
     }
   ],
-  "decisions": [],
+  "decisions": [
+    {
+      "pr": 1911,
+      "url": "https://github.com/ImpowerGames/impower/pull/1911#issuecomment-6205800664",
+      "kind": "review-checkpoint finish",
+      "ticket": 457,
+      "id": "3ec341bd",
+      "round": 3,
+      "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+      "time": "2026-10-16T01:17:41.277Z"
+    }
+  ],
   "diskRecoveries": [
     {
       "time": "2026-10-15T22:17:41.043Z",
@@ -1094,16 +1411,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
-      "observedAt": "2026-10-16T00:24:29.779Z",
+      "observedAt": "2026-10-16T01:21:55.623Z",
       "held": true,
-      "head": "2204e9ac508e0d339fbd02189eaff9d0f6cddd7c",
-      "remoteHead": "2204e9ac508e0d339fbd02189eaff9d0f6cddd7c",
+      "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+      "remoteHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 47396
-      },
       "pr": 1911,
       "reviewJobs": [
         {
@@ -1269,7 +1582,7 @@
         },
         {
           "job": "pr-1911/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -1284,7 +1597,101 @@
               "bound": 1
             },
             "time": "2026-10-16T00:21:44.570Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "2204e9ac508e0d339fbd02189eaff9d0f6cddd7c",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6205210744
+          ]
+        },
+        {
+          "job": "pr-1911/round-3/launch-bound-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-bound",
+            "reviewerId": "bound",
+            "attempt": 1,
+            "plannedReviewers": [
+              "bound",
+              "undirected"
+            ],
+            "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+            "completedRoundReviewers": {
+              "bound": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T00:38:23.822Z"
+          },
+          "round": 3,
+          "reviewerId": "bound",
+          "attempt": 1,
+          "reviewedHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "bound": 1
+          },
+          "plannedRoundReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6205401377
+          ]
+        },
+        {
+          "job": "pr-1911/round-3/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "bound",
+              "undirected"
+            ],
+            "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+            "completedRoundReviewers": {
+              "bound": 1
+            },
+            "time": "2026-10-16T00:45:19.546Z"
+          },
+          "round": 3,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "bound": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6205529265
+          ]
         }
       ]
     },
@@ -1293,10 +1700,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1645-scene-beats-document-order",
       "branch": "fix/1645-scene-beats-document-order",
-      "observedAt": "2026-10-16T00:24:29.779Z",
+      "observedAt": "2026-10-16T01:21:55.623Z",
       "held": true,
       "head": "fd81f7e1b15be1e8e277763155aacd54acb86b01",
-      "remoteHead": "08944010cf0084b50e279b64ecffe8536695ef75",
+      "remoteHead": "8453e6f9c89315fc50d9738ac90fbe0aec51b61e",
       "unpushed": false,
       "dirty": false,
       "pr": 1916,
@@ -1339,7 +1746,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T00:24:10.092Z",
+    "at": "2026-10-16T01:21:55.621Z",
     "tickets": [
       {
         "number": 316,
@@ -1355,9 +1762,9 @@
       },
       {
         "number": 457,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1911,
-        "reason": "process 21264 started 639276977403890485 is running"
+        "reason": "process 21264 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-457-aa2733e6-4028-47ec-981f-f17d4cad4da8\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 887,
@@ -1373,21 +1780,21 @@
       },
       {
         "number": 1299,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 20144 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1325,
-        "action": "wait-dependency",
-        "pr": null,
-        "reason": "waiting for #457 (open)"
+        "action": "adopt-pr",
+        "pr": 1911,
+        "reason": "draft PR #1911 at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1502,
-        "action": "wait-dependency",
-        "pr": null,
-        "reason": "waiting for #457 (open)"
+        "action": "adopt-pr",
+        "pr": 1911,
+        "reason": "draft PR #1911 at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1617,
@@ -1397,15 +1804,15 @@
       },
       {
         "number": 1641,
-        "action": "wait-dependency",
-        "pr": null,
-        "reason": "waiting for #457 (open)"
+        "action": "adopt-pr",
+        "pr": 1911,
+        "reason": "draft PR #1911 at ce894ea79ad62c8b9fce9eabe9290c0df33d6be2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1645,
         "action": "merge-gate",
         "pr": 1916,
-        "reason": "PR #1916 is ready at 08944010cf0084b50e279b64ecffe8536695ef75; process 21792 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "PR #1916 is ready at 8453e6f9c89315fc50d9738ac90fbe0aec51b61e; process 21792 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       }
     ],
     "remaining": [
@@ -2012,6 +2419,22 @@
       "time": "2026-10-16T00:24:28.523Z",
       "event": "check-in",
       "outcome": "Merged #1913 (6692a9a3) and #1914 (fe765851) through the gate; released writers for #1103 and #1299; #1916 ready and holding for ORCH #1893's #1912 under the shared merge queue; #457 bundle in review; #1617 held behind #457"
+    },
+    {
+      "time": "2026-10-16T01:16:50.080Z",
+      "event": "checkpoint-intent",
+      "ticket": 457,
+      "id": "3ec341bd",
+      "kind": "finish",
+      "round": 3,
+      "head": "ce894ea79ad62c8b9fce9eabe9290c0df33d6be2"
+    },
+    {
+      "time": "2026-10-16T01:17:41.277Z",
+      "event": "checkpoint-published",
+      "ticket": 457,
+      "id": "3ec341bd",
+      "comment": 6205800664
     }
   ]
 }
