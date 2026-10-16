@@ -1867,8 +1867,10 @@ export class SparkdownCompiler {
       // chunk recorded that now reads otherwise (`StatementWatch`).
       const watch = this._chunkStore?.watch;
       // An attempt after the first keeps the marks of the attempts before
-      // it: the objects they resolved again are not resolved again now, as
-      // the resolver resolved them in the first (`compileStory`).
+      // it. The resolver resolves again now what they resolved, as no
+      // compile kept their resolves (`ProgramResolver.committed`), which
+      // marks again what still reads otherwise; a mark left from them only
+      // has the store build a chunk anew (`compileStory`).
       if (this._memoAttempt === 0) {
         watch?.changed.clear();
       }
