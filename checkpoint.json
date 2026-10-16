@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 138,
-  "previous": "fd604ae596514e8c1ea7b45bf7044b59e0421812",
+  "seq": 139,
+  "previous": "e89b92dc7792373ca2b9ff30deabace6f6fb4611",
   "snapshotParents": [],
-  "time": "2026-10-16T03:59:18.292Z",
+  "time": "2026-10-16T04:18:36.390Z",
   "kind": "auto",
-  "transition": "result of #1623",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 102,
+    "recordRevision": 103,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1541,7 +1541,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T03:59:17.619Z",
+      "observedAt": "2026-10-16T04:18:35.712Z",
       "held": true,
       "head": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
       "remoteHead": "7c5f980fe7cf9609b0d6467628ff0446ec43566b",
@@ -1807,12 +1807,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T21:40:57.644Z",
-      "event": "check-in-scheduled",
-      "job": "e8a7ccb0",
-      "none": null
-    },
     {
       "time": "2026-10-15T21:41:04.709Z",
       "event": "group",
@@ -2494,6 +2488,11 @@
       "ticket": 1623,
       "pr": 1918,
       "reviewedHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8"
+    },
+    {
+      "time": "2026-10-16T04:18:34.626Z",
+      "event": "check-in",
+      "outcome": "no change: PR 1918 (#1623/#1611) ready at 7c5f980fe with its report recorded, held behind #1921 (still open, CI cycle running) per the merge queue; main at 7cab47f9 (#1923); U3 brief drafted; no requests"
     }
   ]
 }
