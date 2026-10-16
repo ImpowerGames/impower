@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 249,
-  "previous": "71760fe4b20d3ad5e2ac94daa26553f94853b510",
+  "seq": 250,
+  "previous": "716abfa19a1e24264b6e33900d28c3c92094c723",
   "snapshotParents": [],
-  "time": "2026-10-16T15:49:09.442Z",
+  "time": "2026-10-16T15:50:25.645Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "result of #454",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 209,
+    "recordRevision": 210,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -121,7 +121,33 @@
       },
       "pending": null,
       "history": [],
-      "results": [],
+      "results": [
+        {
+          "time": "2026-10-16T15:50:22.225Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1929,
+            "reviewedHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
+            "rounds": {
+              "gpt-6.1-sol (native-codex-jsonl, high, cross-vendor default)": 3,
+              "cap": 3,
+              "round1": "inc 6208911122/6209161433, bound 6209304618/6209532398, undirected 6209618664/6215643507",
+              "round2": "merge 6215992421/6216503732, undirected 6216661174/6217813039",
+              "round3": "undirected 6218611101/6218648921, no findings",
+              "checkpoint": "decision 69b392c5 finish, comment 6219069197"
+            },
+            "findings": "None",
+            "verification": "builtinRootDefineOverride.test.ts, 46 cases; red/green against branch point 13f6fd9f8: 43 failed / 3 passed on base, 46 passed on head, reproduced independently by round 3's reviewer with controls over all 31 builtin roots and save/load. Neighbouring sparkdown, spark-engine and spark-web-player tests pass; filtered typecheck clean. Live web-editor preview on 5af99ac plays the ticket's script (Chose A.) and the override probes give the expected values, screenshots inspected; one intermittent page error on the first run after a cold start did not recur in three reruns and is disclosed in the PR body. Final design: the prelude root keeps its slot, the authored root registers under $override_<key> at its own position and its __def merges into the existing table (records key by key, lists replace, function wrappers never merged, {} an empty record).",
+            "ci": "On 5af99ac: 30 checks passed including the test-suite gate, every package job and typecheck; skills-checks, vitest-api-integration, driver-checks and notifier skipped by path gating; none failed or pending.",
+            "next": "None from the writer; PR #1929 marked ready on 5af99ac (isDraft false read back, body has Closes #454) for the coordinator's merge gate; no merge of main into the branch.",
+            "changesAfterReviewedCommit": "PR body text only (CI states, #1951, the sweep item checked and not filed); no code",
+            "other": "Sweep: #1951 filed (Bug, child of #1895) and read back. The FlowBase.ts:732 item was not filed: the filer's reproduction shows the third same-type define does report a duplicate identifier at its own line, and the zero-width $synth duplicate at line 0 is tracked by #1011. Filer leftovers untouched: worktree impower.worktrees/repro/filer-a6f44ce087ee4cb684c1cd82faba2cb3 with an untracked scratch test (record impower.filer-jobs/a6f44ce0-.../owner.json), and branch repro/filer-3982bd61-9adf-46a4-adc5-9f09a66823fb. Writer worktree clean at 5af99ac.",
+            "source": "cross-session message from writer impower-47 (resumed session b483900d-bfad-4f3d-bff3-87e961965503), final report for assignment a77d8ee5"
+          }
+        }
+      ],
       "requests": [
         {
           "id": "5b339599",
@@ -3731,7 +3757,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:49:07.280Z",
+      "observedAt": "2026-10-16T15:50:24.513Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3979,7 +4005,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:49:07.280Z",
+      "observedAt": "2026-10-16T15:50:24.513Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4224,12 +4250,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T02:27:17.037Z",
-      "event": "released",
-      "ticket": 457,
-      "reason": "process 56604 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-16T02:28:38.607Z",
       "event": "dispatch-intent",
@@ -4940,6 +4960,13 @@
       "time": "2026-10-16T15:49:05.247Z",
       "event": "check-in",
       "outcome": "Accepted and merged PR #1928 (#887, a6c12061) under acceptance 51ff191a and released its writer; published finish 69b392c5 for PR #1929 (#454) and resumed its writer to file the FlowBase sweep item and mark ready; dispatched #316 into the freed slot; #839 running; #1800 waits for capacity"
+    },
+    {
+      "time": "2026-10-16T15:50:22.226Z",
+      "event": "result",
+      "ticket": 454,
+      "pr": 1929,
+      "reviewedHead": "5af99acef3f333d0cb5891bd50402faf19ada517"
     }
   ]
 }
