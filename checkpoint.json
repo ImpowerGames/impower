@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 175,
-  "previous": "c2eb87a306e02229162d817d732b01a3ce9ed63f",
+  "seq": 176,
+  "previous": "baa53c8f5cf2cac8d54ba456c8f0932d0e51787d",
   "snapshotParents": [],
-  "time": "2026-10-16T07:17:29.335Z",
+  "time": "2026-10-16T07:47:31.109Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 127,
+    "recordRevision": 128,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2048,7 +2048,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T07:17:28.625Z",
+      "observedAt": "2026-10-16T07:47:30.382Z",
       "held": true,
       "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
       "remoteHead": null,
@@ -2154,11 +2154,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:19:29.786Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1761-incremental-text"
-    },
     {
       "time": "2026-10-15T22:19:39.492Z",
       "event": "disk-recovery",
@@ -2860,6 +2855,11 @@
       "time": "2026-10-16T07:17:27.283Z",
       "event": "check-in",
       "outcome": "no change: #1917 writer stalled on the weekly usage limit (resets Oct 19 1am ET), draft test uncommitted in its worktree, no PR; holding resumes pending the maintainer's answer; all 13 original tickets closed on main"
+    },
+    {
+      "time": "2026-10-16T07:47:29.081Z",
+      "event": "check-in",
+      "outcome": "no change: #1917 writer stalled on the weekly usage limit, no PR; awaiting the maintainer's choice (wait for the Oct 19 reset or another writer model)"
     }
   ]
 }
