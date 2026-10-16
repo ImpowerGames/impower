@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 173,
-  "previous": "992b7222da02988667d36f4f865162a42f2a4f1b",
+  "seq": 174,
+  "previous": "9a309eddecedc036711125f7417a507140d9adb0",
   "snapshotParents": [],
-  "time": "2026-10-16T04:35:53.871Z",
+  "time": "2026-10-16T04:44:31.179Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 140,
+    "recordRevision": 141,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2454,24 +2454,24 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:35:50.859Z",
+      "observedAt": "2026-10-16T04:44:30.257Z",
       "held": true,
       "head": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
       "remoteHead": null,
       "unpushed": true,
-      "dirty": false
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice": {
       "ticket": 887,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T04:35:50.859Z",
+      "observedAt": "2026-10-16T04:44:30.257Z",
       "held": true,
       "head": "13f6fd9f8f9ed1f0527e1215fc934019bb1e389f",
       "remoteHead": null,
       "unpushed": true,
-      "dirty": false
+      "dirty": true
     }
   },
   "snapshots": {},
@@ -2560,11 +2560,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:21:47.793Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1817-file-events-before-initialize"
-    },
     {
       "time": "2026-10-15T22:21:55.834Z",
       "event": "disk-recovery",
@@ -3260,6 +3255,11 @@
       "time": "2026-10-16T04:35:48.280Z",
       "event": "check-in",
       "outcome": "no change: writers for #454 and #887 running in their early steps with no PR yet; #316 waits for #887; no transcripts to read, no dead launches; 63 GB free"
+    },
+    {
+      "time": "2026-10-16T04:44:29.000Z",
+      "event": "check-in",
+      "outcome": "no change: writers for #454 and #887 running (transcripts growing, no PR yet); #316 waits for #887; no transcripts to read, no dead launches"
     }
   ]
 }
