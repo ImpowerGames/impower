@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 289,
-  "previous": "21a3cde9876933b7d16486fe5b43edd03dd39b74",
+  "seq": 290,
+  "previous": "67ef3bb1481e23a9de12e329fe475a1a05bf1122",
   "snapshotParents": [],
-  "time": "2026-10-16T16:20:46.808Z",
+  "time": "2026-10-16T16:29:24.459Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 243,
@@ -4179,9 +4179,9 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:20:45.564Z",
+      "observedAt": "2026-10-16T16:29:22.428Z",
       "held": true,
-      "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+      "head": "54947268cf63b5bf999d270b1702af0bdf31ed03",
       "remoteHead": null,
       "unpushed": true,
       "dirty": true
@@ -4191,7 +4191,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:20:45.564Z",
+      "observedAt": "2026-10-16T16:29:22.428Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4336,15 +4336,18 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:20:45.564Z",
+      "observedAt": "2026-10-16T16:29:22.428Z",
       "held": true,
-      "exists": false
+      "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:17:24.299Z",
+    "at": "2026-10-16T16:29:22.426Z",
     "tickets": [
       {
         "number": 316,
@@ -4366,9 +4369,9 @@
       },
       {
         "number": 839,
-        "action": "answer-request",
-        "pr": 1948,
-        "reason": "request 1a4a9897 \"PR #1948 cannot pass the merge gate by the writer's means: round 1's ax journal ends blocked (needs posted comment IDs) with its report posted verbatim by the writer as 6218256781 and adjudicated as 6218463732; the launcher refuses to relaunch ax as attempt 2 of round 1 because round 2 is already complete (checkReviewRound, agent-handoff.mjs:47), recordCoordinatorReport refuses a journal that does not end report-awaiting-post, and the launcher's comment adoption runs only at reviewer exit. Options the writer lists: (a) the gate accepts round 1's ax coverage as reviewed (no exception exists in the gate), (b) authoring an attempt-2 plan with completedReviewRound 1, which misstates the journals and the writer refuses without an explicit direction, (c) the launcher gains the fix proposed on #510 (6218779015, 6218944059): record-report completes a journal blocked on needs-posted-comment-IDs once the comment read-back matches. The PR stays ready at a9d427cc2.\" was relayed to the maintainer at 2026-10-16T16:08:07.552Z; once they decide, record answer and send it; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 15932 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 887,
@@ -4434,7 +4437,7 @@
         "number": 1951,
         "action": "wait-capacity",
         "pr": null,
-        "reason": "3 writers already hold tickets against a limit of 3"
+        "reason": "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
       }
     ],
     "remaining": [
