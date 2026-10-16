@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 130,
-  "previous": "50bd2524e387f709c07fe4b040e62df5e43188ac",
+  "seq": 131,
+  "previous": "535166cb9aef378e9af5dc1261be0ce428ab8a26",
   "snapshotParents": [],
-  "time": "2026-10-16T03:13:29.617Z",
+  "time": "2026-10-16T03:14:40.669Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1919 (confirmed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 97,
+    "recordRevision": 98,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1175,9 +1175,9 @@
       "ticket": 1614,
       "pr": 1919,
       "expectHead": "5b408d57e22233a48ca7ff03f78d3de629530b73",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T03:13:27.177Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1919 reads back merged as 50335b0153700bd8b78b21dc1cb385729363cd39 at 5b408d57e22233a48ca7ff03f78d3de629530b73; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "8ac011bdab2f32361fe17580e083588cb7ad7b5c",
@@ -1348,7 +1348,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T03:14:37.836Z",
+      "mergeCommit": "50335b0153700bd8b78b21dc1cb385729363cd39",
+      "mergedOnto": "192b2f2dab673911ea2b397c7d852a2899563e3f",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -1511,7 +1516,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T03:13:28.637Z",
+      "observedAt": "2026-10-16T03:14:39.278Z",
       "held": true,
       "head": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
       "remoteHead": "bbf9c700434ca41b88e756e51a4ccddca214c4f8",
@@ -1647,7 +1652,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T03:13:28.637Z",
+      "observedAt": "2026-10-16T03:14:39.278Z",
       "held": true,
       "head": "5b408d57e22233a48ca7ff03f78d3de629530b73",
       "remoteHead": "5b408d57e22233a48ca7ff03f78d3de629530b73",
@@ -2547,6 +2552,12 @@
       "id": "07586b5c",
       "kind": "merge",
       "pr": 1919
+    },
+    {
+      "time": "2026-10-16T03:14:37.836Z",
+      "event": "operation-outcome",
+      "id": "07586b5c",
+      "state": "confirmed"
     }
   ]
 }
