@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 217,
-  "previous": "cc6423d7fb96ff1447b667d74096e0e65d143b31",
+  "seq": 218,
+  "previous": "9fe85cb0d745b02ddbd0ad08ae1d52c56af9e6f3",
   "snapshotParents": [],
-  "time": "2026-10-16T15:28:26.978Z",
+  "time": "2026-10-16T15:28:59.026Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1933",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 158,
+    "recordRevision": 159,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -848,7 +848,26 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T15:28:49.320Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1947,
+            "reviewedHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
+            "rounds": "2 of 3 on gpt-6.1-sol (codex through start-coordinator). Round 1 on 7c12e2d2f, three serial reviewers incr, bound, undirected: reports 6217941927, 6218096013, 6218384148, adjudications 6217947689, 6218100639, 6218410347. Round 2 on ddc8852b9, one undirected reviewer: report 6218734677, adjudication 6218757217. All four reviewers exited; every report had no findings. incr's and bound's own gh pr comment failed on an exhausted GraphQL rate limit, so the writer posted their reports verbatim over REST and their journals end blocked for that reason only; friction reported on #510 comment 6218779015.",
+            "findings": "None",
+            "verification": "Root causes, both inside ChunkStore.align: edit #27 was a tie in matchTwins (both twins moved one of the run's shifts, cost 0, pairInOrder gave the chunk to the earlier twin), fixed by breaking ties toward the twin whose bodies hold as many statements as the chunk's did, weighted below one line; edit #117 (reduced to a 12-line one-edit case) was the #1496 identity-pass rule when an edit demotes one function into a do block while another defines inner with the old chunk's identity, fixed by a narrow exception that lets the chunk go to the statement that now defines the function's name when the holder has the same syntax and no longer defines it. Nothing touches the parser, statementMemo.ts or ProgramResolver.ts. Redgreen through the driver ok (two new programChunkValidity cases fail on base, all 28 pass with the fix; rerun with --base origin/main after the harness correction). Merged origin/main 8b466a5cd and un-skipped function seed 12 in programCumulativeEdits: SPARKDOWN_CUMULATIVE=1 run 24 passed, 1 skipped (flow 3, #1934), seed 12 ran all 120 edits; programChunkValidity 28, programChunkCrossing 41, programChunkIdentity 44, programIncrementalColdParity 12, and the nine oracle files #1932 split out all passed; filtered typecheck ok; live editor edit #27 renders the same preview and diagnostics as a cold reload (screenshots inspected). Sweep correction (test-only, reviewed in round 2): editOnce in programChunkValidity read untouched statements after the cold compile, whose resolve moves the shared CompileEpoch. Residual risk named by every reviewer: restoring a suspended frame of the function edit #117 demotes, or a durable save across that edit, is not exercised; the saved-closure regressions pass.",
+            "ci": "every check passed on ddc8852b9: test-suite gate, all package jobs including sparkdown 1-4/4, typecheck and tsc, linked-issue, hook-tests, notifier-tests, build; driver-checks, skills-checks, notifier, vitest-api-integration skipped by path. origin/main moved since by CI-tooling commits only (#1945), nothing under packages/",
+            "next": "none from the writer; PR 1947 awaits the merge gate",
+            "changesAfterReviewedCommit": "none; head equals the reviewed commit",
+            "notes": "No tickets filed. Friction on #510: 6218779015.",
+            "source": "cross-session message from writer session impower-e8 after its turn ended; transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1933-9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769/out.jsonl; PR facts confirmed on GitHub"
+          }
+        }
+      ]
     }
   },
   "operations": [
@@ -2512,7 +2531,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T15:28:26.086Z",
+      "observedAt": "2026-10-16T15:28:55.958Z",
       "held": true,
       "head": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
       "remoteHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c",
@@ -2748,19 +2767,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:54:42.527Z",
-      "event": "launched",
-      "ticket": 1846,
-      "launchId": "01c5d730-a671-44d3-98f5-684890d101cd",
-      "handle": {
-        "kind": "process",
-        "pid": 53964,
-        "start": "639277016822063214",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1846-01c5d730-a671-44d3-98f5-684890d101cd"
-      }
-    },
     {
       "time": "2026-10-15T22:56:38.797Z",
       "event": "acknowledged",
@@ -3445,6 +3451,13 @@
       "time": "2026-10-16T15:19:16.629Z",
       "event": "check-in",
       "outcome": "no change: #1933 draft PR 1947 at ddc8852b9 in review round 2 (reviewer running) after round-1 corrections; GraphQL rate limit has reset; #1934 blocked behind #1933; no requests"
+    },
+    {
+      "time": "2026-10-16T15:28:49.322Z",
+      "event": "result",
+      "ticket": 1933,
+      "pr": 1947,
+      "reviewedHead": "ddc8852b9e9ccfdca4d759b878f1879bd7497f2c"
     }
   ]
 }
