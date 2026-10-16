@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1940
 
-Checkpoint 21 (this commit), 2026-10-16T16:28:20.028Z, after acknowledged of #1798. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
+Checkpoint 22 (this commit), 2026-10-16T16:28:38.179Z, after verify of #1798. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,12 +12,12 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #851
 
 - claude-cli claude-opus-5-5 at medium, process 21604 on DESKTOP-726EO47
-- as of 2026-10-16T16:28:16.908Z, DESKTOP-726EO47 held unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\851-flow-scoped-renumbering that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T16:28:33.076Z, DESKTOP-726EO47 held unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\851-flow-scoped-renumbering that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1637
 
 - claude-cli claude-opus-5-5 at medium, process 47756 on DESKTOP-726EO47
-- as of 2026-10-16T16:28:16.908Z, DESKTOP-726EO47 held unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1637-carry-declaration-run that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T16:28:33.076Z, DESKTOP-726EO47 held unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1637-carry-declaration-run that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1798
 
