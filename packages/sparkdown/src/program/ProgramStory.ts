@@ -382,14 +382,15 @@ interface SuspendedStep {
 }
 
 /** Told an issue the declarations' run raises or throws, as it does: the
- *  declaration chunk running, whether the issue is a warning, and whether a
- *  global of that name is declared yet. A chunk declares its globals one
- *  after another, each after its value, so the first of its globals not yet
- *  declared is the one whose value raised the issue. */
+ *  declaration chunk running, whether the issue is a warning, and the index,
+ *  among the globals the chunk declares, of the one whose value raised it.
+ *  A chunk declares its globals one after another, each after its value, in
+ *  its own frame: a function its value calls does not count, whatever
+ *  globals it assigns. */
 export type DeclarationIssueListener = (
   declarationChunk: number,
   isWarning: boolean,
-  declared: (name: string) => boolean,
+  globalIndex: number,
 ) => void;
 
 /** What the engine of the program before hands the engine of the next one
@@ -491,8 +492,12 @@ export class ProgramStory implements StoryEngine {
    *  constructor's `onDeclarationIssue`). */
   protected _onDeclarationIssue?: DeclarationIssueListener;
   /** The declaration chunk the declarations' run is running, or null when
-   *  it runs none. */
+   *  it runs none; the depth of the call stack its own frame stands at; and
+   *  how many globals its own frame has declared, which is the index of the
+   *  global whose value it is running. */
   protected _declarationRunning: number | null = null;
+  protected _declarationDepth = 0;
+  protected _declarationGlobals = 0;
 
   protected _state!: ProgramStoryState;
   protected _reader: BinaryProgramReader;
@@ -2105,15 +2110,16 @@ export class ProgramStory implements StoryEngine {
   }
 
   /** Tells the declarations' listener of an issue raised while a
-   *  declaration chunk runs, with that chunk and which globals the run has
-   *  declared so far, which names the global whose value raised it. */
+   *  declaration chunk runs, with that chunk and the index of the global
+   *  whose value raised it. */
   protected tellDeclarationIssue(isWarning: boolean): void {
     if (this._declarationRunning === null || !this._onDeclarationIssue) {
       return;
     }
-    const variables = this._state.variablesState;
-    this._onDeclarationIssue(this._declarationRunning, isWarning, (name) =>
-      variables.GlobalVariableExistsWithName(name),
+    this._onDeclarationIssue(
+      this._declarationRunning,
+      isWarning,
+      this._declarationGlobals,
     );
   }
 
@@ -2735,6 +2741,16 @@ export class ProgramStory implements StoryEngine {
           value = oneValue(value);
         }
         state.variablesState.Assign(this.assignment(arg, flags), value);
+        // A declaration chunk declares its globals one after another, each
+        // after its value, in its own frame.
+        if (
+          this._declarationRunning !== null &&
+          flags & SET_DECLARE &&
+          flags & SET_GLOBAL &&
+          state.callStack.elements.length <= this._declarationDepth
+        ) {
+          this._declarationGlobals += 1;
+        }
         break;
       }
       case Op.Native: {
@@ -3645,8 +3661,10 @@ export class ProgramStory implements StoryEngine {
     const beatLog = this.beatLog;
     this.beatLog = null;
     const depth = state.callStack.elements.length;
+    this._declarationDepth = depth;
     for (const chunk of this.root.initialization) {
       this._declarationRunning = chunkId(chunk);
+      this._declarationGlobals = 0;
       const at = this.root.position(chunkId(chunk));
       if (!at) {
         // The root places every declaration chunk it lists. One it cannot

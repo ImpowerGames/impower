@@ -1579,7 +1579,11 @@ export class SparkdownCompiler {
       // lowered to a global `store`; now that `const` lowers to a
       // real `ConstantDeclaration`, that diagnostic no longer fires
       // spuriously.)
-      if (/A temp named `\w+` already exists on null/.test(message)) {
+      if (
+        /^Duplicate identifier `\w+`\. A temp named `\w+` already exists on null/.test(
+          message,
+        )
+      ) {
         return;
       }
       // Fall back to the document URI when the diagnostic source

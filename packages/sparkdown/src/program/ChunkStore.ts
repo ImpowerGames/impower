@@ -1131,9 +1131,7 @@ export class ChunkStore {
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
       // An issue the run raises stands at the global whose value raised it,
-      // even inside a function that value calls: the first global of its
-      // declaration that the run has not declared yet, at that global's own
-      // lines. A declaration chunk holds every global its statement declares,
+      // even inside a function that value calls, at that global's own lines. A declaration chunk holds every global its statement declares,
       // the stores inside a function body included.
       const sources = new Map<number, DeclarationSource>();
       for (const list of byScript.values()) {
@@ -1141,12 +1139,12 @@ export class ChunkStore {
           sources.set(chunkId(chunk), source);
         }
       }
-      const failure = this.runDeclarations(root, (chunk, declared) => {
+      const failure = this.runDeclarations(root, (chunk, globalIndex) => {
         const source = sources.get(chunk);
         if (!source) {
           return undefined;
         }
-        const global = source.globals.find(({ name }) => !declared(name));
+        const global = source.globals[globalIndex];
         const metadata = global?.assignment.debugMetadata;
         if (!metadata) {
           return { uri: source.uri, line: source.firstLine, endLine: lastLineOf(source) };
@@ -1480,7 +1478,7 @@ export class ChunkStore {
     root: ProgramRoot,
     locate: (
       declarationChunk: number,
-      declared: (name: string) => boolean,
+      globalIndex: number,
     ) => DeclarationSite | undefined,
   ): { error: unknown; site: DeclarationSite | undefined } | null {
     // Where the first error and the first warning were raised.
@@ -1488,11 +1486,11 @@ export class ChunkStore {
     let warning: { site: DeclarationSite | undefined } | undefined;
     try {
       new ProgramStory(root, {
-        onDeclarationIssue: (chunk, isWarning, declared) => {
+        onDeclarationIssue: (chunk, isWarning, globalIndex) => {
           if (isWarning) {
-            warning ??= { site: locate(chunk, declared) };
+            warning ??= { site: locate(chunk, globalIndex) };
           } else {
-            error ??= { site: locate(chunk, declared) };
+            error ??= { site: locate(chunk, globalIndex) };
           }
         },
       });

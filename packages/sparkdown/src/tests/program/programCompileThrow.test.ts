@@ -139,6 +139,24 @@ describe("a compile whose statement throws", () => {
     expect(errorsOf(program).map(([line]) => line)).toEqual([5]);
   });
 
+  it("reports a store whose called function assigns its global at that store", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      'function fail()\n  a = 1\n  error("bad")\n  return 0\nend\nfunction holder()\n  store a = fail()\n  store b = 2\n  return 0\nend\nHello.\n',
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line)).toEqual([6]);
+  });
+
+  it("reports a store whose error reads like a diagnostic the compile leaves out", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { program } = compileScript(
+      'function fail()\n  error("A temp named `x` already exists on null")\n  return 0\nend\nstore a = fail()\n',
+    );
+    expect(program.chunks).toBeUndefined();
+    expect(errorsOf(program).map(([line]) => line)).toEqual([4]);
+  });
+
   it("reports a compile whose memo retries run out", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
