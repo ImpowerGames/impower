@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 241 (this commit), 2026-10-16T16:58:38.822Z, after result of #1934. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 242 (this commit), 2026-10-16T17:00:57.867Z, after the intent before a side effect. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -22,3 +22,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - claude-cli claude-opus-5-5 at low, process 7864 on DESKTOP-726EO47
 - review job pr-1953/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 40f7f8169, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
 - review job pr-1953/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 40f7f8169, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
+
+## Unsettled operations
+
+- 849b3954: merge of PR #1953 at 40f7f8169a627b4c27d81790110a3bf79bddf842, intent; settle it with checkpoint.mjs reconcile-operations before any retry
