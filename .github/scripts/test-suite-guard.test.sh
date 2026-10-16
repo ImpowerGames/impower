@@ -11,6 +11,14 @@ workflow=.github/workflows/test-suite.yml
 body=$(awk '/name: Require summary lines/{f=1;next} f&&/run: \|/{g=1;next} g&&/^      - name:/{exit} g{sub(/^          /,"");print}' "$workflow")
 [ -n "$body" ] || { echo "FAIL: could not extract the Require summary lines step body from $workflow"; exit 1; }
 status=0
+# A job other than the package matrix (the Luau corpus gate) repeats the step;
+# every copy must be the body checked below.
+copies=$(grep -c 'name: Require summary lines' "$workflow")
+for i in $(seq 2 "$copies"); do
+  copy=$(awk -v want="$i" '/name: Require summary lines/{n++;f=(n==want);g=0;next} f&&/run: \|/{g=1;next} g&&/^      - name:/{exit} g{sub(/^          /,"");print}' "$workflow")
+  if [ "$copy" = "$body" ]; then echo "PASS: copy $i of the Require summary lines step matches the first"
+  else echo "FAIL: copy $i of the Require summary lines step differs from the first"; status=1; fi
+done
 run() { # name expected-outcome log-content ("-" leaves the log absent) [expected-message]
   local name="$1" expected="$2" message="${4:-}" dir actual output; dir=$(mktemp -d)
   [ "$3" = "-" ] || printf '%b' "$3" > "$dir/vitest.log"
