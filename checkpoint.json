@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 307,
-  "previous": "efef803c46bb1bfea6d4ae63192a0c5b596892b1",
+  "seq": 308,
+  "previous": "1dab01316d4afc1d320013b9cf0d682ebbfadc07",
   "snapshotParents": [],
-  "time": "2026-10-16T18:07:19.909Z",
+  "time": "2026-10-16T18:08:44.514Z",
   "kind": "auto",
-  "transition": "the merge of PR #1955 (failed)",
+  "transition": "result of #316",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 255,
+    "recordRevision": 256,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -104,7 +104,30 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T18:08:41.526Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1956,
+            "reviewedHead": "eae96dceab16d4d8c2814350bc19809c36fe49f8",
+            "rounds": {
+              "gpt-6.1-sol (cross-vendor default, high, Codex CLI through start-coordinator)": 1,
+              "cap": 3,
+              "round1": "state 6220328094; ax (author-experience short) on 5ac47e2b: report 6220438308, adjudication 6221063146 (blocking: a bare include was dropped silently; fixed in eae96dce with the same mechanism's other instances: bare run, run empty string, run .luau, tag-only line); undirected (grammar-conventions lens) on eae96dce: report 6221341755, adjudication 6221524111 (blocking: the diagnostics parity baseline lacked the new missing-include error, CI sparkdown 4/4 red on eae96dce, fixed in 74ad2fdb by re-recording four fixtures; should-fix: stale PR body, updated); launch note 6221075758"
+            },
+            "findings": "None",
+            "verification": "(1) include: redgreen ok, red 2 failed / 10 passed, green 12/12. (3) run: redgreen ok, red 2 failed ([42,42] vs [7,7], [1] vs [2]), green 17/17. No-path diagnostics: red 7 failed / 29 passed, green rerun directly 36/36 after reservation contention. (2) define trailing comment: already fixed on main by #1287 (4f63e3061); guard test defineTrailingComment.test.ts passes on main and a mutation restoring the raw-text read fails it (count: 5 -- note), byte-for-byte restore. Parity test 1/1; sparkdown typecheck clean; lowerer-conventions check exit 0. Live web editor: before no error, after 1 Error for include nope.sd and a squiggle for a bare include.",
+            "ci": "On 74ad2fdb every check passed including test-suite with all package jobs (sparkdown 1-4/4, spark-engine, spark-web-player, language server and others), typecheck/tsc, build, hook-tests, notifier-tests and linked-issue; driver-checks, skills-checks, notifier and vitest-api-integration skipped.",
+            "next": "None from the writer; PR #1956 (ready, head 74ad2fdb, branch fix/316-silent-include-define-run) waits for the coordinator; main not merged into the branch.",
+            "changesAfterReviewedCommit": "74ad2fdb: a test-data-only baseline re-record of four parity fixtures for the reviewed diagnostic, taken under review-pr's non-behavioral exception and disclosed in the adjudication and the PR's Notes for reviewers; plus PR body edits. The merge gate does not admit that exception, so the head is unreviewed until a round on 74ad2fdb or a checkpoint decision settles it.",
+            "other": "Residual risk disclosed: the missing-file include/run error range is zero-width at column 1 (the pre-existing run convention); defect 3 is unreachable in the shipped editors (default scriptFiles glob) and tested through the compiler API only; no CRLF-specific run test; one non-reproducible LSP link-pull console error on a cold load. None filed. Feedback: recurrence of F-5789457733 on #510, comment 6221539704.",
+            "source": "cross-session message from writer impower-60 (session 9e58f473-2803-4892-ba10-e44e624c7007), final report for assignment 7d758442"
+          }
+        }
+      ]
     },
     "454": {
       "owner": null,
@@ -4446,7 +4469,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T18:07:18.418Z",
+      "observedAt": "2026-10-16T18:08:43.003Z",
       "held": true,
       "head": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
       "remoteHead": "74ad2fdbe8a4f1880e0f2973a9c71cf8805b0f0a",
@@ -4534,7 +4557,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T18:07:18.418Z",
+      "observedAt": "2026-10-16T18:08:43.003Z",
       "held": true,
       "head": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
       "remoteHead": "4c07b893a533bf064ddd8ee14eb7ac0ab4c99d33",
@@ -4660,7 +4683,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:07:18.418Z",
+      "observedAt": "2026-10-16T18:08:43.003Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -4776,11 +4799,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T07:45:27.867Z",
-      "event": "check-in",
-      "outcome": "no change: held on the weekly usage limit; maintainer decision on requests 5b339599 and d8a61713 pending; PRs #1928 and #1929 unchanged"
-    },
     {
       "time": "2026-10-16T08:15:27.011Z",
       "event": "check-in",
@@ -5478,6 +5496,13 @@
       "event": "operation-outcome",
       "id": "0f12ef1c",
       "state": "failed"
+    },
+    {
+      "time": "2026-10-16T18:08:41.527Z",
+      "event": "result",
+      "ticket": 316,
+      "pr": 1956,
+      "reviewedHead": "eae96dceab16d4d8c2814350bc19809c36fe49f8"
     }
   ]
 }
