@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 61,
-  "previous": "17d8524ed13a9ee13fa89bcca59891bb0bbc68f8",
+  "seq": 62,
+  "previous": "209a92f59371eb31042e206139938360b9b471a1",
   "snapshotParents": [],
-  "time": "2026-10-16T17:52:35.098Z",
+  "time": "2026-10-16T17:53:07.190Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 50,
+    "recordRevision": 51,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -631,7 +631,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:52:33.334Z",
+      "observedAt": "2026-10-16T17:53:04.443Z",
       "held": true,
       "head": "2928727422dfbbd147efa1b7789f9e634a9793ab",
       "remoteHead": "2928727422dfbbd147efa1b7789f9e634a9793ab",
@@ -705,7 +705,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:52:33.334Z",
+      "observedAt": "2026-10-16T17:53:04.443Z",
       "held": true,
       "head": "78f865241113d8f9ebbc810fe500821defc75df0",
       "remoteHead": "78f865241113d8f9ebbc810fe500821defc75df0",
@@ -741,7 +741,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T17:52:33.334Z",
+      "observedAt": "2026-10-16T17:53:04.443Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1108,6 +1108,11 @@
       "time": "2026-10-16T17:23:04.983Z",
       "event": "check-in",
       "outcome": "no change: #851, #1637 and #1881 writers running (#851 opened draft PR #1959); #1798 done; no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T17:53:01.988Z",
+      "event": "check-in",
+      "outcome": "no change: #851 (draft PR #1959), #1637 (draft PR #1960) and #1881 writers running; #1798 done; no transcripts to read, no dead launches, no open requests"
     }
   ]
 }
