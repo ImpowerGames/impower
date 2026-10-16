@@ -1938,7 +1938,7 @@ export class SparkdownCompiler {
           renamed: this._renamedNames,
           cold: false,
           memoCandidates: this._memoCandidates,
-          carriedMemos: (block) => this.noteCarriedMemos(block),
+          carriedMemos: (blocks) => this.noteCarriedMemos(blocks),
         },
         onDiagnostic,
       );
@@ -3869,19 +3869,24 @@ export class SparkdownCompiler {
   }
 
   /**
-   * Adds to the compile's memo candidates the statements of `block`, a block
-   * the compile carried, a statement of which the resolver resolves again
-   * (`ResolveInput.carriedMemos`): their memos are completed with what this
-   * resolution reports and reads, so that the next lowering of the block
+   * Adds to the compile's memo candidates the statements of `blocks`, blocks
+   * the compile carried, a statement of each of which the resolver resolves
+   * again (`ResolveInput.carriedMemos`): their memos are completed with what
+   * this resolution reports and reads, so that the next lowering of a block
    * serves them by what their names declare now (#1974).
    */
-  protected noteCarriedMemos(block: object): void {
-    const record = this._statementRecords.get(block);
-    if (!record || !this._prevCompilationIds?.has(block)) {
-      return;
+  protected noteCarriedMemos(blocks: Iterable<object>): void {
+    let added = false;
+    for (const block of blocks) {
+      const record = this._statementRecords.get(block);
+      if (record && this._prevCompilationIds?.has(block)) {
+        this.addMemoCandidates(block as CompiledBlock, record);
+        added = true;
+      }
     }
-    this.addMemoCandidates(block as CompiledBlock, record);
-    this.dropNumberedMemos();
+    if (added) {
+      this.dropNumberedMemos();
+    }
   }
 
   /**

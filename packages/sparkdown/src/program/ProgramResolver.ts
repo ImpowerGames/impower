@@ -378,13 +378,13 @@ export interface ResolveInput {
    *  its top: what their generation and resolution report and read is kept
    *  for their memos (`memoResolutionsLastResolve`). */
   memoCandidates?: ReadonlyMap<ParsedObject, MemoCandidate>;
-  /** Adds to `memoCandidates` the statements of `block`, a block the
-   *  compile carried, whose memos its lowering made: the resolve resolves a
-   *  statement of it again, and what that resolution reports and reads is
-   *  kept for their memos, which a name declared otherwise since they were
-   *  completed would otherwise leave stale for the next lowering of the
+  /** Adds to `memoCandidates` the statements of `blocks`, blocks the
+   *  compile carried, whose memos their lowering made: the resolve resolves
+   *  a statement of each again, and what that resolution reports and reads
+   *  is kept for their memos, which a name declared otherwise since they
+   *  were completed would otherwise leave stale for the next lowering of the
    *  block (#1974). */
-  carriedMemos?(block: object): void;
+  carriedMemos?(blocks: ReadonlySet<object>): void;
 }
 
 /** A statement whose memo the resolve completes, with its lines in its
@@ -2023,9 +2023,7 @@ export class ProgramResolver {
     if (blocks.size === 0) {
       return;
     }
-    for (const block of blocks) {
-      input.carriedMemos(block);
-    }
+    input.carriedMemos(blocks);
     this._owners = ProgramResolver.ownersOf(candidates);
   }
 
