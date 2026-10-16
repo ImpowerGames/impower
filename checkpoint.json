@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "repository": "ImpowerGames/impower",
+  "feature": 1961,
+  "seq": 1,
+  "previous": null,
+  "snapshotParents": [],
+  "time": "2026-10-16T18:16:55.199Z",
+  "kind": "auto",
+  "transition": "checkpoints were enabled",
+  "run": {
+    "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+    "recordRevision": 2,
+    "source": {
+      "host": "DESKTOP-726EO47",
+      "checkout": "C:/Users/Brode/Documents/GitHub/impower"
+    }
+  },
+  "coordinator": {
+    "session": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+    "host": "DESKTOP-726EO47",
+    "harness": "claude",
+    "model": "claude-fable-5-1",
+    "effort": "high",
+    "permissionMode": "bypassPermissions",
+    "since": "2026-10-16T18:16:34.982Z"
+  },
+  "previousCoordinators": [],
+  "invocation": {
+    "text": "C:/Program Files/Git/orchestrate-feature #1961",
+    "merging": "coordinator"
+  },
+  "authority": {
+    "reviewRounds": "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections",
+    "merge": "the coordinator merges this Feature's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection",
+    "diskRecovery": "the guarded clean-worktrees classifier's merged-and-removable entries only, each recorded here"
+  },
+  "writer": {
+    "model": "claude-opus-5-5",
+    "source": "claude orchestrator default"
+  },
+  "concurrency": {
+    "limit": 3,
+    "basis": "the smaller of 3 (reviewer slots) and 7 by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer"
+  },
+  "checkIn": null,
+  "title": "ORCH #1961: private internal tracker",
+  "tickets": {},
+  "operations": [],
+  "decisions": [],
+  "diskRecoveries": [],
+  "verifications": [],
+  "work": {},
+  "snapshots": {},
+  "handoff": null,
+  "observed": null,
+  "log": [
+    {
+      "time": "2026-10-16T18:16:34.982Z",
+      "event": "init",
+      "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+      "writer": "claude-opus-5-5",
+      "concurrency": 3
+    },
+    {
+      "time": "2026-10-16T18:16:54.617Z",
+      "event": "checkpoints-enabled",
+      "remote": "origin"
+    }
+  ]
+}
