@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 91,
-  "previous": "6b1fbe3a61e5baf00ccc29f57b63da1e42c02a94",
+  "seq": 92,
+  "previous": "4160bcc6c81839d353ed12d72813f8cbf4214abe",
   "snapshotParents": [],
-  "time": "2026-10-16T19:35:14.758Z",
+  "time": "2026-10-16T19:36:16.221Z",
   "kind": "auto",
-  "transition": "the merge of PR #1960 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 72,
@@ -1107,7 +1107,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:35:13.977Z",
+      "observedAt": "2026-10-16T19:36:15.534Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1118,7 +1118,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:32:52.549Z",
+    "at": "2026-10-16T19:36:15.532Z",
     "tickets": [
       {
         "number": 851,
@@ -1128,9 +1128,9 @@
       },
       {
         "number": 1637,
-        "action": "merge-gate",
-        "pr": 1960,
-        "reason": "PR #1960 is ready at d97776bf561f272db2223fbbe2411a70bd98a670; process 45152 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1798,
@@ -1146,9 +1146,9 @@
       },
       {
         "number": 1974,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1637 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       }
     ],
     "remaining": [
