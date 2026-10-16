@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 206,
-  "previous": "3e30393fdecfacf74358cb9202d6d883e575ead7",
+  "seq": 207,
+  "previous": "66637b6e0f98f7c8dc95b0ac2bd2d45b849bf802",
   "snapshotParents": [],
-  "time": "2026-10-16T12:14:35.449Z",
+  "time": "2026-10-16T12:14:45.130Z",
   "kind": "auto",
-  "transition": "answer of #887",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 169,
+    "recordRevision": 170,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -603,7 +603,12 @@
             "time": "2026-10-16T05:57:42.241Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-d079b78a-0330-4db4-9a57-8289b8ff7680"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d",
+          "time": "2026-10-16T12:14:42.879Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -2526,7 +2531,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:14:34.379Z",
+      "observedAt": "2026-10-16T12:14:44.170Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2662,7 +2667,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:14:34.379Z",
+      "observedAt": "2026-10-16T12:14:44.170Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2905,14 +2910,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:43:31.402Z",
-      "event": "answer-intent",
-      "ticket": 1299,
-      "id": "8f092886",
-      "deliveryId": "a2332420",
-      "attempt": 1
-    },
     {
       "time": "2026-10-15T22:43:41.273Z",
       "event": "resume-intent",
@@ -3614,6 +3611,13 @@
       "id": "d8a61713",
       "deliveryId": "4c684b1a",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-16T12:14:42.880Z",
+      "event": "resume-intent",
+      "ticket": 887,
+      "id": "4d091021-f483-4ce1-aeef-0ce28cc0285d",
+      "sessionId": "13d51545-ae87-46e9-923a-a2ae8ed8de49"
     }
   ]
 }
