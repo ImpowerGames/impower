@@ -132,6 +132,7 @@ describe("an incremental parse of a run of top-level declarations", () => {
     ["a line above the run", "Before.", "Edited."],
     ["a declaration's value", "store v10 = 10", "store v10 = 99"],
     ["the end of a declaration's line", "= 10\n", "= 10 + 1\n"],
+    ["a declaration's value into one that goes on to the next line", "= 10\n", "= 10 +\n"],
     ["the newline between two declarations", "= 10\nstore v11", "= 10 store v11"],
     ["a new line between two declarations", "= 10\n", "= 10\nNew line.\n"],
     ["a declaration into a function's first line", "store v29 = 29", "store v29 = function()"],
