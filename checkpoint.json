@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 193,
-  "previous": "3f9e0a9114735c490229d755364bd40f6869da85",
+  "seq": 194,
+  "previous": "ccbd674939db80774007920275c101248e0e19bb",
   "snapshotParents": [],
-  "time": "2026-10-16T12:47:44.274Z",
+  "time": "2026-10-16T12:48:28.593Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 142,
+    "recordRevision": 143,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2060,7 +2060,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:47:43.437Z",
+      "observedAt": "2026-10-16T12:48:27.805Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2178,11 +2178,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:27:05.364Z",
-      "event": "verified",
-      "ticket": 1211
-    },
     {
       "time": "2026-10-15T22:27:13.131Z",
       "event": "verified",
@@ -2864,6 +2859,11 @@
       "time": "2026-10-16T12:19:08.090Z",
       "event": "check-in",
       "outcome": "no change: #1917 writer running (restructuring the test into a short suite form plus a SPARKDOWN_CUMULATIVE=1 long form with every sub-issue seed, running the full form); no PR yet; no requests"
+    },
+    {
+      "time": "2026-10-16T12:48:26.305Z",
+      "event": "check-in",
+      "outcome": "#1917 writer filed Bugs #1933 (function seed 12 lost reuse) and #1934 (duplicate-label diagnostic position) under #1893 from its full-form run, keeps both seeds skipped, and is timing the short form; no PR yet; the new sub-issues need a route preflight before dispatch, which is running"
     }
   ]
 }
