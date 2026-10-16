@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 167,
-  "previous": "d288a668d2396bd5636a292941dbf4dba47944b6",
+  "seq": 168,
+  "previous": "f30c56378a4a0f27a60ae1bb5e3993185a41a0ba",
   "snapshotParents": [],
-  "time": "2026-10-16T06:28:20.931Z",
+  "time": "2026-10-16T06:28:27.949Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1917",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 121,
+    "recordRevision": 122,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -722,6 +722,25 @@
           }
         }
       ]
+    },
+    "1917": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "4e3cff43-de59-4ecb-90b5-8869deb13480",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
+        "branch": "test/1917-cumulative-edit-run",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T06:28:26.693Z"
+      },
+      "history": [],
+      "results": []
     }
   },
   "operations": [
@@ -1997,7 +2016,17 @@
     }
   ],
   "verifications": [],
-  "work": {},
+  "work": {
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run": {
+      "ticket": 1917,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
+      "branch": "test/1917-cumulative-edit-run",
+      "observedAt": "2026-10-16T06:28:27.949Z",
+      "held": true,
+      "exists": false
+    }
+  },
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -2096,11 +2125,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:38.701Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1886-restored-preview-black"
-    },
     {
       "time": "2026-10-15T22:18:47.337Z",
       "event": "disk-recovery",
@@ -2787,6 +2811,13 @@
       "event": "released",
       "ticket": 1627,
       "reason": "process 2528 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T06:28:26.694Z",
+      "event": "dispatch-intent",
+      "ticket": 1917,
+      "route": "claude-cli",
+      "launchId": "4e3cff43-de59-4ecb-90b5-8869deb13480"
     }
   ]
 }
