@@ -4,6 +4,8 @@
 // and the compile's work does not grow with the run.
 import { describe, expect, it } from "vitest";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
+import { TreeFragment } from "@lezer/common";
+import { getParser } from "../compiler/grammarSnapshot";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { stripAnsi } from "../compiler/grammarSnapshot";
 import { describeRoot, MAIN_URI, programCompiler } from "./programHarness";
@@ -144,4 +146,23 @@ describe("an incremental parse of a run of top-level declarations", () => {
       expect(incremental).toBe(cold);
     });
   }
+
+  it("keeps the tree of a parse bounded above the old chunks inside its range", () => {
+    // A parse asked for a range that ends inside the run: the old chunks
+    // below the edit run on past the range's end, so they are not spliced in.
+    const text = script(30);
+    const find = "Before.";
+    const offset = text.indexOf(find);
+    const edited = text.slice(0, offset) + "Edited." + text.slice(offset + find.length);
+    const to = edited.indexOf("store v10");
+    const parser = getParser();
+    const fragments = TreeFragment.applyChanges(TreeFragment.addTree(parser.parse(text)), [
+      { fromA: offset, toA: offset + find.length, fromB: offset, toB: offset + "Edited.".length },
+    ]);
+    const incremental = parser.parse(edited, fragments, [{ from: 0, to }]);
+    const cold = parser.parse(edited, undefined, [{ from: 0, to }]);
+    expect(incremental.length).toBe(to);
+    expect(incremental.topNode.lastChild!.to).toBeLessThanOrEqual(to);
+    expect(stripAnsi(printTree(incremental, edited))).toBe(stripAnsi(printTree(cold, edited)));
+  });
 });

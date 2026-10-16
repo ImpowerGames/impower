@@ -181,16 +181,25 @@ describe("reference validation per chunk (#411)", () => {
     // The first incremental parse inside a block parses all of it again and
     // marks where a later one can start (`Compiler.reparseRange`), so every
     // reference in it is annotated anew; the language server meets it once
-    // per block, on the first keystroke there.
-    const warmed = edit(compiler, text, "room 2.", "room 2!", 2);
+    // per block, on the first keystroke there. An edit reparses only up to
+    // the next line between top-level constructs (#1637), so the warming
+    // edit spans the line before the dialogue block and the block's first
+    // line, which the edit below restarts from.
+    const warmed = edit(
+      compiler,
+      text,
+      "mia~sad]]\n  hero:\n    Line one of dialogue in scene 2.",
+      "mia~sad]]\n  hero:\n    Line one of dialogue in scene 2!",
+      2,
+    );
     compile(compiler);
 
     // A new line in scene 2 moves every chunk below it.
     const after = edit(
       compiler,
       warmed,
-      "Line one of dialogue in scene 2.",
-      "Line one of dialogue in scene 2.\n    And another line.",
+      "Line one of dialogue in scene 2!",
+      "Line one of dialogue in scene 2!\n    And another line.",
       3,
     );
     const program = compile(compiler);
@@ -212,8 +221,10 @@ describe("reference validation per chunk (#411)", () => {
     const text = screenplay();
     const compiler = compilerFor(text);
     compile(compiler);
-    // Warmed in the same scene (see the first case).
-    const warm = edit(compiler, text, "room 3.", "room 3!", 2);
+    // Warmed in the dialogue block above the edit, which the edit's reparse
+    // restarts in: an edit to the scene's first line no longer reparses the
+    // rest of the scene (see the first case).
+    const warm = edit(compiler, text, "scene 3.\n    Speed is {pace.speed}.", "scene 3.\n    Speed is {pace.speed}!", 2);
     compile(compiler);
 
     const after = edit(compiler, warm, "late_3", "mia", 3);

@@ -331,6 +331,14 @@ export class TextmateGrammarParse implements PartialParse {
    *  happens before any step there has added its tokens. */
   protected lastStepFrom = -1;
 
+  /** Whether the reused-ahead chunks end within the region being parsed.
+   *  A pure splice appends all of them, and `finish` cuts the tree's length
+   *  at the region's end but not the nodes past it, so chunks that run on
+   *  past a range the caller bounded would put nodes outside it. */
+  protected aheadEndsInRegion(): boolean {
+    return (this.compiler.ahead?.last?.to ?? 0) <= this.region.to;
+  }
+
   /**
    * Tries to splice the reused-ahead chunks in at a top-level boundary the
    * head has just arrived at, before any step runs there (#1637).
@@ -371,6 +379,7 @@ export class TextmateGrammarParse implements PartialParse {
       !first ||
       first.from !== pos ||
       !first.startsPure ||
+      !this.aheadEndsInRegion() ||
       pos === 0 ||
       this.region.input.read(pos - 1, pos) !== "\n"
     ) {
@@ -572,7 +581,8 @@ export class TextmateGrammarParse implements PartialParse {
       if (this.compiler.ahead.first) {
         if (
           this.parsedPos === this.compiler.ahead.first.from &&
-          this.compiler.ahead.first.startsPure
+          this.compiler.ahead.first.startsPure &&
+          this.aheadEndsInRegion()
         ) {
           this.flushPendingIntoCompiler();
           this.compiler.append(this.compiler.ahead);
@@ -599,7 +609,8 @@ export class TextmateGrammarParse implements PartialParse {
             this.compiler.ahead = aheadSplitBuffer.right;
             if (
               this.parsedPos === this.compiler.ahead.first?.from &&
-              this.compiler.ahead.first.startsPure
+              this.compiler.ahead.first.startsPure &&
+              this.aheadEndsInRegion()
             ) {
               this.flushPendingIntoCompiler();
               this.compiler.append(this.compiler.ahead);
