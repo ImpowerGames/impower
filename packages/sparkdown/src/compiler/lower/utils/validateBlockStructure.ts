@@ -13,10 +13,12 @@ import { lineTextSpan, makeSource } from "./validateDefineStructure";
 // error:
 //
 //   - A header the grammar stops reading on its own line, with no `end`, cuts
-//     the block off there: `style s:`, `layout main with junk` or a dotted
-//     name. The rest of the line and the body below it parse as top-level
-//     lines, where the properties are dropped and the block's `end` closes
-//     nothing. That shape is reported on the readable part of the header.
+//     the block off there: `style s:`, `layout main with junk`, a dotted
+//     name, or a name the grammar cannot read at all (`style 2s with` stops
+//     after `style`). The rest of the line and the body below it parse as
+//     top-level lines, where the properties are dropped and the block's `end`
+//     closes nothing. That shape is reported on the readable part of the
+//     header.
 //   - A body line the grammar cannot read stops the block the same way,
 //     below its header: in a layout, an `else` left outside its `for` by a
 //     `}` typed inside the loop. The lines from there to the block's `end`
@@ -30,8 +32,8 @@ import { lineTextSpan, makeSource } from "./validateDefineStructure";
 //
 // As in `validateDefineStructure`, the checks read only the block's own
 // node, so they run in the lowerer and are rebuilt with the block on every
-// edit that changes them. A block without a readable name is left to its
-// lowerer, which drops it.
+// edit that changes them. Past the header-line check, a block without a
+// readable name is left to its lowerer, which drops it.
 
 const HEADER_FORMS: Readonly<Partial<Record<SparkdownNodeName, string>>> = {
   LuauStyle: "`style NAME [as PARENT] with`",
@@ -76,7 +78,7 @@ export function validateBlockStructure(
   const form = HEADER_FORMS[node.name];
   if (!form) return [];
   const headerLine = lineTextSpan(node.from, node.to, ctx);
-  if (!headerLine || !getDescendent("LuauDefineName", node)) return [];
+  if (!headerLine) return [];
   const endNode = blockEnd(node);
   if (endNode && getDescendent("LuauEndKeyword", endNode)) return [];
   const error = (message: string): InkDiagnostic => ({
@@ -90,10 +92,11 @@ export function validateBlockStructure(
       error(
         getDescendent("LuauWithKeyword", node)
           ? `This ${keyword} cannot be read past \`${headerLine.text}\`. Its body goes on the lines below the header, and it closes with \`end\`.`
-          : `This ${keyword} header cannot be read past \`${headerLine.text}\`. A ${keyword} header is ${form}, with only A–Z, a–z, 0–9 and \`_\` in its names; its body goes on the lines below it, and it closes with \`end\`.`,
+          : `This ${keyword} header cannot be read past \`${headerLine.text}\`. A ${keyword} header is ${form}, with names that use only A–Z, a–z, 0–9 and \`_\` and start with a letter or \`_\`; its body goes on the lines below it, and it closes with \`end\`.`,
       ),
     ];
   }
+  if (!getDescendent("LuauDefineName", node)) return [];
   if (stopped) {
     return [
       error(

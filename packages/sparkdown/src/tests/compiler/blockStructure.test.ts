@@ -149,6 +149,7 @@ describe("text a block header cannot read", () => {
       ["a `:` header", `${form.header}:`, form.header],
       ["a word after `with`", `${form.header} with junk`, `${form.header} with`],
       ["a word before `with`", `${form.header} junk with`, form.header],
+      ["a name that starts with a digit", `${form.keyword} 2x with`, form.keyword],
     ] as const) {
       test(`${label} on ${article(form.keyword)} ${form.keyword} is an error on the readable header`, () => {
         const source = lines(header, form.body, "end", "", "Hi.", "");
