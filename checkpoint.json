@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 79,
-  "previous": "822caa0fccf1f7ca912a2e04d46a50ad06b26217",
+  "seq": 80,
+  "previous": "2920d262af9a9e45ec71829917fcbce16d6e5023",
   "snapshotParents": [],
-  "time": "2026-10-16T19:21:14.713Z",
+  "time": "2026-10-16T19:22:31.356Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 63,
@@ -869,7 +869,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:21:13.779Z",
+      "observedAt": "2026-10-16T19:22:30.119Z",
       "held": true,
       "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -957,7 +957,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:21:13.779Z",
+      "observedAt": "2026-10-16T19:22:30.119Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -968,7 +968,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:13:59.624Z",
+    "at": "2026-10-16T19:22:30.116Z",
     "tickets": [
       {
         "number": 851,
@@ -978,9 +978,9 @@
       },
       {
         "number": 1637,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1960,
-        "reason": "process 36564 started 639277730827826009 is running"
+        "reason": "process 36564 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1637-3fdbdbbe-1842-4e9e-8411-5c7587308fe4\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1798,
