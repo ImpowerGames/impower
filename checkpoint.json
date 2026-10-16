@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 160,
-  "previous": "ff8329d8d772e999daecf3a91974c71ca0960994",
+  "seq": 161,
+  "previous": "22d0810d886d3b69d87d32691eb6f0bb40fe1312",
   "snapshotParents": [],
-  "time": "2026-10-16T06:20:07.043Z",
+  "time": "2026-10-16T06:20:29.566Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1627",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 117,
+    "recordRevision": 118,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -486,7 +486,26 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T06:20:27.456Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1930,
+            "reviewedHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+            "rounds": "1 of 3 on gpt-6.1-sol at high via native-codex-jsonl; round state 6208672198; all three planned reviewers exited with journal finished: incr report 6208875944 adjudication 6208911360; bound report 6208970713 adjudication 6208981402; undirected report 6209054850 adjudication 6209067136",
+            "findings": "None",
+            "verification": "Fix: ChunkStore.keepCarried keeps a carried statement's chunk only if info.defines equals statement.defines, info.placement equals placementOf(statement), and each body holds as many statements as the chunk's body row; the body count fixes the ticket's script, defines and placement each fix the reduced reproduction (comment 6207397449). Deviation accepted: the brief's preferred recorded-read route was not taken because the lowering never reads the enclosing flow (only programFlows' story assembly decides whether a do block's functions become flows), and all three reviewers judged the chosen layer sound. Nothing touches the parser, statementMemo, ProgramResolver or the annotator; #1912's fit check and #1918's pairing unchanged. On base d6d6f2720 the ticket case still failed verifyBuilds and the reduced case kept the stale Const void; Return. Redgreen ok: red 2 failed / 24 passed, green 26 passed; tests in programChunkValidity.test.ts (ticket script, reduced repro, scene header inserted above as a guard, unchanged-flow control). On head: programChunkValidity, programChunkCrossing, programChunkIdentity, programIncrementalOracles, programIncrementalColdParity, programDoBlockMemo, programStatementMemo: 7 files, 227 tests passed; sparkdown typecheck clean; web editor incremental insert of a scene header behaves as expected (screenshots in the PR). The undirected reviewer's own red/green run was refused by the shared test reservation held by PR #1928's review; incr and bound each reproduced red on base and green on head in their own clones, as did the writer's redgreen run.",
+            "ci": "e58e9a932 has 28 passed (test-suite, packages/sparkdown 1/4 to 4/4, tsc/typecheck, build, other package jobs) and 4 skipped by path; cd6379dc7 was also all green",
+            "next": "none from the writer; PR 1930 awaits the merge gate; ChunkStore.ts is released when it merges",
+            "changesAfterReviewedCommit": "only e58e9a932, a merge commit bringing origin/main 8a191abf4 (#1925's test files only)",
+            "notes": "Friction posted to #510 (6209077870): the native-codex-jsonl plan shape has no nativeResult so no reviewer-directory snapshot is recorded; probe clones remain under impower.review-jobs/pr-1930/round-1 until the closed PR's job dir is cleaned. Start-coordinator needs each plan's own launch-state directory as its job dir (first bound launch refused with EEXIST, relaunched correctly). Artifacts under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/writer-1627-WlPtnV; an unused duplicate allocation writer-1627-ZkPEr3 holds only owner files.",
+            "source": "cross-session message from writer session impower-44 after its turn ended; transcript C:/Users/Brode/AppData/Local/Temp/impower-writers/1893/launch-1627-4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8/out.jsonl; PR facts confirmed on GitHub (head e58e9a932 contains origin/main 8a191abf, CLEAN)"
+          }
+        }
+      ]
     },
     "1628": {
       "owner": null,
@@ -1792,7 +1811,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T06:20:06.262Z",
+      "observedAt": "2026-10-16T06:20:28.760Z",
       "held": true,
       "head": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
       "remoteHead": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
@@ -2022,11 +2041,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:03.292Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1748-one-line-control-statements"
-    },
     {
       "time": "2026-10-15T22:18:12.205Z",
       "event": "disk-recovery",
@@ -2707,6 +2721,13 @@
       "time": "2026-10-16T06:18:28.750Z",
       "event": "check-in",
       "outcome": "no change yet: PR 1930 (#1627) marked ready at e58e9a932 after round 1 (three reviewers, no findings), writer sending its final report; main at 8a191abf; announcing the merge window to the other coordinators"
+    },
+    {
+      "time": "2026-10-16T06:20:27.457Z",
+      "event": "result",
+      "ticket": 1627,
+      "pr": 1930,
+      "reviewedHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9"
     }
   ]
 }
