@@ -242,7 +242,20 @@ describe.skipIf(!officialLuauAvailable)(
             return true;
           },
         });
+        const documentLines = input.text.split("\n");
         const oursJson = printOfficialAst(root, (node) => {
+          // `store` is blanked; a `store function` begins at its `function`
+          // (#1341), as a `local function` would begin at `local`.
+          if (
+            node instanceof AstStatFunction &&
+            documentLines[node.location.begin.line]?.startsWith("store", node.location.begin.column)
+          ) {
+            return new AstStatFunction(
+              new Location(node.func.location.begin, node.location.end),
+              node.name,
+              node.func,
+            );
+          }
           const replacement = baseView(node);
           if (
             node instanceof AstStatSparkdownStore &&

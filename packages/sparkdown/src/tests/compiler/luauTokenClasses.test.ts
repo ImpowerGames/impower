@@ -1,0 +1,300 @@
+// The grammar's Luau token classes agree with Luau's lexer (#1906, slice S2
+// of #1904): `end`, `else`, `elseif` and `until` are read only as the closers
+// of their blocks, a reserved word is never a name, a structural word
+// (`style`, `match`, `queue`, `continue` and the rest) opens its construct
+// only in its shape and is a name elsewhere, a name ends where both engines
+// agree, `require` is the global function it is, and an `=` that ends its
+// line in Luau code reads its value from the next line.
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { beforeAll, describe, expect, test, vi } from "vitest";
+import onig from "vscode-oniguruma";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
+import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { compileSource } from "./compileSnapshot";
+import { dumpTree, stripAnsi } from "./grammarSnapshot";
+import { loadOfficialLuau } from "./officialLuau";
+
+type Rule = { begin?: string; match?: string; patterns?: { include?: string }[] };
+const repository = GRAMMAR_DEFINITION.repository as unknown as Record<string, Rule>;
+
+const URI = "inmemory:///main.sd";
+
+/** Every error a full compile reports, with its range. */
+const errorsOf = (text: string): string[] => {
+  const c = new SparkdownCompiler();
+  c.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
+  return (program.diagnostics?.[URI] ?? [])
+    .filter((d: any) => d.severity === DiagnosticSeverity.Error)
+    .map((d: any) => {
+      const message = typeof d.message === "string" ? d.message : d.message.value;
+      return `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${message}`;
+    })
+    .sort();
+};
+
+const run = (text: string) => {
+  const ctx = makeRuntimeStoryFromSource(text);
+  return { errors: ctx.errorMessages, warnings: ctx.warningMessages, output: ctx.story.ContinueMaximally() };
+};
+
+/** The parser's empty-match warnings while it reads `text`. */
+const parserWarnings = (text: string): string[] => {
+  const warnings: string[] = [];
+  const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
+    warnings.push(args.map(String).join(" "));
+  });
+  try {
+    dumpTree(text);
+  } finally {
+    warn.mockRestore();
+  }
+  return warnings;
+};
+
+let official: Awaited<ReturnType<typeof loadOfficialLuau>>;
+beforeAll(async () => {
+  official = await loadOfficialLuau("typecheck");
+  const require = createRequire(import.meta.url);
+  await onig.loadWASM(readFileSync(require.resolve("vscode-oniguruma/release/onig.wasm")));
+});
+
+/** The official parser's errors for some Luau, ranged as the compile ranges its own. */
+const officialErrors = (luau: string): string[] =>
+  official(luau)
+    .diagnostics.map((e) => `${e.location.begin.line}:${e.location.begin.column}-${e.location.end.line}:${e.location.end.column} ${e.message}`)
+    .sort();
+
+describe("closers close blocks and nothing else", () => {
+  test("no expression or statement rule of a Luau body begins at `end`, `else`, `elseif` or `until`", () => {
+    // The rules a Luau body or expression tries at a token: those reached
+    // through rules that only list others, never those inside a rule that
+    // opened. Each is tried where the tree engine tries it, sticky at the
+    // closer.
+    const tried = new Set<string>();
+    const visit = (name: string) => {
+      const rule = repository[name];
+      if (!rule || tried.has(name)) return;
+      tried.add(name);
+      if (rule.begin === undefined && rule.match === undefined) {
+        for (const p of rule.patterns ?? []) if (p.include?.startsWith("#")) visit(p.include.slice(1));
+      }
+    };
+    for (const root of ["LuauBlockBody", "LuauExpression", "LuauSparkdownExplicitBlockBody", "LuauSparkdownExplicitExpression"]) visit(root);
+    const readers: string[] = [];
+    for (const name of tried) {
+      const regex = repository[name]!.begin ?? repository[name]!.match;
+      if (regex === undefined) continue;
+      const sticky = new RegExp(regex, "muy");
+      for (const closer of ["end", "end\n", "else x", "elseif x then", "until x"]) {
+        sticky.lastIndex = 0;
+        if (sticky.test(closer)) readers.push(`${name} reads ${JSON.stringify(closer)}`);
+      }
+    }
+    expect(tried.size).toBeGreaterThan(50);
+    expect(readers).toEqual([]);
+  });
+
+  test("the declarations hold no until statement", () => {
+    const includes = (name: string) => (repository[name]!.patterns ?? []).map((p) => p.include);
+    expect(includes("LuauDeclarations")).not.toContain("#LuauUntilStatement");
+    expect(repository["LuauUntilStatement"]).toBeUndefined();
+  });
+
+  test("#1195 a repeat nested directly in another takes the first until", () => {
+    const loops = "function f()\n  local n = 0\n  repeat\n    repeat n = n + 1 until true\n  until true\n  return n\nend\nResult {f()}.\n";
+    expect(run(loops)).toEqual({ errors: [], warnings: [], output: "Result 1.\n" });
+    const oneLine = "function f()\n  local n = 0\n  repeat repeat n = n + 1 until true until true\n  return n\nend\nResult {f()}.\n";
+    expect(run(oneLine)).toEqual({ errors: [], warnings: [], output: "Result 1.\n" });
+    const story = "store n = 0\nrepeat\n  repeat n = n + 1 until true\nuntil n >= 1\nCount {n}.\n";
+    expect(run(story)).toEqual({ errors: [], warnings: [], output: "Count 1.\n" });
+  });
+
+  test("#922 an until glued to an operand closes its repeat", () => {
+    const source = "Value {f()}.\nfunction f()\n  local n = 0\n  repeat n = (n + 1)until n > 2\n  return n\nend\n";
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 3.\n" });
+  });
+
+  test("#922 a keyword glued to an operand ends the operation, with no unfinished node", () => {
+    for (const line of [
+      "if a == (1)then end",
+      "if not t[1]then end",
+      "if a or (a)then end",
+      'if type(a) == "t"then end',
+      "if a == 1 and (b == 2)then end",
+      "if a == t[1]then end",
+      "if a == tostring(1)then end",
+      'if a .. "x"then end',
+      "if not (a)then end",
+      "if a then elseif a == (1)then end",
+      "while a == (1)do end",
+      "for i = 1, a + (2)do end",
+      "local y = if a == (1)then 1 else 2",
+      "local y = if (a)then 1 else 2",
+      "if a then x = (1)end",
+      "if a then x = (1)else x = 2 end",
+      "repeat x = (1)until a",
+      "do x = (1)end",
+      "do local y = (1)end",
+    ]) {
+      const source = `function f(a, b, t, x)\n  ${line}\n  return 1\nend\n`;
+      expect(stripAnsi(dumpTree(source)), line).not.toContain("ERROR_INCOMPLETE");
+      expect(officialErrors(source), line).toEqual([]);
+    }
+  });
+
+  test("#1209 an if left open before a repeat's until is Luau's error at the until", () => {
+    const source = "function f()\n  repeat\n    if true then\n      local y = 1\n  until true\nend\n";
+    expect(officialErrors(source)).toEqual(["4:2-4:7 Expected 'end' (to close 'then' at line 3), got 'until'"]);
+    expect(errorsOf(source)).toEqual(officialErrors(source));
+  });
+
+  test("a stray closer closes the block or bracket it stands in, and Luau's error is at it", () => {
+    for (const source of [
+      "function f(a)\n  if a then\n    while a do x() else y() end\nend\n",
+      "function f()\n  repeat\n    local y = 1\n  end\n",
+      "function f(a)\n  if a then x() else y() else z() end\nend\n",
+      "function f()\n  print(1 end\n",
+      "function f()\n  local t = { a = 1 end\n",
+    ]) {
+      expect(officialErrors(source), source).toHaveLength(1);
+      expect(errorsOf(source), source).toEqual(officialErrors(source));
+    }
+  });
+});
+
+describe("a reserved word is never a name", () => {
+  // Luau's reserved words. `continue` is not one: Luau reads it as a keyword
+  // only where a statement begins.
+  const RESERVED = ["and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"];
+  // The identifier class, as the grammar spells it in a rule that is only it.
+  const identifier = repository["LuauAlternatorAssignmentName"]!.match!;
+
+  /** The length of the identifier at the start of `text` in each engine, or null. */
+  const read = (text: string) => {
+    const sticky = new RegExp(identifier, "muy");
+    const tree = sticky.exec(text)?.[0].length ?? null;
+    const match = new onig.OnigScanner([identifier]).findNextMatchSync(text, 0);
+    const vscode = match && match.captureIndices[0]!.start === 0 ? match.captureIndices[0]!.length : null;
+    return { tree, vscode };
+  };
+
+  test.each(RESERVED)("`%s` is refused in both engines", (word) => {
+    for (const after of ["", " ", "(", ".", "\n"]) expect(read(word + after), JSON.stringify(word + after)).toEqual({ tree: null, vscode: null });
+  });
+
+  test.each(["ends", "end_", "_end", "endx", "notify", "iffy", "untilNow", "continue", "type", "export", "require", "match", "style", "queue"])(
+    "`%s` is a whole name in both engines",
+    (name) => {
+      expect(read(`${name} = 1`)).toEqual({ tree: name.length, vscode: name.length });
+    },
+  );
+
+  test("a name ends before a non-ASCII letter alike in both engines", () => {
+    expect(read("x名 = 1")).toEqual({ tree: 1, vscode: 1 });
+    expect(read("end名")).toEqual({ tree: null, vscode: null });
+  });
+
+  test("#922 `do local y = (1)end` keeps the function's end", () => {
+    const source = "Value {f()}.\nfunction f()\n  do local y = (1)end\n  return 2\nend\nAfter.\n";
+    expect(run(source).output).toBe("Value 2.\nAfter.\n");
+    expect(stripAnsi(dumpTree(source))).not.toMatch(/LuauVariableName \[\d+\.\.\d+\]: "end"/);
+  });
+
+  test("#924 `local x = if a then 2 else 3 end` keeps its block's end", () => {
+    const source = "Value {g()}.\nfunction g()\n  local function foo(a) local x = if a then 2 else 3 end\n  return 1\nend\n";
+    expect(run(source).output).toBe("Value 1.\n");
+    expect(stripAnsi(dumpTree(source))).not.toMatch(/LuauVariableName \[\d+\.\.\d+\]: "end"/);
+  });
+});
+
+describe("a structural word is a name outside its shape (#984)", () => {
+  const WORDS = ["style", "layout", "screen", "component", "animation", "theme", "morph", "match", "plural", "queue", "cycle", "chain", "shuffle", "continue"];
+
+  test.each(["hp", ...WORDS])("a local named %s is read inside a function", (word) => {
+    const source = `Value {f()}.\nfunction f()\n  local ${word} = 7\n  local y = ${word}\n  return y\nend\n`;
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 7.\n" });
+  });
+
+  // `store style` and the other builtin type roots are #453.
+  test.each(["hp", "match", "plural", "queue", "cycle", "chain", "shuffle", "continue", "layout"])("a store named %s is read in interpolation", (word) => {
+    expect(run(`store ${word} = 1\n\nYou have {${word}} left.\n`)).toMatchObject({ errors: [], output: "You have 1 left.\n" });
+  });
+
+  test.each(["hp", ...WORDS])("return %s leaves the function's end to the function", (word) => {
+    const source = `Value {f()}.\nfunction f()\n  local ${word} = 7\n  return ${word}\nend\n\nAfter.\n`;
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 7.\nAfter.\n" });
+  });
+
+  test("a local named continue is assigned, and continue is a statement where one begins", () => {
+    const source = "Value {f()} {g()}.\nfunction f()\n  local continue = 1\n  continue = continue + 1\n  return continue\nend\nfunction g()\n  local n = 0\n  for i = 1, 3 do\n    if i == 2 then continue end\n    n = n + i\n  end\n  return n\nend\n";
+    expect(run(source)).toMatchObject({ errors: [], output: "Value 2 4.\n" });
+  });
+
+  test("#1102 an if on a local named match or plural logs no empty match", () => {
+    for (const word of ["match", "plural"]) {
+      expect(parserWarnings(`local ${word} = true\nif ${word} then return 1 end\n`)).toEqual([]);
+      expect(parserWarnings(`function run()\n  local ${word} = true\n  if ${word} then return 1 end\nend\n`)).toEqual([]);
+    }
+  });
+
+  test("each construct still opens in its shape", () => {
+    const tree = (source: string) => stripAnsi(dumpTree(source));
+    expect(tree("style button with\n  color = red\nend\n")).toMatch(/─ LuauStyle \[/);
+    expect(tree("theme dusk with\n  g = 1\nend\n")).toMatch(/─ LuauTheme \[/);
+    expect(tree("Hi {match(x) | 1 = \"a\" | 2 = \"b\"}.\n")).toMatch(/─ LuauConditionalAlternatorBlock \[/);
+    expect(tree("Hi {match x|1 = \"a\"|2 = \"b\"}.\n")).toMatch(/─ LuauConditionalAlternatorBlock \[/);
+    expect(tree("Hi {cycle \"a\" | \"b\" end}.\n")).toMatch(/─ LuauSequentialAlternatorBlock \[/);
+    expect(tree("function f()\n  queue\n    | print(1)\n    | print(2)\n  end\nend\n")).toMatch(/─ LuauSequentialAlternatorBlock \[/);
+    expect(tree("function f(n)\n  match n\n    | 1 = print(1)\n  end\nend\n")).toMatch(/─ LuauConditionalAlternatorBlock \[/);
+  });
+});
+
+describe("a name's boundary", () => {
+  test("#1266 a struct key with a non-ASCII letter is a property, as an ASCII one is", () => {
+    const struct = (key: string) => {
+      const source = `theme t with\n  g:\n    ${key} = 2\n    tail = 3\nend\n`;
+      return compileSource(source).find((e) => e.block?.context?.theme?.t)?.block?.context?.theme?.t;
+    };
+    const { a, ...ascii } = struct("a");
+    expect(a).toBe(2);
+    expect(struct("名")).toEqual({ ...ascii, 名: 2 });
+  });
+});
+
+describe("require is a call (#879)", () => {
+  test("a function that calls require keeps its shape and reports nothing", () => {
+    const source = "Value {f()}.\nfunction f()\n  if false then\n    local _m = require(1)\n  end\n  return 1\nend\n";
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 1.\n" });
+    const tree = stripAnsi(dumpTree(source));
+    expect(tree).toMatch(/LuauStdLibFunctions \[\d+\.\.\d+\]: "require"/);
+    expect(tree).not.toMatch(/ERROR_INCOMPLETE|LuauUnread/);
+  });
+});
+
+describe("an `=` that ends its line reads its value from the next line (#1247)", () => {
+  test("an if expression there is the declared value", () => {
+    const source = "function f(c)\n  local x =\n    if c then 1 else 2\n  return x\nend\n\n{f(true)} {f(false)}\n";
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 2\n" });
+  });
+
+  test("and the reassigned one, unindented too, which Luau's linter warns about", () => {
+    const source = "function f(c)\n  local x\n  x =\nif c then 1 else 2\n  return x\nend\n\n{f(true)} {f(false)}\n";
+    expect(run(source)).toEqual({ errors: [], warnings: ["Statement spans multiple lines; use indentation to silence"], output: "1 2\n" });
+  });
+
+  test("an if statement after a complete assignment stays a statement", () => {
+    const source = "function f(c)\n  local x = 0\n  if c then\n    x = 1\n  end\n  return x\nend\n\n{f(true)} {f(false)}\n";
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 0\n" });
+  });
+
+  test("a statement on the next line is not a value", () => {
+    const source = "function f()\n  local x =\n  return 1\nend\n";
+    expect(errorsOf(source)).toEqual(officialErrors(source));
+  });
+});

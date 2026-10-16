@@ -521,6 +521,41 @@ const KEYWORDS = new Set([
 // The keywords that close a block, which the grammar reads only as closers.
 const BLOCK_CLOSERS = new Set(["end", "else", "elseif", "until"]);
 
+// The closers each block of a pure-Luau body takes, or yields to as a part
+// of its own construct (an `elseif` to its `if`'s `else`). The grammar
+// closes a block before any other closer, with nothing in its `_end`, and
+// leaves it to the block around (`LUAU_BRANCH_OR_UNTIL_AHEAD` and the like).
+// A bracket takes none.
+const OWN_CLOSERS: Readonly<Record<string, ReadonlySet<string>>> = (() => {
+  const end = new Set(["end"]);
+  const branches = new Set(["end", "else", "elseif"]);
+  const none = new Set<string>();
+  return {
+    LuauIfBlock: branches,
+    LuauElseifBlock: branches,
+    LuauElseBlock: end,
+    LuauRepeatLoop: new Set(["until"]),
+    LuauForLoop: end,
+    LuauWhileLoop: end,
+    LuauDoBlock: end,
+    LuauFunctionBody: end,
+    LuauFunctionDefinition: end,
+    LuauFunctionTypeDeclaration: end,
+    LuauMethodDefinition: end,
+    LuauDefine: end,
+    LuauConditionalAlternatorBlock: end,
+    LuauSequentialAlternatorBlock: end,
+    LuauFunctionCallParameters: none,
+    LuauFunctionParameters: none,
+    LuauParenthetical: none,
+    LuauPropertyIndexer: none,
+    LuauTable: none,
+    LuauTableIndexDeclaration: none,
+    LuauTypeofFunctionParameters: none,
+    LuauSparkleHandlerClosure: none,
+  };
+})();
+
 // Luau's symbols, longest first, so that a symbol's text is read whole.
 const SYMBOLS = [
   "...",
@@ -638,11 +673,12 @@ class Tokenizer {
    */
   luauThroughout = false;
   /**
-   * The index the next token takes when the tree has just closed a block
-   * before a closer it could not read (an error node): an `end`, `else`,
-   * `elseif` or `until` that closes a block around it, as Luau closes it.
+   * Where the tree has just closed a block before a closer that is not its
+   * own (`OWN_CLOSERS`), or before one it could not read (an error node):
+   * the index the next token takes, and the closers the block owns. Such a
+   * closer closes a block around it, as Luau closes it.
    */
-  private incompleteAt = -1;
+  private closedBefore?: { at: number; owned: ReadonlySet<string> };
 
   constructor(
     readonly text: string,
@@ -660,7 +696,10 @@ class Tokenizer {
     // an `if` with no `end`, #1209) is where Luau reports the block left
     // open, so the errors there are Luau's to report, as at a token the
     // grammar left unread.
-    if (this.incompleteAt === this.tokens.length && kind === "keyword" && BLOCK_CLOSERS.has(token.text)) token.unread = true;
+    const closed = this.closedBefore;
+    if (closed?.at === this.tokens.length && kind === "keyword" && BLOCK_CLOSERS.has(token.text) && !closed.owned.has(token.text)) {
+      token.unread = true;
+    }
     this.tokens.push(token);
   }
 
@@ -686,9 +725,16 @@ class Tokenizer {
       this.lex(from, to);
       return;
     }
-    if (node.type.isError && from === to) {
-      this.incompleteAt = this.tokens.length;
-      return;
+    if (from === to) {
+      // Several blocks can close before the same closer (a call's
+      // parentheses and the function body around them before the function's
+      // `end`): it is foreign when any of them does not own it.
+      const owned = node.type.isError ? new Set<string>() : name.endsWith("_end") ? OWN_CLOSERS[name.slice(0, -"_end".length)] : undefined;
+      if (owned) {
+        const before = this.closedBefore?.at === this.tokens.length ? this.closedBefore.owned : undefined;
+        this.closedBefore = { at: this.tokens.length, owned: before ? new Set([...owned].filter((c) => before.has(c))) : owned };
+      }
+      if (node.type.isError) return;
     }
     // A token the grammar left unread is read as Luau's lexer reads it.
     if (UNREAD_TOKENS.has(name)) {
