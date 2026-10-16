@@ -1998,21 +1998,23 @@ export class ProgramResolver {
   }
 
   /** Has the compile add to the memo candidates the statements of each
-   *  carried block a statement resolved again (`invalidated`) stands in
+   *  carried block a statement this resolve generates and resolves stands in
    *  (`ResolveInput.carriedMemos`): their memos were completed by an earlier
    *  resolve, and a name their resolution read that this one finds declared
-   *  otherwise would leave them stale for the next lowering of the block,
-   *  though this resolution reads what it reads now. */
+   *  otherwise, or flows around them that changed, would leave them stale
+   *  for the next lowering of the block, though this resolution reads what
+   *  it reads now. */
   protected noteCarriedMemos(fresh: readonly Unit[], input: ResolveInput): void {
     const candidates = this._candidates;
     if (!input.carriedMemos || !candidates) {
       return;
     }
+    // Every statement generated and resolved: one whose block was lowered
+    // anew adds nothing (`carriedMemos` takes only carried blocks), and a
+    // carried one is resolved again for a name, for the flows around it
+    // (`moved`), for a rename or for a resolve its compile did not keep.
     const blocks = new Set<object>();
     for (const unit of fresh) {
-      if (!unit.invalidated) {
-        continue;
-      }
       // A weave's objects came from its block; a function and a header
       // stand for a flow the block placed.
       const block = unit.block ?? (unit.flow ? input.blockOf(unit.flow) : undefined);

@@ -879,6 +879,19 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
+  it("is served, with the line that reads it, by the edit after an update that renamed its scene as it declared a store of its name (#1974)", () => {
+    // The scene's rename carries its block and resolves it again for the
+    // flows around it, not for the name it reads.
+    const s = warmed(localScript(["store other = 1", ""]));
+    s.editAll([
+      ["store other = 1", "store here = 1"],
+      ["scene MAIN", "scene RENAMED"],
+    ]);
+    s.edit("Line last.", "Line last!");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
   it("collides again when a store of its name is declared in its own scene, and stops when it goes", () => {
     // A store in the local's own scene shares its scope, so the two collide
     // (#1742) whichever statement the edit lowers.
