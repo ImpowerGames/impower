@@ -2572,31 +2572,40 @@ function rootTableFor(
   return null;
 }
 
+// Whether `v` is a table in Luau's sense, not a function wrapper
+// (`__stdlib_fn`, `__closure_fn`) that is also an `ObjectValue`.
+function isPlainTable(v: AbstractValue | null | undefined): v is ObjectValue {
+  return v instanceof ObjectValue && luauTypeOf(v) === "table";
+}
+
 // Whether `v` is a record a root's merge descends into: a table that is not a
-// define and holds keys, none of them a list position. A list (`{ 0, 4, 7 }`)
-// and an empty table replace what they meet whole, as `inheritDefaults`
-// replaces arrays in the compile-time context.
+// define, holds keys, and is not a list. A list is a table whose keys are
+// exactly `"1"`..`"n"`, as the context converters classify one
+// (`expressionToContextValue`, `buildDefinesContext`); a list and an empty
+// table replace what they meet whole, as `inheritDefaults` replaces arrays in
+// the compile-time context. A table mixing positions with names is a record.
 function isRecordTable(v: AbstractValue | null | undefined): v is ObjectValue {
-  if (!(v instanceof ObjectValue)) return false;
+  if (!isPlainTable(v)) return false;
   const map = v.value;
   if (!map?.size || isDefineTable(v)) return false;
-  for (const key of map.keys()) {
-    const n = Number(key);
-    if (Number.isInteger(n) && n >= 1 && String(n) === key) return false;
+  for (let i = 1; i <= map.size; i++) {
+    if (!map.has(String(i))) return true;
   }
-  return true;
+  return false;
 }
 
 // Writes `from`'s entries into `into`. A record written where `into` holds a
 // record or a define (a registered member) fills that table key by key
 // instead of replacing it, so `loading = { percent = 5 }` keeps the
 // builtin's other `loading` fields and `ui = { … }` in a `config` root keeps
-// the registered `config.ui`. `seen` guards against a table met twice.
+// the registered `config.ui`. `active` holds the tables being filled on the
+// way down, so a cycle ends while a table reached twice by different keys is
+// filled each time.
 function mergeEntries(
   into: ObjectValue,
   from: ObjectValue,
   written: Written,
-  seen: Set<ObjectValue>,
+  active: Set<ObjectValue>,
 ): void {
   written(into);
   const map = into.value!;
@@ -2605,12 +2614,13 @@ function mergeEntries(
     if (
       held instanceof ObjectValue &&
       held !== value &&
-      !seen.has(held) &&
+      !active.has(held) &&
       isRecordTable(value) &&
-      (isRecordTable(held) || isDefineTable(held))
+      (isRecordTable(held) || (isPlainTable(held) && isDefineTable(held)))
     ) {
-      seen.add(held);
-      mergeEntries(held, value, written, seen);
+      active.add(held);
+      mergeEntries(held, value, written, active);
+      active.delete(held);
     } else {
       map.set(key, value);
     }

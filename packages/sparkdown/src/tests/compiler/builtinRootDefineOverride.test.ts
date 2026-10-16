@@ -551,6 +551,68 @@ end
     );
   });
 
+  test("a nested table mixing positions with names is merged as a record", () => {
+    shows(
+      `define game with
+  loading = { [1] = 99, percent = 5 }
+end
+`,
+      "{game.loading.percent} {game.loading.active} {game.loading[1]}",
+      "5 false 99",
+    );
+  });
+
+  test("a mixed table restating a member keeps the member", () => {
+    shows(
+      `define config with
+  ui = { [1] = 99, root_text_size = "112.5%" }
+end
+`,
+      "{config.ui.root_text_size} {config.ui.layouts_element_name}",
+      "112.5% layouts",
+    );
+  });
+
+  test("a record replaces a function the type held under that key", () => {
+    shows(
+      `store setup = rawset(game, "loading", math.abs)
+
+define game with
+  loading = { percent = 5 }
+end
+`,
+      "{type(game.loading)} {game.loading.percent}",
+      "table 5",
+    );
+  });
+
+  test("a function replaces the record it meets and leaves that record a table", () => {
+    shows(
+      `store original = rawget(game, "loading")
+
+define game with
+  loading = rawget({ f = math.abs }, "f")
+end
+`,
+      "{type(original)} {type(game.loading)}",
+      "table function",
+    );
+  });
+
+  test("a record the type holds under two keys is filled from each", () => {
+    shows(
+      `store setup = rawset(game, "alias", game.loading)
+
+define game with
+  loading = { percent = 5 }
+  alias = { percent = 6 }
+end
+`,
+      "{game.loading.active} {game.alias.active} {game.alias.percent}",
+      "false false 6",
+    );
+  });
+
   test("a list the override restates replaces the builtin's list whole", () => {
     shows(
       `define inflection with
