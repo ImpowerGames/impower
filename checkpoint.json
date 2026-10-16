@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 210,
-  "previous": "c06ab46c5bb0a191e5af5cf67869add23bc96b80",
+  "seq": 211,
+  "previous": "64bd42dcaebdf2f0b65652ccf9b5b2ce47e83272",
   "snapshotParents": [],
-  "time": "2026-10-16T12:15:22.330Z",
+  "time": "2026-10-16T12:17:38.182Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 173,
@@ -2531,7 +2531,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:15:21.357Z",
+      "observedAt": "2026-10-16T12:17:37.349Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2667,7 +2667,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:15:21.357Z",
+      "observedAt": "2026-10-16T12:17:37.349Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2827,7 +2827,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T07:15:23.819Z",
+    "at": "2026-10-16T12:17:37.348Z",
     "tickets": [
       {
         "number": 316,
@@ -2837,9 +2837,9 @@
       },
       {
         "number": 454,
-        "action": "answer-request",
+        "action": "collect-report",
         "pr": 1929,
-        "reason": "request 5b339599 \"Writer stopped by the account's weekly usage limit (API answer: You've hit your weekly limit, resets Oct 19, 1am America/New_York) while correcting round-1 findings on PR #1929 (head d037751d7, undirected report 6209618664 not yet adjudicated); its worktree holds uncommitted edits to SparkdownCompiler.ts, DefineScopeRecord.ts, StdLib.ts and builtinRootDefineOverride.test.ts. No writer can be resumed or relaunched on this account until the limit resets; the maintainer decides whether to wait or change account or writer model.\" was relayed to the maintainer at 2026-10-16T06:47:36.164Z; once they decide, record answer and send it; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered"
+        "reason": "process 58112 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-01e967a7-bd98-427a-8bed-7fa6540319d9\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 457,
@@ -2849,9 +2849,9 @@
       },
       {
         "number": 887,
-        "action": "answer-request",
+        "action": "collect-report",
         "pr": 1928,
-        "reason": "request d8a61713 \"Writer stopped by the account's weekly usage limit (resets Oct 19, 1am America/New_York) while waiting on round-3 reviewer inc's journal for PR #1928 (head 3c1986e10, CI green; the inc report 6209677385 is posted and not yet adjudicated); worktree clean. No writer can be resumed or relaunched on this account until the limit resets; the maintainer decides whether to wait or change account or writer model.\" was relayed to the maintainer at 2026-10-16T06:47:51.945Z; once they decide, record answer and send it; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered"
+        "reason": "process 48332 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1103,
