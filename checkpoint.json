@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 133,
-  "previous": "af397c59d71915a7daa572f2489ac89f14265159",
+  "seq": 134,
+  "previous": "1ea6eb17831b47f30110acd35b9d6cb483417a21",
   "snapshotParents": [],
-  "time": "2026-10-16T02:29:51.116Z",
+  "time": "2026-10-16T02:29:59.987Z",
   "kind": "auto",
-  "transition": "acknowledged of #1617",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 113,
@@ -1889,7 +1889,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:29:51.115Z",
+      "observedAt": "2026-10-16T02:29:59.986Z",
       "held": true,
       "exists": false
     }
@@ -1897,7 +1897,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T02:28:46.549Z",
+    "at": "2026-10-16T02:29:59.984Z",
     "tickets": [
       {
         "number": 316,
@@ -1949,9 +1949,9 @@
       },
       {
         "number": 1617,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch a187fa84-2b3c-42c2-9c97-533c81fa5cdb on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 60224 started 639277145329133458 is running"
       },
       {
         "number": 1641,
@@ -1967,9 +1967,9 @@
       },
       {
         "number": 1920,
-        "action": "blocked-route",
+        "action": "dispatch",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "reason": "every blocker's deliverable is on origin/main"
       }
     ],
     "remaining": [
