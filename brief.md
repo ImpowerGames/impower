@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1893
 
-Checkpoint 209 (this commit), 2026-10-16T13:39:20.404Z, after a new plan. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
+Checkpoint 210 (this commit), 2026-10-16T13:39:29.615Z, after release of #1917. Coordinator local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -9,12 +9,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - The periodic check-in is session-scoped and ended with its coordinator; recreate it on your own runner with: node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/216eacd3-d9ab-45a2-bcdc-cc17e0fdbc97/scratchpad/writer-1893-oEb374/run.json'.
 - New and replacement writers use your harness's default writer model unless the invocation's explicit model override still applies; writers already running keep their recorded model and effort. Confirm each new route with its preflight before dispatch, and let review-pr select reviewers against the actual new writer.
 
-## #1917
-
-- claude-cli claude-opus-5-5 at medium, process 46624 on DESKTOP-726EO47
-- review job pr-1936/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed dd52a20c0, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["undirected"]), last event finished
-
 ## #1933
 
 - claude-cli claude-opus-5-5 at medium, process 33756 on DESKTOP-726EO47
-- as of 2026-10-16T13:39:19.582Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T13:39:28.579Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block that may exist only there; recover those bytes there before restarting or overwriting this work
