@@ -306,6 +306,52 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
     ].sort());
     expect(read("layout main with\n  button @click={ x = 1 @@ 2 }\nend\n").errors).toEqual(attribute(1, 24).sort());
   });
+
+  it("a method's errors are those of the function it stands for, its end included", () => {
+    // Luau reads the value after `then` up to the method's `end`.
+    const body = "(c)\n    x = (if c)then\n  end\n";
+    const asFunction = officialErrors(`function greet${body}`, 1);
+    expect(asFunction).toContain("3:2-3:5 Expected identifier when parsing expression, got 'end'");
+    expect(read(`define X with\n  greet${body}end\n`).errors).toEqual(asFunction);
+    expect(read(`define X with\n  function greet${body}end\n`).errors).toEqual(asFunction);
+  });
+
+  it("a token no rule of a define's body reads is reported", () => {
+    // As in a function's body, at the same place.
+    expect(read("define X with\n  !\nend\nAfter.\n").errors).toEqual(read("function X()\n  !\nend\nAfter.\n").errors);
+    expect(read("define X with\n  a = 1 !\n  b = 2\nend\n").errors).toEqual(read("function X()\n  a = 1 !\n  b = 2\nend\n").errors);
+  });
+});
+
+// The validator leaves to Luau's reading exactly the statements whose errors
+// the converter marks as Luau's to report (`markUnreadErrors`), so each error
+// is reported once, by one of them.
+describe("each error has one reader", () => {
+  it("an unread token in a nested block leaves the statement around it to the validator", () => {
+    const outer = "2:12-2:14 Expected type, got '='";
+    const nested = (code: string) => read(`define X with\n  greet()\n    local x: = function()\n${code}    end\n  end\nend\n`).errors;
+    expect(nested("")).toEqual([outer]);
+    expect(nested("      @\n")).toContain(outer);
+    expect(read("function g()\n  local x: = function()\n    @\n  end\nend\n").errors).toContain("1:10-1:12 Expected type, got '='");
+    expect(read("layout main with\n  button @click={ local x: = function() @ end }\nend\n").errors).toContain(
+      "1:26-1:28 Expected type, got '='",
+    );
+  });
+
+  it("an alternator's arm holding a token no rule reads has the errors of its reading as an expression", () => {
+    // The type checker reads an alternator as a value of any type, not its
+    // arms; before, this line reported only a malformed interpolation.
+    expect(read('Value {cycle "a" | ! | "b" end}.\n').errors).toContain("0:19-0:20 Unexpected '!'; did you mean 'not'?");
+  });
+
+  it("a comment before the unread token that follows a statement, and a statement read in recovery, are Luau's", () => {
+    for (const luau of [
+      "function f(c)\nx = (if c) --[[ note ]] then\nprint(x)\nend\n",
+      "function f(c)\n@ x = (if c)\nprint(x)\nend\n",
+    ]) {
+      expect(read(`${luau}After.\n`).errors).toEqual(officialErrors(luau));
+    }
+  });
 });
 
 describe("the syntax tree holds the whole function", () => {

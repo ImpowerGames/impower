@@ -56,7 +56,7 @@ import {
   readBodyAst,
   reportBodySyntaxErrors,
 } from "../expression/lowerFunction";
-import { rangeOf, readExpressionAst, type LuauSource } from "../utils/luauAst";
+import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
@@ -141,6 +141,9 @@ const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
   "LuauInterpolatedString", "LuauBoolean", "LuauNil", "LuauTable",
   "LuauLengthOperation", "LuauLogicalOperation", "LuauParenthetical", "LuauUnitKeywords",
 ]);
+
+// The leaves of `LuauUnreadToken`: a token no rule of the body read.
+const UNREAD_TOKENS = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter"]);
 
 // Define bodies lower members only, but still report expressions that Luau
 // cannot read as statements. A property's continuation is consumed first.
@@ -416,7 +419,12 @@ export function lowerLuauDefine(
         } else if (structureErrors.length === 0) {
           child = reportDefineStatement(child, ctx);
         }
-      } else if (structureErrors.length === 0 && EXPRESSION_STATEMENT_STARTS.has(child.name)) {
+      } else if (
+        structureErrors.length === 0 &&
+        (EXPRESSION_STATEMENT_STARTS.has(child.name) || UNREAD_TOKENS.has(child.name))
+      ) {
+        // A token no rule of the body read (`!`, `a = 1 !`) has its error
+        // here too: the validator leaves it to Luau's reading.
         child = reportDefineStatement(child, ctx);
       }
       child = child.nextSibling;
@@ -664,7 +672,15 @@ function lowerDefineMethod(
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, METHOD_BODY_SKIP, shape);
-  reportBodySyntaxErrors(reading, ctx);
+  // Its body's errors, as Luau reports them for the function the method
+  // stands for (or is, in the `function name() … end` form), its `end`
+  // included.
+  let bodyStart = content.firstChild;
+  while (bodyStart && METHOD_BODY_SKIP.has(bodyStart.name)) bodyStart = bodyStart.nextSibling;
+  if (bodyStart) {
+    const errors = node.name === "LuauMethodDefinition" ? methodSyntaxErrors(node, ctx) : readBlockAst([node], ctx)?.unit.errors ?? [];
+    reportBodySyntaxErrors(errors, ctx, bodyStart.from);
+  }
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();

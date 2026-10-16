@@ -469,11 +469,20 @@ sparkdown [0..415]
  │   │       │   │   │   │   │       │       │   │   │   └─ LuauTypeTableStruct_begin_c1 [180..181]
  │   │       │   │   │   │   │       │       │   │   │       └─ PunctuationBraceOpen [180..181]: "{"
  │   │       │   │   │   │   │       │       │   │   ├─ LuauTypeTableStruct_content [181..187]
- │   │       │   │   │   │   │       │       │   │   │   └─ LuauTypeTableProperty [181..187]
- │   │       │   │   │   │   │       │       │   │   │       ├─ LuauTypeTableProperty_c1 181
- │   │       │   │   │   │   │       │       │   │   │       ├─ LuauTypeTableProperty_c2 181
- │   │       │   │   │   │   │       │       │   │   │       └─ LuauTypeTableProperty_c3 [181..187]
- │   │       │   │   │   │   │       │       │   │   │           └─ LuauTypePropertyName [181..187]: "number"
+ │   │       │   │   │   │   │       │       │   │   │   └─ LuauTypeLiteral [181..187]
+ │   │       │   │   │   │   │       │       │   │   │       ├─ LuauTypeLiteral_begin 181
+ │   │       │   │   │   │   │       │       │   │   │       ├─ LuauTypeLiteral_content [181..187]
+ │   │       │   │   │   │   │       │       │   │   │       │   └─ LuauNamedTypeReference [181..187]
+ │   │       │   │   │   │   │       │       │   │   │       │       ├─ LuauNamedTypeReference_begin [181..187]
+ │   │       │   │   │   │   │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c1 [181..187]
+ │   │       │   │   │   │   │       │       │   │   │       │       │   │   └─ LuauPrimitiveType [181..187]
+ │   │       │   │   │   │   │       │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c1 [181..187]: "number"
+ │   │       │   │   │   │   │       │       │   │   │       │       │   │       ├─ LuauPrimitiveType_c2 187
+ │   │       │   │   │   │   │       │       │   │   │       │       │   │       └─ LuauPrimitiveType_c3 187
+ │   │       │   │   │   │   │       │       │   │   │       │       │   ├─ LuauNamedTypeReference_begin_c2 187
+ │   │       │   │   │   │   │       │       │   │   │       │       │   └─ LuauNamedTypeReference_begin_c3 187
+ │   │       │   │   │   │   │       │       │   │   │       │       └─ LuauNamedTypeReference_end 187
+ │   │       │   │   │   │   │       │       │   │   │       └─ LuauTypeLiteral_end 187
  │   │       │   │   │   │   │       │       │   │   └─ LuauTypeTableStruct_end [187..189]
  │   │       │   │   │   │   │       │       │   │       ├─ LuauTypeTableStruct_end_c1 [187..188]
  │   │       │   │   │   │   │       │       │   │       │   └─ PunctuationBraceClose [187..188]: "}"

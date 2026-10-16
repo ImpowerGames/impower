@@ -473,13 +473,27 @@ const PURE_LUAU_BODY_CONTENT = nodeNameSet([
   "LuauFunctionTypeDeclaration_content",
 ]);
 
-/** Whether a node holds a token the grammar left unread. */
+/**
+ * Whether a statement holds a token the grammar left unread among its own
+ * tokens. One in a block nested in it (`local x: = function() @ end`) is
+ * the nested block's statement's, as the converter counts it
+ * (`markUnreadErrors`).
+ */
 function holdsUnreadToken(node: SyntaxNode): boolean {
+  if (UNREAD_TOKENS.has(node.name)) return true;
   const cursor = node.cursor();
-  do {
+  if (!cursor.firstChild()) return false;
+  for (;;) {
     if (UNREAD_TOKENS.has(cursor.name)) return true;
-  } while (cursor.next() && cursor.from < node.to);
-  return false;
+    if (!cursor.next(!PURE_LUAU_BODY_CONTENT.has(cursor.name)) || cursor.from >= node.to) return false;
+  }
+}
+
+/** The sibling beside a node, before or after it, past whitespace and comments but not past a line break. */
+function besideOnLine(node: SyntaxNode, step: "prevSibling" | "nextSibling"): SyntaxNode | null {
+  let beside = node[step];
+  while (beside && beside.name !== "Newline" && isTrivia(beside)) beside = beside[step];
+  return beside && beside.name !== "Newline" ? beside : null;
 }
 
 // NOTE: This annotator previously also validated property selectors
@@ -515,28 +529,43 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * Whether `node` is in a statement of a pure-Luau body that holds a token
-   * the grammar left unread (`LuauUnreadToken`), or that such a token follows
-   * on the line where it ends (`x = (if c)then`). Luau's reading of the
-   * statement reports every error in it, as Luau reports them
-   * (`LuauSyntaxError.unread`), so none is reported from the tree.
+   * Whether `node` is in a statement of a pure-Luau body whose errors Luau's
+   * reading reports, as the converter marks them (`LuauSyntaxError.unread`,
+   * `markUnreadErrors`): one that holds a token the grammar left unread
+   * (`LuauUnreadToken`), one that such a token follows on the line where it
+   * ends (`x = (if c) --[[ c ]] then`), and one Luau's recovery from such a
+   * statement reads after it on its line (`x = 1` in `@ x = 1`). None of
+   * their errors is reported from the tree.
    */
   private ownedByUnreadReading(node: SyntaxNode): boolean {
     let statement: SyntaxNode | null = node;
     while (statement && !PURE_LUAU_BODY_CONTENT.has(statement.parent?.name ?? "")) statement = statement.parent;
-    if (!statement) return false;
+    return !!statement && this.statementOwnedByUnreadReading(statement);
+  }
+
+  private statementOwnedByUnreadReading(statement: SyntaxNode): boolean {
     const key = `${statement.name}:${statement.from}:${statement.to}`;
     let owned = this.unreadStatements.get(key);
     if (owned === undefined) {
       owned = holdsUnreadToken(statement);
       if (!owned) {
-        let next = statement.nextSibling;
-        while (next && next.name === "ExtraWhitespace") next = next.nextSibling;
-        owned = !!next && UNREAD_TOKENS.has(next.name);
+        const next = besideOnLine(statement, "nextSibling");
+        owned = !!next && UNREAD_TOKENS.has(next.name) && this.onOneLine(statement.to - 1, next.from);
+      }
+      if (!owned) {
+        const before = besideOnLine(statement, "prevSibling");
+        owned = !!before && this.onOneLine(before.to - 1, statement.from) && this.statementOwnedByUnreadReading(before);
       }
       this.unreadStatements.set(key, owned);
     }
     return owned;
+  }
+
+  /** Whether two offsets of the document are on one line. */
+  private onOneLine(a: number, b: number): boolean {
+    const text = this.text;
+    if (!text) return false;
+    return text.lineAt(Math.max(a, 0)).number === text.lineAt(b).number;
   }
 
   // CodeMirror Text is immutable. A replacement or edit supplies a new Text

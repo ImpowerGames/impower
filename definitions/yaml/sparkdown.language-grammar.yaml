@@ -13920,10 +13920,14 @@ repository:
           - { include: "#Whitespace" }
 
   LuauTypeTableProperty:
-    # `(?!{{LUAU_TYPE_QUALIFIER_DOT}}|{{WS}}*[<])` leaves a qualified type
-    # name (`{ types.Button }`) and a generic one (`{ Box<number> }`) to
-    # LuauTypeLiteral as an array element.
-    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?!{{LUAU_TYPE_QUALIFIER_DOT}}|{{WS}}*[<])
+    # lookaround: LuauTypeLiteral reads the same name as an array element's
+    # type (`{ T }`, `{ types.Button }`, `{ Box<number> }`), and a property
+    # is the name a `:` follows. Both begin with the name, so no order of
+    # the struct's patterns tells them apart: LuauTypeLiteral first reads
+    # every property name as a type. Splitting LuauTypeLiteral leaves the
+    # name rule as the rival, this rule is a match with no `end:` to carry
+    # the `:`, and LUAU_IDENTIFIER cannot be tightened by what follows it.
+    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?={{WS}}*[:])
     captures:
       1:
         patterns:

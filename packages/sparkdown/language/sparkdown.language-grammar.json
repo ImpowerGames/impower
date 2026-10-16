@@ -19802,7 +19802,7 @@
       }
     },
     "LuauTypeTableProperty": {
-      "match": "(?:(\\b(?:read|write)\\b)\\b((?:[^\\S\\n\\r])*))?((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))(?!(?:[^\\S\\n\\r])*[.]|(?:[^\\S\\n\\r])*[<])",
+      "match": "(?:(\\b(?:read|write)\\b)\\b((?:[^\\S\\n\\r])*))?((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))(?=(?:[^\\S\\n\\r])*[:])",
       "captures": {
         "1": {
           "patterns": [

@@ -11,6 +11,7 @@ import type { Location, Position } from "../../typecheck/Location";
 import {
   readLuauBlock,
   readLuauExpression,
+  readLuauMethod,
   type LuauAstUnit,
   type LuauSyntaxError,
 } from "../../typecheck/readLuauAst";
@@ -127,6 +128,11 @@ export function readBlockAst(
   if (!first) return null;
   const unit = readLuauBlock(nodes, documentText(ctx));
   return { unit, source: { top: topOf(first), errors: unit.errors } };
+}
+
+/** The syntax errors of a `define`'s method, read as the function value it stands for (`readLuauMethod`). */
+export function methodSyntaxErrors(node: SyntaxNode, ctx: LowerContext): readonly LuauSyntaxError[] {
+  return readLuauMethod(node, documentText(ctx)).errors;
 }
 
 /** The message of the syntax error an error node names. */

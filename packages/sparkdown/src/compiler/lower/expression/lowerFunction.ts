@@ -45,7 +45,7 @@ import {
   type AstLocal,
   type AstNode,
 } from "../../typecheck/Ast";
-import type { LuauAstUnit } from "../../typecheck/readLuauAst";
+import type { LuauAstUnit, LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import type { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
@@ -122,21 +122,36 @@ export function readBodyAst(
  * the type checker reports in a function's body and the validator leaves
  * to it: those of a statement that holds a token the grammar left unread
  * (`LuauSyntaxError.unread`), and those that find a statement malformed
- * (`Hello` on a line of its own). Called once the body is lowered, it
- * leaves out an error the lowering already reported at the same place.
+ * (`Hello` on a line of its own). Only errors from `bodyFrom` on are the
+ * body's (a method's header is read with it). Called once the body is
+ * lowered, it leaves out an error the lowering already reported at the
+ * same place.
  */
 export function reportBodySyntaxErrors(
-  reading: { unit: LuauAstUnit } | null,
+  errors: readonly LuauSyntaxError[],
   ctx: LowerContext,
+  bodyFrom = 0,
+): void {
+  reportSyntaxErrors(errors.filter((error) => error.unread || error.malformed === "statement"), ctx, bodyFrom);
+}
+
+/**
+ * Reports syntax errors of a reading no other reader reports, those from
+ * `from` on, leaving out an error already reported at the same place.
+ */
+export function reportSyntaxErrors(
+  errors: readonly LuauSyntaxError[],
+  ctx: LowerContext,
+  bodyFrom = 0,
 ): void {
   const diagnostics = ctx.diagnostics;
   if (!diagnostics) return;
   const reported = new Set(
     diagnostics.map((d) => `${d.source?.startLineNumber}:${d.source?.startCharacterNumber} ${d.message}`),
   );
-  for (const error of reading?.unit.errors ?? []) {
-    if (!error.unread && error.malformed !== "statement") continue;
+  for (const error of errors) {
     const { from, to } = rangeOf(error.location, ctx);
+    if (from < bodyFrom) continue;
     const source = {
       fileName: null,
       filePath: ctx.filePath ?? null,

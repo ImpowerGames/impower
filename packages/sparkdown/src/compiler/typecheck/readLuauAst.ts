@@ -4421,7 +4421,8 @@ export function luauPositionOffset(position: Position, documentText: string): nu
  * Not part of Luau: reads a method in a `define` (`greet() ... end`, a
  * `LuauMethodDefinition`) as the function value it stands for, the
  * `function` Sparkdown leaves implicit written before its parameters and
- * its name left out. The lints read it (`collectLuauLints.ts`).
+ * its name left out. The lints read it (`collectLuauLints.ts`), and so does
+ * the define lowerer, for the body's errors (`lowerDefineMethod`).
  */
 export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
   const index = lineIndex(documentText);
