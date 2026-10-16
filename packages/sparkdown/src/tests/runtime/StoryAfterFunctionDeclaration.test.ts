@@ -73,21 +73,33 @@ describe("story lines after a function declaration", () => {
   test("lines of a function's body that are not Luau statements are each reported as an error", () => {
     // A function body is Luau, so a line such as `Hello there.` is not a
     // story line there but a Luau statement Luau cannot read (#1158). Each
-    // one gets Luau's error.
+    // one gets Luau's error: `Hello`, the `.` whose name Luau reads from the
+    // next line, which a Sparkdown access path cannot, and the `?` no rule
+    // reads with the `you` it leaves incomplete (#1905).
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
+    expect(ctx.errorMessages.map((m) => m.split("\n")[0])).toEqual([
+      "Expected identifier after '.' on the same line",
+      INCOMPLETE,
+      INCOMPLETE,
+      "Expected identifier when parsing expression, got '?'",
+    ]);
   });
 
   test("a function whose body is only lines of words ends at its `end`, and the line after it plays from the top", () => {
     // GRAMMAR.md section 13.2: a pure-Luau body holds no story text, so each
     // line is reported as Luau, and the definition still closes at its `end`
-    // (#1093).
+    // (#1093). The errors are those of the test above (#1905).
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\nAfter it.\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
+    expect(ctx.errorMessages.map((m) => m.split("\n")[0])).toEqual([
+      "Expected identifier after '.' on the same line",
+      INCOMPLETE,
+      INCOMPLETE,
+      "Expected identifier when parsing expression, got '?'",
+    ]);
     const lines: string[] = [];
     while (ctx.story.canContinue) {
       const text = ctx.story.Continue();
@@ -106,7 +118,8 @@ describe("story lines after a function declaration", () => {
     const ctx = makeRuntimeStoryFromSource(
       `function greet()\n  local x = 1\n  How are you?\nend\nAfter it.\n`,
     );
-    expect(ctx.errorMessages).toEqual([INCOMPLETE]);
+    // `How` and `you`, as Luau reports them, and the `?`.
+    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE, "Expected identifier when parsing expression, got '?'"]);
     const lines: string[] = [];
     while (ctx.story.canContinue) {
       const text = ctx.story.Continue();

@@ -125,6 +125,7 @@ import { Location, Position } from "./Location";
 import { breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
+import { UNREAD_TOKENS } from "../utils/unreadTokens";
 
 // ---------------------------------------------------------------------------
 // Results
@@ -144,6 +145,13 @@ export interface LuauSyntaxError {
    * double-quoted string's interpolation, which are Sparkdown's own syntax.
    */
   malformed?: MalformedConstruct;
+  /**
+   * Not part of Luau: the error is one of a statement that holds a token the
+   * grammar left unread (`LuauUnreadToken`), which no rule of the grammar
+   * reports. Luau's reading owns the statement's errors, its recovery's
+   * included, as Luau reports them.
+   */
+  unread?: true;
 }
 
 /**
@@ -197,6 +205,12 @@ export interface LuauAstUnit {
   hotcomments: HotComment[];
   /** The statements of the unit's own block (a flow's function body), each with the tree nodes it was read from. */
   statements: LuauStatementSource[];
+  /**
+   * Not part of Luau: the document ranges, first token to last, of the
+   * statements at any depth whose errors are Luau's reading's to report
+   * (`LuauSyntaxError.unread`), which the validator leaves to it.
+   */
+  unreadStatements?: readonly { from: number; to: number }[];
   /** A flow's header: its scene, or its branch outside any scene. */
   header?: TreeNodeRef;
   /**
@@ -468,7 +482,17 @@ interface Token {
   authoredEnd?: true;
   /** End offset of the grammar-owned marked narrative island containing this token. */
   authoredIsland?: number;
+  /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
+  unread?: true;
+  /**
+   * Not part of Luau's tokens: for a `@`, how an error describes the
+   * attribute lexeme Luau's lexer reads there (`describe`). The tokens keep
+   * `@` and the name or `[` written right after it apart, and the `@` takes
+   * the lexeme's location (`Parser`).
+   */
+  attribute?: string;
 }
+
 
 const KEYWORDS = new Set([
   "and",
@@ -646,6 +670,13 @@ class Tokenizer {
     const [from, to] = trimmedRange(this.text, node.from, node.to);
     if (this.luauThroughout && node.type.isError) {
       this.lex(from, to);
+      return;
+    }
+    // A token the grammar left unread is read as Luau's lexer reads it.
+    if (UNREAD_TOKENS.has(name)) {
+      const first = this.tokens.length;
+      this.lex(from, to);
+      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;
       return;
     }
     if (SPARKDOWN_EXPRESSIONS.has(name)) {
@@ -923,8 +954,43 @@ function skipComment(text: string, at: number, to: number): number {
 }
 
 /** A token's description in an error, as Luau's `Lexeme::toString` writes it. */
+/**
+ * Whether a token is written right after another, with nothing between: a
+ * token of the text, not one a reading writes itself where nothing is
+ * written (the `end` closing a Sparkle closure's body, `readLuauStatements`).
+ */
+function writtenRightAfter(token: Token, next: Token | undefined): next is Token {
+  return !!next && next.from === token.to && next.to > next.from;
+}
+
+/**
+ * Not part of Luau: Luau's lexer reads `@` with the name written right after
+ * it as one attribute lexeme (`@native`, described by its name), `@[` as one
+ * (`'@['`), and a `@` with neither as an attribute with no name (`''`). An
+ * error at the `@` is located and described as at that lexeme
+ * (`Token.attribute`). Every token list a parser reads goes through this
+ * (`Parser`, `withTokens`).
+ */
+function readAttributeLexemes(tokens: Token[]): void {
+  for (let i = 0; i < tokens.length; i++) {
+    const at = tokens[i]!;
+    if (at.kind !== "symbol" || at.text !== "@" || at.attribute !== undefined) continue;
+    const next = tokens[i + 1];
+    if (writtenRightAfter(at, next) && next.kind === "symbol" && next.text === "[") {
+      at.attribute = "'@['";
+      at.location = Location.span(at.location, next.location);
+    } else if (writtenRightAfter(at, next) && (next.kind === "name" || next.kind === "keyword")) {
+      at.attribute = `'${next.text}'`;
+      at.location = Location.span(at.location, next.location);
+    } else {
+      at.attribute = "''";
+    }
+  }
+}
+
 function describe(token: Token): string {
   if (token.story && token.kind !== "keyword") return "<eof>";
+  if (token.attribute !== undefined) return token.attribute;
   switch (token.kind) {
     case "eof":
       return "<eof>";
@@ -1232,6 +1298,15 @@ function deprecatedArgsErrors(attrLoc: Location, args: AstExpr[]): [Location, st
   return errors;
 }
 
+/** A statement a block read: its tokens, by index into the token list it was read from, and its errors, by index. */
+interface StatementSpan {
+  tokens: Token[];
+  first: number;
+  end: number;
+  errorsFrom: number;
+  errorsTo: number;
+}
+
 /**
  * Luau's recursive descent over the tree's tokens. A Luau construct is read
  * as `Parser.cpp` reads it, with its node's location spanning the same
@@ -1284,6 +1359,13 @@ class Parser {
   // Not part of Luau: where the last error of the statement being read begins (see `report`).
   private statementErrorBegin: Position | undefined;
   private readonly abandonedClosers: { text: string }[] = [];
+  // Not part of Luau: for each statement being read, the statements read
+  // in it so far, by their tokens and errors, and the errors reported at a
+  // token the grammar left unread (see `markUnreadErrors`).
+  private readonly statementSpans: StatementSpan[][] = [];
+  private readonly errorsAtUnread = new Set<number>();
+  /** Not part of Luau: the document ranges of the statements whose errors are Luau's to report (`markUnreadErrors`). */
+  readonly unreadStatements: { from: number; to: number }[] = [];
 
   /** The block depth whose statements are recorded in `statements`, with the tokens each was read from. */
   recordDepth = -1;
@@ -1298,6 +1380,7 @@ class Parser {
     const last = tokens[tokens.length - 1];
     const end = eofAt ?? (last ? last.location.end : previous.end);
     this.eof = { kind: "eof", text: "", from: last?.to ?? 0, to: last?.to ?? 0, location: new Location(end, end), source: -1 };
+    readAttributeLexemes(tokens);
   }
 
   // -- Tokens --------------------------------------------------------------
@@ -1345,6 +1428,7 @@ class Parser {
    */
   private withTokens<T>(tokens: Token[], end: Location, read: () => T): T {
     const saved = { tokens: this.tokens, pos: this.pos, previous: this.previous, eof: this.eof };
+    readAttributeLexemes(tokens);
     this.tokens = tokens;
     this.pos = 0;
     this.eof = { kind: "eof", text: "", from: 0, to: 0, location: end, source: -1 };
@@ -1408,6 +1492,7 @@ class Parser {
       error.malformed = malformed;
       this.statementErrorBegin = location.begin;
     }
+    if (this.tokens[errorPos]?.unread) this.errorsAtUnread.add(this.errors.length);
     this.errors.push(error);
     if (this.errors.length >= ERROR_LIMIT) throw new FatalReadError(location, `Reached error limit (${ERROR_LIMIT})`);
   }
@@ -1420,6 +1505,46 @@ class Parser {
   private atAbandonedCloser(): boolean {
     const current = this.current();
     return current.kind === "symbol" && this.abandonedClosers.some((closer) => closer.text === current.text);
+  }
+
+  /**
+   * Not part of Luau: ends the statement just read, marking its errors as
+   * `unread` when a token of its own, not of a statement nested in it, is
+   * one the grammar left unread, when one of its own errors is at such a
+   * token (`{ 1 ? 2 }` ends at the `?`), when such a token follows it on
+   * its line, or when it was read in the recovery from such errors
+   * (`recovery`). Luau's reading then reports
+   * every error of the statement and of its recovery, since no rule of the
+   * grammar reports any of them; a statement nested in it marks its own.
+   * Returns whether the statement's errors are Luau's to report.
+   */
+  private markUnreadErrors(span: StatementSpan, recovery: boolean): boolean {
+    const nested = this.statementSpans.pop() ?? [];
+    let unread = recovery;
+    const own = (e: number) => !nested.some((inner) => inner.errorsFrom <= e && e < inner.errorsTo);
+    for (let e = span.errorsFrom; e < span.errorsTo && !unread; e++) if (this.errorsAtUnread.has(e) && own(e)) unread = true;
+    let n = 0;
+    for (let i = span.first; i < span.end && !unread; i++) {
+      while (n < nested.length && (nested[n]!.tokens !== span.tokens || nested[n]!.end <= i)) n++;
+      const inner = nested[n];
+      if (inner && inner.first <= i) {
+        i = inner.end - 1;
+        continue;
+      }
+      if (span.tokens[i]?.unread) unread = true;
+    }
+    // A statement that a token the grammar left unread follows on its line
+    // (`return 0x` before `.i`), as the validator leaves it to this reading.
+    const last = span.tokens[span.end - 1];
+    const after = span.tokens[span.end];
+    if (after?.unread && last && after.location.begin.line === last.location.end.line) unread = true;
+    if (unread) {
+      for (let e = span.errorsFrom; e < span.errorsTo; e++) if (own(e)) this.errors[e]!.unread = true;
+      const first = span.tokens[span.first];
+      if (first && last) this.unreadStatements.push({ from: first.from, to: last.to });
+    }
+    this.statementSpans[this.statementSpans.length - 1]?.push(span);
+    return unread;
   }
 
   /** Counts one more level of nesting, as Luau's `incrementRecursionCounter` does, ending the reading past its limit. */
@@ -1658,6 +1783,9 @@ class Parser {
     // so does one whose holder began in a recovery, on the holder's line
     // (`if c then 2 else 3` after a line `local a,`).
     let followerLine = this.reports > 0 && this.standsAtError() ? this.errorLine : this.followerStart?.line;
+    // Not part of Luau: whether the statement before had errors that are
+    // marked `unread` (see `markUnreadErrors`).
+    let unreadErrors = false;
     while (!this.blockFollow(this.current())) {
       const current = this.current();
       // Not part of Luau: where the tree ends the statement before, no statement begins.
@@ -1670,20 +1798,29 @@ class Parser {
       const closed = current.kind === "symbol" ? this.abandonedClosers.findLastIndex((closer) => closer.text === current.text) : -1;
       if (closed >= 0) {
         this.abandonedClosers.splice(closed, 1);
-        this.next();
-        // A statement on the closer's line begins in the same recovery.
-        followerLine = current.location.end.line;
-        continue;
+        // In the recovery from errors Luau's reading reports (`unread`), the
+        // closer is read as Luau reads it, a statement of the cascade.
+        if (!unreadErrors || followerLine !== current.location.begin.line) {
+          this.next();
+          // A statement on the closer's line begins in the same recovery.
+          followerLine = current.location.end.line;
+          continue;
+        }
       }
       const oldRecursionCount = this.recursionCounter;
       this.incrementRecursionCounter("block");
       const first = this.pos;
       const start = this.current();
       const reportsBefore = this.reports;
+      const errorsBefore = this.errors.length;
+      this.statementSpans.push([]);
       const outerFollowerStart = this.followerStart;
       const outerErrorBegin = this.statementErrorBegin;
       const outerStatement = this.statementState;
       this.followerStart = followerLine === start.location.begin.line ? start.location.begin : undefined;
+      // A statement read in the recovery from an error marked `unread` is
+      // part of that error's cascade.
+      const unreadRecovery: boolean = unreadErrors && this.followerStart !== undefined;
       this.statementErrorBegin = undefined;
       this.statementState = { begin: start.location.begin, hasError: false, startsAtError: false };
       const stat = this.parseStat();
@@ -1713,6 +1850,9 @@ class Parser {
       }
       // A token no statement begins with is skipped, so the reading goes on.
       if (this.current() === start && this.pos === first) this.next();
+      // A statement whose error Luau keeps only once (at the same token as
+      // the error before it) goes on with the cascade all the same.
+      unreadErrors = this.markUnreadErrors({ tokens: this.tokens, first, end: this.pos, errorsFrom: errorsBefore, errorsTo: this.errors.length }, unreadRecovery) && this.reports > reportsBefore;
       // Not part of Luau: a statement that begins on the line where this one
       // stopped at its error begins in the reading's recovery, as Luau's
       // parser recovers by reading a statement from the token after an
@@ -1911,12 +2051,14 @@ class Parser {
     return new AstStatSparkdownChoose(Location.span(begin.location, end), body, gather);
   }
 
-  /** Whether the reading stands at an attribute: `@name`, or `@[` opening a list of them. */
+  /**
+   * Whether the reading stands at an attribute: `@name`, `@[` opening a list
+   * of them, or a `@` with neither after it, which Luau's lexer reads as an
+   * attribute with no name.
+   */
   private isAttribute(): boolean {
     const at = this.current();
-    if (at.kind !== "symbol" || at.text !== "@") return false;
-    const next = this.lookahead();
-    return next.from === at.to && (next.kind === "name" || next.kind === "keyword" || (next.kind === "symbol" && next.text === "["));
+    return at.kind === "symbol" && at.text === "@";
   }
 
   private validateAttribute(loc: Location, name: string, attributes: AstAttr[], args: AstExpr[]): AstAttrType | undefined {
@@ -1936,11 +2078,15 @@ class Parser {
     while (this.isAttribute()) {
       const at = this.current();
       this.next();
-      if (!this.is("[")) {
+      const glued = writtenRightAfter(at, this.current());
+      if (!glued || !this.is("[")) {
+        // The name written right after the `@`, or none (`@ function`).
         const name = this.current();
-        this.next();
-        const loc = Location.span(at.location, name.location);
-        attributes.push(new AstAttr(loc, this.validateAttribute(loc, name.text, attributes, []) ?? AstAttrType.Unknown, [], name.text));
+        const named = glued && (name.kind === "name" || name.kind === "keyword");
+        if (named) this.next();
+        const loc = named ? Location.span(at.location, name.location) : at.location;
+        const text = named ? name.text : "";
+        attributes.push(new AstAttr(loc, this.validateAttribute(loc, text, attributes, []) ?? AstAttrType.Unknown, [], text));
         continue;
       }
       const open = this.current();
@@ -2790,6 +2936,10 @@ class Parser {
     this.incrementRecursionCounter("type annotation");
     const start = this.current().location;
     const token = this.current();
+    // Luau reads attributes before a function type only in a declaration
+    // file's context, which a `.sd` file and a `run` file are not. The type
+    // is missing there, as the checker reports a missing type (`malformed`).
+    if (this.isAttribute()) return { type: this.reportTypeError(start, [], "attributes are not allowed in declaration context", "type") };
     // Not part of Luau: a type that begins with `->`, which no Luau type
     // does, is Sparkdown's divert-target type (`function f(target: ->)`).
     // A divert target is Sparkdown's own value, read as `any`, as the value
@@ -3072,8 +3222,11 @@ class Parser {
     const start = this.current().location.begin;
     let expr = this.parsePrefixExpr();
     // Not part of Luau: what follows a value that never began (`{1 +}` as a
-    // statement) is not read as its call, which would report it again.
-    if (expr instanceof AstExprError) return expr;
+    // statement) is not read as its call, which would report it again;
+    // after a token the grammar left unread, whose errors are Luau's to
+    // report (`markUnreadErrors`), it is read as Luau reads it (`.x` after a
+    // line-ending comma is a member of the missing value).
+    if (expr instanceof AstExprError && !this.current().unread) return expr;
     const oldRecursionCount = this.recursionCounter;
     for (;;) {
       if (this.is(".")) {
@@ -3618,7 +3771,7 @@ function readUnit(
     }
     return { statement, nodes: [...seen].sort((a, b) => a - b).map((i) => nodes[i]!) };
   });
-  const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements };
+  const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements, unreadStatements: parser.unreadStatements };
   if (lines) {
     unit.lines = lines;
     unit.key = unitKey(tokenizer, start, eof, parser.sourceDependencies);
@@ -3648,7 +3801,7 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
 /**
  * A unit's key (see `LuauAstUnit.key`): where its reading starts and, for a
  * `run` file, where its Luau ends (an error at the end is placed there),
- * each token's kind, unit location and text, with the shape of the tree
+ * each token's kind (and whether the grammar left it unread), unit location and text, with the shape of the tree
  * under a token read from a node (a string's interpolations, a Sparkdown
  * construct's parts), each `--!` comment, and bounded source reads outside
  * those tokens that affect the parsed unit.
@@ -3661,7 +3814,7 @@ function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefine
       parts.push("break");
       continue;
     }
-    parts.push(`${token.kind} ${token.location.begin}-${token.location.end} ${token.text}`);
+    parts.push(`${token.kind}${token.unread ? " unread" : ""} ${token.location.begin}-${token.location.end} ${token.text}`);
     if (token.node) parts.push(nodeShape(token.node));
   }
   for (const comment of tokenizer.hotcomments) parts.push(`--! ${comment.header} ${comment.location.begin}-${comment.location.end} ${comment.content}`);
@@ -4324,9 +4477,10 @@ export function luauPositionOffset(position: Position, documentText: string): nu
  * Not part of Luau: reads a method in a `define` (`greet() ... end`, a
  * `LuauMethodDefinition`) as the function value it stands for, the
  * `function` Sparkdown leaves implicit written before its parameters and
- * its name left out. The lints read it (`collectLuauLints.ts`).
+ * its name left out. The lints read it (`collectLuauLints.ts`), and so does
+ * the define lowerer, for the body's errors (`lowerDefineMethod`).
  */
-export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauMethod(node: SyntaxNode, documentText: string): ReturnType<typeof parseLoneTokens> {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const name = findDescendant(node, "LuauFunctionName");
@@ -4347,9 +4501,11 @@ export function readLuauMethod(node: SyntaxNode, documentText: string): { expr: 
  * Not part of Luau: reads Luau statements that no unit holds (in a Sparkle
  * handler's `{ ... }`, in a layout) as the body of a function value written
  * around them, `function()` before and `end` after. The lints read them
- * (`collectLuauLints.ts`).
+ * (`collectLuauLints.ts`), and so do a Sparkle closure's lowerer, for the
+ * body's errors in a function's context (`lowerSparkleBody.ts`), and the
+ * validator, for their owner (`ValidationAnnotator.ts`).
  */
-export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string): ReturnType<typeof parseLoneTokens> {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const from = nodes[0]?.from ?? 0;
@@ -4362,7 +4518,11 @@ export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: s
 }
 
 /** The one expression a tokenizer's tokens hold (`readLuauExpression`, `readLuauMethod`, `readLuauStatements`). */
-function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: LineIndex): { expr: AstExpr; errors: LuauSyntaxError[] } {
+function parseLoneTokens(
+  tokenizer: Tokenizer,
+  documentText: string,
+  index: LineIndex,
+): { expr: AstExpr; errors: LuauSyntaxError[]; unreadStatements: readonly { from: number; to: number }[] } {
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
@@ -4374,5 +4534,5 @@ function parseLoneTokens(tokenizer: Tokenizer, documentText: string, index: Line
     parser.errors.push(error);
     expr = new AstExprError(error.location, [], parser.errors.length - 1);
   }
-  return { expr, errors: parser.errors };
+  return { expr, errors: parser.errors, unreadStatements: parser.unreadStatements };
 }

@@ -1,5 +1,6 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { luauStatementError } from "../../utils/luauStatementError";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { followsDanglingDot, followsMissingValue } from "../utils/statementBefore";
@@ -51,11 +52,12 @@ import {
   stripQuotes,
 } from "../expression/lowerExpression";
 import {
-  bodyAst,
   buildClosureExpression,
   freeVariables,
+  readBodyAst,
+  reportBodySyntaxErrors,
 } from "../expression/lowerFunction";
-import { rangeOf, readExpressionAst, type LuauSource } from "../utils/luauAst";
+import { methodSyntaxErrors, rangeOf, readBlockAst, readExpressionAst, type LuauSource } from "../utils/luauAst";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
@@ -145,13 +147,13 @@ const EXPRESSION_STATEMENT_STARTS = nodeNameSet([
 
 // Define bodies lower members only, but still report expressions that Luau
 // cannot read as statements. A property's continuation is consumed first.
+// A statement that is a `.` no name follows is the validator's to report
+// (`LuauDanglingAccessor`); a later one on the line (`Hello there.`) is a
+// statement of its own, and Luau's first error is this one's.
 function reportDefineStatement(start: SyntaxNode, ctx: LowerContext): SyntaxNode {
   let last = start;
-  let dangling = false;
-  for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) {
-    last = node;
-    if (node.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", node)) dangling = true;
-  }
+  for (let node: SyntaxNode | null = start; node && node.name !== "Newline"; node = node.nextSibling) last = node;
+  const dangling = start.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", start) !== undefined;
   const read = (from: number, to: number) => ctx.read(from, to);
   if (dangling || followsDanglingDot(start, read) || followsMissingValue(start, read)) return last;
   const error = luauStatementError(start, start.from, read, last.to, ctx.documentText);
@@ -417,7 +419,12 @@ export function lowerLuauDefine(
         } else if (structureErrors.length === 0) {
           child = reportDefineStatement(child, ctx);
         }
-      } else if (structureErrors.length === 0 && EXPRESSION_STATEMENT_STARTS.has(child.name)) {
+      } else if (
+        structureErrors.length === 0 &&
+        (EXPRESSION_STATEMENT_STARTS.has(child.name) || UNREAD_TOKENS.has(child.name))
+      ) {
+        // A token no rule of the body read (`!`, `a = 1 !`) has its error
+        // here too: the validator leaves it to Luau's reading.
         child = reportDefineStatement(child, ctx);
       }
       child = child.nextSibling;
@@ -643,9 +650,10 @@ function lowerDefineMethod(
   const params = userArgs
     .filter((a) => !a.isVararg)
     .map((a) => a.identifier?.name ?? "");
+  const reading = readBodyAst(content, METHOD_BODY_SKIP, ctx);
   const upvals = freeVariables(
     params,
-    bodyAst(content, METHOD_BODY_SKIP, ctx),
+    reading?.unit.root ?? null,
     ctx,
   ).filter((n) => n !== "self");
   recordCaptureRead(ctx, upvals);
@@ -667,6 +675,15 @@ function lowerDefineMethod(
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const shape = openFunctionBody(ctx, node);
   const body = lowerStatements(content, ctx, METHOD_BODY_SKIP, shape);
+  // Its body's errors, as Luau reports them for the function the method
+  // stands for (or is, in the `function name() … end` form), its `end`
+  // included.
+  let bodyStart = content.firstChild;
+  while (bodyStart && METHOD_BODY_SKIP.has(bodyStart.name)) bodyStart = bodyStart.nextSibling;
+  if (bodyStart) {
+    const errors = node.name === "LuauMethodDefinition" ? methodSyntaxErrors(node, ctx) : readBlockAst([node], ctx)?.unit.errors ?? [];
+    reportBodySyntaxErrors(errors, ctx, bodyStart.from);
+  }
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
