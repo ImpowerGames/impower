@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 122,
-  "previous": "7a845238a7375d9bbda8eb04325815974b159314",
+  "seq": 123,
+  "previous": "5328b2770bca5124b07316ed1042d993a15ea066",
   "snapshotParents": [],
-  "time": "2026-10-16T01:59:39.866Z",
+  "time": "2026-10-16T02:00:10.985Z",
   "kind": "auto",
-  "transition": "release of #1846",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 93,
@@ -1311,21 +1311,17 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:59:38.413Z",
+      "observedAt": "2026-10-16T02:00:09.974Z",
       "held": true,
       "head": "ebdaaacb00109edecda42519a352456125186a77",
       "remoteHead": "ebdaaacb00109edecda42519a352456125186a77",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 19928
-      },
       "pr": 1918,
       "reviewJobs": [
         {
           "job": "pr-1918/round-1/launch-incr-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-incr",
@@ -1339,7 +1335,28 @@
             "head": "ebdaaacb00109edecda42519a352456125186a77",
             "completedRoundReviewers": null,
             "time": "2026-10-16T01:42:09.380Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "incr",
+          "attempt": 1,
+          "reviewedHead": "ebdaaacb00109edecda42519a352456125186a77",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "incr": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6206311988
+          ]
         }
       ]
     },
@@ -1348,7 +1365,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:59:38.413Z",
+      "observedAt": "2026-10-16T02:00:09.974Z",
       "held": true,
       "head": "164cead2492fe406853dfa165beff860a2bc12a1",
       "remoteHead": "164cead2492fe406853dfa165beff860a2bc12a1",
@@ -1401,7 +1418,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T01:59:28.323Z",
+    "at": "2026-10-16T02:00:09.973Z",
     "tickets": [
       {
         "number": 1201,
@@ -1477,9 +1494,9 @@
       },
       {
         "number": 1846,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 59960 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1917,
