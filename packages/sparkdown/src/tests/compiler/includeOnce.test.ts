@@ -195,3 +195,35 @@ describe("a script that includes the script including it", () => {
     expect(play(program, "chapter_one")).toContain("Chapter.");
   });
 });
+
+// #316: an include of a script the project does not have is an error at the
+// include, in a cold compile and in one after an edit elsewhere.
+describe("an include of a script that does not exist", () => {
+  const errorLines = (program: any): [number, string][] =>
+    Object.values(program.diagnostics ?? {}).flatMap((list: any) =>
+      list
+        .filter((d: any) => d.severity === 1)
+        .map((d: any) => [d.range.start.line, typeof d.message === "string" ? d.message : d.message?.value]),
+    );
+  const main = ["Opening.", "include nope.sd", "", "scene main_one", "  Main.", "end", ""].join("\n");
+  const missing: [number, string] = [1, "Could not find 'nope.sd' for 'include' statement."];
+
+  it("is an error at the include", () => {
+    expect(errorLines(compileOnce({ main }))).toEqual([missing]);
+  });
+
+  it("is an error at the include after an edit elsewhere", () => {
+    const program = quiet(() => {
+      const compiler = testCompiler();
+      configure(compiler, { main }, 1);
+      compiler.compile({ textDocument: { uri: MAIN_URI } });
+      const at = main.indexOf("Main.");
+      compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version: 2 },
+        contentChanges: [{ range: { start: posAt(main, at), end: posAt(main, at + 5) }, text: "Main, edited." }],
+      });
+      return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
+    });
+    expect(errorLines(program)).toEqual([missing]);
+  });
+});

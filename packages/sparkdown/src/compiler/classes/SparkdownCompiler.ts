@@ -2709,6 +2709,19 @@ export class SparkdownCompiler {
           // includes the script including it ends the descent there.
           const includedUris = state.fileResolutionState?.includedUris;
           if (!resolvedFilePath) {
+            // 1-based line/character, as the `run` branch below reports.
+            onDiagnostic(
+              `Could not find '${include}' for 'include' statement.`,
+              ErrorType.Error,
+              {
+                fileName,
+                filePath: uri,
+                startLineNumber: lineNumberOffset + 1,
+                endLineNumber: lineNumberOffset + 1,
+                startCharacterNumber: 1,
+                endCharacterNumber: 1,
+              },
+            );
             topLevelIncludedFileObjs.push(new IncludedFile(null));
           } else if (!includedUris?.has(resolvedFilePath)) {
             includedUris?.add(resolvedFilePath);
