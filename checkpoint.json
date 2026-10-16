@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 195,
-  "previous": "8edf8d8381ecaa25cc119523703b23f0732d4a5c",
+  "seq": 196,
+  "previous": "1070f2b3e5948424743f5c27c25d68a35f80c691",
   "snapshotParents": [],
-  "time": "2026-10-16T08:46:12.306Z",
+  "time": "2026-10-16T09:15:26.076Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 158,
+    "recordRevision": 159,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2505,7 +2505,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T08:46:11.309Z",
+      "observedAt": "2026-10-16T09:15:25.248Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2641,7 +2641,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T08:46:11.309Z",
+      "observedAt": "2026-10-16T09:15:25.248Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2884,11 +2884,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:24:11.910Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs (removed pr-* directories of closed PRs)"
-    },
     {
       "time": "2026-10-15T22:24:20.355Z",
       "event": "disk-recovery",
@@ -3604,6 +3599,11 @@
     },
     {
       "time": "2026-10-16T08:46:10.035Z",
+      "event": "check-in",
+      "outcome": "no change: held on the weekly usage limit; maintainer decision on requests 5b339599 and d8a61713 pending; PRs #1928 and #1929 unchanged"
+    },
+    {
+      "time": "2026-10-16T09:15:24.122Z",
       "event": "check-in",
       "outcome": "no change: held on the weekly usage limit; maintainer decision on requests 5b339599 and d8a61713 pending; PRs #1928 and #1929 unchanged"
     }
