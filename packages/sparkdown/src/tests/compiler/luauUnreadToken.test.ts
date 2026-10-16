@@ -388,6 +388,11 @@ describe("each error has one reader", () => {
     ]) {
       expect(read(luau).errors).toEqual(officialErrors(luau));
     }
+    // The grammar reads `@native` as an attribute (`LuauAttribute`), so it is
+    // no unread token; the type is still missing there, as Luau reports it.
+    expect(read("function f()\n  local x: @native = 1\nend\n").errors).toContain(
+      "1:11-1:18 attributes are not allowed in declaration context",
+    );
   });
 
   it("a statement after Luau's recovery has ended keeps its own errors", () => {

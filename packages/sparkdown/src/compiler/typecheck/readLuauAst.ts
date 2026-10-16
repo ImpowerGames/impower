@@ -2920,8 +2920,9 @@ class Parser {
     const start = this.current().location;
     const token = this.current();
     // Luau reads attributes before a function type only in a declaration
-    // file's context, which a `.sd` file and a `run` file are not.
-    if (this.isAttribute()) return { type: this.reportTypeError(start, [], "attributes are not allowed in declaration context") };
+    // file's context, which a `.sd` file and a `run` file are not. The type
+    // is missing there, as the checker reports a missing type (`malformed`).
+    if (this.isAttribute()) return { type: this.reportTypeError(start, [], "attributes are not allowed in declaration context", "type") };
     // Not part of Luau: a type that begins with `->`, which no Luau type
     // does, is Sparkdown's divert-target type (`function f(target: ->)`).
     // A divert target is Sparkdown's own value, read as `any`, as the value
