@@ -19,7 +19,7 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
-import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod } from "../../typecheck/readLuauAst";
+import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
 import { containsUnreadToken, UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED, SPARKDOWN_ONLY } from "../../typecheck/LuauUnitNodes";
@@ -575,8 +575,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (top.parent?.name === "LuauDefine_content" && top.name !== "LuauMethodDefinition" && top.name !== "LuauFunctionDefinition") {
       return UNREAD_TOKENS.has(statement.name);
     }
-    // A closure's body is read whole, as its lowerer reads it, so that Luau's
-    // recovery from one of its statements reaches the next.
+    // A closure's body is read whole, as its lowerer reads it (the body of
+    // the function value it runs as), so that Luau's recovery from one of its
+    // statements reaches the next.
     const reading = top.parent?.name === "LuauSparkleHandlerClosure_content" ? top.parent : top;
     return this.unreadStatementsIn(reading).has(`${statement.from}:${statement.to}`);
   }
@@ -589,15 +590,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     const found = new Set<string>();
     if (containsUnreadToken(reading)) {
       const text = this.statementDocumentText();
-      const nodes: SyntaxNode[] = [];
-      if (reading.name === "LuauSparkleHandlerClosure_content") {
-        for (let child = reading.firstChild; child; child = child.nextSibling) nodes.push(child);
-      } else {
-        nodes.push(reading);
-      }
       const ranges = reading.name === "LuauMethodDefinition"
         ? readLuauMethod(reading, text).unreadStatements
-        : readLuauBlock(nodes, text).unreadStatements ?? [];
+        : reading.name === "LuauSparkleHandlerClosure_content"
+          ? readLuauStatements([reading], text).unreadStatements
+          : readLuauBlock([reading], text).unreadStatements ?? [];
       // Each range begins with its statement's first token: the statement is
       // the body statement there.
       for (const range of ranges) {

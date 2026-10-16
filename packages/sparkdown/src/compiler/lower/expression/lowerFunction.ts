@@ -101,8 +101,7 @@ export function parameterNames(func: AstExprFunction): string[] {
 /**
  * A function body's statements, read from the body's syntax nodes as one
  * block, for a function whose header Luau has no syntax for (a `define`'s
- * `name(args) ... end` method, a sparkle handler's closure), so that only
- * its body is read.
+ * `name(args) ... end` method), so that only its body is read.
  */
 export function readBodyAst(
   content: SyntaxNode | null,

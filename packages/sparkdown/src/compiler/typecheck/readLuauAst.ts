@@ -484,6 +484,13 @@ interface Token {
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
   unread?: true;
+  /**
+   * Not part of Luau's tokens: for a `@`, how an error describes the
+   * attribute lexeme Luau's lexer reads there (`describe`). The tokens keep
+   * `@` and the name or `[` written right after it apart, and the `@` takes
+   * the lexeme's location (`Parser`).
+   */
+  attribute?: string;
 }
 
 
@@ -949,6 +956,7 @@ function skipComment(text: string, at: number, to: number): number {
 /** A token's description in an error, as Luau's `Lexeme::toString` writes it. */
 function describe(token: Token): string {
   if (token.story && token.kind !== "keyword") return "<eof>";
+  if (token.attribute !== undefined) return token.attribute;
   switch (token.kind) {
     case "eof":
       return "<eof>";
@@ -1338,6 +1346,25 @@ class Parser {
     const last = tokens[tokens.length - 1];
     const end = eofAt ?? (last ? last.location.end : previous.end);
     this.eof = { kind: "eof", text: "", from: last?.to ?? 0, to: last?.to ?? 0, location: new Location(end, end), source: -1 };
+    // Luau's lexer reads `@` with the name written right after it as one
+    // attribute lexeme (`@native`, described by its name), `@[` as one
+    // (`'@['`), and a `@` with neither as an attribute with no name (`''`).
+    // An error at the `@` is located and described as at that lexeme.
+    for (let i = 0; i < tokens.length; i++) {
+      const at = tokens[i]!;
+      if (at.kind !== "symbol" || at.text !== "@") continue;
+      const next = tokens[i + 1];
+      const glued = !!next && next.from === at.to;
+      if (glued && next.kind === "symbol" && next.text === "[") {
+        at.attribute = "'@['";
+        at.location = Location.span(at.location, next.location);
+      } else if (glued && (next.kind === "name" || next.kind === "keyword")) {
+        at.attribute = `'${next.text}'`;
+        at.location = Location.span(at.location, next.location);
+      } else {
+        at.attribute = "''";
+      }
+    }
   }
 
   // -- Tokens --------------------------------------------------------------
@@ -2892,6 +2919,9 @@ class Parser {
     this.incrementRecursionCounter("type annotation");
     const start = this.current().location;
     const token = this.current();
+    // Luau reads attributes before a function type only in a declaration
+    // file's context, which a `.sd` file and a `run` file are not.
+    if (this.isAttribute()) return { type: this.reportTypeError(start, [], "attributes are not allowed in declaration context") };
     // Not part of Luau: a type that begins with `->`, which no Luau type
     // does, is Sparkdown's divert-target type (`function f(target: ->)`).
     // A divert target is Sparkdown's own value, read as `any`, as the value
@@ -4453,9 +4483,11 @@ export function readLuauMethod(node: SyntaxNode, documentText: string): ReturnTy
  * Not part of Luau: reads Luau statements that no unit holds (in a Sparkle
  * handler's `{ ... }`, in a layout) as the body of a function value written
  * around them, `function()` before and `end` after. The lints read them
- * (`collectLuauLints.ts`).
+ * (`collectLuauLints.ts`), and so do a Sparkle closure's lowerer, for the
+ * body's errors in a function's context (`lowerSparkleBody.ts`), and the
+ * validator, for their owner (`ValidationAnnotator.ts`).
  */
-export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string): { expr: AstExpr; errors: LuauSyntaxError[] } {
+export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string): ReturnType<typeof parseLoneTokens> {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const from = nodes[0]?.from ?? 0;

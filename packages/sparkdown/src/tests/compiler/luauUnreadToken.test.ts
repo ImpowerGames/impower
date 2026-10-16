@@ -362,6 +362,34 @@ describe("each error has one reader", () => {
     expect(read('Value {cycle "a" | function() @ x = (if c) end | "b" end}.\n').errors).toEqual(shifted(0, 30));
   });
 
+  it("a sparkle closure's body is read as a function's body", () => {
+    // `export` and `...` are errors in a function's body, not a chunk's. The
+    // closure's `end` is implied where its body ends, so only where each
+    // error begins is compared.
+    const starts = (errors: string[]) => errors.map((e) => e.replace(/-\d+:\d+ /, " "));
+    for (const [statement, luau] of [
+      ["export local x = 1", "local f = function() export local x = 1 end\n"],
+      ["local x = ... @", "local f = function() local x = ... @ end\n"],
+    ] as const) {
+      const shift = "  button @click={ ".length - "local f = function() ".length;
+      const expected = officialErrors(luau).map((e) => e.replace(/^0:(\d+)-0:\d+/, (_, from) => `1:${Number(from) + shift}`));
+      expect(expected.length).toBeGreaterThan(0);
+      expect(starts(read(`layout main with\n  button @click={ ${statement} }\nend\n`).errors)).toEqual(expected);
+    }
+  });
+
+  it("an unread attribute is read as Luau's lexer reads it, in a type and in a parameter list", () => {
+    for (const luau of [
+      "function f()\n  local x: @[native] = 1\nend\n",
+      "function f()\n  local x: @ = 1\nend\n",
+      "function f(@) end\n",
+      "function f()\n  b = @5\nend\n",
+      "function f()\n  local a, b = 1, @5\nend\n",
+    ]) {
+      expect(read(luau).errors).toEqual(officialErrors(luau));
+    }
+  });
+
   it("a statement after Luau's recovery has ended keeps its own errors", () => {
     // Luau's recovery from the attribute ends with `x = 1`, which it reads
     // with no error, so the declaration after it reports what it reports
