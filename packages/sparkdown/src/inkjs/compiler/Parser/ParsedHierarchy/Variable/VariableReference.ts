@@ -12,6 +12,7 @@ import {
 } from "../../../../../runtime/StdLib";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 import { Op } from "../../../../../program/ProgramInstructions";
+import { NUMBERED_SYNTHETIC_NAME } from "../../../../../program/ProgramSymbols";
 
 export class VariableReference extends Expression {
   // - Normal variables have a single item in their "path"
@@ -261,7 +262,7 @@ export class VariableReference extends Expression {
    *  numbers by document order, is recorded without its number, since the
    *  chunk names it by its own. */
   get resolutionKey(): string {
-    const name = /^__synth\$\d+$/.test(this.name) ? "__synth" : this.name;
+    const name = NUMBERED_SYNTHETIC_NAME.test(this.name) ? "__synth" : this.name;
     if (this.resolvedAs === "count") {
       return `${name}:count:${this.countTarget?.programSymbolName ?? ""}`;
     }

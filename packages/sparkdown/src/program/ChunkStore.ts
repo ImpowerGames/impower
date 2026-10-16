@@ -62,6 +62,8 @@ import {
   anonymousSymbol,
   internSymbol,
   isAnonymousSymbol,
+  NUMBERED_SYNTHETIC_NAME,
+  NUMBERED_SYNTHETIC_NAMES,
   renumberAnonymousSymbols,
   snapshotTable,
   SymbolKind,
@@ -4211,8 +4213,9 @@ const isOwnJump = (obj: Divert): boolean =>
  *  it; and a function a statement writes by the function itself, whose
  *  anonymous symbol belongs to that object for as long as its statement is
  *  kept. The compile places a function a statement writes among the story's
- *  flows too, under a name it gives by document order (`__synth$<n>`), which
- *  a function written above renumbers: that name is not the symbol. */
+ *  flows too, under a name it gives by document order within the flow it is
+ *  written in (`__synth$<flow>$<n>`), which a function written above it in
+ *  that flow renumbers: that name is not the symbol. */
 const targetOf = (target: ParsedObject | null | undefined): string => {
   if (!target) {
     return "-";
@@ -4221,14 +4224,11 @@ const targetOf = (target: ParsedObject | null | undefined): string => {
     target.programSymbolName ??
     (target instanceof FlowBase &&
     target.parent === target.story &&
-    !WRITTEN_FUNCTION_NAME.test(target.identifier?.name ?? "")
+    !NUMBERED_SYNTHETIC_NAME.test(target.identifier?.name ?? "")
       ? `flow:${target.identifier?.name ?? ""}`
       : null);
   return name ?? `#${identityOf(target)}`;
 };
-
-/** The name the compile gives a function a statement writes. */
-const WRITTEN_FUNCTION_NAME = /^__synth\$\d+$/;
 
 const readReference = (obj: VariableReference): string =>
   `${obj.resolutionKey}|${targetOf(obj.countTarget)}`;
@@ -4428,9 +4428,9 @@ const choiceFingerprint = (
  *  object prints as (a name, a number, a string, a call, an operation), with
  *  the objects it holds, and a nested alternator by its own kind and arms. A
  *  name the compiler generated is read by the order it first appears in,
- *  since the compiler numbers those names by document order
- *  (`SparkdownCompiler.canonicalizeSyntheticFlowNames`) and an edit above
- *  the statement renumbers them. */
+ *  since the compiler numbers those names by document order within their
+ *  flow (`SparkdownCompiler.canonicalizeSyntheticFlowNames`) and an edit
+ *  above the statement in that flow renumbers them. */
 const alternatorFingerprint = (
   sequence: Sequence,
   source?: (from: number, to: number) => string,
@@ -4456,17 +4456,13 @@ const alternatorFingerprint = (
     return children.length > 0 ? `${own}(${children.map(text).join("")})` : own;
   };
   const generated = new Map<string, number>();
-  return normalizeSource(arms(sequence)).replace(GENERATED_NAMES, (name) => {
+  return normalizeSource(arms(sequence)).replace(NUMBERED_SYNTHETIC_NAMES, (name) => {
     if (!generated.has(name)) {
       generated.set(name, generated.size);
     }
     return `__synth#${generated.get(name)}`;
   });
 };
-
-// A name the compiler generates, numbered by document order
-// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`).
-const GENERATED_NAMES = /__synth\$\d+/g;
 
 /** The hash a function part is aligned by: its own source, normalized. */
 const fingerprintOf = (body: BodySource): string =>
