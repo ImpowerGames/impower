@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 274,
-  "previous": "1afd2e0236435fa936e41afc5047d5ff0f12f166",
+  "seq": 275,
+  "previous": "27a68aaad7c6040ef2cbc99041243df9ec0acf5a",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:54.131Z",
+  "time": "2026-10-16T16:11:23.965Z",
   "kind": "auto",
-  "transition": "disk-recovery",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 233,
@@ -4089,7 +4089,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:09:53.026Z",
+      "observedAt": "2026-10-16T16:11:23.078Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4233,7 +4233,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T16:07:03.980Z",
+    "at": "2026-10-16T16:11:23.076Z",
     "tickets": [
       {
         "number": 316,
@@ -4243,9 +4243,9 @@
       },
       {
         "number": 454,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 55476 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 457,
@@ -4255,9 +4255,9 @@
       },
       {
         "number": 839,
-        "action": "merge-gate",
+        "action": "answer-request",
         "pr": 1948,
-        "reason": "PR #1948 is ready at a9d427cc24c26205d3890719f94ff33992476127; process 15932 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "reason": "request 1a4a9897 \"PR #1948 cannot pass the merge gate by the writer's means: round 1's ax journal ends blocked (needs posted comment IDs) with its report posted verbatim by the writer as 6218256781 and adjudicated as 6218463732; the launcher refuses to relaunch ax as attempt 2 of round 1 because round 2 is already complete (checkReviewRound, agent-handoff.mjs:47), recordCoordinatorReport refuses a journal that does not end report-awaiting-post, and the launcher's comment adoption runs only at reviewer exit. Options the writer lists: (a) the gate accepts round 1's ax coverage as reviewed (no exception exists in the gate), (b) authoring an attempt-2 plan with completedReviewRound 1, which misstates the journals and the writer refuses without an explicit direction, (c) the launcher gains the fix proposed on #510 (6218779015, 6218944059): record-report completes a journal blocked on needs-posted-comment-IDs once the comment read-back matches. The PR stays ready at a9d427cc2.\" was relayed to the maintainer at 2026-10-16T16:08:07.552Z; once they decide, record answer and send it; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered"
       },
       {
         "number": 887,
