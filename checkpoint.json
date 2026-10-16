@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 216,
-  "previous": "2547a5cddcf11c962a7886c696deec77ac18eb18",
+  "seq": 217,
+  "previous": "c7c0dee8aedb01ad86e3034ba2a2d6eb098fcffd",
   "snapshotParents": [],
-  "time": "2026-10-16T12:20:25.049Z",
+  "time": "2026-10-16T12:46:28.128Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 178,
@@ -2541,12 +2541,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:20:23.967Z",
+      "observedAt": "2026-10-16T12:46:27.023Z",
       "held": true,
-      "head": "d037751d70a869aad360a331f27e008c57b942c8",
-      "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
+      "head": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
+      "remoteHead": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 15100
+      },
       "pr": 1929,
       "reviewJobs": [
         {
@@ -2669,6 +2673,27 @@
           "commentIds": [
             6209618664
           ]
+        },
+        {
+          "job": "pr-1929/round-2/launch-merge-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-merge",
+            "reviewerId": "merge",
+            "attempt": 1,
+            "plannedReviewers": [
+              "merge",
+              "undirected"
+            ],
+            "head": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
+            "completedRoundReviewers": {
+              "inc": 1,
+              "bound": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T12:37:48.060Z"
+          }
         }
       ]
     },
@@ -2677,12 +2702,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:20:23.967Z",
+      "observedAt": "2026-10-16T12:46:27.023Z",
       "held": true,
-      "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
-      "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
+      "head": "55c5401496e7778684794ceb146ee2f6f71be912",
+      "remoteHead": "55c5401496e7778684794ceb146ee2f6f71be912",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 17880
+      },
       "pr": 1928,
       "reviewJobs": [
         {
@@ -2830,6 +2859,25 @@
           "commentIds": [
             6209677385
           ]
+        },
+        {
+          "job": "pr-1928/round-3/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "inc",
+              "undirected"
+            ],
+            "head": "55c5401496e7778684794ceb146ee2f6f71be912",
+            "completedRoundReviewers": {
+              "inc": 1
+            },
+            "time": "2026-10-16T12:37:25.977Z"
+          }
         }
       ]
     }
@@ -2837,7 +2885,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T12:17:37.348Z",
+    "at": "2026-10-16T12:46:27.021Z",
     "tickets": [
       {
         "number": 316,
@@ -2847,9 +2895,9 @@
       },
       {
         "number": 454,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 1929,
-        "reason": "process 58112 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-01e967a7-bd98-427a-8bed-7fa6540319d9\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 42664 started 639277499372042368 is running"
       },
       {
         "number": 457,
@@ -2859,9 +2907,9 @@
       },
       {
         "number": 887,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 1928,
-        "reason": "process 48332 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-887-4d091021-f483-4ce1-aeef-0ce28cc0285d\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 48396 started 639277499571006408 is running"
       },
       {
         "number": 1103,
