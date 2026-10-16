@@ -76,16 +76,16 @@ portUpstreamFile("TypeInfer.primitives.test.cpp", [
   },
   {
     // TypeInfer.primitives.test.cpp:94 TEST_CASE("singleton_types")
-    // Upstream builds a second BuiltinsFixture before checking in the first, to
-    // show the first's globals are untouched. Each checkLuau call has its own
-    // compiler, so there is no shared state for the second to disturb.
+    // The second fixture is constructed and destroyed inside the same native
+    // instance while the first remains alive, before its sole original check.
     name: "singleton_types",
-    checks: [
-      {
-        fixture: "BuiltinsFixture",
+    fixture: "BuiltinsFixture",
+    actions: [
+      { nestedBuiltinsFixture: true },
+      { check: {
         source: `local s: string = 'hello' local t = s:lower()`,
         expect: [{ errors: 0 }],
-      },
+      } },
     ],
   },
   {

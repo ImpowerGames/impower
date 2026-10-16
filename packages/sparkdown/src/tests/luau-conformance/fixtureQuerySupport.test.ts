@@ -2027,7 +2027,7 @@ describe("faithful fixture and query execution", () => {
       { moduleSources: { "": 1 } },
       { hiddenTypes: false },
       { retainFullTypeGraphs: true },
-      { clearModules: true },
+      { clearModules: false },
       { flags: { Flag: 1 } },
     ];
     for (const setup of invalid)
@@ -2066,5 +2066,9 @@ describe("faithful fixture and query execution", () => {
         manifest,
       ),
     ).toEqual([]);
+    // Every native case owns one fixture by default; clearing that fixture's
+    // modules needs no legacy shareFixture opt-in. Native cache-state clearing
+    // is verified independently by the operation-faithful named-case control.
+    expect(portProblems("X.test.cpp", [{ name: "a", source: "", expect: [], clearModules: true }], manifest)).toEqual([]);
   });
 });

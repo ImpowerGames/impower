@@ -14,7 +14,7 @@
 // graph comparison proves the exported types and aliases unchanged. When
 // equivalence cannot be proved, every flow is checked again.
 
-import type { SyntaxNode, Tree } from "@lezer/common";
+import type { Tree } from "@lezer/common";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
 import { errorToString, UnknownSymbolContext } from "./Error";
@@ -35,6 +35,7 @@ import {
 import { Mode } from "./Module";
 import { Scope } from "./Scope";
 import { follow, persist, TypeArena, TypeFun } from "./Type";
+import { createSyntaxDiagnosticProjection } from "./SyntaxDiagnosticProjection";
 
 /** A type warning, or a syntax error in Luau the grammar cannot see, in document lines and characters. */
 export interface TypecheckDiagnostic {
@@ -48,10 +49,6 @@ export interface TypecheckDiagnostic {
   /** Whether this is a syntax error, which is an error rather than a warning. */
   syntax?: boolean;
 }
-
-// Syntax Sparkdown adds to Luau's, which the reading does not know: a label
-// (`::name::`), which the grammar names.
-const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
 
 interface CachedUnit {
   check: LuauUnitCheck;
@@ -132,64 +129,20 @@ export class SparkdownTypechecker {
     const diagnostics: TypecheckDiagnostic[] = [];
     const checks: LuauUnitCheck[] = [];
     this.documentChecks.set(uri, checks);
-    let lineStarts: number[] | undefined;
-    const lineStartsOf = () => {
-      if (!lineStarts) {
-        lineStarts = [0];
-        for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) lineStarts.push(i + 1);
-      }
-      return lineStarts;
-    };
-    const offsetOf = (position: { line: number; character: number }) =>
-      (lineStartsOf()[position.line] ?? text.length) + position.character;
-    // Whether the grammar reads the character before a document position as syntax Sparkdown adds to Luau's.
-    const isSparkdownSyntax = (position: { line: number; character: number }) => {
-      const offset = offsetOf(position) - 1;
-      for (let node: SyntaxNode | null = tree.resolveInner(Math.max(offset, 0), 1); node; node = node.parent) {
-        if (SPARKDOWN_SYNTAX.has(node.name)) return true;
-      }
-      return false;
-    };
-    // A range that ends at the end of a unit, whose trailing line break is
-    // not in its text, ends at the start of the next line, where Luau's
-    // end-of-file range ends when the source ends with a line break.
-    const rangeEnd = (
-      start: { line: number; character: number },
-      end: { line: number; character: number },
-      atEnd: boolean,
-      missingType: boolean,
-    ) => {
-      // A missing type's range from where the type should stand to the token
-      // found on a later line (`local w:` before a line `local z = 1`) ends
-      // with the line the type is missing from, not at the token Luau's
-      // parser recovers with. Other errors keep their range.
-      if (missingType && (end.line > start.line + 1 || (end.line === start.line + 1 && end.character > 0))) {
-        return start.line + 1 < lineStartsOf().length ? { line: start.line + 1, character: 0 } : end;
-      }
-      const after = end.line > start.line || (end.line === start.line && end.character > start.character);
-      if (after && (!atEnd || end.character === 0)) return end;
-      const line = after ? end.line : start.line;
-      return line + 1 < lineStartsOf().length ? { line: line + 1, character: 0 } : after ? end : start;
-    };
+    const syntaxProjection = createSyntaxDiagnosticProjection(text, tree);
     const report = (entry: CachedUnit, unit: LuauUnit) => {
       checks.push(entry.check);
-      // The tokens a syntax error has been reported at, each once.
-      const reportedTokens = new Set<string>();
+      const projectSyntax = syntaxProjection(position => documentPosition(unit, position));
       const parseErrors = entry.check.sourceModule.parseErrors;
       for (const error of entry.check.errors) {
         const parseError = parseErrors.indexOf(error);
         if (parseError >= 0) {
           // Syntax is the grammar's to report, but for a construct only
           // Luau's reading finds malformed (`LuauSyntaxError.malformed`).
-          if (!entry.check.unit.errors[parseError]?.malformed) continue;
           const message = error.data.kind === "SyntaxError" ? error.data.message : "";
-          const start = documentPosition(unit, error.location.begin);
-          const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"), message.startsWith("Expected type"));
-          // The error's range ends with the token the reading found.
-          const token = `${end.line}:${end.character}`;
-          if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
-          reportedTokens.add(token);
-          diagnostics.push({ start, end, code: "SyntaxError", message, syntax: true });
+          const diagnostic = projectSyntax({ location: error.location, message,
+            malformed: Boolean(entry.check.unit.errors[parseError]?.malformed) });
+          if (diagnostic) diagnostics.push(diagnostic);
           continue;
         }
         const diagnostic: TypecheckDiagnostic = {

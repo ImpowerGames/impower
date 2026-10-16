@@ -8,6 +8,16 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { Location, Position } from "../../../compiler/typecheck/Location";
+import { withNativeCase } from "../typecheckNativeCase";
+import { checkSyntaxOnly, nativeCaseChecker, nativeCaseSetup } from "../typecheckNativeRunner";
+import { runDefinitionAction, validateDefinitionAssertions, NativeCaseCaptures, runCheckThrows,
+  validateCaptureGlobalFunction, validateCapturedLevels, validateCheckThrows, validateSupportAssertions,
+  validateTypeMismatchData, validateModuleDiagnostics,
+  validateNativeCheckEntrypoint,
+  type DefinitionAssertion, type CaptureGlobalFunction, type ExpectCapturedLevels, type CheckThrows,
+  type TypeMismatchDataAssertion, type ModuleDiagnosticsAssertion } from "../typecheckNativeActions";
+import { CLASS_DEPENDENCY_HEADING, validateClassDependencySource } from "../../analysis-backend/native-conformance/classDependencyExclusions";
+import type { NativeFixture } from "../../analysis-backend/native-conformance/nativeFixture";
 import {
   checkLuau,
   createLuauCheckSession,
@@ -19,6 +29,9 @@ import {
   type TypePathStep,
   type TypeSelector,
   type LocationTuple,
+  type LuauPrimitiveKind,
+  LUAU_PRIMITIVE_KINDS,
+  type LuauTableState,
 } from "../typecheckTestHarness";
 
 /** What upstream checks about one `check()` result, in upstream order. */
@@ -26,8 +39,7 @@ export type Assertion =
   /** `LUAU_REQUIRE_ERROR_COUNT(n)`, or `LUAU_REQUIRE_ERRORS` as `"some"`. */
   | { errors: number | "some" }
   /** Facts about the error at an index: `get<Kind>(result.errors[i])`, its text, location or fields. */
-  | {
-      error: number;
+  | (({ error: number; errorAtBegin?: never } | { errorAtBegin: [number, number]; error?: never }) & {
       code?: string;
       message?: string | { oneOf: string[] };
       messageContains?: string;
@@ -42,7 +54,8 @@ export type Assertion =
       fieldOptions?: Record<string, LuauToStringOptions>;
       fieldLocations?: Record<string, { present?: boolean; line?: number }>;
       moduleMatchesCheck?: true;
-    }
+      typeMismatchData?: TypeMismatchDataAssertion;
+    })
   /** `LUAU_REQUIRE_ERROR(result, Kind)`: an error of the kind somewhere. */
   | { anyError: string }
   /** `LUAU_REQUIRE_NO_ERROR(result, Kind)`. */
@@ -51,6 +64,8 @@ export type Assertion =
   | { everyError: { line?: number; messageExcludes?: string } }
   /** Exact decorateWithTypes output, including its whitespace. */
   | { decoratedSource: string }
+  | { moduleGraph: { module: string; maximumInternalTypes: number } }
+  | { moduleDiagnostics: ModuleDiagnosticsAssertion }
   | {
       scopes: {
         minimum?: number;
@@ -68,14 +83,17 @@ export type Assertion =
       notEquals?: string;
       options?: LuauToStringOptions;
       kind?: string;
+      primitive?: LuauPrimitiveKind;
       sameAs?: TypeSelector;
       notSameAs?: TypeSelector;
       printedSameAs?: TypeSelector;
       subtypeOf?: TypeSelector;
       isSubtype?: boolean;
+      arena?: { kind: "interface" | "global"; present: boolean; module?: string };
       results?: string[];
       typeParameters?: number;
       properties?: number;
+      tableState?: LuauTableState;
       arguments?: { length?: number; tail?: boolean; tailKind?: string };
       returns?: { length?: number; tail?: boolean; tailKind?: string };
       flattenedArguments?: {
@@ -113,11 +131,16 @@ export interface PortedCheck {
   module?: string;
   /** `Fixture::check(mode, source)`; strict when upstream names none. */
   mode?: LuauMode;
+  /** Direct named Frontend::check retains current config; no explicit mode override. */
+  entrypoint?: "module";
+  solverOverride?: "New";
   /** For a plain `TEST_CASE`, the fixture it builds for this check. */
   fixture?: string;
   definitions?: string[];
   globals?: Record<string, string>;
   moduleSources?: Record<string, string>;
+  /** Named, exact audited dependency class exclusion; entry syntax stays independent. */
+  moduleDivergences?: Record<string, { divergence: "No `class` declarations" }>;
   hiddenTypes?: true;
   retainFullTypeGraphs?: false;
   clearModules?: true;
@@ -170,19 +193,85 @@ export type PortedCase = {
   flags?: Record<string, boolean>;
   shareFixture?: true;
   /**
-   * Luau limits the case sets with `ScopedFastInt`. The harness cannot apply
-   * them, so once the case's area is on it fails as not implemented rather
-   * than asserting what upstream sees only under those limits.
+   * Luau limits the case sets with `ScopedFastInt`. The native case applies
+   * them over setup/check/query operations using the pinned FInt registry.
    */
   limits?: Record<string, number>;
   skip?: CaseSkip;
 } & (
-  | ({ checks?: undefined } & PortedCheck)
-  | { checks: PortedCheck[]; source?: undefined }
+  | ({ checks?: undefined; actions?: never } & PortedCheck)
+  | { checks: PortedCheck[]; source?: undefined; actions?: never }
+  | { actions: PortedAction[]; checks?: never; source?: never }
 );
+export type PortedAction =
+  | { definition: string; mandatory?: true; expect: DefinitionAssertion[] }
+  /** Exact audited case-body recipes, once on the same fresh Fixture under its flags. */
+  | { syntheticSetup: "cyclicUnion" | "asymmetricExtern" }
+  | { nonstrictBuiltinGlobals: true }
+  | { nestedBuiltinsFixture: true }
+  | { captureGlobalFunction: CaptureGlobalFunction }
+  | { expectCapturedLevels: ExpectCapturedLevels }
+  | { checkThrows: CheckThrows }
+  | { check: PortedCheck };
+
+function actionsOf(c: PortedCase): PortedAction[] | undefined {
+  if (!("actions" in c) || c.actions === undefined) return undefined;
+  if ("source" in c || "checks" in c || "expect" in c || !Array.isArray(c.actions) || !c.actions.length)
+    throw Error("Native actions must be nonempty and exclusive with source/checks");
+  const captures = new Set<string>();
+  for (const [index,action] of c.actions.entries()) {
+    if (!object(action)) throw Error("Invalid native case action");
+    if ("definition" in action) {
+      if (Object.keys(action).some(key => !["definition","mandatory","expect"].includes(key)) || typeof action.definition !== "string" ||
+        (action.mandatory !== undefined && action.mandatory !== true)) throw Error("Invalid native definition action");
+      validateDefinitionAssertions(action.expect);
+    } else if ("syntheticSetup" in action) {
+      if (Object.keys(action).length !== 1 || !["cyclicUnion","asymmetricExtern"].includes(action.syntheticSetup))
+        throw Error("Invalid native synthetic setup action");
+    } else if ("nonstrictBuiltinGlobals" in action) {
+      if (Object.keys(action).length !== 1 || action.nonstrictBuiltinGlobals !== true || index !== 0 || c.fixture !== "NonStrictTypeCheckerFixture")
+        throw Error("NonStrict builtin action requires exact fresh NonStrict fixture and first action");
+    } else if ("nestedBuiltinsFixture" in action) {
+      const next = c.actions[1];
+      if (Object.keys(action).length !== 1 || action.nestedBuiltinsFixture !== true || index !== 0 ||
+          c.fixture !== "BuiltinsFixture" || c.actions.length !== 2 || !object(next) || !object(next.check) ||
+          (next.check.fixture !== undefined && next.check.fixture !== "BuiltinsFixture"))
+        throw Error("Nested Builtins fixture requires exact fresh Builtins fixture then its sole original check");
+    } else if ("check" in action) {
+      if (Object.keys(action).length !== 1 || !object(action.check) || typeof action.check.source !== "string" || !Array.isArray(action.check.expect))
+        throw Error("Invalid native check action");
+      validateSupportAssertions(action.check.expect);
+      validateNativeCheckEntrypoint(action.check);
+    } else if ("captureGlobalFunction" in action) {
+      if (Object.keys(action).length !== 1) throw Error("Invalid native capture action");
+      validateCaptureGlobalFunction(action.captureGlobalFunction);
+      if (captures.has(action.captureGlobalFunction.as)) throw Error("Duplicate native capture label");
+      if (captures.size >= 16) throw Error("Native case capture limit16");
+      captures.add(action.captureGlobalFunction.as);
+    } else if ("expectCapturedLevels" in action) {
+      if (Object.keys(action).length !== 1) throw Error("Invalid native captured levels action");
+      validateCapturedLevels(action.expectCapturedLevels);
+      if (!captures.has(action.expectCapturedLevels.capture)) throw Error("Missing native case capture: "+action.expectCapturedLevels.capture);
+    } else if ("checkThrows" in action) {
+      if (Object.keys(action).length !== 1) throw Error("Invalid native checkThrows action");
+      validateCheckThrows(action.checkThrows);
+      if (index !== c.actions.length - 1) throw Error("Terminating native checkThrows must be the last action");
+    } else throw Error("Unsupported native case action");
+  }
+  if (c.actions.some(action => "syntheticSetup" in action) && !c.actions.some(action => "check" in action))
+    throw Error("Native synthetic setup actions require an original check");
+  if (c.actions.some(action => "nonstrictBuiltinGlobals" in action) && !c.actions.some(action => "check" in action))
+    throw Error("NonStrict builtin action requires an original check");
+  if (captures.size && !c.actions.some(action => "check" in action || "checkThrows" in action))
+    throw Error("Native capture actions require an original check");
+  return c.actions;
+}
 
 export function checksOf(c: PortedCase): PortedCheck[] {
+  const actions = actionsOf(c);
+  if (actions) return actions.flatMap(action => "check" in action ? [action.check] : []);
   if (c.checks) return c.checks;
+  if (!("expect" in c) || typeof c.source !== "string") throw Error("Native case requires actions, checks, or an inline source check");
   const {
     name: _name,
     fixture: _fixture,
@@ -194,6 +283,19 @@ export function checksOf(c: PortedCase): PortedCheck[] {
     ...check
   } = c;
   return [check];
+}
+
+/** Logical source-bearing operations for manifests/literal audits; throws are not fake normal checks. */
+export type PortedSourceOperation = { kind: "check"; check: PortedCheck } | { kind: "checkThrows"; check: CheckThrows };
+export function sourceChecksOf(c: PortedCase): PortedSourceOperation[] {
+  const actions = actionsOf(c);
+  if (!actions) return checksOf(c).map(check => ({kind:"check" as const,check}));
+  const sources: PortedSourceOperation[] = [];
+  for (const action of actions) {
+    if ("check" in action) sources.push({kind:"check",check:action.check});
+    else if ("checkThrows" in action) sources.push({kind:"checkThrows",check:action.checkThrows});
+  }
+  return sources;
 }
 
 // ---------------------------------------------------------------------------
@@ -315,6 +417,7 @@ const ASSERTION_KEYS = {
   errors: keyList<Extract<Assertion, { errors: unknown }>>({ errors: true }),
   error: keyList<Extract<Assertion, { error: unknown }>>({
     error: true,
+    errorAtBegin: true,
     code: true,
     message: true,
     messageContains: true,
@@ -326,6 +429,12 @@ const ASSERTION_KEYS = {
     fieldOptions: true,
     fieldLocations: true,
     moduleMatchesCheck: true,
+    typeMismatchData: true,
+  }),
+  errorAtBegin: keyList<Extract<Assertion, { errorAtBegin: unknown }>>({
+    errorAtBegin: true, error: true, code: true, message: true, messageContains: true, messageExcludes: true,
+    location: true, line: true, endLine: true, fields: true, fieldOptions: true, fieldLocations: true,
+    moduleMatchesCheck: true, typeMismatchData: true,
   }),
   anyError: keyList<Extract<Assertion, { anyError: unknown }>>({
     anyError: true,
@@ -337,6 +446,8 @@ const ASSERTION_KEYS = {
   decoratedSource: keyList<Extract<Assertion, { decoratedSource: unknown }>>({
     decoratedSource: true,
   }),
+  moduleGraph: keyList<Extract<Assertion, { moduleGraph: unknown }>>({ moduleGraph: true }),
+  moduleDiagnostics: keyList<Extract<Assertion, { moduleDiagnostics: unknown }>>({ moduleDiagnostics: true }),
   scopes: keyList<Extract<Assertion, { scopes: unknown }>>({ scopes: true }),
   type: keyList<Extract<Assertion, TypeSelector>>({
     type: true,
@@ -357,14 +468,17 @@ const ASSERTION_KEYS = {
     notEquals: true,
     options: true,
     kind: true,
+    primitive: true,
     sameAs: true,
     notSameAs: true,
     printedSameAs: true,
     subtypeOf: true,
     isSubtype: true,
+    arena: true,
     results: true,
     typeParameters: true,
     properties: true,
+    tableState: true,
     arguments: true,
     returns: true,
     flattenedArguments: true,
@@ -411,10 +525,13 @@ const TO_STRING_OPTIONS = keyList<LuauToStringOptions>({
 function assertionShape(a: Assertion): keyof typeof ASSERTION_KEYS {
   if ("errors" in a) return "errors";
   if ("error" in a) return "error";
+  if ("errorAtBegin" in a) return "errorAtBegin";
   if ("anyError" in a) return "anyError";
   if ("noError" in a) return "noError";
   if ("everyError" in a) return "everyError";
   if ("decoratedSource" in a) return "decoratedSource";
+  if ("moduleGraph" in a) return "moduleGraph";
+  if ("moduleDiagnostics" in a) return "moduleDiagnostics";
   if ("scopes" in a) return "scopes";
   return "type";
 }
@@ -555,8 +672,18 @@ function assertionProblems(
     problems.push(
       `${where} has keys ${unknown.join(", ")} that a ${shape} assertion does not take`,
     );
-  if ("error" in a && a.code !== undefined && !errorKinds.has(a.code))
+  if (("error" in a || "errorAtBegin" in a) && a.code !== undefined && !errorKinds.has(a.code))
     problems.push(`${where} names ${a.code}, which is not a Luau error kind`);
+  if ("error" in a && a.typeMismatchData !== undefined) {
+    try { validateSupportAssertions([a]); } catch (error) { problems.push(`${where}: ${String(error)}`); }
+  }
+  if ("errorAtBegin" in a || "tableState" in a) {
+    try { validateSupportAssertions([a]); } catch (error) { problems.push(`${where}: ${String(error)}`); }
+  }
+  if ("moduleDiagnostics" in a) {
+    try { validateModuleDiagnostics(a.moduleDiagnostics); } catch (error) { problems.push(`${where}: ${String(error)}`); }
+    if (object(a.moduleDiagnostics) && "kind" in a.moduleDiagnostics && !errorKinds.has(a.moduleDiagnostics.kind)) problems.push(`${where} names an unknown native module error kind`);
+  }
   if ("anyError" in a && !errorKinds.has(a.anyError))
     problems.push(
       `${where} names ${a.anyError}, which is not a Luau error kind`,
@@ -567,6 +694,10 @@ function assertionProblems(
     );
   if ("decoratedSource" in a && typeof a.decoratedSource !== "string")
     problems.push(`${where} decoratedSource must be a string`);
+  if ("moduleGraph" in a && (!object(a.moduleGraph) ||
+    Object.keys(a.moduleGraph).some(key => !["module","maximumInternalTypes"].includes(key)) ||
+    typeof a.moduleGraph.module !== "string" || !a.moduleGraph.module || !nonnegative(a.moduleGraph.maximumInternalTypes)))
+    problems.push(`${where} moduleGraph requires a module and nonnegative maximumInternalTypes`);
   if (
     "everyError" in a &&
     (!object(a.everyError) ||
@@ -618,6 +749,11 @@ function assertionProblems(
       problems.push(`${where} subtypeOf needs a boolean isSubtype`);
     if (t.isSubtype !== undefined && t.subtypeOf === undefined)
       problems.push(`${where} isSubtype needs a subtypeOf selector`);
+    if (t.arena !== undefined && (!object(t.arena) ||
+        Object.keys(t.arena).some(key => !["kind","present","module"].includes(key)) ||
+        !["interface","global"].includes(t.arena.kind) || typeof t.arena.present !== "boolean" ||
+        (t.arena.module !== undefined && (typeof t.arena.module !== "string" || !t.arena.module))))
+      problems.push(`${where} arena needs kind interface/global, boolean present and optional module`);
     if (
       t.kind !== undefined &&
       ![
@@ -669,6 +805,8 @@ function assertionProblems(
     for (const key of ["equals", "notEquals", "name"] as const)
       if (t[key] !== undefined && typeof t[key] !== "string")
         problems.push(`${where} ${key} must be a string`);
+    if (t.primitive !== undefined && !LUAU_PRIMITIVE_KINDS.includes(t.primitive))
+      problems.push(`${where} primitive is unknown`);
     if (t.hasSelf !== undefined && typeof t.hasSelf !== "boolean")
       problems.push(`${where} hasSelf must be boolean`);
     if (
@@ -834,6 +972,9 @@ function checkProblems(
 ): string[] {
   const problems: string[] = [];
   if (typeof check.source !== "string") problems.push(`${where} has no source`);
+  try { validateNativeCheckEntrypoint(check); } catch (error) { problems.push(`${where}: ${String(error)}`); }
+  if (check.solverOverride !== undefined && check.solverOverride !== "New") problems.push(`${where} has unsupported body solver override`);
+  try { validateModuleDivergences(check); } catch (error) { problems.push(`${where}: ${String(error)}`); }
   if (
     check.definitions !== undefined &&
     (!Array.isArray(check.definitions) ||
@@ -940,10 +1081,12 @@ export function portProblems(
     if (up && up.name === c.name)
       problems.push(...upstreamProblems(c, up, where));
     const checks = checksOf(c);
+    // Exception checks still contribute their exact source to the case manifest;
+    // their sole expected predicate is separately validated as an exception kind.
+    for (const operation of sourceChecksOf(c)) if (operation.kind === "checkThrows")
+      try { validateCheckThrows(operation.check); } catch (error) { problems.push(`${where}: ${String(error)}`); }
     if (c.shareFixture !== undefined && c.shareFixture !== true)
       problems.push(`${where} shareFixture must be true`);
-    if (checks.some((ch) => ch.clearModules) && !c.shareFixture)
-      problems.push(`${where} clearModules needs shareFixture`);
     if (
       c.flags !== undefined &&
       (!object(c.flags) ||
@@ -952,7 +1095,7 @@ export function portProblems(
         ))
     )
       problems.push(`${where} flags must map names to booleans`);
-    if (!checks.length && !c.skip)
+    if (!checks.length && !c.skip && !actionsOf(c))
       problems.push(`${where} has no checks and no skip`);
     if (c.skip && "newSolver" in c.skip && !c.skip.newSolver)
       problems.push(`${where} has an empty new-solver reason`);
@@ -1035,14 +1178,21 @@ export function runPortedCase(
   c: PortedCase,
   skip: () => void,
   check: typeof checkLuau = checkLuau,
+  nativeLimitsApplied = false,
 ): void {
+  if (actionsOf(c)) throw new NotImplemented("native ordered actions require the async registered-case boundary");
   const checks = checksOf(c);
-  const session = c.shareFixture ? createLuauCheckSession() : undefined;
+  for (const check of checks) { validateSupportAssertions(check.expect); validateNativeCheckEntrypoint(check); }
+  // TEST_CASE_FIXTURE constructs one fixture for the whole native case. Preserve
+  // that lifetime even when older port metadata did not explicitly request it.
+  const session = createLuauCheckSession();
   const skipped =
-    !!c.skip || checks.some((ch) => ch.unparsed) || !areaIsChecked(file);
+    !!c.skip || checks.some((ch) => ch.unparsed || ch.moduleDivergences) || !areaIsChecked(file);
   for (const ch of checks) {
     const result = check(ch.source, {
       mode: ch.mode,
+      ...(ch.entrypoint === undefined ? {} : { entrypoint: ch.entrypoint }),
+      ...(ch.solverOverride === undefined ? {} : {solverOverride:ch.solverOverride}),
       fixture: ch.fixture ?? c.fixture,
       ...(ch.module === undefined ? {} : { module: ch.module }),
       ...(ch.definitions === undefined ? {} : { definitions: ch.definitions }),
@@ -1068,29 +1218,10 @@ export function runPortedCase(
     // A snippet recorded as unparsed must still fail to parse, so the record
     // goes as soon as the defect is fixed or the divergence removed. A snippet
     // Luau rejects must be rejected here too.
-    expect(
-      (result.setupSyntaxDiagnostics ?? []).map(describeDiagnostic),
-      "setup source did not parse",
-    ).toEqual([]);
-    if (ch.unparsed) {
-      expect(
-        result.syntaxDiagnostics.length,
-        `the snippet now parses cleanly, so remove its record ${JSON.stringify(ch.unparsed)}`,
-      ).toBeGreaterThan(0);
-    } else if (ch.malformed) {
-      expect(
-        result.syntaxDiagnostics.length,
-        `Luau rejects the snippet (${ch.malformed}), but Sparkdown reports nothing; remove its malformed record and expect the error from the checker`,
-      ).toBeGreaterThan(0);
-    } else {
-      expect(
-        result.syntaxDiagnostics.map(describeDiagnostic),
-        "Sparkdown did not read the snippet as Luau",
-      ).toEqual([]);
-    }
+    validateCheckSyntax(file,c.name,ch,result);
     // Intentional shared-fixture queries must observe this step before the
     // next setup/reset changes its globals or module cache.
-    if (!skipped && !c.limits && !ch.doesNotPassNewSolver && !ch.notApplicable)
+    if (!skipped && (!c.limits || nativeLimitsApplied) && !ch.doesNotPassNewSolver && !ch.notApplicable)
       runAssertions(result, ch);
   }
 
@@ -1098,7 +1229,7 @@ export function runPortedCase(
     skip();
     return;
   }
-  if (c.limits) {
+  if (c.limits && !nativeLimitsApplied) {
     const lowered = Object.entries(c.limits).map(
       ([limit, value]) => `${limit} to ${value}`,
     );
@@ -1108,11 +1239,122 @@ export function runPortedCase(
   }
 }
 
+/** Async registered-case boundary; assertions still run synchronously, in source order. */
+export async function runNativePortedCase(
+  file: string,
+  c: PortedCase,
+  skip: () => void,
+  load?: () => Promise<NativeFixture>,
+): Promise<void> {
+  const actions = actionsOf(c);
+  const checks = checksOf(c);
+  for (const check of checks) { validateSupportAssertions(check.expect); validateNativeCheckEntrypoint(check); }
+  for (const operation of sourceChecksOf(c)) if (operation.kind === "checkThrows") {
+    const syntax = checkSyntaxOnly(operation.check.source);
+    expect(syntax.syntaxDiagnostics.map(describeDiagnostic),"Sparkdown did not read the expected-ICE source as Luau").toEqual([]);
+  }
+  // Validate named exclusions BEFORE loading any native instance or attempting
+  // semantic fixture/flag setup. The entry and all other modules stay separate.
+  for (const check of checks) {
+    validateModuleDivergences(check);
+    for (const module of Object.keys(check.moduleDivergences ?? {}))
+      validateClassDependencySource(file,c.name,module,check.moduleSources![module]!);
+  }
+  const wholeCaseSkipped = !!c.skip || checks.some(check => check.unparsed || check.moduleDivergences) || !areaIsChecked(file);
+  // Dependency eligibility must fail on syntax itself, before an unsupported
+  // semantic fixture or invalid body flag could obscure the original defect.
+  for (const check of checks) if (check.moduleSources)
+    validateCheckSyntax(file,c.name,check,checkSyntaxOnly(check.source,{module:check.module,moduleSources:check.moduleSources}));
+  const isNative = (check: PortedCheck) => !wholeCaseSkipped && !check.doesNotPassNewSolver && !check.notApplicable;
+  if (wholeCaseSkipped || (!actions?.some(action => "definition" in action || "checkThrows" in action) && !checks.some(isNative))) {
+    const parseCase: PortedCase = actions ? {name:c.name,fixture:c.fixture,flags:c.flags,limits:c.limits,skip:c.skip,checks} : c;
+    runPortedCase(file, parseCase, skip, checkSyntaxOnly, true);
+    return;
+  }
+  await withNativeCase(1, scope => {
+    const fixture = scope.acquire(), initialize = nativeCaseSetup(fixture,c.flags,c.limits);
+    const nativeCheck = nativeCaseChecker(fixture,c.flags,c.limits,initialize);
+    const captures = new NativeCaseCaptures(fixture);
+    if (actions) {
+      for (const action of actions) {
+        if ("definition" in action) {
+          initialize(c.fixture ?? "Fixture");
+          runDefinitionAction(fixture,action.definition,action.mandatory === true,action.expect);
+        } else if ("syntheticSetup" in action) {
+          initialize(c.fixture ?? "Fixture");
+          fixture.synthetic(action.syntheticSetup);
+        } else if ("nonstrictBuiltinGlobals" in action) {
+          initialize(c.fixture ?? "Fixture");
+          fixture.nonStrictBuiltinGlobals();
+        } else if ("nestedBuiltinsFixture" in action) {
+          initialize(c.fixture ?? "Fixture");
+          fixture.nestedBuiltinsFixture();
+        } else if ("captureGlobalFunction" in action) {
+          initialize(c.fixture ?? "Fixture");
+          captures.capture(action.captureGlobalFunction);
+        } else if ("expectCapturedLevels" in action) {
+          captures.assert(action.expectCapturedLevels);
+        } else if ("checkThrows" in action) {
+          initialize(c.fixture ?? "Fixture");
+          runCheckThrows(fixture,action.checkThrows);
+        } else {
+          const check = action.check;
+          runPortedCase(file,{name:c.name,fixture:c.fixture,flags:c.flags,limits:c.limits,checks:[check]},skip,
+            isNative(check) ? nativeCheck : checkSyntaxOnly,true);
+        }
+      }
+      return;
+    }
+    let index = 0;
+    const dispatch: typeof checkLuau = (source, options) => {
+      const check = checks[index++];
+      if (!check || check.source !== source) throw Error("Native case check order changed");
+      return isNative(check) ? nativeCheck(source, options) : checkSyntaxOnly(source, options);
+    };
+    runPortedCase(file, c, skip, dispatch, true);
+  }, load);
+}
+
+function validateModuleDivergences(check: PortedCheck): void {
+  if (check.moduleDivergences === undefined) return;
+  const entries = check.moduleDivergences;
+  if (!object(entries) || !Object.keys(entries).length) throw Error("Named module divergences must be a nonempty map");
+  for (const [module,value] of Object.entries(entries)) {
+    if (!module || module === (check.module ?? "MainModule") || !Object.hasOwn(check.moduleSources ?? {},module))
+      throw Error("Class divergence does not name a registered dependency: "+module);
+    if (!object(value) || Object.keys(value).length !== 1 || value.divergence !== CLASS_DEPENDENCY_HEADING || !divergenceHeadings().includes(value.divergence))
+      throw Error("Unsupported named dependency divergence: "+module);
+  }
+}
+function validateSetupSyntax(file: string, name: string, check: PortedCheck, result: LuauCheckResult): void {
+  validateModuleDivergences(check);
+  const setup = result.setupSyntaxDiagnostics ?? [];
+  for (const module of Object.keys(check.moduleDivergences ?? {})) {
+    validateClassDependencySource(file,name,module,check.moduleSources![module]!);
+    expect(setup.filter(error => error.module === module).length,
+      "classified module now parses cleanly; remove its classification: "+module).toBeGreaterThan(0);
+  }
+  expect(setup.filter(error => !Object.hasOwn(check.moduleDivergences ?? {},error.module ?? "")).map(describeDiagnostic),
+    "unclassified setup source did not parse").toEqual([]);
+}
+function validateCheckSyntax(file: string, name: string, check: PortedCheck, result: LuauCheckResult): void {
+  validateSetupSyntax(file,name,check,result);
+  if (check.unparsed) {
+    expect(result.syntaxDiagnostics.length,
+      `the snippet now parses cleanly, so remove its record ${JSON.stringify(check.unparsed)}`).toBeGreaterThan(0);
+  } else if (check.malformed) {
+    expect(result.syntaxDiagnostics.length,
+      `Luau rejects the snippet (${check.malformed}), but Sparkdown reports nothing; remove its malformed record and expect the error from the checker`).toBeGreaterThan(0);
+  } else expect(result.syntaxDiagnostics.map(describeDiagnostic),
+    "Sparkdown did not read the snippet as Luau").toEqual([]);
+}
+
 /** Runs one check's assertions against its result, in order. */
 export function runAssertions(
   result: LuauCheckResult,
   check: PortedCheck,
 ): void {
+  validateSupportAssertions(check.expect);
   if (!result.checked) {
     throw new NotImplemented(
       `the assertions on ${JSON.stringify(check.source.trim().split("\n")[0])}`,
@@ -1127,8 +1369,10 @@ export function runAssertions(
       if (a.errors === "some")
         expect(all.length, "expected errors").toBeGreaterThan(0);
       else expect(listed, `expected ${a.errors} errors`).toHaveLength(a.errors);
-    } else if ("error" in a) {
-      const d = all[a.error];
+    } else if ("error" in a || "errorAtBegin" in a) {
+      const begin = a.errorAtBegin;
+      if (begin !== undefined && !result.diagnosticAtBegin) throw new NotImplemented("native first-begin diagnostic selector");
+      const d = begin !== undefined ? result.diagnosticAtBegin!(begin,all) : all[a.error!];
       expect(
         d,
         `expected an error at index ${a.error}: ${JSON.stringify(listed)}`,
@@ -1146,6 +1390,11 @@ export function runAssertions(
       if (a.messageExcludes !== undefined)
         expect(d.message).not.toContain(a.messageExcludes);
       if (a.moduleMatchesCheck) expect(d.module).toBe(result.moduleName);
+      if (a.typeMismatchData !== undefined) {
+        validateTypeMismatchData(a.typeMismatchData);
+        if (!result.mismatchDataEquals) throw new NotImplemented("native TypeMismatchData structural equality");
+        expect(result.mismatchDataEquals(d,a.typeMismatchData),"native TypeMismatchData structural equality").toBe(true);
+      }
       if (a.fields)
         expect(
           a.fieldOptions ? d.fields?.(a.fieldOptions) : (d.data ?? {}),
@@ -1158,6 +1407,19 @@ export function runAssertions(
           expect(value !== undefined).toBe(facts.present);
         if (facts.line !== undefined)
           expect(value?.begin?.line).toBe(facts.line);
+      }
+    } else if ("moduleDiagnostics" in a) {
+      validateModuleDiagnostics(a.moduleDiagnostics);
+      if (!result.moduleDiagnostics) throw new NotImplemented("native module-local diagnostics");
+      const selected = a.moduleDiagnostics, actual = result.moduleDiagnostics(selected.module);
+      expect(actual.module).toBe(selected.module);
+      if ("errors" in selected) expect(actual.diagnostics).toHaveLength(selected.errors);
+      else {
+        const diagnostic = actual.diagnostics[selected.moduleIndex];
+        expect(diagnostic,"actual native module diagnostic index").toBeDefined();
+        expect(diagnostic!.moduleIndex).toBe(selected.moduleIndex);
+        expect(diagnostic!.kind).toBe(selected.kind);
+        expect(Object.hasOwn(diagnostic!,"nativeIndex")).toBe(false);
       }
     } else if ("anyError" in a) {
       expect(all.map((d) => d.code)).toContain(a.anyError);
@@ -1172,6 +1434,9 @@ export function runAssertions(
       }
     } else if ("decoratedSource" in a) {
       expect(result.decoratedSource()).toBe(a.decoratedSource);
+    } else if ("moduleGraph" in a) {
+      if (!result.moduleGraph) throw new NotImplemented("actual retained native module graph counts");
+      expect(result.moduleGraph(a.moduleGraph.module).internalNodes).toBeLessThanOrEqual(a.moduleGraph.maximumInternalTypes);
     } else if ("scopes" in a) {
       if (a.scopes.minimum !== undefined)
         expect(result.scopes?.length).toBeGreaterThanOrEqual(a.scopes.minimum);
@@ -1187,27 +1452,37 @@ export function runAssertions(
         expect(scope?.aliases[fact.name]).toEqual(fact.location);
       }
     } else {
-      const t = result.find(selectorOf(a));
+      const t = result.find(selectorOf(a), all);
       if (a.equals !== undefined) expect(t.print(a.options)).toBe(a.equals);
       if (a.notEquals !== undefined)
         expect(t.print(a.options)).not.toBe(a.notEquals);
       if (a.kind !== undefined) expect(t.kind).toBe(a.kind);
+      if (a.primitive !== undefined) expect(t.primitive).toBe(a.primitive);
+      if (a.tableState !== undefined) {
+        const state = t.tableState;
+        if (state === undefined) throw new NotImplemented("native raw table-state predicate");
+        expect(state).toBe(a.tableState);
+      }
       if (a.sameAs)
         expect(
-          t.is(result.find(selectorOf(a.sameAs))),
+          t.is(result.find(selectorOf(a.sameAs), all)),
           `same type as ${JSON.stringify(a.sameAs)}`,
         ).toBe(true);
       if (a.notSameAs)
-        expect(t.is(result.find(selectorOf(a.notSameAs)))).toBe(false);
+        expect(t.is(result.find(selectorOf(a.notSameAs), all))).toBe(false);
       if (a.printedSameAs)
         expect(t.print(a.options)).toBe(
-          result.find(selectorOf(a.printedSameAs)).print(a.options),
+          result.find(selectorOf(a.printedSameAs), all).print(a.options),
         );
       if (a.subtypeOf)
         expect(
-          t.subtypeOf(result.find(selectorOf(a.subtypeOf))),
+          t.subtypeOf(result.find(selectorOf(a.subtypeOf), all)),
           `subtype of ${JSON.stringify(a.subtypeOf)}`,
         ).toBe(a.isSubtype);
+      if (a.arena) {
+        if (!t.inArena) throw new NotImplemented("raw native arena membership");
+        expect(t.inArena(a.arena.kind,a.arena.module ?? a.module ?? result.moduleName ?? "MainModule")).toBe(a.arena.present);
+      }
       if (a.results)
         expect(t.results?.map((r) => r.print())).toEqual(a.results);
       if (a.typeParameters !== undefined)
@@ -1281,7 +1556,7 @@ function scopeAtPosition(result: LuauCheckResult, at: [number, number]) {
 export function portUpstreamFile(file: string, cases: PortedCase[]): void {
   describe(file, () => {
     for (const c of cases) {
-      test(c.name, (ctx) => runPortedCase(file, c, () => ctx.skip()));
+      test(c.name, async (ctx) => runNativePortedCase(file, c, () => ctx.skip()));
     }
     test(COVERAGE_TEST, () => {
       const testPath = expect.getState().testPath ?? "";
