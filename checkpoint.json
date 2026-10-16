@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 52,
-  "previous": "f501e84f509725ae99f81f465120fdb965887dfd",
+  "seq": 53,
+  "previous": "24df4a59aa021f6039d6b27b163f895e5f750324",
   "snapshotParents": [],
-  "time": "2026-10-16T23:23:35.748Z",
+  "time": "2026-10-16T23:53:24.362Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 47,
@@ -1474,19 +1474,21 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-16T23:23:33.897Z",
+      "observedAt": "2026-10-16T23:53:22.377Z",
       "held": true,
-      "head": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "5cbe91c559d5515411b476e237d7f5954b6c14a6",
+      "remoteHead": "5cbe91c559d5515411b476e237d7f5954b6c14a6",
+      "unpushed": false,
+      "dirty": false,
+      "pr": 2009,
+      "reviewJobs": []
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool": {
       "ticket": 1966,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-16T23:23:33.897Z",
+      "observedAt": "2026-10-16T23:53:22.377Z",
       "held": true,
       "head": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
       "remoteHead": null,
@@ -1497,7 +1499,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T23:05:32.464Z",
+    "at": "2026-10-16T23:53:22.373Z",
     "tickets": [
       {
         "number": 1962,
@@ -1508,7 +1510,7 @@
       {
         "number": 1963,
         "action": "observe",
-        "pr": null,
+        "pr": 2009,
         "reason": "process 51820 started 639277885124225254 is running"
       },
       {
