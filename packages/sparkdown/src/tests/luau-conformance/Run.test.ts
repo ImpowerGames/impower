@@ -102,6 +102,7 @@ done
   test.each([
     {
       shape: "two run lines in one script",
+      helper: "inmemory:///helper.luau",
       files: [
         {
           uri: "inmemory:///main.sd",
@@ -111,6 +112,7 @@ done
     },
     {
       shape: "one run line in each of two scripts",
+      helper: "inmemory:///helper.luau",
       files: [
         {
           uri: "inmemory:///main.sd",
@@ -119,10 +121,34 @@ done
         { uri: "inmemory:///chapter.sd", text: `run "helper"\n` },
       ],
     },
-  ])("runs one file from $shape, once per run line", ({ files }) => {
+    {
+      shape: "two paths to it in one script",
+      helper: "inmemory:///helper.luau",
+      files: [
+        {
+          uri: "inmemory:///main.sd",
+          text: `external harness_record(v)\nrun "helper"\nrun "./helper"\ndone\n`,
+        },
+      ],
+    },
+    ...[
+      `include lib/chapter.sd\nrun "lib/helper"\n`,
+      `run "lib/helper"\ninclude lib/chapter.sd\n`,
+    ].map((lines, i) => ({
+      shape: `two directories, ${i === 0 ? "the included script" : "the entry script"} first`,
+      helper: "inmemory:///lib/helper.luau",
+      files: [
+        {
+          uri: "inmemory:///main.sd",
+          text: `external harness_record(v)\n${lines}done\n`,
+        },
+        { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
+      ],
+    })),
+  ])("runs one file from $shape, once per run line", ({ helper, files }) => {
     const { result, errs } = compileWithFiles([
       ...files,
-      { uri: "inmemory:///helper.luau", text: `& harness_record(42)\n` },
+      { uri: helper, text: `& harness_record(42)\n` },
     ]);
     expect(errs).toEqual([]);
     expect(recordedRun(result.program.chunks)).toEqual([42, 42]);

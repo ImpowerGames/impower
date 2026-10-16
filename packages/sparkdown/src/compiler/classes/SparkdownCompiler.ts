@@ -2776,9 +2776,9 @@ export class SparkdownCompiler {
           );
         } else {
           // Sanitize: identifier-safe name derived from the path, so
-          // every `run` statement pointing at the same file calls the
-          // same wrapper function. Sparkdown identifiers are
-          // `[A-Za-z_][A-Za-z0-9_]*`.
+          // every `run` statement naming the same file by the same
+          // path calls the same wrapper function. Sparkdown
+          // identifiers are `[A-Za-z_][A-Za-z0-9_]*`.
           const sanitized = run.replace(/[^A-Za-z0-9_]/g, "_");
           const wrapperName = `__run_${sanitized}`;
           // The wrapper has TWO parts:
@@ -2792,25 +2792,27 @@ export class SparkdownCompiler {
           // and the wrapper definition lives at the end where it
           // doesn't terminate the parent's main flow.
           //
-          // The wrapper joins the story once per compile, at the first
-          // `run` of the file the compile reaches. Each later `run` of
-          // it is compiled from a document of its own holding only the
-          // call, so the body runs at every `run` site. A document's
-          // chunks are the same objects however often it is parsed, so
-          // two sites can never share one.
-          const runSites = state.fileResolutionState
-            ? (state.fileResolutionState.runSites ??= new Map())
-            : undefined;
-          const site = (runSites?.get(resolvedFilePath) ?? 0) + 1;
-          runSites?.set(resolvedFilePath, site);
           // Stash the wrapped content under a virtual URI derived
           // from the .luau file's URI. The `?run` query suffix
           // keeps it distinct from any raw .luau document registered
           // separately. The compiler treats it as a normal `.sd`
           // source from this point on.
+          const wrapperUri = runWrapperUri(resolvedFilePath, wrapperName);
+          // The wrapper joins the story once per compile, at the first
+          // `run` the compile reaches that names it (the file, by the
+          // same path). Each later one is compiled from a document of
+          // its own holding only the call, so the body runs at every
+          // `run` site. A document's chunks are the same objects
+          // however often it is parsed, so two sites can never share
+          // one.
+          const runSites = state.fileResolutionState
+            ? (state.fileResolutionState.runSites ??= new Map())
+            : undefined;
+          const site = (runSites?.get(wrapperUri) ?? 0) + 1;
+          runSites?.set(wrapperUri, site);
           const virtualUri =
             site === 1
-              ? runWrapperUri(resolvedFilePath, wrapperName)
+              ? wrapperUri
               : runCallUri(resolvedFilePath, wrapperName, site);
           this.documents.add({
             textDocument: {

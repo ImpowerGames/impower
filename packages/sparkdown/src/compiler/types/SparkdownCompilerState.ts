@@ -23,8 +23,9 @@ export interface SparkdownCompilerState {
    * instead of recursing forever. Pushed before recursive descent and
    * popped on return.
    *
-   * `runSites` counts, by resolved URI, the `run` statements of each `.luau`
-   * file the compile has reached. The first declares the file's wrapper
+   * `runSites` counts, by the URI of the wrapper document (`runWrapperUri`:
+   * the `.luau` file and the wrapper its `run` path names), the `run`
+   * statements the compile has reached. The first declares the wrapper
    * function and calls it; each later one only calls it.
    *
    * `includedUris` holds the entry script and every script an `include` has
