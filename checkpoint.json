@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 19,
-  "previous": "f0694fccfe5912d917d59a0dee682c0692ff09a0",
+  "seq": 20,
+  "previous": "d15e4f63b10b4a2753d0e8f123e90af18cf87440",
   "snapshotParents": [],
-  "time": "2026-10-16T06:49:02.705Z",
+  "time": "2026-10-16T07:18:35.953Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 34,
+    "recordRevision": 35,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -429,7 +429,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T06:49:01.960Z",
+      "observedAt": "2026-10-16T07:18:35.195Z",
       "held": true,
       "head": "b457d0aa5480939884e63198a5c7147b56edbef8",
       "remoteHead": "a322a5d0a067c3f5070e314d4b0287a1d8e048b5",
@@ -916,6 +916,11 @@
       "time": "2026-10-16T06:49:00.683Z",
       "event": "check-in",
       "outcome": "#1905 writer (session c7930980) ended its turn on the account weekly usage limit, resets 2026-10-19 01:00 America/New_York, while running test batches on the merged tree for draft PR #1927 (head a322a5d0, 2 checks failing, no review yet); no report, no request; kept as owner for resume after the reset, not released; ORCH #1895 reports the same for its writers; maintainer alerted"
+    },
+    {
+      "time": "2026-10-16T07:18:33.906Z",
+      "event": "check-in",
+      "outcome": "no change: CLI route probe still blocked by the weekly usage limit (resets 2026-10-19 01:00 America/New_York); #1905 writer kept for resume after the reset; awaiting the maintainer's answer on pausing check-ins"
     }
   ]
 }
