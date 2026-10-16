@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 42,
-  "previous": "161624e1f5aab42ff27ac8ac5aecb07d14446d1a",
+  "seq": 43,
+  "previous": "12acc38fcc62ae44ffd97298f62fddbe805adb58",
   "snapshotParents": [],
-  "time": "2026-10-16T13:53:51.581Z",
+  "time": "2026-10-16T14:21:54.848Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 53,
+    "recordRevision": 54,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -436,16 +436,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T13:53:50.646Z",
+      "observedAt": "2026-10-16T14:21:54.064Z",
       "held": true,
       "head": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
       "remoteHead": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 10072
-      },
+      "dirty": true,
       "pr": 1927,
       "reviewJobs": [
         {
@@ -530,7 +526,7 @@
         },
         {
           "job": "pr-1927/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -547,7 +543,27 @@
               "ax": 1
             },
             "time": "2026-10-16T13:45:35.965Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "55c85a8ff3b5a75b9b01d69b44afe12a67d3d91a",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "gram": 1,
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6217199688
+          ]
         }
       ]
     }
@@ -1139,6 +1155,11 @@
       "time": "2026-10-16T13:53:49.113Z",
       "event": "check-in",
       "outcome": "no change: #1905 running; PR #1927 head 55c85a8f green with round 1 fixes pushed, 7 PR comments; writer waiting in the foreground on round 1's third reviewer (undirected); no request pending; this check-in's snapshot and plan took over four minutes under machine load"
+    },
+    {
+      "time": "2026-10-16T14:21:52.486Z",
+      "event": "check-in",
+      "outcome": "no change: #1905 running; round 1's third reviewer reported on PR #1927 (8 comments, head 55c85a8f green); writer typechecking and adding the reviewer's two reproductions as tests; no request pending"
     }
   ]
 }
