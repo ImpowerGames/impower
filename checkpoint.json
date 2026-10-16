@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 205,
-  "previous": "e54d86284cc3d20bb3830e9af7013d40f667fb07",
+  "seq": 206,
+  "previous": "cf72cf94e112f31d2792c99a4f7c05917ce6eb76",
   "snapshotParents": [],
-  "time": "2026-10-16T13:33:21.839Z",
+  "time": "2026-10-16T13:34:33.177Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1936 (failed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 150,
+    "recordRevision": 151,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1969,9 +1969,9 @@
       "ticket": 1917,
       "pr": 1936,
       "expectHead": "dd52a20c018b545998f8e0071972727b907bbc10",
-      "state": "intent",
+      "state": "failed",
       "time": "2026-10-16T13:33:19.153Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "not run: while the intent was saved, GitHub has not settled whether the PR can merge (UNKNOWN); read it again shortly; run the gate again",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "dd52a20c018b545998f8e0071972727b907bbc10",
@@ -2149,7 +2149,8 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T13:34:30.358Z"
     }
   ],
   "decisions": [],
@@ -2312,7 +2313,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T13:33:20.590Z",
+      "observedAt": "2026-10-16T13:34:32.079Z",
       "held": true,
       "head": "dd52a20c018b545998f8e0071972727b907bbc10",
       "remoteHead": "dd52a20c018b545998f8e0071972727b907bbc10",
@@ -2359,7 +2360,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T13:33:20.590Z",
+      "observedAt": "2026-10-16T13:34:32.079Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2477,12 +2478,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:49:46.863Z",
-      "event": "operation-outcome",
-      "id": "a1ddd024",
-      "state": "confirmed"
-    },
     {
       "time": "2026-10-15T22:51:35.381Z",
       "event": "released",
@@ -3178,6 +3173,12 @@
       "id": "fc8f46c0",
       "kind": "merge",
       "pr": 1936
+    },
+    {
+      "time": "2026-10-16T13:34:30.358Z",
+      "event": "operation-outcome",
+      "id": "fc8f46c0",
+      "state": "failed"
     }
   ]
 }
