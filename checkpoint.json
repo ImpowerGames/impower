@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 68,
-  "previous": "b5d85097f3a1629cf354844386033fcbe1132356",
+  "seq": 69,
+  "previous": "b7ec811a4e807278139f6b1ecb0b54dac2236bb3",
   "snapshotParents": [],
-  "time": "2026-10-16T18:30:06.955Z",
+  "time": "2026-10-16T18:30:52.706Z",
   "kind": "auto",
-  "transition": "the merge of PR #1959 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 56,
@@ -844,7 +844,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:30:05.898Z",
+      "observedAt": "2026-10-16T18:30:50.817Z",
       "held": true,
       "head": "78f865241113d8f9ebbc810fe500821defc75df0",
       "remoteHead": "78f865241113d8f9ebbc810fe500821defc75df0",
@@ -895,7 +895,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:30:05.898Z",
+      "observedAt": "2026-10-16T18:30:50.817Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -906,13 +906,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T18:26:49.341Z",
+    "at": "2026-10-16T18:30:50.815Z",
     "tickets": [
       {
         "number": 851,
-        "action": "merge-gate",
-        "pr": 1959,
-        "reason": "PR #1959 is ready at 419269e63a2599d5ae339c92645a1e015cc7ba16; process 21604 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1637,
