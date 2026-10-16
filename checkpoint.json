@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 329,
-  "previous": "4eb929a23f5685f9dd4bed11b8ab49287fabca9c",
+  "seq": 330,
+  "previous": "8d05bc59704f3aec55dea3f6f71a0c776cb1be7f",
   "snapshotParents": [],
-  "time": "2026-10-16T18:45:11.389Z",
+  "time": "2026-10-16T18:49:44.224Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "result of #1951",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 275,
+    "recordRevision": 276,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2385,7 +2385,30 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [
+        {
+          "time": "2026-10-16T18:49:41.325Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions",
+            "pr": 1971,
+            "reviewedHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
+            "rounds": {
+              "gpt-5.6-terra (native-codex-jsonl, high, defaults primary for opus-5-5 at low)": 1,
+              "cap": 3,
+              "round1": "state 6221532453; blast (blast radius and boundaries) report 6221669933 on 558a4f50a, adjudication 6221718978 (one should-fix: stale addEntry doc comment, fixed in 2e3664603, comments only); grammar (grammar-conventions, incrementality) report 6221989367 on 2e3664603, adjudication 6222044079; undirected report 6222370640 on 2e3664603, adjudication 6222418165; all exited 0"
+            },
+            "findings": "None",
+            "verification": "New test packages/sparkdown/src/tests/compiler/typedDefineOverrideBackfill.test.ts: the ticket's computed key seeded and unseeded, a computed key in a non-builtin define seeded and unseeded, and the restated nested table seeded including program.context. redgreen ok at base 41c4a6b2: red 5 failed of 6 (layouts, nil, [1] [nil]), green 6/6; the undirected reviewer independently got red 5/6 on the merge base and green 6/6 on the head. Existing pins pass: builtinRootDefineOverride, DefineTypes, DefineClosedStore, BuiltinNameSceneTargets, assetsConfigOverride, builtinColorOverride, preludeDualNames. Live web editor: main shows Key layouts and Breakpoints [1] [nil]; the branch shows Key mine and Breakpoints [1] [640], screenshots inspected and embedded. Changes: lowerLuauDefine.readPropertyDefinition no longer drops non-string-literal bracket keys (pre-existing, disclosed); the compile-time back-fill is removed and applyBuiltinOverrides only marks; __def in runtime/StdLib.ts fills a typed override from the registered member with fillMissingEntries (the reverse of #1929's mergeEntries, reusing isRecordTable): authored keys win including computed ones, records restated over records fill key by key, lists and other values stay as authored, hidden __ lists are not copied.",
+            "ci": "On 2e3664603: 28 checks passed (test-suite gate with package jobs run, sparkdown 1-4/4, spark-engine 1-2/2, spark-web-player 1-2/2, typecheck, build, linked-issue and the rest); skills-checks, driver-checks, notifier and vitest-api-integration skipped by path filter; none failed or pending.",
+            "next": "None from the writer; PR #1971 (Closes #1951, ready, head 2e3664603) waits for the coordinator's merge gate; no merge of main into the branch.",
+            "changesAfterReviewedCommit": "none",
+            "other": "Residual risk disclosed: a computed key is runtime-only, so for a computed key naming a builtin key program.context still shows the builtin's value; store [k] = v gets no __storeProps entry (before this PR the whole property was dropped); an override does not inherit the builtin's hidden __storeProps for props it does not restate (as the old back-fill). No tickets filed. Skill feedback: repeat of F-5789457733 on #510 (6222449771).",
+            "source": "cross-session message from writer impower-c3 (session 168645f0-ce65-4d59-a121-ae5c8775a0d3), final report for assignment dc0ede5e"
+          }
+        }
+      ]
     }
   },
   "operations": [
@@ -5288,16 +5311,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:45:10.518Z",
+      "observedAt": "2026-10-16T18:49:43.191Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 36108
-      },
       "pr": 1971,
       "reviewJobs": [
         {
@@ -5382,7 +5401,7 @@
         },
         {
           "job": "pr-1971/round-1/launch-undirected-1",
-          "lastEvent": "exited",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -5399,7 +5418,27 @@
               "grammar": 1
             },
             "time": "2026-10-16T18:25:11.156Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "blast": 1,
+            "grammar": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "blast",
+            "grammar",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6222370640
+          ]
         }
       ]
     }
@@ -5508,13 +5547,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:19:08.106Z",
-      "event": "resume-intent",
-      "ticket": 887,
-      "id": "bc0500a4-ad92-4256-ba27-34ffcb73ba13",
-      "sessionId": "13d51545-ae87-46e9-923a-a2ae8ed8de49"
-    },
     {
       "time": "2026-10-16T12:19:17.598Z",
       "event": "resumed",
@@ -6204,6 +6236,13 @@
       "time": "2026-10-16T18:45:08.649Z",
       "event": "check-in",
       "outcome": "no change: #1951 writer running in review on draft PR #1971; every other ticket delivered; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T18:49:41.326Z",
+      "event": "result",
+      "ticket": 1951,
+      "pr": 1971,
+      "reviewedHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408"
     }
   ]
 }
