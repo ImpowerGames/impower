@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 76,
-  "previous": "7ebc55c661b202e9cec323394085b28138b5f461",
+  "seq": 77,
+  "previous": "0cdfdfd4bb42925c95d459adfa94ed975ae9c5d0",
   "snapshotParents": [],
-  "time": "2026-10-16T18:59:25.977Z",
+  "time": "2026-10-16T19:00:33.859Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 61,
+    "recordRevision": 62,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -869,7 +869,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:59:25.043Z",
+      "observedAt": "2026-10-16T19:00:32.737Z",
       "held": true,
       "head": "9a1b6f64d741a08cb81e787614da8705679ce30e",
       "remoteHead": "9a1b6f64d741a08cb81e787614da8705679ce30e",
@@ -943,7 +943,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:59:25.043Z",
+      "observedAt": "2026-10-16T19:00:32.737Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1393,6 +1393,11 @@
       "ticket": 1637,
       "id": "adaa1fa4",
       "deliveryId": "5054f865"
+    },
+    {
+      "time": "2026-10-16T19:00:31.515Z",
+      "event": "check-in",
+      "outcome": "no dispatch: #1637 (PR #1960 round 1, second reviewer launched after decision B) and #1881 writers running; #851 and #1798 done; new sub-issue #1974 (Bug, Effort Medium, filed 18:49Z by the #1637 writer's filer for the stale-memo defect) attached under #1940 widens the Feature's listed scope, held for the maintainer's decision (keep under #1940 and dispatch after #1637 merges, or move under umbrella #1893); no transcripts to read, no dead launches, no open requests"
     }
   ]
 }
