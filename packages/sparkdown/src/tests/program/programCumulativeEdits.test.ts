@@ -276,10 +276,9 @@ const SCREENPLAYS = [
   },
   // 2: #1613. 7: #1614's string case.
   { name: "capture", text: () => captureScreenplay(3), inserts: CAPTURE_INSERTS, seeds: [2, 7] },
-  // 3: #1611's inline alternator case; its edits #70 and #102 report a
-  // label named as another on the other of the two labels than a cold
-  // compile does (#1934), so it is skipped until that is fixed.
-  { name: "flow", text: () => flowScreenplay(3), inserts: FLOW_INSERTS, seeds: [{ seed: 3, skip: "#1934" }] },
+  // 3: #1611's inline alternator case; its edits #70 and #102, a branch
+  // named as a label, also #1934.
+  { name: "flow", text: () => flowScreenplay(3), inserts: FLOW_INSERTS, seeds: [3] },
   // 1, 2, 8, 9 and 10: chunks kept or dropped past a change to the
   // anonymous symbols they read (#1611; 1 also #1632). 3: a `<` kept as text
   // above a `>` an edit adds (#1614).
@@ -303,7 +302,8 @@ describe("cumulative randomized edits on the statement chunks", () => {
   // compile error stops them) is undone by the next edit (`cumulativeEdits`),
   // so the run spends most of its edits on a program that has its chunks.
   const runs = SCREENPLAYS.flatMap((screenplay, index) =>
-    [0x51ed694 + index, ...(FULL ? screenplay.seeds : [])].map((entry) =>
+    // A seed that still fails is `{ seed, skip }`.
+    ([0x51ed694 + index, ...(FULL ? screenplay.seeds : [])] as (number | { seed: number; skip: string })[]).map((entry) =>
       typeof entry === "number"
         ? { screenplay, seed: entry, skip: undefined }
         : { screenplay, ...entry },
