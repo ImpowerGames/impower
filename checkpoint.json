@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 51,
-  "previous": "a412e78b467ed693c457d56780740edc58022962",
+  "seq": 52,
+  "previous": "f501e84f509725ae99f81f465120fdb965887dfd",
   "snapshotParents": [],
-  "time": "2026-10-16T23:05:51.738Z",
+  "time": "2026-10-16T23:23:35.748Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 46,
+    "recordRevision": 47,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1474,18 +1474,24 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-16T23:05:51.737Z",
+      "observedAt": "2026-10-16T23:23:33.897Z",
       "held": true,
-      "exists": false
+      "head": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool": {
       "ticket": 1966,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-16T23:05:51.737Z",
+      "observedAt": "2026-10-16T23:23:33.897Z",
       "held": true,
-      "exists": false
+      "head": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
@@ -1878,6 +1884,11 @@
       "time": "2026-10-16T23:05:49.959Z",
       "event": "check-in",
       "outcome": "no change: #1963 (pid 51820) and #1966 (pid 11732) writers running in their preflight and setup, no worktrees or PRs yet; #1962 done"
+    },
+    {
+      "time": "2026-10-16T23:23:32.072Z",
+      "event": "check-in",
+      "outcome": "no change: #1963 and #1966 writers running with worktrees at e2f91499f, no PRs yet; #1963 running the skills-tier checks, #1966 running the dry-run snapshot against the public repository"
     }
   ]
 }

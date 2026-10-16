@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 51 (this commit), 2026-10-16T23:05:51.738Z, after checked-in. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 52 (this commit), 2026-10-16T23:23:35.748Z, after checked-in. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,7 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1963
 
 - claude-cli claude-opus-5-5 at medium, process 51820 on DESKTOP-726EO47
+- as of 2026-10-16T23:23:33.897Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1966
 
 - claude-cli claude-opus-5-5 at high, process 11732 on DESKTOP-726EO47
+- as of 2026-10-16T23:23:33.897Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool that may exist only there; recover those bytes there before restarting or overwriting this work
