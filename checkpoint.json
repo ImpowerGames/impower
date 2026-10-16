@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 327,
-  "previous": "1ae371689d59099b76323a365c6202c66cb2eeb0",
+  "seq": 328,
+  "previous": "377d779aaf3e740fe7dd1d6cd34ddd60a1b8e76b",
   "snapshotParents": [],
-  "time": "2026-10-16T18:27:50.970Z",
+  "time": "2026-10-16T18:28:06.663Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 273,
+    "recordRevision": 274,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5288,7 +5288,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T18:27:49.637Z",
+      "observedAt": "2026-10-16T18:28:05.204Z",
       "held": true,
       "head": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
       "remoteHead": "2e3664603435c0ad48b26361ca7dc51dc3f21408",
@@ -5508,13 +5508,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T12:18:48.818Z",
-      "event": "resume-intent",
-      "ticket": 454,
-      "id": "41d54a93-5a95-40c3-8969-2b9551d1c06b",
-      "sessionId": "b483900d-bfad-4f3d-bff3-87e961965503"
-    },
     {
       "time": "2026-10-16T12:18:57.526Z",
       "event": "resumed",
@@ -6214,6 +6207,11 @@
       "event": "released",
       "ticket": 316,
       "reason": "process 29340 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-16T18:28:02.963Z",
+      "event": "check-in",
+      "outcome": "no change: #1951 writer running (the only open ticket); every other ticket delivered; no transcripts to read, no dead launches"
     }
   ]
 }
