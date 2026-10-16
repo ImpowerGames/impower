@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 290 (this commit), 2026-10-16T16:29:24.459Z, after a new plan. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 291 (this commit), 2026-10-16T16:29:39.706Z, after release of #839. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,17 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #316
 
 - claude-cli claude-opus-5-5 at medium, process 60204 on DESKTOP-726EO47
-- as of 2026-10-16T16:29:22.428Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run that may exist only there; recover those bytes there before restarting or overwriting this work
-
-## #839
-
-- claude-cli claude-opus-5-5 at medium, process 15932 on DESKTOP-726EO47
-- review job pr-1948/round-1/launch-ax-1 on DESKTOP-726EO47: no completed review; last launched reviewer ax attempt 1 of round 1 (planned ["ax","undirected"]), last event blocked
-- review job pr-1948/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 2fc0ccfd7, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","undirected"]), last event finished
-- review job pr-1948/round-2/launch-ax2-1 on DESKTOP-726EO47: round 2 reviewed 5a6e07571, completed {"ax2":1} of planned ["ax2","undirected2"]; last launched reviewer ax2 attempt 1 of round 2 (planned ["ax2","undirected2"]), last event finished
-- review job pr-1948/round-2/launch-undirected2-1 on DESKTOP-726EO47: round 2 reviewed a9d427cc2, completed {"ax2":1,"undirected2":1} of planned ["ax2","undirected2"]; last launched reviewer undirected2 attempt 1 of round 2 (planned ["ax2","undirected2"]), last event finished
+- as of 2026-10-16T16:29:37.528Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1800
 
 - claude-cli claude-opus-5-5 at low, process 41376 on DESKTOP-726EO47
-- as of 2026-10-16T16:29:22.428Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T16:29:37.528Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic that may exist only there; recover those bytes there before restarting or overwriting this work
