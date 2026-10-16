@@ -61,6 +61,7 @@ import {
   internString,
   internSymbol,
   isAnonymousSymbol,
+  NUMBERED_SYNTHETIC_NAME,
 } from "./ProgramSymbols";
 import {
   ADDRESS_OFFSETS,
@@ -225,7 +226,7 @@ interface BlockState {
 // temporary by its own count (`__t$<n>`), so an edit that renumbers it
 // leaves the chunk as it was. Both forms hold a `$`, which no identifier can
 // contain, so an author's variable keeps its name whatever its shape.
-const GENERATED_NAME = /^__synth\$\d+$/;
+const GENERATED_NAME = NUMBERED_SYNTHETIC_NAME;
 
 /**
  * `BinaryProgramWriter` emits a statement's chunk from the statement's parsed

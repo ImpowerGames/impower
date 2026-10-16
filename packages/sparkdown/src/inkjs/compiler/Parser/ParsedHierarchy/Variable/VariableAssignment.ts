@@ -11,6 +11,7 @@ import { StructDefinition } from "../Struct/StructDefinition";
 import { currentCompileEpoch } from "../CompileEpoch";
 import { resolutionTap } from "../ResolutionTap";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { NUMBERED_SYNTHETIC_NAME } from "../../../../../program/ProgramSymbols";
 import {
   Op,
   SET_DECLARE,
@@ -209,7 +210,7 @@ export class VariableAssignment extends ParsedObject {
    *  the compiler generates, which it numbers by document order, is recorded
    *  without its number. */
   get resolutionKey(): string {
-    const name = /^__synth\$\d+$/.test(this.variableName)
+    const name = NUMBERED_SYNTHETIC_NAME.test(this.variableName)
       ? "__synth"
       : this.variableName;
     return `set:${name}:${this.isNewTemporaryDeclaration ? "local" : "assign"}`;

@@ -877,11 +877,12 @@ describe("a hazard of reuse", () => {
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
   });
 
-  it("a function written in a scene above renumbers the names of the functions below it, and their statements are read again nowhere", () => {
+  it("a function written in a scene above leaves the functions of the scenes below it, and their statements are read again nowhere", () => {
     // The compiler names a function a statement writes by document order
-    // (`__synth$<n>`), so one written in an earlier scene renames every one
-    // after it. A chunk names such a function by its anonymous symbol, which
-    // belongs to the function for as long as its statement is kept.
+    // within its scene (`__synth$<flow>$<n>`, #851), so one written in an
+    // earlier scene renames none of those after it. A chunk names such a
+    // function by its anonymous symbol, which belongs to the function for as
+    // long as its statement is kept.
     const scene = (name: string, closures: boolean) => [
       `scene ${name}`,
       `  The room ${name} is quiet.`,
