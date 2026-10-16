@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 153,
-  "previous": "9501196388ba2dd1603451d5f917cf1dada12601",
+  "seq": 154,
+  "previous": "930939434ebbd31f012246ffc5c931d513a0c7c7",
   "snapshotParents": [],
-  "time": "2026-10-16T04:54:43.262Z",
+  "time": "2026-10-16T04:55:38.464Z",
   "kind": "auto",
-  "transition": "verify of #1627",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 113,
@@ -1792,7 +1792,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T04:54:43.262Z",
+      "observedAt": "2026-10-16T04:55:38.464Z",
       "held": true,
       "exists": false
     }
@@ -1800,7 +1800,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:53:49.635Z",
+    "at": "2026-10-16T04:55:38.463Z",
     "tickets": [
       {
         "number": 1201,
@@ -1852,9 +1852,9 @@
       },
       {
         "number": 1627,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 4acb108d-cd85-45e6-a7ac-aaf0b75f6cd8 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 2528 started 639277232358933695 is running"
       },
       {
         "number": 1628,
