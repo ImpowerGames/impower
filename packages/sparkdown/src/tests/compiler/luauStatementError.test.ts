@@ -5,7 +5,7 @@ import { parseSource } from "./grammarSnapshot";
 import { luauStatementError } from "../../compiler/utils/luauStatementError";
 
 function find(node: SyntaxNode, from: number): SyntaxNode | undefined {
-  if (["LuauInvalidStatement", "LuauAccessPath"].includes(node.name) && node.from <= from && node.to > from) return node;
+  if (node.name === "LuauAccessPath" && node.from <= from && node.to > from) return node;
   for (let child = node.firstChild; child; child = child.nextSibling) {
     const result = find(child, from);
     if (result) return result;

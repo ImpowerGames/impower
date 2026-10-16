@@ -135,6 +135,24 @@ const TARGETED: Record<string, string> = {
   "tag-interpolation-midbody": "# a tag {var} more\n",
   "tag-plain-no-interp": "# plain tag no interp\n",
   "tag-multi-with-interp": "# a # b {x}\n",
+
+  // --- a pure-Luau body or bracket tiles with `LuauUnreadToken` (#1905), so
+  // both engines read a token its rules lack the same way, and the function
+  // keeps its own `end`: the reproductions the #1904 prototype measured at
+  // zero divergence.
+  "unread-attribute-list-921":
+    "Value {g()}.\nfunction g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\n",
+  "unread-semicolon-in-call-1258": "function f(t)\n  print(1;)\nend\nAfter.\n",
+  "unread-table-type-assignment-1261":
+    "function f(t)\n  local x: {\n    bar\n    baz = 1 +\n  } = {}\n  2\nend\nAfter.\n",
+  "unread-stray-closers-1290":
+    "function f()\n  print(1)\n  )\n  ]\n  }\n  print(1); )\n  return 5\nend\nAfter.\n",
+  "unread-export-in-function-1318": "function f()\n  export local a = 1\n  return a\nend\n: {f()}\n",
+  "unread-union-instantiation-1376":
+    "local function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\nValue {f()}.\n",
+  "unread-stray-then-1596": "function f(c)\nthen\nend\nAfter.\n",
+  "unread-if-expression-after-comment-1647":
+    "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
 };
 
 interface Fixture {

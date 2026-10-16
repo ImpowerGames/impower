@@ -17,10 +17,12 @@ variables:
   # lookaround: LuauForLoop owns binding names before its condition; LuauAccessPath must finish each binding there.
   LUAU_SHARED_FOR_BINDING_BEHIND: "(?<=\\bfor{{WS}}+{{LUAU_IDENTIFIER}}|\\bfor\\b[^\\n\\r]*[,]{{WS}}*{{LUAU_IDENTIFIER}})"
   # lookaround: LuauChainedPropertyAccess and LuauChainedFunctionCall keep member and call continuations inside the path.
-  LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{WS}}*{{LUAU_SHARED_PATH_CONTINUATION}})"
+  # A name goes on the path only right after its accessor: after whitespace
+  # it begins the next statement (`Hello there`), which no path reads on to.
+  LUAU_SHARED_PATH_NO_CONTINUATION: "(?!{{LUAU_IDENTIFIER}}|{{WS}}*{{LUAU_SHARED_PATH_CONTINUATION}})"
   # lookaround: LuauTypeAnnotationOperation owns a declaration's colon; LuauAccessPath must yield before the annotation.
   LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD: "(?={{WS}}*{{LUAU_TYPE_ANNOTATION_OPERATOR}})"
-  LUAU_SHARED_PATH_CONTINUATION: "(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|{{LUAU_INDEXER_START}})"
+  LUAU_SHARED_PATH_CONTINUATION: "(?:{{LUAU_ACCESSOR_OPERATOR}}|{{LUAU_INDEXER_START}})"
   LUAU_SHARED_PATH_END_KEYWORDS: "(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})"
   LUAU_SHARED_PATH_TRIVIA: "(?:{{LUAU_BLOCK_COMMENT_ON_LINE}}|{{WS}})"
   # lookaround: LuauEndKeyword and LuauUntilKeyword own terminators rather than identifier paths.
@@ -61,63 +63,14 @@ variables:
   # lookaround: Tags owns the next tag marker; Tag ends before that marker rather than consuming its sibling.
   LUAU_SHARED_TAG_END: "(?:(?={{TAG_START}})|$)"
   DISPLAY_CHAIN_SEPARATOR: (?:$|{{WS}}+)
-  # Same-line recognition of invalid Luau statements. Keep each decision
-  # named so the capture rule below only describes the line structure.
-  # lookaround: LuauExpression keeps valid names and paths; only an invalid continuation or character claims this line.
-  LUAU_INVALID_STATEMENT_START: (?:{{LUAU_INVALID_STATEMENT_NOT_STATEMENT_KEYWORD}}{{LUAU_IDENTIFIER}}{{LUAU_INVALID_STATEMENT_PATH_MEMBER}}*{{LUAU_INVALID_STATEMENT_INVALID_AFTER_NAME}}|{{LUAU_INVALID_STATEMENT_INVALID_CHARACTER_START}})
-  # lookaround: LuauControlBlock and Flow keep their leading keywords; rule ordering alone cannot distinguish their continuations.
-  LUAU_INVALID_STATEMENT_NOT_STATEMENT_KEYWORD: (?!{{LUAU_INVALID_STATEMENT_STATEMENT_KEYWORDS}}\b)
-  LUAU_INVALID_STATEMENT_STATEMENT_KEYWORDS: (?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)
-  # lookaround: LuauAccessPath keeps dotted identifiers, but LuauConcatOperation owns consecutive dots.
-  LUAU_INVALID_STATEMENT_PATH_MEMBER: "(?:{{WS}}*[.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}{{WS}}*{{LUAU_INVALID_STATEMENT_NOT_RESERVED_MEMBER}}{{LUAU_IDENTIFIER}})"
-  # lookaround: LuauAccessPath reports a reserved member itself; this rule must not take its error recovery.
-  LUAU_INVALID_STATEMENT_NOT_RESERVED_MEMBER: (?!{{LUAU_INVALID_STATEMENT_RESERVED_WORD}}\b)
-  LUAU_INVALID_STATEMENT_RESERVED_WORD: (?:{{LUAU_RESERVED_WORDS}})
-  # lookaround: LuauExpression keeps member access, assignments and valid value continuations; only impossible continuations qualify.
-  LUAU_INVALID_STATEMENT_INVALID_AFTER_NAME: "(?:{{WS}}+{{LUAU_INVALID_STATEMENT_NOT_NAME_CONTINUATION}}[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}(?!{{WS}}*[A-Za-z_])|(?![^\\r\\n]*=){{LUAU_INVALID_STATEMENT_HAS_INVALID_SEQUENCE}})"
-  # lookaround: LuauLogicalOperation and LuauControlBlock keep continuation and closing keywords.
-  LUAU_INVALID_STATEMENT_NOT_NAME_CONTINUATION: (?!{{LUAU_INVALID_STATEMENT_NAME_CONTINUATION}}\b)
-  LUAU_INVALID_STATEMENT_NAME_CONTINUATION: (?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)
-  # lookaround: LuauExpression can continue a prior line, so only a same-line impossible sequence qualifies.
-  LUAU_INVALID_STATEMENT_HAS_INVALID_SEQUENCE: (?={{LUAU_INVALID_STATEMENT_SEARCH_TOKEN}}*?{{LUAU_INVALID_STATEMENT_INVALID_SEQUENCE}})
-  # lookaround: LuauLineComment owns --; brackets end this search because LuauFunctionCall may contain arbitrary statements.
-  LUAU_INVALID_STATEMENT_SEARCH_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*"?|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*'?|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*`?|[^\r\n"'`(){}\[\]-]|-(?!-))
-  LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER: (?:[^"\\\r\n]|\\.)
-  LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER: (?:[^'\\\r\n]|\\.)
-  LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER: (?:[^`\\\r\n]|\\.)
-  # lookaround: LuauExpression keeps operators and keywords between values; two adjacent non-keywords or a dangling dot cannot continue it.
-  LUAU_INVALID_STATEMENT_INVALID_SEQUENCE: "(?:(?<=[A-Za-z0-9_]){{LUAU_INVALID_STATEMENT_NOT_AFTER_KEYWORD}}{{WS}}+{{LUAU_INVALID_STATEMENT_NOT_CONTINUATION_KEYWORD}}[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.]{{LUAU_SHARED_SINGLE_DOT_GUARD}}{{LUAU_INVALID_STATEMENT_BEFORE_LINE_END}})"
-  # lookaround: LuauControlBlock and LuauVariableDefinition accept a value or name after their keywords.
-  LUAU_INVALID_STATEMENT_NOT_AFTER_KEYWORD: (?<!\b{{LUAU_INVALID_STATEMENT_PREFIX_KEYWORDS}})
-  LUAU_INVALID_STATEMENT_PREFIX_KEYWORDS: (?:{{LUAU_RESERVED_WORDS}}|{{LUAU_SCOPE_MODIFIERS}})
-  # lookaround: LuauLogicalOperation and LuauControlBlock own these continuations.
-  LUAU_INVALID_STATEMENT_NOT_CONTINUATION_KEYWORD: (?!{{LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS}}\b)
-  LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS: ["and", "or", "not", "then", "do", "in", "end", "else", "elseif", "until"]
-  # lookaround: LuauLineComment may follow a dangling dot; a later name instead belongs to LuauAccessPath.
-  LUAU_INVALID_STATEMENT_BEFORE_LINE_END: (?={{WS}}*(?:$|--))
-  # lookaround: LuauCompareOperation owns ~=; the other characters cannot start a Luau expression.
-  LUAU_INVALID_STATEMENT_INVALID_CHARACTER_START: (?=[!?&$\\]|~{{LUAU_INVALID_STATEMENT_NOT_EQUALS}})
-  # lookaround: LuauCompareOperation owns ~=, so ~ alone is the invalid token.
-  LUAU_INVALID_STATEMENT_NOT_EQUALS: (?!=)
-  # lookaround: LuauMultilineString and LuauBlockComment own unclosed long tokens; LuauControlBlock owns closing keywords.
-  LUAU_INVALID_STATEMENT_LINE_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*"?|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*'?|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*`?|(?:--)?{{LUAU_INVALID_STATEMENT_CLOSED_LONG_TOKEN}}|--(?!\[=*\[)[^\r\n]*|{{LUAU_INVALID_STATEMENT_NOT_BLOCK_END}}[^\r\n"'`\[-]|\[(?!=*\[)|-(?!-))
-  LUAU_INVALID_STATEMENT_CLOSED_LONG_TOKEN: (?:\[\[[^\r\n]*?\]\]|\[=\[[^\r\n]*?\]=\]|\[==\[[^\r\n]*?\]==\])
-  # lookaround: LuauControlBlock must see its own closing keyword even after an invalid statement.
-  LUAU_INVALID_STATEMENT_NOT_BLOCK_END: (?!{{WS}}*{{LUAU_INVALID_STATEMENT_WORD_START}}{{LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS}}\b)
-  # lookaround: LuauInvalidStatementName keeps a keyword suffix inside a longer identifier.
-  LUAU_INVALID_STATEMENT_WORD_START: (?<![A-Za-z0-9_])
-  LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS: (?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})
-  # lookaround: LuauControlBlock owns closing keywords; LuauMultilineString and LuauBlockComment own tokens continuing past this line.
-  LUAU_INVALID_STATEMENT_END: (?={{WS}}*$|{{WS}}*{{LUAU_INVALID_STATEMENT_WORD_START}}{{LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS}}\b|{{WS}}*(?:--)?{{LUAU_INVALID_STATEMENT_OPEN_LONG_TOKEN}}|{{WS}}*{{LUAU_INVALID_STATEMENT_OPEN_QUOTED_TOKEN}}\\(?:z{{WS}}*)?$)
-  # lookaround: LuauMultilineString and LuauBlockComment own long tokens that do not close on this line.
-  LUAU_INVALID_STATEMENT_OPEN_LONG_TOKEN: (?:\[\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ZERO}}|\[=\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ONE}}|\[==\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_TWO}}|\[===+\[)
-  # lookaround: LuauMultilineString owns an unclosed [[ token; a closed one remains inside the invalid line.
-  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ZERO: (?![^\r\n]*\]\])
-  # lookaround: LuauMultilineString owns an unclosed [=[ token; a closed one remains inside the invalid line.
-  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ONE: (?![^\r\n]*\]=\])
-  # lookaround: LuauMultilineString owns an unclosed [==[ token; a closed one remains inside the invalid line.
-  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_TWO: (?![^\r\n]*\]==\])
-  LUAU_INVALID_STATEMENT_OPEN_QUOTED_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*)
+  # lookaround: LuauControlBlock and the bodies' end patterns own the four
+  # closers, which can close a block the unread run cannot see, so
+  # LuauUnreadName and LuauUnreadCharacter leave them to those rules.
+  LUAU_UNREAD_NOT_CLOSER: (?!{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})
+  # The symbols of more than one character that Luau's lexer reads whole,
+  # longest first, with the other languages' operators it reads to report
+  # them (`&&`, `||`, `!=`), as `readLuauAst.ts` lists them in `SYMBOLS`.
+  LUAU_UNREAD_SYMBOL: (?:\.\.\.|\.\.=|//=|\.\.|::|==|~=|<=|>=|\+=|-=|\*=|/=|%=|\^=|->|//|&&|\|\||!=)
 
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
@@ -4387,6 +4340,7 @@ repository:
       - { include: "#LuauPropertyDefinition" }
       - { include: "#LuauMethodDefinition" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -4429,6 +4383,7 @@ repository:
       - { include: "#LuauFunctionReturnMissingType" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -5831,6 +5786,7 @@ repository:
           - { include: "#PunctuationBraceOpen" }
     patterns:
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: ([}])|(?={{SPARKLE_BLOCK_BAIL}})
     endCaptures:
       1:
@@ -7336,6 +7292,7 @@ repository:
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -7382,6 +7339,7 @@ repository:
     begin: "{{LUAU_FUNCTION_BODY_AT_COMMENT_CLOSE}}|{{LUAU_FUNCTION_BODY_AT_SPACED_STATEMENT}}|{{LUAU_FUNCTION_BODY_AFTER_PARAMETERS}}|{{LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT}}|{{LUAU_FUNCTION_BODY_AT_LINE_BREAK}}|{{LUAU_FUNCTION_BODY_AT_LINE_START}}"
     patterns:
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
     # owns that. Stop at `end` or at a scene or branch declaration.
     end: (?={{BEAT}}|{{WS}}*\bend\b)
@@ -7421,7 +7379,8 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([)])
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|([)])
     endCaptures:
       1:
         patterns:
@@ -7759,7 +7718,6 @@ repository:
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauMinusLineContinuation" }
       - { include: "#LuauControlBlock" }
-      - { include: "#LuauInvalidStatement" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       # Statement separator (`local x = {}; for i=1,n do ... end`).
@@ -7770,68 +7728,51 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauUnreadToken" }
 
-  # A line in a Luau body that is not a Luau statement (`Hello there.`,
-  # `Hello!`, `U.S.`, `Hello, I am here.`, `!Hello`, `$5 a day`). It begins
-  # with a character no Luau statement or value begins with and no line
-  # continuation begins with: one Luau has no token for (`!`, `?`, `$`,
-  # `&`, `\`) or a `~` that is not `~=`. (A closing bracket is not taken:
-  # a Sparkle handler's body ends at its `}`; see #1290.) Or it begins with
-  # a name or a dotted path (whose members are not keywords, which Luau
-  # reports where it meets them: `t.a.return`), and what follows it on the line is another name or a
-  # number (not `and` or `or`), a `!` or `?`, or a `.` with no name after
-  # it; or, before any bracket and outside its strings and comments, with no
-  # `=` on the line, it holds two names or numbers side by side, the first
-  # not a keyword or scope modifier, which a name follows in Luau (`if x`,
-  # `return x`, `local x`) (`Hello, I am here.`, `Yes, 5 times.`), a `!` or
-  # `?`, or a `.` that ends
-  # it with no name after it (`salt and pepper.`, `Well, friend.`). No Luau
-  # statement or value goes on that way, whatever the lines around it hold,
-  # so a value an `=` on the line before left for this one (`a and b`,
-  # `t.a, t.b`) is never taken. Brackets and strings end the search, since
-  # calls there can follow one another (`f(function() print(x) end)`,
-  # `f "a" g "b"`). The line is taken to
-  # its last non-blank character, or to an `end`, `else`, `elseif` or
-  # `until` on it outside a
-  # string or a comment, which closes a block wherever Luau meets it and is
-  # left to that block's rule (`doThing end`, `The end of the scene.`,
-  # `Hello there;end`). It
-  # also ends before a string or a block comment that runs past the line (a
-  # long string or comment that does not close on it, or a quoted string
-  # whose last character is an escaping `\`): that token's own rule takes it
-  # across the lines, so an `end` inside it closes nothing. So
-  # the error of reading the line ends with it, and the body goes on to its
-  # own `end`; the validator reports Luau's first error for it once, instead
-  # of the errors Luau's recovery finds in the rest of it.
+  # The catch-all that tiles a pure-Luau body or bracket (GRAMMAR.md §3.2,
+  # §13.2): the last pattern of every rule whose `end` consumes a closer
+  # (`end`, `until`, `)`, `]`, `}`, `>>`, a type's `>`) and of the bodies
+  # those rules hold. It takes one token that no pattern before it could
+  # read (a comment, a string, a number, a name, one of Luau's symbols of
+  # more than one character, or one character other than a space), so the
+  # rule never closes before its closer, a beat (each such rule's `end`
+  # has `(?={{BEAT}})`) or the end of the input, and the text after the
+  # token is read by the rule's own patterns again. The converter reads the run of tokens as Luau reads them
+  # (`readLuauAst.ts`), and Luau's errors for it are reported there.
   #
-  # The rule decides from the line alone, since a restarted parse sees no
-  # further back than the start of its line. A line whose reading depends on
-  # the lines around it, a comma list of values (`Hi, Bob`) or a lone name,
-  # which can be the value an `=` or a comma on the line before it left for
-  # this one, stays an expression; the lowerer, which sees both lines,
-  # reports it when it is not (`reportExpressionStatement`). A line that goes on an expression from the
-  # line before it never reaches this rule: a trailing operator takes the
-  # line break, and a leading one is a line continuation. A first word that
-  # begins a statement or a block, a scene or a branch is left to its own
-  # rule.
-  LuauInvalidStatement:
-    match: ^({{WS}}*)({{LUAU_INVALID_STATEMENT_START}}{{LUAU_INVALID_STATEMENT_LINE_TOKEN}}*?){{LUAU_INVALID_STATEMENT_END}}
-    captures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauInvalidStatementToken" }
-          - { include: "#ExtraWhitespace" }
+  # The name and the character refuse `end`, `else`, `elseif` and `until`:
+  # each can close a block around the rule that the rule cannot see, so the
+  # rule closes there and that block's end reads it. A line break is never
+  # taken (`Newline` stands before this rule in every list). A rule whose
+  # `end` is zero-width, which ends where its content stops matching, and an
+  # `applyEndPatternLast` rule, whose content is tried before its end, never
+  # include it (the `luau-unread-token` grammar lint).
+  LuauUnreadToken:
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauString" }
+      - { include: "#LuauNumber" }
+      - { include: "#LuauUnreadName" }
+      - { include: "#LuauUnreadCharacter" }
 
-  # The tokens of a line that is not a Luau statement, highlighted as Luau
-  # reads them, where the validator's error says where that reading fails.
-  # They are rules of their own, not `LuauVariableName` and the other
-  # expression rules, so Sparkdown's own reference checks leave the line's
-  # names alone; Luau's type checker still reads the line and warns about
-  # them as Luau does. A character Luau has no token for (`!`, `?`) is
-  # invalid.
+  LuauUnreadName:
+    tag: variableName
+    name: variable.other.readwrite.luau
+    match: "{{LUAU_UNREAD_NOT_CLOSER}}{{LUAU_IDENTIFIER}}"
+
+  LuauUnreadCharacter:
+    tag: invalid
+    name: invalid.illegal.unread.luau
+    match: "{{LUAU_UNREAD_NOT_CLOSER}}(?:{{LUAU_UNREAD_SYMBOL}}|[^\\s])"
+
+  # The tokens of a `&` statement's code that its rules could not read
+  # (`LuauSparkdownExplicitStatement`, `LuauSparkdownExplicitBlockBody`),
+  # highlighted as Luau reads them. They are rules of their own, not
+  # `LuauVariableName` and the other expression rules, so Sparkdown's own
+  # reference checks leave the names alone; Luau's type checker still reads
+  # them and warns about them as Luau does. A character Luau has no token
+  # for (`!`, `?`) is invalid.
   LuauInvalidStatementToken:
     patterns:
       - { include: "#LuauComment" }
@@ -7855,7 +7796,7 @@ repository:
   LuauInvalidStatementKeyword:
     tag: controlKeyword
     name: keyword.control.luau
-    match: \b{{LUAU_INVALID_STATEMENT_RESERVED_WORD}}\b
+    match: \b(?:{{LUAU_RESERVED_WORDS}})\b
 
   LuauInvalidStatementName:
     tag: variableName
@@ -7923,6 +7864,7 @@ repository:
     patterns:
       - { include: "#LuauForCondition" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     # See LuauSparkdownWhileLoop's end comment (one-line trailing
     # statements).
     end: (?={{BEAT}})|(?<=\bend)|$
@@ -8003,6 +7945,7 @@ repository:
     patterns:
       - { include: "#LuauWhileCondition" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     # See LuauSparkdownWhileLoop's end comment (one-line trailing
     # statements).
     end: (?={{BEAT}})|(?<=\bend)|$
@@ -8064,6 +8007,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
 
   LuauUntilStatement:
@@ -10214,6 +10158,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -10270,6 +10215,7 @@ repository:
     patterns:
       - { include: "#LuauIfBlockCondition" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -10433,6 +10379,7 @@ repository:
     patterns:
       - { include: "#LuauElseifBlockCondition" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
 
   LuauElseifBlockCondition:
@@ -10522,6 +10469,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
 
   # ----------------------------------------------------------------------------
@@ -11003,6 +10951,7 @@ repository:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])
     endCaptures:
       1:
@@ -11161,6 +11110,7 @@ repository:
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])
     endCaptures:
       1:
@@ -11770,7 +11720,8 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([)])
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|([)])
     endCaptures:
       1:
         patterns:
@@ -11819,10 +11770,8 @@ repository:
   # indexer, a parenthesized value (`LuauChainedPropertyAccess`), a path after
   # a comment, a line that continues the one before it, and a path at the
   # start of a statement (`t.a. = 1`), so the enclosing function still ends
-  # at its own `end` (#1156). A line in a Luau body that is not a statement
-  # (`Hello there.`) is `LuauInvalidStatement`, which takes the whole line
-  # before this rule is tried; the `.` that ends a comma list there
-  # (`Well, friend.`) is this one. A name directly after the `.` is the member, even a keyword
+  # at its own `end` (#1156), as the `.` that ends a line in a Luau body that
+  # is not a statement does (`Hello there.`, `Well, friend.`). A name directly after the `.` is the member, even a keyword
   # (`cfg.repeat`). After whitespace or block comments on the same line, a
   # reserved word is not a name (`if t.a. then`) and any other name is
   # (`t.a.--[[note]]b`); and `..` is the concatenation operator. A block
@@ -11859,7 +11808,8 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (\])
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|(\])
     endCaptures:
       1:
         patterns:
@@ -12484,7 +12434,8 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|([}]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -12508,7 +12459,8 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (\])
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|(\])
     endCaptures:
       1:
         patterns:
@@ -12532,7 +12484,8 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -13068,7 +13021,8 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([>])
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|([>])
     endCaptures:
       1:
         patterns:
@@ -13085,7 +13039,8 @@ repository:
       - { include: "#Newline" }
       - { include: "#ExtraWhitespace" }
       - { include: "#LuauTypeLiteral" }
-    end: ([>][>])
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|([>][>])
     endCaptures:
       1:
         patterns:
@@ -13130,6 +13085,7 @@ repository:
       - { include: "#LuauTypeFunctionName" }
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauBlockBody" }
+      - { include: "#LuauUnreadToken" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -13681,7 +13637,9 @@ repository:
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
+      - { include: "#Newline" }
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -13739,6 +13697,7 @@ repository:
           - { include: "#PunctuationAngleOpen" }
     patterns:
       - { include: "#LuauTypeArgumentContents" }
+      - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape unfinished arguments before
     # indentation is consumed; splitting the argument contents cannot do so.
     end: (?={{BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
@@ -13855,9 +13814,10 @@ repository:
           - { include: "#PunctuationAngleOpen" }
     patterns:
       - { include: "#LuauTypeArgumentContents" }
+      - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape an unfinished generic type.
     # Splitting the type patterns cannot return indentation to its statement.
-    end: ([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{BEAT}})|([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -13888,9 +13848,10 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement must escape an unfinished table type.
     # Splitting the type patterns cannot return indentation to its statement.
-    end: ([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{BEAT}})|([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:
@@ -13915,7 +13876,8 @@ repository:
       - { include: "#LuauTypeLiteral" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (\])
+      - { include: "#LuauUnreadToken" }
+    end: (?={{BEAT}})|(\])
     endCaptures:
       1:
         patterns:
@@ -13935,9 +13897,10 @@ repository:
           - { include: "#Whitespace" }
 
   LuauTypeTableProperty:
-    # `(?!{{LUAU_TYPE_QUALIFIER_DOT}})` leaves a qualified type name
-    # (`{ types.Button }`) to LuauTypeLiteral as an array element.
-    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?!{{LUAU_TYPE_QUALIFIER_DOT}})
+    # `(?!{{LUAU_TYPE_QUALIFIER_DOT}}|{{WS}}*[<])` leaves a qualified type
+    # name (`{ types.Button }`) and a generic one (`{ Box<number> }`) to
+    # LuauTypeLiteral as an array element.
+    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?!{{LUAU_TYPE_QUALIFIER_DOT}}|{{WS}}*[<])
     captures:
       1:
         patterns:
@@ -13967,10 +13930,11 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+      - { include: "#LuauUnreadToken" }
     # lookaround: LuauReturnStatement and other statements must start outside
     # an unclosed type parameter list. Reordering its type patterns cannot
     # return already-consumed indentation; yield before that whitespace.
-    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
+    end: (?={{BEAT}})|([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}|(?={{WS}}*{{LUAU_NON_TYPE_KEYWORDS}})
     endCaptures:
       1:
         patterns:

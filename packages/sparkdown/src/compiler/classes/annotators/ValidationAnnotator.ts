@@ -18,12 +18,6 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
-import {
-  followsDanglingDot,
-  followsMissingValue,
-  TRIVIA_BEFORE_STATEMENT,
-} from "../../lower/utils/statementBefore";
-import { luauStatementError } from "../../utils/luauStatementError";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
@@ -245,86 +239,6 @@ const LUAU_COMMENT = nodeNameSet([
 // ends with its line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
-/** The text Luau's parser names a token by in "got '…'", `<eof>` for none. */
-const gotToken = (token: { text: string } | null) =>
-  token == null ? "<eof>" : `'${token.text}'`;
-
-/**
- * Luau's error for the `.` at `dot` that no name follows on its line: the
- * token after it, or, when that is a name on a later line, the rule that a
- * Sparkdown access path ends with its line. It is reported at the `.`.
- */
-function danglingDotError(
-  node: SyntaxNode,
-  dot: number,
-  read: (from: number, to: number) => string,
-  document: () => string,
-): { message: string; from: number; to: number } {
-  const got = nextSignificantToken(node, dot + 1, read, document);
-  const nameOnLaterLine =
-    got != null &&
-    /^[A-Za-z_]/.test(got.text) &&
-    !RESERVED.has(got.text) &&
-    read(dot + 1, got.from).includes("\n");
-  return {
-    message: nameOnLaterLine
-      ? NAME_ON_LATER_LINE
-      : `Expected identifier, got ${gotToken(got)}`,
-    from: dot,
-    to: dot + 1,
-  };
-}
-
-/**
- * The error for a line in a Luau body that is not a Luau statement
- * (`LuauInvalidStatement`), which runs from `from` to `to`: Luau's parser's
- * first error for it (`luauStatementError`). The exception is a line that
- * ends with a `.` whose name Luau reads from the next line, so that its
- * first error runs past the line (`Hello.` then `How are you?`): a
- * Sparkdown access path ends with its line, so the `.` is reported as
- * `danglingDotError` reports it.
- */
-function invalidStatementError(
-  node: SyntaxNode,
-  from: number,
-  to: number,
-  read: (from: number, to: number) => string,
-  document: () => string,
-): { message: string; from: number; to: number } | null {
-  const error = luauStatementError(node, from, read, to, document);
-  const line = read(from, to).trimEnd();
-  if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
-    const dangling = danglingDotError(node, from + line.length - 1, read, document);
-    if (dangling.message === NAME_ON_LATER_LINE) return dangling;
-  }
-  return error;
-}
-
-/**
- * Whether `node`, a line in a Luau body that is not a Luau statement, is one
- * that Luau reads into the statement before it, whose report stands for it:
- * an `=` or operator that ends its line takes its first token as the missing
- * value (`local y =`), and a `.` that ends its line takes it as the missing
- * member (`local v = t.`, `U.S.`). The `.` is reported as a Sparkdown access
- * path when that token is a name, and the type checker then reports the
- * statement as Luau reads it; otherwise the report names the token.
- */
-function reportedBefore(
-  node: SyntaxNode,
-  read: (from: number, to: number) => string,
-  document: () => string,
-): boolean {
-  if (followsMissingValue(node, read)) return true;
-  let prev = node.prevSibling;
-  while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
-  if (prev?.name === "LuauInvalidStatement") {
-    const line = childNamed(prev, "LuauInvalidStatement_c2");
-    const error = invalidStatementError(prev, line?.from ?? prev.from, line?.to ?? prev.to, read, document);
-    return error != null && (error.message === NAME_ON_LATER_LINE || error.from >= node.from);
-  }
-  return followsDanglingDot(node, read);
-}
-
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -536,6 +450,38 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
+// The leaves of `LuauUnreadToken` that hold a token no rule of a pure-Luau
+// body or bracket read.
+const UNREAD_TOKENS = nodeNameSet(["LuauUnreadName", "LuauUnreadCharacter"]);
+// The bodies of the pure-Luau blocks (the rules that hold `LuauBlockBody`),
+// whose children are the blocks' statements.
+const PURE_LUAU_BODY_CONTENT = nodeNameSet([
+  "LuauDefine_content",
+  "LuauMethodDefinition_content",
+  "LuauSparkleHandlerClosure_content",
+  "LuauFunctionDefinition_content",
+  "LuauFunctionBody_content",
+  "LuauForLoop_content",
+  "LuauWhileLoop_content",
+  "LuauRepeatLoop_content",
+  "LuauDoBlock_content",
+  "LuauIfBlock_content",
+  "LuauElseifBlock_content",
+  "LuauElseBlock_content",
+  "LuauConditionalAlternatorBlock_content",
+  "LuauSequentialAlternatorBlock_content",
+  "LuauFunctionTypeDeclaration_content",
+]);
+
+/** Whether a node holds a token the grammar left unread. */
+function holdsUnreadToken(node: SyntaxNode): boolean {
+  const cursor = node.cursor();
+  do {
+    if (UNREAD_TOKENS.has(cursor.name)) return true;
+  } while (cursor.next() && cursor.from < node.to);
+  return false;
+}
+
 // NOTE: This annotator previously also validated property selectors
 // (`PropertySelectorSimpleConditionName`/`...FunctionConditionName`/
 // `PropertySelectorConstant`), reserved define names (`DefineVariableName`),
@@ -558,10 +504,39 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
   private diagnosticDocument?: { text: Text; source: string };
+  // Whether each statement of a pure-Luau body, by its range, is one Luau's
+  // reading reports (`ownedByUnreadReading`).
+  private unreadStatements = new Map<string, boolean>();
 
   override update(tree: Tree, text: Text, uri?: string): void {
     if (text !== this.text) this.diagnosticDocument = undefined;
+    this.unreadStatements.clear();
     super.update(tree, text, uri);
+  }
+
+  /**
+   * Whether `node` is in a statement of a pure-Luau body that holds a token
+   * the grammar left unread (`LuauUnreadToken`), or that such a token follows
+   * on the line where it ends (`x = (if c)then`). Luau's reading of the
+   * statement reports every error in it, as Luau reports them
+   * (`LuauSyntaxError.unread`), so none is reported from the tree.
+   */
+  private ownedByUnreadReading(node: SyntaxNode): boolean {
+    let statement: SyntaxNode | null = node;
+    while (statement && !PURE_LUAU_BODY_CONTENT.has(statement.parent?.name ?? "")) statement = statement.parent;
+    if (!statement) return false;
+    const key = `${statement.name}:${statement.from}:${statement.to}`;
+    let owned = this.unreadStatements.get(key);
+    if (owned === undefined) {
+      owned = holdsUnreadToken(statement);
+      if (!owned) {
+        let next = statement.nextSibling;
+        while (next && next.name === "ExtraWhitespace") next = next.nextSibling;
+        owned = !!next && UNREAD_TOKENS.has(next.name);
+      }
+      this.unreadStatements.set(key, owned);
+    }
+    return owned;
   }
 
   // CodeMirror Text is immutable. A replacement or edit supplies a new Text
@@ -1038,6 +1013,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
+    if (nodeRef.name.startsWith("Luau") && this.ownedByUnreadReading(nodeRef.node)) {
+      return annotations;
+    }
     if (this.validateLuauLiteral(annotations, nodeRef)) {
       return annotations;
     }
@@ -1306,26 +1284,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           got ? got.from + got.text.length : nodeRef.to,
         );
       }
-      return annotations;
-    }
-    // A line in a Luau body that is not a statement (`Hello there.`). Luau's
-    // first error for it is reported; the errors Luau's recovery finds in the
-    // rest of the line are not, nor is a line whose error the statement
-    // before it reports already (`reportedBefore`).
-    if (nodeRef.name === "LuauInvalidStatement") {
-      const read = (from: number, to: number) => this.read(from, to);
-      if (reportedBefore(nodeRef.node, read, this.statementDocumentText)) {
-        return annotations;
-      }
-      const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
-      const error = invalidStatementError(
-        nodeRef.node,
-        line?.from ?? nodeRef.from,
-        line?.to ?? nodeRef.to,
-        (from, to) => this.read(from, to),
-        this.statementDocumentText,
-      );
-      if (error) this.error(annotations, error.message, error.from, error.to);
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau

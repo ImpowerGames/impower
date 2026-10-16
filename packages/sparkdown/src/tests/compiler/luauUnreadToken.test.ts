@@ -1,0 +1,380 @@
+// A pure-Luau body or bracket never closes before its closer, a beat or the
+// end of the input (#1905, slice S1 of #1904). A token none of its patterns
+// reads is taken by `LuauUnreadToken`, the converter reads it as Luau's lexer
+// does, and every error of its statement is reported as Luau reports it,
+// with Luau's cascade. So the function keeps its own `end`, the story line
+// after it plays, and the errors are the official parser's.
+import { describe, expect, it, vi } from "vitest";
+import type { SyntaxNode } from "@lezer/common";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
+import { functionSpans } from "../programListing";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { checkLuau, describeDiagnostic } from "../luau-conformance/typecheckTestHarness";
+import { loadOfficialLuau } from "./officialLuau";
+import { officialSyntaxErrors } from "./officialSyntax";
+import { checkerTextUnits } from "./luauCheckerText";
+
+const URI = "inmemory:///main.sd";
+
+// The pin of the type-checker port, which the converter follows (it reads
+// `export` inside a function as Luau does since that pin).
+const official = await loadOfficialLuau("typecheck");
+
+function compiler(text: string) {
+  const c = new SparkdownCompiler();
+  c.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  return c;
+}
+
+const errorsOf = (program: any): string[] =>
+  (program.diagnostics?.[URI] ?? [])
+    .filter((d: any) => d.severity === DiagnosticSeverity.Error)
+    .map((d: any) => {
+      const message = typeof d.message === "string" ? d.message : d.message.value;
+      return `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${message}`;
+    })
+    .sort();
+
+/** The official parser's errors for some Luau, on the lines it stands on in the script. */
+const officialErrors = (luau: string, line = 0): string[] =>
+  official(luau)
+    .diagnostics.map(
+      (e) => `${e.location.begin.line + line}:${e.location.begin.column}-${e.location.end.line + line}:${e.location.end.column} ${e.message}`,
+    )
+    .sort();
+
+function errorNodes(tree: { topNode: SyntaxNode }): string[] {
+  const found: string[] = [];
+  const cursor = tree.topNode.cursor();
+  do if (cursor.type.isError) found.push(`${cursor.name}@${cursor.from}`);
+  while (cursor.next());
+  return found;
+}
+
+interface Reading {
+  errors: string[];
+  functions: { path: string; lines: [number, number, number] }[];
+  output: string;
+  warnings: string[];
+  tree: { topNode: SyntaxNode };
+}
+
+function read(text: string): Reading {
+  const warnings: string[] = [];
+  const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
+    warnings.push(args.map(String).join(" "));
+  });
+  try {
+    const c = compiler(text);
+    const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
+    const output = makeRuntimeStoryFromSource(text).story.ContinueMaximally();
+    return { errors: errorsOf(program), functions: functionSpans(program), output, warnings, tree: c.documents.tree(URI)! };
+  } finally {
+    warn.mockRestore();
+  }
+}
+
+interface Case {
+  /** The script: a function, then the story line it is called from. */
+  text: string;
+  /** The function's name and its first and last lines (its `end`). */
+  fn: [string, number, number];
+  output: string;
+  /** Its Luau, given to the official parser, and the script line the Luau's first line stands on. */
+  luau: string;
+  line?: number;
+}
+
+const CASES: Record<string, Case> = {
+  "#921 a function marked with an attribute list": {
+    text: "Value {g()}.\nfunction g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\n",
+    fn: ["g", 1, 7],
+    output: "Value 1.\n",
+    luau: "function g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\n",
+    line: 1,
+  },
+  "#921 an attribute list with an argument": {
+    text: 'Value {g()}.\nfunction g()\n  @[deprecated{ reason = "x" }]\n  local function f()\n    return 1\n  end\n  return f()\nend\n',
+    fn: ["g", 1, 7],
+    output: "Value 1.\n",
+    luau: 'function g()\n  @[deprecated{ reason = "x" }]\n  local function f()\n    return 1\n  end\n  return f()\nend\n',
+    line: 1,
+  },
+  "#1258 a semicolon inside a call's parentheses": {
+    text: "function f(t)\n  print(1;)\nend\nAfter.\n",
+    fn: ["f", 0, 2],
+    output: "After.\n",
+    luau: "function f(t)\n  print(1;)\nend\n",
+  },
+  "#1261 a table type field written as an assignment": {
+    text: "function f(t)\n  local x: {\n    bar\n    baz = 1 +\n  } = {}\n  2\nend\nAfter.\n",
+    fn: ["f", 0, 6],
+    output: "After.\n",
+    luau: "function f(t)\n  local x: {\n    bar\n    baz = 1 +\n  } = {}\n  2\nend\n",
+  },
+  "#1290 a stray closing parenthesis": {
+    text: "function f()\n  local a = 1\n  )\n  return 5\nend\nValue {f()}.\n",
+    fn: ["f", 0, 4],
+    output: "Value 5.\n",
+    luau: "function f()\n  local a = 1\n  )\n  return 5\nend\n",
+  },
+  "#1290 a stray closing bracket": {
+    text: "function f()\n  local a = 1\n  ]\n  return 5\nend\nValue {f()}.\n",
+    fn: ["f", 0, 4],
+    output: "Value 5.\n",
+    luau: "function f()\n  local a = 1\n  ]\n  return 5\nend\n",
+  },
+  "#1290 a stray closing brace": {
+    text: "function f()\n  local a = 1\n  }\n  return 5\nend\nValue {f()}.\n",
+    fn: ["f", 0, 4],
+    output: "Value 5.\n",
+    luau: "function f()\n  local a = 1\n  }\n  return 5\nend\n",
+  },
+  "#1290 a closing parenthesis after a semicolon": {
+    text: "function f()\n  local a = 1; )\n  return 5\nend\nValue {f()}.\n",
+    fn: ["f", 0, 3],
+    output: "Value 5.\n",
+    luau: "function f()\n  local a = 1; )\n  return 5\nend\n",
+  },
+  "#1318 export inside a function": {
+    text: "function f()\n  export local a = 1\n  return a\nend\n: {f()}\n",
+    fn: ["f", 0, 3],
+    output: "1\n",
+    luau: "function f()\n  export local a = 1\n  return a\nend\n",
+  },
+  "#1318 another language's operators": {
+    text: "function f(a, b)\n  local x = a && b\n  local y = a != b\n  return x\nend\n: {f(true, false)}\n",
+    fn: ["f", 0, 4],
+    output: "false\n",
+    luau: "function f(a, b)\n  local x = a && b\n  local y = a != b\n  return x\nend\n",
+  },
+  "#1370 a generic alias as an array element": {
+    text: "type Box<T> = {value: T}\nfunction f()\n  local x: {Box<number>} = {}\n  return 1\nend\nValue {f()}.\n",
+    fn: ["f", 1, 4],
+    output: "Value 1.\n",
+    luau: "type Box<T> = {value: T}\nfunction f()\n  local x: {Box<number>} = {}\n  return 1\nend\n",
+  },
+  "#1382 a line break inside typeof": {
+    text: "function f()\n  type T = typeof(1\n  )\n  return 1\nend\nValue {f()}.\n",
+    fn: ["f", 0, 4],
+    output: "Value 1.\n",
+    luau: "function f()\n  type T = typeof(1\n  )\n  return 1\nend\n",
+  },
+  "#1596 a then on its own line": {
+    text: "function f(c)\nthen\nend\nAfter.\n",
+    fn: ["f", 0, 2],
+    output: "After.\n",
+    luau: "function f(c)\nthen\nend\n",
+  },
+  "#1596 a then after an if expression's arm line": {
+    text: "function f(c)\nx = if c then 1 else 2\nthen 1\nend\nAfter.\n",
+    fn: ["f", 0, 3],
+    output: "After.\n",
+    luau: "function f(c)\nx = if c then 1 else 2\nthen 1\nend\n",
+  },
+  "#1596 a then glued after a closing parenthesis": {
+    text: "function f(c)\nx = (if c)then\nprint(x)\nend\nAfter.\n",
+    fn: ["f", 0, 3],
+    output: "After.\n",
+    luau: "function f(c)\nx = (if c)then\nprint(x)\nend\n",
+  },
+  "#1647 a multiline if expression after a block comment": {
+    text: "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
+    fn: ["f", 0, 5],
+    output: "Value 1.\n",
+    luau: "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\n",
+  },
+  "#1647 the same after return": {
+    text: "function f(c)\n  return --[[ c ]] if c then\n    1\n  else 2\nend\nValue {f(true)}.\n",
+    fn: ["f", 0, 4],
+    output: "Value 1.\n",
+    luau: "function f(c)\n  return --[[ c ]] if c then\n    1\n  else 2\nend\n",
+  },
+  "#1647 the same inside parentheses": {
+    text: "function f(c)\n  local x = (--[[ c ]] if c then\n    1\n  else 2)\n  return x\nend\nValue {f(true)}.\n",
+    fn: ["f", 0, 5],
+    output: "Value 1.\n",
+    luau: "function f(c)\n  local x = (--[[ c ]] if c then\n    1\n  else 2)\n  return x\nend\n",
+  },
+  "#1647 the same after an operator": {
+    text: "function f(c)\n  local x = 1 + --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
+    fn: ["f", 0, 5],
+    output: "Value 2.\n",
+    luau: "function f(c)\n  local x = 1 + --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\n",
+  },
+};
+
+describe("a function holding Luau the grammar has no rule for keeps its own end", () => {
+  for (const [name, c] of Object.entries(CASES)) {
+    it(name, () => {
+      const reading = read(c.text);
+      const [path, first, last] = c.fn;
+      expect(reading.functions.filter((f) => f.path === path)).toEqual([{ path, lines: [0, first, last] }]);
+      expect(reading.output).toBe(c.output);
+      expect(reading.errors).toEqual(officialErrors(c.luau, c.line));
+      expect(reading.warnings.filter((w) => w.includes("empty matches"))).toEqual([]);
+    });
+  }
+});
+
+describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
+  it("#1258 reports the missing parenthesis at the semicolon", () => {
+    expect(read(CASES["#1258 a semicolon inside a call's parentheses"]!.text).errors).toEqual([
+      "1:9-1:10 Expected ')' (to close '(' at column 8), got ';'",
+    ]);
+  });
+
+  it("#1261 reports the table type's error and Luau's cascade after it", () => {
+    expect(read(CASES["#1261 a table type field written as an assignment"]!.text).errors).toEqual([
+      "3:4-3:7 Expected '}' (to close '{' at line 2), got 'baz'",
+      "4:2-4:3 Expected identifier when parsing expression, got '}'",
+      "4:4-4:5 Expected identifier when parsing expression, got '='",
+      "5:2-5:3 Expected identifier when parsing expression, got '2'",
+    ]);
+  });
+
+  it("#1318 reports the export and the other language's operators", () => {
+    expect(read(CASES["#1318 export inside a function"]!.text).errors).toEqual([
+      "1:2-1:8 'export' may only be applied to top-level statements",
+    ]);
+    expect(read(CASES["#1318 another language's operators"]!.text).errors).toEqual([
+      "1:14-1:16 Unexpected '&&'; did you mean 'and'?",
+      "2:14-2:16 Unexpected '!='; did you mean '~='?",
+    ]);
+  });
+
+  it("#1596 reports a then no if owns once, and the statement Luau's recovery reads after it", () => {
+    expect(read(CASES["#1596 a then after an if expression's arm line"]!.text).errors).toEqual([
+      "2:0-2:4 Expected identifier when parsing expression, got 'then'",
+      "2:5-2:6 Expected identifier when parsing expression, got '1'",
+    ]);
+    expect(read(CASES["#1596 a then glued after a closing parenthesis"]!.text).errors).toEqual([
+      "1:9-1:10 Expected 'then' when parsing if then else expression, got ')'",
+      "3:0-3:3 Expected 'else' when parsing if then else expression, got 'end'",
+    ]);
+  });
+
+  it("a line in a function that is not Luau reports what Luau reports for it", () => {
+    const text = "function greet(n)\n  Hello there, friend.\n  return n\nend\nValue {greet(1)}.\n";
+    const reading = read(text);
+    expect(reading.errors).toEqual(officialErrors("function greet(n)\n  Hello there, friend.\n  return n\nend\n"));
+    expect(reading.errors).toEqual([
+      "1:2-1:7 Incomplete statement: expected assignment or a function call",
+      "2:2-2:8 Expected identifier, got 'return'",
+    ]);
+    expect(reading.functions).toEqual([{ path: "greet", lines: [0, 0, 3] }]);
+    expect(reading.output).toBe("Value 1.\n");
+  });
+});
+
+describe("the syntax tree holds the whole function", () => {
+  it("#921 reads the attribute list in the function's body, the `@` as unread", () => {
+    const { tree } = read(CASES["#921 a function marked with an attribute list"]!.text);
+    const top: string[] = [];
+    for (let node = tree.topNode.firstChild; node; node = node.nextSibling) top.push(node.name);
+    expect(top.filter((n) => n !== "Newline")).toEqual(["ImplicitAction", "LuauFunctionDefinition"]);
+    expect(errorNodes(tree)).toEqual([]);
+    const at = tree.topNode.resolveInner(CASES["#921 a function marked with an attribute list"]!.text.indexOf("@"), 1);
+    expect(at.name).toBe("LuauUnreadCharacter");
+  });
+
+  it("#1248 two calls on one line leave no unfinished node", () => {
+    for (const line of ["print(1) print(2)", 'greet "x" greet "y"']) {
+      const text = `function greet(x) end\nfunction f()\n  ${line}\nend\n`;
+      const reading = read(text);
+      expect(errorNodes(reading.tree), line).toEqual([]);
+      expect(reading.errors, line).toEqual([]);
+      expect(reading.functions.find((f) => f.path === "f"), line).toEqual({ path: "f", lines: [0, 1, 3] });
+    }
+  });
+
+  it("#1370 and #1382 read a .luau file's types with no syntax error", () => {
+    for (const source of [
+      "type Box<T> = {value: T}\nlocal x: {Box<number>}\n",
+      "type T = typeof(1\n)\n",
+      "type T = typeof(\n1)\n",
+      "type T = typeof(\n    1\n)\n",
+    ]) {
+      expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic), source).toEqual([]);
+      expect(official(source).diagnostics, source).toEqual([]);
+    }
+  });
+
+  it("#1647 gives the type checker the whole if expression", () => {
+    for (const name of Object.keys(CASES).filter((n) => n.startsWith("#1647"))) {
+      const text = CASES[name]!.text;
+      const c = compiler(text);
+      c.compile({ textDocument: { uri: URI } } as never);
+      const units = checkerTextUnits(c.documents.tree(URI)!, text);
+      expect([units.prelude, ...units.flows].flatMap((u) => officialSyntaxErrors(u.text)), name).toEqual([]);
+    }
+  });
+});
+
+describe("a body or bracket closes only at its closer, a beat or the end of the input", () => {
+  it("takes every token it cannot read, in every pure-Luau body and bracket", () => {
+    const bodies = [
+      "  if c then @ end",
+      "  while c do $ break end",
+      "  repeat ? until c",
+      "  do ! end",
+      "  local t = { 1 ? 2 }",
+      "  local s = tostring(1 ? 2)",
+      "  local v = t[1 ? 2]",
+    ];
+    for (const body of bodies) {
+      const luau = `function f(c, t)\n${body}\n  return 1\nend\n`;
+      const reading = read(`${luau}Value {f(true, {})}.\n`);
+      expect(reading.functions, body).toEqual([{ path: "f", lines: [0, 0, 3] }]);
+      expect(reading.output, body).toBe("Value 1.\n");
+      expect(reading.errors, body).toEqual(officialErrors(luau));
+      expect(reading.errors.length, body).toBeGreaterThan(0);
+    }
+  });
+
+  it("an unclosed bracket ends at the next scene, whose story plays", () => {
+    const text = "-> next\nfunction f()\n  print(\nscene next\n  Hello.\nend\n";
+    const reading = read(text);
+    const top: string[] = [];
+    for (let node = reading.tree.topNode.firstChild; node; node = node.nextSibling) if (node.name !== "Newline") top.push(node.name);
+    expect(top.slice(1, 3)).toEqual(["LuauFunctionDefinition", "Scene"]);
+    expect(reading.output).toBe("Hello.\n");
+  });
+
+  it("an end inside a bracket closes the bracket and the block the end belongs to", () => {
+    const reading = read("function f()\n  print(1\nend\nAfter.\n");
+    expect(reading.functions).toEqual([{ path: "f", lines: [0, 0, 2] }]);
+    expect(reading.output).toBe("After.\n");
+  });
+});
+
+describe("an edit keeps the errors a cold compile reports", () => {
+  it("a statement edited into Luau the grammar cannot read and back", () => {
+    let text = "function f()\n  Well, friend.\n  -- a comment\nend\n\nfunction g()\n  Hello there\nend\n";
+    const c = compiler(text);
+    c.compile({ textDocument: { uri: URI } } as never);
+    let version = 2;
+    for (const [before, after] of [
+      ["Well, friend.", "print(1)"],
+      ["print(1)", "print(1;)"],
+      ["print(1;)", "Well, friend."],
+      ["-- a comment", "-- changed"],
+      ["Hello there", "Hello @ there"],
+    ] as const) {
+      const offset = text.indexOf(before);
+      const lines = text.slice(0, offset).split("\n");
+      const start = { line: lines.length - 1, character: lines[lines.length - 1]!.length };
+      const end = { line: start.line, character: start.character + before.length };
+      c.updateDocument({ textDocument: { uri: URI, version: version++ }, contentChanges: [{ range: { start, end }, text: after }] } as never);
+      text = text.slice(0, offset) + after + text.slice(offset + before.length);
+      const incremental = errorsOf(c.compile({ textDocument: { uri: URI } } as never).program);
+      const cold = errorsOf(compiler(text).compile({ textDocument: { uri: URI } } as never).program);
+      expect(incremental, after).toEqual(cold);
+    }
+    // The last text: the unread `@` makes its line's errors Luau's cascade.
+    expect(errorsOf(c.compile({ textDocument: { uri: URI } } as never).program)).toEqual(officialErrors(text));
+  });
+});
