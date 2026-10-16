@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 96,
-  "previous": "5612f132f979cafdfc5a761c7ab0a1778f931933",
+  "seq": 97,
+  "previous": "35dacbd422e818297ad9ca50a8ef76faa9e1784a",
   "snapshotParents": [],
-  "time": "2026-10-16T00:55:35.405Z",
+  "time": "2026-10-16T00:57:20.873Z",
   "kind": "auto",
-  "transition": "the merge of PR #1912 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 74,
@@ -971,7 +971,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-16T00:55:34.210Z",
+      "observedAt": "2026-10-16T00:57:19.572Z",
       "held": true,
       "head": "8c3effbc01d165c9cc3a4be47e1ce8518380bce7",
       "remoteHead": "8c3effbc01d165c9cc3a4be47e1ce8518380bce7",
@@ -1107,7 +1107,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T00:55:34.210Z",
+      "observedAt": "2026-10-16T00:57:19.572Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1242,7 +1242,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T00:18:13.934Z",
+    "at": "2026-10-16T00:57:19.571Z",
     "tickets": [
       {
         "number": 1201,
@@ -1272,7 +1272,7 @@
         "number": 1611,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1632 (open), #1623 (open)"
+        "reason": "waiting for #1623 (open)"
       },
       {
         "number": 1613,
@@ -1282,15 +1282,15 @@
       },
       {
         "number": 1614,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1632 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1623,
-        "action": "wait-dependency",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "waiting for #1632 (open)"
+        "reason": "1 writers already hold tickets against a limit of 2"
       },
       {
         "number": 1627,
@@ -1306,9 +1306,9 @@
       },
       {
         "number": 1632,
-        "action": "observe",
-        "pr": 1912,
-        "reason": "process 50480 started 639277056231944010 is running"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 50480 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1638,
