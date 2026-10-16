@@ -7,8 +7,8 @@
 // record keeps only the intent, the observed outcome and the evidence.
 //
 // The gate checks what can be checked: authority, scope, review state from
-// the launcher's journals, published decisions, CI, and integration with the
-// current main. Whether a criterion's evidence really shows it is met is the
+// the launcher's journals, published decisions, CI on the head, main's own CI
+// and GitHub's merge state. Whether a criterion's evidence really shows it is met is the
 // coordinator's judgement; the helper only refuses a criterion without any.
 //
 //   node .agents/skills/orchestrate-feature/integration.mjs <command> --option value ...
@@ -33,6 +33,10 @@ export const TARGET = "main";
 // which passes whether its package jobs ran or were skipped. Branch
 // protection and rulesets may name more; the gate reads them on every run.
 export const REPOSITORY_GATES = ["test-suite"];
+// The workflow whose push runs on main are the integration check: a head is
+// admitted without containing the current main, so what shows the combination
+// that landed is main's own run after the merge, and a red main freezes merges.
+export const REPOSITORY_WORKFLOW = "Test Suite";
 const MERGEABLE = new Set(["CLEAN", "HAS_HOOKS"]);
 const OPEN = new Set(["intent", "uncertain"]);
 const SHA = /^[0-9a-f]{40}$/;
@@ -86,8 +90,23 @@ function ciBlockers(checks, required, head) {
   return out;
 }
 
+// Main's own CI, from its push runs newest first. The verdict is the latest
+// completed run that was not cancelled (a superseded run is cancelled by the
+// workflow's concurrency and says nothing): green, red, or none when no such
+// run exists or main's runs could not be read. A pending run on the newest
+// main does not hold the gate; a red main does, until it is fixed or
+// reverted and the next run is green.
+export function mainVerdict(runs) {
+  if (!Array.isArray(runs)) return { verdict: "none", reason: typeof runs === "string" ? runs : "main's workflow runs could not be read" };
+  const sorted = [...runs].sort((a, b) => (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0));
+  const decided = sorted.find((r) => String(r.status).toLowerCase() === "completed" && !["cancelled", "skipped"].includes(String(r.conclusion).toLowerCase()));
+  if (!decided) return { verdict: "none", reason: sorted.length ? `no completed, uncancelled push run of ${REPOSITORY_WORKFLOW} on ${TARGET}` : `no push run of ${REPOSITORY_WORKFLOW} on ${TARGET}` };
+  const green = PASSED.has(String(decided.conclusion).toUpperCase());
+  return { verdict: green ? "green" : "red", head: decided.headSha ?? null, run: decided.id ?? null, conclusion: decided.conclusion ?? null, url: decided.url ?? null };
+}
+
 const MERGE_STATES = {
-  BEHIND: "GitHub reports the branch behind main (BEHIND); merge main into it and let CI run on the new head",
+  BEHIND: "GitHub reports the branch behind main (BEHIND), so the branch protection requires an up-to-date branch; merge main into it and let CI run on the new head",
   BLOCKED: "GitHub reports the merge blocked (BLOCKED): a required review, check or rule of the branch protection is unmet, and it is never bypassed",
   DIRTY: "GitHub reports merge conflicts with main (DIRTY)",
   UNSTABLE: "GitHub reports a failing check (UNSTABLE)",
@@ -99,15 +118,21 @@ const mergeStateBlocker = (s) => MERGE_STATES[s] ?? `GitHub has not settled whet
 
 // Everything the gate decides on, read afresh: the PR as GitHub shows it, the
 // branch's protection, the PR's comments, the review journals on this
-// machine, and, read last so the slower reads cannot outdate it, main as the
-// remote holds it with the chain of clean main merges at the branch's head.
+// machine, main's own push runs, and, read last so the slower reads cannot
+// outdate it, main as the remote holds it with the chain of clean main merges
+// at the branch's head and the main commit the head's CI covered (the
+// merge base of the head and main, which is main itself when the head
+// contains it).
 export function gatherFacts({ record, pr, client, git }) {
   const pull = client.pull(pr);
   const protection = client.protection(TARGET), comments = client.comments(pr);
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
+  let mainRuns;
+  try { mainRuns = client.mainRuns(TARGET); } catch (error) { mainRuns = `${TARGET}'s workflow runs could not be read: ${String(error.stderr || error.message).trim().split("\n")[0]}`; }
   git.fetch(pr);
   const originMain = git.main();
-  return { pull, originMain, protection, comments, state, chain: git.cleanChain(pull.head, originMain), containsMain: git.isAncestor(originMain, pull.head) };
+  const containsMain = git.isAncestor(originMain, pull.head);
+  return { pull, originMain, protection, comments, state, mainRuns, chain: git.cleanChain(pull.head, originMain), containsMain, ciMain: containsMain ? originMain : git.mergeBase(pull.head, originMain) };
 }
 
 // An acceptance applies to the head, or to a commit the head reaches through
@@ -122,7 +147,7 @@ function acceptanceOn(decisions, chain) {
 // The merge gate. It admits the PR's current head only when every condition
 // holds, and otherwise names each one that fails; it never changes anything.
 export function admission(record, { ticket: number, pr, snapshot, facts, git, running = null }) {
-  const { pull, state, comments, originMain, chain, protection } = facts;
+  const { pull, state, comments, originMain, chain, protection, ciMain, containsMain } = facts;
   const head = pull.head, blockers = [];
   // Authority: the invocation granted the merge, did not stop at ready, and
   // the coordinator never wrote for this ticket.
@@ -189,9 +214,12 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   const required = [...new Set([...REPOSITORY_GATES, ...protection.required])];
   const checks = classifyChecks(pull.checks, required);
   blockers.push(...ciBlockers(checks, required, head));
-  // Integration: the head contains main as it is now, so CI checked the code
-  // that would land, and GitHub's own merge state agrees.
-  if (!facts.containsMain) blockers.push(`${TARGET} has moved to ${originMain}, which head ${head} does not contain; merge ${TARGET} into the branch and let CI run on the new head, so the merged code is the code that was checked`);
+  // Integration: GitHub's own merge state admits the head, and main's own CI
+  // is not red. The head need not contain the current main: its CI covered
+  // the code as of ciMain, and main's push run after the merge checks the
+  // combination that lands, which the outcome and the final report name.
+  const mainCi = mainVerdict(facts.mainRuns);
+  if (mainCi.verdict === "red") blockers.push(`${TARGET}'s own CI is red: the latest completed push run of ${REPOSITORY_WORKFLOW} on ${TARGET} concluded ${mainCi.conclusion} at ${mainCi.head ?? "an unknown commit"}${mainCi.url ? ` (${mainCi.url})` : ""}; no merge lands on a red ${TARGET}, so fix or revert it and let its run go green first`);
   if (pull.mergeable === "CONFLICTING") blockers.push(`PR #${pr} conflicts with ${TARGET}`);
   if (!MERGEABLE.has(pull.mergeState)) blockers.push(mergeStateBlocker(pull.mergeState));
   if (protection.mergeQueue) blockers.push(`${TARGET} requires a merge queue, which this gate does not drive; the maintainer merges`);
@@ -200,11 +228,12 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
     ticket: number, pr, head, base: pull.base, originMain, admitted: unique.length === 0,
     disposition, reviewedHead: e.reviewedHead, completedRound: e.completedRound, ...(acceptance && { acceptance }),
     mergedSince: covered ? chain.slice(0, chain.indexOf(covered)) : [],
+    ciMain, containsMain, mainCi,
     checks, required, requiredFrom: protection.source, blockers: unique,
   };
 }
 
-const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.reviewedHead, completedRound: g.completedRound, ...(g.acceptance && { acceptance: g.acceptance }), mergedSince: g.mergedSince, originMain: g.originMain, checks: g.checks.map(({ name, workflow, result }) => ({ name, workflow, result })) });
+const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.reviewedHead, completedRound: g.completedRound, ...(g.acceptance && { acceptance: g.acceptance }), mergedSince: g.mergedSince, originMain: g.originMain, ciMain: g.ciMain, containsMain: g.containsMain, mainCi: g.mainCi, checks: g.checks.map(({ name, workflow, result }) => ({ name, workflow, result })) });
 
 // --- The final gate ----------------------------------------------------------
 
@@ -263,8 +292,8 @@ export function finalGate({ current, opId, ownership, takeSnapshot, premises, re
 // makes GitHub refuse it. The outcome is what GitHub reads back afterwards,
 // never what the call said: an unreadable or contradictory result is
 // uncertain and is settled by reconcile-operations before any retry. A merge
-// commit whose first parent is not the main the gate admitted landed on code
-// CI never checked, and the outcome says so.
+// commit whose first parent is not the main the head's CI covered landed a
+// combination CI never checked, and the outcome says so.
 export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
@@ -308,7 +337,7 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
     try { git.fetch(); onMain = git.isAncestor(back.mergeCommit, git.main()); } catch (error) { onMain = null; readError = error.message; }
     merged = { ...landing({ gate: gateSummary(gate) }, back.mergeCommit, git.firstParent), onMain };
     state = "confirmed";
-    evidence = `PR #${pr} reads back merged as ${back.mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : `; whether it is on origin/${TARGET} could not be read (${readError})`}${landingText(merged, gate.originMain)}`;
+    evidence = `PR #${pr} reads back merged as ${back.mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : `; whether it is on origin/${TARGET} could not be read (${readError})`}${landingText(merged, gate.ciMain)}`;
   } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
   // A merge that was called is failed only on GitHub's own refusal; every
   // other result short of a confirmed merge is uncertain until reconciled.
@@ -345,7 +374,7 @@ export function finalReport(record, snapshot, v) {
       : !s.gate ? `merged as \`${short(s.mergeCommit)}\` outside this run's merge gate (by the maintainer or before this run merged)`
       : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
-    const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, not the admitted \`${short(s.gate.originMain)}\`, so CI never ran on that combination` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
+    const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, while its CI covered ${TARGET} \`${short(s.gate.ciMain ?? s.gate.originMain)}\`, so CI never ran on that combination before ${TARGET}'s own run` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
     return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? `#${s.pr}` : ""} | ${(how + landed).replace(/\|/g, "/")} |`;
   });
   const accepted = acceptances(record, snapshot);
@@ -534,6 +563,8 @@ export function integrationClient(repository, checkout) {
       sources.push("rulesets");
       return { required: [...required], mergeQueue, source: sources.join("; ") };
     },
+    // Main's push runs of the Test Suite workflow, newest first.
+    mainRuns: (branch) => JSON.parse(run(["run", "list", "--repo", repository, "--workflow", REPOSITORY_WORKFLOW, "--branch", branch, "--event", "push", "--limit", "10", "--json", "databaseId,headSha,status,conclusion,createdAt,url"])).map((r) => ({ id: r.databaseId, headSha: r.headSha, status: r.status, conclusion: r.conclusion, createdAt: r.createdAt, url: r.url })),
     merge: (pr, head) => {
       const r = spawnSync("gh", mergeArgs(repository, pr, head), { cwd: checkout, encoding: "utf8", windowsHide: true, timeout: 120000 });
       if (r.error) throw r.error;
@@ -556,6 +587,7 @@ export function integrationGit(checkout, { fetch, main } = {}) {
   return {
     ...localGit(checkout, { fetch, base: main }), fetch, main, isAncestor,
     firstParent: (sha) => git("rev-parse", `${sha}^1`),
+    mergeBase: (a, b) => git("merge-base", a, b),
     // The head, then each first parent reached through a clean merge of the
     // target: two parents, the second on the target, and an empty remerge
     // diff, so the merge changed nothing a clean merge would not.
