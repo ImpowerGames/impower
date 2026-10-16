@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 92,
-  "previous": "fd6b65c8a64ef35805f4fc9cbf383d259da823f5",
+  "seq": 93,
+  "previous": "2a7adf369edb56920d5fca0c81215f14649d0ebc",
   "snapshotParents": [],
-  "time": "2026-10-16T00:18:14.932Z",
+  "time": "2026-10-16T00:18:44.884Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 70,
+    "recordRevision": 71,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -783,7 +783,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1632-chunk-validity-dependencies",
       "branch": "fix/1632-chunk-validity-dependencies",
-      "observedAt": "2026-10-16T00:18:13.935Z",
+      "observedAt": "2026-10-16T00:18:43.903Z",
       "held": true,
       "head": "58391f0960c9678e5bd244ca1bf4ebad1403eec2",
       "remoteHead": "58391f0960c9678e5bd244ca1bf4ebad1403eec2",
@@ -919,7 +919,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T00:18:13.935Z",
+      "observedAt": "2026-10-16T00:18:43.903Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1622,6 +1622,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1632-2ac8e804-2312-40b6-9318-b122cc1b3575"
       }
+    },
+    {
+      "time": "2026-10-16T00:18:42.503Z",
+      "event": "check-in",
+      "outcome": "no change: #1632 writer re-merged main 6692a9a onto PR 1912 (head 58391f096), CI shard 1/4 pending; PR 1915 ready and held behind #1914 and #1916 per the merge queue agreed with ORCH #1895; main unchanged since 6692a9a"
     }
   ]
 }
