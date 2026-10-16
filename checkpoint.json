@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 23,
-  "previous": "d0def31e9479ec9f4298aa3a25ef7cad16bb97d0",
+  "seq": 24,
+  "previous": "814f96561d3b077d28007f521b49f1c4778672f6",
   "snapshotParents": [],
-  "time": "2026-10-16T21:54:12.993Z",
+  "time": "2026-10-16T21:54:34.864Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 23,
+    "recordRevision": 24,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -815,7 +815,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1962-repos-file-public-guard",
       "branch": "feat/1962-repos-file-public-guard",
-      "observedAt": "2026-10-16T21:54:11.950Z",
+      "observedAt": "2026-10-16T21:54:33.850Z",
       "held": true,
       "head": "5415ccea549dc6631fed6412162345fa6af13210",
       "remoteHead": "5415ccea549dc6631fed6412162345fa6af13210",
@@ -1288,6 +1288,11 @@
       "ticket": 1962,
       "id": "03777fe0",
       "deliveryId": "12623c39"
+    },
+    {
+      "time": "2026-10-16T21:54:32.062Z",
+      "event": "check-in",
+      "outcome": "no change: #1962 writer resumed and running (pid 31640), PR #1975 head 5415ccea5, round 4 launched with one undirected reviewer under decision 0538d010; CI green except the Windows driver check in progress"
     }
   ]
 }
