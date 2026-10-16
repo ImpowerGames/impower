@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
+import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf } from "./programHarness";
 
 afterEach(() => {
@@ -48,5 +49,16 @@ describe("a global declaration with no value", () => {
     expect(line).toBe(2);
     expect(message).toContain("`orphan`");
     expect(message).not.toContain("The compile stopped");
+
+    // The story runs, initializes `x` and leaves `orphan` uninitialized.
+    const story = new ProgramStory(program.chunks!);
+    const runtimeErrors: string[] = [];
+    story.onError = (m: string) => runtimeErrors.push(m);
+    story.ContinueMaximally();
+    expect(runtimeErrors).toEqual([]);
+    expect(story.variablesState.GetVariableWithName("x")?.valueObject).toBe(1);
+    expect(story.variablesState.GetVariableWithName("orphan") == null).toBe(
+      true,
+    );
   });
 });
