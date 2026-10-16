@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 247,
-  "previous": "03aac5594a8da46db9db08b3f63d1fc29a57c819",
+  "seq": 248,
+  "previous": "ac0635e03f73cac7376135bb6a7b32dc7be45f48",
   "snapshotParents": [],
-  "time": "2026-10-16T15:45:55.124Z",
+  "time": "2026-10-16T15:48:55.668Z",
   "kind": "auto",
-  "transition": "release of #887",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 208,
@@ -3731,7 +3731,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:45:53.570Z",
+      "observedAt": "2026-10-16T15:48:53.826Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3979,7 +3979,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:45:53.570Z",
+      "observedAt": "2026-10-16T15:48:53.826Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4123,7 +4123,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T15:45:42.939Z",
+    "at": "2026-10-16T15:48:53.824Z",
     "tickets": [
       {
         "number": 316,
@@ -4133,9 +4133,9 @@
       },
       {
         "number": 454,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1929,
-        "reason": "process 55476 started 639277621309918460 is running"
+        "reason": "PR #1929 is ready at 5af99acef3f333d0cb5891bd50402faf19ada517; process 55476 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 457,
@@ -4151,9 +4151,9 @@
       },
       {
         "number": 887,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 45104 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1103,
