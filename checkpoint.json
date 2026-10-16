@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 162,
-  "previous": "4d9b8640bfeb06696db34b7341916dba03c81614",
+  "seq": 163,
+  "previous": "9eef7d3b93ee2e68e37d197f548014fb19eca1c7",
   "snapshotParents": [],
-  "time": "2026-10-16T06:23:12.672Z",
+  "time": "2026-10-16T06:24:50.525Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1930 (confirmed)",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 119,
+    "recordRevision": 120,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1656,9 +1656,9 @@
       "ticket": 1627,
       "pr": 1930,
       "expectHead": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T06:23:10.543Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1930 reads back merged as 2d5f7cc10e55da6f2fba81c289da7513cac8a095 at e58e9a9329d96925ff3e5fde608cfc65d1124add; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
@@ -1829,7 +1829,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T06:24:48.428Z",
+      "mergeCommit": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
+      "mergedOnto": "8a191abf4a4181c8fbb476923aa82fe6cf304689",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [],
@@ -1992,7 +1997,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T06:23:11.856Z",
+      "observedAt": "2026-10-16T06:24:49.755Z",
       "held": true,
       "head": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
       "remoteHead": "e58e9a9329d96925ff3e5fde608cfc65d1124add",
@@ -2222,11 +2227,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:20.960Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1805-remove-lists-scope"
-    },
     {
       "time": "2026-10-15T22:18:29.650Z",
       "event": "disk-recovery",
@@ -2911,6 +2911,12 @@
       "id": "05213532",
       "kind": "merge",
       "pr": 1930
+    },
+    {
+      "time": "2026-10-16T06:24:48.428Z",
+      "event": "operation-outcome",
+      "id": "05213532",
+      "state": "confirmed"
     }
   ]
 }
