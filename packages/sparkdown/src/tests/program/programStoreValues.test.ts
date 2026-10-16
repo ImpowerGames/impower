@@ -72,7 +72,7 @@ describe("a store with more names than values", () => {
     const { program } = compileScript("store a, b = ...\n\nValue {a} and {b}.\n");
     expect(errorsOf(program)).toContainEqual([
       0,
-      "A `store` takes one value for each name: `...` gives a store only its first value",
+      "A `store` is set when the story starts, outside any function, where `...` has no values: give each name its own value, or call a function that returns them",
     ]);
   });
 

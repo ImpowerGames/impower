@@ -154,7 +154,9 @@ describe("a compile whose statement throws", () => {
       'function fail()\n  error("bad")\n  return 1, 2\nend\nfunction holder()\n  store c = 1\n  store a, b = fail()\n  store d = 2\n  return 0\nend\nHello.\n',
     );
     expect(program.chunks).toBeUndefined();
-    expect(errorsOf(program).map(([line]) => line)).toEqual([6]);
+    const errors = errorsOf(program);
+    expect(errors.map(([line]) => line)).toEqual([6]);
+    expect(errors[0]![1]).toMatch(/^The compile stopped at this statement, so no program was made: .*bad/);
   });
 
   it("reports a store after such a store at its own line", () => {
@@ -163,7 +165,11 @@ describe("a compile whose statement throws", () => {
       "function pair()\n  return 3, 4\nend\nfunction holder()\n  store a, b = pair()\n  store c = 1 // nil\n  return 0\nend\nHello.\n",
     );
     expect(program.chunks).toBeUndefined();
-    expect(errorsOf(program).map(([line]) => line)).toEqual([5]);
+    const errors = errorsOf(program);
+    expect(errors.map(([line]) => line)).toEqual([5]);
+    expect(errors[0]![1]).toMatch(
+      /^The compile stopped at this statement, so no program was made: .*perform \/\/ on a nil value/,
+    );
   });
 
   it("reports a store whose error reads like a diagnostic the compile leaves out", () => {
