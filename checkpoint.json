@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 101,
-  "previous": "0be1a9e905662afb5cbcae469061c9bc0669f7df",
+  "seq": 102,
+  "previous": "89a36286ea3950f67f093a04f84424ae20047380",
   "snapshotParents": [],
-  "time": "2026-10-16T01:00:00.832Z",
+  "time": "2026-10-16T01:00:09.416Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1614",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 76,
+    "recordRevision": 77,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -261,6 +261,25 @@
           "time": "2026-10-15T22:52:47.181Z"
         }
       ],
+      "results": []
+    },
+    "1614": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "7c11b706-71c6-420e-926d-8e14cbb1b6e2",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
+        "branch": "fix/1614-parser-restart-zero-width",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T01:00:07.312Z"
+      },
+      "history": [],
       "results": []
     },
     "1623": {
@@ -991,12 +1010,21 @@
   ],
   "verifications": [],
   "work": {
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width": {
+      "ticket": 1614,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
+      "branch": "fix/1614-parser-restart-zero-width",
+      "observedAt": "2026-10-16T01:00:08.721Z",
+      "held": true,
+      "exists": false
+    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment": {
       "ticket": 1623,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T00:59:59.979Z",
+      "observedAt": "2026-10-16T01:00:08.721Z",
       "held": true,
       "exists": false
     },
@@ -1005,7 +1033,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T00:59:59.979Z",
+      "observedAt": "2026-10-16T01:00:08.721Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1744,6 +1772,13 @@
       "ticket": 1623,
       "route": "claude-cli",
       "launchId": "e5b583ab-32cc-45f0-a078-087926aa6f19"
+    },
+    {
+      "time": "2026-10-16T01:00:07.313Z",
+      "event": "dispatch-intent",
+      "ticket": 1614,
+      "route": "claude-cli",
+      "launchId": "7c11b706-71c6-420e-926d-8e14cbb1b6e2"
     }
   ]
 }
