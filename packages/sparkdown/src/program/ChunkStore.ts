@@ -41,7 +41,8 @@ import {
   StatementMemoRetry,
   type StatementMemoEntry,
 } from "../compiler/lower/statementMemo";
-import { UnsupportedConstruct } from "./ProgramEmitter";
+import { MemoizedStatementNeeded } from "../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
+import { StatementFailure, UnsupportedConstruct } from "./ProgramEmitter";
 import { ProgramStory } from "./ProgramStory";
 import {
   ChunkTable,
@@ -229,6 +230,35 @@ export interface UnsupportedConstructSite {
   uri: string;
   /** The line of the statement that holds it, counting from 0. */
   line: number;
+}
+
+/** What a statement's emit threw, other than a construct it has no emit path
+ *  for, as the build rethrows it: a memo the compile lowers again as it is,
+ *  and any other error with the statement it came from. */
+const emitFailure = (
+  e: unknown,
+  uri: string,
+  statement: StatementSource,
+): unknown =>
+  e instanceof MemoizedStatementNeeded ||
+  e instanceof StatementMemoRetry ||
+  e instanceof StatementFailure
+    ? e
+    : new StatementFailure(uri, statement.firstLine, e, lastLineOf(statement));
+
+/** A statement's last line, counting from 0: its source range's, or its first
+ *  line when it has no range. */
+const lastLineOf = (statement: StatementSource): number =>
+  statement.range
+    ? Math.max(statement.firstLine, statement.range.endLineNumber - 1)
+    : statement.firstLine;
+
+/** Where an issue the declarations' run raised stands: a script, and the
+ *  first and last line, counting from 0, of the code it is reported over. */
+interface DeclarationSite {
+  uri: string;
+  line: number;
+  endLine: number;
 }
 
 /** What one build of the program did. */
@@ -919,7 +949,7 @@ export class ChunkStore {
           );
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
-            throw e;
+            throw emitFailure(e, declaration.uri, declaration);
           }
           coverage.unsupported[e.construct] =
             (coverage.unsupported[e.construct] ?? 0) + 1;
@@ -1102,13 +1132,42 @@ export class ChunkStore {
     // program, as a story's reset raising it did.
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
-      const raised = this.runDeclarations(root);
+      // An issue the run raises stands at the global whose value raised it,
+      // even inside a function that value calls, at that global's own lines. A declaration chunk holds every global its statement declares,
+      // the stores inside a function body included.
+      const sources = new Map<number, DeclarationSource>();
+      for (const list of byScript.values()) {
+        for (const { source, chunk } of list) {
+          sources.set(chunkId(chunk), source);
+        }
+      }
+      const failure = this.runDeclarations(root, (chunk, globalIndex) => {
+        const source = sources.get(chunk);
+        if (!source) {
+          return undefined;
+        }
+        const global = source.globals[globalIndex];
+        const metadata = global?.assignment.debugMetadata;
+        if (!metadata) {
+          return { uri: source.uri, line: source.firstLine, endLine: lastLineOf(source) };
+        }
+        const line = metadata.startLineNumber - 1;
+        return { uri: source.uri, line, endLine: Math.max(line, metadata.endLineNumber - 1) };
+      });
       // A preview's run leaves the next compile's decision as it was.
       if (commit) {
-        this._declarationsFailed = raised !== null;
+        this._declarationsFailed = failure !== null;
       }
-      if (raised) {
-        throw raised;
+      if (failure) {
+        const { error, site } = failure;
+        if (site) {
+          throw new StatementFailure(site.uri, site.line, error, site.endLine);
+        }
+        const at =
+          error instanceof StoryException && error.raisedAddress !== null
+            ? root.locationOf(error.raisedAddress)
+            : undefined;
+        throw at ? new StatementFailure(at.uri, at.startLine, error) : error;
       }
     }
     if (commit) {
@@ -1413,16 +1472,36 @@ export class ChunkStore {
   }
 
   /** Runs a root's declarations on a new engine, and returns the error one
-   *  of them raised, or null when they ran without one. */
-  protected runDeclarations(root: ProgramRoot): StoryException | null {
+   *  of them raised or threw, with where `locate` placed the issue it
+   *  reports (the first error, or with none the first warning, as the
+   *  engine reports them), or null when they ran without one. Any other
+   *  throw is rethrown. */
+  protected runDeclarations(
+    root: ProgramRoot,
+    locate: (
+      declarationChunk: number,
+      globalIndex: number,
+    ) => DeclarationSite | undefined,
+  ): { error: unknown; site: DeclarationSite | undefined } | null {
+    // Where the first error and the first warning were raised.
+    let error: { site: DeclarationSite | undefined } | undefined;
+    let warning: { site: DeclarationSite | undefined } | undefined;
     try {
-      new ProgramStory(root);
+      new ProgramStory(root, {
+        onDeclarationIssue: (chunk, isWarning, globalIndex) => {
+          if (isWarning) {
+            warning ??= { site: locate(chunk, globalIndex) };
+          } else {
+            error ??= { site: locate(chunk, globalIndex) };
+          }
+        },
+      });
       return null;
-    } catch (e) {
-      if (e instanceof StoryException) {
-        return e;
+    } catch (thrown) {
+      if (thrown instanceof StoryException || error || warning) {
+        return { error: thrown, site: (error ?? warning)?.site };
       }
-      throw e;
+      throw thrown;
     }
   }
 
@@ -1923,7 +2002,7 @@ export class ChunkStore {
           chunk = this.emit(statement, (input) => this._writer.write(input));
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
-            throw e;
+            throw emitFailure(e, home.uri, statement);
           }
           build.coverage.unsupported[e.construct] =
             (build.coverage.unsupported[e.construct] ?? 0) + 1;

@@ -129,6 +129,7 @@ import {
 } from "../../program/ProgramResolver";
 import type { ProgramStoryTables } from "../../program/ProgramRoot";
 import type { UnsupportedConstructSite } from "../../program/ChunkStore";
+import { StatementFailure } from "../../program/ProgramEmitter";
 import { unsupportedConstructMessage } from "../utils/unsupportedConstructMessage";
 import { MemoizedStatementNeeded, memoOf } from "../../inkjs/compiler/Parser/ParsedHierarchy/MemoizedStatement";
 import {
@@ -1456,6 +1457,30 @@ export class SparkdownCompiler {
         // compile that still meets one has met a defect: it is reported as
         // a compile that threw.
         console.error(memoRetry);
+        const program = result.program;
+        this.reportCompileThrow(
+          memoRetry,
+          result.textDocument.uri,
+          program,
+          (message, _type, source) => {
+            const diagnosticUri = source?.filePath || result.textDocument.uri;
+            const diagnostic = source
+              ? this.getDiagnostic(
+                  message,
+                  DiagnosticSeverity.Error,
+                  diagnosticUri,
+                  source.startLineNumber - 1,
+                  source.startCharacterNumber - 1,
+                  source.endLineNumber - 1,
+                  source.endCharacterNumber - 1,
+                )
+              : null;
+            if (diagnostic) {
+              program.diagnostics ??= {};
+              (program.diagnostics[diagnosticUri] ??= []).push(diagnostic);
+            }
+          },
+        );
         return result;
       }
       this.relowerMemos(memoRetry, attempt > 0);
@@ -1554,7 +1579,11 @@ export class SparkdownCompiler {
       // lowered to a global `store`; now that `const` lowers to a
       // real `ConstantDeclaration`, that diagnostic no longer fires
       // spuriously.)
-      if (/A temp named `\w+` already exists on null/.test(message)) {
+      if (
+        /^Duplicate identifier `\w+`\. A temp named `\w+` already exists on null/.test(
+          message,
+        )
+      ) {
         return;
       }
       // Fall back to the document URI when the diagnostic source
@@ -1663,6 +1692,8 @@ export class SparkdownCompiler {
     // nothing but a full re-plan.
     this._changeHazard = false;
     let compileThrew = false;
+    // What the compile threw, reported once the validators have run.
+    let thrown: unknown;
     // What this compile compares with the compile before and records for
     // the next one, which an attempt that meets a statement memo it cannot
     // compile from (`StatementMemoRetry`) puts back, so that the attempt
@@ -1939,6 +1970,7 @@ export class SparkdownCompiler {
       this._prevFlowRuns = this._nextFlowRuns;
     } catch (e) {
       compileThrew = true;
+      thrown = e;
       if (restoreWatch !== undefined) {
         watchStatements(restoreWatch);
       }
@@ -1994,7 +2026,8 @@ export class SparkdownCompiler {
       ]) {
         profile("end", this._profilerId, phase, uri);
       }
-      console.error(e);
+      // What threw, without the statement the build wrapped it with.
+      console.error(e instanceof StatementFailure ? e.error : e);
       // A threw compile can leave carried parsed/runtime state half-mutated;
       // drop all reuse records so the next compile rebuilds from scratch.
       this._prevFlowRuns = undefined;
@@ -2036,6 +2069,11 @@ export class SparkdownCompiler {
     if (this._unsupported) {
       this.reportUnsupportedConstruct(this._unsupported, program, onDiagnostic);
       this._unsupported = undefined;
+    }
+    // A compile that threw makes no program, and says so at the statement
+    // that threw.
+    if (compileThrew) {
+      this.reportCompileThrow(thrown, uri, program, onDiagnostic);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -3900,15 +3938,60 @@ export class SparkdownCompiler {
     if (reported) {
       return;
     }
-    const text =
-      this.documents.get(unsupported.uri)?.getText().split("\n")[line] ?? "";
-    onDiagnostic(message, ErrorType.Error, {
-      filePath: unsupported.uri,
+    onDiagnostic(message, ErrorType.Error, this.lineSource(unsupported.uri, line));
+  }
+
+  /** Reports a throw the compile caught as an error over the line of the
+   *  statement whose emit or run threw (`StatementFailure`), or over the first
+   *  line of the compiled script when no statement is known. */
+  protected reportCompileThrow(
+    e: unknown,
+    uri: string,
+    program: SparkProgram,
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+    ) => void,
+  ): void {
+    const site = e instanceof StatementFailure ? e : undefined;
+    // A statement the compile already reported an error in is in error for
+    // that reason, as `reportUnsupportedConstruct` reads it: a malformed
+    // `store` value cannot run. An error elsewhere in the script says nothing
+    // about it.
+    if (
+      site &&
+      program.diagnostics?.[site.uri]?.some(
+        (d) =>
+          d.severity === DiagnosticSeverity.Error &&
+          d.range.start.line >= site.line &&
+          d.range.start.line <= site.endLine,
+      )
+    ) {
+      return;
+    }
+    const cause = site ? site.error : e;
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    onDiagnostic(
+      `The compile stopped ${site ? "at this statement" : "in this script"}, so no program was made: ${detail}`,
+      ErrorType.Error,
+      this.lineSource(site?.uri ?? uri, site?.line ?? 0),
+    );
+  }
+
+  /** The source of a line's text, its indentation and trailing space left
+   *  out, or the whole line when it holds only spacing, whose trimmed range
+   *  would end before it starts and be dropped (`getDiagnostic`). */
+  protected lineSource(uri: string, line: number): SourceMetadata {
+    const text = this.documents.get(uri)?.getText().split("\n")[line] ?? "";
+    const blank = text.trim() === "";
+    return {
+      filePath: uri,
       startLineNumber: line + 1,
-      startCharacterNumber: 1 + (text.length - text.trimStart().length),
+      startCharacterNumber: blank ? 1 : 1 + (text.length - text.trimStart().length),
       endLineNumber: line + 1,
-      endCharacterNumber: 1 + text.trimEnd().length,
-    } as SourceMetadata);
+      endCharacterNumber: 1 + (blank ? text.length : text.trimEnd().length),
+    } as SourceMetadata;
   }
 
   /** The chunk store of the compiler. */

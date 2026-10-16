@@ -481,6 +481,9 @@ export class ProgramResolver {
   // read, the candidates whose generation or resolution is running, and the
   // names it found declared otherwise.
   protected _candidates: ReadonlyMap<ParsedObject, MemoCandidate> | null = null;
+  // The block statements among the candidates that hold each object of the
+  // statements of their bodies (`MemoCandidate.nested`).
+  protected _owners = new Map<ParsedObject, MemoCandidate[]>();
   protected _tallies = new Map<StatementMemoEntry, MemoTally>();
   protected _frames: { obj: ParsedObject; tally: MemoTally; generated: boolean }[] = [];
   protected _staleMemos = new Set<StatementMemoEntry>();
@@ -683,6 +686,7 @@ export class ProgramResolver {
     this._buffer = [];
     this._flows = new Map();
     this._candidates = input.memoCandidates ?? null;
+    this._owners = ProgramResolver.ownersOf(this._candidates);
     this._tallies = new Map();
     this._frames = [];
     this._staleMemos = new Set();
@@ -1015,6 +1019,7 @@ export class ProgramResolver {
       }
     }
     this._candidates = null;
+    this._owners = new Map();
     this._tallies = new Map();
     this._frames = [];
 
@@ -1960,6 +1965,25 @@ export class ProgramResolver {
     return undefined;
   }
 
+  /** The block statements among `candidates` that hold each object of the
+   *  statements of their bodies, at any depth. */
+  protected static ownersOf(
+    candidates: ReadonlyMap<ParsedObject, MemoCandidate> | null,
+  ): Map<ParsedObject, MemoCandidate[]> {
+    const owners = new Map<ParsedObject, MemoCandidate[]>();
+    for (const candidate of new Set(candidates?.values() ?? [])) {
+      for (const obj of candidate.nested ?? []) {
+        let list = owners.get(obj);
+        if (!list) {
+          list = [];
+          owners.set(obj, list);
+        }
+        list.push(candidate);
+      }
+    }
+    return owners;
+  }
+
   protected tallyOf(candidate: MemoCandidate): MemoTally {
     let tally = this._tallies.get(candidate.entry);
     if (!tally) {
@@ -2310,8 +2334,13 @@ export class ProgramResolver {
     declaredLocals: (obj) => this._locals.get(obj),
     unplaced: (obj) => this._unplaced.get(obj),
     left: (obj, generated) => {
-      const frame = this._frames[this._frames.length - 1];
-      if (frame && frame.obj === obj && frame.generated === generated) {
+      // The statement's frame, and those of the block statements holding it
+      // that it opened (`visited`).
+      for (
+        let frame = this._frames[this._frames.length - 1];
+        frame && frame.obj === obj && frame.generated === generated;
+        frame = this._frames[this._frames.length - 1]
+      ) {
         this._frames.pop();
       }
     },
@@ -2352,7 +2381,19 @@ export class ProgramResolver {
       return this._globalWrites.has(name);
     },
     visited: (obj, generated) => {
+      // A block statement whose lowering places the objects of its bodies'
+      // statements beside its own rather than inside them (a `do` block,
+      // #1846) is not running while they are: its frame opens across each,
+      // so its memo reports and reads what they report and read, as a block
+      // that holds them does.
       const candidate = this._candidates?.get(obj);
+      for (const owner of this._owners.get(obj) ?? []) {
+        const tally = this.tallyOf(owner);
+        if (owner !== candidate && !this._frames.some((frame) => frame.tally === tally)) {
+          tally.context ??= this._recording?.unit?.context ?? null;
+          this._frames.push({ obj, tally, generated });
+        }
+      }
       if (candidate) {
         const tally = this.tallyOf(candidate);
         tally.context ??= this._recording?.unit?.context ?? null;
