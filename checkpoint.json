@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 268,
-  "previous": "e6392bf217d8a6dbc874ae9e1e25093abc04f159",
+  "seq": 269,
+  "previous": "9bdfec35d700449acde41ddfe14511369d8a3d70",
   "snapshotParents": [],
-  "time": "2026-10-16T16:09:02.225Z",
+  "time": "2026-10-16T16:09:10.409Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 227,
+    "recordRevision": 228,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4044,6 +4044,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\457-no-program-diagnostics",
       "branch": "fix/457-no-program-diagnostics",
       "classifier": "removed  impower.worktrees\\fix\\457-no-program-diagnostics                fix/457-no-program-diagnostics                    984.7 MB   merged into origin/main; origin/fix/457-no-program-diagnostics still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/457-no-program-diagnostics': Directory not empty) and dropped its record; the rest of the directory was removed directly"
+    },
+    {
+      "time": "2026-10-16T16:09:08.103Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\887-run-file-twice",
+      "branch": "fix/887-run-file-twice",
+      "classifier": "removed  impower.worktrees\\fix\\887-run-file-twice                        fix/887-run-file-twice                            1.1 GB     merged into origin/main; origin/fix/887-run-file-twice still exists; takes 19 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine/node_modules/, packages/spark-web-player/node_modules/, packages/sparkdown-document-views/node_modules/, packages/sparkdown-language-server/dist/, packages/sparkdown-language-server/node_modules/, packages/sparkdown-screenplay-pdf/dist/, packages/sparkdown-screenplay-pdf/node_modules/, packages/sparkdown-screenplay/node_modules/, packages/sparkdown/node_modules/, sparkdown-player-app/node_modules/, vscode-sparkdown/node_modules/, vscode-sparkdown/out/); git worktree remove stopped part-way (error: failed to delete 'C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice': Directory not empty) and dropped its record; the rest of the directory was removed directly"
     }
   ],
   "verifications": [],
@@ -4053,7 +4059,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T16:09:01.359Z",
+      "observedAt": "2026-10-16T16:09:09.558Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4298,13 +4304,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T04:26:09.988Z",
-      "event": "operation-intent",
-      "id": "76097f85",
-      "kind": "merge",
-      "pr": 1921
-    },
     {
       "time": "2026-10-16T04:27:02.449Z",
       "event": "operation-outcome",
@@ -5002,6 +5001,11 @@
       "time": "2026-10-16T16:08:59.947Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\457-no-program-diagnostics"
+    },
+    {
+      "time": "2026-10-16T16:09:08.104Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\887-run-file-twice"
     }
   ]
 }
