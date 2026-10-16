@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 297,
-  "previous": "3203a9c1bd9c828b62619938e75e53149d754eaa",
+  "seq": 298,
+  "previous": "c5e6cb59195139314918898420947a929780784c",
   "snapshotParents": [],
-  "time": "2026-10-16T16:33:37.977Z",
+  "time": "2026-10-16T16:34:01.489Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "acknowledged of #1951",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 247,
+    "recordRevision": 248,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2269,7 +2269,18 @@
           "time": "2026-10-16T16:32:27.507Z",
           "coordinator": "local_bede5658-a16d-4558-858b-9a8d10696a23"
         },
-        "since": "2026-10-16T16:32:27.508Z"
+        "since": "2026-10-16T16:32:27.508Z",
+        "sessionId": "168645f0-ce65-4d59-a121-ae5c8775a0d3",
+        "acknowledged": {
+          "time": "2026-10-16T16:33:58.293Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer impower-c3 naming assignment dc0ede5e, read from its claude process command line (--model claude-opus-5-5 --effort low --permission-mode bypassPermissions, CLAUDE_EFFORT=low); out.jsonl init line agrees on model and mode",
+          "deliveryId": "6e24a806"
+        }
       },
       "pending": null,
       "history": [],
@@ -4223,7 +4234,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/316-silent-include-define-run",
       "branch": "fix/316-silent-include-define-run",
-      "observedAt": "2026-10-16T16:33:36.470Z",
+      "observedAt": "2026-10-16T16:34:00.142Z",
       "held": true,
       "head": "39bbb08d03ecc0250435d41479f4baf55d2d40f8",
       "remoteHead": null,
@@ -4235,7 +4246,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1800-valueless-global-diagnostic",
       "branch": "fix/1800-valueless-global-diagnostic",
-      "observedAt": "2026-10-16T16:33:36.470Z",
+      "observedAt": "2026-10-16T16:34:00.142Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -4247,7 +4258,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1951-typed-override-backfill",
       "branch": "fix/1951-typed-override-backfill",
-      "observedAt": "2026-10-16T16:33:36.470Z",
+      "observedAt": "2026-10-16T16:34:00.142Z",
       "held": true,
       "exists": false
     }
@@ -4356,13 +4367,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T05:57:50.492Z",
-      "event": "answered",
-      "ticket": 887,
-      "id": "3647ce66",
-      "deliveryId": "93e2552a"
-    },
     {
       "time": "2026-10-16T06:15:32.254Z",
       "event": "check-in",
@@ -5056,6 +5060,16 @@
       "time": "2026-10-16T16:33:34.033Z",
       "event": "check-in",
       "outcome": "Maintainer directed the merge of PR #1948 outside the gate; merged at a9d427cc2 as 9ac2da5d, #839 closed and its writer released; dispatched #1951 (low) into the freed slot; writers for #316 and #1800 running; every ticket now delivered or in progress"
+    },
+    {
+      "time": "2026-10-16T16:33:58.294Z",
+      "event": "acknowledged",
+      "ticket": 1951,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "low",
+        "permissionMode": "bypassPermissions"
+      }
     }
   ]
 }
