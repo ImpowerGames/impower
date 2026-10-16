@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 102,
-  "previous": "63f9a632c1b161841d208da6da24a6ff68b8214e",
+  "seq": 103,
+  "previous": "507a71d525117d585f2c95195e4de62644f6ae6b",
   "snapshotParents": [],
-  "time": "2026-10-16T20:51:17.568Z",
+  "time": "2026-10-16T21:21:28.075Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 79,
+    "recordRevision": 80,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -1152,12 +1152,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T20:51:16.652Z",
+      "observedAt": "2026-10-16T21:21:26.496Z",
       "held": true,
       "head": "1ce9d144f0f4b1f030c882479967f272625b1dfc",
       "remoteHead": "1ce9d144f0f4b1f030c882479967f272625b1dfc",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1983,
       "reviewJobs": [
         {
@@ -1195,6 +1195,43 @@
           "commentIds": [
             6223851126
           ]
+        },
+        {
+          "job": "pr-1983/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ordering",
+              "undirected"
+            ],
+            "head": "1ce9d144f0f4b1f030c882479967f272625b1dfc",
+            "completedRoundReviewers": {
+              "ordering": 1
+            },
+            "time": "2026-10-16T20:51:44.633Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "1ce9d144f0f4b1f030c882479967f272625b1dfc",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ordering": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ordering",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6224656264
+          ]
         }
       ]
     },
@@ -1203,11 +1240,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T20:51:16.652Z",
+      "observedAt": "2026-10-16T21:21:26.496Z",
       "held": true,
-      "head": "e83fefb53b039d981683520afe174b199552c884",
+      "head": "00e52531f3d43dc3f415227e727a9bf4f49e0dd1",
       "remoteHead": "e83fefb53b039d981683520afe174b199552c884",
-      "unpushed": false,
+      "unpushed": true,
       "dirty": true,
       "pr": 1984,
       "reviewJobs": [
@@ -1822,6 +1859,11 @@
       "time": "2026-10-16T20:51:15.053Z",
       "event": "check-in",
       "outcome": "no change: #1881 (draft PR #1983, head 1ce9d144f) and #1974 (draft PR #1984) writers running in review round 1; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T21:21:24.138Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (draft PR #1983) and #1974 (draft PR #1984) writers running in review round 1; #851, #1637 and #1798 done; no transcripts to read, no dead launches, no open requests"
     }
   ]
 }
