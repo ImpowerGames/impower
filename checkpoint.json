@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 160,
-  "previous": "351c5d9df50e81ecfbcc3b13f8e498ecffb9362a",
+  "seq": 161,
+  "previous": "b26a8801057e5510da2ddd1ac11e62bae59c61d8",
   "snapshotParents": [],
-  "time": "2026-10-16T04:30:54.858Z",
+  "time": "2026-10-16T04:31:24.939Z",
   "kind": "auto",
-  "transition": "claim of #454",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 131,
@@ -2383,7 +2383,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T04:30:54.858Z",
+      "observedAt": "2026-10-16T04:31:24.939Z",
       "held": true,
       "exists": false
     }
@@ -2391,7 +2391,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:30:48.418Z",
+    "at": "2026-10-16T04:31:24.938Z",
     "tickets": [
       {
         "number": 316,
@@ -2401,9 +2401,9 @@
       },
       {
         "number": 454,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch a77d8ee5-d75c-4a55-b475-f2b8b69eead6 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 457,
