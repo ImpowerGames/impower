@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 218,
-  "previous": "56994de01b4c689da6ce147cfe6e6e8cb53943de",
+  "seq": 219,
+  "previous": "6651e3bf17cc28d2fe469e8cb38a427d596d6925",
   "snapshotParents": [],
-  "time": "2026-10-16T12:46:49.526Z",
+  "time": "2026-10-16T13:16:50.476Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 179,
+    "recordRevision": 180,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2541,16 +2541,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:46:48.452Z",
+      "observedAt": "2026-10-16T13:16:49.491Z",
       "held": true,
       "head": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
       "remoteHead": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 15100
-      },
+      "dirty": true,
       "pr": 1929,
       "reviewJobs": [
         {
@@ -2676,7 +2672,7 @@
         },
         {
           "job": "pr-1929/round-2/launch-merge-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-merge",
@@ -2693,7 +2689,26 @@
               "undirected": 1
             },
             "time": "2026-10-16T12:37:48.060Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "merge",
+          "attempt": 1,
+          "reviewedHead": "a622c49fc9248e2f534b22df72aa5cea950e1c5e",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "merge": 1
+          },
+          "plannedRoundReviewers": [
+            "merge",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6215992421
+          ]
         }
       ]
     },
@@ -2702,16 +2717,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:46:48.452Z",
+      "observedAt": "2026-10-16T13:16:49.491Z",
       "held": true,
       "head": "55c5401496e7778684794ceb146ee2f6f71be912",
       "remoteHead": "55c5401496e7778684794ceb146ee2f6f71be912",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 17880
-      },
+      "dirty": true,
       "pr": 1928,
       "reviewJobs": [
         {
@@ -2862,7 +2873,7 @@
         },
         {
           "job": "pr-1928/round-3/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 3,
             "step": "review-undirected",
@@ -2877,7 +2888,25 @@
               "inc": 1
             },
             "time": "2026-10-16T12:37:25.977Z"
-          }
+          },
+          "round": 3,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "55c5401496e7778684794ceb146ee2f6f71be912",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "inc": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "inc",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6215969878
+          ]
         }
       ]
     }
@@ -2968,13 +2997,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:13:31.096Z",
-      "event": "resume-intent",
-      "ticket": 1645,
-      "id": "0dc34ee7-fff4-4723-9b75-2bd1bc26afa1",
-      "sessionId": "56d978c5-39e1-4939-ae9e-7df24a76df9a"
-    },
     {
       "time": "2026-10-15T23:14:03.112Z",
       "event": "answer-intent",
@@ -3676,6 +3698,11 @@
       "time": "2026-10-16T12:46:47.090Z",
       "event": "check-in",
       "outcome": "no change: both resumed writers running and pushing corrections (PR #1928 at 55c540149 with 14 comments, PR #1929 at a622c49fc with 10 comments), both still drafts; #316 waits for #887; no transcripts to read, no dead launches"
+    },
+    {
+      "time": "2026-10-16T13:16:48.058Z",
+      "event": "check-in",
+      "outcome": "no change: both writers running in review (PR #1928 at 55c540149, 15 comments; PR #1929 at a622c49fc, 11 comments), both drafts; #316 waits for #887; no transcripts to read, no dead launches"
     }
   ]
 }
