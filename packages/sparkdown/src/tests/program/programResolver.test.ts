@@ -611,6 +611,48 @@ describe("a statement resolved anew", () => {
     }
   });
 
+  it("decides whether an assignment after carried scene statements writes a local from what each statement declares, and reads none of them", () => {
+    // `y` is a local of the scene, declared before the carried display
+    // statements, and `x` is not, so the edited assignment writes a local
+    // where it names `y` and the global where it names `x`.
+    const text = [
+      "scene MAIN",
+      "  local y = 0",
+      ...filler,
+      "  & x = 1",
+      "  Value {x} {y}.",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const writes = (name: string): boolean[] => {
+      const found: boolean[] = [];
+      for (const unit of (s.resolver as any)._order as { members: ParsedObject[] }[]) {
+        for (const member of unit.members) {
+          for (const obj of new Set([member, ...member.FindAll<ParsedObject>(ParsedObject)()])) {
+            const assignment = obj as any;
+            if (assignment.variableName === name && assignment.isDeclaration === false) {
+              found.push(assignment.boundLocally);
+            }
+          }
+        }
+      }
+      return found;
+    };
+    expect(writes("x")).toEqual([false]);
+    for (const [find, replace, name, local] of [
+      ["  & x = 1", "  & y = 1", "y", true],
+      ["  & y = 1", "  & x = 1", "x", false],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      expect(writes(name), find).toEqual([local]);
+      const fresh = cold({ [MAIN_URI]: s.text });
+      expect(diagnostics(s.program), find).toEqual(diagnostics(fresh));
+      expect(describeRoot(s.program.chunks!), find).toEqual(describeRoot(fresh.chunks!));
+    }
+  });
+
   it("does not resolve a call of a top-level function again when an unrelated name is declared otherwise", () => {
     const s = session({ [MAIN_URI]: rebound });
     s.edit("  & x = 1", "  & y = 1");
