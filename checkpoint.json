@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 105,
-  "previous": "6f1cfaa2eb5df034853f866f94508b14d2a4613f",
+  "seq": 106,
+  "previous": "3e558d3a721551f143b5939d92fd2c8e0cf67894",
   "snapshotParents": [],
-  "time": "2026-10-16T01:01:48.447Z",
+  "time": "2026-10-16T01:02:26.969Z",
   "kind": "auto",
-  "transition": "launch of #1614",
+  "transition": "acknowledged of #1623",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 79,
+    "recordRevision": 80,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -325,7 +325,18 @@
           "time": "2026-10-16T01:01:36.212Z",
           "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
         },
-        "since": "2026-10-16T01:01:36.213Z"
+        "since": "2026-10-16T01:01:36.213Z",
+        "sessionId": "72838ba2-2c24-4498-a2a3-13d507e4a877",
+        "acknowledged": {
+          "time": "2026-10-16T01:02:24.421Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from the writer session (impower-d5) at 2026-10-15 ~21:05 local naming the assignment and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+          "deliveryId": "10e32eb3"
+        }
       },
       "pending": null,
       "history": [],
@@ -1045,7 +1056,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:01:47.304Z",
+      "observedAt": "2026-10-16T01:02:25.922Z",
       "held": true,
       "exists": false
     },
@@ -1054,7 +1065,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:01:47.304Z",
+      "observedAt": "2026-10-16T01:02:25.922Z",
       "held": true,
       "exists": false
     },
@@ -1063,7 +1074,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:01:47.304Z",
+      "observedAt": "2026-10-16T01:02:25.922Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1834,6 +1845,16 @@
         "start": "639277093053655172",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1614-7c11b706-71c6-420e-926d-8e14cbb1b6e2"
+      }
+    },
+    {
+      "time": "2026-10-16T01:02:24.422Z",
+      "event": "acknowledged",
+      "ticket": 1623,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
