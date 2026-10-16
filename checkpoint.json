@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 211,
-  "previous": "64bd42dcaebdf2f0b65652ccf9b5b2ce47e83272",
+  "seq": 212,
+  "previous": "b8a1fad7550439abbcd9f79fa6070ed38370f22f",
   "snapshotParents": [],
-  "time": "2026-10-16T12:17:38.182Z",
+  "time": "2026-10-16T12:18:51.390Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 173,
+    "recordRevision": 174,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -107,7 +107,12 @@
             "time": "2026-10-16T12:14:16.755Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-01e967a7-bd98-427a-8bed-7fa6540319d9"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "41d54a93-5a95-40c3-8969-2b9551d1c06b",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\resume-454-41d54a93-5a95-40c3-8969-2b9551d1c06b",
+          "time": "2026-10-16T12:18:48.818Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -2531,7 +2536,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T12:17:37.349Z",
+      "observedAt": "2026-10-16T12:18:50.107Z",
       "held": true,
       "head": "d037751d70a869aad360a331f27e008c57b942c8",
       "remoteHead": "d037751d70a869aad360a331f27e008c57b942c8",
@@ -2667,7 +2672,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/887-run-file-twice",
       "branch": "fix/887-run-file-twice",
-      "observedAt": "2026-10-16T12:17:37.349Z",
+      "observedAt": "2026-10-16T12:18:50.107Z",
       "held": true,
       "head": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
       "remoteHead": "3c1986e10b96803d0fa0dde1ef74ecd2eb58d6ba",
@@ -2910,13 +2915,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T23:04:42.185Z",
-      "event": "result",
-      "ticket": 1103,
-      "pr": 1913,
-      "reviewedHead": "f4212693ba4d706f0ded341f4ec0438ca2728265"
-    },
     {
       "time": "2026-10-15T23:06:36.404Z",
       "event": "dispatch-intent",
@@ -3616,6 +3614,13 @@
       "time": "2026-10-16T12:15:20.016Z",
       "event": "check-in",
       "outcome": "Maintainer restored usage and relaxed the merge gate (PR #1931: a head need not contain main; red main freezes merges); answered requests 5b339599 and d8a61713 and resumed the #454 (pid 58112) and #887 (pid 48332) writers; #316 still waits for #887"
+    },
+    {
+      "time": "2026-10-16T12:18:48.818Z",
+      "event": "resume-intent",
+      "ticket": 454,
+      "id": "41d54a93-5a95-40c3-8969-2b9551d1c06b",
+      "sessionId": "b483900d-bfad-4f3d-bff3-87e961965503"
     }
   ]
 }
