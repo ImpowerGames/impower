@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 145,
-  "previous": "44bfd6622c29da30ab84b2019418de435e44d1de",
+  "seq": 146,
+  "previous": "eadccd5eeaab50b0cea4cd19cca933c847be9645",
   "snapshotParents": [],
-  "time": "2026-10-16T02:44:33.358Z",
+  "time": "2026-10-16T03:14:15.254Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 121,
@@ -1934,21 +1934,17 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:44:32.320Z",
+      "observedAt": "2026-10-16T03:14:14.497Z",
       "held": true,
       "head": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
       "remoteHead": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 39348
-      },
+      "dirty": true,
       "pr": 1921,
       "reviewJobs": [
         {
           "job": "pr-1921/round-1/launch-ax-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-ax",
@@ -1961,7 +1957,26 @@
             "head": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
             "completedRoundReviewers": null,
             "time": "2026-10-16T02:41:26.883Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6206897215
+          ]
         }
       ]
     },
@@ -1970,18 +1985,60 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:44:32.320Z",
+      "observedAt": "2026-10-16T03:14:14.497Z",
       "held": true,
-      "head": "73452086e0380d249c61e83372ae0817a35e8c57",
-      "remoteHead": "73452086e0380d249c61e83372ae0817a35e8c57",
+      "head": "a35d4062e2d2ed286a4b456a59f39055da6ec9b1",
+      "remoteHead": "a35d4062e2d2ed286a4b456a59f39055da6ec9b1",
       "unpushed": false,
-      "dirty": false
+      "dirty": true,
+      "pr": 1923,
+      "reviewJobs": [
+        {
+          "job": "pr-1923/round-1/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "bound",
+              "undirected"
+            ],
+            "head": "a35d4062e2d2ed286a4b456a59f39055da6ec9b1",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T02:47:02.019Z"
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "a35d4062e2d2ed286a4b456a59f39055da6ec9b1",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6206951971
+          ]
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T02:44:15.410Z",
+    "at": "2026-10-16T03:14:14.496Z",
     "tickets": [
       {
         "number": 316,
@@ -2052,7 +2109,7 @@
       {
         "number": 1920,
         "action": "observe",
-        "pr": null,
+        "pr": 1923,
         "reason": "process 55752 started 639277146245211808 is running"
       }
     ],
