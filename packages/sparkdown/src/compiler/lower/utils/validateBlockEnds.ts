@@ -167,24 +167,49 @@ function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
   return keyword && keyword.to <= endNode.to ? keyword : null;
 }
 
-const CLOSER_AHEAD = /^\s*(end|else|elseif|until)(?![A-Za-z0-9_])/;
+const CLOSER_KEYWORDS = nodeNameSet(["LuauEndKeyword", "LuauElseKeyword", "LuauElseifKeyword", "LuauUntilKeyword"]);
+
+// The node after `node` in the document, past trivia, from the first of its
+// following siblings or of its ancestors' that has one; null where only
+// the chunk's end follows.
+function nextAfter(node: SyntaxNode): SyntaxNode | null {
+  for (let at: SyntaxNode | null = node; at; at = at.parent) {
+    let next = at.nextSibling;
+    while (next && skippable(next)) next = next.nextSibling;
+    if (next) return next;
+  }
+  return null;
+}
+
+// The first token of a node that is not trivia, or null for none.
+function firstToken(node: SyntaxNode): SyntaxNode | null {
+  if (skippable(node)) return null;
+  if (!node.firstChild) return node;
+  for (let child: SyntaxNode | null = node.firstChild; child; child = child.nextSibling) {
+    const token = firstToken(child);
+    if (token) return token;
+  }
+  return null;
+}
 
 // Whether the grammar closed a block, with nothing in its `_end`, before a
 // closer that is not its own (`own`) and that a Luau block around it holds,
 // as an `if` with no `end` before its `repeat`'s `until` (#1209). Luau's
 // reading of the chunk reports the block left open at that closer
-// (`readLuauAst.ts`), as Luau does, so it is not reported here.
-function closedBeforeOuterCloser(node: SyntaxNode, own: readonly string[], ctx: LowerContext): boolean {
+// (`readLuauAst.ts`), as Luau does, so it is not reported here. A closer
+// the chunk does not hold (one read as story text after a function) is
+// left to this validator.
+function closedBeforeOuterCloser(node: SyntaxNode, own: ReadonlySet<string>, chunk: SyntaxNode): boolean {
   const endNode = findChildByName(node, `${node.name}_end`);
   if (!endNode || endNode.from !== endNode.to) return false;
-  const ahead = CLOSER_AHEAD.exec(ctx.read(endNode.to, endNode.to + 64));
-  if (!ahead || own.includes(ahead[1]!)) return false;
-  const at = endNode.to + ahead[0].length - ahead[1]!.length;
-  for (let up = node.parent; up; up = up.parent) {
-    if (up.to > at && up.name.startsWith("Luau") && !up.name.startsWith("LuauSparkdown")) return true;
-  }
-  return false;
+  const next = nextAfter(endNode);
+  if (!next || next.to > chunk.to) return false;
+  const closer = firstToken(next);
+  return !!closer && CLOSER_KEYWORDS.has(closer.name) && !own.has(closer.name);
 }
+
+const OWNS_END = nodeNameSet(["LuauEndKeyword"]);
+const OWNS_UNTIL = nodeNameSet(["LuauUntilKeyword"]);
 
 // Checks the blocks of one chunk that the chunk's own nodes show to be open:
 // those cut off before a `scene` or `branch`, and `repeat` loops with no
@@ -215,7 +240,7 @@ export function validateBlockEnds(
       if (
         !endKeywordOf(node) &&
         (block.bounded || findChildByName(node, `${node.name}_end`)) &&
-        !closedBeforeOuterCloser(node, ["end"], ctx)
+        !closedBeforeOuterCloser(node, OWNS_END, chunk)
       ) {
         report(diagnostics, block.header, block.bounded
           ? boundedMissingMessage(block.label, "end") : missingEndMessage(block.label), ctx);
@@ -228,7 +253,7 @@ export function validateBlockEnds(
       // As for a block above: a loop the grammar closed before a closer of
       // a block around it (`repeat … end`) is Luau's reading's to report.
       (BOUNDED_BLOCKS.has(node.name) || findChildByName(node, `${node.name}_end`)) &&
-      !closedBeforeOuterCloser(node, ["until"], ctx)
+      !closedBeforeOuterCloser(node, OWNS_UNTIL, chunk)
     ) {
       openRepeat = true;
       report(diagnostics, node, BOUNDED_BLOCKS.has(node.name)

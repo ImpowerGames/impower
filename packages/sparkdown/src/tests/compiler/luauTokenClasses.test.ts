@@ -259,7 +259,9 @@ describe("a name's boundary", () => {
   test("#1266 a struct key with a non-ASCII letter is a property, as an ASCII one is", () => {
     const struct = (key: string) => {
       const source = `theme t with\n  g:\n    ${key} = 2\n    tail = 3\nend\n`;
-      return compileSource(source).find((e) => e.block?.context?.theme?.t)?.block?.context?.theme?.t;
+      const theme = (e: { block?: { context?: any } }) => e.block?.context?.["theme"]?.["t"];
+      const entry = compileSource(source).find(theme);
+      return entry ? theme(entry) : undefined;
     };
     const { a, ...ascii } = struct("a");
     expect(a).toBe(2);
