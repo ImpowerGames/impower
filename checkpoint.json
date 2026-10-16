@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 233,
-  "previous": "b88b0dda534eb48b3195a1d015a3ed246f552542",
+  "seq": 234,
+  "previous": "2b366aad49da6679da434a2547054bb04252345f",
   "snapshotParents": [],
-  "time": "2026-10-16T16:08:06.192Z",
+  "time": "2026-10-16T16:08:14.795Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 171,
+    "recordRevision": 172,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2615,6 +2615,12 @@
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
       "classifier": "removed  impower.worktrees\\fix\\1933-inserted-twin-do-block               fix/1933-inserted-twin-do-block                   984.8 MB   merged into origin/main; no origin/fix/1933-inserted-twin-do-block; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spark-engine"
+    },
+    {
+      "time": "2026-10-16T16:08:12.393Z",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1851-bridge-subscriptions",
+      "branch": "perf/1851-bridge-subscriptions",
+      "classifier": "removed  impower.worktrees\\perf\\1851-bridge-subscriptions                perf/1851-bridge-subscriptions                    983.8 MB   merged into origin/main; origin/perf/1851-bridge-subscriptions still exists; takes 16 ignored paths with it (.claude/skills/, .codex/skills/, .github/skills/, impower-dev/node_modules/, impower-dev/out/, node_modules/, packages/impower-ui/node_modules/, packages/spa"
     }
   ],
   "verifications": [],
@@ -2624,7 +2630,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
       "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T16:08:05.444Z",
+      "observedAt": "2026-10-16T16:08:14.041Z",
       "held": true,
       "head": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
       "remoteHead": null,
@@ -2636,7 +2642,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T16:08:05.444Z",
+      "observedAt": "2026-10-16T16:08:14.041Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -2875,11 +2881,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T00:48:54.234Z",
-      "event": "check-in",
-      "outcome": "no change: #1632 writer re-merged main fe76585 (#1914) onto PR 1912, head 8c3effbc0, waiting on sparkdown shard 1/4; PR 1915 held behind #1916 per queue; no requests"
-    },
     {
       "time": "2026-10-16T00:54:17.443Z",
       "event": "operation-intent",
@@ -3553,6 +3554,11 @@
       "time": "2026-10-16T16:08:04.034Z",
       "event": "disk-recovery",
       "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1933-inserted-twin-do-block"
+    },
+    {
+      "time": "2026-10-16T16:08:12.394Z",
+      "event": "disk-recovery",
+      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1851-bridge-subscriptions"
     }
   ]
 }
