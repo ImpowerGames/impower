@@ -829,6 +829,8 @@ for (const [label, command, shell] of allows) {
     search: guard("a search of issues or pull requests"),
     api: guard("an issue, comment, review or discussion API call"),
     graphql: guard("a GraphQL query for issues, comments, reviews or discussions"),
+    discussion: guard("a gh discussion command"),
+    web: guard("a web page of issues, pull request conversations or discussions"),
   };
   // Typed-creation refusals keep their wording; with the switch on their
   // recipe names the internal repository.
@@ -875,6 +877,15 @@ for (const [label, command, shell] of allows) {
     ["gh issue view after GH_REPO internal and env -i", `GH_REPO=${internal} env -i gh issue view 12`, "issue"],
     ["gh issue view in bash -c that unsets an inherited internal GH_REPO", `GH_REPO=${internal} bash -c 'unset GH_REPO; gh issue view 12'`, "issue"],
     ["gh issue view in a substitution that unsets GH_REPO", `GH_REPO=${internal} bash -c 'T=$(unset GH_REPO; gh issue view 12)'`, "issue"],
+    // gh discussion, the whole family.
+    ["gh discussion view with comments", `gh discussion view 67 --repo ${code} --json body,comments`, "discussion"],
+    ["gh discussion list naming the code repository", `gh discussion list --repo ${code}`, "discussion"],
+    ["gh discussion comment with no repository", "gh discussion comment 67 --body x", "discussion"],
+    ["gh discussion create with no repository", "gh discussion create --title x --body y --category General", "discussion"],
+    ["gh discussion view by the code repository's URL", `gh discussion view https://github.com/${code}/discussions/67`, "discussion"],
+    // gh's built-in aliases.
+    ["gh pr ls without --author", `gh pr ls --repo ${code} --json number,title`, "prList"],
+    ["gh issue new on the internal repository without --type", `gh issue new -R ${internal} --title x`, "typedIssue"],
     // gh pr
     ["gh pr comment", "gh pr comment 12 --body-file r.md", "prComment"],
     ["gh pr comment naming the code repository", `gh pr comment 12 -R ${code} --body x`, "prComment"],
@@ -911,6 +922,8 @@ for (const [label, command, shell] of allows) {
     ["gh search prs naming both repositories", `gh search prs fix --repo ${internal} --repo ${code}`, "search"],
     ["gh search issues on the internal repository with --owner of the code repository", `gh search issues crash --repo ${internal} --owner ImpowerGames`, "search"],
     ["gh search issues on the internal repository OR the owner", `gh search issues "repo:${internal} OR org:ImpowerGames crash"`, "search"],
+    ["gh api search/issues scoped only by an unrelated field", `gh api -X GET search/issues -f 'q=Add the repos file in:title' -f 'note=repo:ImpowerGames/server'`, "search"],
+    ["curl search/issues scoped only by an unrelated parameter", `curl 'https://api.github.com/search/issues?q=crash&note=repo:ImpowerGames/server'`, "search"],
     ["gh search issues with a quoted repo: qualifier for the code repository", `gh search issues 'repo:"${code}" repo:cli/cli'`, "search"],
     ["gh api search/issues with a quoted repo: qualifier for the code repository", `gh api -X GET search/issues -f 'q=repo:"${code}" repo:cli/cli'`, "search"],
     ["gh search issues with a quoted org: qualifier for the code owner", `gh search issues 'repo:${internal} org:"ImpowerGames"'`, "search"],
@@ -964,6 +977,11 @@ for (const [label, command, shell] of allows) {
     ["GraphQL viewer issues", `gh api graphql -f query='query { viewer { issues(first: 5) { nodes { body } } } }'`, "graphql"],
     ["GraphQL organization repositories' issues", `gh api graphql -f query='query { organization(login: "ImpowerGames") { repositories(first: 5) { nodes { issues(first: 5) { nodes { body } } } } } }'`, "graphql"],
     ["GraphQL comment mutation by subject ID", `gh api graphql -f query='mutation { addComment(input: {subjectId: "PR_x", body: "hi"}) { clientMutationId } }'`, "graphql"],
+    ["GraphQL from another repository across its owner to the code repository's issues", "gh api graphql -f owner=ImpowerGames -f name=server -f 'query=query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { owner { ... on Organization { repositories(first: 100) { nodes { issues(first: 1) { nodes { body } } } } } } } }'", "graphql"],
+    ["GraphQL viewer issues behind a directive beside another repository", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "server") { id } viewer @include(if: true) { issues(first: 1) { nodes { body } } } }'`, "graphql"],
+    ["GraphQL from an internal issue's timeline to the issue that referenced it", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower-internal") { issue(number: 1) { timelineItems(first: 5) { nodes { ... on CrossReferencedEvent { source { ... on Issue { body } } } } } } } }'`, "graphql"],
+    ["GraphQL search whose query variable is scoped to the organization", "gh api graphql -F q='org:ImpowerGames' -f query='query($q: String!) { search(query: $q, type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'", "graphql"],
+    ["GraphQL search with a scoped repo: only in an unrelated field", `gh api graphql -f note='repo:${internal}' -f query='query { search(query: "is:issue crash", type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`, "graphql"],
     ["GraphQL closing issue references", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1975) { closingIssuesReferences(first: 5) { nodes { body } } } } }'`, "graphql"],
     // curl, Invoke-RestMethod, irm, Invoke-WebRequest, iwr
     ["curl read of issue comments", `curl https://api.github.com/repos/${code}/issues/12/comments`, "api"],
@@ -974,6 +992,15 @@ for (const [label, command, shell] of allows) {
     ["irm read of discussions", `irm https://api.github.com/repos/${code}/discussions`, "api"],
     ["Invoke-WebRequest read of review requests", `Invoke-WebRequest -Uri https://api.github.com/repos/${code}/pulls/12/requested_reviewers`, "api"],
     ["iwr read of the issues collection", `iwr https://api.github.com/repos/${code}/issues`, "api"],
+    // URL syntax: user information, curl globs, and web pages.
+    ["curl read with user information in the URL", `curl https://reader@api.github.com/repos/${code}/issues/1962`, "api"],
+    ["curl read through a brace glob that expands to the code repository", `curl 'https://api.github.com/repos/ImpowerGames/{impower,server}/issues/1962'`, "api"],
+    ["curl read through a bracket glob", `curl 'https://api.github.com/repos/${code}/issues/[1-9]'`, "api"],
+    ["curl of the code repository's issue page", `curl -L https://github.com/${code}/issues/1962`, "web"],
+    ["curl of the code repository's pull request conversation page", `curl https://github.com/${code}/pull/1975`, "web"],
+    ["curl of the code repository's discussions page", `curl https://github.com/${code}/discussions`, "web"],
+    ["Invoke-WebRequest of the code repository's issue page", `Invoke-WebRequest -Uri https://github.com/${code}/issues/1962`, "web", "powershell"],
+    ["iwr of a pull request's review comments page", `iwr https://www.github.com/${code}/pull/1975/files`, "web"],
     // An attached method value does not take the URL after it.
     ["curl -XGET read of issue comments", `curl -XGET https://api.github.com/repos/${code}/issues/12/comments`, "api"],
     ["curl -XPOST review", `curl -XPOST https://api.github.com/repos/${code}/pulls/12/reviews -d '{"event":"APPROVE"}'`, "api"],
@@ -996,6 +1023,8 @@ for (const [label, command, shell] of allows) {
     ["gh api create on the internal repository without type", `gh api -X POST repos/${internal}/issues -f title=x -F body=@b.md`, "typedApi"],
     ["curl create on the internal repository without type", `curl -X POST https://api.github.com/repos/${internal}/issues -d '{"title":"x"}'`, "typedHttp"],
     ["irm create on the internal repository without type", `irm -Method Post -Uri https://api.github.com/repos/${internal}/issues -Body @{title='x'}`, "typedHttp"],
+    ["curl create on the internal repository through a port without type", `curl -X POST https://api.github.com:443/repos/${internal}/issues --data '{"title":"x"}'`, "typedHttp"],
+    ["irm create on a percent-encoded internal repository without type", `irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower-%69nternal/issues -Body '{"title":"x"}'`, "typedHttp", "powershell"],
     ["GraphQL createIssue on the internal repository", "gh api graphql -f query='mutation { createIssue(input: {repositoryId: \"x\", title: \"y\"}) { issue { id } } }'", "createIssue"],
   ];
   const allowances = [
@@ -1051,6 +1080,15 @@ for (const [label, command, shell] of allows) {
     ["gh api comments on the internal repository", `gh api repos/${internal}/issues/12/comments --paginate`],
     ["gh search issues on the internal repository", `gh search issues crash --repo ${internal}`],
     ["gh search issues by internal repo: qualifier", `gh search issues "repo:${internal} crash"`],
+    ["gh discussion list on the internal repository", `gh discussion list --repo ${internal}`],
+    ["gh pr ls --author", "gh pr ls --author @me --json number"],
+    ["gh api search/issues scoped by its q", `gh api -X GET search/issues -f 'q=repo:${internal} crash'`],
+    ["curl search/issues scoped by its q", `curl 'https://api.github.com/search/issues?q=repo:${internal}+crash'`],
+    ["curl with globbing off of a literal brace path", `curl -g 'https://api.github.com/repos/ImpowerGames/{impower,server}/pulls/1'`],
+    ["curl of a code repository archive", `curl -L https://github.com/${code}/archive/main.zip`],
+    ["curl of the code repository's pull request list page", `curl https://github.com/${code}/pulls`],
+    ["GraphQL search whose query variable is scoped to the internal repository", `gh api graphql -F q='repo:${internal}' -f query='query($q: String!) { search(query: $q, type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`],
+    ["GraphQL internal issues with their authors", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower-internal") { issue(number: 1) { body author { login } comments(first: 5) { nodes { body } } } } }'`],
     ["GraphQL search scoped to the internal repository", `gh api graphql -f query='query { search(query: "repo:${internal} is:issue", type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`],
     ["gh pr list --author exporting permitted fields", "gh pr list --author @me --json number,title,headRefName,isDraft"],
     ["gh api a percent-encoded pull request on the code repository", `gh api repos/${code}/pulls/%31975`],

@@ -671,7 +671,7 @@ function ghInvocation(args) {
   let repo = null;
   for (let i = 0; i < args.length; i++) {
     const t = args[i].text;
-    const wantWord = words.length === 0 || (words.length === 1 && ["issue", "pr", "search"].includes(words[0]));
+    const wantWord = words.length === 0 || (words.length === 1 && ["issue", "pr", "search", "discussion"].includes(words[0]));
     if (wantWord && t.startsWith("-")) {
       const name = flagName(t);
       if (name === "-R" || name === "--repo" || name === "--hostname") {
@@ -767,8 +767,12 @@ function ghArgs(args) {
   return { flags, repos, positional };
 }
 
-// An issue or pull request URL on github.com, with any scheme, `www.` or port.
-const GITHUB_ITEM_URL = /(?:^|[^\w.-])(?:https?:\/\/)?(?:www\.)?github\.com(?::\d+)?\/([^/\s"'#?]+\/[^/\s"'#?]+)\/(?:issues|pull)\/\d+/gi;
+// An issue, pull request or discussion URL on github.com, with any scheme,
+// user information, `www.` or port.
+const GITHUB_ITEM_URL = /(?:^|[^\w.-])(?:https?:\/\/)?(?:[^@/\s"']*@)?(?:www\.)?github\.com(?::\d+)?\/([^/\s"'#?]+\/[^/\s"'#?]+)\/(?:issues|pull|discussions)\/\d+/gi;
+
+// gh's built-in aliases of the actions the guard reads.
+const GH_ACTION_ALIASES = new Map([["ls", "list"], ["new", "create"], ["co", "checkout"]]);
 
 /**
  * The repository a gh issue or pr invocation targets, read so that it fails
@@ -846,12 +850,15 @@ const GUARD = {
   search: () => guardReason("a search of issues or pull requests", `Scope the search to the internal repository: gh search issues <query> --repo ${repos.internal}`),
   api: () => guardReason("an issue, comment, review or discussion API call", `Call the same endpoint on repos/${repos.internal} instead.`),
   graphql: () => guardReason("a GraphQL query for issues, comments, reviews or discussions", `Query repository(owner, name) of ${repos.internal} instead.`),
+  discussion: () => guardReason("a gh discussion command", `Name the internal repository: gh discussion <command> -R ${repos.internal}`),
+  web: () => guardReason("a web page of issues, pull request conversations or discussions", "Read the pull request's permitted fields through gh pr view --json or the API instead."),
 };
 
-/** The guard's reason for a gh issue, pr or search invocation, or null. */
+/** The guard's reason for a gh issue, pr, discussion or search invocation, or null. */
 function checkGhGuarded(invocation, envRepo) {
-  const [command, action] = invocation.words;
-  if (command !== "issue" && command !== "pr" && command !== "search") return null;
+  const command = invocation.words[0];
+  const action = GH_ACTION_ALIASES.get(invocation.words[1]) ?? invocation.words[1];
+  if (command !== "issue" && command !== "pr" && command !== "search" && command !== "discussion") return null;
   const parsed = ghArgs(invocation.rest);
   if (command === "search") {
     if (action !== "issues" && action !== "prs") return null;
@@ -864,6 +871,7 @@ function checkGhGuarded(invocation, envRepo) {
   const target = ghTargetRepo(invocation, parsed, envRepo);
   if (target !== null && !isCodeRepo(target)) return null;
   if (command === "issue") return GUARD.issue();
+  if (command === "discussion") return GUARD.discussion();
   const has = (...names) => names.some((n) => parsed.flags.has(n));
   if (action === "comment") return GUARD.prComment();
   if (action === "review") return GUARD.prReview();
@@ -973,23 +981,70 @@ function graphqlReadsCode(text) {
   if (!/issue|comment|review|discussion|timeline/i.test(selections)) return false;
   if (named) return true;
   // Without naming the code repository, a query still reaches its issues
-  // through an entry point that is not one repository: a search scoped
-  // more widely than named repositories, a global node ID, the viewer, a
-  // user or an organization, or a mutation on an object by ID. Only a
-  // `repository(...)` entry, or a search scoped as a REST search must be,
-  // passes.
-  // Root fields with arguments: `nodes(ids:)` is an entry point, a
-  // connection's `nodes { ... }` is not.
-  if (/\b(node|nodes|user|organization|repositoryOwner|enterprise|resource)\s*\(|\bviewer\s*\{/.test(selections)) return true;
-  if (/\bsearch\s*\(/.test(selections)) return !searchScoped(text);
+  // through anything that is not one named repository: a root entry point
+  // (a node ID, the viewer, a user, an organization, a mutation on an
+  // object by ID), a field that leaves the repository for its owner, its
+  // network or another issue (`owner`, `repositories`, `parent`, `source`,
+  // `subject`), or a search scoped more widely than named repositories.
+  // Only `repository(...)` entries with no such field, and searches scoped
+  // as REST searches must be, pass. A connection's `nodes { ... }` and an
+  // edge's `node { ... }` are not entry points; arguments with a name were
+  // already left out, so `owner:` in `repository(owner: ...)` is not a field.
+  if (/\b(node|nodes|user|organization|repositoryOwner|enterprise|resource)\s*\(|\b(viewer|owner|repositories|parent|source|forks|templateRepository|subject|canonical|duplicateOf)\b/.test(selections)) return true;
+  if (/\bsearch\s*\(/.test(selections)) return !graphqlSearchScoped(text);
   return !/\brepository\s*\(/.test(selections);
 }
 
-/** The guard's reason for an API URL path and the request text around it, or null. */
-function checkGuardedRequest(endpoint, text) {
+/**
+ * True when every GraphQL `search(...)` in the text has a query argument,
+ * given literally or through a variable whose value the command carries
+ * (a gh field flag `name=value` or a JSON `"name": "value"`), and each such
+ * query is scoped to named repositories other than the code repository.
+ */
+function graphqlSearchScoped(text) {
+  const searches = [...text.matchAll(/\bsearch\s*\(([^)]*)\)/g)];
+  if (searches.length === 0) return false;
+  return searches.every(([, args]) => {
+    const literal = args.match(/\bquery\s*:\s*\\?"((?:[^"\\]|\\[^"])*)\\?"/);
+    if (literal) return searchScoped(literal[1]);
+    const variable = args.match(/\bquery\s*:\s*\$([A-Za-z_]\w*)/);
+    if (!variable) return false;
+    const name = variable[1];
+    const field = text.match(new RegExp(String.raw`(?:^|\n)${name}=([^\n]*)`));
+    const json = text.match(new RegExp(String.raw`\\?"${name}\\?"\s*:\s*\\?"((?:[^"\\]|\\[^"])*)\\?"`));
+    const value = field?.[1] ?? json?.[1];
+    return value !== undefined && searchScoped(value);
+  });
+}
+
+/**
+ * The guard's reason for an API URL path and the request around it, or
+ * null. `text` is every argument of the request; `searchQuery` is only the
+ * effective `q` of a REST search, since other fields do not scope it.
+ */
+function checkGuardedRequest(endpoint, text, searchQuery) {
   if (endpoint === "graphql") return graphqlReadsCode(text) ? GUARD.graphql() : null;
-  if (endpoint === "search/issues") return searchScoped(text) ? null : GUARD.search();
+  if (endpoint === "search/issues") return searchScoped(searchQuery ?? "") ? null : GUARD.search();
   return guardedEndpoint(endpoint) ? GUARD.api() : null;
+}
+
+/**
+ * The effective `q` of a REST search: the `q` parameters of the URL's
+ * query string and the `q=` request fields (gh's `-f q=...`, curl's `-d
+ * q=...` or `--data-urlencode q=...`, a PowerShell `q = '...'` entry).
+ */
+function searchQueryOf(url, fields) {
+  const out = [];
+  const query = url.split("#")[0].split("?")[1];
+  if (query) out.push(...new URLSearchParams(query).getAll("q"));
+  for (const f of fields) {
+    for (const part of f.split("&")) {
+      const m = part.match(/^q=([\s\S]*)$/);
+      if (m) out.push(m[1]);
+    }
+    for (const m of f.matchAll(/(?:^|[{;,(\s])["']?q["']?\s*[=:]\s*(["'])((?:(?!\1).)*)\1/g)) out.push(m[2]);
+  }
+  return out.join(" ");
 }
 
 function normalizeEndpoint(raw) {
@@ -1055,7 +1110,8 @@ function checkGhApi(args) {
     );
   }
   if (repos.cutover) {
-    const guarded = checkGuardedRequest(endpoint, [positional[0] ?? "", ...fields.map((f) => f.value)].join("\n"));
+    const values = fields.map((f) => f.value);
+    const guarded = checkGuardedRequest(endpoint, [positional[0] ?? "", ...values].join("\n"), searchQueryOf(positional[0] ?? "", values));
     if (guarded) return guarded;
   }
   if (endpoint === "graphql") return null;
@@ -1246,32 +1302,96 @@ function unwrapBody(body) {
 const CURL_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
-const API_URL = /^(?:-uri:|-url:|--url=)?((?:https?:\/\/)?api\.github\.com(?::\d+)?\/[^\s"']*)$/i;
+// A whole argument that is a URL on api.github.com or github.com, with any
+// scheme, user information or port, after an optional `-Uri:`, `-Url:` or
+// `--url=`. Group 1 is the host, group 2 the path after it.
+const HTTP_URL = /^(?:-uri:|-url:|--url=)?(?:https?:\/\/)?(?:[^@/\s"']*@)?(api\.github\.com|(?:www\.)?github\.com)(?::\d+)?\/([^\s"']*)$/i;
+
+/**
+ * The URLs curl requests for one URL argument: its `{a,b}` sets and `[x-y]`
+ * ranges expanded, as curl does unless globbing is off. A range stands for
+ * its first value, which is enough for a path segment the guard reads by
+ * name. Null when the expansion would exceed 64 URLs, which the guard
+ * refuses rather than reads.
+ */
+function curlGlob(url) {
+  let urls = [url];
+  for (;;) {
+    const next = [];
+    let expanded = false;
+    for (const u of urls) {
+      const m = u.match(/\{([^{}]*)\}|\[([^\][]*)\]/);
+      if (!m) {
+        next.push(u);
+        continue;
+      }
+      expanded = true;
+      const options = m[1] !== undefined ? m[1].split(",") : [m[2].split("-")[0]];
+      for (const o of options) next.push(u.slice(0, m.index) + o + u.slice(m.index + m[0].length));
+    }
+    if (next.length > 64) return null;
+    urls = next;
+    if (!expanded) return urls;
+  }
+}
 
 /**
  * The guard's reason for an HTTP client invocation whose request URL reaches
- * a guarded API path, or null. Every argument that is wholly an
- * api.github.com URL counts as a destination, whichever flag precedes it,
+ * a guarded API path or a web page of the code repository's issues, pull
+ * request conversations or discussions, or null. Every argument that is
+ * wholly such a URL counts as a destination, whichever flag precedes it,
  * since telling a flag's value from the URL would mean modelling every
  * option of every client; a link inside a body is part of a longer argument
- * and does not count. The request text the GraphQL and search checks read
- * is every argument.
+ * and does not count. curl's URL globs are expanded unless `-g` or
+ * `--globoff` turns them off. The request text the GraphQL check reads is
+ * every argument; a REST search is scoped only by its effective `q`.
  */
-function checkGuardedUrl(args) {
-  const text = args.map((a) => a.text).join("\n");
-  for (let k = 0; k < args.length; k++) {
-    const url = args[k].text.match(API_URL)?.[1];
-    if (!url) continue;
-    const endpoint = canonicalEndpoint(url.replace(/^(?:https?:\/\/)?api\.github\.com(?::\d+)?\//i, ""));
-    const reason = checkGuardedRequest(endpoint, text);
-    if (reason) return reason;
+function checkGuardedUrl(args, curl) {
+  const texts = args.map((a) => a.text);
+  const text = texts.join("\n");
+  const globbing = curl && !texts.some((t) => t === "--globoff" || /^-[A-Za-z0-9]*g[A-Za-z0-9]*$/.test(t));
+  for (const arg of texts) {
+    if (!HTTP_URL.test(arg)) continue;
+    const urls = globbing ? curlGlob(arg) : [arg];
+    if (urls === null) return GUARD.api();
+    for (const u of urls) {
+      const m = u.match(HTTP_URL);
+      if (!m) continue;
+      if (/^api\./i.test(m[1])) {
+        const reason = checkGuardedRequest(canonicalEndpoint(m[2]), text, searchQueryOf(m[2], texts));
+        if (reason) return reason;
+        continue;
+      }
+      const page = canonicalEndpoint(m[2]).match(/^([^/]+\/[^/]+)\/(issues|pull|pulls|discussions)(\/|$)/);
+      if (page && isCodeRepo(page[1]) && page[2] !== "pulls") return GUARD.web();
+    }
+  }
+  return null;
+}
+
+/**
+ * The repository whose issue collection an HTTP client's arguments post to,
+ * for the typed-creation rule, or null. With the switch on the destination
+ * is read as the guard reads it (user information, port, escapes, dot
+ * segments); with it off, exactly as before.
+ */
+function collectionRepo(args) {
+  if (!repos.cutover) {
+    const token = args.find((a) => COLLECTION_URL.test(a.text));
+    return token ? token.text.match(COLLECTION_URL)[1] : null;
+  }
+  for (const a of args) {
+    const m = a.text.match(HTTP_URL);
+    if (!m || !/^api\./i.test(m[1])) continue;
+    const c = canonicalEndpoint(m[2]).match(/^repos\/([^/]+\/[^/]+)\/issues$/);
+    if (c) return c[1];
   }
   return null;
 }
 
 function checkCurl(args) {
-  const urlIndex = args.findIndex((a) => COLLECTION_URL.test(a.text));
-  if (urlIndex < 0 || !isTypedRepo(args[urlIndex].text.match(COLLECTION_URL)[1])) return null;
+  const target = collectionRepo(args);
+  if (target === null || !isTypedRepo(target)) return null;
   let method = null;
   const bodies = [];
   let get = false;
@@ -1328,8 +1448,8 @@ function bodyText(seg) {
 }
 
 function checkInvokeRestMethod(args) {
-  const urlToken = args.find((a) => COLLECTION_URL.test(a.text));
-  if (!urlToken || !isTypedRepo(urlToken.text.match(COLLECTION_URL)[1])) return null;
+  const target = collectionRepo(args);
+  if (target === null || !isTypedRepo(target)) return null;
   const joined = args.map((a) => a.text).join(" ");
   const body = bodyText(args);
   const posts = /(^|\s)-method\s+post\b/i.test(joined) || body !== null;
@@ -1527,12 +1647,14 @@ function decideAt(command, shell, depth, envRepo) {
           if (repo === null && words[0] === "issue") repo = ghTargetRepo(invocation, ghArgs(rest), ghEnv);
         }
         if (reason) return reason;
-        if (words[0] === "issue" && words[1] === "create") reason = checkGhIssueCreate(rest, repo);
+        // With the switch on, gh's alias `issue new` creates as `issue create` does.
+        const action = repos.cutover ? (GH_ACTION_ALIASES.get(words[1]) ?? words[1]) : words[1];
+        if (words[0] === "issue" && action === "create") reason = checkGhIssueCreate(rest, repo);
         else if (words[0] === "api") reason = checkGhApi(rest);
       } else if (base === "curl") {
-        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkCurl(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1), true) : null) ?? checkCurl(seg.slice(i + 1));
       } else if (base === "invoke-restmethod" || base === "irm" || base === "invoke-webrequest" || base === "iwr") {
-        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1)) : null) ?? checkInvokeRestMethod(seg.slice(i + 1));
+        reason = (repos.cutover ? checkGuardedUrl(seg.slice(i + 1), false) : null) ?? checkInvokeRestMethod(seg.slice(i + 1));
       }
       if (reason) return reason;
     }
