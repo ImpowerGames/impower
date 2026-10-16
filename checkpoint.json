@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 27,
-  "previous": "e08864888a67642a97e1caf0fbcd4df369584e3d",
+  "seq": 28,
+  "previous": "52df504bcbde7d366699b99b33f08e2bfaafcde4",
   "snapshotParents": [],
-  "time": "2026-10-16T17:01:40.309Z",
+  "time": "2026-10-16T17:10:44.954Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 21,
+    "recordRevision": 22,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -228,6 +228,12 @@
       "removed": "system temp redgreen-5SmRt2, redgreen-QvInIh, redgreen-Rl8cEq",
       "branch": "",
       "classifier": "removed 48.5 KB: redgreen snapshots last written over 24 h ago"
+    },
+    {
+      "time": "2026-10-16T17:10:40.988Z",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/1304-repeat-until-unit",
+      "branch": "codex/fix/1304-repeat-until-unit",
+      "classifier": "removed 1.1 GB by --remove: #1304 closed, PR #1409 closed; 36 links unlinked first, targets untouched; its branch stays"
     }
   ],
   "verifications": [],
@@ -237,7 +243,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:01:37.839Z",
+      "observedAt": "2026-10-16T17:10:43.177Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -249,7 +255,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:01:37.839Z",
+      "observedAt": "2026-10-16T17:10:43.177Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -261,16 +267,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:01:37.839Z",
+      "observedAt": "2026-10-16T17:10:43.177Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 32500
-      }
+      "dirty": false
     }
   },
   "snapshots": {},
@@ -464,6 +466,11 @@
       "time": "2026-10-16T17:01:35.651Z",
       "event": "disk-recovery",
       "removed": "system temp redgreen-5SmRt2, redgreen-QvInIh, redgreen-Rl8cEq"
+    },
+    {
+      "time": "2026-10-16T17:10:40.989Z",
+      "event": "disk-recovery",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/1304-repeat-until-unit"
     }
   ]
 }
