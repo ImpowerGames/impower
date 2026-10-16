@@ -483,9 +483,15 @@ const ALTERNATOR_CONTENT = nodeNameSet([
 // sparkle handler's closure's (read whole, as `lowerSparkleBody.ts` reads it).
 const MEMBER_CONTENT = nodeNameSet(["LuauDefine_content", "LuauSparkleHandlerClosure_content"]);
 
-/** Whether the arm of an alternator that a statement of its body is in holds a token the grammar left unread. */
-function armHoldsUnreadToken(statement: SyntaxNode): boolean {
-  let first = statement;
+/** The node of an alternator's arm a node is in, at any depth (a function value's body in the arm included): its nearest ancestor (or itself) that is a child of an alternator's body. */
+function armNodeOf(node: SyntaxNode | null): SyntaxNode | null {
+  while (node && !ALTERNATOR_CONTENT.has(node.parent?.name ?? "")) node = node.parent;
+  return node;
+}
+
+/** Whether the arm of an alternator that a node of its body is in holds a token the grammar left unread. */
+function armHoldsUnreadToken(armNode: SyntaxNode): boolean {
+  let first = armNode;
   while (first.prevSibling && first.prevSibling.name !== "LuauAlternatorSeparator") first = first.prevSibling;
   for (let node: SyntaxNode | null = first; node && node.name !== "LuauAlternatorSeparator"; node = node.nextSibling) {
     if (containsUnreadToken(node)) return true;
@@ -554,41 +560,48 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * `markUnreadErrors`): one that holds a token the grammar left unread,
    * one such a token follows on its line, and one Luau's recovery from such
    * a statement reads. None of their errors is reported from the tree. The
-   * converter reads the statement's outermost statement for them, only when
-   * that holds an unread token. An alternator's arm that holds one is the
-   * alternator lowerer's to report, and a define's property-level statement
-   * that is one is the define lowerer's.
+   * converter reads the statement's outermost statement for them (a sparkle
+   * closure's whole body), only when that holds an unread token. Anything in
+   * an alternator's arm that holds one is the alternator lowerer's to
+   * report, which reads the arm whole, and a define's property-level
+   * statement that is one is the define lowerer's.
    */
   private ownedByUnreadReading(node: SyntaxNode): boolean {
+    const arm = armNodeOf(node);
+    if (arm) return armHoldsUnreadToken(arm);
     const statement = bodyStatementOf(node);
     if (!statement) return false;
-    if (ALTERNATOR_CONTENT.has(statement.parent!.name)) return armHoldsUnreadToken(statement);
     const top = outermostStatementOf(statement);
     if (top.parent?.name === "LuauDefine_content" && top.name !== "LuauMethodDefinition" && top.name !== "LuauFunctionDefinition") {
       return UNREAD_TOKENS.has(statement.name);
     }
-    return this.unreadStatementsIn(top).has(`${statement.from}:${statement.to}`);
+    // A closure's body is read whole, as its lowerer reads it, so that Luau's
+    // recovery from one of its statements reaches the next.
+    const reading = top.parent?.name === "LuauSparkleHandlerClosure_content" ? top.parent : top;
+    return this.unreadStatementsIn(reading).has(`${statement.from}:${statement.to}`);
   }
 
-  /** The statements in an outermost statement whose errors the converter marks as Luau's, by range. */
-  private unreadStatementsIn(top: SyntaxNode): ReadonlySet<string> {
-    const key = `${top.name}:${top.from}:${top.to}`;
+  /** The statements in a reading (an outermost statement, or a closure's body) whose errors the converter marks as Luau's, by range. */
+  private unreadStatementsIn(reading: SyntaxNode): ReadonlySet<string> {
+    const key = `${reading.name}:${reading.from}:${reading.to}`;
     let owned = this.unreadReadings.get(key);
     if (owned) return owned;
     const found = new Set<string>();
-    if (containsUnreadToken(top)) {
+    if (containsUnreadToken(reading)) {
       const text = this.statementDocumentText();
-      const closure = top.parent?.name === "LuauSparkleHandlerClosure_content" ? top.parent : null;
-      const siblings: SyntaxNode[] = [];
-      for (let child = closure?.firstChild ?? null; child; child = child.nextSibling) siblings.push(child);
-      const ranges = top.name === "LuauMethodDefinition"
-        ? readLuauMethod(top, text).unreadStatements
-        : readLuauBlock(closure ? siblings : [top], text).unreadStatements ?? [];
+      const nodes: SyntaxNode[] = [];
+      if (reading.name === "LuauSparkleHandlerClosure_content") {
+        for (let child = reading.firstChild; child; child = child.nextSibling) nodes.push(child);
+      } else {
+        nodes.push(reading);
+      }
+      const ranges = reading.name === "LuauMethodDefinition"
+        ? readLuauMethod(reading, text).unreadStatements
+        : readLuauBlock(nodes, text).unreadStatements ?? [];
       // Each range begins with its statement's first token: the statement is
       // the body statement there.
-      const root = closure ?? top;
       for (const range of ranges) {
-        const statement = bodyStatementOf(root.resolveInner(range.from, 1));
+        const statement = bodyStatementOf(reading.resolveInner(range.from, 1));
         if (statement) found.add(`${statement.from}:${statement.to}`);
       }
     }

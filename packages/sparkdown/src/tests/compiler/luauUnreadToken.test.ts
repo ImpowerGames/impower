@@ -349,6 +349,19 @@ describe("each error has one reader", () => {
     }
   });
 
+  it("a sparkle closure's body and an alternator's arm are each one reading, recovery and nested functions included", () => {
+    // Luau's errors for `@ x = (if c)`, written as a function value's body.
+    const luau = (at: number) => [
+      `${0}:${at}-${0}:${at + 1} Attribute name is missing`,
+      `${0}:${at + 2}-${0}:${at + 3} Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got 'x' instead`,
+      `${0}:${at + 11}-${0}:${at + 12} Expected 'then' when parsing if then else expression, got ')'`,
+    ];
+    expect(officialErrors("local f = function() @ x = (if c) end\n")).toEqual(luau(21).sort());
+    const shifted = (line: number, at: number) => luau(at).map((e) => e.replace(/^0:(\d+)-0:/, `${line}:$1-${line}:`)).sort();
+    expect(read("layout main with\n  button @click={ @ x = (if c) }\nend\n").errors).toEqual(shifted(1, 18));
+    expect(read('Value {cycle "a" | function() @ x = (if c) end | "b" end}.\n').errors).toEqual(shifted(0, 30));
+  });
+
   it("a statement after Luau's recovery has ended keeps its own errors", () => {
     // Luau's recovery from the attribute ends with `x = 1`, which it reads
     // with no error, so the declaration after it reports what it reports
