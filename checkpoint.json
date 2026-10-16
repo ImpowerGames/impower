@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 78,
-  "previous": "e4f0d49f66f280ac35c90d06f6eee915c86b2372",
+  "seq": 79,
+  "previous": "822caa0fccf1f7ca912a2e04d46a50ad06b26217",
   "snapshotParents": [],
-  "time": "2026-10-16T19:14:01.245Z",
+  "time": "2026-10-16T19:21:14.713Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 62,
+    "recordRevision": 63,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -869,7 +869,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T19:13:59.626Z",
+      "observedAt": "2026-10-16T19:21:13.779Z",
       "held": true,
       "head": "d97776bf561f272db2223fbbe2411a70bd98a670",
       "remoteHead": "d97776bf561f272db2223fbbe2411a70bd98a670",
@@ -957,7 +957,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T19:13:59.626Z",
+      "observedAt": "2026-10-16T19:21:13.779Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -1412,6 +1412,11 @@
       "time": "2026-10-16T19:00:31.515Z",
       "event": "check-in",
       "outcome": "no dispatch: #1637 (PR #1960 round 1, second reviewer launched after decision B) and #1881 writers running; #851 and #1798 done; new sub-issue #1974 (Bug, Effort Medium, filed 18:49Z by the #1637 writer's filer for the stale-memo defect) attached under #1940 widens the Feature's listed scope, held for the maintainer's decision (keep under #1940 and dispatch after #1637 merges, or move under umbrella #1893); no transcripts to read, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-16T19:21:12.565Z",
+      "event": "check-in",
+      "outcome": "no change: #1637 (PR #1960, head d97776bf5, round 1 second reviewer) and #1881 writers running; #1974 waits on #1637; #851 and #1798 done; no transcripts to read, no dead launches, no open requests"
     }
   ]
 }
