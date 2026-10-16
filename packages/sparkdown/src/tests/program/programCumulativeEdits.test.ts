@@ -18,8 +18,8 @@
 // The seeds the sub-issues found with inserts of their own, which no file
 // holds, are left out: flow 2, 6 and 9 (#1628, single edits), capture 4
 // (#1613) and choose 1 with fallback inserts (#1632); choose 1 runs with the
-// screenplay's inserts. Two seeds that still fail are kept and skipped, each
-// naming the Bug filed for it: function 12 (#1933) and flow 3 (#1934).
+// screenplay's inserts. A seed that still fails is kept and skipped, naming
+// the Bug filed for it: flow 3 (#1934).
 //
 // The full run takes about ten seconds a seed, too long for the Test Suite
 // workflow's sparkdown shards, so the suite runs a short form: the deleted
@@ -265,14 +265,14 @@ const SCREENPLAYS = [
   { name: "logic", text: () => logicScreenplay(3), inserts: LOGIC_INSERTS, seeds: [5] },
   // 12345 and 99991: statements an edit moved past the ones keeping their
   // chunks (#1221). 1, 3 and 4: #1623. 3: a call's arguments carried with a
-  // line they no longer read (#1614). 4, 6 and 10: #1613. 12: #1627; its
-  // edits #27 and #117 emit an untouched `do` block's and `function inner()`'s
-  // chunks again (#1933), so it is skipped until that is fixed.
+  // line they no longer read (#1614). 4, 6 and 10: #1613. 12: #1627, and its
+  // edits #27 and #117 emitted an untouched `do` block's and `function
+  // inner()`'s chunks again (#1933).
   {
     name: "function",
     text: () => functionScreenplay(3),
     inserts: FUNCTION_INSERTS,
-    seeds: [12345, 99991, 1, 3, 4, 6, 10, { seed: 12, skip: "#1933" }],
+    seeds: [12345, 99991, 1, 3, 4, 6, 10, 12],
   },
   // 2: #1613. 7: #1614's string case.
   { name: "capture", text: () => captureScreenplay(3), inserts: CAPTURE_INSERTS, seeds: [2, 7] },
