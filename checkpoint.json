@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 111,
-  "previous": "11a92ded38502b4b279c96829628aa4c065ee065",
+  "seq": 112,
+  "previous": "16fc3abd8e4d4a3e412aa10174f61740575d556c",
   "snapshotParents": [],
-  "time": "2026-10-16T01:18:35.752Z",
+  "time": "2026-10-16T01:27:45.190Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 84,
+    "recordRevision": 85,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -507,6 +507,11 @@
           },
           "evidence": "cross-session message from writer session impower-f0 at 2026-10-15 18:56 local naming assignment 01c5d730 and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
           "deliveryId": "cdae556f"
+        },
+        "resuming": {
+          "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1846-8e38da90-b9c9-49d7-9bfd-e9af8e491875",
+          "time": "2026-10-16T01:27:42.101Z"
         }
       },
       "pending": null,
@@ -1067,7 +1072,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1614-parser-restart-zero-width",
       "branch": "fix/1614-parser-restart-zero-width",
-      "observedAt": "2026-10-16T01:18:34.310Z",
+      "observedAt": "2026-10-16T01:27:43.667Z",
       "held": true,
       "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
       "remoteHead": null,
@@ -1079,7 +1084,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1623-twin-chunk-alignment",
       "branch": "fix/1623-twin-chunk-alignment",
-      "observedAt": "2026-10-16T01:18:34.310Z",
+      "observedAt": "2026-10-16T01:27:43.667Z",
       "held": true,
       "head": "e84cd48368b3362989776690ec88a1d1f5d05857",
       "remoteHead": null,
@@ -1091,7 +1096,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1846-do-block-memo-tally",
       "branch": "fix/1846-do-block-memo-tally",
-      "observedAt": "2026-10-16T01:18:34.310Z",
+      "observedAt": "2026-10-16T01:27:43.667Z",
       "held": true,
       "head": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
       "remoteHead": "a9838d7553f0e90c0ace7bb226c6f1f7e25fe198",
@@ -1898,6 +1903,13 @@
       "time": "2026-10-16T01:18:32.967Z",
       "event": "check-in",
       "outcome": "no change: #1623 and #1614 writers running (no PRs yet); PR 1915 ready and held behind #1916 (still open) per the merge queue; main at e84cd48 (#1912); no requests"
+    },
+    {
+      "time": "2026-10-16T01:27:42.103Z",
+      "event": "resume-intent",
+      "ticket": 1846,
+      "id": "8e38da90-b9c9-49d7-9bfd-e9af8e491875",
+      "sessionId": "0658610c-7e0e-4886-b19f-ca2a5e791f2f"
     }
   ]
 }
