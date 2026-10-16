@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 44,
-  "previous": "4520fd44721df3bada6350d062d48f0df16d7493",
+  "seq": 45,
+  "previous": "4e847ddac2d2ba58056e9af7b43161ea0b7ffa9c",
   "snapshotParents": [],
-  "time": "2026-10-16T14:51:11.729Z",
+  "time": "2026-10-16T15:21:39.947Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 55,
+    "recordRevision": 56,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -436,15 +436,15 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T14:51:10.327Z",
+      "observedAt": "2026-10-16T15:21:39.055Z",
       "held": true,
-      "head": "af9645a2fc6bebb69bbe3547b67857d6d1ad1418",
-      "remoteHead": "af9645a2fc6bebb69bbe3547b67857d6d1ad1418",
+      "head": "1c731c6efd5316cdeae2adb92a1843494f396d73",
+      "remoteHead": "1c731c6efd5316cdeae2adb92a1843494f396d73",
       "unpushed": false,
       "dirty": false,
       "handoffLock": {
         "host": "DESKTOP-726EO47",
-        "pid": 23216
+        "pid": 39456
       },
       "pr": 1927,
       "reviewJobs": [
@@ -571,7 +571,7 @@
         },
         {
           "job": "pr-1927/round-2/launch-fix2-1",
-          "lastEvent": "identified",
+          "lastEvent": "blocked",
           "attempted": {
             "round": 2,
             "step": "review-fix2",
@@ -588,6 +588,27 @@
               "undirected": 1
             },
             "time": "2026-10-16T14:46:01.015Z"
+          }
+        },
+        {
+          "job": "pr-1927/round-2/launch-undirected2-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected2",
+            "reviewerId": "undirected2",
+            "attempt": 1,
+            "plannedReviewers": [
+              "fix2",
+              "undirected2"
+            ],
+            "head": "1c731c6efd5316cdeae2adb92a1843494f396d73",
+            "completedRoundReviewers": {
+              "gram": 1,
+              "ax": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T15:14:10.435Z"
           }
         }
       ]
@@ -1190,6 +1211,11 @@
       "time": "2026-10-16T14:51:08.470Z",
       "event": "check-in",
       "outcome": "no change: #1905 running; PR #1927 in review round 2 (round state 6218023048, fix2 reviewer running, writer waiting in the foreground); the snapshot's PR list hit GitHub's GraphQL rate limit for this account so its PR data was partial, no decision rested on it; no request pending"
+    },
+    {
+      "time": "2026-10-16T15:21:37.608Z",
+      "event": "check-in",
+      "outcome": "no change: #1905 running; PR #1927 head 1c731c6e green, round 2's second reviewer (undirected2) running with the writer waiting in the foreground, 13 PR comments; a transient ENOENT from a reviewer temp file during the snapshot scan, plan unaffected; no request pending"
     }
   ]
 }
