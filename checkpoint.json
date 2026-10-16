@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 29,
-  "previous": "c7f3428b583828e8cccbda5400c5fe2e709cf8c6",
+  "seq": 30,
+  "previous": "a0427f4b9324227e1dccaa78cd5937a1861a2481",
   "snapshotParents": [],
-  "time": "2026-10-16T17:10:56.629Z",
+  "time": "2026-10-16T17:11:07.619Z",
   "kind": "auto",
   "transition": "disk-recovery",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 23,
+    "recordRevision": 24,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -240,6 +240,12 @@
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/931-return-outside-function",
       "branch": "codex/fix/931-return-outside-function",
       "classifier": "removed 1.1 GB by --remove: #931 closed, PR #1359 merged; 36 links unlinked first, targets untouched; its branch stays"
+    },
+    {
+      "time": "2026-10-16T17:11:04.228Z",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1093-function-story-lines",
+      "branch": "fix/1093-function-story-lines",
+      "classifier": "removed 925.8 MB by --remove: #1093 closed, no commits on the branch; 36 links unlinked first, targets untouched; its branch stays"
     }
   ],
   "verifications": [],
@@ -249,7 +255,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T17:10:55.003Z",
+      "observedAt": "2026-10-16T17:11:05.923Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -261,7 +267,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T17:10:55.003Z",
+      "observedAt": "2026-10-16T17:11:05.923Z",
       "held": true,
       "head": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
       "remoteHead": null,
@@ -273,7 +279,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1798-decidewrites-cached-locals",
       "branch": "perf/1798-decidewrites-cached-locals",
-      "observedAt": "2026-10-16T17:10:55.003Z",
+      "observedAt": "2026-10-16T17:11:05.923Z",
       "held": true,
       "head": "f61f8756e186753f83fe40c387723736bb66abe7",
       "remoteHead": "f61f8756e186753f83fe40c387723736bb66abe7",
@@ -482,6 +488,11 @@
       "time": "2026-10-16T17:10:53.355Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/931-return-outside-function"
+    },
+    {
+      "time": "2026-10-16T17:11:04.229Z",
+      "event": "disk-recovery",
+      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1093-function-story-lines"
     }
   ]
 }
