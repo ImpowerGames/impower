@@ -3271,14 +3271,18 @@ export class SparkdownCompiler {
     // mutates the parsed IR in place and the incremental pipeline carries
     // those nodes into the next compile, so already-renamed names must be
     // re-collected and renumbered too: when an edit adds/removes a synthetic
-    // earlier in the flow, a carried `__synth$<flow>$k`'s ordinal is stale and only re-running it
-    // through the document-order numbering matches what a cold compile derives.
-    // A raw name carries `syntheticId`: the document tag, `$`, then the
-    // offset. Every form requires a `$`, which an author's identifier cannot
-    // contain, so the pass never takes an authored name such as
-    // `f__redef_x__1` or `__synth_0` for one of its own.
-    const SYNTH =
-      /^__synth\$[^$]*\$\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
+    // earlier in the flow, a carried `__synth$<flow>$k`'s ordinal is stale
+    // and only re-running it through the document-order numbering matches
+    // what a cold compile derives. A raw name carries `syntheticId`: the
+    // document tag, `$`, then the offset. Every form requires a `$`, which an
+    // author's identifier cannot contain, so the pass never takes an authored
+    // name such as `f__redef_x__1` or `__synth_0` for one of its own. The
+    // canonical form is the one its readers share (`NUMBERED_SYNTHETIC_NAME`).
+    const RAW_SYNTH =
+      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
+    const SYNTH = new RegExp(
+      `${NUMBERED_SYNTHETIC_NAME.source}|${RAW_SYNTH.source}`,
+    );
     const remap = new Map<string, string>();
     // True once any collected name maps to a DIFFERENT canonical name. In the
     // steady state (carried names already canonical and ordinals unchanged —
