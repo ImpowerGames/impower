@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 184,
-  "previous": "cc96b3709ee916836bc2921571f19b7cc75052dc",
+  "seq": 185,
+  "previous": "7748a174ada161e4ffa82d90b0125a05a0bd9266",
   "snapshotParents": [],
-  "time": "2026-10-16T11:47:27.659Z",
+  "time": "2026-10-16T12:14:59.861Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 136,
+    "recordRevision": 137,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -762,6 +762,11 @@
           },
           "evidence": "cross-session message from writer session impower-cb at 2026-10-16 ~02:3x local naming assignment 4e3cff43 and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
           "deliveryId": "2ebdfa12"
+        },
+        "resuming": {
+          "id": "92387613-a3f8-4ae5-adcd-5deffdb94a85",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1917-92387613-a3f8-4ae5-adcd-5deffdb94a85",
+          "time": "2026-10-16T12:14:57.940Z"
         }
       },
       "pending": null,
@@ -2048,7 +2053,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T11:47:26.915Z",
+      "observedAt": "2026-10-16T12:14:59.271Z",
       "held": true,
       "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
       "remoteHead": null,
@@ -2154,11 +2159,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:20:52.893Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\test\\705-migrate-engine-tests-3"
-    },
     {
       "time": "2026-10-15T22:23:17.485Z",
       "event": "adopted",
@@ -2860,6 +2860,13 @@
       "time": "2026-10-16T11:47:25.633Z",
       "event": "check-in",
       "outcome": "no change: #1917 writer stalled on the weekly usage limit, no PR; awaiting the maintainer's choice"
+    },
+    {
+      "time": "2026-10-16T12:14:57.941Z",
+      "event": "resume-intent",
+      "ticket": 1917,
+      "id": "92387613-a3f8-4ae5-adcd-5deffdb94a85",
+      "sessionId": "afe55743-8c0d-4e48-a695-94ad91a2d381"
     }
   ]
 }
