@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 59,
-  "previous": "9002dda6b505966cacf68c24b3e0be758da5a196",
+  "seq": 60,
+  "previous": "e3760305d1c1679618d9b3c51c3d6b42e5776921",
   "snapshotParents": [],
-  "time": "2026-10-16T19:00:50.094Z",
+  "time": "2026-10-16T19:01:15.584Z",
   "kind": "auto",
-  "transition": "answer of #1905",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 64,
+    "recordRevision": 65,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -133,7 +133,12 @@
             "time": "2026-10-16T12:17:08.937Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1905-c04ac027-1dba-4d09-9570-d962dbca24a5"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "203ec39e-8bf6-405d-a574-a4e3227604d1",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1905-203ec39e-8bf6-405d-a574-a4e3227604d1",
+          "time": "2026-10-16T19:01:12.228Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -450,7 +455,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T19:00:48.942Z",
+      "observedAt": "2026-10-16T19:01:14.812Z",
       "held": true,
       "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
       "remoteHead": "77fcc6ed63a764a85a71d5569838241ccf5c1438",
@@ -1364,6 +1369,13 @@
       "id": "3a331217",
       "deliveryId": "586322ec",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-16T19:01:12.229Z",
+      "event": "resume-intent",
+      "ticket": 1905,
+      "id": "203ec39e-8bf6-405d-a574-a4e3227604d1",
+      "sessionId": "c7930980-e567-434b-b93e-e49bf72521e2"
     }
   ]
 }
