@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 144,
-  "previous": "523cbe9f0fd022c88f305ab4bc639132b7fef576",
+  "seq": 145,
+  "previous": "44bfd6622c29da30ab84b2019418de435e44d1de",
   "snapshotParents": [],
-  "time": "2026-10-16T02:44:16.474Z",
+  "time": "2026-10-16T02:44:33.358Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 120,
+    "recordRevision": 121,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1934,7 +1934,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T02:44:15.412Z",
+      "observedAt": "2026-10-16T02:44:32.320Z",
       "held": true,
       "head": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
       "remoteHead": "3f1bf5782d6fa5f6776e2a90fca2980550e5cfe1",
@@ -1970,7 +1970,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T02:44:15.412Z",
+      "observedAt": "2026-10-16T02:44:32.320Z",
       "held": true,
       "head": "73452086e0380d249c61e83372ae0817a35e8c57",
       "remoteHead": "73452086e0380d249c61e83372ae0817a35e8c57",
@@ -2064,11 +2064,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:55.905Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\feat\\702-program-debugger"
-    },
     {
       "time": "2026-10-15T22:19:03.714Z",
       "event": "disk-recovery",
@@ -2722,6 +2717,11 @@
       "time": "2026-10-16T02:32:38.297Z",
       "event": "check-in",
       "outcome": "no change: writers for #1617 and #1920 running with no PR yet; no transcripts to read, no dead launches; #316, #454, #887 wait for #1617; 59 GB free"
+    },
+    {
+      "time": "2026-10-16T02:44:31.011Z",
+      "event": "check-in",
+      "outcome": "no change: #1617 writer opened draft PR #1921 at 3f1bf5782 and is in review; #1920 writer still working with no PR; no transcripts to read, no dead launches"
     }
   ]
 }
