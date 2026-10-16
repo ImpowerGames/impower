@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 156,
-  "previous": "28d2b75b4400cbd403b2f01837b1c5bbca605d33",
+  "seq": 157,
+  "previous": "852d9d44b006754a6fecbec85c4f0ab9ff887eb6",
   "snapshotParents": [],
-  "time": "2026-10-16T05:17:41.526Z",
+  "time": "2026-10-16T05:48:19.934Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
     "recordRevision": 115,
@@ -1792,18 +1792,126 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1627-carried-block-flow-change",
       "branch": "fix/1627-carried-block-flow-change",
-      "observedAt": "2026-10-16T05:17:40.888Z",
+      "observedAt": "2026-10-16T05:48:19.016Z",
       "held": true,
       "head": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
       "remoteHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
       "unpushed": false,
-      "dirty": false
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 36512
+      },
+      "pr": 1930,
+      "reviewJobs": [
+        {
+          "job": "pr-1930/round-1/launch-bound-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-bound",
+            "reviewerId": "bound",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+            "completedRoundReviewers": {
+              "incr": 1
+            },
+            "time": "2026-10-16T05:40:12.312Z"
+          },
+          "round": 1,
+          "reviewerId": "bound",
+          "attempt": 1,
+          "reviewedHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "incr": 1,
+            "bound": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6208970713
+          ]
+        },
+        {
+          "job": "pr-1930/round-1/launch-incr-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-incr",
+            "reviewerId": "incr",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T05:19:27.556Z"
+          },
+          "round": 1,
+          "reviewerId": "incr",
+          "attempt": 1,
+          "reviewedHead": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "incr": 1
+          },
+          "plannedRoundReviewers": [
+            "incr",
+            "bound",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "bound",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6208875944
+          ]
+        },
+        {
+          "job": "pr-1930/round-1/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "incr",
+              "bound",
+              "undirected"
+            ],
+            "head": "cd6379dc7725366cde74f43c05fc815444e7e3a9",
+            "completedRoundReviewers": {
+              "incr": 1,
+              "bound": 1
+            },
+            "time": "2026-10-16T05:45:34.205Z"
+          }
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T04:55:38.463Z",
+    "at": "2026-10-16T05:48:19.014Z",
     "tickets": [
       {
         "number": 1201,
@@ -1856,7 +1964,7 @@
       {
         "number": 1627,
         "action": "observe",
-        "pr": null,
+        "pr": 1930,
         "reason": "process 2528 started 639277232358933695 is running"
       },
       {
