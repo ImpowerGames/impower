@@ -1455,8 +1455,17 @@ export class SparkdownCompiler {
   protected compileStory(params: CompileProgramParams) {
     for (let attempt = 0; ; attempt += 1) {
       this._memoAttempt = attempt;
+      const resolves = this._programResolver?.resolves ?? 0;
       const { memoRetry, ...result } = this.compileStoryOnce(params);
       if (!memoRetry) {
+        // A preview's resolve is dropped with it, and an attempt's that met
+        // a memo it could not compile from with the attempt: the next
+        // resolve resolves again what they resolved
+        // (`ProgramResolver.committed`).
+        const resolver = this._programResolver;
+        if (!this._previewing && resolver && resolver.resolves > resolves) {
+          resolver.committed();
+        }
         return result;
       }
       if (attempt >= 2) {

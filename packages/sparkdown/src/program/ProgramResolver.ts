@@ -227,6 +227,8 @@ interface UnitRecord {
   /** The diverts its resolution resolved, whose targets a later compile
    *  moves onto the objects that stand for them then (`retarget`). */
   diverts: Divert[];
+  /** The resolve that made it (`ProgramResolver.committed`). */
+  at: number;
 }
 
 /** Whether `obj` is a stand-in of a statement served from its memo, or a
@@ -502,6 +504,8 @@ export class ProgramResolver {
   // memo's resolution, made by an earlier resolve, reads otherwise.
   protected _changedAt = new Map<string, number>();
   protected _anyChangedAt = 0;
+  // The last resolve whose compile kept what it resolved (`committed`).
+  protected _committed = 0;
 
   protected _compile = 0;
   protected _needsCold = true;
@@ -612,6 +616,7 @@ export class ProgramResolver {
       printed: [],
       volatile: false,
       diverts: [],
+      at: this._compile,
     };
   }
 
@@ -822,6 +827,15 @@ export class ProgramResolver {
       if (changed.length > 0) {
         for (const unit of this._readers.get("*") ?? []) {
           invalidate(unit, "name *");
+        }
+      }
+      // A statement whose record a resolve made that its compile did not keep
+      // (a preview's, or an attempt's that met a memo it could not compile
+      // from): what it found can rest on what the statements served from
+      // those memos repeated, which their lowering anew may not (#1974).
+      for (const unit of this._order) {
+        if (unit.record && unit.record.at > this._committed) {
+          invalidate(unit, "uncommitted");
         }
       }
       for (const unit of this._positioned) {
@@ -2013,6 +2027,21 @@ export class ProgramResolver {
       input.carriedMemos(block);
     }
     this._owners = ProgramResolver.ownersOf(candidates);
+  }
+
+  /** Notes that the compile of the last resolve kept what it resolved: it
+   *  was no preview, and met no memo it could not compile from
+   *  (`StatementMemoRetry`). The next resolve resolves again each statement
+   *  a resolve after the last such compile resolved: what that resolve found
+   *  can rest on what a stale memo's stand-in repeated, and the memos of the
+   *  statement's block are completed by none (`noteCarriedMemos`, #1974). */
+  committed(): void {
+    this._committed = this._compile;
+  }
+
+  /** The number of resolves this resolver has made. */
+  get resolves(): number {
+    return this._compile;
   }
 
   /** The memo candidate whose objects `obj` stands among, or none. */

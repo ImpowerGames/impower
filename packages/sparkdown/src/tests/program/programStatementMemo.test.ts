@@ -104,21 +104,43 @@ function session(texts: Record<string, string>) {
     },
     /** Replaces the first `find` at or after `from` with `replace`. */
     edit(find: string, replace: string, from = 0): SparkProgram {
-      const offset = text.indexOf(find, from);
-      expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+      return this.editAll([[find, replace]], from);
+    },
+    /** Replaces the first `find` of each pair with its `replace`, in order,
+     *  as one update of the script, and compiles once. */
+    editAll(changes: readonly [find: string, replace: string][], from = 0): SparkProgram {
+      const contentChanges = [];
+      for (const [find, replace] of changes) {
+        const offset = text.indexOf(find, from);
+        expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+        contentChanges.push({
+          range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
+          text: replace,
+        });
+        text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      }
       version += 1;
-      c.compiler.updateDocument({
-        textDocument: { uri: MAIN_URI, version },
-        contentChanges: [
-          {
-            range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
-            text: replace,
-          },
-        ],
-      });
-      text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      c.compiler.updateDocument({ textDocument: { uri: MAIN_URI, version }, contentChanges });
       program = quietly(() => c.compile().program);
       return program;
+    },
+    /** Compiles a preview of replacing the first `find` with `replace`,
+     *  which leaves the script as it was. */
+    preview(find: string, replace: string): void {
+      const offset = text.indexOf(find);
+      expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+      quietly(() =>
+        c.compiler.previewCompile({
+          root: { uri: MAIN_URI },
+          textDocument: { uri: MAIN_URI, version },
+          contentChanges: [
+            {
+              range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
+              text: replace,
+            },
+          ],
+        } as never),
+      );
     },
   };
 }
@@ -813,6 +835,50 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
+  it("is served, with the line that reads it, by the edit after a rename the compile made a second attempt at (#1974)", () => {
+    // A second scene whose clause reads `here` from a memo: the rename makes
+    // it stale, so the compile makes a second attempt, which the first
+    // scene's carried block goes through unchanged.
+    const second = [
+      "scene SECOND",
+      "  Second opening.",
+      "  choose",
+      "    + [On]",
+      "      You go.",
+      "    + [Off]",
+      "      You stay.",
+      "  then",
+      "    Warm two.",
+      ...FILLER.map((line) => `    ${line}`),
+      "    Two {here}.",
+      ...FILLER.map((line) => `    ${line}`),
+      "    Last two.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const s = warmed(`${localScript(["store other = 1", ""])}\n${second}`);
+    s.edit("Warm two.", "Warm two!");
+    s.edit("Last two.", "Last two!");
+    expect(s.stats.served).toBeGreaterThan(0);
+    s.edit("store other = 1", "store here = 1");
+    expect((s.compiler as unknown as { _memoAttempt: number })._memoAttempt).toBe(1);
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
+  it("is served, with the line that reads it, by the edit after a rename a preview showed first (#1974)", () => {
+    // The preview resolves the carried block for the rename, and completes no
+    // memo; the compile that makes the rename resolves it again.
+    const s = warmed(localScript(["store other = 1", ""]));
+    s.preview("store other = 1", "store here = 1");
+    s.edit("store other = 1", "store here = 1");
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
   it("collides again when a store of its name is declared in its own scene, and stops when it goes", () => {
     // A store in the local's own scene shares its scope, so the two collide
     // (#1742) whichever statement the edit lowers.
@@ -823,6 +889,28 @@ describe("a local declaration", () => {
     s.edit("store here = 1", "Line last.");
     sameAsCold(s);
     expect(diagnostics(s.program).join("\n")).not.toContain("Duplicate identifier");
+  });
+});
+
+describe("a compile that meets a memo it cannot compile from", () => {
+  it("reports what a cold compile reports of a line that reads the global a stale assignment's memo made no auto-global of", () => {
+    // `& gold = gold + 1` is served from a memo recorded while the store
+    // declared `gold`, which made no auto-global. The update that removes the
+    // store and lowers its block again finds the memo stale: the first
+    // attempt resolves the scene that reads `gold` with no global of the
+    // name, and the second lowers the assignment, which makes the
+    // auto-global, so the reader must be resolved again.
+    const s = warmed(
+      `${clauseScript(["Line one.", ...FILLER, "& gold = gold + 1", ...FILLER, "Line last."], ["store gold = 0", ""])}\nscene ENDING\n  The end, with {gold} gold.\nend\n`,
+    );
+    s.edit("Warm line!", "Warm line?");
+    expect(s.stats.served).toBeGreaterThan(0);
+    s.editAll([
+      ["store gold = 0\n", ""],
+      ["Line last.", "Line last!"],
+    ]);
+    expect((s.compiler as unknown as { _memoAttempt: number })._memoAttempt).toBe(1);
+    sameAsCold(s);
   });
 });
 
