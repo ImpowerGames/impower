@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 187,
-  "previous": "082e5c333578cdc4051f86356a67299fa74e07a4",
+  "seq": 188,
+  "previous": "5b6145b2ccf33f2b4fde93c4cdbcc34a929167e8",
   "snapshotParents": [],
-  "time": "2026-10-16T12:16:51.310Z",
+  "time": "2026-10-16T12:16:59.110Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 138,
+    "recordRevision": 139,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2055,7 +2055,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:16:50.647Z",
+      "observedAt": "2026-10-16T12:16:58.420Z",
       "held": true,
       "head": "2d5f7cc10e55da6f2fba81c289da7513cac8a095",
       "remoteHead": null,
@@ -2161,19 +2161,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:24:55.330Z",
-      "event": "adopted",
-      "ticket": 1249,
-      "handle": {
-        "kind": "process",
-        "pid": 55348,
-        "start": "639276984318127089",
-        "host": "DESKTOP-726EO47"
-      },
-      "pr": 1910,
-      "rounds": 0
-    },
     {
       "time": "2026-10-15T22:25:36.927Z",
       "event": "adopted",
@@ -2869,6 +2856,11 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\resume-1917-92387613-a3f8-4ae5-adcd-5deffdb94a85"
       }
+    },
+    {
+      "time": "2026-10-16T12:16:56.977Z",
+      "event": "check-in",
+      "outcome": "resumed the #1917 writer at the maintainer's word that usage was restored; it ended at once on the weekly-limit answer again, and CLI probes of claude-opus-5-5 and claude-sonnet-5-5 at 08:16 EDT both still report the limit (resets Oct 19 1am ET); maintainer informed; checkout updated to 45e2dd1e (relaxed gate)"
     }
   ]
 }
