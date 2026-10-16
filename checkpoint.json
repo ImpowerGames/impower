@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 149,
-  "previous": "53938458f10c957ea86a76e688653bac256d5aac",
+  "seq": 150,
+  "previous": "790f26fab950c1a27fcda2609894f360c071e486",
   "snapshotParents": [],
-  "time": "2026-10-16T03:42:04.498Z",
+  "time": "2026-10-16T03:43:01.033Z",
   "kind": "auto",
-  "transition": "result of #1617",
+  "transition": "a new plan",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
     "recordRevision": 124,
@@ -1980,7 +1980,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1617-empty-alternator-arms",
       "branch": "fix/1617-empty-alternator-arms",
-      "observedAt": "2026-10-16T03:42:03.573Z",
+      "observedAt": "2026-10-16T03:43:00.152Z",
       "held": true,
       "head": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
       "remoteHead": "7402a36baf3ef413cfb0eb48d6a4feff50664399",
@@ -2068,7 +2068,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread",
       "branch": "feat/1920-store-call-spread",
-      "observedAt": "2026-10-16T03:42:03.573Z",
+      "observedAt": "2026-10-16T03:43:00.152Z",
       "held": true,
       "head": "f150c88daa6f4a1acc8115f99662b4df3e0061e4",
       "remoteHead": "e3c7af01568fe8b8c928450fe906376e2f18ff58",
@@ -2203,7 +2203,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T03:14:14.496Z",
+    "at": "2026-10-16T03:43:00.151Z",
     "tickets": [
       {
         "number": 316,
@@ -2255,9 +2255,9 @@
       },
       {
         "number": 1617,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1921,
-        "reason": "process 60224 started 639277145329133458 is running"
+        "reason": "PR #1921 is ready at 7402a36baf3ef413cfb0eb48d6a4feff50664399; process 60224 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1641,
@@ -2273,9 +2273,9 @@
       },
       {
         "number": 1920,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1923,
-        "reason": "process 55752 started 639277146245211808 is running"
+        "reason": "PR #1923 is ready at e3c7af01568fe8b8c928450fe906376e2f18ff58; process 55752 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       }
     ],
     "remaining": [
