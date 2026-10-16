@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1895,
-  "seq": 251,
-  "previous": "83b2ae1e30be6c3498889655b9c8995e85afe6e6",
+  "seq": 252,
+  "previous": "475b281e875f312cd4a653908d37d7f13cd61433",
   "snapshotParents": [],
-  "time": "2026-10-16T15:59:14.046Z",
+  "time": "2026-10-16T16:04:12.532Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1929 (confirmed)",
   "run": {
     "runId": "2ded97b3-a0f4-4b4f-84fb-2b71d88a61a4",
-    "recordRevision": 211,
+    "recordRevision": 212,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3417,9 +3417,9 @@
       "ticket": 454,
       "pr": 1929,
       "expectHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-16T15:59:08.857Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1929 reads back merged as 7ae0fffa2bdbe14b34ae87eb62beaabccabf3464 at 5af99acef3f333d0cb5891bd50402faf19ada517; the merge commit is on origin/main; it landed on 4f9480fb846f062c51a8b7d6e14f29055461f8bc, while its CI covered main 13f6fd9f8f9ed1f0527e1215fc934019bb1e389f, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -3597,7 +3597,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-16T16:04:09.617Z",
+      "mergeCommit": "7ae0fffa2bdbe14b34ae87eb62beaabccabf3464",
+      "mergedOnto": "4f9480fb846f062c51a8b7d6e14f29055461f8bc",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -3945,7 +3950,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/454-builtin-root-define",
       "branch": "fix/454-builtin-root-define",
-      "observedAt": "2026-10-16T15:59:11.835Z",
+      "observedAt": "2026-10-16T16:04:11.268Z",
       "held": true,
       "head": "5af99acef3f333d0cb5891bd50402faf19ada517",
       "remoteHead": "5af99acef3f333d0cb5891bd50402faf19ada517",
@@ -4193,7 +4198,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end",
       "branch": "fix/839-block-missing-end",
-      "observedAt": "2026-10-16T15:59:11.835Z",
+      "observedAt": "2026-10-16T16:04:11.268Z",
       "held": true,
       "head": "a9d427cc24c26205d3890719f94ff33992476127",
       "remoteHead": "a9d427cc24c26205d3890719f94ff33992476127",
@@ -4438,19 +4443,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T02:28:53.212Z",
-      "event": "launched",
-      "ticket": 1617,
-      "launchId": "a187fa84-2b3c-42c2-9c97-533c81fa5cdb",
-      "handle": {
-        "kind": "process",
-        "pid": 60224,
-        "start": "639277145329133458",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-orch-1895\\launch-1617-a187fa84-2b3c-42c2-9c97-533c81fa5cdb"
-      }
-    },
     {
       "time": "2026-10-16T02:29:49.680Z",
       "event": "acknowledged",
@@ -5155,6 +5147,12 @@
       "id": "d81c8810",
       "kind": "merge",
       "pr": 1929
+    },
+    {
+      "time": "2026-10-16T16:04:09.617Z",
+      "event": "operation-outcome",
+      "id": "d81c8810",
+      "state": "confirmed"
     }
   ]
 }
