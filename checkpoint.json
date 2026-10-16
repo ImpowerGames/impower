@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 244,
-  "previous": "3fc294d4e359df5ca7ad7981861bcc570ec75604",
+  "seq": 245,
+  "previous": "cab07e7ad256ae438072138f37748c7ccb077018",
   "snapshotParents": [],
-  "time": "2026-10-16T17:04:02.321Z",
+  "time": "2026-10-16T17:04:24.727Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1934",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 178,
+    "recordRevision": 179,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -876,48 +876,54 @@
       ]
     },
     "1934": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "low",
-        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
-        "branch": "fix/1934-duplicate-label-clash-statement",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
-        "launchId": "fdf8e099-6449-4a65-b797-0cd95778f581",
-        "handle": {
-          "kind": "process",
-          "pid": 7864,
-          "start": "639277624095413727",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1934-fdf8e099-6449-4a65-b797-0cd95778f581"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment fdf8e099-6449-4a65-b797-0cd95778f581. You are the writer for ImpowerGames/impower ticket #1934 (A duplicate-label error lands on a different statement in an incremental compile than in a cold compile (first clash found depends on the previous root)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort low in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment fdf8e099-6449-4a65-b797-0cd95778f581 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1934 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement on branch fix/1934-duplicate-label-clash-statement from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- The last slice of umbrella #1893 (its Description and Scope are the design of record), found by the cumulative randomized-edit run programCumulativeEdits.test.ts (flow screenplay, seed 3, edits #70 and #102): when two labels, or a label and a branch, share a name, an incremental compile reports 'This statement cannot be compiled: a label named as another.' on a different statement than a cold compile of the same text (cold on the label extra line at 1:2, incremental on the inserted branch's body at 4:4), so the error moves depending on how the document reached its state. The ticket's suspected cause, from reading: ChunkStore.definitionArrays records only the first clash it meets (failed ??=), and which statement that is depends on whether the earlier definition came from the previous root (ChunkStore.ts around 1306-1318 at 45e2dd1e3). Confirm the cause by tracing before changing it, and make the clash land on the same statement both ways, matching the cold compile's choice; the diagnostic text itself does not change.\n- Closes line: Closes #1934 only. Regression tests: the ticket's one-edit reproduction (compile scene S with label extra and B, insert the branch extra block after B with updateDocument, compile, compare diagnostics with a cold compile of the resulting text) in programDiagnosticsParity.test.ts or programChunkValidity.test.ts, plus the reverse (the branch first, then the label inserted) and a two-label case; and un-skip flow seed 3 in packages/sparkdown/src/tests/program/programCumulativeEdits.test.ts (on main since PR #1936), so the SPARKDOWN_CUMULATIVE=1 full form passes every seed; report that run's result in Testing and verification.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; PR #1947 (#1933, twin pairing ties and the #1496 identity exception in align) merged just before you started, so base your branch on a main that contains it and build on it. Keep the change inside the chunk store's definition tables and the diagnostics it reports; a change that reaches the parser or the memo session is a question for the coordinator before you make it.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files relative to the package> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Run programChunkValidity, programDiagnosticsParity, programIncrementalColdParity and the cumulative test (short and full forms) on your head and report them.\n- The merge gate no longer requires your head to contain current origin/main, but merge origin/main into your branch as a merge commit once before you open the PR. Reviewer posting: GitHub's GraphQL quota for this account was exhausted once today and two reviewers of PR #1947 could not post their reports, which the merge gate then could not count; if a reviewer's post fails that way, relaunch that reviewer as attempt 2 of the same round rather than posting on its behalf, so its journal completes.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- Other coordinators run tickets of #1895 and #1904 on this machine at the same time. The machine-wide reviewer and test reservations are shared with their writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "ed455706",
-          "attempts": 1,
-          "time": "2026-10-16T15:46:49.875Z",
-          "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
-        },
-        "since": "2026-10-16T15:46:49.876Z",
-        "sessionId": "b72302a9-15bc-41a7-899a-0469375d2c4a",
-        "acknowledged": {
-          "time": "2026-10-16T15:47:31.543Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "low",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
+            "branch": "fix/1934-duplicate-label-clash-statement",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+            "launchId": "fdf8e099-6449-4a65-b797-0cd95778f581",
+            "handle": {
+              "kind": "process",
+              "pid": 7864,
+              "start": "639277624095413727",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1934-fdf8e099-6449-4a65-b797-0cd95778f581"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment fdf8e099-6449-4a65-b797-0cd95778f581. You are the writer for ImpowerGames/impower ticket #1934 (A duplicate-label error lands on a different statement in an incremental compile than in a cold compile (first clash found depends on the previous root)), a slice of Feature #1893, coordinated by coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort low in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 an acknowledgement naming assignment fdf8e099-6449-4a65-b797-0cd95778f581 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1934 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement on branch fix/1934-duplicate-label-clash-statement from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893, and keep every artifact in it.\nSettled decisions:\n- The last slice of umbrella #1893 (its Description and Scope are the design of record), found by the cumulative randomized-edit run programCumulativeEdits.test.ts (flow screenplay, seed 3, edits #70 and #102): when two labels, or a label and a branch, share a name, an incremental compile reports 'This statement cannot be compiled: a label named as another.' on a different statement than a cold compile of the same text (cold on the label extra line at 1:2, incremental on the inserted branch's body at 4:4), so the error moves depending on how the document reached its state. The ticket's suspected cause, from reading: ChunkStore.definitionArrays records only the first clash it meets (failed ??=), and which statement that is depends on whether the earlier definition came from the previous root (ChunkStore.ts around 1306-1318 at 45e2dd1e3). Confirm the cause by tracing before changing it, and make the clash land on the same statement both ways, matching the cold compile's choice; the diagnostic text itself does not change.\n- Closes line: Closes #1934 only. Regression tests: the ticket's one-edit reproduction (compile scene S with label extra and B, insert the branch extra block after B with updateDocument, compile, compare diagnostics with a cold compile of the resulting text) in programDiagnosticsParity.test.ts or programChunkValidity.test.ts, plus the reverse (the branch first, then the label inserted) and a two-label case; and un-skip flow seed 3 in packages/sparkdown/src/tests/program/programCumulativeEdits.test.ts (on main since PR #1936), so the SPARKDOWN_CUMULATIVE=1 full form passes every seed; report that run's result in Testing and verification.\n- You hold packages/sparkdown/src/program/ChunkStore.ts alone until your PR merges; PR #1947 (#1933, twin pairing ties and the #1496 identity exception in align) merged just before you started, so base your branch on a main that contains it and build on it. Keep the change inside the chunk store's definition tables and the diagnostics it reports; a change that reaches the parser or the memo session is a question for the coordinator before you make it.\n- Run vitest only through node scripts/test-suite.mjs run packages/sparkdown <test files relative to the package> --wait <seconds>, naming the files you touch; never a whole package suite locally (CI runs packages). Run programChunkValidity, programDiagnosticsParity, programIncrementalColdParity and the cumulative test (short and full forms) on your head and report them.\n- The merge gate no longer requires your head to contain current origin/main, but merge origin/main into your branch as a merge commit once before you open the PR. Reviewer posting: GitHub's GraphQL quota for this account was exhausted once today and two reviewers of PR #1947 could not post their reports, which the merge gate then could not count; if a reviewer's post fails that way, relaunch that reviewer as attempt 2 of the same round rather than posting on its behalf, so its journal completes.\n- Any ticket you file as a sub-issue of #1893 gets the milestone 'Compilation robustness' (set it by hand on the created issue). Out-of-scope findings elsewhere go through resolve-issue's ordinary sweep.\n- Keep every artifact in your private directory under C:/Users/Brode/AppData/Local/Temp/impower-writers/1893 (the artifact parent of this brief); the coordinator's scratchpad is shared and gets overwritten. If you launch a filer or helper subagent, its report may land with the coordinator rather than you: record 'filer launched, report pending' and go on instead of waiting for it.\n- Other coordinators run tickets of #1895 and #1904 on this machine at the same time. The machine-wide reviewer and test reservations are shared with their writers: queue on them in the foreground inside one tool call, never by ending your turn. If SendMessage does not resolve the coordinator's local_ session id, address it by its session title ORCH #1893: incremental cold compile, as ListAgents lists it.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_56709354-3f72-4ea5-b2f4-f38e39493141 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "ed455706",
+              "attempts": 1,
+              "time": "2026-10-16T15:46:49.875Z",
+              "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
+            },
+            "since": "2026-10-16T15:46:49.876Z",
+            "sessionId": "b72302a9-15bc-41a7-899a-0469375d2c4a",
+            "acknowledged": {
+              "time": "2026-10-16T15:47:31.543Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "low",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from writer session impower-47 at 2026-10-16 ~11:5x local naming assignment fdf8e099 and confirming model, effort low (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+              "deliveryId": "ed455706"
+            }
           },
-          "evidence": "cross-session message from writer session impower-47 at 2026-10-16 ~11:5x local naming assignment fdf8e099 and confirming model, effort low (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
-          "deliveryId": "ed455706"
+          "released": "process 7864 is gone and no process names its launch directory; process 7864 is gone and no process names its launch directory; its transcript ends with end_turn after the final report (PR 1953, reviewed head 40f7f8169, 1 round, no findings); PR 1953 merged at 4cb58645852778b9b0864fd6a2830fdb7a9f9411 through the gate",
+          "time": "2026-10-16T17:04:21.575Z"
         }
-      },
-      "pending": null,
-      "history": [],
+      ],
       "results": [
         {
           "time": "2026-10-16T16:58:34.855Z",
@@ -2843,100 +2849,12 @@
   ],
   "verifications": [],
   "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement": {
-      "ticket": 1934,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1934-duplicate-label-clash-statement",
-      "branch": "fix/1934-duplicate-label-clash-statement",
-      "observedAt": "2026-10-16T17:04:01.373Z",
-      "held": true,
-      "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
-      "remoteHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1953,
-      "reviewJobs": [
-        {
-          "job": "pr-1953/round-1/launch-ax-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-ax",
-            "reviewerId": "ax",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "undirected"
-            ],
-            "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T16:21:26.023Z"
-          },
-          "round": 1,
-          "reviewerId": "ax",
-          "attempt": 1,
-          "reviewedHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "ax": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6220115350
-          ]
-        },
-        {
-          "job": "pr-1953/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "undirected"
-            ],
-            "head": "40f7f8169a627b4c27d81790110a3bf79bddf842",
-            "completedRoundReviewers": {
-              "ax": 1
-            },
-            "time": "2026-10-16T16:37:01.163Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "40f7f8169a627b4c27d81790110a3bf79bddf842",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "ax": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6220408180
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block": {
       "ticket": 1933,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T17:04:01.373Z",
+      "observedAt": "2026-10-16T17:04:23.267Z",
       "held": false,
       "exists": false,
       "lastObserved": {
@@ -3175,19 +3093,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T01:01:45.714Z",
-      "event": "launched",
-      "ticket": 1614,
-      "launchId": "7c11b706-71c6-420e-926d-8e14cbb1b6e2",
-      "handle": {
-        "kind": "process",
-        "pid": 11208,
-        "start": "639277093053655172",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1614-7c11b706-71c6-420e-926d-8e14cbb1b6e2"
-      }
-    },
     {
       "time": "2026-10-16T01:02:24.422Z",
       "event": "acknowledged",
@@ -3842,6 +3747,12 @@
       "event": "operation-outcome",
       "id": "849b3954",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-16T17:04:21.576Z",
+      "event": "released",
+      "ticket": 1934,
+      "reason": "process 7864 is gone and no process names its launch directory"
     }
   ]
 }
