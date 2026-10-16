@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 195,
-  "previous": "a78918925ac25c00b03c9074d6fa08400ba45879",
+  "seq": 196,
+  "previous": "98902b200950192be3d7dd035b2524bc5931c76f",
   "snapshotParents": [],
-  "time": "2026-10-16T12:49:59.296Z",
+  "time": "2026-10-16T12:50:08.162Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1933",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 143,
+    "recordRevision": 144,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -777,6 +777,25 @@
         ]
       },
       "pending": null,
+      "history": [],
+      "results": []
+    },
+    "1933": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
+        "branch": "fix/1933-inserted-twin-do-block",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/impower-writers/1893",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-16T12:50:06.255Z"
+      },
       "history": [],
       "results": []
     }
@@ -2060,12 +2079,21 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:49:58.538Z",
+      "observedAt": "2026-10-16T12:50:07.482Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
       "unpushed": true,
       "dirty": true
+    },
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block": {
+      "ticket": 1933,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
+      "branch": "fix/1933-inserted-twin-do-block",
+      "observedAt": "2026-10-16T12:50:07.482Z",
+      "held": true,
+      "exists": false
     }
   },
   "snapshots": {},
@@ -2178,11 +2206,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:27:13.131Z",
-      "event": "verified",
-      "ticket": 1249
-    },
     {
       "time": "2026-10-15T22:27:20.821Z",
       "event": "verified",
@@ -2864,6 +2887,13 @@
       "time": "2026-10-16T12:48:26.305Z",
       "event": "check-in",
       "outcome": "#1917 writer filed Bugs #1933 (function seed 12 lost reuse) and #1934 (duplicate-label diagnostic position) under #1893 from its full-form run, keeps both seeds skipped, and is timing the short form; no PR yet; the new sub-issues need a route preflight before dispatch, which is running"
+    },
+    {
+      "time": "2026-10-16T12:50:06.256Z",
+      "event": "dispatch-intent",
+      "ticket": 1933,
+      "route": "claude-cli",
+      "launchId": "9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769"
     }
   ]
 }
