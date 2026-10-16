@@ -7,8 +7,12 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const FABLE = /fable/i;
-// A model argument or field naming Fable inside a command or script.
-const MODEL_TEXT = /(?:--model|--writer-model|--coordinator-model|\bmodel["']?\s*[:=])\s*[=\s]?\s*["'`]?[^\s"'`,}]*fable/i;
+// A model field naming Fable inside a workflow script.
+const MODEL_TEXT = /\bmodel["']?\s*[:=]\s*["'`]?[^\s"'`,}]*fable/i;
+// A launch argument naming Fable inside a shell command. Arguments and
+// fields that describe the running session itself, such as feature-run's
+// --coordinator-model or a report's "model" field, are not launches.
+const LAUNCH_ARG = /(?:--model|--writer-model)(?:\s+|\s*=\s*)["'`]?[^\s"'`,}]*fable/i;
 const NAME_A_MODEL = "Pass an explicit model (opus, sonnet or haiku) so the launch cannot inherit a Fable model";
 
 // The model a repository agent definition pins in its frontmatter.
@@ -64,7 +68,7 @@ export function decide(payload, { projectDir = process.env.CLAUDE_PROJECT_DIR ??
     if ((agents > models || /fork/.test(script)) && parentIsFable()) return `runs from a Fable session with workflow agents that name no model or fork. ${NAME_A_MODEL} on every agent() call`;
     return null;
   }
-  if ((tool === "Bash" || tool === "PowerShell") && MODEL_TEXT.test(input.command ?? "")) return "names a Fable model argument";
+  if ((tool === "Bash" || tool === "PowerShell") && LAUNCH_ARG.test(input.command ?? "")) return "names a Fable model argument";
   return null;
 }
 
