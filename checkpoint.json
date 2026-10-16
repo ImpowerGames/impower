@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 63,
-  "previous": "332594b318498386afe6ab36b0167b9e97caba58",
+  "seq": 64,
+  "previous": "b3ef44e4d337199d30fc8bfeefe609420e15b0d5",
   "snapshotParents": [],
-  "time": "2026-10-16T18:21:51.984Z",
+  "time": "2026-10-16T18:26:51.887Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 52,
@@ -627,16 +627,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\851-flow-scoped-renumbering",
       "branch": "perf/851-flow-scoped-renumbering",
-      "observedAt": "2026-10-16T18:21:50.406Z",
+      "observedAt": "2026-10-16T18:26:49.344Z",
       "held": true,
       "head": "419269e63a2599d5ae339c92645a1e015cc7ba16",
       "remoteHead": "419269e63a2599d5ae339c92645a1e015cc7ba16",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 45116
-      },
       "pr": 1959,
       "reviewJobs": [
         {
@@ -714,7 +710,7 @@
         },
         {
           "job": "pr-1959/round-2/launch-undirected2-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected2",
@@ -729,7 +725,23 @@
               "undirected": 1
             },
             "time": "2026-10-16T18:15:42.813Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected2",
+          "attempt": 1,
+          "reviewedHead": "419269e63a2599d5ae339c92645a1e015cc7ba16",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected2": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected2"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6222000505
+          ]
         }
       ]
     },
@@ -738,7 +750,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1637-carry-declaration-run",
       "branch": "perf/1637-carry-declaration-run",
-      "observedAt": "2026-10-16T18:21:50.406Z",
+      "observedAt": "2026-10-16T18:26:49.344Z",
       "held": true,
       "head": "78f865241113d8f9ebbc810fe500821defc75df0",
       "remoteHead": "78f865241113d8f9ebbc810fe500821defc75df0",
@@ -789,7 +801,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T18:21:50.406Z",
+      "observedAt": "2026-10-16T18:26:49.344Z",
       "held": true,
       "head": "cd50ceb1e81f6d7d996149a79db9442d7da104a0",
       "remoteHead": null,
@@ -800,13 +812,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T17:52:33.333Z",
+    "at": "2026-10-16T18:26:49.341Z",
     "tickets": [
       {
         "number": 851,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1959,
-        "reason": "process 21604 started 639277645823815597 is running"
+        "reason": "PR #1959 is ready at 419269e63a2599d5ae339c92645a1e015cc7ba16; process 21604 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1637,
