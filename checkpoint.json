@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 198,
-  "previous": "41fea7361c8be4e8d65aa64311f3883ef2a16509",
+  "seq": 199,
+  "previous": "331a77a9c445aba2c6d4448fcc33e58a10fb84d8",
   "snapshotParents": [],
-  "time": "2026-10-16T12:50:59.455Z",
+  "time": "2026-10-16T12:51:41.812Z",
   "kind": "auto",
-  "transition": "launch of #1933",
+  "transition": "acknowledged of #1933",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 145,
+    "recordRevision": 146,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -808,7 +808,18 @@
           "time": "2026-10-16T12:50:57.360Z",
           "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
         },
-        "since": "2026-10-16T12:50:57.361Z"
+        "since": "2026-10-16T12:50:57.361Z",
+        "sessionId": "2d884216-6a10-4ee7-81c9-df4e5e63f108",
+        "acknowledged": {
+          "time": "2026-10-16T12:51:39.664Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer session impower-e8 at 2026-10-16 ~09:0x local naming assignment 9fc9cda6 and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+          "deliveryId": "fe813ea3"
+        }
       },
       "pending": null,
       "history": [],
@@ -2094,7 +2105,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T12:50:58.718Z",
+      "observedAt": "2026-10-16T12:51:41.025Z",
       "held": true,
       "head": "45e2dd1e376690281462bc57ad23f01b0950394a",
       "remoteHead": null,
@@ -2106,7 +2117,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1933-inserted-twin-do-block",
       "branch": "fix/1933-inserted-twin-do-block",
-      "observedAt": "2026-10-16T12:50:58.718Z",
+      "observedAt": "2026-10-16T12:51:41.025Z",
       "held": true,
       "exists": false
     }
@@ -2221,11 +2232,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:27:29.192Z",
-      "event": "verified",
-      "ticket": 1613
-    },
     {
       "time": "2026-10-15T22:27:37.128Z",
       "event": "verified",
@@ -2916,6 +2922,16 @@
         "start": "639277518570225878",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1933-9fc9cda6-9df3-4f04-8d61-bd5ec0bb5769"
+      }
+    },
+    {
+      "time": "2026-10-16T12:51:39.664Z",
+      "event": "acknowledged",
+      "ticket": 1933,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
