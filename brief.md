@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1895
 
-Checkpoint 150 (this commit), 2026-10-16T03:43:01.033Z, after a new plan. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
+Checkpoint 151 (this commit), 2026-10-16T04:06:02.913Z, after the intent before a side effect. Coordinator local_bede5658-a16d-4558-858b-9a8d10696a23 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -18,7 +18,10 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1920
 
 - claude-cli claude-opus-5-5 at medium, process 55752 on DESKTOP-726EO47
-- as of 2026-10-16T03:43:00.152Z, DESKTOP-726EO47 held unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1920-store-call-spread that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1923/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed a35d4062e, completed {"ax":1} of planned ["ax","bound","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","bound","undirected"]), last event finished
 - review job pr-1923/round-1/launch-bound-1 on DESKTOP-726EO47: round 1 reviewed f150c88da, completed {"ax":1,"bound":1} of planned ["ax","bound","undirected"]; last launched reviewer bound attempt 1 of round 1 (planned ["ax","bound","undirected"]), last event finished
 - review job pr-1923/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed f150c88da, completed {"ax":1,"bound":1,"undirected":1} of planned ["ax","bound","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","bound","undirected"]), last event finished
+
+## Unsettled operations
+
+- df04048c: merge of PR #1923 at e3c7af01568fe8b8c928450fe906376e2f18ff58, intent; settle it with checkpoint.mjs reconcile-operations before any retry
