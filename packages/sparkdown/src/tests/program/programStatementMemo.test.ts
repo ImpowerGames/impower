@@ -577,8 +577,9 @@ describe("a compile that meets a memo it cannot compile from", () => {
     // statement reads `n` otherwise, and so does `Body {n}.`, which is
     // served from its memo, so the first attempt meets a memo whose name is
     // declared otherwise and the compile runs again with the clause lowered
-    // again. The second attempt does not resolve the statement after the
-    // block again, as the first did, nor finds what the first found there:
+    // again. The second attempt resolves the statement after the block
+    // again, as no compile kept the first attempt's resolve, and the marks
+    // the first attempt left for its chunk stand with what the second finds:
     // its chunk must not be kept.
     const text = [
       "scene MAIN",
@@ -612,6 +613,28 @@ describe("a compile that meets a memo it cannot compile from", () => {
     expect(after()?.chunk === before!.chunk, "the statement after the block kept its chunk").toBe(
       false,
     );
+    sameAsCold(s);
+  });
+
+  it("reports what a cold compile reports of a line that reads the global a stale assignment's memo made no auto-global of", () => {
+    // `& gold = gold + 1` is served from a memo recorded while the store
+    // declared `gold`, which made no auto-global. The update that removes the
+    // store and lowers its block again finds the memo stale: the first
+    // attempt resolves the scene that reads `gold` with no global of the
+    // name, and the second lowers the assignment, which makes the
+    // auto-global, so the reader must be resolved again.
+    const s = warmed(
+      `${clauseScript(["Line one.", ...FILLER, "& gold = gold + 1", ...FILLER, "Line last."], ["store gold = 0", ""])}\nscene ENDING\n  The end, with {gold} gold.\nend\n`,
+    );
+    s.edit("Warm line!", "Warm line?");
+    expect(s.stats.served).toBeGreaterThan(0);
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
+    s.editAll([
+      ["store gold = 0\n", ""],
+      ["Line last.", "Line last!"],
+    ]);
+    expect(attempts.mock.calls.length, "the compile ran again").toBeGreaterThan(1);
+    attempts.mockRestore();
     sameAsCold(s);
   });
 });
@@ -861,8 +884,10 @@ describe("a local declaration", () => {
     s.edit("Warm two.", "Warm two!");
     s.edit("Last two.", "Last two!");
     expect(s.stats.served).toBeGreaterThan(0);
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
     s.edit("store other = 1", "store here = 1");
-    expect((s.compiler as unknown as { _memoAttempt: number })._memoAttempt).toBe(1);
+    expect(attempts.mock.calls.length, "the compile ran again").toBeGreaterThan(1);
+    attempts.mockRestore();
     s.edit("Line last.", "Line last, edited.");
     expect(loweredOutside(s)).toEqual([]);
     sameAsCold(s);
@@ -902,28 +927,6 @@ describe("a local declaration", () => {
     s.edit("store here = 1", "Line last.");
     sameAsCold(s);
     expect(diagnostics(s.program).join("\n")).not.toContain("Duplicate identifier");
-  });
-});
-
-describe("a compile that meets a memo it cannot compile from", () => {
-  it("reports what a cold compile reports of a line that reads the global a stale assignment's memo made no auto-global of", () => {
-    // `& gold = gold + 1` is served from a memo recorded while the store
-    // declared `gold`, which made no auto-global. The update that removes the
-    // store and lowers its block again finds the memo stale: the first
-    // attempt resolves the scene that reads `gold` with no global of the
-    // name, and the second lowers the assignment, which makes the
-    // auto-global, so the reader must be resolved again.
-    const s = warmed(
-      `${clauseScript(["Line one.", ...FILLER, "& gold = gold + 1", ...FILLER, "Line last."], ["store gold = 0", ""])}\nscene ENDING\n  The end, with {gold} gold.\nend\n`,
-    );
-    s.edit("Warm line!", "Warm line?");
-    expect(s.stats.served).toBeGreaterThan(0);
-    s.editAll([
-      ["store gold = 0\n", ""],
-      ["Line last.", "Line last!"],
-    ]);
-    expect((s.compiler as unknown as { _memoAttempt: number })._memoAttempt).toBe(1);
-    sameAsCold(s);
   });
 });
 
