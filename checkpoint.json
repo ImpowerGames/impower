@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 17,
-  "previous": "085f5bb5ab7302d4a61ab95328e4ccceef89d153",
+  "seq": 18,
+  "previous": "bca22100bb780a40f5d8b704fecd619b5f3adc64",
   "snapshotParents": [],
-  "time": "2026-10-16T06:18:39.837Z",
+  "time": "2026-10-16T06:48:17.654Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 33,
@@ -429,11 +429,11 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1905-luau-unread-tokens",
       "branch": "fix/1905-luau-unread-tokens",
-      "observedAt": "2026-10-16T06:18:39.112Z",
+      "observedAt": "2026-10-16T06:48:16.894Z",
       "held": true,
-      "head": "a322a5d0a067c3f5070e314d4b0287a1d8e048b5",
+      "head": "b457d0aa5480939884e63198a5c7147b56edbef8",
       "remoteHead": "a322a5d0a067c3f5070e314d4b0287a1d8e048b5",
-      "unpushed": false,
+      "unpushed": true,
       "dirty": true,
       "pr": 1927,
       "reviewJobs": []
@@ -442,7 +442,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T06:18:20.849Z",
+    "at": "2026-10-16T06:48:16.892Z",
     "tickets": [
       {
         "number": 984,
@@ -650,9 +650,9 @@
       },
       {
         "number": 1905,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1927,
-        "reason": "process 47220 started 639277164087901651 is running"
+        "reason": "process 47220 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1905-0bd1b9bd-ee07-4a38-873e-ac01c26e794c\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1906,
