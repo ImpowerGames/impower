@@ -513,6 +513,56 @@ end
     );
   });
 
+  test("a nested table supplied through a variable keeps the builtin's other fields", () => {
+    shows(
+      `store custom = { percent = 5 }
+
+define game with
+  loading = custom
+end
+`,
+      "{game.loading.percent} {game.loading.active}",
+      "5 false",
+    );
+  });
+
+  test("a nested key the author computes takes the authored value", () => {
+    shows(
+      `store field = "percent"
+
+define game with
+  loading = { [field] = 5 }
+end
+`,
+      "{game.loading.percent} {game.loading.active}",
+      "5 false",
+    );
+  });
+
+  test("a member the override restates as a table keeps its registration and values", () => {
+    shows(
+      `define config with
+  probe = 7
+  ui = { root_text_size = "112.5%" }
+end
+`,
+      "{config.ui.root_text_size} {config.ui.layouts_element_name} {config.ui.probe}",
+      "112.5% layouts 7",
+    );
+  });
+
+  test("a list the override restates replaces the builtin's list whole", () => {
+    shows(
+      `define inflection with
+  lilt = { 9, 8 }
+end
+`,
+      // The builtin's `lilt` is `{ 1, -2, 7, 10 }`.
+      "{#inflection.lilt} {inflection.lilt[1]} {inflection.lilt[2]}",
+      "2 9 8",
+    );
+  });
+
   test("a nested table the override restates keeps the builtin's other fields, as the context does", () => {
     const program = shows(
       `define game with

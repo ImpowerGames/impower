@@ -4544,9 +4544,7 @@ export class SparkdownCompiler {
   }
 
   /** Let a project define REPLACE a same-named builtin (`define slate_80 as
-   *  color`, `define ui as config`, or a type root's own `define game with
-   *  … end`, whose prelude values are the type's `$default`) instead of
-   *  colliding with it.
+   *  color`, `define ui as config`) instead of colliding with it.
    *
    *  The builtins prelude is source-injected FIRST, and
    *  `FlowBase.AddNewVariableDeclaration` is first-writer-wins, so every such
@@ -4567,6 +4565,9 @@ export class SparkdownCompiler {
    *  2. MARK. Tag the prelude's declarations so the collision handler can tell
    *     an override (allowed, authored wins) from two colliding authored
    *     defines (still an error). `debugMetadata` can't distinguish them.
+   *     The prelude's root defines are marked too; an authored root needs no
+   *     back-fill, since its `__def` merges into the prelude's table at
+   *     runtime (FlowBase.AddRootOverride).
    *
    *  Idempotent, like {@link scopeDefineInstances}: back-fill only adds keys the
    *  table lacks, so re-running on cached parse nodes across incremental
@@ -4576,7 +4577,10 @@ export class SparkdownCompiler {
     userVAs: readonly ParsedObject[],
     preludeVAs: ReadonlySet<ParsedObject>,
   ): void {
-    if (preludeVAs.size === 0 || userVAs.length === 0) {
+    // Marked even when no user declaration is typed: an authored ROOT define
+    // (`define game with … end`, #454) is not among `userVAs`, and overrides
+    // the prelude's root, which `preludeVAs` holds, only once it is marked.
+    if (preludeVAs.size === 0) {
       return;
     }
     // The prelude's declarations, keyed by their STABLE BARE name — never the
@@ -4629,14 +4633,8 @@ export class SparkdownCompiler {
     va: ParsedVariableAssignment,
     preludeContext: Record<string, any>,
   ): void {
-    // A root define (`define game with … end`, #454) declares its type, and
-    // the prelude's values for it are the type's `$default` entry.
-    const type = va.structDefinition
-      ? va.structDefinition.type?.name
-      : va.identifier?.name;
-    const name = va.structDefinition
-      ? va.structDefinition.name?.name
-      : "$default";
+    const type = va.structDefinition?.type?.name;
+    const name = va.structDefinition?.name?.name;
     if (!type || !name) {
       return;
     }
@@ -4654,44 +4652,23 @@ export class SparkdownCompiler {
     if (!(table instanceof ObjectExpression)) {
       return;
     }
-    this.backfillTable(table, builtinStruct);
-  }
-
-  /** Adds to `table` each of `values` it does not hold, and fills a nested
-   *  table literal the author wrote where the builtin holds a plain object
-   *  the same way, as {@link inheritDefaults} merges nested objects:
-   *  `loading = { percent = 5 }` keeps the builtin's other `loading` fields.
-   *  Idempotent: it only adds keys a table lacks. */
-  protected backfillTable(
-    table: ObjectExpression,
-    values: Record<string, any>,
-  ): void {
-    const authored = new Map<string, ObjectExpressionEntry>();
+    const authored = new Set<string>();
     for (const entry of table.entries) {
       if (typeof entry.key === "string") {
-        authored.set(entry.key, entry);
+        authored.add(entry.key);
       }
     }
-    for (const [k, v] of Object.entries(values)) {
+    for (const [k, v] of Object.entries(builtinStruct)) {
       // `$type` / `$name` are context bookkeeping, re-derived by `__def` from
       // its own args; `__storeProps` and friends are the define's own hidden
       // modifier lists and must not be inherited from the builtin.
-      if (k.startsWith("$") || k.startsWith("__") || v === undefined) {
+      if (k.startsWith("$") || k.startsWith("__")) {
         continue;
       }
-      const entry = authored.get(k);
-      if (!entry) {
-        table.addEntry(
-          new ObjectExpressionEntry(k, contextValueToExpression(v)),
-        );
-      } else if (
-        entry.value instanceof ObjectExpression &&
-        v !== null &&
-        typeof v === "object" &&
-        !Array.isArray(v)
-      ) {
-        this.backfillTable(entry.value, v);
+      if (authored.has(k) || v === undefined) {
+        continue;
       }
+      table.addEntry(new ObjectExpressionEntry(k, contextValueToExpression(v)));
     }
   }
 

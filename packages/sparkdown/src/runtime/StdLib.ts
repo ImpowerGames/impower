@@ -2572,13 +2572,59 @@ function rootTableFor(
   return null;
 }
 
+// Whether `v` is a record a root's merge descends into: a table that is not a
+// define and holds keys, none of them a list position. A list (`{ 0, 4, 7 }`)
+// and an empty table replace what they meet whole, as `inheritDefaults`
+// replaces arrays in the compile-time context.
+function isRecordTable(v: AbstractValue | null | undefined): v is ObjectValue {
+  if (!(v instanceof ObjectValue)) return false;
+  const map = v.value;
+  if (!map?.size || isDefineTable(v)) return false;
+  for (const key of map.keys()) {
+    const n = Number(key);
+    if (Number.isInteger(n) && n >= 1 && String(n) === key) return false;
+  }
+  return true;
+}
+
+// Writes `from`'s entries into `into`. A record written where `into` holds a
+// record or a define (a registered member) fills that table key by key
+// instead of replacing it, so `loading = { percent = 5 }` keeps the
+// builtin's other `loading` fields and `ui = { … }` in a `config` root keeps
+// the registered `config.ui`. `seen` guards against a table met twice.
+function mergeEntries(
+  into: ObjectValue,
+  from: ObjectValue,
+  written: Written,
+  seen: Set<ObjectValue>,
+): void {
+  written(into);
+  const map = into.value!;
+  for (const [key, value] of from.value!) {
+    const held = map.get(key) ?? null;
+    if (
+      held instanceof ObjectValue &&
+      held !== value &&
+      !seen.has(held) &&
+      isRecordTable(value) &&
+      (isRecordTable(held) || isDefineTable(held))
+    ) {
+      seen.add(held);
+      mergeEntries(held, value, written, seen);
+    } else {
+      map.set(key, value);
+    }
+  }
+}
+
 // A root define of a type whose table already exists merges into that table
 // rather than replacing it, and returns it: a project's `define color with
 // … end` overriding the builtin root (#454) runs after the prelude's root and
 // every member that registered into its table (`define red as color`, the
 // structural blocks, the parent links still waiting there), and a project's
 // root written after its own members finds the table the first of them
-// minted. The authored values replace the table's own; each member keeps
+// minted. The authored values replace the table's own, records key by key
+// (`mergeEntries`); each member keeps
 // inheriting from the same table, so it reads them, and takes the `store`
 // defaults the merge brings, as a member defined after it would. A root table
 // that already holds such defaults (neither the prelude's nor a minted one
@@ -2593,11 +2639,8 @@ function mergeIntoRootTable(
 ): ObjectValue | null {
   const target = rootTableFor(story, name, table);
   if (!target) return null;
-  written(target);
+  mergeEntries(target, table, written, new Set([target]));
   const into = target.value!;
-  for (const [key, value] of table.value!) {
-    into.set(key, value);
-  }
   for (const [key, member] of into) {
     const meta = metatableMap(member);
     if (
