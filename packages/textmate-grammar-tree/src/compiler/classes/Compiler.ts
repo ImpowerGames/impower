@@ -545,14 +545,31 @@ export class Compiler {
     // An in-scope split point is only restartable with its resume snapshot;
     // without one, restarting there would reparse mid-block with an empty
     // scope stack (the wrong-tree failure mode). Walk further back.
+    // A split point right after zero-width nodes at its own position is not
+    // restartable either: the steps that matched empty there are made again
+    // by a parse that restarts at that position (the tokenizer's empty-match
+    // count starts over), so keeping them would hold them twice (#1614).
     while (
       splitBehind.chunk &&
-      !splitBehind.chunk.startsPure &&
-      !splitBehind.chunk.resume
+      ((!splitBehind.chunk.startsPure && !splitBehind.chunk.resume) ||
+        this.followsZeroWidthNodes(splitBehind.index))
     ) {
       splitBehind = this.packet.findBehindSplitPoint(splitBehind.chunk.from);
     }
     return splitBehind;
+  }
+
+  /** True if the chunk before `index` holds nodes and ends where it starts, at `index`'s position. */
+  private followsZeroWidthNodes(index: number) {
+    const chunk = this.packet.chunks[index];
+    const before = this.packet.chunks[index - 1];
+    return (
+      !!chunk &&
+      !!before &&
+      before.nodeCount > 0 &&
+      before.from === chunk.from &&
+      before.to === chunk.from
+    );
   }
 
   /**
