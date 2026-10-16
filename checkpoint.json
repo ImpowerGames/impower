@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1893,
-  "seq": 170,
-  "previous": "fc0cec8ce6141d55b81f25fba4a2ef32c133817b",
+  "seq": 171,
+  "previous": "a59fdc8fd802ccaab30d54671677a5729b51082a",
   "snapshotParents": [],
-  "time": "2026-10-16T06:29:12.750Z",
+  "time": "2026-10-16T06:29:57.358Z",
   "kind": "auto",
-  "transition": "launch of #1917",
+  "transition": "acknowledged of #1917",
   "run": {
     "runId": "bc00d0e9-b6dd-4908-b335-f329c75e1477",
-    "recordRevision": 123,
+    "recordRevision": 124,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -751,7 +751,18 @@
           "time": "2026-10-16T06:29:11.324Z",
           "coordinator": "local_56709354-3f72-4ea5-b2f4-f38e39493141"
         },
-        "since": "2026-10-16T06:29:11.325Z"
+        "since": "2026-10-16T06:29:11.325Z",
+        "sessionId": "afe55743-8c0d-4e48-a695-94ad91a2d381",
+        "acknowledged": {
+          "time": "2026-10-16T06:29:55.992Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer session impower-cb at 2026-10-16 ~02:3x local naming assignment 4e3cff43 and confirming model, effort (command line and CLAUDE_EFFORT) and mode; stream init line in its launch dir names claude-opus-5-5 and bypassPermissions",
+          "deliveryId": "2ebdfa12"
+        }
       },
       "pending": null,
       "history": [],
@@ -2037,7 +2048,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1917-cumulative-edit-run",
       "branch": "test/1917-cumulative-edit-run",
-      "observedAt": "2026-10-16T06:29:12.749Z",
+      "observedAt": "2026-10-16T06:29:57.358Z",
       "held": true,
       "exists": false
     }
@@ -2140,11 +2151,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-15T22:18:55.427Z",
-      "event": "disk-recovery",
-      "removed": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1683-loops-choose-memo"
-    },
     {
       "time": "2026-10-15T22:19:03.480Z",
       "event": "disk-recovery",
@@ -2840,6 +2846,16 @@
         "start": "639277289510282821",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\impower-writers\\1893\\launch-1917-4e3cff43-de59-4ecb-90b5-8869deb13480"
+      }
+    },
+    {
+      "time": "2026-10-16T06:29:55.993Z",
+      "event": "acknowledged",
+      "ticket": 1917,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "medium",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
