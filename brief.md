@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1940
 
-Checkpoint 48 (this commit), 2026-10-16T17:16:18.545Z, after result of #1798. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
+Checkpoint 49 (this commit), 2026-10-16T17:16:29.540Z, after release of #1798. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,14 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #851
 
 - claude-cli claude-opus-5-5 at medium, process 21604 on DESKTOP-726EO47
-- as of 2026-10-16T17:16:16.853Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\851-flow-scoped-renumbering that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-16T17:16:27.977Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\851-flow-scoped-renumbering that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1637
 
 - claude-cli claude-opus-5-5 at medium, process 47756 on DESKTOP-726EO47
-- as of 2026-10-16T17:16:16.853Z, DESKTOP-726EO47 held unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1637-carry-declaration-run that may exist only there; recover those bytes there before restarting or overwriting this work
-
-## #1798
-
-- claude-cli claude-opus-5-5 at low, process 40624 on DESKTOP-726EO47
-- review job pr-1957/round-1/launch-u-1 on DESKTOP-726EO47: round 1 reviewed f61f8756e, completed {"u":1} of planned ["u"]; last launched reviewer u attempt 1 of round 1 (planned ["u"]), last event finished
+- as of 2026-10-16T17:16:27.977Z, DESKTOP-726EO47 held unpushed commits in C:\Users\Brode\Documents\GitHub\impower.worktrees\perf\1637-carry-declaration-run that may exist only there; recover those bytes there before restarting or overwriting this work
