@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 158,
-  "previous": "c4b8c53f9c72404a9c77430ae884e0f03001900d",
+  "seq": 159,
+  "previous": "85b0a397c77ffe5abc826ba04bd27721519c96d9",
   "snapshotParents": [],
-  "time": "2026-10-17T13:31:26.697Z",
+  "time": "2026-10-17T13:31:34.742Z",
   "kind": "auto",
-  "transition": "resume of #1924",
+  "transition": "answered of #1924",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 167,
+    "recordRevision": 168,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2518,12 +2518,13 @@
             "to": "the maintainer"
           },
           "answer": {
-            "state": "intent",
+            "state": "delivered",
             "text": "The maintainer answered the question decision 6bc44573 relayed: yes, a top-level line of a .sd script that begins with a Luau attribute (@[...] or @name) is Luau whether or not its function stands on the same line; story text may no longer begin with an attribute. That decides the question #921 left open. Checkpoint decision e43240d9, published on PR #1993 as comment 6234468080, directs the repair: remove the top-level attribute lookahead. LuauFunctionAttributes (or its successor) opens at an attribute that begins a top-level line and holds the attributes, trivia, line breaks, lists spanning lines and the function that follows at any indentation, ending before any other token where Luau reports the missing function; delete LUAU_ATTRIBUTE_LIST_TEXT, _LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_LONG_BRACKET_LONGER_LEVEL and the attribute-run prediction, and the header-prefix lookbehind if it becomes redundant; keep the value-position rule and the converter's attribute-error classification as they are. Update GRAMMAR.md and DIVERGENCES.md to say a story line may not begin with a Luau attribute, record the decision on #921 with a comment (I have posted one too), regenerate both outputs and list every fixture tree that changes with its reason. Tests: a top-level line beginning with @[...] or @name, with the function on the same line, on a later line, after comments, or absent, reads as Luau in both engines (official parser where pure Luau); a story line with @ elsewhere stays story; the lexical cases of rounds 2 to 4 read correctly without a lookahead; red/green against c0c1f78ee; both snapshot suites, scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions, the corpus gate; screenshots of the #921 script in both editors. The round count stays at 4; do not launch a round on your own: push with CI green and send the next checkpoint report, and I decide the bounded round on the repair. The tracker cutover is held open for this PR, so work promptly and wait in the foreground. Never mark ready, never merge.",
             "deliveryId": "989bf81a",
             "attempts": 1,
-            "time": "2026-10-17T13:31:07.277Z",
-            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+            "time": "2026-10-17T13:31:32.598Z",
+            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+            "evidence": "resumed the #1924 writer CLI session 18a46342 with the maintainer answer and the repair decision as its prompt on 2026-10-17"
           }
         }
       ],
@@ -4861,7 +4862,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:31:25.516Z",
+      "observedAt": "2026-10-17T13:31:33.835Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -5170,7 +5171,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:31:25.516Z",
+      "observedAt": "2026-10-17T13:31:33.835Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5887,11 +5888,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:01:51.168Z",
-      "event": "check-in",
-      "outcome": "#1905 round 3 checkpoint report received (request 3a331217); evidence not due because launch-fix2-1's journal lacks its report-posted row (the posted comment omitted the recorded report file's first line); answered by resuming the writer to post report.md verbatim on fix2's behalf, record-report it, adjudicate the new comment, file the out-of-scope findings and the tokenizer-lexeme Task, and resend; assessment drafted, leaning to accept-unreviewed on 77fcc6ed6"
-    },
     {
       "time": "2026-10-16T19:16:58.421Z",
       "event": "check-in",
@@ -6628,6 +6624,13 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-63193344-b271-46b0-8678-49194dd846ec"
       }
+    },
+    {
+      "time": "2026-10-17T13:31:32.599Z",
+      "event": "answered",
+      "ticket": 1924,
+      "id": "fc721944",
+      "deliveryId": "989bf81a"
     }
   ]
 }
