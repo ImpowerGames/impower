@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 139,
-  "previous": "3a84d227d40a2661674fc3de8e39278a31876d28",
+  "seq": 140,
+  "previous": "cfa4f2063e21d03c5113ad9e0a77896c07351eb7",
   "snapshotParents": [],
-  "time": "2026-10-17T06:16:52.550Z",
+  "time": "2026-10-17T06:18:10.904Z",
   "kind": "auto",
-  "transition": "the outcome of operation c0f55d7a",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 128,
+    "recordRevision": 129,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3913,6 +3913,158 @@
       "time": "2026-10-17T06:16:38.739Z",
       "evidence": "gh pr ready 2015 succeeded; gh pr view read back isDraft false at head 0ce68b477e72852e265ea00656ce216e181137e7; ready comment posted",
       "settled": "2026-10-17T06:16:50.208Z"
+    },
+    {
+      "id": "af67d080",
+      "kind": "merge",
+      "ticket": 1966,
+      "pr": 2015,
+      "expectHead": "0ce68b477e72852e265ea00656ce216e181137e7",
+      "state": "intent",
+      "time": "2026-10-17T06:18:08.543Z",
+      "evidence": "admitted as accepted-unreviewed",
+      "gate": {
+        "disposition": "accepted-unreviewed",
+        "reviewedHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
+        "completedRound": 6,
+        "acceptance": {
+          "id": "afa4eb6f",
+          "comment": 6230585096,
+          "head": "0ce68b477e72852e265ea00656ce216e181137e7",
+          "range": {
+            "from": "37679545e0bd4ca659889ac440d02ac24c0eb469",
+            "to": "0ce68b477e72852e265ea00656ce216e181137e7",
+            "base": "03d96fb0fee3936d14b976718c351b103f3fa92a",
+            "commits": [
+              "0ce68b477e72852e265ea00656ce216e181137e7"
+            ],
+            "diffSha256": "e34f917995da675d784450cbf16c4c871ea74bdbb5354dd81ebf8487f417d0e2"
+          }
+        },
+        "mergedSince": [],
+        "originMain": "03d96fb0fee3936d14b976718c351b103f3fa92a",
+        "ciMain": "e5b8aa876e5757949709ac031ce5376352c35135",
+        "containsMain": false,
+        "mainCi": {
+          "verdict": "green",
+          "head": "03d96fb0fee3936d14b976718c351b103f3fa92a",
+          "run": 39004664865,
+          "conclusion": "success",
+          "url": "https://github.com/ImpowerGames/impower/actions/runs/39004664865"
+        },
+        "checks": [
+          {
+            "name": "changes / detect",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "linked-issue",
+            "workflow": "Check Linked Issue",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "changes / detect",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "notifier",
+            "workflow": "Agent Notification Tests",
+            "result": "skipped"
+          },
+          {
+            "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+            "workflow": "Test Suite",
+            "result": "skipped"
+          },
+          {
+            "name": "driver-changes / detect",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "tsc",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "Luau corpus gate",
+            "workflow": "Test Suite",
+            "result": "skipped"
+          },
+          {
+            "name": "notifier-tests",
+            "workflow": "Agent Notification Tests",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks (ubuntu-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "typecheck",
+            "workflow": "Typecheck",
+            "result": "passed"
+          },
+          {
+            "name": "skills-checks (windows-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks (ubuntu-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "test-suite",
+            "workflow": "Test Suite",
+            "result": "passed"
+          },
+          {
+            "name": "driver-checks (windows-latest)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (windows-latest, 2.1.9)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "vitest-api-integration (windows-latest, 3.2.6)",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          },
+          {
+            "name": "hook-tests",
+            "workflow": "Hook Tests",
+            "result": "passed"
+          }
+        ]
+      }
     }
   ],
   "decisions": [
@@ -4015,7 +4167,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T06:16:51.540Z",
+      "observedAt": "2026-10-17T06:18:09.894Z",
       "held": true,
       "head": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
       "remoteHead": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
@@ -4029,7 +4181,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T06:16:51.540Z",
+      "observedAt": "2026-10-17T06:18:09.894Z",
       "held": true,
       "head": "0ce68b477e72852e265ea00656ce216e181137e7",
       "remoteHead": "0ce68b477e72852e265ea00656ce216e181137e7",
@@ -4334,12 +4486,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T22:53:31.312Z",
-      "event": "operation-outcome",
-      "id": "3000849c",
-      "state": "confirmed"
-    },
     {
       "time": "2026-10-16T22:54:58.132Z",
       "event": "operation-intent",
@@ -5085,6 +5231,13 @@
       "event": "operation-outcome",
       "id": "c0f55d7a",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-17T06:18:08.543Z",
+      "event": "operation-intent",
+      "id": "af67d080",
+      "kind": "merge",
+      "pr": 2015
     }
   ]
 }
