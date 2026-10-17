@@ -141,23 +141,35 @@ sparkdown [0..733]
  │   │       │       │       │   │       │   └─ PunctuationBracketClose [71..72]: "]"
  │   │       │       │       │   │       └─ LuauAttributeList_end_c2 72
  │   │       │       │       │   ├─ LuauAttributeLineComment [72..102]
- │   │       │       │       │   │   ├─ LuauAttributeLineComment_c1 [72..73]
- │   │       │       │       │   │   │   └─ Whitespace [72..73]: " "
- │   │       │       │       │   │   ├─ LuauAttributeLineComment_c2 [73..75]
- │   │       │       │       │   │   │   └─ LuauCommentMark [73..75]: "--"
- │   │       │       │       │   │   ├─ LuauAttributeLineComment_c3 [75..101]
- │   │       │       │       │   │   │   └─ LuauLineCommentContent [75..101]: " a note that ends with end"
- │   │       │       │       │   │   └─ LuauAttributeLineComment_c4 [101..102]
- │   │       │       │       │   │       └─ Newline [101..102]: "\n"
+ │   │       │       │       │   │   ├─ LuauAttributeLineComment_begin 72
+ │   │       │       │       │   │   ├─ LuauAttributeLineComment_content [72..101]
+ │   │       │       │       │   │   │   └─ LuauLineComment [72..101]
+ │   │       │       │       │   │   │       ├─ LuauLineComment_begin [72..75]
+ │   │       │       │       │   │   │       │   ├─ LuauLineComment_begin_c1 [72..73]
+ │   │       │       │       │   │   │       │   │   └─ Whitespace [72..73]: " "
+ │   │       │       │       │   │   │       │   └─ LuauLineComment_begin_c2 [73..75]
+ │   │       │       │       │   │   │       │       └─ LuauCommentMark [73..75]: "--"
+ │   │       │       │       │   │   │       ├─ LuauLineComment_content [75..101]
+ │   │       │       │       │   │   │       │   └─ LuauLineCommentContent [75..101]: " a note that ends with end"
+ │   │       │       │       │   │   │       └─ LuauLineComment_end 101
+ │   │       │       │       │   │   └─ LuauAttributeLineComment_end [101..102]
+ │   │       │       │       │   │       └─ LuauAttributeLineComment_end_c1 [101..102]
+ │   │       │       │       │   │           └─ Newline [101..102]: "\n"
  │   │       │       │       │   ├─ LuauAttributeLineComment [102..120]
- │   │       │       │       │   │   ├─ LuauAttributeLineComment_c1 [102..104]
- │   │       │       │       │   │   │   └─ Whitespace [102..104]: "  "
- │   │       │       │       │   │   ├─ LuauAttributeLineComment_c2 [104..106]
- │   │       │       │       │   │   │   └─ LuauCommentMark [104..106]: "--"
- │   │       │       │       │   │   ├─ LuauAttributeLineComment_c3 [106..119]
- │   │       │       │       │   │   │   └─ LuauLineCommentContent [106..119]: " another note"
- │   │       │       │       │   │   └─ LuauAttributeLineComment_c4 [119..120]
- │   │       │       │       │   │       └─ Newline [119..120]: "\n"
+ │   │       │       │       │   │   ├─ LuauAttributeLineComment_begin 102
+ │   │       │       │       │   │   ├─ LuauAttributeLineComment_content [102..119]
+ │   │       │       │       │   │   │   └─ LuauLineComment [102..119]
+ │   │       │       │       │   │   │       ├─ LuauLineComment_begin [102..106]
+ │   │       │       │       │   │   │       │   ├─ LuauLineComment_begin_c1 [102..104]
+ │   │       │       │       │   │   │       │   │   └─ Whitespace [102..104]: "  "
+ │   │       │       │       │   │   │       │   └─ LuauLineComment_begin_c2 [104..106]
+ │   │       │       │       │   │   │       │       └─ LuauCommentMark [104..106]: "--"
+ │   │       │       │       │   │   │       ├─ LuauLineComment_content [106..119]
+ │   │       │       │       │   │   │       │   └─ LuauLineCommentContent [106..119]: " another note"
+ │   │       │       │       │   │   │       └─ LuauLineComment_end 119
+ │   │       │       │       │   │   └─ LuauAttributeLineComment_end [119..120]
+ │   │       │       │       │   │       └─ LuauAttributeLineComment_end_c1 [119..120]
+ │   │       │       │       │   │           └─ Newline [119..120]: "\n"
  │   │       │       │       │   ├─ ExtraWhitespace [120..122]: "  "
  │   │       │       │       │   ├─ LuauAttribute [122..130]
  │   │       │       │       │   │   ├─ LuauAttribute_c1 [122..123]
@@ -1041,14 +1053,20 @@ sparkdown [0..733]
  │   │       │   │   │       │       │       │   │       │   └─ PunctuationBracketClose [574..575]: "]"
  │   │       │   │   │       │       │       │   │       └─ LuauAttributeList_end_c2 575
  │   │       │   │   │       │       │       │   ├─ LuauAttributeLineComment [575..584]
- │   │       │   │   │       │       │       │   │   ├─ LuauAttributeLineComment_c1 [575..576]
- │   │       │   │   │       │       │       │   │   │   └─ Whitespace [575..576]: " "
- │   │       │   │   │       │       │       │   │   ├─ LuauAttributeLineComment_c2 [576..578]
- │   │       │   │   │       │       │       │   │   │   └─ LuauCommentMark [576..578]: "--"
- │   │       │   │   │       │       │       │   │   ├─ LuauAttributeLineComment_c3 [578..583]
- │   │       │   │   │       │       │       │   │   │   └─ LuauLineCommentContent [578..583]: " note"
- │   │       │   │   │       │       │       │   │   └─ LuauAttributeLineComment_c4 [583..584]
- │   │       │   │   │       │       │       │   │       └─ Newline [583..584]: "\n"
+ │   │       │   │   │       │       │       │   │   ├─ LuauAttributeLineComment_begin 575
+ │   │       │   │   │       │       │       │   │   ├─ LuauAttributeLineComment_content [575..583]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauLineComment [575..583]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauLineComment_begin [575..578]
+ │   │       │   │   │       │       │       │   │   │       │   ├─ LuauLineComment_begin_c1 [575..576]
+ │   │       │   │   │       │       │       │   │   │       │   │   └─ Whitespace [575..576]: " "
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauLineComment_begin_c2 [576..578]
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauCommentMark [576..578]: "--"
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauLineComment_content [578..583]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauLineCommentContent [578..583]: " note"
+ │   │       │   │   │       │       │       │   │   │       └─ LuauLineComment_end 583
+ │   │       │   │   │       │       │       │   │   └─ LuauAttributeLineComment_end [583..584]
+ │   │       │   │   │       │       │       │   │       └─ LuauAttributeLineComment_end_c1 [583..584]
+ │   │       │   │   │       │       │       │   │           └─ Newline [583..584]: "\n"
  │   │       │   │   │       │       │       │   ├─ Newline [584..585]: "\n"
  │   │       │   │   │       │       │       │   ├─ ExtraWhitespace [585..589]: "    "
  │   │       │   │   │       │       │       │   ├─ LuauAttribute [589..598]

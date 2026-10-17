@@ -544,6 +544,7 @@
     "LUAU_ATTRIBUTE_LINE_START": "(?={{LUAU_ATTRIBUTE_NOT_WRITE}})",
     "LUAU_ATTRIBUTE_NOT_WRITE": "(?:@(?:\\[|{{LUAU_ATTRIBUTE_NAME_NOT_WRITE}}))",
     "LUAU_ATTRIBUTE_NAME_NOT_WRITE": "(?:{{LUAU_IDENTIFIER}}(?!{{LUAU_WRITE_TARGET_TAIL}}))",
+    "LUAU_LINE_COMMENT_START": "(?:{{WS}}*--(?!\\[=*\\[))",
     "LUAU_WRITE_TARGET_TAIL": "(?:(?:\\.{{LUAU_IDENTIFIER}})*{{WS}}*:)",
     "LUAU_ATTRIBUTED_FUNCTION_END": "(?={{BEAT}})|(?<=\\bend)|^(?!{{WS}}*(?:$|--|{{LUAU_LOCAL_PREFIX}}?function\\b|{{LUAU_ATTRIBUTE_NOT_WRITE}}))|(?=[^\\s@])(?!--|{{LUAU_LOCAL_PREFIX}}?function\\b)",
     "LUAU_REGEX_BODY": "(?:\\\\.|[^/\\\\\\r\\n])+",
@@ -20189,32 +20190,18 @@
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<=\\bend)|^(?!(?:[^\\S\\n\\r])*(?:$|--|(?:local(?:[^\\S\\n\\r])+)?function\\b|(?:@(?:\\[|(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?!(?:(?:\\.(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*(?:[^\\S\\n\\r])*:)))))))|(?=[^\\s@])(?!--|(?:local(?:[^\\S\\n\\r])+)?function\\b)"
     },
     "LuauAttributeLineComment": {
-      "tag": "lineComment",
-      "name": "comment.line.double-dash.luau",
-      "match": "((?:[^\\S\\n\\r])*)(--)(?!\\[=*\\[)([^\\r\\n]*)((?:\\r\\n|\\r|\\n))?",
-      "captures": {
+      "begin": "(?=(?:(?:[^\\S\\n\\r])*--(?!\\[=*\\[)))",
+      "patterns": [
+        {
+          "include": "#LuauDocLineComment"
+        },
+        {
+          "include": "#LuauLineComment"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:\\r\\n|\\r|\\n))",
+      "endCaptures": {
         "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#LuauCommentMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#LuauLineCommentContent"
-            }
-          ]
-        },
-        "4": {
           "patterns": [
             {
               "include": "#Newline"

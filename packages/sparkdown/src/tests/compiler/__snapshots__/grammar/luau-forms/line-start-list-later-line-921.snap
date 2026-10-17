@@ -17,13 +17,19 @@ sparkdown [0..61]
  │   │   │       └─ LuauAttributeList_end_c2 9
  │   │   ├─ Newline [9..10]: "\n"
  │   │   ├─ LuauAttributeLineComment [10..20]
- │   │   │   ├─ LuauAttributeLineComment_c1 10
- │   │   │   ├─ LuauAttributeLineComment_c2 [10..12]
- │   │   │   │   └─ LuauCommentMark [10..12]: "--"
- │   │   │   ├─ LuauAttributeLineComment_c3 [12..19]
- │   │   │   │   └─ LuauLineCommentContent [12..19]: " a note"
- │   │   │   └─ LuauAttributeLineComment_c4 [19..20]
- │   │   │       └─ Newline [19..20]: "\n"
+ │   │   │   ├─ LuauAttributeLineComment_begin 10
+ │   │   │   ├─ LuauAttributeLineComment_content [10..19]
+ │   │   │   │   └─ LuauLineComment [10..19]
+ │   │   │   │       ├─ LuauLineComment_begin [10..12]
+ │   │   │   │       │   ├─ LuauLineComment_begin_c1 10
+ │   │   │   │       │   └─ LuauLineComment_begin_c2 [10..12]
+ │   │   │   │       │       └─ LuauCommentMark [10..12]: "--"
+ │   │   │   │       ├─ LuauLineComment_content [12..19]
+ │   │   │   │       │   └─ LuauLineCommentContent [12..19]: " a note"
+ │   │   │   │       └─ LuauLineComment_end 19
+ │   │   │   └─ LuauAttributeLineComment_end [19..20]
+ │   │   │       └─ LuauAttributeLineComment_end_c1 [19..20]
+ │   │   │           └─ Newline [19..20]: "\n"
  │   │   ├─ ExtraWhitespace [20..22]: "  "
  │   │   └─ LuauFunctionDefinition [22..47]
  │   │       ├─ LuauFunctionDefinition_begin [22..31]

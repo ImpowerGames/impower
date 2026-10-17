@@ -669,9 +669,28 @@ test.each([
   ["@native --[[ -- note ]] function a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
   ['store a = @native function() local s = "--" return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n'],
 ])("attributed functions in a row are each their own statement (#1924): %j", (source) => {
+  // The second function is a top-level statement of its own, not held by
+  // the statement or value before it.
+  expect(holders(source, [["return 2 end", "LuauFunctionAttributes"]])).toEqual([["return 2 end", "LuauFunctionAttributes"]]);
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("Values 1 2.\n");
+});
+
+// A documentation comment between attributes and their function keeps its
+// own scopes, and one that ends with the word `end` does not end the
+// attributes' statement.
+test.each([
+  ["@native\n---@param x number\nfunction f(x) return x end\nValue {f(3)}.\n", "Value 3.\n"],
+  ["store f = @native\n  ---@param x number\n  function(x) return x end\nValue {f(4)}.\n", "Value 4.\n"],
+  ["@native --- doc ending with end\nfunction f(x) return x end\nValue {f(5)}.\n", "Value 5.\n"],
+])("a documentation comment between attributes and their function (#1924): %j", async (source, output) => {
+  const doc: [string, string][] = [["---", "comment.luau"]];
+  if (source.includes("@param")) doc.push(["@param", "storage.type.class.luadoc.luau"]);
+  expect(await scopesOf(source, doc)).toEqual(doc);
+  const ctx = makeRuntimeStoryFromSource(source);
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe(output);
 });
 
 // A write after an attributed function, or after an attribute line with no

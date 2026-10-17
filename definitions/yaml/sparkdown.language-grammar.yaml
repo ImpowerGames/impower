@@ -861,6 +861,10 @@ variables:
   # lookaround: as LUAU_ATTRIBUTE_LINE_START, the attribute's name unless
   # an unspaced write's target goes on from it, which Write owns.
   LUAU_ATTRIBUTE_NAME_NOT_WRITE: (?:{{LUAU_IDENTIFIER}}(?!{{LUAU_WRITE_TARGET_TAIL}}))
+  # lookaround: the start of a line comment, a `--` that a long bracket's
+  # opening does not follow, which LuauAttributeLineComment reads with its
+  # line break; LuauBlockComment owns the other (`--[[c]]`).
+  LUAU_LINE_COMMENT_START: (?:{{WS}}*--(?!\[=*\[))
   # The rest of an unspaced write's target after its first name, and its
   # `:`.
   LUAU_WRITE_TARGET_TAIL: (?:(?:\.{{LUAU_IDENTIFIER}})*{{WS}}*:)
@@ -14311,28 +14315,23 @@ repository:
       - { include: "#LuauFunctionDefinition" }
     end: "{{LUAU_ATTRIBUTED_FUNCTION_END}}"
 
-  # A line comment between attributes and their function, read with the
-  # line break after it, so the position after it is the next line's and
-  # LUAU_ATTRIBUTED_FUNCTION_END never sees its text end with the word
-  # `end` (`@native -- the end`, `-- "--" end`).
+  # A line comment between attributes and their function, a documentation
+  # comment included (`---@param x number`), read by its own rule and then
+  # with the line break after it, so the position after it is the next
+  # line's and LUAU_ATTRIBUTED_FUNCTION_END never sees its text end with the
+  # word `end` (`@native -- the end`, `-- "--" end`).
   #
   # lookaround: LuauBlockComment owns a `--` that a long bracket's opening
-  # follows (`--[[c]]`), which LuauComment then reads.
+  # follows (`--[[c]]`), which LuauComment then reads; LuauDocLineComment
+  # and LuauLineComment own the comment itself, so the begin takes nothing.
   LuauAttributeLineComment:
-    tag: lineComment
-    name: comment.line.double-dash.luau
-    match: ({{WS}}*)(--)(?!\[=*\[)([^\r\n]*)({{NL}})?
-    captures:
+    begin: (?={{LUAU_LINE_COMMENT_START}})
+    patterns:
+      - { include: "#LuauDocLineComment" }
+      - { include: "#LuauLineComment" }
+    end: (?={{BEAT}})|({{NL}})
+    endCaptures:
       1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
-        patterns:
-          - { include: "#LuauCommentMark" }
-      3:
-        patterns:
-          - { include: "#LuauLineCommentContent" }
-      4:
         patterns:
           - { include: "#Newline" }
 
