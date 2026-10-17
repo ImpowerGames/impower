@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 227,
-  "previous": "b5a9e43483061e60a18704b536e6b7babff43489",
+  "seq": 228,
+  "previous": "6a6f954ae2b3e848a2341e3ff6ef658825868831",
   "snapshotParents": [],
-  "time": "2026-10-17T23:23:20.897Z",
+  "time": "2026-10-17T23:25:47.258Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "check-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 209,
+    "recordRevision": 210,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -48,11 +48,11 @@
     "cron": "11,41 * * * *",
     "prompt": "Orchestrate-feature check-in for Feature #1961, run record C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/ef5ffdf2-69b9-48fe-8a73-c572cee971e0/scratchpad/writer-1961-lLqMQS/run.json: run the wake routine in .agents/skills/orchestrate-feature/references/writer-reports.md, act on what it finds, and record the outcome with feature-run.mjs checked-in.",
     "command": "node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/ef5ffdf2-69b9-48fe-8a73-c572cee971e0/scratchpad/writer-1961-lLqMQS/run.json'",
-    "job": "c87ab494",
-    "none": null,
-    "state": "scheduled",
-    "since": "2026-10-16T18:17:56.119Z",
-    "expires": "2026-10-23T18:17:56.119Z"
+    "job": null,
+    "none": "suspended for the tracker cutover window per decision comment 6234380199: job c87ab494 deleted 2026-10-18 ~06:25Z; a local-only watch job abec3ce3 (23,53 past each hour) checks the #1967 writer's process and output without GitHub calls; the run ends when the switch flips",
+    "state": "none",
+    "since": "2026-10-17T23:25:45.054Z",
+    "expires": null
   },
   "title": "ORCH #1961: private internal tracker",
   "tickets": {
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T23:23:20.164Z",
+      "observedAt": "2026-10-17T23:25:46.572Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,16 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T05:04:01.859Z",
-      "event": "acknowledged",
-      "ticket": 1965,
-      "confirmed": {
-        "model": "claude-opus-5-5",
-        "effort": "high",
-        "permissionMode": "bypassPermissions"
-      }
-    },
     {
       "time": "2026-10-17T05:04:21.096Z",
       "event": "verified",
@@ -6183,6 +6173,12 @@
       "time": "2026-10-17T23:23:18.972Z",
       "event": "check-in",
       "outcome": "no change: Feature #1904 closed and ORCH #1904 idle ('window may open' received ~05:40Z); window held only for PR #2070 (#2063 rename, writer on another machine), whose round-4 reviewer launched 23:12Z on 8ff215240 has posted nothing since; freeze request sent to its Remote Control session, no reply yet; Phase B go prompt updated; the #1967 writer stays idle and unreleased; origin/main 879318898"
+    },
+    {
+      "time": "2026-10-17T23:25:45.055Z",
+      "event": "check-in-scheduled",
+      "job": null,
+      "none": "suspended for the tracker cutover window per decision comment 6234380199: job c87ab494 deleted 2026-10-18 ~06:25Z; a local-only watch job abec3ce3 (23,53 past each hour) checks the #1967 writer's process and output without GitHub calls; the run ends when the switch flips"
     }
   ]
 }
