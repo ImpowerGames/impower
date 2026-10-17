@@ -59,15 +59,34 @@ const MODES = ["snapshot", "transfer", "restore", "rewrite", "map", "verify", "r
 // ---------------------------------------------------------------------------
 // References in Markdown
 
-// A fence opener, allowing blockquote and list-item prefixes before it.
-const FENCE = /^[ \t]*(?:>[ \t]?)*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?(`{3,}|~{3,})(.*)$/;
+// A fence marker once a line's blockquote markers are removed, allowing a
+// list-item marker before it.
+const FENCE = /^[ \t]*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?(`{3,}|~{3,})(.*)$/;
+
+/** A line's blockquote depth (its leading `>` markers) and the text after them. */
+function quoted(line) {
+  let depth = 0;
+  let i = 0;
+  for (;;) {
+    let j = i;
+    while (line[j] === " " || line[j] === "\t") j++;
+    if (line[j] !== ">") break;
+    depth++;
+    i = j + 1;
+    if (line[i] === " " || line[i] === "\t") i++;
+  }
+  return { depth, rest: line.slice(i) };
+}
 
 /**
  * Splits Markdown into prose and code pieces, in order. Fenced blocks
- * (backtick or tilde, an unclosed fence running to the end), code spans
- * (a backtick run closed by a run of the same length within the paragraph)
- * and <code> or <pre> elements are code; GitHub links no reference inside
- * them. Indented code blocks are not recognised and read as prose.
+ * (backtick or tilde, an unclosed fence running to the end of its
+ * container), code spans (a backtick run closed by a run of the same length
+ * within the paragraph) and <code> or <pre> elements are code; GitHub links
+ * no reference inside them. A fence belongs to the blockquote depth it
+ * opened at: only a marker at that depth closes it, and a line of lesser
+ * depth ends the quote and the fence with it. Indented code blocks are not
+ * recognised and read as prose.
  */
 export function splitCode(text) {
   const pieces = [];
@@ -80,16 +99,18 @@ export function splitCode(text) {
   let prose = "";
   let fence = null;
   for (const line of text.split(/(?<=\n)/)) {
-    const m = line.replace(/\r?\n$/, "").match(FENCE);
+    const { depth, rest } = quoted(line.replace(/\r?\n$/, ""));
+    const m = rest.match(FENCE);
+    if (fence && depth < fence.depth) fence = null;
     if (fence) {
       push(true, line);
-      if (m && m[1][0] === fence.char && m[1].length >= fence.length && m[2].trim() === "") fence = null;
+      if (depth === fence.depth && m && m[1][0] === fence.char && m[1].length >= fence.length && m[2].trim() === "") fence = null;
       continue;
     }
     if (m && !(m[1][0] === "`" && m[2].includes("`"))) {
       splitInline(prose, push);
       prose = "";
-      fence = { char: m[1][0], length: m[1].length };
+      fence = { char: m[1][0], length: m[1].length, depth };
       push(true, line);
       continue;
     }
@@ -429,8 +450,13 @@ export class Journal {
   constructor(file) {
     this.file = file;
     this.records = [];
+    // A partial last line has no line end; the next record starts on a line
+    // of its own instead of being joined to it.
+    this.openLine = false;
     if (fs.existsSync(file)) {
-      for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+      const text = fs.readFileSync(file, "utf8");
+      this.openLine = text.length > 0 && !text.endsWith("\n");
+      for (const line of text.split("\n")) {
         if (!line.trim()) continue;
         try {
           this.records.push(JSON.parse(line));
@@ -443,7 +469,8 @@ export class Journal {
 
   append(record) {
     const entry = { at: new Date().toISOString(), ...record };
-    fs.appendFileSync(this.file, `${JSON.stringify(entry)}\n`);
+    fs.appendFileSync(this.file, `${this.openLine ? "\n" : ""}${JSON.stringify(entry)}\n`);
+    this.openLine = false;
     this.records.push(entry);
     return entry;
   }

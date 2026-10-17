@@ -72,6 +72,13 @@ test("references inside code spans, fences and code elements are left alone", ()
   assert.equal(rw("```js\r\n#12\r\n```\r\n#12"), "```js\r\n#12\r\n```\r\n#3", "CRLF line ends");
 });
 
+test("a fence belongs to the blockquote it opened in", () => {
+  assert.equal(rw("```markdown\n> ```\n#12\n```\nSee #12."), "```markdown\n> ```\n#12\n```\nSee #3.", "a quoted marker inside a top-level fence does not close it");
+  assert.equal(rw("> ```\n> #12\n\nSee #12."), "> ```\n> #12\n\nSee #3.", "leaving the quote ends a fence opened in it");
+  assert.equal(rw("> ```\n> #12\n> ```\n> #12"), "> ```\n> #12\n> ```\n> #3", "a marker at the same depth closes it");
+  assert.equal(rw("> > ```\n> > #12\n> #12"), "> > ```\n> > #12\n> #3", "a nested quote's fence ends with the inner quote");
+});
+
 test("an unmatched backtick and a span broken by a blank line do not hide what follows", () => {
   assert.equal(rw("a ` stray #12"), "a ` stray #3");
   assert.equal(rw("`open\n\n#12 `"), "`open\n\n#3 `");
@@ -769,6 +776,18 @@ test("a rehearsal survives a lost creation response, passes verify and leaves no
   assert.equal(result.survival.fields.parent["#9"], 'dropped or changed: expected "Org/internal#1", found null');
   assert.equal(result.verify, "passed");
   assert.deepEqual([...(await rehearsalIssues(tracker, "Org/code")), ...(await rehearsalIssues(tracker, "Org/internal"))], []);
+});
+
+test("a record appended after a partial journal line survives the next reload", () => {
+  const file = path.join(scratch(), "journal.jsonl");
+  fs.writeFileSync(file, `${JSON.stringify({ mode: "rehearsal", step: "created", role: "parent", number: 1 })}\n{"mode":"rehearsal","step":"crea`);
+  const journal = new Journal(file);
+  assert.equal(journal.records.length, 1, "the partial line is ignored");
+  journal.append({ mode: "rehearsal", step: "creating", role: "child", title: "t" });
+  const reloaded = new Journal(file);
+  assert.deepEqual(reloaded.of("rehearsal").map((r) => r.step), ["created", "creating"]);
+  reloaded.append({ mode: "rehearsal", step: "created", role: "child", number: 2 });
+  assert.equal(new Journal(file).records.length, 3);
 });
 
 test("rehearsal clean-up deletes an issue whose creation was never recorded", async () => {
