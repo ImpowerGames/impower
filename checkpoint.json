@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 181,
-  "previous": "77af31cd3a2dac8074f8fbce982e0221f9e89d60",
+  "seq": 182,
+  "previous": "30f900e303968eb37afa6a306e63c889c3674b7e",
   "snapshotParents": [],
-  "time": "2026-10-17T09:05:43.644Z",
+  "time": "2026-10-17T09:06:01.033Z",
   "kind": "auto",
-  "transition": "acknowledged of #1967",
+  "transition": "verify of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 166,
+    "recordRevision": 167,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3981,7 +3981,7 @@
           "host": "DESKTOP-726EO47",
           "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1967-02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8"
         },
-        "verified": false,
+        "verified": true,
         "brief": {
           "state": "delivered",
           "via": "prompt",
@@ -4871,7 +4871,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:05:43.643Z",
+      "observedAt": "2026-10-17T09:06:01.033Z",
       "held": true,
       "exists": false
     }
@@ -4926,13 +4926,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:13:04.794Z",
-      "event": "result",
-      "ticket": 1963,
-      "pr": 2009,
-      "reviewedHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d"
-    },
     {
       "time": "2026-10-17T02:15:09.157Z",
       "event": "operation-intent",
@@ -5673,6 +5666,11 @@
         "effort": "high",
         "permissionMode": "bypassPermissions"
       }
+    },
+    {
+      "time": "2026-10-17T09:05:59.663Z",
+      "event": "verified",
+      "ticket": 1967
     }
   ]
 }
