@@ -227,6 +227,8 @@ interface UnitRecord {
   /** The diverts its resolution resolved, whose targets a later compile
    *  moves onto the objects that stand for them then (`retarget`). */
   diverts: Divert[];
+  /** The resolve that made it (`ProgramResolver.committed`). */
+  at: number;
 }
 
 /** Whether `obj` is a stand-in of a statement served from its memo, or a
@@ -321,6 +323,8 @@ class Unit {
    *  generates no flow it holds. */
   skipGeneration: Set<ParsedObject> | null = null;
   flow: FlowBase | null = null;
+  /** For a weave's, the compiled block its objects came from. */
+  block: object | null = null;
   /** The flows around it, by name, from the story's top level. */
   context = "";
   /** Its place among the statements of the story, in the story's order. */
@@ -374,6 +378,13 @@ export interface ResolveInput {
    *  its top: what their generation and resolution report and read is kept
    *  for their memos (`memoResolutionsLastResolve`). */
   memoCandidates?: ReadonlyMap<ParsedObject, MemoCandidate>;
+  /** Adds to `memoCandidates` the statements of `blocks`, blocks the
+   *  compile carried, whose memos their lowering made: the resolve resolves
+   *  a statement of each again, and what that resolution reports and reads
+   *  is kept for their memos, which a name declared otherwise since they
+   *  were completed would otherwise leave stale for the next lowering of the
+   *  block (#1974). */
+  carriedMemos?(blocks: ReadonlySet<object>): void;
 }
 
 /** A statement whose memo the resolve completes, with its lines in its
@@ -493,6 +504,8 @@ export class ProgramResolver {
   // memo's resolution, made by an earlier resolve, reads otherwise.
   protected _changedAt = new Map<string, number>();
   protected _anyChangedAt = 0;
+  // The last resolve whose compile kept what it resolved (`committed`).
+  protected _committed = 0;
 
   protected _compile = 0;
   protected _needsCold = true;
@@ -603,6 +616,7 @@ export class ProgramResolver {
       printed: [],
       volatile: false,
       diverts: [],
+      at: this._compile,
     };
   }
 
@@ -815,6 +829,17 @@ export class ProgramResolver {
           invalidate(unit, "name *");
         }
       }
+      // A statement whose record a resolve made that its compile did not keep
+      // (a preview's, an attempt's that met a memo it could not compile
+      // from, or one whose build made no program): what it found can rest on
+      // what the statements served from those memos repeated, which their
+      // lowering anew may not, and no compile completed the memos of its
+      // block (#1974).
+      for (const unit of this._order) {
+        if (unit.record && unit.record.at > this._committed) {
+          invalidate(unit, "uncommitted");
+        }
+      }
       for (const unit of this._positioned) {
         if (unit.fresh || !unit.record || unit.seen !== this._compile) {
           continue;
@@ -933,6 +958,11 @@ export class ProgramResolver {
         }
       }
       this._unregisterable = unregisterable;
+
+      // The memos of the statements of a carried block that a statement of
+      // it is resolved again in, which this resolution completes again
+      // (#1974).
+      this.noteCarriedMemos(fresh, input);
 
       // Each flow's labels, from what its statements hold, in the order a
       // walk of its weave finds them.
@@ -1328,6 +1358,7 @@ export class ProgramResolver {
     unit.members = [];
     unit.skipGeneration = null;
     unit.flow = null;
+    unit.block = null;
     unit.context = context;
     unit.index = this._order.length;
     this._order.push(unit);
@@ -1397,6 +1428,7 @@ export class ProgramResolver {
       if (owner !== block) {
         block = owner;
         current = this.unitFor(owner, "weave", node.path);
+        current.block = owner;
         node.items.push({ kind: "unit", unit: current });
       }
       const unit = current!;
@@ -1965,6 +1997,50 @@ export class ProgramResolver {
    *  or, for `*` (a lookup that read every name), any name was. */
   protected readsOtherwise(name: string, at: number): boolean {
     return (name === "*" ? this._anyChangedAt : (this._changedAt.get(name) ?? 0)) > at;
+  }
+
+  /** Has the compile add to the memo candidates the statements of each
+   *  carried block a statement this resolve generates and resolves stands in
+   *  (`ResolveInput.carriedMemos`): their memos were completed by an earlier
+   *  resolve, and a name their resolution read that this one finds declared
+   *  otherwise, or flows around them that changed, would leave them stale
+   *  for the next lowering of the block, though this resolution reads what
+   *  it reads now. */
+  protected noteCarriedMemos(fresh: readonly Unit[], input: ResolveInput): void {
+    const candidates = this._candidates;
+    if (!input.carriedMemos || !candidates) {
+      return;
+    }
+    // Every statement generated and resolved: one whose block was lowered
+    // anew adds nothing (`carriedMemos` takes only carried blocks), and a
+    // carried one is resolved again for a name, for the flows around it
+    // (`moved`), for a rename or for a resolve its compile did not keep.
+    const blocks = new Set<object>();
+    for (const unit of fresh) {
+      // A weave's objects came from its block; a function and a header
+      // stand for a flow the block placed.
+      const block = unit.block ?? (unit.flow ? input.blockOf(unit.flow) : undefined);
+      if (block) {
+        blocks.add(block);
+      }
+    }
+    if (blocks.size === 0) {
+      return;
+    }
+    input.carriedMemos(blocks);
+    this._owners = ProgramResolver.ownersOf(candidates);
+  }
+
+  /** Notes that the compile of the last resolve kept what it resolved: the
+   *  chunk store committed its build, and the compile completed the memos
+   *  of its statements (`SparkdownCompiler.completeMemos`). It was no
+   *  preview, met no memo it could not compile from (`StatementMemoRetry`)
+   *  and made a program. The next resolve resolves again each statement a
+   *  resolve after the last such compile resolved: what that resolve found
+   *  can rest on what a stale memo's stand-in repeated, and the memos of the
+   *  statement's block are completed by none (`noteCarriedMemos`, #1974). */
+  committed(): void {
+    this._committed = this._compile;
   }
 
   /** The memo candidate whose objects `obj` stands among, or none. */
