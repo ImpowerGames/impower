@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 173 (this commit), 2026-10-17T09:00:54.313Z, after the intent before a side effect. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 174 (this commit), 2026-10-17T09:01:36.733Z, after the merge of PR #2053 (confirmed). Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -17,7 +17,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-2053/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 0e6b6fa0c, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["undirected"]), last event finished
 - review job pr-2053/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed e730ff3a9, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["undirected"]), last event finished
 - review job pr-2053/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed a97059162, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["undirected"]), last event finished
-
-## Unsettled operations
-
-- 99491c2d: merge of PR #2053 at a970591624352b9e4850829e9ad4e82b23fd8684, intent; settle it with checkpoint.mjs reconcile-operations before any retry
