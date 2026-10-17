@@ -677,18 +677,32 @@ export class Pacer {
     this.totalWrites = 0;
   }
 
-  wait(write) {
+  /** Milliseconds until `requests` more requests, `writes` of them writes, fit the budgets. */
+  wait(write, requests = 1, writes = write ? 1 : 0) {
+    if (requests > this.perHour || writes > this.writesPerHour || writes > this.writesPerMinute) throw new Error(`${requests} requests with ${writes} writes can never fit budgets of ${this.perHour} requests an hour and ${this.writesPerMinute} writes a minute and ${this.writesPerHour} an hour`);
     const t = this.now();
     this.requests = this.requests.filter((s) => s > t - 3600e3);
     this.writes = this.writes.filter((s) => s > t - 3600e3);
     const waits = [0];
-    if (this.requests.length >= this.perHour) waits.push(this.requests[this.requests.length - this.perHour] + 3600e3 - t);
-    if (write) {
-      if (this.writes.length >= this.writesPerHour) waits.push(this.writes[this.writes.length - this.writesPerHour] + 3600e3 - t);
-      const minute = this.writes.filter((s) => s > t - 60e3);
-      if (minute.length >= this.writesPerMinute) waits.push(minute[minute.length - this.writesPerMinute] + 60e3 - t);
+    // The window holds `limit`; `more` new ones fit once the oldest
+    // `length + more - limit` have left it.
+    const room = (stamps, limit, more, span) => {
+      if (stamps.length + more > limit) waits.push(stamps[stamps.length + more - limit - 1] + span - t);
+    };
+    room(this.requests, this.perHour, requests, 3600e3);
+    if (writes) {
+      room(this.writes, this.writesPerHour, writes, 3600e3);
+      room(this.writes.filter((s) => s > t - 60e3), this.writesPerMinute, writes, 60e3);
     }
     return Math.max(...waits);
+  }
+
+  /** Waits until `requests` more requests, `writes` of them writes, fit without waiting, and records none of them. */
+  async room(requests, writes = 0) {
+    for (let wait = this.wait(writes > 0, requests, writes); wait > 0; wait = this.wait(writes > 0, requests, writes)) {
+      if (wait > 5000) this.log(`pacing: waiting ${Math.ceil(wait / 1000)}s for room for ${requests} requests`);
+      await this.sleep(wait);
+    }
   }
 
   async take(write = false) {
@@ -717,10 +731,17 @@ export function estimateHours({ reads, writes }, { perHour = 4500, writesPerMinu
 }
 
 export class GhError extends Error {
-  constructor(args, status, text) {
+  constructor(args, status, text, { limited = false } = {}) {
     super(`gh ${args.join(" ")} failed${status ? ` (HTTP ${status})` : ""}: ${text.trim().split("\n").slice(0, 3).join(" ")}`);
     this.status = status;
+    // A rate-limit refusal, which rejected the request.
+    this.limited = limited;
   }
+}
+
+/** The backoff before retry `attempt` (from 0): longer after a rate limit, which GitHub may hold for minutes. */
+export function retryWait(limited, attempt) {
+  return limited ? Math.min(900e3, 60e3 * 2 ** attempt) : Math.min(120e3, 5e3 * 2 ** attempt);
 }
 
 function runGh(args, input) {
@@ -738,7 +759,7 @@ function runGh(args, input) {
  * and the mode's own live-state checks decide on the rerun.
  */
 export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, log = () => {} } = {}) {
-  async function call(args, { write = false, idempotent = !write, input } = {}) {
+  async function call(args, { write = false, idempotent = !write, input, retries = 8 } = {}) {
     for (let attempt = 0; ; attempt++) {
       await pacer.take(write);
       const r = run(args, input);
@@ -747,13 +768,13 @@ export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, 
       const status = Number(text.match(/HTTP (\d{3})/)?.[1] ?? 0);
       const limited = ((status === 403 || status === 429) && /rate limit|abuse|secondary/i.test(text)) || /submitted too quickly|secondary rate limit/i.test(text);
       const transient = idempotent && (status >= 500 || /timed? ?out|ECONNRESET|connection reset|TLS handshake|unexpected EOF/i.test(text));
-      if ((limited || transient) && attempt < 8) {
-        const wait = limited ? Math.min(900e3, 60e3 * 2 ** attempt) : Math.min(120e3, 5e3 * 2 ** attempt);
+      if ((limited || transient) && attempt < retries) {
+        const wait = retryWait(limited, attempt);
         log(`gh ${args.slice(0, 4).join(" ")}: ${limited ? "rate limited" : "transient failure"}, retrying in ${Math.round(wait / 1000)}s`);
         await sleep(wait);
         continue;
       }
-      throw new GhError(args, status, text);
+      throw new GhError(args, status, text, { limited });
     }
   }
   const parse = (s) => (s.trim() ? JSON.parse(s) : null);
@@ -763,6 +784,10 @@ export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, 
     async api(method, endpoint, body, headers = []) {
       const args = ["api", "-X", method, endpoint, ...headerArgs(headers), ...(body === undefined ? [] : ["--input", "-"])];
       return parse(await call(args, { write: method !== "GET", idempotent: ["GET", "PATCH", "PUT"].includes(method), input: body === undefined ? undefined : JSON.stringify(body) }));
+    },
+    /** One paced attempt with no retry, for a caller that must check live state again before repeating it. */
+    async apiOnce(method, endpoint) {
+      return parse(await call(["api", "-X", method, endpoint], { write: method !== "GET", idempotent: false, retries: 0 }));
     },
     async list(endpoint, headers = []) {
       const pages = parse(await call(["api", "--paginate", "--slurp", endpoint, ...headerArgs(headers)])) ?? [];
@@ -1956,7 +1981,7 @@ async function rehearsalCleanup({ tracker, repos, journal, dryRun = false, log =
 // ---------------------------------------------------------------------------
 // Command line
 
-function writeJson(file, value) {
+export function writeJson(file, value) {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
   if (!isDeepStrictEqual(JSON.parse(fs.readFileSync(file, "utf8")), JSON.parse(JSON.stringify(value)))) throw new Error(`${file} did not read back as written`);
 }
@@ -1998,7 +2023,7 @@ export function parseArgs(argv) {
 }
 
 /** Refuses an attempt directory inside a Git work tree, where a snapshot or journal could be committed. */
-function checkPrivateDir(dir) {
+export function checkPrivateDir(dir) {
   let probe = dir;
   while (!fs.existsSync(probe)) probe = path.dirname(probe);
   const r = spawnSync("git", ["-C", probe, "rev-parse", "--is-inside-work-tree"], { encoding: "utf8", windowsHide: true });
