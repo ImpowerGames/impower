@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 126,
-  "previous": "a6805fc90169f0033a7d3a97c6f3ed7e12746381",
+  "seq": 127,
+  "previous": "cf827d9231c31c9b56ad34f7f6ee13566a5a9052",
   "snapshotParents": [],
-  "time": "2026-10-17T00:52:57.171Z",
+  "time": "2026-10-17T01:20:05.343Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 101,
@@ -1788,7 +1788,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T00:52:54.198Z",
+      "observedAt": "2026-10-17T01:20:03.956Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1945,16 +1945,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T00:52:54.198Z",
+      "observedAt": "2026-10-17T01:20:03.956Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 21180
-      },
       "pr": 1984,
       "reviewJobs": [
         {
@@ -2192,7 +2188,7 @@
         },
         {
           "job": "pr-1984/round-4/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 4,
             "step": "review-undirected",
@@ -2206,7 +2202,23 @@
               "undirected": 1
             },
             "time": "2026-10-17T00:51:08.118Z"
-          }
+          },
+          "round": 4,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6227829979
+          ]
         }
       ]
     }
@@ -2214,7 +2226,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T00:52:10.519Z",
+    "at": "2026-10-17T01:20:03.954Z",
     "tickets": [
       {
         "number": 851,
@@ -2244,7 +2256,7 @@
         "number": 1974,
         "action": "observe",
         "pr": 1984,
-        "reason": "process 52448 started 639277950173469009 is running"
+        "reason": "process 8440, 46748, 55580 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-7a097718-7636-4e93-9a2d-b75836432bde"
       }
     ],
     "remaining": [
