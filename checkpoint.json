@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 89,
-  "previous": "df304a460eb09c791833047923dc188443b65001",
+  "seq": 90,
+  "previous": "87e27bc299ae04b1842ba7fc79e683a8a9dfe5be",
   "snapshotParents": [],
-  "time": "2026-10-16T19:40:03.211Z",
+  "time": "2026-10-17T01:00:57.881Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 93,
@@ -1476,39 +1476,511 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-16T19:40:03.211Z",
+      "observedAt": "2026-10-17T01:00:56.283Z",
       "held": true,
-      "exists": false
+      "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
+      "remoteHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
+      "unpushed": false,
+      "dirty": true,
+      "pr": 1995,
+      "reviewJobs": [
+        {
+          "job": "pr-1995/round-1/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "ax",
+              "undirected"
+            ],
+            "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
+            "completedRoundReviewers": {
+              "gram": 1
+            },
+            "time": "2026-10-16T23:41:26.972Z"
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "gram": 1,
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6226905089
+          ]
+        },
+        {
+          "job": "pr-1995/round-1/launch-gram-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-gram",
+            "reviewerId": "gram",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "ax",
+              "undirected"
+            ],
+            "head": "e487e7f7bf8ee88c2ae5020123a9b9145a0c1a33",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T21:41:38.540Z"
+          },
+          "round": 1,
+          "reviewerId": "gram",
+          "attempt": 1,
+          "reviewedHead": "e487e7f7bf8ee88c2ae5020123a9b9145a0c1a33",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "gram": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6225382429
+          ]
+        },
+        {
+          "job": "pr-1995/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gram",
+              "ax",
+              "undirected"
+            ],
+            "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
+            "completedRoundReviewers": {
+              "gram": 1,
+              "ax": 1
+            },
+            "time": "2026-10-16T23:55:11.084Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "gram": 1,
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "gram",
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6227523977
+          ]
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate": {
       "ticket": 1908,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
       "branch": "test/1908-luau-corpus-gate",
-      "observedAt": "2026-10-16T19:40:03.211Z",
+      "observedAt": "2026-10-17T01:00:56.283Z",
       "held": true,
-      "exists": false
+      "head": "855be21068d55f6f5dc050ed31c7d704b065698b",
+      "remoteHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
+      "unpushed": false,
+      "dirty": false,
+      "pr": 1996,
+      "reviewJobs": [
+        {
+          "job": "pr-1996/round-1/launch-gate-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-gate",
+            "reviewerId": "gate",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gate",
+              "undirected"
+            ],
+            "head": "c23daeb3b9ae51845353ac4613be71893159b236",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T21:51:05.613Z"
+          },
+          "round": 1,
+          "reviewerId": "gate",
+          "attempt": 1,
+          "reviewedHead": "c23daeb3b9ae51845353ac4613be71893159b236",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "gate": 1
+          },
+          "plannedRoundReviewers": [
+            "gate",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6225562238
+          ]
+        },
+        {
+          "job": "pr-1996/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "gate",
+              "undirected"
+            ],
+            "head": "1f237133a27bc0ba8cc4bd66af64e634d46dfdac",
+            "completedRoundReviewers": {
+              "gate": 1
+            },
+            "time": "2026-10-16T22:47:42.640Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "1f237133a27bc0ba8cc4bd66af64e634d46dfdac",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "gate": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "gate",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6226437335
+          ]
+        },
+        {
+          "job": "pr-1996/round-2/launch-fixes-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-fixes",
+            "reviewerId": "fixes",
+            "attempt": 1,
+            "plannedReviewers": [
+              "fixes",
+              "undirected"
+            ],
+            "head": "2dece6b52a4d393ecd64df1f612e154f27d46eeb",
+            "completedRoundReviewers": {
+              "gate": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T23:42:13.709Z"
+          },
+          "round": 2,
+          "reviewerId": "fixes",
+          "attempt": 1,
+          "reviewedHead": "2dece6b52a4d393ecd64df1f612e154f27d46eeb",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "fixes": 1
+          },
+          "plannedRoundReviewers": [
+            "fixes",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6227039934
+          ]
+        },
+        {
+          "job": "pr-1996/round-2/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "fixes",
+              "undirected"
+            ],
+            "head": "855be21068d55f6f5dc050ed31c7d704b065698b",
+            "completedRoundReviewers": {
+              "fixes": 1
+            },
+            "time": "2026-10-17T00:27:41.694Z"
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "fixes": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "fixes",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6227537238
+          ]
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting": {
       "ticket": 1924,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-16T19:40:03.211Z",
+      "observedAt": "2026-10-17T01:00:56.283Z",
       "held": true,
-      "exists": false
+      "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
+      "remoteHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 14884
+      },
+      "pr": 1993,
+      "reviewJobs": [
+        {
+          "job": "pr-1993/round-1/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "grammar",
+              "undirected"
+            ],
+            "head": "6e7a7b974273b3037e23ec4285a0d5ed1463393f",
+            "completedRoundReviewers": null,
+            "time": "2026-10-16T21:14:05.240Z"
+          },
+          "round": 1,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "6e7a7b974273b3037e23ec4285a0d5ed1463393f",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "grammar",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "grammar",
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6225029258
+          ]
+        },
+        {
+          "job": "pr-1993/round-1/launch-grammar-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-grammar",
+            "reviewerId": "grammar",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "grammar",
+              "undirected"
+            ],
+            "head": "3920a7861928fddb661b11779deab0829b130d72",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-16T21:54:23.738Z"
+          },
+          "round": 1,
+          "reviewerId": "grammar",
+          "attempt": 1,
+          "reviewedHead": "3920a7861928fddb661b11779deab0829b130d72",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "grammar": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "grammar",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6225734581
+          ]
+        },
+        {
+          "job": "pr-1993/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "grammar",
+              "undirected"
+            ],
+            "head": "4628b32c00925aaa0a8e69accae45e521660ea53",
+            "completedRoundReviewers": {
+              "ax": 1,
+              "grammar": 1
+            },
+            "time": "2026-10-16T22:57:49.028Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "4628b32c00925aaa0a8e69accae45e521660ea53",
+          "completedRoundReviews": 3,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "grammar": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "grammar",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6226459027
+          ]
+        },
+        {
+          "job": "pr-1993/round-2/launch-ax-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-ax",
+            "reviewerId": "ax",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "0c6a8af24b4b4c9407b5a3bba89a14b4c591fdb7",
+            "completedRoundReviewers": {
+              "ax": 1,
+              "grammar": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T23:55:23.733Z"
+          },
+          "round": 2,
+          "reviewerId": "ax",
+          "attempt": 1,
+          "reviewedHead": "0c6a8af24b4b4c9407b5a3bba89a14b4c591fdb7",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "ax": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6227154990
+          ]
+        },
+        {
+          "job": "pr-1993/round-2/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-17T00:54:05.963Z"
+          }
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T19:37:17.566Z",
+    "at": "2026-10-17T01:00:56.280Z",
     "tickets": [
       {
         "number": 984,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1995,
+        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1002,
@@ -1524,9 +1996,9 @@
       },
       {
         "number": 1102,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+        "action": "adopt-pr",
+        "pr": 1995,
+        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1121,
@@ -1536,9 +2008,9 @@
       },
       {
         "number": 1195,
-        "action": "decision-needed",
-        "pr": null,
-        "reason": "the ticket has no Effort value; assign one through the issue-fields procedure"
+        "action": "adopt-pr",
+        "pr": 1995,
+        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1197,
@@ -1590,9 +2062,9 @@
       },
       {
         "number": 1209,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1995,
+        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1243,
@@ -1602,9 +2074,9 @@
       },
       {
         "number": 1247,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at high: claude-cli: no preflight result for claude-opus-5-5 at high"
+        "action": "adopt-pr",
+        "pr": 1995,
+        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1248,
@@ -1632,9 +2104,9 @@
       },
       {
         "number": 1266,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1995,
+        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1290,
@@ -1656,33 +2128,33 @@
       },
       {
         "number": 1329,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1993,
+        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1341,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+        "action": "adopt-pr",
+        "pr": 1995,
+        "reason": "draft PR #1995 at 9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1343,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at high: claude-cli: no preflight result for claude-opus-5-5 at high"
+        "action": "adopt-pr",
+        "pr": 1993,
+        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1344,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1993,
+        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1369,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+        "action": "adopt-pr",
+        "pr": 1993,
+        "reason": "draft PR #1993 at 398588031110f7340fc168c6bd0a384d2e4f9c1a has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1596,
@@ -1716,9 +2188,9 @@
       },
       {
         "number": 1906,
-        "action": "reconcile-pending",
-        "pr": null,
-        "reason": "launch bb7eb9b8-394b-4504-a291-e7aa45147ebc on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "action": "observe",
+        "pr": 1995,
+        "reason": "process 18844 started 639277762596170038 is running"
       },
       {
         "number": 1907,
@@ -1728,9 +2200,9 @@
       },
       {
         "number": 1908,
-        "action": "reconcile-pending",
-        "pr": null,
-        "reason": "launch 157a9a9c-bce5-4635-b65a-7b7f25fc3b63 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "action": "merge-gate",
+        "pr": 1996,
+        "reason": "PR #1996 is ready at 855be21068d55f6f5dc050ed31c7d704b065698b; process 52132 now belongs to another process and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1909,
@@ -1740,15 +2212,93 @@
       },
       {
         "number": 1924,
-        "action": "reconcile-pending",
-        "pr": null,
-        "reason": "launch cb97a4cf-003c-46ed-aeaf-5b42615c3729 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "action": "observe",
+        "pr": 1993,
+        "reason": "process 35784 started 639277762790091965 is running"
       },
       {
         "number": 1977,
         "action": "blocked-route",
         "pr": null,
         "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1985,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1986,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1987,
+        "action": "decision-needed",
+        "pr": null,
+        "reason": "the ticket has no Effort value; assign one through the issue-fields procedure"
+      },
+      {
+        "number": 1988,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1989,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1990,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1991,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1992,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 1997,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+      },
+      {
+        "number": 1998,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 2000,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 2001,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 2018,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
       }
     ],
     "remaining": [
