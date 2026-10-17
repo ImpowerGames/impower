@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 211,
-  "previous": "c3283ce33906b0a5ce11c619a55d98bd87123d33",
+  "seq": 212,
+  "previous": "b43264bd5c6e69cf27ffb0da4146db37b21aa44f",
   "snapshotParents": [],
-  "time": "2026-10-17T15:23:23.612Z",
+  "time": "2026-10-17T15:53:22.335Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 193,
+    "recordRevision": 194,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T15:23:22.795Z",
+      "observedAt": "2026-10-17T15:53:21.519Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,12 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:49:20.317Z",
-      "event": "request",
-      "ticket": 1964,
-      "id": "26ae8dd3"
-    },
     {
       "time": "2026-10-17T04:54:01.140Z",
       "event": "resume-intent",
@@ -6231,6 +6225,11 @@
       "time": "2026-10-17T15:23:21.436Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main now 006d924c1 after #1904 merged PR #1995; PR #1993 at 9296f3ce9 in #1904's round 5, open draft; #1907 and #1977 still to come; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T15:53:20.163Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main 006d924c1; PR #1993 at 4871f7aa7 in #1904's round 5, open draft; #1907 and #1977 still to come; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
