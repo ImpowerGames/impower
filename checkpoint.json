@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 201,
-  "previous": "b0896d3d0bb07ba16b8ee5c94405db52221359fd",
+  "seq": 202,
+  "previous": "4823ce209a8306781c62f457bab6f4ae854646a5",
   "snapshotParents": [],
-  "time": "2026-10-17T11:53:33.863Z",
+  "time": "2026-10-17T12:23:32.971Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 184,
+    "recordRevision": 185,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5219,7 +5219,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T11:53:33.175Z",
+      "observedAt": "2026-10-17T12:23:32.298Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5505,11 +5505,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T03:54:14.653Z",
-      "event": "check-in",
-      "outcome": "no change: #1964 PR #2040 at a2598bca0 in round 1 with the undirected reviewer running; #1966 PR #2015 at 51a6a7c0c has the Windows driver check red (test-suite.test.mjs, writer diagnosing before its round 4 checkpoint report); both writers running"
-    },
     {
       "time": "2026-10-17T04:07:24.304Z",
       "event": "request",
@@ -6239,6 +6234,11 @@
       "time": "2026-10-17T11:53:32.075Z",
       "event": "check-in",
       "outcome": "no change: PR #2057 (#1967 Phase A) is ready at 52e5a21c5 and still open, awaiting the maintainer's merge since the gate refuses a PR without a closing reference; the writer is idle with its report recorded; no writer running"
+    },
+    {
+      "time": "2026-10-17T12:23:31.181Z",
+      "event": "check-in",
+      "outcome": "no change: PR #2057 (#1967 Phase A) still open and ready at 52e5a21c5, awaiting the maintainer's merge; writer idle; no writer running"
     }
   ]
 }
