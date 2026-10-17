@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 179,
-  "previous": "0aed8eaa86a5c66838d9840d253eeeb7e16b4ca0",
+  "seq": 180,
+  "previous": "5faabb5b499b41e553773eb6ce2582ae18effadc",
   "snapshotParents": [],
-  "time": "2026-10-17T09:03:38.709Z",
+  "time": "2026-10-17T09:04:59.972Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 164,
+    "recordRevision": 165,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3964,10 +3964,7 @@
       ]
     },
     "1967": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "high",
@@ -3976,9 +3973,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
         "branch": "feat/1967-archive-scrub-cutover",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-17T09:03:30.863Z"
+        "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
+        "handle": {
+          "kind": "process",
+          "pid": 60408,
+          "start": "639278246982933363",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1967-02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment 02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8. You are the writer for ImpowerGames/impower ticket #1967 (Build the pull request archive and scrub tool and run the tracker cutover), a slice of Feature #1961, coordinated by coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c an acknowledgement naming assignment 02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1967 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover on branch feat/1967-archive-scrub-cutover from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961, and keep every artifact in it.\nSettled decisions:\n- Cutover switch (maintainer, 2026-10-16, comment 6221962821 on #1961): .agents/repos.json carries cutover: false, and flipping it is a step of the cutover window, never of the tooling PR. Read that comment, comment 6226441508 (the internal repository exists), and what #1962 to #1966 merged on main: the guard, ticketsRepo() and reviewThread(), the review pipeline on the ticket thread, orchestrate-feature on two repositories, and scripts/migrate-tracker.mjs with its modes. Your work splits in two phases. Phase A, now, under this orchestration: build scripts/scrub-pull-requests.mjs with --archive, --scrub and --dry-run and its tests; write the cutover runbook; prepare the internal repository; open the draft PR with the tool, its tests and a copy of the runbook; take it through review to a checkpoint report and the merge gate. Phase B, the cutover window itself (the migration run, the archive and scrub, the public label, milestone and template cleanup, the switch flip and the reference updates), starts only when the coordinator resumes you with an explicit go that carries the maintainer's approval. Until then run nothing but --dry-run against the real repositories, delete no comment, transfer no issue, flip nothing, and change nothing on the public repository's labels, milestones or templates.\n- The internal repository ImpowerGames/impower-internal exists (private, issues on, wiki and Discussions off). Its current default branch is orchestrate-state/feature-37, a throwaway state branch from #1965's dry run, because the repository was empty when it was pushed; delete nothing else there. Phase A may and should prepare it as runbook step 1 says: create main with the runbook README, set main as the default branch, then delete orchestrate-state/feature-37; copy the 24 labels (colors and descriptions) and 7 milestones by name (label 'workflow: tickets' and milestone 'Folio redesign' already exist from a rehearsal, keep them); add the internal issue templates under .github/ISSUE_TEMPLATE/ matching .agents/templates/issues/ so #1963's template-sync test stops skipping; configure the I- autolink on the public repository pointing at the internal repository's issues; and turn off Project automations only inside the window, not now. Internal issue numbers 1 to 38 are consumed by rehearsals and probes and are deleted, so the migration's numbers start at 39 or later; verify the current highest number before you state it in the runbook.\n- Migration tool facts from #1966's final report, to carry into the runbook: the first command is node scripts/migrate-tracker.mjs --snapshot <attempt dir outside any Git work tree>/migration --dry-run from a checkout at main, then the same without --dry-run, then --transfer, --restore, --rewrite, --map and --verify each with --dry-run first; at default pacing (4,500 requests an hour, writes 60 a minute and 450 an hour) the window needs about 7.5 hours of transfer writes, up to 1.5 hours of restore, about 5,600 gate renders plus 3.8 hours of rewrite writes, and about 3,700 verify renders, at least 11 to 13 hours in all unless --writes-per-hour is raised; restore and rewrite each wait 120 seconds after the last transfer; GitHub's secondary limit on the markdown endpoint can pause a paced run, which retries; texts the tool cannot read consistently are listed in left-as-transferred.json and in rewrite's and verify's output, and verify fails until the maintainer reads them by hand; the 35 kept issues are the outsider-filed ones the dry run lists. The archive must be read back against the API's comment counts before any scrub, and the scrub must be journaled and resumable. Nothing in the tools may read tickets through gh api graphql; use gh issue -R and REST.\n- Window protocol, which the runbook states and the coordinator enforces: no orchestration in flight (this run included: once the switch flips, every coordinator command on the public tracker is refused by design, so this run ends with your tooling PR merged and the window is run by you on the coordinator's go), ORCH #1904's writers idle or finished and its coordinator told an hour ahead, live pull requests merged or closed, and the stale codex/* draft PRs left open with their closing lines rewritten by the tool. In-window pull requests (the switch flip with the public template move, and the reference updates once the map exists: AGENTS.md, the feedback inbox constant and the skills' references) are opened by you and merged by the maintainer, because the orchestration gate cannot read the Feature once it has migrated. The Feature's own acceptance checks are runbook step 8; report their results on the migrated Feature and to the coordinator. Write the runbook so a human can run it line by line with the exact commands, their expected output and the stop points.\n- Other writers run on this machine (the #1904 run); reviewer slots and the vitest reservation are shared. Merge origin/main into your branch before each review round, run node --test for the script tests directly, and pass --wait to node scripts/test-suite.mjs when you need vitest. If SendMessage to the coordinator's local_ id fails with no agent reachable, run ListAgents and send to the session titled exactly 'ORCH #1961: private internal tracker'. Any subagent you launch (a filer) reports to the coordinator, not to you: note 'filer launched, report pending' and continue. Reviewer scratch (probe clones, runtime temp, npm caches, fixture journals) must not be left under impower.review-jobs/pr-<N> (Bug #1866): have each adjudication confirm it is gone. Keep all private artifacts under the artifact parent this brief names.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "7cdc43f9",
+          "attempts": 1,
+          "time": "2026-10-17T09:04:58.647Z",
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+        },
+        "since": "2026-10-17T09:04:58.648Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     }
@@ -4845,7 +4860,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:03:38.709Z",
+      "observedAt": "2026-10-17T09:04:59.971Z",
       "held": true,
       "exists": false
     }
@@ -4900,19 +4915,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:11:32.866Z",
-      "event": "resumed",
-      "ticket": 1963,
-      "id": "721e1158-6ca1-4d28-83b2-51c2407c6213",
-      "handle": {
-        "kind": "process",
-        "pid": 54624,
-        "start": "639277998922306047",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1963-721e1158-6ca1-4d28-83b2-51c2407c6213"
-      }
-    },
     {
       "time": "2026-10-17T02:11:44.873Z",
       "event": "answered",
@@ -5644,6 +5646,19 @@
       "ticket": 1967,
       "route": "claude-cli",
       "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8"
+    },
+    {
+      "time": "2026-10-17T09:04:58.648Z",
+      "event": "launched",
+      "ticket": 1967,
+      "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
+      "handle": {
+        "kind": "process",
+        "pid": 60408,
+        "start": "639278246982933363",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1967-02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8"
+      }
     }
   ]
 }
