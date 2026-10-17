@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 145,
-  "previous": "2b38847be211e3ec7e28224551546179e74215be",
+  "seq": 146,
+  "previous": "c7f0e7f69a81c1c57cbbd4cdd2254da0cef17ec0",
   "snapshotParents": [],
-  "time": "2026-10-17T07:45:33.784Z",
+  "time": "2026-10-17T07:48:38.105Z",
   "kind": "auto",
-  "transition": "request of #1906",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 153,
+    "recordRevision": 154,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4404,7 +4404,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T07:45:32.433Z",
+      "observedAt": "2026-10-17T07:48:36.766Z",
       "held": true,
       "head": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
       "remoteHead": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
@@ -4678,7 +4678,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T07:45:32.433Z",
+      "observedAt": "2026-10-17T07:48:36.766Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -4987,7 +4987,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T07:45:32.433Z",
+      "observedAt": "2026-10-17T07:48:36.766Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5705,11 +5705,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T14:21:52.486Z",
-      "event": "check-in",
-      "outcome": "no change: #1905 running; round 1's third reviewer reported on PR #1927 (8 comments, head 55c85a8f green); writer typechecking and adding the reviewer's two reproductions as tests; no request pending"
-    },
-    {
       "time": "2026-10-16T14:51:08.470Z",
       "event": "check-in",
       "outcome": "no change: #1905 running; PR #1927 in review round 2 (round state 6218023048, fix2 reviewer running, writer waiting in the foreground); the snapshot's PR list hit GitHub's GraphQL rate limit for this account so its PR data was partial, no decision rested on it; no request pending"
@@ -6426,6 +6421,11 @@
       "event": "request",
       "ticket": 1906,
       "id": "8951782f"
+    },
+    {
+      "time": "2026-10-17T07:48:35.427Z",
+      "event": "check-in",
+      "outcome": "#1374 PR #2022 merged as a96dbbb3 and main green on it; release of its desktop writer refused (session idle counts as waiting, not exited); #1906 repair-B report recorded as request 8951782f; #1907 not claimed: the plan reports 15 writers holding tickets against a limit of 3 because the Bugs that open PRs #1995 and #1993 close are counted as held tickets, so #1907 and #1977 wait-capacity until those PRs merge"
     }
   ]
 }
