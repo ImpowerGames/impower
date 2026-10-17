@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 60,
-  "previous": "066e268d22ff8ad4578411728d4936629b986500",
+  "seq": 61,
+  "previous": "bc240464861c61afa5445dca8758f2fb355da9fb",
   "snapshotParents": [],
-  "time": "2026-10-17T01:58:05.383Z",
+  "time": "2026-10-17T01:58:16.647Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 52,
+    "recordRevision": 53,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1276,7 +1276,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "b7a659e5",
+          "owner": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+          "time": "2026-10-17T01:58:12.477Z",
+          "text": "Round 3 checkpoint report for PR #2015: rounds 1 (data-preservation + undirected), 2 (undirected) and 3 (undirected) complete, all gpt-6.1-sol xhigh, 14 accepted findings, every report adjudicated; last reviewed commit 720b408e3, current head aa378fd55 unreviewed (about 330-line rewrite of the Markdown reader in CommonMark order). 11 of 14 findings come from the hand-written Markdown reader that rewrite and verify both use; one correction introduced a defect (round 2's block-boundary rule). Writer proposes a repair: make verify independent of the reader by rendering each migrated text's original and final through GitHub's Markdown API and checking that every linked reference maps (about 3,400 renders), then a round 4 with one undirected reviewer covering the reader rewrite and the render verify together; asks for the decision (extend with limits, repair first, or accept aa378fd55 unreviewed).",
+          "source": "cross-session message from writer session impower-6f (CLI session 58c4e7e1) received 2026-10-17 ~02:20Z",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     }
   },
   "operations": [
@@ -1474,7 +1485,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T01:58:04.099Z",
+      "observedAt": "2026-10-17T01:58:14.712Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -1673,7 +1684,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T01:58:04.099Z",
+      "observedAt": "2026-10-17T01:58:14.712Z",
       "held": true,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
@@ -2246,6 +2257,12 @@
       "time": "2026-10-17T01:54:15.661Z",
       "event": "check-in",
       "outcome": "no change: #1963 PR #2009 at 23ebfd91b waiting on Windows CI before its checkpoint report (a filer was launched; its report will be relayed); #1966 PR #2015 at aa378fd55 running a final rehearsal after its round 3 correction; both writers running"
+    },
+    {
+      "time": "2026-10-17T01:58:12.478Z",
+      "event": "request",
+      "ticket": 1966,
+      "id": "b7a659e5"
     }
   ]
 }
