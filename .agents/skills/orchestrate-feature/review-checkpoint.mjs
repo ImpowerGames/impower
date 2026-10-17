@@ -97,7 +97,7 @@ export function roundState(journals) {
   const accounting = reviewAccounting(journals);
   const blockers = [];
   for (const j of accounting.files) {
-    if (j.last === "report-awaiting-post") blockers.push(`${j.file}: its reviewer's report still awaits posting on the PR`);
+    if (j.last === "report-awaiting-post") blockers.push(`${j.file}: its reviewer's report still awaits posting on the review thread`);
     else if (!j.terminal) blockers.push(`${j.file}: the launcher has not finished (last row ${j.last ?? "none"}), so a reviewer may still run`);
     if (j.unconfirmedChild) blockers.push(`${j.file}: its launcher reported a child whose exit is unconfirmed`);
   }
@@ -125,9 +125,9 @@ export function roundState(journals) {
   };
 }
 
-// --- Decisions published on the PR ----------------------------------------
+// --- Decisions published on the review thread -----------------------------
 
-// Every checkpoint block in the PR's comments, each with its exact head and
+// Every checkpoint block in the review thread's comments, each with its exact head and
 // range, and the decisions in effect, in order. Writers and coordinators post
 // under the same GitHub account, so neither a comment's author nor the name
 // in a block proves who decided, and the order of comments proves nothing

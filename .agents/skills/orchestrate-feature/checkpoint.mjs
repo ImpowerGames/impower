@@ -28,7 +28,7 @@ import { writeExclusive, readJson, currentIdentity, alive } from "../../../scrip
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { readRepos } from "../../repos.mjs";
-import { RECORD_VERSION, PERMISSION_MODES, applyInvocation, applyCoordinatorMode, authorityFor, carriedRun, checkCoordinatorId, mergingFor, orchestrationTitle, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus, prRef, qualifyPrs, repositoriesOf, startRepositories } from "./feature-run.mjs";
+import { RECORD_VERSION, PERMISSION_MODES, applyInvocation, applyCoordinatorMode, authorityFor, carriedRun, checkCoordinatorId, mergingFor, orchestrationTitle, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus, prRef, qualifyPrs, repositoriesOf, sameRepository, startRepositories } from "./feature-run.mjs";
 
 export const CHECKPOINT_VERSION = 1;
 export const stateBranch = (feature) => `orchestrate-state/feature-${feature}`;
@@ -508,21 +508,28 @@ export const CODE_REMOTE = "origin";
 
 // The remote that holds the state branch. In one repository it is the remote
 // named, origin by default. Once tickets live apart it is the checkout's
-// remote whose URL names the tickets repository, and a named remote that
-// does not is refused, so neither the state branch nor a writer's snapshot
-// reaches the code repository.
+// remote whose every URL names the tickets repository: its fetch URL and each
+// push URL, as Git expands them (insteadOf and pushInsteadOf included), since
+// a push goes to every push URL. A named remote that reaches anything else is
+// refused, here and again before each publication, so neither the state
+// branch nor a writer's snapshot reaches the code repository.
 export const namesRepository = (url, repository) => {
   const u = String(url).trim().replace(/\\/g, "/").replace(/\/+$/, "").replace(/\.git$/i, "").toLowerCase(), r = repository.toLowerCase();
   return u.endsWith(`/${r}`) || u.endsWith(`:${r}`);
 };
+const remoteUrls = (checkout, name) => [...new Set([git(checkout, ["remote", "get-url", name]), ...git(checkout, ["remote", "get-url", "--push", "--all", name]).split(/\r?\n/).filter(Boolean)])];
 export function stateRemote(checkout, names, remote) {
   const { split, tickets } = repositoriesOf(names);
   if (!split) return remote ?? DEFAULT_REMOTE;
-  const candidates = remote ? [remote] : git(checkout, ["remote"]).split(/\r?\n/).filter(Boolean).sort();
-  const found = candidates.find((name) => namesRepository(git(checkout, ["remote", "get-url", name]), tickets));
+  const elsewhere = (name) => remoteUrls(checkout, name).filter((url) => !namesRepository(url, tickets));
+  if (remote) {
+    const other = elsewhere(remote);
+    if (!other.length) return remote;
+    throw new Error(`Remote ${remote} reaches ${other.join(", ")}, not only the tickets repository ${tickets}; once the cutover switch in .agents/repos.json is on, the state branch goes only to a remote whose fetch and push URLs all name it`);
+  }
+  const found = git(checkout, ["remote"]).split(/\r?\n/).filter(Boolean).sort().find((name) => !elsewhere(name).length);
   if (found) return found;
-  if (remote) throw new Error(`Remote ${remote} is ${git(checkout, ["remote", "get-url", remote])}, not the tickets repository ${tickets}, which holds the state branch once the cutover switch in .agents/repos.json is on`);
-  throw new Error(`No remote of ${checkout} names the tickets repository ${tickets}, which holds the state branch once the cutover switch in .agents/repos.json is on; add one with git remote add internal https://github.com/${tickets}.git`);
+  throw new Error(`No remote of ${checkout} names only the tickets repository ${tickets}, which holds the state branch once the cutover switch in .agents/repos.json is on; add one with git remote add internal https://github.com/${tickets}.git`);
 }
 // The record's checkpoint remotes: the state branch's, and the code
 // repository's, which a record from one repository does not name apart.
@@ -594,6 +601,9 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not publish its checkpoint`);
   if (!record.checkpoints) throw new Error("Checkpoints are not enabled for this run; run checkpoint.mjs enable");
   const { remote, codeRemote } = remotesOf(record), { tickets } = repositoriesOf(record);
+  // The remote's URLs may have changed since enable; a publication never
+  // reaches beyond the tickets repository.
+  stateRemote(record.checkout, record, remote);
   github ??= githubComments(tickets, record.checkout);
   return withLock(file, () => {
     const side = readSidecar(file);
@@ -778,7 +788,7 @@ export function resume(options, { github, host = os.hostname(), defaults = readW
   const found = discover({ repository, feature, checkout, remote, github });
   if (!found.found) throw new Error(`${found.reason}; start the run with feature-run.mjs init`);
   const prev = found.checkpoint;
-  if (repositoriesOf(prev).tickets !== (ticketsRepository ?? repository)) throw new Error(`Checkpoint ${prev.seq} is of a run whose tickets live in ${repositoriesOf(prev).tickets}, but this session would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
+  if (!sameRepository(repositoriesOf(prev).tickets, ticketsRepository ?? repository)) throw new Error(`Checkpoint ${prev.seq} is of a run whose tickets live in ${repositoriesOf(prev).tickets}, but this session would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
   if (prev.coordinator.session === coordinator) {
     if (!fs.existsSync(file)) throw new Error(`Checkpoint ${prev.seq} already names ${coordinator}, but its record ${file} is not here; this session's record lives where it was created`);
     // A takeover interrupted after its push leaves the record saved but the

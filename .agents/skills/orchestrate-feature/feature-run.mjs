@@ -235,7 +235,8 @@ export function repositoriesOf({ repository, ticketsRepository }) {
     commentUrl: (thread, comment) => `https://github.com/${thread.repo}/${split ? "issues" : "pull"}/${thread.number}#issuecomment-${comment}`,
   });
 }
-const sameRepository = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+// GitHub names a repository case-insensitively.
+export const sameRepository = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 
 // A pull request's closing references in the tickets repository. GitHub names
 // each reference's repository, so a ticket is matched by repository and
@@ -422,7 +423,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     const releaseOld = acquire(existing.record, identify);
     try {
       const old = readRecord(existing.record);
-      if (repositoriesOf(old).tickets !== (ticketsRepository ?? repository)) throw new Error(`Takeover refused: the run's tickets live in ${repositoriesOf(old).tickets}, but this takeover would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
+      if (!sameRepository(repositoriesOf(old).tickets, ticketsRepository ?? repository)) throw new Error(`Takeover refused: the run's tickets live in ${repositoriesOf(old).tickets}, but this takeover would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
       writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }], run: carriedRun(old, { file, record: { feature, coordinator: self }, defaults }) }));
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
     } finally { releaseOld(); }

@@ -535,6 +535,14 @@ try {
     const legacyBrief = run.brief(run.readRecord(file), legacyPlanFile, 1902, [], defaults);
     assert.match(legacyBrief, /You are the writer for acme\/widgets ticket #1902 /);
     assert.match(legacyBrief, /The coordinator answers with a checkpoint decision it publishes on the PR\. Launch a further round/);
+    // GitHub names a repository case-insensitively, so a takeover whose --repo
+    // differs from the run's only in case is the same one-repository run. The
+    // pointer is placed at both casings, as a case-insensitive filesystem
+    // finds it, so the takeover is reached on every filesystem.
+    const upper = run.pointerFile(dir, "ACME/widgets", 1900);
+    if (!fs.existsSync(upper)) fs.copyFileSync(pointer, upper);
+    const caseTakeover = run.initRecord({ record: path.join(dir, "run-upper.json"), checkout: dir, repository: "ACME/widgets", feature: 1900, coordinator: "local_upper", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "/orchestrate-feature #1900", takeover: true, observations: { sessions: { local_legacy: { state: "archived" } } } }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.deepEqual([caseTakeover.action, "ticketsRepository" in caseTakeover.record], ["takeover", false], "a case-only difference in --repo takes the run over as before");
   }
 
   // The command line refuses with exit 1 and leaves the record unchanged.

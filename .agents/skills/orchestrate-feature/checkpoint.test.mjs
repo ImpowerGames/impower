@@ -1098,9 +1098,16 @@ try {
     const record = path.join(split, "run-900.json");
     run.initRecord({ record, checkout, repository: CODE, ...run.startRepositories(CODE, ON), feature: 900, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #900." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
     const enableCli = (...more) => cp.main(["enable", "--record", record, "--coordinator", "local_split", "--expect-revision", String(rev(record)), ...more], { commentsFor });
-    assert.throws(() => enableCli(), new RegExp(`No remote of .* names the tickets repository ${INTERNAL}.*git remote add internal https://github\\.com/${INTERNAL}\\.git`), "without a remote of the tickets repository nothing is published");
+    assert.throws(() => enableCli(), new RegExp(`No remote of .* names only the tickets repository ${INTERNAL}.*git remote add internal https://github\\.com/${INTERNAL}\\.git`), "without a remote of the tickets repository nothing is published");
     git(checkout, "remote", "add", "internal", internalRemote);
-    assert.throws(() => enableCli("--remote", "origin"), new RegExp(`Remote origin is .*, not the tickets repository ${INTERNAL}`), "the code repository's remote is refused for the state branch");
+    assert.throws(() => enableCli("--remote", "origin"), new RegExp(`Remote origin reaches .*acme.widgets\\.git, not only the tickets repository ${INTERNAL}`), "the code repository's remote is refused for the state branch");
+    // A push goes to every push URL, so a remote that fetches the tickets
+    // repository but also pushes elsewhere is refused, named or found.
+    git(checkout, "config", "--add", "remote.internal.pushurl", internalRemote);
+    git(checkout, "config", "--add", "remote.internal.pushurl", codeRemote);
+    assert.throws(() => enableCli("--remote", "internal"), new RegExp(`Remote internal reaches .*acme.widgets\\.git, not only the tickets repository ${INTERNAL}`));
+    assert.throws(() => enableCli(), /No remote of .* names only the tickets repository/);
+    git(checkout, "config", "--unset-all", "remote.internal.pushurl");
     const enabled = enableCli();
     assert.equal(enabled.checkpoint.saved, true, enabled.checkpoint.reason);
     assert.deepEqual(run.readRecord(record).checkpoints, { remote: "internal", branch: "orchestrate-state/feature-900", codeRemote: "origin" });
@@ -1110,6 +1117,13 @@ try {
     assert.ok(status900, "the status comment is created on the internal Feature");
     assert.match(status900.body, new RegExp(`\\(https://github\\.com/${INTERNAL}/tree/${enabled.checkpoint.commit}\\)`), "and links the internal state branch");
     assert.equal(stores[CODE].comments.size, 0, "nothing is posted on the code repository");
+    // A push URL added after enable is caught before the next publication,
+    // which then pushes nowhere.
+    git(checkout, "config", "--add", "remote.internal.pushurl", internalRemote);
+    git(checkout, "config", "--add", "remote.internal.pushurl", codeRemote);
+    assert.throws(() => cp.publish(record, { coordinator: "local_split", transition: "a leak probe", github: stores[INTERNAL] }), /Remote internal reaches .*acme.widgets\.git, not only the tickets repository/);
+    assert.equal(git(checkout, "ls-remote", "origin", "refs/heads/orchestrate-state/feature-900"), "", "the code repository received no state branch");
+    git(checkout, "config", "--unset-all", "remote.internal.pushurl");
     const state900 = cp.fetchState(checkout, "internal", CODE, 900);
     assert.deepEqual([state900.checkpoint.repository, state900.checkpoint.ticketsRepository, state900.checkpoint.run.runId], [CODE, INTERNAL, run.readRecord(record).runId], "the checkpoint carries the run record and names both repositories");
     // A writer's branch is pushed to the code repository and observed there;
