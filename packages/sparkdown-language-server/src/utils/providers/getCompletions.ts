@@ -1349,8 +1349,8 @@ export const getCompletions = (
       attributeDefine?.type === "filtered_image" &&
       leftStack.filter((node) => isExplicitRuleName(node.name, "LuauTable")).length === 1 &&
       getNodeText(getDescendent("LuauVariableName", attributeProperty)) === "attributes" &&
-      getDescendent(["LuauTable", "LuauSparkdownExplicitTable"], attributeProperty)?.from === attributeTable.from) {
-    const content = (attributeTable.getChild("LuauTable_content") ?? attributeTable.getChild("LuauSparkdownExplicitTable_content"));
+      getDescendent("LuauTable", attributeProperty)?.from === attributeTable.from) {
+    const content = attributeTable.getChild("LuauTable_content");
     const entries: SyntaxNode[] = [];
     let literalList = !!content;
     for (let node = content?.firstChild; node; node = node.nextSibling) {

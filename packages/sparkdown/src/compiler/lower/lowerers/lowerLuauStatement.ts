@@ -422,5 +422,5 @@ export function takesLines(stat: AstStat): boolean {
 
 /** The `LuauSparkdownVariableDefinition` an explicit statement declares with, if it is a declaration. */
 export function explicitDeclaration(node: SyntaxNode): SyntaxNode | null {
-  return getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node) ?? null;
+  return getDescendent(["LuauSparkdownVariableDefinition"], node) ?? null;
 }

@@ -138,7 +138,7 @@ LuauStyle:
   end: (end)\\b`,
   });
   assert.deepEqual(findings(source), []);
-  assert.match(exemption("LuauSparkdownExplicitParenthetical")!, /story scope/);
+  assert.match(exemption("LuauSparkdownExplicitDoBlock")!, /story scope/);
   assert.match(exemption("LuauLayout")!, /layout block/);
   assert.equal(exemption("LuauSparkleHandlerClosure"), undefined);
   assert.equal(exemption("LuauFunctionCallParameters"), undefined);

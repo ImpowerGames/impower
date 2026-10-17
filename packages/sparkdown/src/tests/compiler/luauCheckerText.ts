@@ -20,8 +20,8 @@ import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN
 const grammarNames = new Set(Object.keys(GRAMMAR_DEFINITION.repository));
 const ordinaryNames = new Map<string, string>();
 for (const name of grammarNames) {
-  const original = name === "LuauSparkdownExplicitStoryVariableDefinition" ? "LuauSparkdownVariableDefinition"
-    : name.startsWith("LuauSparkdownExplicit") ? "Luau" + name.slice("LuauSparkdownExplicit".length)
+  const original =
+    name.startsWith("LuauSparkdownExplicit") ? "Luau" + name.slice("LuauSparkdownExplicit".length)
     : name.startsWith("SparkdownExplicit") ? name.slice("SparkdownExplicit".length) : undefined;
   if (original && grammarNames.has(original)) ordinaryNames.set(name, original);
 }

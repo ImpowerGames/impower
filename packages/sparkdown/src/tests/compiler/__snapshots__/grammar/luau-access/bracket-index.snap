@@ -41,23 +41,23 @@ sparkdown [0..30]
      │       │       │   │       └─ LuauVariable_c1 [6..20]
      │       │       │   │           └─ LuauVariableName [6..20]: "pluralizations"
      │       │       │   └─ LuauSparkdownExplicitAccessPart [20..30]
-     │       │       │       └─ LuauSparkdownExplicitPropertyIndexer [20..30]
-     │       │       │           ├─ LuauSparkdownExplicitPropertyIndexer_begin [20..21]
-     │       │       │           │   ├─ LuauSparkdownExplicitPropertyIndexer_begin_c1 20
-     │       │       │           │   └─ LuauSparkdownExplicitPropertyIndexer_begin_c2 [20..21]
+     │       │       │       └─ LuauPropertyIndexer [20..30]
+     │       │       │           ├─ LuauPropertyIndexer_begin [20..21]
+     │       │       │           │   ├─ LuauPropertyIndexer_begin_c1 20
+     │       │       │           │   └─ LuauPropertyIndexer_begin_c2 [20..21]
      │       │       │           │       └─ PunctuationBracketOpen [20..21]: "["
-     │       │       │           ├─ LuauSparkdownExplicitPropertyIndexer_content [21..29]
-     │       │       │           │   └─ LuauSparkdownExplicitAccessPath [21..29]
-     │       │       │           │       ├─ LuauSparkdownExplicitAccessPath_begin 21
-     │       │       │           │       ├─ LuauSparkdownExplicitAccessPath_content [21..29]
-     │       │       │           │       │   └─ LuauSparkdownExplicitAccessPart [21..29]
+     │       │       │           ├─ LuauPropertyIndexer_content [21..29]
+     │       │       │           │   └─ LuauAccessPath [21..29]
+     │       │       │           │       ├─ LuauAccessPath_begin 21
+     │       │       │           │       ├─ LuauAccessPath_content [21..29]
+     │       │       │           │       │   └─ LuauAccessPart [21..29]
      │       │       │           │       │       └─ LuauVariable [21..29]
      │       │       │           │       │           └─ LuauVariable_c1 [21..29]
      │       │       │           │       │               └─ LuauVariableName [21..29]: "category"
-     │       │       │           │       └─ LuauSparkdownExplicitAccessPath_end 29
-     │       │       │           │           └─ LuauSparkdownExplicitAccessPath_end_c1 29
-     │       │       │           └─ LuauSparkdownExplicitPropertyIndexer_end [29..30]
-     │       │       │               └─ LuauSparkdownExplicitPropertyIndexer_end_c1 [29..30]
+     │       │       │           │       └─ LuauAccessPath_end 29
+     │       │       │           │           └─ LuauAccessPath_end_c1 29
+     │       │       │           └─ LuauPropertyIndexer_end [29..30]
+     │       │       │               └─ LuauPropertyIndexer_end_c1 [29..30]
      │       │       │                   └─ PunctuationBracketClose [29..30]: "]"
      │       │       └─ LuauSparkdownExplicitAccessPath_end 30
      │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 30

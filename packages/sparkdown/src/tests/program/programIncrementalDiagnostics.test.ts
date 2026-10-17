@@ -64,7 +64,9 @@ describe("incremental diagnostics agree with a cold compile", () => {
   ].join("\n");
 
   // An unfinished `local q =` before a comment that spans lines, which the
-  // edit closes early, so the next token Luau reads after the `=` is `l`.
+  // edit closes early before an `l`. A story statement ends at its line
+  // (#1907), so neither the comment nor the `l` after it is the `=`'s value:
+  // the value is missing at the line's end, `<eof>`, whatever the edit.
   const COMMENT_BEFORE =
     "  Plain line.\n".repeat(20) + "  local q =\n--[[ a\nb\nc\nd\ne\nf\n]]\n  local r = 1\n  return r\n";
 
@@ -89,7 +91,7 @@ describe("incremental diagnostics agree with a cold compile", () => {
         { from: inside, to: inside + 3, text: "\n]=] l\n" },
       ]) {
         const { incremental, cold } = compareAfterEdit(source, edit);
-        expect(cold.some((d) => d.startsWith("21:10-21:11 Expected identifier when parsing expression"))).toBe(true);
+        expect(cold.some((d) => d === "21:11-22:0 Expected identifier when parsing expression, got <eof>")).toBe(true);
         expect(incremental).toEqual(cold);
       }
     });
@@ -98,14 +100,14 @@ describe("incremental diagnostics agree with a cold compile", () => {
   it("reports a value missing after = where a cold compile does", () => {
     const at = BEFORE.indexOf("  local q = function") + 3;
     const { incremental, cold } = compareAfterEdit(BEFORE, { from: at, to: at, text: "\n" });
-    expect(cold).toContain("7:10-7:11 Expected identifier when parsing expression, got 'l'");
+    expect(cold).toContain("7:11-8:0 Expected identifier when parsing expression, got <eof>");
     expect(incremental).toEqual(cold);
   });
 
   it("reports it there after an edit inside a comment between them", () => {
     const at = COMMENT_BEFORE.indexOf("\ne\n");
     const { incremental, cold } = compareAfterEdit(COMMENT_BEFORE, { from: at, to: at + 3, text: "\n]] l\n" });
-    expect(cold.some((d) => d.startsWith("20:10-20:11 Expected identifier when parsing expression"))).toBe(true);
+    expect(cold.some((d) => d === "20:11-21:0 Expected identifier when parsing expression, got <eof>")).toBe(true);
     expect(incremental).toEqual(cold);
   });
 });

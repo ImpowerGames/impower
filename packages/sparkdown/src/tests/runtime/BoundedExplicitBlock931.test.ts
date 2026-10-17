@@ -78,10 +78,14 @@ describe("nested markers remain inside their bounded conditional", () => {
 });
 
 describe("unfinished bounded headers yield scene and branch ownership", () => {
-  test.each(["& return (", "& return f(", "& do x = (", "& do if f(", "& do while f(", "& do repeat x = 1 until ("])("all reachable expression children preserve prose after %s", async (prefix) => {
-    const source = `${prefix}\nreturn to the village\nAfter.\n`;
+  // A bracket left open carries a story statement on (#1907): the next line
+  // is the bracket's, and the next header ends it, so the story after the
+  // header is story again.
+  test.each(["& return (", "& return f(", "& do x = (", "& do if f(", "& do while f(", "& do repeat x = 1 until ("])("an unfinished bracket after %s carries the next line to the next header", async (prefix) => {
+    const source = `${prefix}\nreturn to the village\nscene Next\nAfter.\nend\n`;
     const tree = parseSource(source);
-    expect(treeScopeStackAt(tree, source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
+    expect(treeScopeStackAt(tree, source.indexOf("return to"))).not.toContain("string.display.text.chunk.sd");
+    expect(tree.topNode.getChildren("Scene").map((scene) => scene.from)).toEqual([source.indexOf("scene Next")]);
     expect(treeScopeStackAt(tree, source.indexOf("After"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
@@ -122,9 +126,9 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     expect(treeScopeStackAt(tree, source.indexOf("After"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  test.each(["if (", "while ("])("unfinished %s preserves the next ordinary prose line", async (header) => {
+  test.each(["if (", "while ("])("unfinished %s carries the next ordinary line into its bracket (#1907)", async (header) => {
     const source = `& do ${header}\nreturn to the village\n`;
-    expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
+    expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).not.toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
 });

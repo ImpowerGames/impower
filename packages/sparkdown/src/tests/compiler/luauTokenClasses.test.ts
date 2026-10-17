@@ -472,21 +472,23 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
 // ends it is missing its value there, whatever the next lines hold; only
 // Luau bodies read a value from a later line. A block comment carrying a
 // narrative statement on is #1907's.
+// The statement's Luau meets its end of input at the line's end, as an `&`
+// line's does, so the value is missing there, at `<eof>` (#1907).
 describe("a narrative `=` that ends its line has no value (#1906)", () => {
   test.each([
-    ["declaration", "local q =", "0:8-0:9"],
-    ["reassignment", "store q = 0\nq =", "1:2-1:3"],
+    ["declaration", "local q =", "0:9-1:0"],
+    ["reassignment", "store q = 0\nq =", "1:3-2:0"],
   ])("a %s's value after a multi-line comment's close is not read", (_kind, statement, at) => {
     const source = `${statement}\n--[[ a\nb\n]] l\nAfter.\n`;
-    expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got 'b'`]);
+    expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got <eof>`]);
   });
 
   test.each([
-    ["declaration", "local y =", "0:8-0:9"],
-    ["reassignment", "store y = 0\ny =", "1:2-1:3"],
+    ["declaration", "local y =", "0:9-1:0"],
+    ["reassignment", "store y = 0\ny =", "1:3-2:0"],
   ])("a %s before an if line ends at its line", (_kind, statement, at) => {
     const source = `${statement}\nif true then\n  Inside.\nend\nAfter.\n`;
-    expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got 'if'`]);
+    expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got <eof>`]);
     // The `if` line is a narrative if block, and no statement crosses into it.
     const ifAt = source.indexOf("\nif") + 1;
     const top = stripAnsi(dumpTree(source))

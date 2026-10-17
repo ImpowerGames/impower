@@ -94,15 +94,15 @@ sparkdown [0..57]
  │   │       │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [23..24]
  │   │       │   │   │       │   │   │           └─ OptionalWhitespace [23..24]: " "
  │   │       │   │   │       │   │   └─ LuauAssignmentOperator_end 24
- │   │       │   │   │       │   └─ LuauAccessPath [24..25]
- │   │       │   │   │       │       ├─ LuauAccessPath_begin 24
- │   │       │   │   │       │       ├─ LuauAccessPath_content [24..25]
- │   │       │   │   │       │       │   └─ LuauAccessPart [24..25]
+ │   │       │   │   │       │   └─ LuauSparkdownExplicitAccessPath [24..25]
+ │   │       │   │   │       │       ├─ LuauSparkdownExplicitAccessPath_begin 24
+ │   │       │   │   │       │       ├─ LuauSparkdownExplicitAccessPath_content [24..25]
+ │   │       │   │   │       │       │   └─ LuauSparkdownExplicitAccessPart [24..25]
  │   │       │   │   │       │       │       └─ LuauVariable [24..25]
  │   │       │   │   │       │       │           └─ LuauVariable_c1 [24..25]
  │   │       │   │   │       │       │               └─ LuauVariableName [24..25]: "i"
- │   │       │   │   │       │       └─ LuauAccessPath_end 25
- │   │       │   │   │       │           └─ LuauAccessPath_end_c1 25
+ │   │       │   │   │       │       └─ LuauSparkdownExplicitAccessPath_end 25
+ │   │       │   │   │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 25
  │   │       │   │   │       └─ LuauSparkdownAssignmentOperation_end 25
  │   │       │   │   └─ LuauSparkdownReassignment_end 25
  │   │       │   └─ Newline [25..26]: "\n"

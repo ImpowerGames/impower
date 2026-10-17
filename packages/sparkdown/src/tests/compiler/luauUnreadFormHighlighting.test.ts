@@ -256,16 +256,18 @@ const FORMS: Record<string, Form> = {
       ["checked", ATTRIBUTE],
       ["function", FUNCTION],
     ],
+    // In Luau code; a story declaration ends at its line, so there an
+    // attribute that ends it has no function (#1907, `storyBodyLineRule`).
     within: [
       // an unindented function line
-      ["@[native]\nfunction", "LuauSparkdownVariableDefinition"],
+      ["@[native]\nfunction", "LuauVariableDefinition"],
       // past a line comment that ends with the word `end`
-      ["@checked\n  function", "LuauSparkdownVariableDefinition"],
-      ["@[native] --[[c]] function", "LuauSparkdownVariableDefinition"],
-      ["  native\n]\nfunction", "LuauSparkdownVariableDefinition"],
-      ['"]" },\n  native\n]\nfunction', "LuauSparkdownVariableDefinition"],
-      ["[=[x]]=] }]\nfunction", "LuauSparkdownVariableDefinition"],
-      ["x\n]]}]\nfunction", "LuauSparkdownVariableDefinition"],
+      ["@checked\n    function", "LuauVariableDefinition"],
+      ["@[native] --[[c]] function", "LuauVariableDefinition"],
+      ["    native\n  ]\n  function", "LuauVariableDefinition"],
+      ['"]" },\n    native\n  ]\n  function', "LuauVariableDefinition"],
+      ["[=[x]]=] }]\n  function", "LuauVariableDefinition"],
+      ["x\n]]}]\n  function", "LuauVariableDefinition"],
       ["@native\n    function", "LuauVariableDefinition"],
       ["@checked function", "LuauVariableDefinition"],
     ],
@@ -679,10 +681,11 @@ test.each([
 
 // A documentation comment between attributes and their function keeps its
 // own scopes, and one that ends with the word `end` does not end the
-// attributes' statement.
+// attributes' statement. A function value's attributes and the function
+// span lines in Luau code; a story declaration ends at its line (#1907).
 test.each([
   ["@native\n---@param x number\nfunction f(x) return x end\nValue {f(3)}.\n", "Value 3.\n"],
-  ["store f = @native\n  ---@param x number\n  function(x) return x end\nValue {f(4)}.\n", "Value 4.\n"],
+  ["function m()\n  local f = @native\n    ---@param x number\n    function(x) return x end\n  return f(4)\nend\nValue {m()}.\n", "Value 4.\n"],
   ["@native --- doc ending with end\nfunction f(x) return x end\nValue {f(5)}.\n", "Value 5.\n"],
 ])("a documentation comment between attributes and their function (#1924): %j", async (source, output) => {
   const doc: [string, string][] = [["---", "comment.luau"]];

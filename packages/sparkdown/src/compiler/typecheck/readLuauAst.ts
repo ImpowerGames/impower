@@ -1,4 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
+import { isStoryStatementIsland, lastLineEnd } from "../utils/storyIslands";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -691,6 +692,8 @@ class Tokenizer {
   /** Actual trailing trivia, excluding a written closer or follower. */
   readonly returnTriviaSpans: { from: number; to: number }[] = [];
   readonly hotcomments: HotComment[] = [];
+  /** Where each story declaration's or reassignment's Luau ends (#1907), for `insertStoryBreaks`. */
+  readonly storyIslandEnds: { from: number; end: number; source: number }[] = [];
   /** The index of the top-level node being read. */
   source = -1;
   /**
@@ -861,7 +864,25 @@ class Tokenizer {
       // Only the narrative island wrapper owns this EOF. Nested marked
       // statements still yield to their written block's closer; genuine
       // functions and opaque constructs extend this wrapper's own span.
-      this.tokens.push({ kind: "break", text: "", from: node.to, to: node.to, location: this.location(node.to, node.to), source: this.source, story: true, authoredEnd: true });
+      // A bracket left open takes in the line break before the next header
+      // (#1907), so the EOF stands at the end of the island's last line,
+      // before that break, as it does after a statement that ends its line.
+      let eof = node.to;
+      if (this.text[eof - 1] === "\n") eof--;
+      if (this.text[eof - 1] === "\r") eof--;
+      this.tokens.push({ kind: "break", text: "", from: eof, to: eof, location: this.location(eof, eof), source: this.source, story: true, authoredEnd: true });
+      return;
+    }
+    // A story declaration or reassignment ends at its line as a marked
+    // statement does (#1907), so it is an island with the same EOF. A token
+    // later on its line is still one Luau's reading meets, so the EOF stands
+    // at the end of that line, where `insertStoryBreaks` puts it.
+    if (isStoryStatementIsland(node)) {
+      const first = this.tokens.length;
+      this.readChildren(node);
+      const end = lastLineEnd(this.text, node.to);
+      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.authoredIsland ??= end;
+      this.storyIslandEnds.push({ from: node.from, end, source: this.source });
       return;
     }
     if (name === "LuauSparkdownChooseBlock_begin") {
@@ -4168,8 +4189,28 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
     if (token.kind !== "eof") tokens.push(token);
     previous = token;
   }
+  // A story declaration's or reassignment's Luau meets its end of input at
+  // the end of its last line (#1907), after the tokens later on that line,
+  // as a marked statement's does. Where the tree reads story first on that
+  // line (`local a = 1 +;`, whose `;` is story), the story's break already
+  // ends the statement, and what it is missing is Sparkdown's to report.
+  const islands = tokenizer.storyIslandEnds;
+  const merged: Token[] = [];
+  let lastStoryBreak = -1;
+  let next = 0;
+  const endIsland = (island: (typeof islands)[number]) => {
+    if (lastStoryBreak >= island.from) return;
+    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true });
+    lastStoryBreak = island.end;
+  };
+  for (const token of tokens) {
+    while (next < islands.length && token.from >= islands[next]!.end) endIsland(islands[next++]!);
+    merged.push(token);
+    if (token.kind === "break" && token.story) lastStoryBreak = token.from;
+  }
+  while (next < islands.length) endIsland(islands[next++]!);
   tokenizer.tokens.length = 0;
-  appendAll(tokenizer.tokens, tokens);
+  appendAll(tokenizer.tokens, merged);
 }
 
 /** Where the first text the tree reads as story begins between two offsets, if any does. */
