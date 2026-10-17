@@ -89,11 +89,6 @@ test.each([
     "6",
   ],
   [
-    "explicit statement",
-    "local t = { a = 5 }\nlocal y = 0\n& y = t\n  .a\nreturn y",
-    "5",
-  ],
-  [
     "method call statement",
     "local t = { n = 1 }\nfunction t.bump(self) self.n = self.n + 1 end\nt\n  :bump()\nreturn t.n",
     "2",

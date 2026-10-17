@@ -95,13 +95,10 @@ describe("Logic — ported from ink fixture rewrites", () => {
     // `squaresquare(x)` calls `square(x)` twice, each squaring `x.value`
     // in place. Starting at 5, the result is `((5^2)^2) = 625`.
     //
-    // Re-enabled after fixing the grammar's `LuauControlBlock` rule to
-    // include `LuauExplicitStatement` — discard-call statements inside
-    // function bodies now parse correctly. (The single non-recursive
-    // call sites here weren't a hang, but the broken grammar meant
-    // the `& square(x)` calls were being parsed at root level instead
-    // of inside `squaresquare`'s body — same root cause as the
-    // recursion bug.)
+    // Re-enabled after fixing the grammar's `LuauControlBlock` rule, which
+    // once read the discard calls inside function bodies at root level
+    // instead of inside `squaresquare`'s body. The calls were then written
+    // `& square(x)`; a function body has no `&` marker since #1374.
     const ctx = makeRuntimeStoryFromFile("logic", "nested-pass-by-reference");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("5\n625\n");

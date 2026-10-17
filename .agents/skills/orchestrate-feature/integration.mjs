@@ -21,9 +21,9 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readFeatureScope, snapshotScope, githubClient } from "./feature-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readFeatureScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs } from "./feature-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
-import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit } from "./review-checkpoint.mjs";
+import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
 export { parseCriteria };
 
@@ -117,15 +117,15 @@ const mergeStateBlocker = (s) => MERGE_STATES[s] ?? `GitHub has not settled whet
 // --- Facts and the gate -----------------------------------------------------
 
 // Everything the gate decides on, read afresh: the PR as GitHub shows it, the
-// branch's protection, the PR's comments, the review journals on this
-// machine, main's own push runs, and, read last so the slower reads cannot
-// outdate it, main as the remote holds it with the chain of clean main merges
-// at the branch's head and the main commit the head's CI covered (the
-// merge base of the head and main, which is main itself when the head
-// contains it).
-export function gatherFacts({ record, pr, client, git }) {
+// branch's protection, the comments on the PR's review thread (the PR, or the
+// ticket once tickets live apart), the review journals on this machine,
+// main's own push runs, and, read last so the slower reads cannot outdate it,
+// main as the remote holds it with the chain of clean main merges at the
+// branch's head and the main commit the head's CI covered (the merge base of
+// the head and main, which is main itself when the head contains it).
+export function gatherFacts({ record, ticket, pr, client, git }) {
   const pull = client.pull(pr);
-  const protection = client.protection(TARGET), comments = client.comments(pr);
+  const protection = client.protection(TARGET), comments = client.comments(pr, ticket);
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
   let mainRuns;
   try { mainRuns = client.mainRuns(TARGET); } catch (error) { mainRuns = `${TARGET}'s workflow runs could not be read: ${String(error.stderr || error.message).trim().split("\n")[0]}`; }
@@ -167,7 +167,9 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   else if (!t.prs.some((p) => p.number === pr)) blockers.push(`PR #${pr} is not one of #${number}'s PRs in the snapshot of ${snapshot.observedAt}`);
   else if (t.prs.filter((p) => p.state === "OPEN").length > 1) blockers.push(`#${number} has open PRs ${t.prs.filter((p) => p.state === "OPEN").map((p) => `#${p.number}`).join(", ")}; which one delivers it is the maintainer's decision`);
   if (branchTicket(pull.branch) !== number) blockers.push(`PR #${pr}'s branch ${pull.branch} is not #${number}'s`);
-  if (!(pull.closes ?? []).includes(number)) blockers.push(`PR #${pr} does not close #${number} (its body has no Closes #${number}), so merging it would leave the ticket open`);
+  // The client keeps only closing references to the tickets repository.
+  const names = repositoriesOf(record), ref = names.split ? `${names.tickets}#${number}` : `#${number}`;
+  if (!(pull.closes ?? []).includes(number)) blockers.push(`PR #${pr} does not close ${ref} (its body has no Closes ${ref}), so merging it would leave the ticket open`);
   // The PR itself.
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
   if (pull.isDraft) blockers.push(`PR #${pr} is a draft; it merges only once marked ready`);
@@ -178,7 +180,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   // head is the last reviewed one, or a published acceptance covers it.
   // With the ticket's writers unknown, no decision is trusted.
   const trusted = writers === null ? [] : trustedCoordinators(record, number);
-  const e = checkpointEvidence({ pr, state, pull: { ...pull, checks: [] }, comments, git, trusted, record, firstRound: 1, ci: false });
+  const e = checkpointEvidence({ pr, state, pull: { ...pull, checks: [] }, comments, git, trusted, record, firstRound: 1, ci: false, ...(names.split && { where: threadName(names.thread(pr, number)) }) });
   blockers.push(...e.blockers, ...e.audit.map((a) => `review audit: ${a}`));
   const decisions = restore(comments, { trusted, record, pr });
   let disposition = null, covered = null, acceptance = null;
@@ -241,7 +243,7 @@ const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.review
 // branch, with this operation's intent saved there, read from the remote. A
 // takeover, or an intent that never reached the remote, refuses the call.
 export function remoteOwnership(record, opId) {
-  const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.feature);
+  const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.feature, repositoriesOf(record).tickets);
   if (!state) return [`${stateBranch(record.feature)} is missing on ${record.checkpoints.remote}`];
   if (state.checkpoint.coordinator.session !== record.coordinator.session) return [`Feature #${record.feature} has been taken over: checkpoint ${state.checkpoint.seq} names coordinator ${state.checkpoint.coordinator.session}`];
   if (!(state.checkpoint.operations ?? []).some((o) => o.id === opId && o.state === "intent")) return [`operation ${opId}'s intent is not on ${stateBranch(record.feature)}`];
@@ -297,7 +299,7 @@ export function finalGate({ current, opId, ownership, takeSnapshot, premises, re
 export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Feature #${record.feature} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
-  const gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, pr, client, git }), git });
+  const gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
   if (!gate.admitted) return { admitted: false, merged: false, gate };
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => {
     const op = intent(r, { kind: "merge", ticket, pr, expectHead: gate.head, evidence: `admitted as ${gate.disposition}` });
@@ -311,7 +313,7 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   const final = finalGate({
     current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope, git, main: gate.originMain,
     premises: (rec, snapshot) => {
-      const again = admission(rec, { ticket, pr, snapshot, facts: gatherFacts({ record: rec, pr, client, git }), git, running: op.id });
+      const again = admission(rec, { ticket, pr, snapshot, facts: gatherFacts({ record: rec, ticket, pr, client, git }), git, running: op.id });
       const blockers = !again.admitted ? again.blockers : again.head !== gate.head ? [`the head moved from ${gate.head} to ${again.head}`] : again.originMain !== gate.originMain ? [`origin/${TARGET} moved from ${gate.originMain} to ${again.originMain}`] : [];
       return { blockers, again };
     },
@@ -368,17 +370,21 @@ function acceptances(record, snapshot) {
 
 const REPORT_MARK = (id) => `<!-- orchestrate-feature final report: verification ${id} -->`;
 export function finalReport(record, snapshot, v) {
-  const link = (pr, comment) => `https://github.com/${record.repository}/pull/${pr}#issuecomment-${comment}`;
+  // A decision's comment is on its PR's review thread.
+  const names = repositoriesOf(record), link = (a) => names.commentUrl(names.thread(a.pr, a.ticket), a.comment);
   const rows = slices(record, snapshot).map((s) => {
     const how = !s.mergeCommit ? (s.open.length ? `open: PR ${s.open.map((p) => `#${p}`).join(", ")}` : "no merged PR")
       : !s.gate ? `merged as \`${short(s.mergeCommit)}\` outside this run's merge gate (by the maintainer or before this run merged)`
       : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
     const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, while its CI covered ${TARGET} \`${short(s.gate.ciMain ?? s.gate.originMain)}\`, so CI never ran on that combination before ${TARGET}'s own run` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
-    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? `#${s.pr}` : ""} | ${(how + landed).replace(/\|/g, "/")} |`;
+    // The report is on the Feature, in the tickets repository, so its pull
+    // requests name the code repository once tickets live apart; the
+    // criteria and their evidence stay as the coordinator wrote them.
+    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, how + landed).replace(/\|/g, "/")} |`;
   });
   const accepted = acceptances(record, snapshot);
-  const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)];
+  const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)].map((line) => qualifyPrs(names, line));
   return [
     REPORT_MARK(v.id),
     `## Final report: Feature #${record.feature}`,
@@ -393,7 +399,7 @@ export function finalReport(record, snapshot, v) {
     "",
     "### Accepted unreviewed corrections",
     "",
-    ...(accepted.length ? accepted.map((a) => `- #${a.ticket}, PR #${a.pr}: decision \`${a.id}\` ([comment](${link(a.pr, a.comment)})) accepted \`${short(a.range?.from)}..${short(a.range?.to)}\` (${a.range?.commits?.length ?? 0} commit${a.range?.commits?.length === 1 ? "" : "s"}) unreviewed on head \`${short(a.head)}\`; ${a.merged === null ? "the PR is not merged" : a.merged === a.head ? "that head merged" : `the PR merged at \`${short(a.merged)}\`, another head`}.`) : ["None."]),
+    ...(accepted.length ? accepted.map((a) => `- #${a.ticket}, PR ${prRef(names, a.pr)}: decision \`${a.id}\` ([comment](${link(a)})) accepted \`${short(a.range?.from)}..${short(a.range?.to)}\` (${a.range?.commits?.length ?? 0} commit${a.range?.commits?.length === 1 ? "" : "s"}) unreviewed on head \`${short(a.head)}\`; ${a.merged === null ? "the PR is not merged" : a.merged === a.head ? "that head merged" : `the PR merged at \`${short(a.merged)}\`, another head`}.`) : ["None."]),
     "",
     "### Acceptance criteria",
     "",
@@ -528,19 +534,26 @@ export function closeFeature(file, { coordinator, expectRevision, verification: 
 export const GITHUB_REFUSAL = /GraphQL:|HTTP 4[0-9][0-9]/;
 export const mergeArgs = (repository, pr, head) => ["pr", "merge", String(pr), "--repo", repository, "--merge", "--match-head-commit", head];
 
-export function integrationClient(repository, checkout) {
-  const run = (args, input) => execFileSync("gh", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input !== undefined && { input }) });
+// The gate's GitHub calls, given the record: the pull request, its checks,
+// protection, main's runs and the merge on the code repository; the Feature,
+// its comments and its closure, and a pull request's review thread
+// (`comments(pr, ticket)`), on the tickets repository. `comments(n)` without
+// a ticket reads issue n there. A pull request closes a ticket only by a
+// closing reference to the tickets repository's issue of that number.
+export function integrationClient(names, checkout, { exec = execFileSync, spawn = spawnSync } = {}) {
+  const { code: repository, tickets, split, thread } = repositoriesOf(names);
+  const run = (args, input) => exec("gh", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input !== undefined && { input }) });
   const shape = (c) => ({ id: c.id, body: c.body ?? "", url: c.html_url });
   return {
     pull: (pr) => {
       const p = JSON.parse(run(["pr", "view", String(pr), "--repo", repository, "--json", "state,isDraft,headRefOid,headRefName,baseRefName,mergeable,mergeStateStatus,mergeCommit,closingIssuesReferences,statusCheckRollup"]));
       return {
         state: p.state, isDraft: p.isDraft, head: p.headRefOid, branch: p.headRefName, base: p.baseRefName, mergeable: p.mergeable, mergeState: p.mergeStateStatus, mergeCommit: p.mergeCommit?.oid ?? null,
-        closes: (p.closingIssuesReferences ?? []).map((r) => r.number),
+        closes: (split ? closingIn(p.closingIssuesReferences, tickets, repository) : p.closingIssuesReferences ?? []).map((r) => r.number),
         checks: (p.statusCheckRollup ?? []).map((c) => ({ name: c.name ?? c.context, workflow: c.workflowName ?? null, state: c.conclusion || c.state || c.status, startedAt: c.startedAt ?? null, completedAt: c.completedAt ?? null })),
       };
     },
-    comments: (n) => JSON.parse(run(["api", "--paginate", "--slurp", `repos/${repository}/issues/${n}/comments`])).flat(),
+    comments: (n, ticket) => { const t = ticket === undefined ? { repo: tickets, number: n } : thread(n, ticket); return JSON.parse(run(["api", "--paginate", "--slurp", `repos/${t.repo}/issues/${t.number}/comments`])).flat(); },
     // Required checks from classic branch protection and from rulesets, and
     // whether a ruleset requires a merge queue. Protection a token cannot read
     // is noted; GitHub's merge state still reflects it.
@@ -566,14 +579,14 @@ export function integrationClient(repository, checkout) {
     // Main's push runs of the Test Suite workflow, newest first.
     mainRuns: (branch) => JSON.parse(run(["run", "list", "--repo", repository, "--workflow", REPOSITORY_WORKFLOW, "--branch", branch, "--event", "push", "--limit", "10", "--json", "databaseId,headSha,status,conclusion,createdAt,url"])).map((r) => ({ id: r.databaseId, headSha: r.headSha, status: r.status, conclusion: r.conclusion, createdAt: r.createdAt, url: r.url })),
     merge: (pr, head) => {
-      const r = spawnSync("gh", mergeArgs(repository, pr, head), { cwd: checkout, encoding: "utf8", windowsHide: true, timeout: 120000 });
+      const r = spawn("gh", mergeArgs(repository, pr, head), { cwd: checkout, encoding: "utf8", windowsHide: true, timeout: 120000 });
       if (r.error) throw r.error;
       return { ok: r.status === 0, message: (r.stderr || r.stdout || "").trim() || `exit ${r.status}` };
     },
-    issue: (n) => { const i = JSON.parse(run(["api", `repos/${repository}/issues/${n}`])); return { state: i.state, title: i.title, body: i.body ?? "" }; },
-    createComment: (n, body) => shape(JSON.parse(run(["api", "-X", "POST", `repos/${repository}/issues/${n}/comments`, "--input", "-"], JSON.stringify({ body })))),
-    getComment: (id) => shape(JSON.parse(run(["api", `repos/${repository}/issues/comments/${id}`]))),
-    closeIssue: (n) => { run(["api", "-X", "PATCH", `repos/${repository}/issues/${n}`, "-f", "state=closed", "-f", "state_reason=completed"]); },
+    issue: (n) => { const i = JSON.parse(run(["api", `repos/${tickets}/issues/${n}`])); return { state: i.state, title: i.title, body: i.body ?? "" }; },
+    createComment: (n, body) => shape(JSON.parse(run(["api", "-X", "POST", `repos/${tickets}/issues/${n}/comments`, "--input", "-"], JSON.stringify({ body })))),
+    getComment: (id) => shape(JSON.parse(run(["api", `repos/${tickets}/issues/comments/${id}`]))),
+    closeIssue: (n) => { run(["api", "-X", "PATCH", `repos/${tickets}/issues/${n}`, "-f", "state=closed", "-f", "state_reason=completed"]); },
   };
 }
 
@@ -620,19 +633,19 @@ const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || 
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
 // The Feature's snapshot, taken afresh each time a command needs one.
-const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record.repository, record.checkout));
-const liveScope = (record) => () => readFeatureScope({ feature: record.feature }, githubClient(record.repository, record.checkout));
+const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record, record.checkout));
+const liveScope = (record) => () => readFeatureScope({ feature: record.feature }, githubClient(record, record.checkout));
 
 export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot, scopeFor = liveScope } = {}) {
   const { command, o } = parse(argv);
   const file = () => abs(o.record, "record");
-  const context = () => { const record = readRecord(file()); return { record, client: clientFor(record.repository, record.checkout), git: gitFor(record.checkout), snapshotNow: snapshotFor(record), scopeNow: scopeFor(record) }; };
+  const context = () => { const record = readRecord(file()); return { record, client: clientFor(record, record.checkout), git: gitFor(record.checkout), snapshotNow: snapshotFor(record), scopeNow: scopeFor(record) }; };
   const saved = () => ensureSaved(file(), { coordinator: o.coordinator, github });
   const checkpointAfter = (transition) => { const c = autoCheckpoint(file(), { coordinator: o.coordinator, transition, github }); return c ? { checkpoint: c } : {}; };
   switch (command) {
     case "gate": {
-      const { record, client, git, snapshotNow } = context(), pr = int(o.pr, "pr");
-      return admission(record, { ticket: int(o.ticket, "ticket"), pr, snapshot: snapshotNow(), facts: gatherFacts({ record, pr, client, git }), git });
+      const { record, client, git, snapshotNow } = context(), pr = int(o.pr, "pr"), ticket = int(o.ticket, "ticket");
+      return admission(record, { ticket, pr, snapshot: snapshotNow(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
     }
     case "merge": {
       const { client, git, snapshotNow, scopeNow } = context(), pr = int(o.pr, "pr");

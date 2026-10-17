@@ -87,7 +87,6 @@ import { lowerVariableDefinition } from "./lowerVariableDefinition";
 export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauVariableDefinition",
   "LuauSparkdownVariableDefinition",
-  "LuauExplicitStatement",
   "LuauSparkdownExplicitStatement",
   "LuauSparkdownExplicitBlockStatement",
   "LuauReassignment",
@@ -286,7 +285,6 @@ const VALIDATED_NODES: ReadonlySet<string> = new Set([
   ...REASSIGNMENT_NAMES,
   ...VARIABLE_DEFINITION_NAMES,
   ...nodeNameSet([
-    "LuauExplicitStatement",
     "LuauSparkdownExplicitStatement",
     "LuauSparkdownExplicitBlockStatement",
     "LuauAccessPath",

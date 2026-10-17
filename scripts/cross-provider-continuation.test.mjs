@@ -11,8 +11,9 @@ import {syncBuiltinESMExports} from 'node:module';
 import {pathToFileURL,fileURLToPath} from 'node:url';
 import net from 'node:net';
 import {randomUUID} from 'node:crypto';
-import {validateReviewPlan as actualValidate,createReviewJob,advanceReviewJob,claimReviewJob,cancelReviewJob,jobStatus} from './review-supervisor.mjs';
-import {verifyNativeReviewResult,runHandoff} from './agent-handoff.mjs';
+import {validateReviewPlan as actualValidate,createReviewJob as actualCreate,advanceReviewJob,claimReviewJob,cancelReviewJob,jobStatus} from './review-supervisor.mjs';
+import {verifyNativeReviewResult,runHandoff as actualRunHandoff} from './agent-handoff.mjs';
+import {readRepos} from '../.agents/repos.mjs';
 import {processIdentity} from './reviewer-slots.mjs';
 import {appendEvent,withJob,readEvents,readJson,worktreePaths} from './review-job-store.mjs';
 import {continuationHost,continuationClaimIdentity} from './continuation-host.mjs';
@@ -30,7 +31,14 @@ import {testScratch} from './review-job-root.mjs';
 const scratch=testScratch('cross-provider',path.dirname(fileURLToPath(import.meta.url)));
 // The fixture repository sits inside scratch, so its own default job root is
 // scratch/repo.review-jobs; the fixtures hold their job paths to scratch.
-const validateReviewPlan=input=>actualValidate(input,{jobRoot:scratch});
+// Each cutover position is read from its own copy of the repos file; launches
+// run with the switch off unless a case names the on copy.
+const committed=readRepos();
+const pinRepos=cutover=>{fs.mkdirSync(scratch,{recursive:true});const file=path.join(scratch,`repos-${cutover?'on':'off'}.json`);fs.writeFileSync(file,JSON.stringify({...committed,cutover}));return readRepos(file);};
+const OFF=pinRepos(false),ON=pinRepos(true);
+const validateReviewPlan=input=>actualValidate(input,{jobRoot:scratch,repos:OFF});
+const createReviewJob=(input,host,options={})=>actualCreate(input,host,{repos:OFF,...options});
+const runHandoff=(file,options={})=>actualRunHandoff(file,{repos:OFF,...options});
 let receivedServer;
 console.log(`Scratch repository: ${scratch}`);
 try {
@@ -308,14 +316,15 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
     fs.writeFileSync(path.join(sourceHome,'auth.json'),'{}');fs.writeFileSync(path.join(sourceHome,'config.toml'),'model_provider="unwanted"');
     fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c; if(text.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);}const completion=/Write (.*?) with the editor tool/.exec(text)[1];fs.writeFileSync(completion,JSON.stringify({head:${JSON.stringify(head)},next:null,commentIds:[101],summary:'fixture report'}));fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv:JSON.parse(process.env.FIXTURE_ARGV),token:process.env.CLAUDE_CODE_MESSAGING_TOKEN??null,pipe:process.env.CODEX_APP_TOOLS_PIPE_PATH??null,thread:process.env.CODEX_THREAD_ID??null,home:process.env.CODEX_HOME,gitCount:process.env.GIT_CONFIG_COUNT,gitKey:process.env.GIT_CONFIG_KEY_0,gitValue:process.env.GIT_CONFIG_VALUE_0,config:fs.existsSync(process.env.CODEX_HOME+'/config.toml')}));for(const row of ${JSON.stringify(stream)})console.log(JSON.stringify(row));console.error('diagnostic after terminal result');`);
     const launchDir=path.join(scratch,'launch-job');fs.mkdirSync(launchDir);
-    const config={worktree:repo,journal:path.join(launchDir,'handoff.jsonl'),pr:548,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:0,maxSteps:1,first:'check',steps:{check:{...structuredClone(plan.reviews[0]),role:'review',round:1,model:plan.reviewer,nativeResult:'codex-jsonl',next:[null]}}};
+    const config={worktree:repo,journal:path.join(launchDir,'handoff.jsonl'),pr:548,ticket:12,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:0,maxSteps:1,first:'check',steps:{check:{...structuredClone(plan.reviews[0]),role:'review',round:1,model:plan.reviewer,nativeResult:'codex-jsonl',next:[null]}}};
     const physicalCwd=fs.realpathSync.native(config.steps.check.permissions.cwd);
     config.steps.check.permissions.cwd=physicalCwd.toLowerCase();
     config.steps.check.args=config.steps.check.args.map((arg,index,args)=>['--cd','-C','--output-last-message','-o'].includes(args[index-1])?arg.toLowerCase():arg);
     const configFile=path.join(scratch,'launch.json');fs.writeFileSync(configFile,JSON.stringify(config));
     const originalExec=childProcess.execFileSync,originalSpawn=childProcess.spawn,previous={};
     for(const [key,value] of Object.entries({CODEX_HOME:sourceHome,CLAUDE_CODE_MESSAGING_TOKEN:'fixture-token',CODEX_APP_TOOLS_PIPE_PATH:'fixture-pipe',CODEX_THREAD_ID:'fixture-thread',OPENAI_API_KEY:'fixture-key',OpenAi_Base_Url:'https://fixture.invalid',OPENAI_ORG_ID:'fixture-org'})){previous[key]=process.env[key];process.env[key]=value;}
-    let doctorMode='complete',doctorCalls=0,authUnavailable=false,authCalls=0;
+    // With the switch on, the reviewer's delegated GH_TOKEN reaches the internal ticket, where its report is read back.
+    let doctorMode='complete',doctorCalls=0,authUnavailable=false,authCalls=0;const reportReads=[];
     childProcess.execFileSync=(exe,args,options)=>{
       if(exe==='gh'&&args[0]==='auth'){authCalls++;assert.deepEqual(args,['auth','token','--hostname','github.com']);if(authUnavailable)throw new Error('fixture missing auth');return 'fixture-delegated-token';}
       if(exe===process.execPath&&args[0]==='--version')return 'codex-cli 0.154.0';
@@ -327,7 +336,8 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
         if(doctorMode==='malformed')return '{}';
         return JSON.stringify({codexVersion:doctorMode==='stale-build'?'0.154.0-alpha.6.2':'0.154.0',checks:{'sandbox.helpers':{status:'ok',details:{'sandbox backend':'elevated','sandbox provisioning':doctorMode}}}});
       }
-      return exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/548',body:`Fixture full report ${head}`}):originalExec(exe,args,options);
+      if(exe==='gh')reportReads.push(args[1]);
+      return exe==='gh'?JSON.stringify({issue_url:`https://api.github.com/repos/${ON.internal}/issues/12`,body:`Fixture full report ${head}`}):originalExec(exe,args,options);
     };
     childProcess.spawn=(exe,args,options)=>{
       if(exe!==process.execPath||args[0]!=='exec')return originalSpawn(exe,args,options);
@@ -341,7 +351,8 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
     try{
       for(const mode of ['incomplete','malformed','stale-build']){doctorMode=mode;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/provisioning/);assert.equal(fs.existsSync(capture),false,'failed setup proof never reaches reviewer execution');}
       doctorMode='complete';authUnavailable=true;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/GitHub authentication/,'missing parent authentication refuses before native reviewer launch');authUnavailable=false;
-      await runHandoff(configFile,{jobRoot:scratch,slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,5);assert.equal(authCalls,2);
+      await runHandoff(configFile,{jobRoot:scratch,slotRoot:path.join(scratch,'launcher-slots'),repos:ON});assert.equal(doctorCalls,5);assert.equal(authCalls,2);
+      assert.deepEqual(reportReads,[`repos/${ON.internal}/issues/comments/101`],'the report is read by id from the internal repository');
     }
     finally{childProcess.execFileSync=originalExec;childProcess.spawn=originalSpawn;syncBuiltinESMExports();for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
     const journal=readClaudeRows(config.journal),launch=journal.find(row=>row.event==='launching'),observed=readJson(capture);

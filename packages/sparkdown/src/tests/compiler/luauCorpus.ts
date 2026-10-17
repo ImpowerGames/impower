@@ -137,12 +137,6 @@ export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
     "typecheck/TypeInfer.const.test.cpp/const_shadowing",
     "typecheck/TypeInfer.tables.test.cpp/oss_2597_constraint_forcing_bad_refinement",
   ]),
-  {
-    input: "lint/LintExistingWarnings.test.ts/UnknownGlobal (2)",
-    check: "syntax",
-    divergence: "`&` prefix for bare statements at the top level",
-    reason: "the port's top-level adaptation `& print(foo)` is Sparkdown's statement prefix, not Luau",
-  },
 ];
 
 function failing(issue: number, check: CorpusCheck, reason: string, inputs: string[]): KnownCorpusFailure[] {

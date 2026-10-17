@@ -442,6 +442,10 @@ async function instrument(page) {
       } else if (m.method === "preview/didChangeGameState") {
         window.__measureState = m.params;
         log.push({ t: performance.now(), kind: "state", completion: m.params.completion, position: m.params.position, programVersion: m.params.programVersion });
+      } else if (m.method === "textDocument/didChange" || m.method === "textDocument/didSelect") {
+        // When the editor published the edit and its selection, which the
+        // player's workspace hears after them (#1881).
+        log.push({ t: performance.now(), kind: "editor", method: m.method, version: m.params.textDocument?.version });
       }
     });
     let observed = 0;

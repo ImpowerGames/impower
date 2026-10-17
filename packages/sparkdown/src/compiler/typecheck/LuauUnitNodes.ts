@@ -14,7 +14,6 @@ export const LUAU_STATEMENTS = new Set([
   // A top-level function's attributes, read with the function after them.
   "LuauFunctionAttributes",
   "LuauFunctionDefinition",
-  "LuauExplicitStatement",
   "LuauSparkdownExplicitStatement",
   "LuauSparkdownExplicitBlockStatement",
   ...REASSIGNMENT_NAMES,

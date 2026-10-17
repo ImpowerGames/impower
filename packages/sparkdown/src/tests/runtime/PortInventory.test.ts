@@ -14,7 +14,6 @@ import { testCompiler, testStory } from "../engineUnderTest";
 // blockers — filter them so the inventory reflects only real issues.
 const HINT_NOISE = [
   "Unreachable statement detected",
-  "discard prefix is redundant",
 ];
 
 // Compile + run a snippet, binding a `host_record` recorder so

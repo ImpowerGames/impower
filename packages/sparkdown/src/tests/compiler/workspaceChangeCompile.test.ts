@@ -10,6 +10,8 @@
 // everything at once except compiles, which the test answers when it means to.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
+import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
+import { SelectedCompilerDocumentMessage } from "../../compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "../../compiler/classes/messages/UpdateCompilerDocumentMessage";
 import type { File } from "../../compiler/types/File";
 import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
@@ -26,6 +28,8 @@ interface CompileRequest {
   version: number;
   /** The last version of the document the compiler had been sent. */
   sentVersion: number | undefined;
+  /** Where the compile was asked to route the preview to. */
+  startFrom: { file: string; line: number } | undefined;
   answer: () => void;
   fail: (e: Error) => void;
   answered: boolean;
@@ -38,9 +42,22 @@ class TestWorkspace extends SparkdownWorkspace {
   declare sentVersions: Map<string, number>;
   /** Answer every compile as it arrives. */
   declare answerCompiles: boolean;
+  /** Every request sent to the compiler, by method, in the order sent. */
+  declare requests: string[];
+  /** Leave document updates unanswered until `answerUpdates`. */
+  declare holdUpdates: boolean;
+  declare heldUpdates: (() => void)[];
+  /** Leave selections unanswered until `answerSelects`. */
+  declare holdSelects: boolean;
+  declare heldSelects: (() => void)[];
+  /** Every notification sent to the page. */
+  declare notifications: { method: string; params: any }[];
 
   // Opening a document compiles; that compile is not under test.
   override debouncedCompile = (async () => undefined) as any;
+
+  // As the player's workspace does; the tests that read `changedAt` need it.
+  override debouncesFromEdit = true;
 
   constructor(delay = DELAY) {
     super("");
@@ -62,15 +79,33 @@ class TestWorkspace extends SparkdownWorkspace {
   protected override startCompilerWorker() {
     this.compiles ??= [];
     this.sentVersions ??= new Map();
+    this.requests ??= [];
+    this.heldUpdates ??= [];
+    this.heldSelects ??= [];
     // This worker's compiles, which a restart abandons.
     const mine: CompileRequest[] = [];
     const connection = {
       sendRequest: (type: { method: string }, params: any) => {
+        this.requests.push(type.method);
         if (type.method === UpdateCompilerDocumentMessage.method) {
           this.sentVersions.set(
             params.textDocument.uri,
             params.textDocument.version,
           );
+          if (this.holdUpdates) {
+            return new Promise((resolve) => {
+              this.heldUpdates.push(() => resolve(true));
+            });
+          }
+        }
+        if (type.method === SelectCompilerDocumentMessage.method) {
+          // The compiler answers a selection with the selection itself.
+          if (this.holdSelects) {
+            return new Promise((resolve) => {
+              this.heldSelects.push(() => resolve({ ...params }));
+            });
+          }
+          return Promise.resolve({ ...params });
         }
         if (type.method !== CompileProgramMessage.method) {
           return Promise.resolve(undefined);
@@ -89,6 +124,7 @@ class TestWorkspace extends SparkdownWorkspace {
             uri,
             version,
             sentVersion: this.sentVersions.get(uri),
+            startFrom: params.startFrom,
             answered: false,
             answer: () => {
               request.answered = true;
@@ -129,10 +165,20 @@ class TestWorkspace extends SparkdownWorkspace {
     return this.compiles.filter((c) => !c.answered);
   }
 
+  answerUpdates() {
+    for (const answer of this.heldUpdates.splice(0)) answer();
+  }
+
+  answerSelects() {
+    for (const answer of this.heldSelects.splice(0)) answer();
+  }
+
   sendRequest(): any {
     throw new Error("not used");
   }
-  async sendNotification() {}
+  async sendNotification(method: string, params: unknown) {
+    (this.notifications ??= []).push({ method, params });
+  }
   async getFileText() {
     return "";
   }
@@ -157,12 +203,14 @@ const open = async (workspace: TestWorkspace, uri = MAIN) => {
   await vi.advanceTimersByTimeAsync(0);
 };
 
-/** One keystroke: a character typed at the start of the document. */
-const type = (workspace: TestWorkspace, uri = MAIN) => {
+/** One keystroke: a character typed at the start of the document, with the
+ *  time the editor made it when `changedAt` is given. */
+const type = (workspace: TestWorkspace, uri = MAIN, changedAt?: number) => {
   const version = versions.get(uri)! + 1;
   versions.set(uri, version);
   void workspace.changeTextDocument({
     textDocument: { uri, version },
+    changedAt,
     contentChanges: [
       {
         range: {
@@ -403,5 +451,184 @@ describe("keystroke compiles", () => {
     expect(workspace.compiles).toHaveLength(2);
     workspace.compiles[1]!.answer();
     expect((await waiting)?.uri).toBe(MAIN);
+  });
+});
+
+// An accepted edit's compile used to start a debounce after the compiler
+// answered the edit's update, and queue behind the selection the editor sent
+// after the edit, which the compiler handled first (#1881).
+describe("an edit's compile", () => {
+  const selectAfterEdit = (workspace: TestWorkspace, line: number) =>
+    workspace.selectTextDocument({
+      textDocument: { uri: MAIN },
+      selectedRange: {
+        start: { line, character: 0 },
+        end: { line, character: 0 },
+      },
+      docChanged: true,
+      userEvent: true,
+    });
+
+  it("starts a debounce after the edit arrives, without waiting for the compiler to answer its update", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    workspace.holdUpdates = true;
+    const latest = type(workspace);
+    await vi.advanceTimersByTimeAsync(DELAY);
+    expect(workspace.compiles).toHaveLength(1);
+    // Sent after the update, which the compiler applies first.
+    expect(workspace.compiles[0]!.version).toBe(latest);
+    expect(workspace.compiles[0]!.sentVersion).toBe(latest);
+    expect(workspace.requests.slice(-2)).toEqual([
+      UpdateCompilerDocumentMessage.method,
+      CompileProgramMessage.method,
+    ]);
+  });
+
+  it("counts the debounce from when the editor made the edit", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    // The edit reached the workspace a debounce after the editor made it.
+    type(workspace, MAIN, Date.now() - DELAY);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.compiles).toHaveLength(1);
+
+    workspace.compiles[0]!.answer();
+    // An edit stamped in the future, by a clock that is not this one, waits
+    // the whole debounce and no longer.
+    type(workspace, MAIN, Date.now() + DELAY * 100);
+    await vi.advanceTimersByTimeAsync(DELAY - 1);
+    expect(workspace.compiles).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(workspace.compiles).toHaveLength(2);
+  });
+
+  it("counts the debounce from the edit's arrival in a workspace that keeps its own pace", async () => {
+    const workspace = new TestWorkspace();
+    workspace.debouncesFromEdit = false;
+    await open(workspace);
+    type(workspace, MAIN, Date.now() - DELAY);
+    await vi.advanceTimersByTimeAsync(DELAY - 1);
+    expect(workspace.compiles).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(workspace.compiles).toHaveLength(1);
+  });
+
+  it("routes to the selection the editor sent after the edit, which does not go to the compiler ahead of it", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    const latest = type(workspace);
+    await selectAfterEdit(workspace, 3);
+    expect(workspace.requests).not.toContain(
+      SelectCompilerDocumentMessage.method,
+    );
+    // The page hears of the selection at once, as of a program the edit left
+    // behind, which the compile answers.
+    expect(workspace.notifications).toEqual([
+      {
+        method: SelectedCompilerDocumentMessage.method,
+        params: expect.objectContaining({
+          selectedRange: expect.objectContaining({
+            start: { line: 3, character: 0 },
+          }),
+          programOutdated: true,
+        }),
+      },
+    ]);
+    await vi.advanceTimersByTimeAsync(DELAY);
+    expect(workspace.compiles).toHaveLength(1);
+    expect(workspace.compiles[0]!.version).toBe(latest);
+    expect(workspace.compiles[0]!.sentVersion).toBe(latest);
+    expect(workspace.compiles[0]!.startFrom).toEqual({ file: MAIN, line: 3 });
+  });
+
+  it("is answered by the compile already sent for the edit when that compile routes to the selection", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    await selectAfterEdit(workspace, 3);
+    // The edit reached the workspace a debounce late, and its compile was
+    // sent before the selection that followed it was handled.
+    type(workspace, MAIN, Date.now() - DELAY);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.compiles).toHaveLength(1);
+    expect(workspace.compiles[0]!.startFrom).toEqual({ file: MAIN, line: 3 });
+    workspace.requests.length = 0;
+    await selectAfterEdit(workspace, 3);
+    expect(workspace.requests).not.toContain(
+      SelectCompilerDocumentMessage.method,
+    );
+    expect(workspace.notifications.at(-1)?.params.programOutdated).toBe(true);
+  });
+
+  it("leaves a selection to the compiler once a compile routing elsewhere has been sent", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    await selectAfterEdit(workspace, 3);
+    type(workspace, MAIN, Date.now() - DELAY);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.compiles).toHaveLength(1);
+    // The edit moved the caret to the next line.
+    void selectAfterEdit(workspace, 4);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.requests).toContain(SelectCompilerDocumentMessage.method);
+  });
+
+  it("keeps the page on the later selection when the compiler answers an earlier one after it", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace);
+    // A selection the compiler is slow to answer, then an edit and the
+    // selection it left, which the workspace answers at once.
+    workspace.holdSelects = true;
+    const first = workspace.selectTextDocument({
+      textDocument: { uri: MAIN },
+      selectedRange: {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 0 },
+      },
+      docChanged: false,
+      userEvent: true,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.heldSelects).toHaveLength(1);
+    type(workspace);
+    await selectAfterEdit(workspace, 3);
+    workspace.answerSelects();
+    await first;
+    const lines = (workspace.notifications ?? []).map(
+      (n) => n.params.selectedRange.start.line,
+    );
+    expect(lines).toEqual([3]);
+  });
+
+  it("leaves a selection to the compiler when a compile already answered the edit", async () => {
+    const workspace = new TestWorkspace();
+    workspace.answerCompiles = true;
+    await open(workspace);
+    type(workspace);
+    // A save, say, compiles the edit before its debounce runs out, so the
+    // debounce's compile finds nothing changed and publishes nothing.
+    await workspace.compile(MAIN, true);
+    expect(workspace.compiles).toHaveLength(1);
+    await selectAfterEdit(workspace, 3);
+    expect(workspace.requests).toContain(SelectCompilerDocumentMessage.method);
+    expect(workspace.notifications.at(-1)?.params.programOutdated).not.toBe(
+      true,
+    );
+    await vi.advanceTimersByTimeAsync(DELAY * 8);
+    expect(workspace.compiles).toHaveLength(1);
+  });
+
+  it("leaves a selection to the compiler once the compile has returned", async () => {
+    const workspace = new TestWorkspace();
+    workspace.answerCompiles = true;
+    await open(workspace);
+    await selectAfterEdit(workspace, 3);
+    type(workspace);
+    await vi.advanceTimersByTimeAsync(DELAY);
+    expect(workspace.compiles).toHaveLength(1);
+    workspace.requests.length = 0;
+    void selectAfterEdit(workspace, 3);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.requests).toContain(SelectCompilerDocumentMessage.method);
   });
 });
