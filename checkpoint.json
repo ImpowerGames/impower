@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 91,
-  "previous": "ae11727836ccb9da106bfbadfc2805a2878c98a8",
+  "seq": 92,
+  "previous": "db549d0e82a4e73e8cfdd34ada2eaa36232c31c9",
   "snapshotParents": [],
-  "time": "2026-10-17T01:01:26.995Z",
+  "time": "2026-10-17T01:01:37.481Z",
   "kind": "auto",
-  "transition": "result of #1908",
+  "transition": "release of #1908",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 94,
+    "recordRevision": 95,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -865,48 +865,54 @@
       "results": []
     },
     "1908": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
-        "branch": "test/1908-luau-corpus-gate",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
-        "launchId": "157a9a9c-bce5-4635-b65a-7b7f25fc3b63",
-        "handle": {
-          "kind": "process",
-          "pid": 52132,
-          "start": "639277762691457379",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1908-157a9a9c-bce5-4635-b65a-7b7f25fc3b63"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 157a9a9c-bce5-4635-b65a-7b7f25fc3b63. You are the writer for ImpowerGames/impower ticket #1908 (Gate the grammar with a corpus check over every vendored upstream Luau snippet), a slice of Feature #1904, coordinated by coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 an acknowledgement naming assignment 157a9a9c-bce5-4635-b65a-7b7f25fc3b63 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1908 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate on branch test/1908-luau-corpus-gate from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904, and keep every artifact in it.\nSettled decisions:\n- The PR body carries Closes #1908 only. This slice makes no grammar change: anything the gate finds on main is filed as a Bug under umbrella #1890 through file-bug and added to the committed known list with its number, never fixed here.\n- #1905 (PR #1927, the tiling catch-all) merged on 2026-10-16 as bdba348d; branch from current origin/main, which contains it, so the gate is written against the tiled grammar.\n- Required-check wiring: the orchestrate merge gate requires the Test Suite workflow's test-suite job, so wire the new check the way the existing sharded package jobs are wired, as something test-suite depends on, rather than as a separate workflow.\n- The demonstration that removing the catch-all from LuauBlockBody fails the gate (acceptance criterion 2) is shown once in the PR body with its output and is never committed.\n- Sibling writers run in parallel on #1906 (token classes) and #1924 (token rules), both changing the grammar YAML; keep your PR to the test, its extraction, the known list and the workflow entry.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "e23ad384",
-          "attempts": 1,
-          "time": "2026-10-16T19:37:49.612Z",
-          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
-        },
-        "since": "2026-10-16T19:37:49.613Z",
-        "sessionId": "e8d62dfb-9391-4890-b3ba-d21a51f333d2",
-        "acknowledged": {
-          "time": "2026-10-16T19:38:49.797Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "medium",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
+            "branch": "test/1908-luau-corpus-gate",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
+            "launchId": "157a9a9c-bce5-4635-b65a-7b7f25fc3b63",
+            "handle": {
+              "kind": "process",
+              "pid": 52132,
+              "start": "639277762691457379",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1908-157a9a9c-bce5-4635-b65a-7b7f25fc3b63"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 157a9a9c-bce5-4635-b65a-7b7f25fc3b63. You are the writer for ImpowerGames/impower ticket #1908 (Gate the grammar with a corpus check over every vendored upstream Luau snippet), a slice of Feature #1904, coordinated by coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 an acknowledgement naming assignment 157a9a9c-bce5-4635-b65a-7b7f25fc3b63 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1908 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate on branch test/1908-luau-corpus-gate from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904, and keep every artifact in it.\nSettled decisions:\n- The PR body carries Closes #1908 only. This slice makes no grammar change: anything the gate finds on main is filed as a Bug under umbrella #1890 through file-bug and added to the committed known list with its number, never fixed here.\n- #1905 (PR #1927, the tiling catch-all) merged on 2026-10-16 as bdba348d; branch from current origin/main, which contains it, so the gate is written against the tiled grammar.\n- Required-check wiring: the orchestrate merge gate requires the Test Suite workflow's test-suite job, so wire the new check the way the existing sharded package jobs are wired, as something test-suite depends on, rather than as a separate workflow.\n- The demonstration that removing the catch-all from LuauBlockBody fails the gate (acceptance criterion 2) is shown once in the PR body with its output and is never committed.\n- Sibling writers run in parallel on #1906 (token classes) and #1924 (token rules), both changing the grammar YAML; keep your PR to the test, its extraction, the known list and the workflow entry.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "e23ad384",
+              "attempts": 1,
+              "time": "2026-10-16T19:37:49.612Z",
+              "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+            },
+            "since": "2026-10-16T19:37:49.613Z",
+            "sessionId": "e8d62dfb-9391-4890-b3ba-d21a51f333d2",
+            "acknowledged": {
+              "time": "2026-10-16T19:38:49.797Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "medium",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from impower-8b on 2026-10-16 naming assignment 157a9a9c with claude-opus-5-5, medium (CLAUDE_EFFORT=medium), bypassPermissions, sent by session title; out.jsonl init line of launch-1908 reports model claude-opus-5-5, bypassPermissions, session e8d62dfb",
+              "deliveryId": "e23ad384"
+            }
           },
-          "evidence": "cross-session message from impower-8b on 2026-10-16 naming assignment 157a9a9c with claude-opus-5-5, medium (CLAUDE_EFFORT=medium), bypassPermissions, sent by session title; out.jsonl init line of launch-1908 reports model claude-opus-5-5, bypassPermissions, session e8d62dfb",
-          "deliveryId": "e23ad384"
+          "released": "process 52132 is gone and no process names its launch directory; final report received from impower-8b (writer session e8d62dfb) on 2026-10-17 with PR #1996 ready at 855be2106; plan census: process 52132 now belongs to another process and no process names launch-1908-157a9a9c; out.jsonl ends after the final report",
+          "time": "2026-10-17T01:01:34.716Z"
         }
-      },
-      "pending": null,
-      "history": [],
+      ],
       "results": [
         {
           "time": "2026-10-17T01:01:24.088Z",
@@ -1499,7 +1505,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T01:01:25.521Z",
+      "observedAt": "2026-10-17T01:01:36.085Z",
       "held": true,
       "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
       "remoteHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
@@ -1630,176 +1636,12 @@
         }
       ]
     },
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate": {
-      "ticket": 1908,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/test/1908-luau-corpus-gate",
-      "branch": "test/1908-luau-corpus-gate",
-      "observedAt": "2026-10-17T01:01:25.521Z",
-      "held": true,
-      "head": "855be21068d55f6f5dc050ed31c7d704b065698b",
-      "remoteHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 1996,
-      "reviewJobs": [
-        {
-          "job": "pr-1996/round-1/launch-gate-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-gate",
-            "reviewerId": "gate",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gate",
-              "undirected"
-            ],
-            "head": "c23daeb3b9ae51845353ac4613be71893159b236",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T21:51:05.613Z"
-          },
-          "round": 1,
-          "reviewerId": "gate",
-          "attempt": 1,
-          "reviewedHead": "c23daeb3b9ae51845353ac4613be71893159b236",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "gate": 1
-          },
-          "plannedRoundReviewers": [
-            "gate",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6225562238
-          ]
-        },
-        {
-          "job": "pr-1996/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gate",
-              "undirected"
-            ],
-            "head": "1f237133a27bc0ba8cc4bd66af64e634d46dfdac",
-            "completedRoundReviewers": {
-              "gate": 1
-            },
-            "time": "2026-10-16T22:47:42.640Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "1f237133a27bc0ba8cc4bd66af64e634d46dfdac",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "gate": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "gate",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6226437335
-          ]
-        },
-        {
-          "job": "pr-1996/round-2/launch-fixes-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-fixes",
-            "reviewerId": "fixes",
-            "attempt": 1,
-            "plannedReviewers": [
-              "fixes",
-              "undirected"
-            ],
-            "head": "2dece6b52a4d393ecd64df1f612e154f27d46eeb",
-            "completedRoundReviewers": {
-              "gate": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-16T23:42:13.709Z"
-          },
-          "round": 2,
-          "reviewerId": "fixes",
-          "attempt": 1,
-          "reviewedHead": "2dece6b52a4d393ecd64df1f612e154f27d46eeb",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "fixes": 1
-          },
-          "plannedRoundReviewers": [
-            "fixes",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6227039934
-          ]
-        },
-        {
-          "job": "pr-1996/round-2/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "fixes",
-              "undirected"
-            ],
-            "head": "855be21068d55f6f5dc050ed31c7d704b065698b",
-            "completedRoundReviewers": {
-              "fixes": 1
-            },
-            "time": "2026-10-17T00:27:41.694Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "fixes": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "fixes",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6227537238
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting": {
       "ticket": 1924,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T01:01:25.521Z",
+      "observedAt": "2026-10-17T01:01:36.085Z",
       "held": true,
       "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
       "remoteHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
@@ -2958,6 +2800,12 @@
       "ticket": 1908,
       "pr": 1996,
       "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b"
+    },
+    {
+      "time": "2026-10-17T01:01:34.717Z",
+      "event": "released",
+      "ticket": 1908,
+      "reason": "process 52132 is gone and no process names its launch directory"
     }
   ]
 }
