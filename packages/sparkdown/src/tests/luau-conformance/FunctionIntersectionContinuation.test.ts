@@ -180,6 +180,60 @@ test("a statement right after a member's type on its line runs", () => {
   expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
 });
 
+// The member lines that continue a function's return type are part of the
+// type, and a statement after one on its line runs, as Luau reads it.
+test.each([
+  ["at the start of the line", "& {}a = 9"],
+  ["indented", "  & {}a = 9"],
+  ["after a block comment", "& {}--[[c]]a = 9"],
+])("a statement after a return type's member line runs (%s)", (_name, line) => {
+  const ctx = makeRuntimeStoryFromSource(
+    `store a = 1\nValue {f().a}.\nfunction f(): {}\n${line}\nreturn {a = a}\nend\n`,
+  );
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
+});
+
+// Each member line is a line of its own, at any indentation.
+test.each([
+  ["table members", "type T = {}\n& {}\n& {}\nreturn 1"],
+  ["named members", "type A = {}\ntype B = {}\ntype T = {}\n& A\n& B\nreturn 1"],
+  ["mixed indentation", "type T = {}\n& {}\n  & {}\n& {}\nreturn 1"],
+])("consecutive member lines at the start of the line read as Luau (%s)", (_name, body) => {
+  expect(officialSyntaxErrors(`function f()\n${body}\nend\n`)).toEqual([]);
+  expect(checkLuau(body).syntaxDiagnostics).toEqual([]);
+});
+
+// An `&` line that continues no type is reported exactly as Luau reports
+// it, its recovery's errors included.
+test.each(["& {}", "& print(1)", "&Hello", "& {}a = 9"])(
+  "an `&` line that continues no type is reported as Luau reports it: %s",
+  (line) => {
+    const luau = officialSyntaxErrors(`function f()\n${line}\nreturn 1\nend\n`).map((e) => [
+      e.location.begin.line - 1,
+      e.location.begin.column,
+      e.message,
+    ]);
+    expect(luau[0]?.[2]).toBe(AMPERSAND_ERROR);
+    expect(
+      checkLuau(`${line}\nreturn 1`).syntaxDiagnostics.map((d) => [d.line, d.column, d.message]),
+    ).toEqual(luau);
+    expect(errorMessages(`function f()\n${line}\nreturn 1\nend\n`)).toEqual(luau.map((e) => e[2]));
+  },
+);
+
+// Where Sparkdown's reading of a statement departs from Luau's on purpose
+// (a statement whose expression is already an error is not also reported as
+// incomplete), an `&` line departs the same way: `& ()` reports the `&` and
+// then what `()` alone reports.
+test("an `&` line reports what the same line without its `&` reports", () => {
+  const plain = checkLuau("()\nreturn 1").syntaxDiagnostics.map((d) => d.message);
+  expect(checkLuau("& ()\nreturn 1").syntaxDiagnostics.map((d) => d.message)).toEqual([
+    AMPERSAND_ERROR,
+    ...plain,
+  ]);
+});
+
 // Controls: a statement later on a member line runs. The converter reads
 // the line as Luau does, so these ran before the member line's end moved to
 // that statement too; the "reads as Luau" cases above and the grammar

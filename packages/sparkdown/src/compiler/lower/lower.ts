@@ -24,6 +24,7 @@ import {
   continuesIntersection,
   hasTypeOperatorLineOwner,
   reportUnownedTypeOperatorLine,
+  startsWithReturnTypeMembers,
 } from "./utils/lineContinuation";
 import {
   lowerAudioLine,
@@ -377,6 +378,11 @@ function lowerBlockStatements(
     );
     first = qualifier.lines[qualifier.lines.length - 1]?.nextSibling ?? null;
   }
+  // Or continue it as union or intersection members (`function f(): A` then
+  // `& B`), which are part of the type too: the body is read from its start
+  // as the rest of a type, so a statement after a member on its line
+  // (`& {}a = 9`) is read where it begins.
+  const afterType = startsWithReturnTypeMembers(parent, first);
   const nodes: SyntaxNode[] = [];
   for (let child = first; child; child = child.nextSibling) {
     if (!skipNames.has(child.name)) nodes.push(child);
@@ -389,7 +395,7 @@ function lowerBlockStatements(
     indexOf.get(`${ref.name}@${ref.from}`);
   const beginning: LuauStatementSource[][] = nodes.map(() => []);
   const readFrom = (from: number) => {
-    const read = readBlockAst(nodes.slice(from), ctx);
+    const read = readBlockAst(nodes.slice(from), ctx, afterType && from === 0);
     for (let i = from; i < nodes.length; i++) beginning[i] = [];
     for (const source of read?.unit.statements ?? []) {
       const at = source.nodes[0] && nodeIndex(source.nodes[0]);

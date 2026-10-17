@@ -114,6 +114,27 @@ export function leadingReturnTypeQualifier(
   return { returnType, lines };
 }
 
+// Whether the function body `bodyContent` begins, at its child `first`, with
+// union or intersection member lines that continue its return type
+// (`function f(): A` then `& B`). They are part of the type, which the body's
+// own children do not hold, so the body is read as the rest of a type
+// (`readBlockAst`'s `afterType`): read alone, an `&` line would read as a
+// statement that cannot begin with `&`.
+export function startsWithReturnTypeMembers(
+  bodyContent: SyntaxNode,
+  first: SyntaxNode | null,
+): boolean {
+  if (bodyContent.name !== "LuauFunctionBody_content") return false;
+  let returnType = false;
+  for (let n = bodyContent.parent?.prevSibling ?? null; n; n = n.prevSibling) {
+    if (n.name === "LuauFunctionReturnType") returnType = true;
+    if (n.name === "LuauFunctionReturnType" || n.name === "LuauFunctionParameters") break;
+  }
+  let scan = first;
+  while (scan && SKIPPABLE.has(scan.name)) scan = scan.nextSibling;
+  return returnType && scan?.name === "LuauTypeOperatorLineContinuation";
+}
+
 // The `= value` that ends the union or intersection member lines after the
 // declaration `node`, across blank and comment lines, which the declaration
 // ended before (`local v: number` then `-- note` then `| string = 1`, or

@@ -125,7 +125,7 @@ import { Location, Position } from "./Location";
 import { breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
-import { UNREAD_TOKENS } from "../utils/unreadTokens";
+import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 
 // ---------------------------------------------------------------------------
 // Results
@@ -670,6 +670,28 @@ class Tokenizer {
     const [from, to] = trimmedRange(this.text, node.from, node.to);
     if (this.luauThroughout && node.type.isError) {
       this.lex(from, to);
+      return;
+    }
+    // An intersection member line (`& { y: string }`) is read up to its
+    // `= value` as Luau's lexer reads it, its `&` included: the grammar
+    // cannot see whether a type comes before the line, so Luau's reading
+    // decides, and where none does every error of that reading, its
+    // recovery's included, is Luau's to report (#1374). The value is read
+    // from the tree as any value is.
+    if (name === "LuauTypeOperatorLineContinuation" && containsUnreadToken(node)) {
+      let value: SyntaxNode | null = null;
+      for (let part = node.firstChild; part && !value; part = part.nextSibling) {
+        for (let child = part.firstChild; child; child = child.nextSibling) {
+          if (child.name === "LuauAssignmentOperation") {
+            value = child;
+            break;
+          }
+        }
+      }
+      const first = this.tokens.length;
+      this.lex(from, value ? Math.min(value.from, to) : to);
+      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;
+      if (value) this.read(value);
       return;
     }
     // A token the grammar left unread is read as Luau's lexer reads it, as is
@@ -4220,11 +4242,26 @@ const WRAPPER = /_(begin|content|end)(_c\d+)*$/;
  * lowerer that reaches a node takes the statements that begin in it and skips
  * the nodes they continue into. A name the block does not declare is read as
  * a global.
+ *
+ * `afterType` reads the block as the rest of a type: a function body whose
+ * first lines continue its return type as union or intersection members
+ * (`function f(): A` then `& B`), which the block's own nodes do not hold.
+ * The reading begins with a type alias of its own (`type _ = any`), so Luau
+ * reads those lines as members of it, and a statement after one on its line
+ * (`& {}a = 9`) begins in that line's node; the alias is no statement of the
+ * block.
  */
-export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string): LuauAstUnit {
+export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string, afterType = false): LuauAstUnit {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const refs: TreeNodeRef[] = [];
+  const at = nodes[0]?.from;
+  if (afterType && at !== undefined) {
+    tokenizer.synthetic("name", "type", at);
+    tokenizer.synthetic("name", "_", at);
+    tokenizer.synthetic("symbol", "=", at);
+    tokenizer.synthetic("name", "any", at);
+  }
   for (const node of nodes) {
     tokenizer.source = refs.length;
     refs.push(ref(node));
@@ -4232,7 +4269,9 @@ export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string
   }
   tokenizer.source = -1;
   const first = tokenizer.tokens[0];
-  return readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0));
+  const unit = readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0));
+  if (!afterType || at === undefined) return unit;
+  return { ...unit, statements: unit.statements.slice(1) };
 }
 
 /**

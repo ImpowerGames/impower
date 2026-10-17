@@ -38,6 +38,14 @@ end
 local function m(): {}
   & {}return {}
 end
+function n(): {}
+& {}a = 9
+type W = {}
+& {}
+& {}
+  & {}
+return {}
+end
 store count = 0
 local s: number
 & s = 2
