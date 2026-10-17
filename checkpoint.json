@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 220,
-  "previous": "0f636dfbf796572faf57666491267c623e30450a",
+  "seq": 221,
+  "previous": "dafed741b67df235f9c1def7e1a1ce0787cf0b1f",
   "snapshotParents": [],
-  "time": "2026-10-17T19:53:26.334Z",
+  "time": "2026-10-17T20:23:27.090Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 202,
+    "recordRevision": 203,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T19:53:25.497Z",
+      "observedAt": "2026-10-17T20:23:26.279Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,11 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:58:06.146Z",
-      "event": "check-in",
-      "outcome": "#1964 round 3 checkpoint decided finish (038210f9, comment 6229886555) after the writer cleared reviewer fixture scratch that blocked the evidence scan (evidence attached to #1866); writer resumed to mark PR #2040 ready and send its final report. #1966 PR #2015 round 5 reviewed, head 37679545e merged main with CI running; writer waiting for CI before its checkpoint report."
-    },
     {
       "time": "2026-10-17T04:58:51.141Z",
       "event": "result",
@@ -6199,6 +6194,11 @@
       "time": "2026-10-17T19:53:24.158Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main b3dd72d54; #1907's PR #2062 at ac158d8c9, open draft under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T20:23:24.685Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main b3dd72d54; #1907's PR #2062 at 0afbe04a7, open draft under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
