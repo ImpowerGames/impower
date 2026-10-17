@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 239,
-  "previous": "b8aa3ebe3bb53f9b1b55210e89f63ed0de84a3cb",
+  "seq": 240,
+  "previous": "8c61d39029c167462a4b64ea0f5a9b217eb6c7f3",
   "snapshotParents": [],
-  "time": "2026-10-17T18:23:12.593Z",
+  "time": "2026-10-17T18:23:53.345Z",
   "kind": "auto",
-  "transition": "answer of #1907",
+  "transition": "answered of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 246,
+    "recordRevision": 247,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3105,12 +3105,13 @@
           "source": "cross-session message from impower-f8 (writer, launch 4c537485) on 2026-10-17 while running",
           "relayed": null,
           "answer": {
-            "state": "intent",
+            "state": "delivered",
             "text": "Leave story for and while headers unchanged, as you did. Rule 3 governs where a statement ends; the if and elseif headers come under it because the Feature's acceptance names the story form of #1199, while nothing in #1904 or #1907 asks for loop headers, and #1344 (closed by S1) deliberately made a condition on the line after for or while work at the top level with a pinned fixture. Reversing that inside this slice would widen the PR for no criterion. State the asymmetry plainly in the PR body and in GRAMMAR.md section 11.5 beside the rule: story if and elseif headers end at their line, story for and while headers keep Luau's reading of a next-line condition per #1344. If the maintainer later wants loop headers bounded too, that is a follow-up Task; file it through file-task only if you think the inconsistency will bite authors, with the #1344 fixture named as what changes. Proceed with round 1 on the current scope.",
             "deliveryId": "5fa566bd",
             "attempts": 1,
-            "time": "2026-10-17T18:20:12.162Z",
-            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+            "time": "2026-10-17T18:23:51.262Z",
+            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+            "evidence": "SendMessage to impower-f8 succeeded at 2026-10-17T18:23:50Z, msg_id 2b47c04a-de7f-4323-8233-07ac90cf5bbb, carrying both printed answers (5fa566bd and the superseding 417d2f3d) in one message while the writer (pid 21592) was running"
           }
         },
         {
@@ -7956,7 +7957,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T18:23:11.772Z",
+      "observedAt": "2026-10-17T18:23:52.676Z",
       "held": true,
       "head": "a9866c98ec1651ee83afbab2814014ef48025995",
       "remoteHead": "a9866c98ec1651ee83afbab2814014ef48025995",
@@ -8332,14 +8333,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T07:29:09.128Z",
-      "event": "answer-intent",
-      "ticket": 1374,
-      "id": "fea301f2",
-      "deliveryId": "3bbcd964",
-      "attempt": 1
-    },
     {
       "time": "2026-10-17T07:30:09.843Z",
       "event": "answered",
@@ -9069,6 +9062,13 @@
       "id": "96d7350a",
       "deliveryId": "417d2f3d",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T18:23:51.263Z",
+      "event": "answered",
+      "ticket": 1907,
+      "id": "a903654d",
+      "deliveryId": "5fa566bd"
     }
   ]
 }
