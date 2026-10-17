@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 136,
-  "previous": "877102d12bf5ebe3c98c341178fa973b8268150b",
+  "seq": 137,
+  "previous": "3b1bf6329d4307606b325dfb036785aea9ab0d6c",
   "snapshotParents": [],
-  "time": "2026-10-17T06:13:44.049Z",
+  "time": "2026-10-17T06:13:52.996Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 123,
+    "recordRevision": 124,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1994,6 +1994,15 @@
             "time": "2026-10-17T05:25:11.757Z",
             "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
           }
+        },
+        {
+          "id": "40aebb3a",
+          "owner": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+          "time": "2026-10-17T06:13:50.549Z",
+          "text": "Round 6 checkpoint report for PR #2015 under decision 36752762: one undirected reviewer on 37679545e (report 6230340451, adjudication 6230418865) found the GitHub-positions mapping, the stand-in capacity (712 stand-ins, tightest margin 445), the digest-bound reuse and the kill-between-renders case sound, and 3 blocking findings, all accepted: partly entity-encoded digits still let an existing link pass for a stand-in; persistent render failures made verify throw before writing its reports; the rehearsal did not write left-as-transferred.json. Correction 0ce68b477 (unreviewed, one commit): the gate renders each original once as written and excludes every pull request it links however spelled (journaled, reused by the render check); a render failure is a difference for its own text only and verify always prints and writes its reports; the rehearsal writes the file; gate cost is 3 renders per text (about 9,300 renders for the live repository). 51 tests, 3 new red on 37679545e, rehearsal 9 passed, CI all green on the head. Reviewer scratch removed under impower.review-jobs/pr-2015. Round limit 6 used up; writer asks: another bounded round over 37679545e..0ce68b477 or acceptance.",
+          "source": "cross-session message from writer session impower-0f (CLI session 58c4e7e1, resumed) received 2026-10-17 ~08:40Z",
+          "relayed": null,
+          "answer": null
         }
       ],
       "checkpoints": [
@@ -3640,7 +3649,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T06:13:42.957Z",
+      "observedAt": "2026-10-17T06:13:51.986Z",
       "held": true,
       "head": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
       "remoteHead": "e7fe93552cc271351cce6ddba4ec0e626a1f4a15",
@@ -3654,7 +3663,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T06:13:42.957Z",
+      "observedAt": "2026-10-17T06:13:51.986Z",
       "held": true,
       "head": "0ce68b477e72852e265ea00656ce216e181137e7",
       "remoteHead": "0ce68b477e72852e265ea00656ce216e181137e7",
@@ -3959,11 +3968,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T21:54:32.062Z",
-      "event": "check-in",
-      "outcome": "no change: #1962 writer resumed and running (pid 31640), PR #1975 head 5415ccea5, round 4 launched with one undirected reviewer under decision 0538d010; CI green except the Windows driver check in progress"
-    },
     {
       "time": "2026-10-16T22:07:23.122Z",
       "event": "request",
@@ -4709,6 +4713,12 @@
       "ticket": 1965,
       "id": "e7652e19",
       "deliveryId": "99611e24"
+    },
+    {
+      "time": "2026-10-17T06:13:50.550Z",
+      "event": "request",
+      "ticket": 1966,
+      "id": "40aebb3a"
     }
   ]
 }
