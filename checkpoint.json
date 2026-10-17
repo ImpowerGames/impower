@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 127,
-  "previous": "cf827d9231c31c9b56ad34f7f6ee13566a5a9052",
+  "seq": 128,
+  "previous": "237e926f54deb054104b4684987ccd27dd9c594e",
   "snapshotParents": [],
-  "time": "2026-10-17T01:20:05.343Z",
+  "time": "2026-10-17T01:20:17.342Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1974",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 101,
+    "recordRevision": 102,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -754,6 +754,15 @@
             "time": "2026-10-17T00:50:29.334Z",
             "to": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29"
           }
+        },
+        {
+          "id": "af9a31ec",
+          "owner": "3950b896-bf27-4a2c-b9ff-a936c1dec179",
+          "time": "2026-10-17T01:20:12.881Z",
+          "text": "Checkpoint after round 4 of PR #1984 under extension ec7c56fe: one undirected reviewer (gpt-6.1-sol high) on 0547bc904, report 6227829979 no findings, adjudication 6227855109, round-state 6227591301; nothing pushed after 0547bc904 so the head is the reviewed head; CI 28 passed 4 skipped; reviewer confirmed completeMemos and committed share the committed-root guard on every path, memos complete only from the latest resolve, and the no-program re-resolution cost is disclosed (219/436/652 generated objects for 1/2/3 pending scenes). Asks for the finish decision; the PR stays draft until the coordinator acts.",
+          "source": "cross-session message from the writer (peer impower-f4) at ~01:20Z, confirmed in resume-1974-7a097718 out.jsonl",
+          "relayed": null,
+          "answer": null
         }
       ],
       "checkpoints": [
@@ -1788,7 +1797,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:20:03.956Z",
+      "observedAt": "2026-10-17T01:20:15.119Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1945,7 +1954,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T01:20:03.956Z",
+      "observedAt": "2026-10-17T01:20:15.119Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2267,11 +2276,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:18:39.862Z",
-      "event": "checkpoints-enabled",
-      "remote": "origin"
-    },
     {
       "time": "2026-10-16T16:19:00.902Z",
       "event": "check-in-scheduled",
@@ -2941,6 +2945,12 @@
       "time": "2026-10-17T00:52:52.327Z",
       "event": "check-in",
       "outcome": "no change: #1881 (PR #1983) holds at merge-gate on the #1999 Windows flake pending the maintainer's call; #1974 (draft PR #1984, round 4 under extension ec7c56fe) writer running; #851, #1637 and #1798 done; no new transcripts, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-17T01:20:12.882Z",
+      "event": "request",
+      "ticket": 1974,
+      "id": "af9a31ec"
     }
   ]
 }
