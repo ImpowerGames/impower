@@ -1,0 +1,53 @@
+function f(v: { x: number }
+  & { y: string }): { x: number }
+  & { y: string }
+  type T = { x: number }
+    & { y: string }
+  -- note
+    & { z: boolean }
+  local t: T
+    & { w: number } = v
+  & print(1)
+  return t
+end
+local g = function()
+  type U = number
+  & string
+end
+function h()
+  type V = number
+  & number local a = 9
+  type V2 = number
+  & number --[[note]] local b = 9
+  type V3 = {}
+  & {}local c = 9
+  type V4 = {}
+  & {}function g() end
+  type store = {}
+  type V5 = {}
+  & store
+  local w: number
+    & number = a
+  local x: number
+    & number = a --[[note]] local d = 1
+  return w
+end
+local function k(): number
+  & number return 1
+end
+local function m(): {}
+  & {}return {}
+end
+function n(): {}
+& {}a = 9
+type W = {}
+& {}
+& {}
+  & {}
+return {}
+end
+store count = 0
+local s: number
+& s = 2
+& count += 1
+The count is {count}.

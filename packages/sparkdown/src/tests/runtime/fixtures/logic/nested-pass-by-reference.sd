@@ -5,10 +5,10 @@ store globalVal = { value = 5 }
 done
 
 function squaresquare(x)
-  & square(x)
-  & square(x)
+  square(x)
+  square(x)
 end
 
 function square(x)
-  & x.value = x.value * x.value
+  x.value = x.value * x.value
 end

@@ -53,10 +53,9 @@ describe("run statement", () => {
     "run helpers",
   ])("loads a .luau file and runs its body: %s", (runLine) => {
     // The .luau file's body becomes a wrapper function called from
-    // main flow. Inside the function body, bare calls don't fire
-    // (#75) so the .luau content uses `&` discard-prefix to invoke
-    // the harness-bound external.
-    const luau = `& harness_record(42)
+    // main flow, so the call is written as Luau writes it, with no
+    // `&` marker (#1374).
+    const luau = `harness_record(42)
 `;
     const main = `external harness_record(v)
 ${runLine}
@@ -162,7 +161,7 @@ done
   ])("runs one file from $shape, once per run line", ({ helper, files }) => {
     const { result, errs } = compileWithFiles([
       ...files,
-      { uri: helper, text: `& harness_record(42)\n` },
+      { uri: helper, text: `harness_record(42)\n` },
     ]);
     expect(errs).toEqual([]);
     expect(recordedRun(result.program.chunks)).toEqual([42, 42]);
@@ -180,8 +179,8 @@ done
         text: `external harness_record(v)\n${lines}run "helper"\ndone\n`,
       },
       { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
-      { uri: "inmemory:///helper.luau", text: `& harness_record(1)\n` },
-      { uri: "inmemory:///lib/helper.luau", text: `& harness_record(2)\n` },
+      { uri: "inmemory:///helper.luau", text: `harness_record(1)\n` },
+      { uri: "inmemory:///lib/helper.luau", text: `harness_record(2)\n` },
     ]);
     expect(errs).toEqual([]);
     expect(recordedRun(result.program.chunks)).toEqual([...recorded, 1]);
@@ -197,11 +196,11 @@ done
       },
       {
         uri: "inmemory:///d68kpfa1p5a91s/helper.luau",
-        text: `& harness_record(1)\n`,
+        text: `harness_record(1)\n`,
       },
       {
         uri: "inmemory:///dux1d8u1w62cf0/helper.luau",
-        text: `& harness_record(2)\n`,
+        text: `harness_record(2)\n`,
       },
     ]);
     expect(errs).toEqual([]);
@@ -229,7 +228,7 @@ done
       },
       ...["helper", "a/helper", "b/helper"].map((name, i) => ({
         uri: `inmemory:///${name}.luau`,
-        text: `& harness_record(${i})\n`,
+        text: `harness_record(${i})\n`,
       })),
     ];
     const mainWith = (order: number[]) =>
@@ -276,7 +275,7 @@ done
     const text = `external harness_record(v)\nrun "helper"\nrun "helper"\ndone\nfunction __run_helper_2()\n  return 9\nend\nfunction __run_helper_3()\n  return 9\nend\n`;
     const helper = {
       uri: "inmemory:///helper.luau",
-      text: `& harness_record(debug.info(1, "n"))\n`,
+      text: `harness_record(debug.info(1, "n"))\n`,
     };
     const { compiler, result: first } = compileWithFiles([
       { uri: "inmemory:///main.sd", text },
@@ -316,7 +315,7 @@ done
       `external harness_record(v)\n${'run "helper"\n'.repeat(runLines)}done\n`;
     const { compiler, result: first } = compileWithFiles([
       { uri: "inmemory:///main.sd", text: mainWith(2) },
-      { uri: "inmemory:///helper.luau", text: `& harness_record(42)\n` },
+      { uri: "inmemory:///helper.luau", text: `harness_record(42)\n` },
     ]);
     expect(recordedRun(first.program.chunks)).toEqual([42, 42]);
 
@@ -337,7 +336,7 @@ done
     expect(recompile("inmemory:///main.sd", mainWith(2))).toEqual([42, 42]);
     // An edit to the file gives each run line its new body (#316).
     expect(
-      recompile("inmemory:///helper.luau", `& harness_record(7)\n`),
+      recompile("inmemory:///helper.luau", `harness_record(7)\n`),
     ).toEqual([7, 7]);
   });
 
@@ -359,10 +358,10 @@ done
         uri: "inmemory:///main.sd",
         text: `external harness_record(v)\nrun "helper"\ndone\n`,
       },
-      { uri: "inmemory:///helper.luau", text: `& harness_record(1)\n` },
+      { uri: "inmemory:///helper.luau", text: `harness_record(1)\n` },
     ]);
     expect(recordedRun(first.program.chunks)).toEqual([1]);
-    compiler.updateFile({ file: helper(`& harness_record(2)\n`, 2) as never });
+    compiler.updateFile({ file: helper(`harness_record(2)\n`, 2) as never });
     for (const _ of [0, 1]) {
       const result = compiler.compile({
         textDocument: { uri: "inmemory:///main.sd" },

@@ -4,10 +4,12 @@
 // authorize the next bounded round, accept the final verified corrections
 // without another independent round, or ask the maintainer. This helper reads
 // the round state from the review launcher's journals and the PR, refuses a
-// decision whose checkable preconditions do not hold, and builds the PR
-// comment that records it. The PR is that decision's authority: a later
-// coordinator, on any account or machine, restores every decision from the
-// PR's comments alone.
+// decision whose checkable preconditions do not hold, and builds the comment
+// that records it on the PR's review thread: the PR itself, or the slice's
+// ticket once the run's tickets live apart from its code (repositoriesOf in
+// feature-run.mjs). The review thread is that decision's authority: a later
+// coordinator, on any account or machine, restores every decision from its
+// comments alone.
 //
 // The helper checks structure, never judgement: an assessment field that is
 // filled in says nothing about whether its reasoning is sound. That is read
@@ -26,7 +28,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
-import { branchTicket, launchDirOf, readRecord, streamSession, updateRecord } from "./feature-run.mjs";
+import { readRepos } from "../../repos.mjs";
+import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositories, streamSession, updateRecord } from "./feature-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -94,7 +97,7 @@ export function roundState(journals) {
   const accounting = reviewAccounting(journals);
   const blockers = [];
   for (const j of accounting.files) {
-    if (j.last === "report-awaiting-post") blockers.push(`${j.file}: its reviewer's report still awaits posting on the PR`);
+    if (j.last === "report-awaiting-post") blockers.push(`${j.file}: its reviewer's report still awaits posting on the review thread`);
     else if (!j.terminal) blockers.push(`${j.file}: the launcher has not finished (last row ${j.last ?? "none"}), so a reviewer may still run`);
     if (j.unconfirmedChild) blockers.push(`${j.file}: its launcher reported a child whose exit is unconfirmed`);
   }
@@ -122,9 +125,9 @@ export function roundState(journals) {
   };
 }
 
-// --- Decisions published on the PR ----------------------------------------
+// --- Decisions published on the review thread -----------------------------
 
-// Every checkpoint block in the PR's comments, each with its exact head and
+// Every checkpoint block in the review thread's comments, each with its exact head and
 // range, and the decisions in effect, in order. Writers and coordinators post
 // under the same GitHub account, so neither a comment's author nor the name
 // in a block proves who decided, and the order of comments proves nothing
@@ -287,19 +290,21 @@ const checkResult = (state) => { const s = String(state ?? "").toUpperCase(); re
 // adjudication, CI on the head, the unreviewed range and its diff, the
 // decisions already published, and every reason no checkpoint is due yet.
 // The merge gate reads the same review state from round 1 on and judges CI
-// itself, so it passes `firstRound` 1 and `ci` false.
-export function checkpointEvidence({ pr, state, pull, comments, git, trusted, record = null, firstRound = FIRST_CHECKPOINT_ROUND, ci = true }) {
+// itself, so it passes `firstRound` 1 and `ci` false. `comments` are the
+// review thread's, which `where` names.
+export const threadName = (thread) => `review thread ${thread.repo}#${thread.number}`;
+export function checkpointEvidence({ pr, state, pull, comments, git, trusted, record = null, firstRound = FIRST_CHECKPOINT_ROUND, ci = true, where = `PR #${pr}` }) {
   const blockers = [...state.blockers];
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
   // Every round the PR posts a round state for needs its journals here: a
   // missing one would drop that round's reports and findings unseen.
   const posted = new Set(comments.flatMap((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))));
   const missing = [...posted].filter((r) => !state.roundsSeen.includes(r)).sort((a, b) => a - b);
-  if (missing.length) blockers.push(`the PR posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} reviews; read those journals where they ran`);
+  if (missing.length) blockers.push(`${where === `PR #${pr}` ? "the PR" : where} posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} reviews; read those journals where they ran`);
   if (state.completedRound < firstRound) blockers.push(firstRound === FIRST_CHECKPOINT_ROUND ? `round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes` : `no review round is complete here; the PR has no independent review this checkout can show`);
   const reports = state.reports.map((r) => {
     const report = comments.find((c) => c.id === r.comment);
-    if (!report) { blockers.push(`report ${r.comment} (round ${r.round}, ${r.reviewerId ?? "reviewer"}) is not on PR #${pr}`); return r; }
+    if (!report) { blockers.push(`report ${r.comment} (round ${r.round}, ${r.reviewerId ?? "reviewer"}) is not on ${where}`); return r; }
     // An adjudication is a later comment headed as one that names the report;
     // a checkpoint decision lists reports too, and is not an adjudication.
     const adjudication = comments.find((c) => c.id !== r.comment && Date.parse(c.created_at) >= Date.parse(report.created_at) && /adjudicat/i.test((c.body ?? "").split("\n")[0]) && !(c.body ?? "").includes(MARK) && (c.body ?? "").includes(String(r.comment)));
@@ -526,14 +531,17 @@ export const trustedCoordinators = (record, number = null) => {
 
 // --- GitHub and Git ---------------------------------------------------------
 
-export function checkpointClient(repository, checkout) {
-  const run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
+// The pull request on the code repository, and the comments of its review
+// thread for ticket `ticket`, given the record (or a repository and its
+// tickets repository).
+export function checkpointClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 }) } = {}) {
+  const { code, thread } = repositoriesOf(names);
   return {
     pull: (pr) => {
-      const p = JSON.parse(run("gh", ["pr", "view", String(pr), "--repo", repository, "--json", "state,isDraft,headRefOid,headRefName,statusCheckRollup"]));
+      const p = JSON.parse(run("gh", ["pr", "view", String(pr), "--repo", code, "--json", "state,isDraft,headRefOid,headRefName,statusCheckRollup"]));
       return { state: p.state, isDraft: p.isDraft, head: p.headRefOid, branch: p.headRefName, checks: p.statusCheckRollup.map((c) => ({ name: c.name ?? c.context, state: c.conclusion || c.state || c.status })) };
     },
-    comments: (pr) => JSON.parse(run("gh", ["api", "--paginate", "--slurp", `repos/${repository}/issues/${pr}/comments`])).flat(),
+    comments: (pr, ticket) => { const t = thread(pr, ticket); return JSON.parse(run("gh", ["api", "--paginate", "--slurp", `repos/${t.repo}/issues/${t.number}/comments`])).flat(); },
   };
 }
 
@@ -578,7 +586,8 @@ export function gatherEvidence({ record, ticket, pr, client, git }) {
   if (branchTicket(pull.branch) !== ticket) throw new Error(`PR #${pr}'s branch ${pull.branch} is not #${ticket}'s`);
   git.fetch(pr);
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
-  return checkpointEvidence({ pr, state, pull, comments: client.comments(pr), git, trusted: trustedCoordinators(record, ticket), record });
+  const names = repositoriesOf(record);
+  return checkpointEvidence({ pr, state, pull, comments: client.comments(pr, ticket), git, trusted: trustedCoordinators(record, ticket), record, ...(names.split && { where: threadName(names.thread(pr, ticket)) }) });
 }
 
 // --- Command line -----------------------------------------------------------
@@ -597,9 +606,17 @@ function parse(argv) {
 const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`); return n; };
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
-export function main(argv, { clientFor = checkpointClient, gitFor = localGit } = {}) {
+// How to post a decision on the PR's review thread: the PR itself in one
+// repository, the ticket once the run's tickets live apart, when nothing is
+// posted on the public PR.
+export function postCommand(record, pr, ticket, file) {
+  const names = repositoriesOf(record), thread = names.thread(pr, ticket);
+  return names.split ? `gh issue comment ${thread.number} -R ${thread.repo} --body-file ${file}` : `gh pr comment ${pr} --body-file ${file}`;
+}
+
+export function main(argv, { clientFor = checkpointClient, gitFor = localGit, repos } = {}) {
   const { command, o } = parse(argv);
-  const withRecord = () => { const file = abs(o.record, "record"), record = readRecord(file); return { file, record, client: clientFor(record.repository, record.checkout), git: gitFor(record.checkout) }; };
+  const withRecord = () => { const file = abs(o.record, "record"), record = readRecord(file); return { file, record, client: clientFor(record, record.checkout), git: gitFor(record.checkout) }; };
   const mutate = (file, fn) => { const { record, output } = updateRecord(file, { expectRevision: Number(o.expectRevision), coordinator: o.coordinator }, fn); return { revision: record.revision, ...output }; };
   switch (command) {
     case "evidence": {
@@ -615,7 +632,7 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit } =
       const out = abs(o.out, "out");
       const done = mutate(file, (r) => decide(r, { ticket: int(o.ticket, "ticket"), kind: o.kind, assessment, inspected: o.inspected, evidence }));
       fs.writeFileSync(out, done.body + "\n");
-      return { revision: done.revision, id: done.id, body: out, next: `post it with gh pr comment ${evidence.pr} --body-file ${out}, read the comment back to a file, then record published` };
+      return { revision: done.revision, id: done.id, body: out, next: `post it with ${postCommand(record, evidence.pr, int(o.ticket, "ticket"), out)}, read the comment back to a file, then record published` };
     }
     case "published": {
       const { file, record, client } = withRecord();
@@ -629,10 +646,14 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit } =
     case "restore":
     case "acceptance-check": {
       let client, trusted = o.trust, record = null;
-      if (o.record) { const r = withRecord(); client = r.client; record = r.record; trusted = [...trusted, ...trustedCoordinators(record, o.ticket === undefined ? null : int(o.ticket, "ticket"))]; }
-      else client = clientFor(o.repo, abs(o.checkout, "checkout"));
+      const ticket = o.ticket === undefined ? undefined : int(o.ticket, "ticket");
+      if (o.record) { const r = withRecord(); client = r.client; record = r.record; trusted = [...trusted, ...trustedCoordinators(record, ticket ?? null)]; }
+      else abs(o.checkout, "checkout");
       if (!trusted.length) throw new Error("Name the trusted coordinators with --record or --trust <session> (the Feature's status names them)");
-      const pr = int(o.pr, "pr"), decisions = restore(client.comments(pr), { trusted, record, pr });
+      // Without a record, the cutover switch says where the review thread is;
+      // once it is on, --ticket names it.
+      client ??= clientFor({ repository: o.repo, ...startRepositories(o.repo, repos ?? readRepos()) }, abs(o.checkout, "checkout"));
+      const pr = int(o.pr, "pr"), decisions = restore(client.comments(pr, ticket), { trusted, record, pr });
       return command === "restore" ? { pr, decisions } : { pr, ...acceptanceApplies(decisions, client.pull(pr).head) };
     }
     default: throw new Error("Usage: review-checkpoint.mjs evidence|decide|published|abandon|trust-predecessor|restore|acceptance-check --option value ...");

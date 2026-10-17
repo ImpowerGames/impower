@@ -114,15 +114,37 @@ export function leadingReturnTypeQualifier(
   return { returnType, lines };
 }
 
-// The `= value` that ends the union member lines after the declaration
-// `node`, across blank and comment lines, which the declaration ended
-// before (`local v: number` then `-- note` then `| string = 1`).
-export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
+// Whether the function body `bodyContent` begins, at its child `first`, with
+// union or intersection member lines that continue its return type
+// (`function f(): A` then `& B`). They are part of the type, which the body's
+// own children do not hold, so the body is read as the rest of a type
+// (`readBlockAst`'s `afterType`): read alone, an `&` line would read as a
+// statement that cannot begin with `&`.
+export function startsWithReturnTypeMembers(
+  bodyContent: SyntaxNode,
+  first: SyntaxNode | null,
+): boolean {
+  if (bodyContent.name !== "LuauFunctionBody_content") return false;
+  let returnType = false;
+  for (let n = bodyContent.parent?.prevSibling ?? null; n; n = n.prevSibling) {
+    if (n.name === "LuauFunctionReturnType") returnType = true;
+    if (n.name === "LuauFunctionReturnType" || n.name === "LuauFunctionParameters") break;
+  }
+  let scan = first;
+  while (scan && SKIPPABLE.has(scan.name)) scan = scan.nextSibling;
+  return returnType && scan?.name === "LuauTypeOperatorLineContinuation";
+}
+
+// The `= value` that ends the union or intersection member lines after the
+// declaration `node`, across blank and comment lines, which the declaration
+// ended before (`local v: number` then `-- note` then `| string = 1`, or
+// `local v: A` then `& B = 1`).
+export function typeOperatorLineValue(node: SyntaxNode): SyntaxNode | null {
   if (!endsInTypeAnnotation(node)) return null;
   let value: SyntaxNode | null = null;
   for (let scan = node.nextSibling; scan; scan = scan.nextSibling) {
     if (SKIPPABLE.has(scan.name)) continue;
-    if (scan.name !== "LuauTypeUnionLineContinuation") break;
+    if (scan.name !== "LuauTypeOperatorLineContinuation") break;
     for (let part = firstContentChild(scan); part; part = part.nextSibling) {
       if (isExplicitRuleName(part.name, "LuauAssignmentOperation")) value = part;
     }
@@ -149,12 +171,12 @@ function endsInTypeAnnotation(node: SyntaxNode): boolean {
   );
 }
 
-// Whether the union member line `line` (a `LuauTypeUnionLineContinuation`)
-// continues a type: the nearest node before it, across blank and comment
-// lines, is a declaration that ends in its type, a type alias, an annotated
-// parameter, or another such line with no value; or it starts a function
-// body after the function's return type.
-export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
+// Whether the union or intersection member line `line` (a
+// `LuauTypeOperatorLineContinuation`) continues a type: the nearest node
+// before it, across blank and comment lines, is a declaration that ends in
+// its type, a type alias, an annotated parameter, or another such line with
+// no value; or it starts a function body after the function's return type.
+export function hasTypeOperatorLineOwner(line: SyntaxNode): boolean {
   let prev = line.prevSibling;
   while (prev && SKIPPABLE.has(prev.name)) prev = prev.prevSibling;
   if (!prev) {
@@ -165,7 +187,7 @@ export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
     }
     return false;
   }
-  if (prev.name === "LuauTypeUnionLineContinuation") {
+  if (prev.name === "LuauTypeOperatorLineContinuation") {
     return !hasDescendant(prev, "LuauAssignmentOperation");
   }
   return (
@@ -175,9 +197,16 @@ export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
   );
 }
 
+// Whether the member line `line` begins with an intersection's `&`
+// (`& { y: string }`), rather than a union's `|`.
+export function continuesIntersection(line: SyntaxNode): boolean {
+  return hasDescendant(line, "LuauTypeIntersectionLineOperator");
+}
+
 // Report a union member line that continues no type (`print(1)` then
-// `-- note` then `| string`), which Luau rejects.
-export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext): void {
+// `-- note` then `| string`), which Luau rejects. An intersection member
+// line that continues no type is left to Luau, which reports the `&` itself.
+export function reportUnownedTypeOperatorLine(line: SyntaxNode, ctx: LowerContext): void {
   const raw = ctx.read(line.from, line.to);
   const text = raw.trim();
   const from = line.from + raw.length - raw.trimStart().length;

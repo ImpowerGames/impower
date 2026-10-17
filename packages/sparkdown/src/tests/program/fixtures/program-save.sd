@@ -8,11 +8,11 @@ store peek = nil
 
 scene start
   & alias = shared
-  & local function cell()
-  &   local n = 10
-  &   bump = function() n = n + 1 end
-  &   peek = function() return n end
-  & end
+  local function cell()
+    local n = 10
+    bump = function() n = n + 1 end
+    peek = function() return n end
+  end
   & cell()
   choose
     * [one]

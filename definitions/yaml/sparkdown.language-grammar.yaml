@@ -1116,8 +1116,10 @@ variables:
   # The start of a line that ends the type before it, and every rule that
   # contains the type: any line with text that does not start with `|`. A
   # line starting with `|` continues the type as a union, and a blank line
-  # keeps it open for the line after. `&` and `->` begin Sparkdown
-  # statements at the start of a line, so they end the type there.
+  # keeps it open for the line after. In story text `&` begins a Luau
+  # statement and `->` a divert at the start of a line, so they end the type
+  # there; in Luau code an `&` line continues the type as its own node
+  # (`LuauTypeOperatorLineContinuation`).
   LUAU_TYPE_LINE_BREAK: (?:^{{WS}}*[^|\s])
   # A block comment that closes on its own line, with the whitespace after
   # it. Its text may hold a `]` that does not close it (`--[[a]b]]`,
@@ -4300,7 +4302,7 @@ repository:
     # in here made every such line parse as a `LuauLineComment` and vanish from
     # the preview. Luau comments belong ONLY to genuine Luau-code contexts, which
     # each reach comments directly: `LuauExpression` (the sibling in every pure
-    # `LuauBlockBody` / `LuauExplicitStatement` scope) includes `#LuauComment`,
+    # `LuauBlockBody` scope) includes `#LuauComment`,
     # and function/param/define bodies include it themselves. See
     # [[feedback_grammar_golden_rule]]: separate the two contexts in the grammar
     # rather than disambiguate downstream. Regression: FrontMatterAndCommentContext.test.ts.
@@ -4337,6 +4339,9 @@ repository:
 
   # Story code islands end at their line. A `do` here uses the bounded
   # counterpart so its unfinished body cannot capture the next prose line.
+  # Only story text has this marker: a function body is Luau throughout,
+  # and a `&` that starts a line there continues a type
+  # (`LuauTypeOperatorLineContinuation`).
   LuauSparkdownExplicitStatement:
     begin: ({{WS}}*)([&])($|{{WS}}+)
     beginCaptures:
@@ -4372,49 +4377,6 @@ repository:
       - { include: "#LuauInvalidStatementToken" }
     # A closer the statement's own blocks did not take closes a block around
     # the statement (`repeat & x() until c`), so the statement ends before it.
-    end: (?={{BEAT}})|$|(?=^)|(?={{WS}}*{{LUAU_CLOSER}})
-
-  LuauExplicitStatement:
-    begin: ({{WS}}*)([&])($|{{WS}}+)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauExplicitStatementMark" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-    # `LuauCommaSeparator` is in the pattern list so multi-target /
-    # multi-RHS reassignment statements (`& a, b = 10, 20`) can break
-    # across commas at the statement level. The lowerer reconstructs
-    # the target list from the siblings of the `LuauAssignmentOperation`.
-    # Function-call commas live inside `LuauFunctionCallParameters` and
-    # are scoped there — they don't reach this pattern.
-    patterns:
-      # Declarations need to come before LuauExpression so `& store x = 5`
-      # parses as a `LuauSparkdownVariableDefinition` rather than an
-      # expression where `store` would degrade to a bare identifier
-      # reference. This makes the explicit form (`& store x = 5`)
-      # interchangeable with the implicit form (`store x = 5`). An `&`
-      # statement is one line, so it declares with the narrative rule.
-      # `LuauFunctionDefinition` comes first, so `& local function f()`
-      # is a function rather than a declaration of `function`.
-      - { include: "#LuauFunctionDefinition" }
-      # A written `& do ... end` is a Luau island, including its return.
-      # Its body must not fall through to the narrative do-block at root.
-      - { include: "#LuauDoBlock" }
-      - { include: "#LuauSparkdownVariableDefinition" }
-      - { include: "#LuauDeclarations" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-    # A statement ends at its line's end; it only stands at the start of a
-    # line when a value that spans lines, such as an unfinished if
-    # expression, took the line break and ended there, which ends it too.
-    # It ends before a closer of a block around it, as
-    # `LuauSparkdownExplicitStatement` does.
     end: (?={{BEAT}})|$|(?=^)|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauExplicitStatementMark:
@@ -7650,7 +7612,7 @@ repository:
           - { include: "#PunctuationParenOpen" }
     patterns:
       - { include: "#LuauTypeTrailingBlockCommentClose" }
-      - { include: "#LuauTypeUnionLineContinuation" }
+      - { include: "#LuauTypeOperatorLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauVariadicParameter" }
       - { include: "#LuauFunctionParameter" }
@@ -7988,16 +7950,12 @@ repository:
       - { include: "#LuauAlternatorBlocks" }
       # `LuauDeclarations` covers declarations (`local x = …`,
       # `function …`, `break`, `continue`, `goto`, labels,
-      # type declarations). `LuauExplicitStatement` covers the `& …`
-      # discard-call / assignment statement form. Both are valid inside
-      # pure-luau bodies (function definitions, `if`/`for`/`while`/`do`
-      # blocks). Without them, a body like
-      #   function f() if cond then & g() end end
-      # cannot match `& g()` inside the `if` body, so the if-block
-      # terminates early and the discard-call ends up at the function
-      # level (outside the conditional) — silently broken bytecode.
+      # type declarations), valid inside every pure-luau body (function
+      # definitions, `if`/`for`/`while`/`do` blocks). A pure-Luau body has
+      # no `&` statement marker: everything in it is Luau, so a call or an
+      # assignment is written as it is in Luau, and a line that starts with
+      # `&` continues a type (`LuauTypeOperatorLineContinuation`).
       - { include: "#LuauDeclarations" }
-      - { include: "#LuauExplicitStatement" }
       - { include: "#LuauReassignment" }
 
   # Shared body-content pattern set for every sparkdown-context block-shaped
@@ -8027,7 +7985,7 @@ repository:
   # Pure-Luau counterpart of `LuauSparkdownBlockBody`. Used inside every
   # Luau-only block rule (`LuauIfBlock`, `LuauForLoop`, `LuauFunctionDefinition`,
   # etc.). `LuauControlBlock` already transitively includes
-  # `LuauDeclarations` / `LuauExplicitStatement` / etc., so the
+  # `LuauDeclarations` / `LuauReassignment` / etc., so the
   # body tail here is shorter than the Sparkdown variant.
   #
   # `LuauCommaSeparator` is included as a forgiveness measure — bare
@@ -8037,7 +7995,7 @@ repository:
   LuauBlockBody:
     patterns:
       - { include: "#LuauTypeTrailingBlockCommentClose" }
-      - { include: "#LuauTypeUnionLineContinuation" }
+      - { include: "#LuauTypeOperatorLineContinuation" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauMinusLineContinuation" }
@@ -10440,7 +10398,7 @@ repository:
     # in here made every such line parse as a `LuauLineComment` and vanish from
     # the preview. Luau comments belong ONLY to genuine Luau-code contexts, which
     # each reach comments directly: `LuauExpression` (the sibling in every pure
-    # `LuauBlockBody` / `LuauExplicitStatement` scope) includes `#LuauComment`,
+    # `LuauBlockBody` scope) includes `#LuauComment`,
     # and function/param/define bodies include it themselves. See
     # [[feedback_grammar_golden_rule]]: separate the two contexts in the grammar
     # rather than disambiguate downstream. Regression: FrontMatterAndCommentContext.test.ts.
@@ -12046,28 +12004,71 @@ repository:
   # (`{ a,` then `[2] = b }`), so `LuauTable` leaves this rule out; every other
   # context that includes `LuauLineContinuation` includes it. A `[[` or `[=[`
   # line begins a long string.
-  # A line of Luau code that begins with `|` continues, as a union member,
-  # the type that ended an earlier line, when a comment-only line came
-  # between (`local v: number` then `-- note` then `| string`). A type takes
-  # in blank lines and a `|` line itself, but a `--` line ends it
-  # (`LUAU_TYPE_LINE_BREAK`), since outside Luau code a `--` line is story
-  # text. Only `LuauBlockBody` and `LuauFunctionParameters` include this rule:
-  # in a narrative body a `|` line is an alternator arm. Types do not reach the runtime, so the
-  # lowerer skips the line, and a declaration that ended before it takes the
-  # `= value` the line ends with.
-  LuauTypeUnionLineContinuation:
-    begin: ^({{WS}}*)(?=[|](?![|]))
+  # A line of Luau code that begins with `|` or `&` continues, as a union or
+  # intersection member, the type that ended an earlier line. A type takes in
+  # blank lines and a `|` line itself, but a `--` line ends it, since outside
+  # Luau code a `--` line is story text, and so does an `&` line, since in
+  # story text `&` marks a Luau statement (`LUAU_TYPE_LINE_BREAK`). So a `|`
+  # line is this rule after a comment-only line (`local v: number` then
+  # `-- note` then `| string`), and an `&` line always is (`type T = A` then
+  # `& B`). Only `LuauBlockBody` and `LuauFunctionParameters` include this
+  # rule: in a narrative body a `|` line is an alternator arm and an `&` line
+  # a statement. Types do not reach the runtime, so the lowerer skips the
+  # line, and a declaration that ended before it takes the `= value` the line
+  # ends with.
+  #
+  # The begin takes an `&` itself: a type that began at the `&` would begin
+  # at the line's start, where `LUAU_TYPE_LINE_BREAK` ends it before it reads
+  # anything. The type after the `&` is `LuauTypeLiteral`.
+  #
+  # lookaround: LuauComment and the enclosing body's declarations and
+  # returns (LuauVariableDefinition, LuauReturnStatement) own a block
+  # comment and the statement after it later on the line. No pattern of
+  # this rule can close it before them, so its end carries the boundary
+  # (§10.1), as LuauVariableDefinition's end does with the same variables.
+  LuauTypeOperatorLineContinuation:
+    begin: ^({{WS}}*)(?:([&])({{WS}}*)|(?=[|](?![|])))
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauTypeIntersectionLineOperator" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauTypeBinaryOperation" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauComment" }
-    # It ends where its type does: at the next line of code, the line's end,
-    # or a comma or closing bracket (`| string)` in a parameter list).
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|[,;)\]}])
+      - { include: "#LuauTypeLiteral" }
+    # It ends where its type does: at the line's end, at the start of the
+    # next line of code that is not a `|` line (`LUAU_TYPE_LINE_BREAK`; the
+    # begin has taken this line's own `&`, so a following `&` line is a
+    # member line of its own, at any indentation), or at a comma or closing
+    # bracket (`| string)` in a parameter list). It also ends, as
+    # `LuauVariableDefinition` does, before a statement later on the line,
+    # which Luau reads as the next statement: at whitespace before it
+    # (`& number local a = 9`), at its keyword right after the type
+    # (`& {}local a = 9`, `& {}return v`, `& {}function g() end`: any
+    # reserved word that cannot start a type, as `LuauTypeAssignment` ends,
+    # or, only after a type has ended, a declaration's stop word, some of
+    # which are contextual and may name the member itself, as in
+    # `& store`), and before a block comment that such a statement follows,
+    # after the type (`& number --[[c]] local a`) or after the `= value` the
+    # line ends with, which stays in it. A name glued to the type
+    # (`& {}a = 9`) is read into it as a declaration's annotation reads it
+    # (#2044); Luau's reading of the line still finds the statement there.
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|[,;)\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}})(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
+
+  # The `&` that begins an intersection member line. Its node tells the
+  # lowerer the line is an intersection: Luau reports one that continues no
+  # type itself, since it reads that `&` as the start of an expression.
+  LuauTypeIntersectionLineOperator:
+    tag: typeOperator
+    name: keyword.operator.type.luau
 
   LuauIndexerLineContinuation:
     begin: ^({{WS}}*)(?={{LUAU_INDEXER_LINE_CONTINUATION}})

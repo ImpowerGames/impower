@@ -125,7 +125,7 @@ import { Location, Position } from "./Location";
 import { breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
-import { UNREAD_TOKENS } from "../utils/unreadTokens";
+import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 
 // ---------------------------------------------------------------------------
 // Results
@@ -634,6 +634,16 @@ function nameTest(pattern: RegExp): (node: SyntaxNode) => boolean {
   return (node) => (results[node.type.id] ??= pattern.test(node.type.name));
 }
 const isQuotedString = nameTest(QUOTED_STRING);
+// The nodes of an intersection member line that are read from the tree, not
+// by Luau's lexer (`Tokenizer.read`): a string, which the tree reads with
+// its interpolation, a `new`, Sparkdown's own expressions, and a value.
+const readsFromTree = (node: SyntaxNode): boolean =>
+  isQuotedString(node) ||
+  node.name === RAW_STRING ||
+  node.name === INTERPOLATED_STRING ||
+  node.name === "LuauNewExpression" ||
+  SPARKDOWN_EXPRESSIONS.has(node.name) ||
+  node.name === "LuauAssignmentOperation";
 const isNumber = nameTest(NUMBER);
 const isComment = nameTest(COMMENT);
 const isNeutral = nameTest(NEUTRAL);
@@ -787,7 +797,42 @@ class Tokenizer {
       }
       if (node.type.isError) return;
     }
-    // A token the grammar left unread is read as Luau's lexer reads it.
+    // An intersection member line (`& { y: string }`) is read as Luau's
+    // lexer reads it, its `&` included: the grammar cannot see whether a type
+    // comes before the line, so Luau's reading decides, and where none does
+    // every error of that reading, its recovery's included, is Luau's to
+    // report (#1374). What the tree reads with meaning of its own, a string
+    // (its interpolation), a `new` or one of Sparkdown's own expressions, and
+    // the `= value` the line ends with, is read from the tree as anywhere
+    // else, so a statement after the member on its line keeps it.
+    if (name === "LuauTypeOperatorLineContinuation" && containsUnreadToken(node)) {
+      // Only what Luau's lexer reads is unread: what the tree reads reports
+      // its own errors as anywhere else.
+      const lexUnread = (start: number, end: number): void => {
+        const first = this.tokens.length;
+        this.lex(start, end);
+        for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;
+      };
+      let at = from;
+      const visit = (parent: SyntaxNode): void => {
+        for (let child = parent.firstChild; child; child = child.nextSibling) {
+          if (child.to <= at) continue;
+          if (child.from >= to) return;
+          if (readsFromTree(child)) {
+            lexUnread(at, Math.max(at, child.from));
+            this.read(child);
+            at = Math.max(at, child.to);
+          } else {
+            visit(child);
+          }
+        }
+      };
+      visit(node);
+      lexUnread(at, to);
+      return;
+    }
+    // A token the grammar left unread is read as Luau's lexer reads it, as is
+    // the `&` that begins an intersection member line (`UNREAD_TOKENS`).
     if (UNREAD_TOKENS.has(name)) {
       const first = this.tokens.length;
       this.lex(from, to);
@@ -4334,11 +4379,26 @@ const WRAPPER = /_(begin|content|end)(_c\d+)*$/;
  * lowerer that reaches a node takes the statements that begin in it and skips
  * the nodes they continue into. A name the block does not declare is read as
  * a global.
+ *
+ * `afterType` reads the block as the rest of a type: a function body whose
+ * first lines continue its return type as union or intersection members
+ * (`function f(): A` then `& B`), which the block's own nodes do not hold.
+ * The reading begins with a type alias of its own (`type _ = any`), so Luau
+ * reads those lines as members of it, and a statement after one on its line
+ * (`& {}a = 9`) begins in that line's node; the alias is no statement of the
+ * block.
  */
-export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string): LuauAstUnit {
+export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string, afterType = false): LuauAstUnit {
   const index = lineIndex(documentText);
   const tokenizer = new Tokenizer(documentText, index);
   const refs: TreeNodeRef[] = [];
+  const at = nodes[0]?.from;
+  if (afterType && at !== undefined) {
+    tokenizer.synthetic("name", "type", at);
+    tokenizer.synthetic("name", "_", at);
+    tokenizer.synthetic("symbol", "=", at);
+    tokenizer.synthetic("name", "any", at);
+  }
   for (const node of nodes) {
     tokenizer.source = refs.length;
     refs.push(ref(node));
@@ -4346,7 +4406,9 @@ export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string
   }
   tokenizer.source = -1;
   const first = tokenizer.tokens[0];
-  return readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0));
+  const unit = readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0));
+  if (!afterType || at === undefined) return unit;
+  return { ...unit, statements: unit.statements.slice(1) };
 }
 
 /**

@@ -12,6 +12,10 @@ Run `init` with `--record <dir>/run.json --checkout <main checkout> --repo <owne
 
 `init` resolves the writer model, sets the concurrency bound and refuses a second coordinator for the same Feature; continue in the one it names, or ask the maintainer. It prints `dispatchBlocked` while your recorded mode holds dispatch.
 
+## Two repositories
+
+A run works across the repositories `.agents/repos.json` names, at the position its cutover switch has when `init` runs, and keeps them until it ends. Pull requests, CI, protection, merges and writers' branches are always in the code repository, which `--repo` names. The Feature and its slices, their dependencies, Effort and comments, each PR's [review thread](../../references/publishing.md#the-review-thread), the status comment, checkpoint decisions, the final report and the state branch with the run record are in the tickets repository: the code repository while the switch is off, and the internal repository once it is on, which `init` then records beside it. Once tickets live apart, a ticket's PRs are the shared account's PRs whose head branch names it (`<type>/<N>-`, with or without a prefix); a search for its number only narrows the list. The coordinator pointer is then keyed by the internal repository, so an internal Feature never meets a code repository issue of the same number.
+
 ## The periodic check-in
 
 The coordinator checks in every 30 minutes whether or not a writer messaged it. Writers message at every decision point; the check-in catches a message that was lost and a writer that died. The interval follows from the prompt cache, which lasts an hour: the scheduler fires a recurring job up to 10 percent late, so an hourly job can miss the cache and re-read the whole context at full price, which costs more than the two cheaper check-ins it replaces.

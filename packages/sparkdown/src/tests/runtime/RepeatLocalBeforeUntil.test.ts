@@ -75,13 +75,14 @@ describe("a repeat loop whose body ends with a local declaration", () => {
   });
 });
 
-// An `until` after an `&` statement on the loop's line is never read into
-// the statement: no rule reads `until` but a loop's end (#1906), so the
-// statement ends before it and the loop takes it, as Luau reads it.
-describe("a repeat loop whose until follows an & statement", () => {
+// An `until` after a statement on the loop's line, a declaration or an `&`
+// statement, is never read into the statement: no rule reads `until` but a
+// loop's end (#1906), so the statement ends before it and the loop takes it,
+// as Luau reads it.
+describe("a repeat loop whose until follows a statement on its line", () => {
   test("inside a block left without its end, reports Luau's error at the until", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "function f()\n  repeat\n    if true then\n      & local z = 1 until true\n    end\nend\n",
+      "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n",
     );
     expect(ctx.errorMessages).toEqual([
       "Expected 'end' (to close 'then' at line 3), got 'until'",

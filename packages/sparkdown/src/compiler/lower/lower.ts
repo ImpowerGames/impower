@@ -21,8 +21,10 @@ import {
   leadingReturnTypeQualifier,
   reportExtraTypeQualifiers,
   reportUntakenContinuation,
-  hasTypeUnionLineOwner,
-  reportUnownedTypeUnionLine,
+  continuesIntersection,
+  hasTypeOperatorLineOwner,
+  reportUnownedTypeOperatorLine,
+  startsWithReturnTypeMembers,
 } from "./utils/lineContinuation";
 import {
   lowerAudioLine,
@@ -319,7 +321,8 @@ const TREE_LOWERED_STATEMENTS = nodeNameSet(["LuauSparkdownChooseBlock"]);
  * children they continue into are skipped, and every other child is a
  * Sparkdown statement (a display line, a choice, a divert), lowered as its
  * node. A line that continues the value before it but that no statement
- * takes is reported, as is a union member line that continues no type.
+ * takes is reported, as is a union or intersection member line that
+ * continues no type.
  *
  * Each statement of a block's body is recorded with the objects it lowered
  * to (see `StatementShape`), when the context keeps shapes.
@@ -379,6 +382,11 @@ function lowerBlockStatements(
     );
     first = qualifier.lines[qualifier.lines.length - 1]?.nextSibling ?? null;
   }
+  // Or continue it as union or intersection members (`function f(): A` then
+  // `& B`), which are part of the type too: the body is read from its start
+  // as the rest of a type, so a statement after a member on its line
+  // (`& {}a = 9`) is read where it begins.
+  const afterType = startsWithReturnTypeMembers(parent, first);
   const nodes: SyntaxNode[] = [];
   for (let child = first; child; child = child.nextSibling) {
     if (!skipNames.has(child.name)) nodes.push(child);
@@ -391,7 +399,7 @@ function lowerBlockStatements(
     indexOf.get(`${ref.name}@${ref.from}`);
   const beginning: LuauStatementSource[][] = nodes.map(() => []);
   const readFrom = (from: number) => {
-    const read = readBlockAst(nodes.slice(from), ctx);
+    const read = readBlockAst(nodes.slice(from), ctx, afterType && from === 0);
     for (let i = from; i < nodes.length; i++) beginning[i] = [];
     for (const source of read?.unit.statements ?? []) {
       const at = source.nodes[0] && nodeIndex(source.nodes[0]);
@@ -420,7 +428,7 @@ function lowerBlockStatements(
       const at = nodeIndex(ref);
       if (at === undefined || at <= i) continue;
       const node = nodes[at]!;
-      if (isLineContinuation(node) || node.name === "LuauTypeUnionLineContinuation") {
+      if (isLineContinuation(node) || node.name === "LuauTypeOperatorLineContinuation") {
         continue;
       }
       const text = ctx.read(node.from, node.to);
@@ -466,15 +474,28 @@ function lowerBlockStatements(
           )
         : [];
     if (taken.has(i) && statements.length === 0) continue;
-    if (child.name === "LuauTypeUnionLineContinuation") {
-      // A union member line after a comment line: types do not reach the
-      // runtime, and the declaration before it took it. One that continues
-      // no type is Luau's error.
-      if (!taken.has(i) && !hasTypeUnionLineOwner(child)) {
-        reportUnownedTypeUnionLine(child, ctx);
+    const ownedTypeLine =
+      child.name === "LuauTypeOperatorLineContinuation" &&
+      (taken.has(i) || hasTypeOperatorLineOwner(child));
+    if (
+      child.name === "LuauTypeOperatorLineContinuation" &&
+      !(ownedTypeLine && statements.length > 0)
+    ) {
+      // A union member line after a comment line, or an intersection member
+      // line: types do not reach the runtime, and the declaration before it
+      // took it. One that continues no type is Luau's error. Luau reads an
+      // `&` that begins a statement as an expression and reports it in its
+      // own words (a function body has no `&` marker, so `& print(1)` is
+      // that error), and the lowerer adds nothing to it.
+      if (!ownedTypeLine && !continuesIntersection(child)) {
+        reportUnownedTypeOperatorLine(child, ctx);
       }
       continue;
     }
+    // A member line that a statement begins in after its type, with nothing
+    // between them that the grammar ends the line at (`& {}a = 9`, which Luau
+    // reads as the type `{}` and the statement `a = 9`), is lowered as the
+    // statements the converter read from it, as any other child is.
     if (isLineContinuation(child)) {
       // A continuation line that no statement before it took.
       if (!taken.has(i)) reportUntakenContinuation(child, previous, ctx);

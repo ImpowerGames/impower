@@ -361,12 +361,11 @@ describe("Evaluation — ported from ink fixture rewrites", () => {
     // serves as a pseudo-ref. The callee mutates `r.value`; the caller
     // observes the change.
     //
-    // This test also exercises recursive `& fn(args)` discard calls
-    // inside an `if` body, which previously hung because the grammar's
-    // `LuauControlBlock` rule didn't include `LuauExplicitStatement` —
-    // the recursive call ended up siblings to the `if` instead of
-    // nested inside it. Fixed by adding `LuauExplicitStatement` to the
-    // `LuauControlBlock` patterns.
+    // This test also exercises recursive discard calls inside an `if`
+    // body, which once hung because the grammar left the call a sibling
+    // of the `if` instead of nesting it there. The calls were then
+    // written `& fn(args)`; a function body has no `&` marker since
+    // #1374, and they are written `fn(args)`.
     const ctx = makeRuntimeStoryFromFile("evaluation", "factorial-by-reference");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("120\n");

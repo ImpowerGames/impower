@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { checkReviewRound, checkReviewerPlace, plannedReviewerPending, recoverHandoffLock, reviewAccounting, validateReviewRecovery } from "../../../scripts/agent-handoff.mjs";
+import { readRepos } from "../../repos.mjs";
 import * as run from "./feature-run.mjs";
 import * as rc from "./review-checkpoint.mjs";
 
@@ -734,7 +735,12 @@ try {
 
   // The command line runs the same path: evidence writes the diff the
   // acceptance hash binds, and acceptance-check reads the PR alone.
-  const main = (args) => rc.main(args, { clientFor: () => client, gitFor: () => repo });
+  // Each cutover position is pinned from its own copy of the repos file; the
+  // command line runs with the switch off unless a case names the on copy.
+  const committedRepos = readRepos(), INTERNAL = "acme/widgets-internal";
+  const pinRepos = (cutover) => { const file = path.join(tmp, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committedRepos, code: "acme/widgets", internal: INTERNAL, cutover })); return readRepos(file); };
+  const OFF = pinRepos(false), ON = pinRepos(true);
+  const main = (args, repos = OFF) => rc.main(args, { clientFor: () => client, gitFor: () => repo, repos });
   const diffFile = path.join(artifacts, "unreviewed.diff");
   const printed = main(["evidence", "--record", takeoverFile, "--ticket", "42", "--pr", "500", "--diff-out", diffFile]);
   assert.equal(printed.range.diffSha256, rc.localGit(checkout, { base: () => baseCommit }).range(c.round4, c.final).diffSha256);
@@ -745,6 +751,37 @@ try {
   main(["trust-predecessor", "--record", takeoverFile, "--coordinator", "local_next", "--expect-revision", String(run.readRecord(takeoverFile).revision), "--ticket", "42", "--session", "local_older", "--source", "Feature #40 status comment"]);
   assert.ok(rc.trustedCoordinators(run.readRecord(takeoverFile), 42).includes("local_older"));
   assert.throws(() => main(["trust-predecessor", "--record", takeoverFile, "--coordinator", "local_next", "--expect-revision", String(run.readRecord(takeoverFile).revision), "--ticket", "42", "--session", "local_writer", "--source", "x"]), /wrote for #42/);
+
+  // With the run's tickets apart from its code, the PR stays on the code
+  // repository while its review thread is the ticket: the evidence reads the
+  // reports, adjudications and decisions from the ticket's comments, the
+  // decision is posted there and never on the public PR, and a restoration
+  // without a record finds the thread through the switch and --ticket.
+  {
+    const calls = [];
+    const ghRun = (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return args[0] === "pr" ? JSON.stringify({ state: "OPEN", isDraft: true, headRefOid: "h", headRefName: "feat/42-thing", statusCheckRollup: [] }) : "[[]]"; };
+    const split = { repository: "acme/widgets", ticketsRepository: INTERNAL };
+    const splitClient = rc.checkpointClient(split, checkout, { run: ghRun });
+    splitClient.pull(500); splitClient.comments(500, 42);
+    rc.checkpointClient({ repository: "acme/widgets" }, checkout, { run: ghRun }).comments(500, 42);
+    assert.deepEqual(calls, ["gh pr view 500 --repo acme/widgets --json state,isDraft,headRefOid,headRefName,statusCheckRollup", `gh api --paginate --slurp repos/${INTERNAL}/issues/42/comments`, "gh api --paginate --slurp repos/acme/widgets/issues/500/comments"]);
+    assert.equal(rc.postCommand(split, 500, 42, "body.md"), `gh issue comment 42 -R ${INTERNAL} --body-file body.md`);
+    assert.equal(rc.postCommand({ repository: "acme/widgets" }, 500, 42, "body.md"), "gh pr comment 500 --body-file body.md", "with one repository the decision is posted on the PR, as before");
+    const asked = [];
+    const onTicket = (ticketHolds) => ({ ...client, comments: (pr, ticket) => { asked.push([pr, ticket]); return ticket === 42 && ticketHolds ? structuredClone(comments) : []; } });
+    const splitRecord = { ...run.readRecord(takeoverFile), ticketsRepository: INTERNAL };
+    const fromTicket = rc.gatherEvidence({ record: splitRecord, ticket: 42, pr: 500, client: onTicket(true), git: repo });
+    assert.deepEqual(asked, [[500, 42]], "the evidence asks for PR #500's review thread on ticket #42");
+    const fromPr = rc.gatherEvidence({ record: run.readRecord(takeoverFile), ticket: 42, pr: 500, client, git: repo });
+    assert.ok(fromPr.reports.length > 0 && fromPr.reports.every((r) => r.adjudication) && fromPr.decisions.length > 0, "the PR's thread holds adjudicated reports and decisions");
+    assert.deepEqual([fromTicket.due, fromTicket.reports, fromTicket.decisions], [fromPr.due, fromPr.reports, fromPr.decisions], "the ticket's comments give the same reports, adjudications and decisions the PR gave with one repository");
+    const prOnly = rc.gatherEvidence({ record: splitRecord, ticket: 42, pr: 500, client: onTicket(false), git: repo });
+    assert.ok(prOnly.blockers.some((b) => new RegExp(`report \\d+ \\(round \\d+, [^)]+\\) is not on review thread ${INTERNAL}#42`).test(b)), prOnly.blockers.join(" | "));
+    let named;
+    const restored = rc.main(["restore", "--repo", "acme/widgets", "--checkout", checkout, "--pr", "500", "--ticket", "42", "--trust", "local_coord"], { repos: ON, gitFor: () => repo, clientFor: (names) => { named = names; return onTicket(true); } });
+    assert.deepEqual(named, split, "without a record, the switch names the tickets repository");
+    assert.ok(restored.decisions.length > 0 && asked.at(-1)[1] === 42);
+  }
 
   // A merge after the reviewed head counts as one reviewed-elsewhere commit
   // only when its other parent is on the base; a merge of anything else is
