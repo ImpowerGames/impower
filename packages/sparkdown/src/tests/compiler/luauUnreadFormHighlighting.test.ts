@@ -588,6 +588,10 @@ test.each([
   ["@[deprecated [=[x] function]=]]\n", "@[deprecated [=[x] function]=]]\n"],
   // Story reads `\"` as an escaped quote.
   ['@[deprecated("\\"] function")]\n', '@[deprecated(""] function")]\n'],
+  ["@[deprecated [=[x]]=]] extra ]=]] function\n", "@[deprecated [=[x]]=]] extra ]=]] function\n"],
+  ["@[deprecated(`] function`)]\n", "@[deprecated(`] function`)]\n"],
+  ["@[native -- ] function\n", "@[native -- ] function\n"],
+  ["@native --[=[x]]=] extra ]=] function\n", "@native --[=[x]]=] extra ]=] function\n"],
 ])("a story line whose attribute argument holds `function` stays story (#1924): %j", (source, output) => {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
@@ -599,6 +603,8 @@ test.each([
 test.each([
   ["@[deprecated{reason = [====[a]=====]b]====]}] function first() return 7 end\nThe answer is {first()}.\n"],
   ["@[deprecated{reason = [=======[a]=====]b]=======]}] function first() return 7 end\nThe answer is {first()}.\n"],
+  ["@[deprecated{reason = [========[a]=========]b]========]}] function first() return 7 end\nThe answer is {first()}.\n"],
+  ["@[deprecated{reason = [=[a]]=]}] function first() return 7 end\nThe answer is {first()}.\n"],
 ])("a long string holding a close of another level keeps its function (#1924): %j", (source) => {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);

@@ -372,7 +372,6 @@ sparkdown [0..248]
  ├─ Newline [190..191]: "\n"
  ├─ LuauFunctionAttributes [191..209]
  │   ├─ LuauFunctionAttributes_begin 191
- │   │   └─ LuauFunctionAttributes_begin_c1 191
  │   ├─ LuauFunctionAttributes_content [191..209]
  │   │   ├─ LuauAttribute [191..198]
  │   │   │   ├─ LuauAttribute_c1 [191..192]

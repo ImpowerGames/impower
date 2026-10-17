@@ -833,57 +833,64 @@ variables:
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
   # An attribute on a line, for a lookahead: a name, or a list that closes
   # on the line.
-  LUAU_ATTRIBUTE_ON_LINE: (?:{{LUAU_ATTRIBUTE_NAME_ON_LINE}}|@\[{{LUAU_ATTRIBUTE_LIST_TEXT}}*\])
+  _LUAU_ATTRIBUTE_ON_LINE_: (?:{{LUAU_ATTRIBUTE_NAME_ON_LINE}}|@\[{{_LUAU_ATTRIBUTE_LIST_TEXT_}}*\])
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_IDENTIFIER}})
-  # An attribute list's text on its line: a quoted string, a long bracket
-  # that closes on the line (a long string, or a block comment's after its
-  # `--`), or any other character but a bracket or a quote. So a `]` in an
-  # argument's string (`@[deprecated{ reason = "]" }]`, `[====[x]y]====]`)
-  # does not close the list, a list never runs on past its own `]` into
-  # the next (which would make a line of many lists slow to match), and
-  # text inside a string is never read as the function after the list.
-  LUAU_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|\[(?:{{LUAU_PLAIN_LONG_BRACKET_LEVELS_TO_3}}|{{LUAU_LONG_BRACKET_LONGER_LEVEL}})|[^\[\]"'\r\n])
+  # An attribute list's text on its line, read as Luau's tokens are: a
+  # quoted or backtick string, a long string or a block comment's long
+  # bracket, which closes only at a close of its own level, a single `-`,
+  # or any other character but a bracket, a quote or a `-`. A `--` that no
+  # long bracket follows begins a line comment, which the list never closes
+  # past. So nothing inside a string or a comment is read as the list's
+  # `]` or as the function after it, and a list never runs on past its own
+  # `]` into the next, so a line of many lists is read once.
+  _LUAU_ATTRIBUTE_LIST_TEXT_: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{_LUAU_LIST_LONG_BRACKET_}}|{{LUAU_DASHES_BEFORE_LONG_BRACKET}}|{{LUAU_SINGLE_DASH}}|[^\[\]"'`\-\r\n])
   # A quoted string on its line. A backslash is only ever an escape with
   # the character after it, so an escaped quote (`"\"] function"`) never
   # closes the string, and a run of backslashes reads one way.
-  LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}})
+  LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"(?:\\.|[^"\\\r\n])*")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'(?:\\.|[^'\\\r\n])*')
-  # A long bracket of level four or more, for a lookahead. Levels four to
-  # seven close only at a close of their own level (`[====[a]=====]b]====]`);
-  # a longer level closes at its first close of level eight or more. Its
-  # spelling for a lookbehind (`LUAU_PLAIN_BLOCK_COMMENT_LONGER_LEVEL`)
-  # takes no `]`, since a lookbehind holds no lookaround in VS Code.
-  LUAU_LONG_BRACKET_LONGER_LEVEL: (?:{{LUAU_LONG_BRACKET_LEVEL_4}}|{{LUAU_LONG_BRACKET_LEVEL_5}}|{{LUAU_LONG_BRACKET_LEVEL_6}}|{{LUAU_LONG_BRACKET_LEVEL_7}}|{{LUAU_LONG_BRACKET_LEVEL_8_OR_MORE}})
-  # lookaround: each level's text takes a `]` that does not begin its own
-  # close, and the long bracket ends at that close, so LUAU_ATTRIBUTE_LIST_TEXT
-  # never reads a string's text as the list's `]` or what follows it.
-  LUAU_LONG_BRACKET_LEVEL_4: ={4}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={4}\]))*\]={4}\]
-  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, at level five.
-  LUAU_LONG_BRACKET_LEVEL_5: ={5}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={5}\]))*\]={5}\]
-  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, at level six.
-  LUAU_LONG_BRACKET_LEVEL_6: ={6}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={6}\]))*\]={6}\]
-  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, at level seven.
-  LUAU_LONG_BRACKET_LEVEL_7: ={7}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={7}\]))*\]={7}\]
-  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, for every level from eight.
-  LUAU_LONG_BRACKET_LEVEL_8_OR_MORE: ={8,}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={8,}\]))*\]={8,}\]
+  LUAU_BACKTICK_STRING_ON_LINE: (?:`(?:\\.|[^`\\\r\n])*`)
+  # lookaround: a long bracket on its line, for a lookahead, whose text
+  # takes any `]` that does not begin the close of the opening's own level
+  # (`[====[a]=====]b]====]`), so _LUAU_ATTRIBUTE_LIST_TEXT_ never reads a
+  # string's text as the list's `]` or what follows it. The named group
+  # holds the opening's `=`s; _LUAU_ATTRIBUTE_LIST_TEXT_ appears once in
+  # _LUAU_FUNCTION_ATTRIBUTES_AHEAD_, the only pattern that holds it.
+  _LUAU_LIST_LONG_BRACKET_: (?:\[(?<listLevel>=*)\[(?:[^\]\r\n]|\](?!\k<listLevel>\]))*\]\k<listLevel>\])
+  # lookaround: the `--` of a block comment, whose long bracket
+  # _LUAU_LIST_LONG_BRACKET_ then reads; a `--` before anything else is a
+  # line comment, which _LUAU_ATTRIBUTE_LIST_TEXT_ leaves unread.
+  LUAU_DASHES_BEFORE_LONG_BRACKET: (?:--(?=\[=*\[))
+  # lookaround: a `-` that does not begin a comment (`-1`), which
+  # LUAU_DASHES_BEFORE_LONG_BRACKET reads before a block comment's bracket.
+  LUAU_SINGLE_DASH: (?:-(?!-))
   # An attribute list's text on its line, for a lookbehind: as
-  # `LUAU_ATTRIBUTE_LIST_TEXT`, with long brackets as
-  # `LUAU_PLAIN_BLOCK_COMMENT` reads them.
-  LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'\r\n])
+  # `_LUAU_ATTRIBUTE_LIST_TEXT_`, with long brackets as
+  # `LUAU_PLAIN_BLOCK_COMMENT` reads them, since a lookbehind holds no
+  # lookaround or backreference in VS Code. A header's attribute prefix
+  # reads it (`LUAU_HEADER_ATTRIBUTE`).
+  LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'`\r\n])
   # lookaround: LuauFunctionDefinition owns the function after the
   # attributes, and SparkdownStatement owns any other top-level line that
   # begins with `@`; only the function on the line tells them apart.
   # A list's `]` needs no space before the function (`@[native]function`),
   # and an attribute name ends at a word boundary, so `@nativefunction` is
   # one name.
-  LUAU_FUNCTION_ATTRIBUTES_AHEAD: "{{WS}}*{{LUAU_ATTRIBUTES_ON_LINE}}{{LUAU_ATTRIBUTE_TRIVIA}}*{{LUAU_LOCAL_PREFIX}}?function\\b"
+  _LUAU_FUNCTION_ATTRIBUTES_AHEAD_: "{{WS}}*{{_LUAU_ATTRIBUTES_ON_LINE_}}{{LUAU_LOCAL_PREFIX}}?function\\b"
   # Whitespace or a block comment that closes on its line, between
-  # attributes and the function they mark.
+  # attributes and the function they mark, for a lookbehind.
   LUAU_ATTRIBUTE_TRIVIA: (?:{{WS}}|{{LUAU_PLAIN_BLOCK_COMMENT}})
-  # One or more attributes on a line, with any whitespace or block comments
-  # between them (`@native --[[c]] @deprecated`).
-  LUAU_ATTRIBUTES_ON_LINE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}(?:{{LUAU_ATTRIBUTE_TRIVIA}}*{{LUAU_ATTRIBUTE_ON_LINE}})*)
+  # The same, for a lookahead, whose block comment closes only at a close
+  # of its own level, as _LUAU_LIST_LONG_BRACKET_ does.
+  _LUAU_ATTRIBUTE_TRIVIA_AHEAD_: (?:{{WS}}|--{{_LUAU_TRIVIA_LONG_BRACKET_}})
+  # lookaround: as _LUAU_LIST_LONG_BRACKET_, for a block comment between
+  # attributes, with a group of its own name.
+  _LUAU_TRIVIA_LONG_BRACKET_: (?:\[(?<triviaLevel>=*)\[(?:[^\]\r\n]|\](?!\k<triviaLevel>\]))*\]\k<triviaLevel>\])
+  # One or more attributes on a line, each with the whitespace or block
+  # comments after it (`@native --[[c]] @deprecated `). Each part is
+  # written once, so each named group appears once in the pattern.
+  _LUAU_ATTRIBUTES_ON_LINE_: (?:{{_LUAU_ATTRIBUTE_ON_LINE_}}{{_LUAU_ATTRIBUTE_TRIVIA_AHEAD_}}*)+
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
@@ -14367,11 +14374,9 @@ repository:
   # owns that function, so the rule opens only before the attributes and
   # closes before the function.
   LuauFunctionAttributes:
-    begin: ({{WS}}*)(?={{LUAU_FUNCTION_ATTRIBUTES_AHEAD}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
+    # The begin holds no numbered group: VS Code's regex engine numbers no
+    # plain group in a pattern that holds a named one.
+    begin: (?={{_LUAU_FUNCTION_ATTRIBUTES_AHEAD_}})
     patterns:
       - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }

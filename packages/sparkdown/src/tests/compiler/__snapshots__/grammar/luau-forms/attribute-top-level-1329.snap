@@ -223,7 +223,6 @@ sparkdown [0..371]
  ├─ Newline [48..49]: "\n"
  ├─ LuauFunctionAttributes [49..57]
  │   ├─ LuauFunctionAttributes_begin 49
- │   │   └─ LuauFunctionAttributes_begin_c1 49
  │   ├─ LuauFunctionAttributes_content [49..57]
  │   │   └─ LuauAttribute [49..57]
  │   │       ├─ LuauAttribute_c1 [49..50]
@@ -282,10 +281,9 @@ sparkdown [0..371]
  │           └─ LuauEndKeyword [79..82]: "end"
  ├─ Newline [82..83]: "\n"
  ├─ LuauFunctionAttributes [83..93]
- │   ├─ LuauFunctionAttributes_begin [83..85]
- │   │   └─ LuauFunctionAttributes_begin_c1 [83..85]
- │   │       └─ ExtraWhitespace [83..85]: "  "
- │   ├─ LuauFunctionAttributes_content [85..93]
+ │   ├─ LuauFunctionAttributes_begin 83
+ │   ├─ LuauFunctionAttributes_content [83..93]
+ │   │   ├─ ExtraWhitespace [83..85]: "  "
  │   │   └─ LuauAttribute [85..93]
  │   │       ├─ LuauAttribute_c1 [85..86]
  │   │       │   └─ LuauAttributeOperator [85..86]: "@"
@@ -344,7 +342,6 @@ sparkdown [0..371]
  ├─ Newline [118..119]: "\n"
  ├─ LuauFunctionAttributes [119..135]
  │   ├─ LuauFunctionAttributes_begin 119
- │   │   └─ LuauFunctionAttributes_begin_c1 119
  │   ├─ LuauFunctionAttributes_content [119..135]
  │   │   ├─ LuauAttribute [119..126]
  │   │   │   ├─ LuauAttribute_c1 [119..120]
@@ -423,7 +420,6 @@ sparkdown [0..371]
  ├─ Newline [160..161]: "\n"
  ├─ LuauFunctionAttributes [161..186]
  │   ├─ LuauFunctionAttributes_begin 161
- │   │   └─ LuauFunctionAttributes_begin_c1 161
  │   ├─ LuauFunctionAttributes_content [161..186]
  │   │   ├─ LuauAttribute [161..168]
  │   │   │   ├─ LuauAttribute_c1 [161..162]
@@ -509,7 +505,6 @@ sparkdown [0..371]
  ├─ Newline [211..212]: "\n"
  ├─ LuauFunctionAttributes [212..244]
  │   ├─ LuauFunctionAttributes_begin 212
- │   │   └─ LuauFunctionAttributes_begin_c1 212
  │   ├─ LuauFunctionAttributes_content [212..244]
  │   │   └─ LuauAttributeList [212..244]
  │   │       ├─ LuauAttributeList_begin [212..214]
@@ -628,7 +623,6 @@ sparkdown [0..371]
  ├─ Newline [269..270]: "\n"
  ├─ LuauFunctionAttributes [270..279]
  │   ├─ LuauFunctionAttributes_begin 270
- │   │   └─ LuauFunctionAttributes_begin_c1 270
  │   ├─ LuauFunctionAttributes_content [270..279]
  │   │   └─ LuauAttributeList [270..279]
  │   │       ├─ LuauAttributeList_begin [270..272]
@@ -693,7 +687,6 @@ sparkdown [0..371]
  ├─ Newline [304..305]: "\n"
  ├─ LuauFunctionAttributes [305..345]
  │   ├─ LuauFunctionAttributes_begin 305
- │   │   └─ LuauFunctionAttributes_begin_c1 305
  │   ├─ LuauFunctionAttributes_content [305..345]
  │   │   └─ LuauAttributeList [305..345]
  │   │       ├─ LuauAttributeList_begin [305..307]
