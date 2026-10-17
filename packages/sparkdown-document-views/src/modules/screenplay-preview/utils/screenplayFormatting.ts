@@ -334,13 +334,17 @@ export const decorate = (
   //   LuauSparkdownExplicit(Block)Statement   `& c.trust -= 1` code
   //   Luau*BlockCondition     the `trust >= 1 then` / `c.trust == 0 then` head
   //                           of an `if`/`elseif` block (includes the `then`)
+  //   LuauSparkdownExplicitIfCondition  a story `if`/`elseif` condition, which
+  //                           ends at its line (#1907); its `then` hides as a
+  //                           keyword
   const isHiddenFlowLogic = (name: string) =>
     name === "Divert" ||
     name === "Label" ||
     name === "LuauSparkdownExplicitStatement" ||
     name === "LuauSparkdownExplicitBlockStatement" ||
     name === "LuauIfBlockCondition" ||
-    name === "LuauElseifBlockCondition";
+    name === "LuauElseifBlockCondition" ||
+    name === "LuauSparkdownExplicitIfCondition";
 
   const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
