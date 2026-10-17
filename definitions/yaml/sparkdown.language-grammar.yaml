@@ -526,6 +526,12 @@ variables:
   # that position, where the condition's empty begin also matches, so it
   # steps aside there; the condition then reads on to its `do`.
   LUAU_NOT_AFTER_LOOP_KEYWORD: (?<!\b{{LUAU_CONDITION_LOOP_KEYWORDS}}{{WS}}*)
+  # lookaround: the enclosing LuauFunctionBody or LuauBlockBody owns an
+  # `end` that LuauWhileCondition or LuauForCondition ends before (`while`
+  # alone on its line, then `end`), as it did when the line's end ended
+  # such a loop; the loop's LuauBlockBody, which begins at its `do`, takes
+  # the loop's own `end`, so only a loop with no `do` ends here.
+  LUAU_LOOP_BEFORE_END: (?={{END}})
   # The loops whose header holds a condition before its `do`.
   LUAU_CONDITION_LOOP_KEYWORDS: (?:for|while)
   LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
@@ -825,11 +831,29 @@ variables:
   # The space an attribute takes before what follows it on its line.
   _LUAU_ATTRIBUTE_FOLLOWER_SPACE_: (?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
-  # An attribute on a line before what follows it. A list runs to any `]`
-  # on the line that what follows can come after, so whatever its
-  # arguments hold (`@[deprecated{ reason = "]" }]`, `[====[x]y]====]`),
-  # the `]` before the function is the list's.
-  LUAU_ATTRIBUTE_ON_LINE: (?:@{{LUAU_IDENTIFIER}}|@\[[^\r\n]*?\])
+  # An attribute on a line, for a lookahead: a name, or a list that closes
+  # on the line.
+  LUAU_ATTRIBUTE_ON_LINE: (?:{{LUAU_ATTRIBUTE_NAME_ON_LINE}}|@\[{{LUAU_ATTRIBUTE_LIST_TEXT}}*\])
+  LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_IDENTIFIER}})
+  # An attribute list's text on its line: a quoted string, a long bracket
+  # that closes on the line (a long string, or a block comment's after its
+  # `--`), or any other character but a bracket or a quote. So a `]` in an
+  # argument's string (`@[deprecated{ reason = "]" }]`, `[====[x]y]====]`)
+  # does not close the list, a list never runs on past its own `]` into
+  # the next (which would make a line of many lists slow to match), and
+  # text inside a string is never read as the function after the list.
+  LUAU_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|\[(?:{{LUAU_PLAIN_LONG_BRACKET_LEVELS_TO_3}}|{{LUAU_LONG_BRACKET_LONGER_LEVEL}})|[^\[\]"'\r\n])
+  LUAU_ATTRIBUTE_LIST_STRING: (?:{{QUOTED_STRING}}|'(?:\\.|[^'\\\r\n])*')
+  # lookaround: a long bracket of level four or more, for a lookahead, whose
+  # text takes a `]` that does not begin a close of such a level. Its
+  # spelling for a lookbehind (`LUAU_PLAIN_BLOCK_COMMENT_LONGER_LEVEL`)
+  # takes no `]`, since a lookbehind holds no lookaround in VS Code; the
+  # close's level is not checked against the opening's in either.
+  LUAU_LONG_BRACKET_LONGER_LEVEL: ====+\[(?:[^\]\r\n]|\](?!====+\]))*\]====+\]
+  # An attribute list's text on its line, for a lookbehind: as
+  # `LUAU_ATTRIBUTE_LIST_TEXT`, with long brackets as
+  # `LUAU_PLAIN_BLOCK_COMMENT` reads them.
+  LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'\r\n])
   # lookaround: LuauFunctionDefinition owns the function after the
   # attributes, and SparkdownStatement owns any other top-level line that
   # begins with `@`; only the function on the line tells them apart.
@@ -1040,7 +1064,10 @@ variables:
   # text after it. A longer level's text holds no `]` at all
   # (`--[====[c]====]`), so it too closes at its first close; that close's
   # level is not checked against the opening's.
-  LUAU_PLAIN_BLOCK_COMMENT: (?:--\[(?:{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_0}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_1}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_2}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3}}|{{LUAU_PLAIN_BLOCK_COMMENT_LONGER_LEVEL}}))
+  LUAU_PLAIN_BLOCK_COMMENT: (?:--{{LUAU_PLAIN_LONG_BRACKET}})
+  # The long bracket of such a comment, also a long string's on its line.
+  LUAU_PLAIN_LONG_BRACKET: (?:\[(?:{{LUAU_PLAIN_LONG_BRACKET_LEVELS_TO_3}}|{{LUAU_PLAIN_BLOCK_COMMENT_LONGER_LEVEL}}))
+  LUAU_PLAIN_LONG_BRACKET_LEVELS_TO_3: (?:{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_0}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_1}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_2}}|{{LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3}})
   LUAU_PLAIN_BLOCK_COMMENT_LONGER_LEVEL: ====+\[{{LUAU_PLAIN_COMMENT_CHAR}}*\]====+\]
   # A comment character other than a `]`, or a `]` the next character keeps
   # from closing a level-0 comment.
@@ -1065,7 +1092,9 @@ variables:
   LUAU_HEADER_LINE_START: (?:^{{WS}}*{{LUAU_HEADER_ATTRIBUTE}}*{{LUAU_DECLARATION_MODIFIER}}*)
   # An attribute before a function's header keyword, with the whitespace or
   # block comments after it (`@native function`, `@native --[[c]] function`).
-  LUAU_HEADER_ATTRIBUTE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}{{LUAU_ATTRIBUTE_TRIVIA}}*)
+  # A list holding a long string of level four or more with a `]` in it
+  # hides a commented header's name (`LUAU_PLAIN_ATTRIBUTE_LIST_TEXT`).
+  LUAU_HEADER_ATTRIBUTE: (?:(?:{{LUAU_ATTRIBUTE_NAME_ON_LINE}}|@\[{{LUAU_PLAIN_ATTRIBUTE_LIST_TEXT}}*\]){{LUAU_ATTRIBUTE_TRIVIA}}*)
   LUAU_DECLARATION_MODIFIER: (?:{{LUAU_DECLARATION_MODIFIER_WORDS}}\b{{WS}}*)
   LUAU_DECLARATION_MODIFIER_WORDS: (?:local|export|type)
   # The keywords that declare a function's name.
@@ -7982,7 +8011,7 @@ repository:
     # statements (see LuauSparkdownWhileLoop). The line's end does not close
     # it after a `for` that ends its line, whose condition begins on the
     # next (`LUAU_NOT_AFTER_LOOP_KEYWORD`).
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|{{LUAU_LOOP_BEFORE_END}}
 
   LuauForLoop:
     begin: ({{WS}}*)(for)\b({{WS}}*)
@@ -8003,7 +8032,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # See LuauSparkdownWhileLoop's end comment (one-line trailing
     # statements, a condition on the next line).
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|{{LUAU_LOOP_BEFORE_END}}
 
   LuauForCondition:
     # See `LuauIfBlockCondition` for the multi-line trick: begin's
@@ -8066,7 +8095,7 @@ repository:
     # its line, as Luau lets the condition begin on the next line; the
     # condition opens there and reads on to its `do`
     # (`LUAU_NOT_AFTER_LOOP_KEYWORD`).
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|{{LUAU_LOOP_BEFORE_END}}
 
   LuauWhileLoop:
     begin: ({{WS}}*)(while)\b({{WS}}*)
@@ -8087,7 +8116,7 @@ repository:
       - { include: "#LuauUnreadToken" }
     # See LuauSparkdownWhileLoop's end comment (one-line trailing
     # statements, a condition on the next line).
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$
+    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|{{LUAU_LOOP_BEFORE_END}}
 
   LuauWhileCondition:
     # See `LuauIfBlockCondition` for the multi-line trick.

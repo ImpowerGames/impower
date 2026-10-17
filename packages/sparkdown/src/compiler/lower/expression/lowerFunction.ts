@@ -120,8 +120,9 @@ export function readBodyAst(
  * a sparkle handler's closure), the syntax errors of Luau's reading that
  * the type checker reports in a function's body and the validator leaves
  * to it: those of a statement that holds a token the grammar left unread
- * (`LuauSyntaxError.unread`), and those that find a statement malformed
- * (`Hello` on a line of its own). Only errors from `bodyFrom` on are the
+ * (`LuauSyntaxError.unread`), and those that find a statement or an
+ * attribute malformed (`Hello` on a line of its own,
+ * `@[deprecated{reason=reason}]`). Only errors from `bodyFrom` on are the
  * body's (a method's header is read with it). Called once the body is
  * lowered, it leaves out an error the lowering already reported at the
  * same place.
@@ -131,7 +132,7 @@ export function reportBodySyntaxErrors(
   ctx: LowerContext,
   bodyFrom = 0,
 ): void {
-  reportSyntaxErrors(errors.filter((error) => error.unread || error.malformed === "statement"), ctx, bodyFrom);
+  reportSyntaxErrors(errors.filter((error) => error.unread || error.malformed === "statement" || error.malformed === "attribute"), ctx, bodyFrom);
 }
 
 /**

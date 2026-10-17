@@ -580,6 +580,37 @@ test("an invalid attribute list before a top-level function reports Luau's error
   );
 });
 
+// A line of story that begins with an attribute list is Luau only when a
+// function follows the list on the line, not when its argument's string
+// holds the word.
+test.each([
+  ['@[deprecated("] function")]\n', '@[deprecated("] function")]\n'],
+  ["@[deprecated [=[x] function]=]]\n", "@[deprecated [=[x] function]=]]\n"],
+])("a story line whose attribute argument holds `function` stays story (#1924): %j", (source, output) => {
+  const ctx = makeRuntimeStoryFromSource(source);
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe(output);
+});
+
+// The lookahead that finds the function after a run of attributes reads
+// each list to its own close, so a line of many lists with no function is
+// read in time that grows with the line, not with the ways of splitting it.
+test("a story line of many attribute lists parses at once (#1924)", () => {
+  const source = "@[native] ".repeat(28) + "\n";
+  const start = performance.now();
+  parseSource(source);
+  expect(performance.now() - start).toBeLessThan(2000);
+});
+
+// Luau reads an attribute's arguments only as literals. The grammar reads
+// the list, so Luau's errors for its arguments are reported as Luau's.
+test("an attribute argument that is not a literal reports Luau's errors (#1924)", () => {
+  const source = 'function main()\n  local reason = "why"\n  @[deprecated{reason=reason}]\n  function f() end\nend\nHello.\n';
+  const expected = ["Only literals can be passed as arguments for attributes", "Only constant string allowed as value for 'reason'"];
+  expect(compile(source)).toEqual(expected);
+  expect(checkLuau('local reason = "why"\n@[deprecated{reason=reason}]\nfunction f() end\n').syntaxDiagnostics.map((d) => d.message)).toEqual(expected);
+});
+
 // A header keyword written inside a comment in a block's body is no header,
 // so the word after the comment declares nothing.
 test("a header keyword inside a body line's comment declares no name (#1924)", () => {

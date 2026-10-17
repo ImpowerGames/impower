@@ -161,10 +161,13 @@ export interface LuauSyntaxError {
  * its `:` (`annotation`); an expression that is missing or cannot begin with
  * the token found, a member access with no name after its `.` or `:`, a
  * method call with no arguments, or a function value with a name
- * (`expression`); and a statement that is a value but not a call
- * (`statement`).
+ * (`expression`); a statement that is a value but not a call
+ * (`statement`); and an attribute Luau does not know, repeats, or gives
+ * arguments it does not take, such as a value that is not a literal
+ * (`attribute`), where the grammar reads the attribute and its arguments
+ * as it reads any.
  */
-export type MalformedConstruct = "type" | "annotation" | "expression" | "statement";
+export type MalformedConstruct = "type" | "annotation" | "expression" | "statement" | "attribute";
 
 /** A node of the syntax tree, by its name and document offsets (a `SyntaxNode` is not kept, since the tree makes a new one on every visit). */
 export interface TreeNodeRef {
@@ -2064,11 +2067,11 @@ class Parser {
   private validateAttribute(loc: Location, name: string, attributes: AstAttr[], args: AstExpr[]): AstAttrType | undefined {
     const type = ATTRIBUTES.get(name);
     if (type === undefined) {
-      this.report(loc, name.length === 0 ? "Attribute name is missing" : `Invalid attribute '@${name}'`);
+      this.report(loc, name.length === 0 ? "Attribute name is missing" : `Invalid attribute '@${name}'`, "attribute");
       return undefined;
     }
-    for (const attr of attributes) if (attr.type === type) this.report(loc, `Cannot duplicate attribute '@${name}'`);
-    if (type === AstAttrType.Deprecated) for (const [errorLoc, message] of deprecatedArgsErrors(loc, args)) this.report(errorLoc, message);
+    for (const attr of attributes) if (attr.type === type) this.report(loc, `Cannot duplicate attribute '@${name}'`, "attribute");
+    if (type === AstAttrType.Deprecated) for (const [errorLoc, message] of deprecatedArgsErrors(loc, args)) this.report(errorLoc, message, "attribute");
     return type;
   }
 
@@ -2093,7 +2096,7 @@ class Parser {
       this.next();
       if (this.is("]")) {
         const loc = Location.span(at.location, this.current().location);
-        this.report(loc, "Attribute list cannot be empty");
+        this.report(loc, "Attribute list cannot be empty", "attribute");
         attributes.push(new AstAttr(loc, AstAttrType.Unknown, [], ERROR_NAME));
       } else {
         for (;;) {
@@ -2101,7 +2104,7 @@ class Parser {
           if (this.is("(") || this.is("{") || this.current().kind === "string" || this.current().kind === "rawstring") {
             const [args, argsLocation] = this.parseCallList();
             for (const arg of args) {
-              if (!isConstantLiteral(arg) && !isLiteralTable(arg)) this.report(argsLocation, "Only literals can be passed as arguments for attributes");
+              if (!isConstantLiteral(arg) && !isLiteralTable(arg)) this.report(argsLocation, "Only literals can be passed as arguments for attributes", "attribute");
             }
             const type = this.validateAttribute(name.location, name.name, attributes, args);
             attributes.push(new AstAttr(Location.span(name.location, argsLocation), type ?? AstAttrType.Unknown, args, name.name));
