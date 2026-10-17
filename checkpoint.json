@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 119,
-  "previous": "acc839254798076e6b3f8f75f63ad3d52adf3410",
+  "seq": 120,
+  "previous": "964810b5e126d0a2ef9f2b38a5e7549d322d68f4",
   "snapshotParents": [],
-  "time": "2026-10-17T00:46:27.066Z",
+  "time": "2026-10-17T00:46:36.512Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1974",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 93,
+    "recordRevision": 94,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -730,7 +730,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "6e80b10b",
+          "owner": "3950b896-bf27-4a2c-b9ff-a936c1dec179",
+          "time": "2026-10-17T00:46:34.115Z",
+          "text": "Checkpoint after round 3 of PR #1984: round 3's one accepted blocking fix 0547bc904 (ProgramResolver.committed() moved to the chunk store's build commit beside completeMemos, so a build that made no program no longer counts its resolve as kept) changes behaviour and is unreviewed; last reviewed head f10dd9fcb, current head 0547bc904. Rounds: R1 incrementality 6224228197/6224983339 (2 blocking), blast-radius 6225158091/6225434348 (1 should-fix), undirected 6225755506/6226048395 (1 blocking); R2 incrementality 6226407873/6226439343, undirected 6226665410/6226736064 (comments); R3 undirected 6227205764/6227484652 (1 blocking). All accepted findings share one mechanism (which resolves are trusted as having completed a carried block's memos). Redgreen 1 failed/55 to 56 passed; memo and equivalence suites green (87 tests); CI on 0547bc904 pending. Residual: the unreviewed commit; accumulated re-resolve cost during no-program stretches (disclosed, no benchmark); ticket's store-below shape filed as Bug #2013. Asks for the checkpoint decision (a round 4 needs an extension).",
+          "source": "cross-session message from the writer (peer impower-cd) at ~00:45Z, confirmed in launch-1974 out.jsonl",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     }
   },
   "operations": [
@@ -1479,7 +1490,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T00:46:25.759Z",
+      "observedAt": "2026-10-17T00:46:35.435Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1636,7 +1647,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T00:46:25.759Z",
+      "observedAt": "2026-10-17T00:46:35.435Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2543,6 +2554,12 @@
       "time": "2026-10-17T00:21:41.138Z",
       "event": "check-in",
       "outcome": "no change: #1881 (PR #1983) holds at merge-gate with its finish checkpoint published but the Windows driver-checks job red on the #1999 flake after five attempts, maintainer asked whether to merge outside the gate; #1974 (draft PR #1984, head f10dd9fcb, round 2) writer running; #851, #1637 and #1798 done; no new transcripts, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-17T00:46:34.116Z",
+      "event": "request",
+      "ticket": 1974,
+      "id": "6e80b10b"
     }
   ]
 }
