@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 61,
-  "previous": "bc240464861c61afa5445dca8758f2fb355da9fb",
+  "seq": 62,
+  "previous": "55d4629567bd0bf2dfdfe4c7ec604a90dbdb6e5c",
   "snapshotParents": [],
-  "time": "2026-10-17T01:58:16.647Z",
+  "time": "2026-10-17T02:01:25.234Z",
   "kind": "auto",
-  "transition": "request of #1966",
+  "transition": "answer of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 53,
+    "recordRevision": 56,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1285,7 +1285,254 @@
           "text": "Round 3 checkpoint report for PR #2015: rounds 1 (data-preservation + undirected), 2 (undirected) and 3 (undirected) complete, all gpt-6.1-sol xhigh, 14 accepted findings, every report adjudicated; last reviewed commit 720b408e3, current head aa378fd55 unreviewed (about 330-line rewrite of the Markdown reader in CommonMark order). 11 of 14 findings come from the hand-written Markdown reader that rewrite and verify both use; one correction introduced a defect (round 2's block-boundary rule). Writer proposes a repair: make verify independent of the reader by rendering each migrated text's original and final through GitHub's Markdown API and checking that every linked reference maps (about 3,400 renders), then a round 4 with one undirected reviewer covering the reader rewrite and the render verify together; asks for the decision (extend with limits, repair first, or accept aa378fd55 unreviewed).",
           "source": "cross-session message from writer session impower-6f (CLI session 58c4e7e1) received 2026-10-17 ~02:20Z",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision for PR #2015 after round 3: REPAIR (decision 4e5617ee, published as PR comment 6228245433; read it in full, it is the authority). Do not launch round 4 yet and do not accept aa378fd55 as final: build the render-based verify you proposed on top of aa378fd55. Scope: in verify, for each migrated body and comment with a reference, render the original through POST /markdown (gfm, public repository context) and the final through POST /markdown (gfm, internal repository context), extract the issue links GitHub produced as (repository, number) pairs in order, and check that each link in the final is the map's image of the corresponding link in the original (a migrated ticket to its new internal number; a pull request or kept public issue to the public repository); report every mismatch; keep the existing exact-text comparison; pace the renders inside the request budget and add their count to the dry-run estimate. Verification: unit tests against a fake renderer including a deliberately misread body that passes the text comparison and fails the render check; a fifth real rehearsal with the render check on, ending with verify passed and the test issues deleted from both repositories; the corpus check retained. The round count stays at 3. When the repair is verified, push it, update the PR body, send me a checkpoint report (repair commit, its verification, CI on the head, anything the repair changed in the residual risk) and end your turn; I then decide again, expecting to extend to round 4 with one undirected reviewer covering the reader rewrite and the render verify together. Wait for CI and anything else in the foreground as before.",
+            "deliveryId": "bb49b6a6",
+            "attempts": 1,
+            "time": "2026-10-17T02:01:18.639Z",
+            "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "4e5617ee",
+          "kind": "repair",
+          "feature": 1961,
+          "ticket": 1966,
+          "pr": 2015,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-17T02:00:37.351Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "720b408e32c65ecdad582995f68e1a3d970772a7",
+          "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
+          "range": {
+            "from": "720b408e32c65ecdad582995f68e1a3d970772a7",
+            "to": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
+            "base": "d5cb34d141f2c7f4caaf9b9fc17647019053d381",
+            "commits": [
+              "aa378fd550c4d2fed842a687b6debc2c2e79027e"
+            ],
+            "diffSha256": "2f139fd53d10f00b104e2f16346b93c6f6614585be701410c80b1e2512029b52"
+          },
+          "reports": [
+            {
+              "comment": 6227196134,
+              "round": 1,
+              "reviewerId": "data",
+              "adjudication": 6227312221
+            },
+            {
+              "comment": 6227553709,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6227601809
+            },
+            {
+              "comment": 6227709560,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6227915204
+            },
+            {
+              "comment": 6228050094,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6228198583
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "pending"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "pending"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "pending"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Of the 14 accepted findings across three rounds, 9 come from one mechanism: the hand-written Markdown reader that decides which `#N` the rewrite may map, which split text into code and prose before it knew the block structure (round 1 data #1 link destinations; round 1 undirected #1 fence boundaries; round 2 #1 list marker closing a fence and #2 balanced parentheses in a destination; round 3 #1 to #4 false block boundaries, a backtick in a link title, an unclosed list fence, mid-line definitions), and the writer's own corpus measurement found two more classes of the same mechanism (a code span ends with its block; GitHub links `#N` after `/`, `-` and an en dash). The other five are independent and each closed as a class: a closed reason applied only on a state change; verify omitting title, author and creation time and not comparing computed closing references both ways; restore skipping absent values and archived items; a lost rehearsal creation outside cleanup's reach; a partial journal line swallowing the next record. The round 3 correction at aa378fd55 restructures the reader (about 330 lines) in CommonMark's order rather than patching it a fifth time: fenced blocks by blockquote depth and list container first, then per-block spans, code elements and links left to right, definitions only at a block start. Its evidence is strong but author-provided: 41 tests with the new rows red at 720b408e3, all 46 test inputs rendered through GitHub's Markdown API, agreement with marked on all 2,441 live texts, agreement with GitHub's renderer on 476 of 480 rendered texts, and rehearsal 4 passing verify end to end. The mechanism that remains is not in the reader but in verify: it derives each expected text with the same reader as the rewrite, so a misreading on a form outside the measured corpus (a ticket filed before the cutover, for instance) would leave a bare old number pointing at the wrong internal ticket and verify would still pass. Round 3's reviewer proved this with six misread bodies that runVerify accepted; the writer and both later adjudications name it as the outstanding gap.",
+            "regressions": "One correction introduced a defect: round 2's block-boundary rule (a `|` line or any ordered marker ends a span) produced round 3 finding 1, and its table fixture was itself wrong. The round 3 restructuring replaces that rule with real block boundaries, but it is a large unreviewed change of the same kind that regressed once before, so it needs an independent round before anything is accepted. No other correction was reported as introducing a defect, and the five independent fixes held through later rounds.",
+            "repairOptions": "A broader repair exists and is the right next step: make verify independent of the reader. Render each migrated text's original through GitHub's Markdown API in the public repository's context and its final text in the internal repository's context, and check that every reference GitHub links in the final text is the map's image of the corresponding reference GitHub links in the original, in order, with the exact-text comparison kept as it is. That turns verify from a restatement of the rewrite's own reading into an oracle that cannot share its mistakes, at about two renders per text with a reference (about 3,400 requests, inside the hourly budget). The stronger alternative, taking the reference positions from GitHub at snapshot time with sentinel numbers so the rewrite needs no reader at all, is larger, changes the snapshot and the rewrite together, and is not needed once verify is independent: a misreading then fails the migration's verify instead of silently landing. The render-based verify is what the checkpoint guidance calls for when a mechanism's failure mode is false assurance, and it keeps the Feature's agreed behaviour (the verify mode still reports zero bare old references and exits non-zero on any difference). It is new behaviour and must be reviewed together with the reader rewrite in one bounded round once built and verified.",
+            "residualRisk": "1. A Markdown form outside the measured corpus misread by the new reader, invisible to the current verify: the repair above removes the invisibility. 2. The restructured reader itself (unreviewed, 330 lines) may misread something the 46 inputs and the corpus do not cover; round 4 after the repair reviews it. 3. Operational risks that stay with #1967's run and are disclosed in the PR: the 120-second settle tested only on three-issue runs; about 7.5 hours of transfer writes and 3.8 of rewrite writes under default pacing; no REST call re-archives a Project item (none exist today); the 5 duplicates lose their canonical-issue link; sub-issue order is not restored; internal numbers 1 to 16 are consumed by rehearsals and probes so the migration's numbers start at 17; the first rehearsal created one label and one milestone on impower-internal as the coordinator allowed. 4. CI on aa378fd55: everything finished has passed and the Windows driver and api-integration jobs were pending at decision time; earlier Windows failures were the known process-identity flakes in untouched tests.",
+            "coverage": "At aa378fd55: node --test scripts/migrate-tracker.test.mjs passes 41 cases, with each round's new or corrected rows failing against the head they correct (9 at 8c7d5a1e1, 2 at 7e449aa2e, 4 at 0b2192e9c, 5 at 720b408e3) in scratch-tree runs and a redgreen driver run by round 3's reviewer; all 46 rewrite inputs rendered through GitHub's Markdown API with real numbers; the reading agrees with marked on all 2,441 texts of a live snapshot (14,418 references) and with GitHub's renderer on 476 of 480 rendered texts; four real rehearsals, the last on aa378fd55, each ending with verify passed and every test issue deleted from both repositories; the dry-run snapshot reports 1,266 to migrate and 35 to keep, reconciling to exactly 1,231 at the parent's inventory time; check-agent-tooling discovers the new check. Hook Tests passed in full on 0b2192e9c and 720b408e3. What is not covered is exactly the gap the repair closes: no oracle independent of the reader has checked the rewritten texts.",
+            "nextRoundValue": "After the repair is built and verified, one bounded round with a single undirected reviewer establishes two things at once: whether the restructured reader introduces misreadings of its own, since the last correction of this kind did, and whether the render-based verify is correct and would catch a misreading (the reviewer can prove the second by feeding verify a deliberately misread body). Launching round 4 now, before the repair, would review the reader alone and leave the false-assurance gap to a later round, which costs a reviewer slot twice.",
+            "rationale": "The merge gate admits only the last independently reviewed head (720b408e3, which carries four accepted unfixed findings) or an accepted head, and aa378fd55 cannot be accepted unreviewed: it is a 330-line restructuring of the component that produced nine findings and one regression, its CI is still pending, and the verify mode that would back the acceptance shares the reader's blind spot. One mechanism has produced findings round after round, and the checkpoint guidance for that case is a repair that removes the mechanism's false assurance, followed by a bounded round on the repair. The writer's render-based verify is that repair, within the ticket's scope (the verify mode exists to prove the migration lost nothing), and it keeps the Feature's agreed behaviour and architecture. So the decision is a repair: build the render-based verify, verify it with unit tests against a fake renderer and with a fifth real rehearsal, keep the round count at 3, and report back; the coordinator then decides again on the changed risk, expecting to extend to round 4 with one undirected reviewer covering the reader rewrite and the render verify together. The residual operational limits listed above are disclosed in the PR and go to the maintainer with the final report; none blocks this decision.",
+            "next": "The writer builds the render-based verify on top of aa378fd55: for each migrated body and comment with a reference, render the original through POST /markdown (gfm, public repository context) and the final through POST /markdown (gfm, internal repository context), extract the issue links GitHub produced as (repository, number) pairs in order, and check that each link in the final is the map's image of the corresponding link in the original (a migrated ticket to its new internal number, a pull request or kept public issue to the public repository); report every mismatch and keep the existing exact-text comparison. Unit tests use a fake renderer and include a case where a deliberately misread body passes the text comparison and fails the render check. Pace the renders inside the existing request budget and add the count to the dry-run estimate. Run a fifth real rehearsal on the new code and confirm verify passes with the render check on. Then send the coordinator a checkpoint report with the repair's commit, its verification and CI, and end the turn; the coordinator decides on the changed risk, expecting one undirected round 4 over the reader rewrite and the render verify together. The PR stays draft; do not launch round 4 before that decision.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "scope": "scripts/migrate-tracker.mjs verify mode and its dry-run estimate, scripts/migrate-tracker.test.mjs, and the PR body: verify gains a render-based cross-check through GitHub's Markdown API (original in the public repository's context, final in the internal repository's) that compares the linked references in order through the map, independent of the tool's own Markdown reader; the exact-text comparison stays. No change to snapshot, transfer, restore, rewrite or map, and nothing in the workflow's switch-off behaviour.",
+            "verificationChange": "Unit tests against a fake renderer, including a deliberately misread body that passes the text comparison and fails the render check; a fifth real rehearsal against impower-internal with the render check on, ending with verify passed and the test issues deleted from both repositories; the render count added to the dry-run estimate and shown to stay inside the hourly budget; the corpus check retained. Round 4, decided after this repair is verified, reviews the reader rewrite and the render verify together.",
+            "findings": [
+              {
+                "comment": 6227196134,
+                "finding": "reference rewriting changes URL fragments and link destinations",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "resume marks a wrong closed reason as finished (state_reason ignored without a state change)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "verify omits title, author and creation time",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "verify accepts missing or wrong computed PR closing references",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "restore cannot reproduce absent values or archived Project state",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "a lost rehearsal creation response leaves a test issue outside cleanup's reach",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227553709,
+                "finding": "fence boundaries ignore their blockquote container",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227553709,
+                "finding": "a partial journal tail swallows the next record",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227709560,
+                "finding": "a list marker closes a top-level fence",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227709560,
+                "finding": "balanced parentheses expose part of a link destination",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "the block-boundary rule rewrites valid code spans (pipe line, ordered marker) and the table fixture was wrong",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "backticks inside a link title corrupt the destination and the following reference",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "an unclosed list fence hides references after its container ends",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "code-span boundaries fabricate link reference definitions mid-line",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: direct a root-cause repair\n\nDecision `4e5617ee` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1966.\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6227196134 in 6227312221, 6227553709 in 6227601809, 6227709560 in 6227915204, 6228050094 in 6228198583).\n- Independently reviewed through `720b408e32c65ecdad582995f68e1a3d970772a7`.\n- Head `aa378fd550c4d2fed842a687b6debc2c2e79027e`. Unreviewed: `720b408e3..aa378fd55`, 1 commit (`aa378fd55` fix(github): read Markdown blocks before their inline code and links (#1966)), diff SHA-256 `2f139fd53d10f00b104e2f16346b93c6f6614585be701410c80b1e2512029b52`.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, Luau corpus gate passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, test-suite passed, driver-checks (windows-latest) pending, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) pending, vitest-api-integration (windows-latest, 3.2.6) pending.\n- Findings across all rounds: 14 accepted; unresolved: none.\n- Shared mechanisms: Of the 14 accepted findings across three rounds, 9 come from one mechanism: the hand-written Markdown reader that decides which `#N` the rewrite may map, which split text into code and prose before it knew the block structure (round 1 data #1 link destinations; round 1 undirected #1 fence boundaries; round 2 #1 list marker closing a fence and #2 balanced parentheses in a destination; round 3 #1 to #4 false block boundaries, a backtick in a link title, an unclosed list fence, mid-line definitions), and the writer's own corpus measurement found two more classes of the same mechanism (a code span ends with its block; GitHub links `#N` after `/`, `-` and an en dash). The other five are independent and each closed as a class: a closed reason applied only on a state change; verify omitting title, author and creation time and not comparing computed closing references both ways; restore skipping absent values and archived items; a lost rehearsal creation outside cleanup's reach; a partial journal line swallowing the next record. The round 3 correction at aa378fd55 restructures the reader (about 330 lines) in CommonMark's order rather than patching it a fifth time: fenced blocks by blockquote depth and list container first, then per-block spans, code elements and links left to right, definitions only at a block start. Its evidence is strong but author-provided: 41 tests with the new rows red at 720b408e3, all 46 test inputs rendered through GitHub's Markdown API, agreement with marked on all 2,441 live texts, agreement with GitHub's renderer on 476 of 480 rendered texts, and rehearsal 4 passing verify end to end. The mechanism that remains is not in the reader but in verify: it derives each expected text with the same reader as the rewrite, so a misreading on a form outside the measured corpus (a ticket filed before the cutover, for instance) would leave a bare old number pointing at the wrong internal ticket and verify would still pass. Round 3's reviewer proved this with six misread bodies that runVerify accepted; the writer and both later adjudications name it as the outstanding gap.\n- Defects introduced by corrections: One correction introduced a defect: round 2's block-boundary rule (a `|` line or any ordered marker ends a span) produced round 3 finding 1, and its table fixture was itself wrong. The round 3 restructuring replaces that rule with real block boundaries, but it is a large unreviewed change of the same kind that regressed once before, so it needs an independent round before anything is accepted. No other correction was reported as introducing a defect, and the five independent fixes held through later rounds.\n- Broader or simpler repair: A broader repair exists and is the right next step: make verify independent of the reader. Render each migrated text's original through GitHub's Markdown API in the public repository's context and its final text in the internal repository's context, and check that every reference GitHub links in the final text is the map's image of the corresponding reference GitHub links in the original, in order, with the exact-text comparison kept as it is. That turns verify from a restatement of the rewrite's own reading into an oracle that cannot share its mistakes, at about two renders per text with a reference (about 3,400 requests, inside the hourly budget). The stronger alternative, taking the reference positions from GitHub at snapshot time with sentinel numbers so the rewrite needs no reader at all, is larger, changes the snapshot and the rewrite together, and is not needed once verify is independent: a misreading then fails the migration's verify instead of silently landing. The render-based verify is what the checkpoint guidance calls for when a mechanism's failure mode is false assurance, and it keeps the Feature's agreed behaviour (the verify mode still reports zero bare old references and exits non-zero on any difference). It is new behaviour and must be reviewed together with the reader rewrite in one bounded round once built and verified.\n- Residual risk: 1. A Markdown form outside the measured corpus misread by the new reader, invisible to the current verify: the repair above removes the invisibility. 2. The restructured reader itself (unreviewed, 330 lines) may misread something the 46 inputs and the corpus do not cover; round 4 after the repair reviews it. 3. Operational risks that stay with #1967's run and are disclosed in the PR: the 120-second settle tested only on three-issue runs; about 7.5 hours of transfer writes and 3.8 of rewrite writes under default pacing; no REST call re-archives a Project item (none exist today); the 5 duplicates lose their canonical-issue link; sub-issue order is not restored; internal numbers 1 to 16 are consumed by rehearsals and probes so the migration's numbers start at 17; the first rehearsal created one label and one milestone on impower-internal as the coordinator allowed. 4. CI on aa378fd55: everything finished has passed and the Windows driver and api-integration jobs were pending at decision time; earlier Windows failures were the known process-identity flakes in untouched tests.\n- Verification coverage: At aa378fd55: node --test scripts/migrate-tracker.test.mjs passes 41 cases, with each round's new or corrected rows failing against the head they correct (9 at 8c7d5a1e1, 2 at 7e449aa2e, 4 at 0b2192e9c, 5 at 720b408e3) in scratch-tree runs and a redgreen driver run by round 3's reviewer; all 46 rewrite inputs rendered through GitHub's Markdown API with real numbers; the reading agrees with marked on all 2,441 texts of a live snapshot (14,418 references) and with GitHub's renderer on 476 of 480 rendered texts; four real rehearsals, the last on aa378fd55, each ending with verify passed and every test issue deleted from both repositories; the dry-run snapshot reports 1,266 to migrate and 35 to keep, reconciling to exactly 1,231 at the parent's inventory time; check-agent-tooling discovers the new check. Hook Tests passed in full on 0b2192e9c and 720b408e3. What is not covered is exactly the gap the repair closes: no oracle independent of the reader has checked the rewritten texts.\n- What another round would establish: After the repair is built and verified, one bounded round with a single undirected reviewer establishes two things at once: whether the restructured reader introduces misreadings of its own, since the last correction of this kind did, and whether the render-based verify is correct and would catch a misreading (the reviewer can prove the second by feeding verify a deliberately misread body). Launching round 4 now, before the repair, would review the reader alone and leave the false-assurance gap to a later round, which costs a reviewer slot twice.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The merge gate admits only the last independently reviewed head (720b408e3, which carries four accepted unfixed findings) or an accepted head, and aa378fd55 cannot be accepted unreviewed: it is a 330-line restructuring of the component that produced nine findings and one regression, its CI is still pending, and the verify mode that would back the acceptance shares the reader's blind spot. One mechanism has produced findings round after round, and the checkpoint guidance for that case is a repair that removes the mechanism's false assurance, followed by a bounded round on the repair. The writer's render-based verify is that repair, within the ticket's scope (the verify mode exists to prove the migration lost nothing), and it keeps the Feature's agreed behaviour and architecture. So the decision is a repair: build the render-based verify, verify it with unit tests against a fake renderer and with a fifth real rehearsal, keep the round count at 3, and report back; the coordinator then decides again on the changed risk, expecting to extend to round 4 with one undirected reviewer covering the reader rewrite and the render verify together. The residual operational limits listed above are disclosed in the PR and go to the maintainer with the final report; none blocks this decision. Next: The writer builds the render-based verify on top of aa378fd55: for each migrated body and comment with a reference, render the original through POST /markdown (gfm, public repository context) and the final through POST /markdown (gfm, internal repository context), extract the issue links GitHub produced as (repository, number) pairs in order, and check that each link in the final is the map's image of the corresponding link in the original (a migrated ticket to its new internal number, a pull request or kept public issue to the public repository); report every mismatch and keep the existing exact-text comparison. Unit tests use a fake renderer and include a case where a deliberately misread body passes the text comparison and fails the render check. Pace the renders inside the existing request budget and add the count to the dry-run estimate. Run a fifth real rehearsal on the new code and confirm verify passes with the render check on. Then send the coordinator a checkpoint report with the repair's commit, its verification and CI, and end the turn; the coordinator decides on the changed risk, expecting one undirected round 4 over the reader rewrite and the render verify together. The PR stays draft; do not launch round 4 before that decision.\n- Repair scope: scripts/migrate-tracker.mjs verify mode and its dry-run estimate, scripts/migrate-tracker.test.mjs, and the PR body: verify gains a render-based cross-check through GitHub's Markdown API (original in the public repository's context, final in the internal repository's) that compares the linked references in order through the map, independent of the tool's own Markdown reader; the exact-text comparison stays. No change to snapshot, transfer, restore, rewrite or map, and nothing in the workflow's switch-off behaviour. Verification change: Unit tests against a fake renderer, including a deliberately misread body that passes the text comparison and fails the render check; a fifth real rehearsal against impower-internal with the render check on, ending with verify passed and the test issues deleted from both repositories; the render count added to the dry-run estimate and shown to stay inside the hourly budget; the corpus check retained. Round 4, decided after this repair is verified, reviews the reader rewrite and the render verify together. The round count stays at 3; the coordinator reassesses the changed risk once the repair is verified, before choosing the next action.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"4e5617ee\",\n \"kind\": \"repair\",\n \"feature\": 1961,\n \"ticket\": 1966,\n \"pr\": 2015,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-17T02:00:37.351Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"720b408e32c65ecdad582995f68e1a3d970772a7\",\n \"head\": \"aa378fd550c4d2fed842a687b6debc2c2e79027e\",\n \"range\": {\n  \"from\": \"720b408e32c65ecdad582995f68e1a3d970772a7\",\n  \"to\": \"aa378fd550c4d2fed842a687b6debc2c2e79027e\",\n  \"base\": \"d5cb34d141f2c7f4caaf9b9fc17647019053d381\",\n  \"commits\": [\n   \"aa378fd550c4d2fed842a687b6debc2c2e79027e\"\n  ],\n  \"diffSha256\": \"2f139fd53d10f00b104e2f16346b93c6f6614585be701410c80b1e2512029b52\"\n },\n \"reports\": [\n  {\n   \"comment\": 6227196134,\n   \"round\": 1,\n   \"reviewerId\": \"data\",\n   \"adjudication\": 6227312221\n  },\n  {\n   \"comment\": 6227553709,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227601809\n  },\n  {\n   \"comment\": 6227709560,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227915204\n  },\n  {\n   \"comment\": 6228050094,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228198583\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"pending\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"pending\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"pending\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Of the 14 accepted findings across three rounds, 9 come from one mechanism: the hand-written Markdown reader that decides which `#N` the rewrite may map, which split text into code and prose before it knew the block structure (round 1 data #1 link destinations; round 1 undirected #1 fence boundaries; round 2 #1 list marker closing a fence and #2 balanced parentheses in a destination; round 3 #1 to #4 false block boundaries, a backtick in a link title, an unclosed list fence, mid-line definitions), and the writer's own corpus measurement found two more classes of the same mechanism (a code span ends with its block; GitHub links `#N` after `/`, `-` and an en dash). The other five are independent and each closed as a class: a closed reason applied only on a state change; verify omitting title, author and creation time and not comparing computed closing references both ways; restore skipping absent values and archived items; a lost rehearsal creation outside cleanup's reach; a partial journal line swallowing the next record. The round 3 correction at aa378fd55 restructures the reader (about 330 lines) in CommonMark's order rather than patching it a fifth time: fenced blocks by blockquote depth and list container first, then per-block spans, code elements and links left to right, definitions only at a block start. Its evidence is strong but author-provided: 41 tests with the new rows red at 720b408e3, all 46 test inputs rendered through GitHub's Markdown API, agreement with marked on all 2,441 live texts, agreement with GitHub's renderer on 476 of 480 rendered texts, and rehearsal 4 passing verify end to end. The mechanism that remains is not in the reader but in verify: it derives each expected text with the same reader as the rewrite, so a misreading on a form outside the measured corpus (a ticket filed before the cutover, for instance) would leave a bare old number pointing at the wrong internal ticket and verify would still pass. Round 3's reviewer proved this with six misread bodies that runVerify accepted; the writer and both later adjudications name it as the outstanding gap.\",\n  \"regressions\": \"One correction introduced a defect: round 2's block-boundary rule (a `|` line or any ordered marker ends a span) produced round 3 finding 1, and its table fixture was itself wrong. The round 3 restructuring replaces that rule with real block boundaries, but it is a large unreviewed change of the same kind that regressed once before, so it needs an independent round before anything is accepted. No other correction was reported as introducing a defect, and the five independent fixes held through later rounds.\",\n  \"repairOptions\": \"A broader repair exists and is the right next step: make verify independent of the reader. Render each migrated text's original through GitHub's Markdown API in the public repository's context and its final text in the internal repository's context, and check that every reference GitHub links in the final text is the map's image of the corresponding reference GitHub links in the original, in order, with the exact-text comparison kept as it is. That turns verify from a restatement of the rewrite's own reading into an oracle that cannot share its mistakes, at about two renders per text with a reference (about 3,400 requests, inside the hourly budget). The stronger alternative, taking the reference positions from GitHub at snapshot time with sentinel numbers so the rewrite needs no reader at all, is larger, changes the snapshot and the rewrite together, and is not needed once verify is independent: a misreading then fails the migration's verify instead of silently landing. The render-based verify is what the checkpoint guidance calls for when a mechanism's failure mode is false assurance, and it keeps the Feature's agreed behaviour (the verify mode still reports zero bare old references and exits non-zero on any difference). It is new behaviour and must be reviewed together with the reader rewrite in one bounded round once built and verified.\",\n  \"residualRisk\": \"1. A Markdown form outside the measured corpus misread by the new reader, invisible to the current verify: the repair above removes the invisibility. 2. The restructured reader itself (unreviewed, 330 lines) may misread something the 46 inputs and the corpus do not cover; round 4 after the repair reviews it. 3. Operational risks that stay with #1967's run and are disclosed in the PR: the 120-second settle tested only on three-issue runs; about 7.5 hours of transfer writes and 3.8 of rewrite writes under default pacing; no REST call re-archives a Project item (none exist today); the 5 duplicates lose their canonical-issue link; sub-issue order is not restored; internal numbers 1 to 16 are consumed by rehearsals and probes so the migration's numbers start at 17; the first rehearsal created one label and one milestone on impower-internal as the coordinator allowed. 4. CI on aa378fd55: everything finished has passed and the Windows driver and api-integration jobs were pending at decision time; earlier Windows failures were the known process-identity flakes in untouched tests.\",\n  \"coverage\": \"At aa378fd55: node -\\u002dtest scripts/migrate-tracker.test.mjs passes 41 cases, with each round's new or corrected rows failing against the head they correct (9 at 8c7d5a1e1, 2 at 7e449aa2e, 4 at 0b2192e9c, 5 at 720b408e3) in scratch-tree runs and a redgreen driver run by round 3's reviewer; all 46 rewrite inputs rendered through GitHub's Markdown API with real numbers; the reading agrees with marked on all 2,441 texts of a live snapshot (14,418 references) and with GitHub's renderer on 476 of 480 rendered texts; four real rehearsals, the last on aa378fd55, each ending with verify passed and every test issue deleted from both repositories; the dry-run snapshot reports 1,266 to migrate and 35 to keep, reconciling to exactly 1,231 at the parent's inventory time; check-agent-tooling discovers the new check. Hook Tests passed in full on 0b2192e9c and 720b408e3. What is not covered is exactly the gap the repair closes: no oracle independent of the reader has checked the rewritten texts.\",\n  \"nextRoundValue\": \"After the repair is built and verified, one bounded round with a single undirected reviewer establishes two things at once: whether the restructured reader introduces misreadings of its own, since the last correction of this kind did, and whether the render-based verify is correct and would catch a misreading (the reviewer can prove the second by feeding verify a deliberately misread body). Launching round 4 now, before the repair, would review the reader alone and leave the false-assurance gap to a later round, which costs a reviewer slot twice.\",\n  \"rationale\": \"The merge gate admits only the last independently reviewed head (720b408e3, which carries four accepted unfixed findings) or an accepted head, and aa378fd55 cannot be accepted unreviewed: it is a 330-line restructuring of the component that produced nine findings and one regression, its CI is still pending, and the verify mode that would back the acceptance shares the reader's blind spot. One mechanism has produced findings round after round, and the checkpoint guidance for that case is a repair that removes the mechanism's false assurance, followed by a bounded round on the repair. The writer's render-based verify is that repair, within the ticket's scope (the verify mode exists to prove the migration lost nothing), and it keeps the Feature's agreed behaviour and architecture. So the decision is a repair: build the render-based verify, verify it with unit tests against a fake renderer and with a fifth real rehearsal, keep the round count at 3, and report back; the coordinator then decides again on the changed risk, expecting to extend to round 4 with one undirected reviewer covering the reader rewrite and the render verify together. The residual operational limits listed above are disclosed in the PR and go to the maintainer with the final report; none blocks this decision.\",\n  \"next\": \"The writer builds the render-based verify on top of aa378fd55: for each migrated body and comment with a reference, render the original through POST /markdown (gfm, public repository context) and the final through POST /markdown (gfm, internal repository context), extract the issue links GitHub produced as (repository, number) pairs in order, and check that each link in the final is the map's image of the corresponding link in the original (a migrated ticket to its new internal number, a pull request or kept public issue to the public repository); report every mismatch and keep the existing exact-text comparison. Unit tests use a fake renderer and include a case where a deliberately misread body passes the text comparison and fails the render check. Pace the renders inside the existing request budget and add the count to the dry-run estimate. Run a fifth real rehearsal on the new code and confirm verify passes with the render check on. Then send the coordinator a checkpoint report with the repair's commit, its verification and CI, and end the turn; the coordinator decides on the changed risk, expecting one undirected round 4 over the reader rewrite and the render verify together. The PR stays draft; do not launch round 4 before that decision.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"scope\": \"scripts/migrate-tracker.mjs verify mode and its dry-run estimate, scripts/migrate-tracker.test.mjs, and the PR body: verify gains a render-based cross-check through GitHub's Markdown API (original in the public repository's context, final in the internal repository's) that compares the linked references in order through the map, independent of the tool's own Markdown reader; the exact-text comparison stays. No change to snapshot, transfer, restore, rewrite or map, and nothing in the workflow's switch-off behaviour.\",\n  \"verificationChange\": \"Unit tests against a fake renderer, including a deliberately misread body that passes the text comparison and fails the render check; a fifth real rehearsal against impower-internal with the render check on, ending with verify passed and the test issues deleted from both repositories; the render count added to the dry-run estimate and shown to stay inside the hourly budget; the corpus check retained. Round 4, decided after this repair is verified, reviews the reader rewrite and the render verify together.\",\n  \"findings\": [\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"reference rewriting changes URL fragments and link destinations\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"resume marks a wrong closed reason as finished (state_reason ignored without a state change)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"verify omits title, author and creation time\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"verify accepts missing or wrong computed PR closing references\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"restore cannot reproduce absent values or archived Project state\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"a lost rehearsal creation response leaves a test issue outside cleanup's reach\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227553709,\n    \"finding\": \"fence boundaries ignore their blockquote container\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227553709,\n    \"finding\": \"a partial journal tail swallows the next record\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227709560,\n    \"finding\": \"a list marker closes a top-level fence\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227709560,\n    \"finding\": \"balanced parentheses expose part of a link destination\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"the block-boundary rule rewrites valid code spans (pipe line, ordered marker) and the table fixture was wrong\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"backticks inside a link title corrupt the destination and the following reference\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"an unclosed list fence hides references after its container ends\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"code-span boundaries fabricate link reference definitions mid-line\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "0449b331df437ba3776d2576efe23209ff1f34da057ef890020d8d8c050be333",
+          "blockSha256": "163371b455a4d6dcc27495e5e4b739bc6b0108be3436d960a523ce77b2aab54e",
+          "published": {
+            "comment": 6228245433,
+            "time": "2026-10-17T02:00:53.398Z",
+            "headAtPublish": "aa378fd550c4d2fed842a687b6debc2c2e79027e"
+          }
         }
       ]
     }
@@ -1475,6 +1722,16 @@
       "round": 4,
       "head": "041d28169100232e321ebdc166009aa3dbd853e6",
       "time": "2026-10-16T22:52:30.277Z"
+    },
+    {
+      "pr": 2015,
+      "url": "https://github.com/ImpowerGames/impower/pull/2015#issuecomment-6228245433",
+      "kind": "review-checkpoint repair",
+      "ticket": 1966,
+      "id": "4e5617ee",
+      "round": 3,
+      "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
+      "time": "2026-10-17T02:00:53.398Z"
     }
   ],
   "diskRecoveries": [],
@@ -1485,7 +1742,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T01:58:14.712Z",
+      "observedAt": "2026-10-17T02:01:22.120Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -1684,7 +1941,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T01:58:14.712Z",
+      "observedAt": "2026-10-17T02:01:22.120Z",
       "held": true,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
@@ -2263,6 +2520,30 @@
       "event": "request",
       "ticket": 1966,
       "id": "b7a659e5"
+    },
+    {
+      "time": "2026-10-17T02:00:37.351Z",
+      "event": "checkpoint-intent",
+      "ticket": 1966,
+      "id": "4e5617ee",
+      "kind": "repair",
+      "round": 3,
+      "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e"
+    },
+    {
+      "time": "2026-10-17T02:00:53.398Z",
+      "event": "checkpoint-published",
+      "ticket": 1966,
+      "id": "4e5617ee",
+      "comment": 6228245433
+    },
+    {
+      "time": "2026-10-17T02:01:18.640Z",
+      "event": "answer-intent",
+      "ticket": 1966,
+      "id": "b7a659e5",
+      "deliveryId": "bb49b6a6",
+      "attempt": 1
     }
   ]
 }
