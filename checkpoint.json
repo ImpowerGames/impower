@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 83,
-  "previous": "aec32e094ba78b84ca250eb384fffc4bc5c7e049",
+  "seq": 84,
+  "previous": "634c0aab88fb2ef4a4523ab084190983e132c20b",
   "snapshotParents": [],
-  "time": "2026-10-17T02:23:45.730Z",
+  "time": "2026-10-17T02:24:08.152Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 74,
+    "recordRevision": 75,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2219,7 +2219,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:23:43.902Z",
+      "observedAt": "2026-10-17T02:24:06.186Z",
       "held": true,
       "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
       "remoteHead": null,
@@ -2231,7 +2231,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:23:43.902Z",
+      "observedAt": "2026-10-17T02:24:06.186Z",
       "held": true,
       "head": "6f5769ab57f7323e487891630ef814a2131befb8",
       "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
@@ -2979,6 +2979,11 @@
       "time": "2026-10-17T02:20:30.625Z",
       "event": "verified",
       "ticket": 1964
+    },
+    {
+      "time": "2026-10-17T02:24:04.278Z",
+      "event": "check-in",
+      "outcome": "no change: #1964 writer running, worktree at c4e4cd51a reading the code, no PR yet; #1966 pushed the repair head 6f5769ab5 (merged main, 45 tests) and is waiting for CI before its checkpoint report; both writers running"
     }
   ]
 }
