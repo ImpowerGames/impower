@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 118,
-  "previous": "79ed71ee555cfcb3cdaf98ca90bc8285322dc91e",
+  "seq": 119,
+  "previous": "acc839254798076e6b3f8f75f63ad3d52adf3410",
   "snapshotParents": [],
-  "time": "2026-10-17T00:21:44.033Z",
+  "time": "2026-10-17T00:46:27.066Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 93,
@@ -1479,7 +1479,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T00:21:42.993Z",
+      "observedAt": "2026-10-17T00:46:25.759Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1636,12 +1636,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T00:21:42.993Z",
+      "observedAt": "2026-10-17T00:46:25.759Z",
       "held": true,
-      "head": "f10dd9fcbf92a924ee940114d722caab03c4f576",
-      "remoteHead": "f10dd9fcbf92a924ee940114d722caab03c4f576",
+      "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+      "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1984,
       "reviewJobs": [
         {
@@ -1883,7 +1883,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T00:21:15.459Z",
+    "at": "2026-10-17T00:46:25.757Z",
     "tickets": [
       {
         "number": 851,
@@ -1913,7 +1913,7 @@
         "number": 1974,
         "action": "observe",
         "pr": 1984,
-        "reason": "process 49176 started 639277762017008569 is running"
+        "reason": "process 4632, 15240, 51812 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1974-3950b896-bf27-4a2c-b9ff-a936c1dec179"
       }
     ],
     "remaining": [
