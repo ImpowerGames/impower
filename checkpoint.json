@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 84,
-  "previous": "634c0aab88fb2ef4a4523ab084190983e132c20b",
+  "seq": 85,
+  "previous": "57c66a62db46d5cca4fd1ea051e74727c66140b0",
   "snapshotParents": [],
-  "time": "2026-10-17T02:24:08.152Z",
+  "time": "2026-10-17T02:45:17.804Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 75,
@@ -2219,19 +2219,19 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:24:06.186Z",
+      "observedAt": "2026-10-17T02:45:16.316Z",
       "held": true,
       "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
       "remoteHead": null,
       "unpushed": true,
-      "dirty": false
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool": {
       "ticket": 1966,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:24:06.186Z",
+      "observedAt": "2026-10-17T02:45:16.316Z",
       "held": true,
       "head": "6f5769ab57f7323e487891630ef814a2131befb8",
       "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
@@ -2387,7 +2387,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T02:23:43.899Z",
+    "at": "2026-10-17T02:45:16.314Z",
     "tickets": [
       {
         "number": 1962,
@@ -2415,9 +2415,9 @@
       },
       {
         "number": 1966,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 2015,
-        "reason": "process 52916 started 639277993122047392 is running"
+        "reason": "process 52916 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-f157f40d-e345-4b6c-a2c7-496abeb81f39\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1967,
