@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1904
 
-Checkpoint 189 (this commit), 2026-10-17T15:18:29.677Z, after the merge of PR #1995 (confirmed). Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
+Checkpoint 190 (this commit), 2026-10-17T15:22:31.922Z, after a new plan. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -26,7 +26,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1924
 
 - claude-cli claude-opus-5-5 at high, process 45708 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting removes it once its coordinator and child are confirmed gone
+- as of 2026-10-17T15:22:30.903Z, DESKTOP-726EO47 held unfinished files in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting that may exist only there; recover those bytes there before restarting or overwriting this work
 - review job pr-1993/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 6e7a7b974, completed {"ax":1} of planned ["ax","grammar","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
 - review job pr-1993/round-1/launch-grammar-1 on DESKTOP-726EO47: round 1 reviewed 3920a7861, completed {"ax":1,"grammar":1} of planned ["ax","grammar","undirected"]; last launched reviewer grammar attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
 - review job pr-1993/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 4628b32c0, completed {"ax":1,"grammar":1,"undirected":1} of planned ["ax","grammar","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
@@ -37,4 +37,4 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1993/round-4/launch-ax-1 on DESKTOP-726EO47: round 4 reviewed 0bed58155, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 4 (planned ["ax","undirected"]), last event finished
 - review job pr-1993/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 94a0cd06d, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["ax","undirected"]), last event finished
 - review job pr-1993/round-5/launch-ax-1 on DESKTOP-726EO47: round 5 reviewed ce250f5ef, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 5 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-5/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 5 (planned ["ax","undirected"]), last event identified
+- review job pr-1993/round-5/launch-undirected-1 on DESKTOP-726EO47: round 5 reviewed 9296f3ce9, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 5 (planned ["ax","undirected"]), last event finished
