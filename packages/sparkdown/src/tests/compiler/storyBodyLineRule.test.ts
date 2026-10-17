@@ -323,6 +323,18 @@ describe("a story loop header ends at its line", () => {
     ]);
   });
 
+  // Every loop the marked statement holds counts, not only its first
+  // (#2062 round 4).
+  test.each([
+    ["& while false do end while true", "Expected 'do' when parsing while loop, got <eof>"],
+    ["& while false do end for k, v", "Expected 'in' when parsing for loop, got <eof>"],
+    ["& for i = 1, 0 do end while true", "Expected 'do' when parsing while loop, got <eof>"],
+    ["& for i = 1, 0 do end for k, v", "Expected 'in' when parsing for loop, got <eof>"],
+  ])("a header-only loop after a whole loop on its marked line still reports its error: `%s`", (line, message) => {
+    expect(errorsOf(`${line}\nThe hero waits.\n`)).toEqual([`0:${line.length}-1:0 ${message}`]);
+    expect(run(`${line}\nThe hero waits.\n`).output).toBe("The hero waits.\n");
+  });
+
   test.each([
     ["while", "store x = 0\n& while x < 2 do x = x + 1 end\nValue {x}.\n", "Value 2.\n"],
     ["for", "store x = 0\n& for i = 1, 3 do x = i end\nValue {x}.\n", "Value 3.\n"],
