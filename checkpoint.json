@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 112,
-  "previous": "acba4ff0d56385e6c5d4015b4082576abcbea272",
+  "seq": 113,
+  "previous": "70d067f66e51feed79bab86066120823b7d76153",
   "snapshotParents": [],
-  "time": "2026-10-17T04:58:08.668Z",
+  "time": "2026-10-17T04:58:53.609Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "result of #1964",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 103,
+    "recordRevision": 104,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1560,7 +1560,24 @@
       },
       "pending": null,
       "history": [],
-      "results": [],
+      "results": [
+        {
+          "time": "2026-10-17T04:58:51.140Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "permissionMode": "bypassPermissions",
+            "pr": 2040,
+            "reviewedHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+            "rounds": "3 rounds, 4 reviewer launches, all gpt-6.1-sol at xhigh (repository defaults, native Codex through agent-handoff and start-coordinator): round 1 callers + undirected, round 2 undirected-2, round 3 undirected-3 (clean); 4 accepted findings fixed in 052563c03, a2598bca0, b171b2a09 and 3d2e5693c; every report adjudicated",
+            "findings": "None",
+            "verification": "node --test over the 10 changed test files passes on 3d2e5693c; each correction's new cases fail against the head they correct; skills-tier tooling checks 32/32 at b670e0739, context-loading and portability pass on the final head; red on base for build-review-prompt and templates, and a verifyReviewComment probe on base accepts a public PR comment and refuses the internal ticket comment with the switch on. Live with the switch on from a scratch clone (throwaway objects deleted or closed afterwards): internal ticket 24 with PR #2037 (title (I-24), one-paragraph body plus Closes ImpowerGames/impower-internal#24, PR report, round state, reviewer report with token line and adjudication on the ticket, pulls/2037 comments 0); umbrella 27 over sub-issues 25 and 26 with PR #2039 (PR report on 27; 0 comments on #2039, 25 and 26). Checkpoint decision 038210f9 (finish, comment 6229886555); PR marked ready by the writer under review-pr readiness; no code change after the reviewed commit (PR body only). Filed during the work: Bug #2048, evidence on Bug #1866, feedback #510 comment 6229802069.",
+            "ci": "On 3d2e5693c every check passed, including driver-checks windows-latest and hook-tests; package jobs and the Luau corpus gate skipped (no package files changed); nothing failed or pending.",
+            "next": "done",
+            "source": "cross-session message from writer session impower-48 (CLI session c9c18b15, resumed) received 2026-10-17 ~06:50Z"
+          }
+        }
+      ],
       "requests": [
         {
           "id": "26ae8dd3",
@@ -3057,7 +3074,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T04:58:07.611Z",
+      "observedAt": "2026-10-17T04:58:52.525Z",
       "held": true,
       "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
       "remoteHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
@@ -3214,7 +3231,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T04:58:07.611Z",
+      "observedAt": "2026-10-17T04:58:52.525Z",
       "held": true,
       "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
       "remoteHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
@@ -3485,13 +3502,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T18:20:32.891Z",
-      "event": "dispatch-intent",
-      "ticket": 1962,
-      "route": "claude-cli",
-      "launchId": "21e53437-583d-4ff6-b398-939b1a758fff"
-    },
     {
       "time": "2026-10-16T18:21:36.814Z",
       "event": "launched",
@@ -4233,6 +4243,13 @@
       "time": "2026-10-17T04:58:06.146Z",
       "event": "check-in",
       "outcome": "#1964 round 3 checkpoint decided finish (038210f9, comment 6229886555) after the writer cleared reviewer fixture scratch that blocked the evidence scan (evidence attached to #1866); writer resumed to mark PR #2040 ready and send its final report. #1966 PR #2015 round 5 reviewed, head 37679545e merged main with CI running; writer waiting for CI before its checkpoint report."
+    },
+    {
+      "time": "2026-10-17T04:58:51.141Z",
+      "event": "result",
+      "ticket": 1964,
+      "pr": 2040,
+      "reviewedHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb"
     }
   ]
 }
