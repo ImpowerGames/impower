@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 55,
-  "previous": "22611b3ee80d7c6203f61cf337d1d00d9461bfad",
+  "seq": 56,
+  "previous": "36819c29f32fc0ad9991b6fc07d1857d9c248aed",
   "snapshotParents": [],
-  "time": "2026-10-17T00:23:27.884Z",
+  "time": "2026-10-17T00:23:50.019Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 48,
+    "recordRevision": 49,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1474,7 +1474,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T00:23:26.823Z",
+      "observedAt": "2026-10-17T00:23:48.797Z",
       "held": true,
       "head": "5cbe91c559d5515411b476e237d7f5954b6c14a6",
       "remoteHead": "5cbe91c559d5515411b476e237d7f5954b6c14a6",
@@ -1525,7 +1525,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T00:23:26.823Z",
+      "observedAt": "2026-10-17T00:23:48.797Z",
       "held": true,
       "head": "8c7d5a1e1e8f7e363be4904fb9778bc99819bf4f",
       "remoteHead": "8c7d5a1e1e8f7e363be4904fb9778bc99819bf4f",
@@ -1972,6 +1972,11 @@
       "time": "2026-10-16T23:53:47.704Z",
       "event": "check-in",
       "outcome": "no change: #1963 opened draft PR #2009 at 5cbe91c55 (CI green so far, Windows driver check running) and is preparing review round 1; #1966 finished its dry-run snapshot (1,263 to migrate, 35 to keep) and is writing its PR body"
+    },
+    {
+      "time": "2026-10-17T00:23:47.486Z",
+      "event": "check-in",
+      "outcome": "no change: #1963 PR #2009 at 5cbe91c55 (CI green) with round 1 findings being fixed; #1966 opened draft PR #2015 at 8c7d5a1e1 (Windows skills-checks red on that head, writer is in round 1 corrections); both writers running"
     }
   ]
 }
