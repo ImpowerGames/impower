@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 186,
-  "previous": "c0d6192a1afc4474da405d6b7a629ca1781e6753",
+  "seq": 187,
+  "previous": "faf33bd11d06a8b0949702697b73f550df0b4cd6",
   "snapshotParents": [],
-  "time": "2026-10-17T15:10:15.953Z",
+  "time": "2026-10-17T15:10:27.627Z",
   "kind": "auto",
-  "transition": "the intent to ready PR #1995",
+  "transition": "the outcome of operation 5189068c",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 199,
+    "recordRevision": 200,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -6028,8 +6028,10 @@
       "ticket": 1906,
       "pr": 1995,
       "expectHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
-      "state": "intent",
-      "time": "2026-10-17T15:10:13.298Z"
+      "state": "confirmed",
+      "time": "2026-10-17T15:10:13.298Z",
+      "evidence": "gh pr ready 1995 succeeded; gh pr view reads back draft=false head=a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3; readiness comment posted naming decision 9a9813dc",
+      "settled": "2026-10-17T15:10:25.042Z"
     }
   ],
   "decisions": [
@@ -6152,7 +6154,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T15:10:14.800Z",
+      "observedAt": "2026-10-17T15:10:26.445Z",
       "held": true,
       "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
       "remoteHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
@@ -6537,7 +6539,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:10:14.800Z",
+      "observedAt": "2026-10-17T15:10:26.445Z",
       "held": true,
       "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
       "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
@@ -7317,12 +7319,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T01:16:50.255Z",
-      "event": "operation-outcome",
-      "id": "38aa7ae4",
-      "state": "confirmed"
-    },
-    {
       "time": "2026-10-17T01:17:31.789Z",
       "event": "check-in",
       "outcome": "#1908 final report stored and writer released; PR #1996 merged as e9287075 (operation 38aa7ae4) on the third gate run: the first was refused because the stored report's findings field was prose rather than None, the second stopped when Bug #2023 joined the Feature's slices mid-check; #1906 told to drop the #879 and #922 known-list entries; #1906 and #1924 running; #1907 waits on #1374 (session started by the maintainer)"
@@ -8063,6 +8059,12 @@
       "id": "5189068c",
       "kind": "ready",
       "pr": 1995
+    },
+    {
+      "time": "2026-10-17T15:10:25.042Z",
+      "event": "operation-outcome",
+      "id": "5189068c",
+      "state": "confirmed"
     }
   ]
 }
