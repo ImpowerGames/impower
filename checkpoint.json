@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 121,
-  "previous": "390778937429140e3af493578ed08e1d3b3ff771",
+  "seq": 122,
+  "previous": "d8d518e8e70ee898fcdbbc7f8ceb920b87617a39",
   "snapshotParents": [],
-  "time": "2026-10-17T00:49:58.337Z",
+  "time": "2026-10-17T00:50:11.175Z",
   "kind": "auto",
-  "transition": "answer of #1974",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 97,
+    "recordRevision": 98,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -726,6 +726,11 @@
           },
           "evidence": "cross-session message from the writer (peer impower-cd, ~19:58Z) naming assignment 3950b896 and model claude-opus-5-5, effort medium and bypassPermissions read from its own command line and CLAUDE_EFFORT; launch-1974 out.jsonl init line names model claude-opus-5-5 and permissionMode bypassPermissions",
           "deliveryId": "d5e2da1f"
+        },
+        "resuming": {
+          "id": "7a097718-7636-4e93-9a2d-b75836432bde",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-7a097718-7636-4e93-9a2d-b75836432bde",
+          "time": "2026-10-17T00:50:07.059Z"
         }
       },
       "pending": null,
@@ -1781,7 +1786,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T00:49:56.282Z",
+      "observedAt": "2026-10-17T00:50:09.021Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1938,7 +1943,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T00:49:56.282Z",
+      "observedAt": "2026-10-17T00:50:09.021Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2875,6 +2880,13 @@
       "id": "6e80b10b",
       "deliveryId": "14c7db1c",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T00:50:07.060Z",
+      "event": "resume-intent",
+      "ticket": 1974,
+      "id": "7a097718-7636-4e93-9a2d-b75836432bde",
+      "sessionId": "027bc9ab-053c-4105-bb27-36ecdae50509"
     }
   ]
 }
