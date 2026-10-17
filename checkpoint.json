@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 150,
-  "previous": "49f9e127d5d6b3380b54d0268499a71a5bf405ee",
+  "seq": 151,
+  "previous": "2fc874698403ee0ec8157b4864c192c248ad0a8a",
   "snapshotParents": [],
-  "time": "2026-10-17T13:19:43.181Z",
+  "time": "2026-10-17T13:22:31.496Z",
   "kind": "auto",
-  "transition": "release of #1374",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 157,
+    "recordRevision": 158,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4410,7 +4410,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:19:41.897Z",
+      "observedAt": "2026-10-17T13:22:30.577Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -4618,7 +4618,7 @@
         },
         {
           "job": "pr-1995/round-3/launch-axg-1",
-          "lastEvent": "blocked",
+          "lastEvent": "shutdown-verified-by-hand",
           "attempted": {
             "round": 3,
             "step": "review-axg",
@@ -4719,7 +4719,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:19:41.897Z",
+      "observedAt": "2026-10-17T13:22:30.577Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5436,11 +5436,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:31:11.874Z",
-      "event": "check-in",
-      "outcome": "no change: #1905 running; PR #1927 head 23f8b6b4 green, review round 3 opened (state 6219904511, fix3 reviewer running, writer waiting in the foreground), 16 PR comments; no request pending"
-    },
     {
       "time": "2026-10-16T17:03:25.125Z",
       "event": "check-in",
@@ -6159,6 +6154,11 @@
       "event": "released",
       "ticket": 1374,
       "reason": "session local_06fee41a-73da-418e-ad9e-8528ebd314ce is archived"
+    },
+    {
+      "time": "2026-10-17T13:22:29.442Z",
+      "event": "check-in",
+      "outcome": "maintainer answered yes to all: launch-axg-1's hand-verified shutdown recorded on its journal (exited row amended, backup kept), #1374's session archived and its writer released, and #1924's lookahead is to be removed (a top-level line beginning with an attribute is Luau); assessments for #1906 extend-to-round-4 and #1924 repair are written but NOT recorded or published because ORCH #1961's hour-ahead cutover notice arrived: no new writer, no new round, no merge until the window closes; replied idle with the state; #1907 and #1977 held"
     }
   ]
 }
