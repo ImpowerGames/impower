@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 224,
-  "previous": "71a3ee208c89a3bf9ad3b5324591344bf809fa08",
+  "seq": 225,
+  "previous": "5bc66c41e9ed1523539b4ea51d35cc5f53435125",
   "snapshotParents": [],
-  "time": "2026-10-17T21:53:22.372Z",
+  "time": "2026-10-17T22:23:28.207Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 206,
+    "recordRevision": 207,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T21:53:21.574Z",
+      "observedAt": "2026-10-17T22:23:27.291Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,12 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T05:01:36.038Z",
-      "event": "released",
-      "ticket": 1964,
-      "reason": "process 53628 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-17T05:02:03.476Z",
       "event": "dispatch-intent",
@@ -6194,6 +6188,11 @@
       "time": "2026-10-17T21:53:20.283Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main b3dd72d54; #1907's PR #2062 at 7d041448c, open draft under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T22:23:25.961Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main b3dd72d54; #1907's PR #2062 at 89d50126a, open draft under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
