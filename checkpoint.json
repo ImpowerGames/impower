@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 159,
-  "previous": "02c9cbf1351da9121e7fe73c1c3238368de1fe4b",
+  "seq": 160,
+  "previous": "51d1a246bf8e6b5db5187305ccfa8dbcd5e36ed1",
   "snapshotParents": [],
-  "time": "2026-10-17T08:40:27.011Z",
+  "time": "2026-10-17T08:42:24.514Z",
   "kind": "auto",
-  "transition": "request of #1965",
+  "transition": "answer of #1965",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 145,
+    "recordRevision": 148,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1885,7 +1885,206 @@
           "text": "Round 3 checkpoint report for PR #2053: rounds 1 (compat + undirected), 2 (undirected) and 3 (undirected) complete, all gpt-6.1-sol xhigh; 7 accepted findings fixed; reviewed head e730ff3a9, current head a97059162 (one unreviewed commit, round 3's fix: fetchState reads the fetched ref again, scoped by tickets repository once tickets live apart, with the identity check kept). Mechanism: per-tracker isolation of local coordinator state (pointer, fetched ref, checkpoint identity) once two trackers can share a Feature number; round 2's fix for the pointer collision introduced the fetched-ref race, and round 3's fix for that introduced a takeover blind spot; a97059162 restores origin/main's fetched-ref read plus a name scope, with both interleavings pinned by tests and the reviewers' probes. CI on a97059162: test-suite, linked-issue, notifier-tests, skills ubuntu passed; skills windows and tsc pending. Writer recommends a bounded extension to round 4 with one undirected reviewer on a97059162, or acceptance.",
           "source": "cross-session message from writer session impower-e7 (CLI session bb2a19cf) received 2026-10-17 ~11:50Z",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision for PR #2053 after round 3: EXTEND to round 4 (decision 00ca121c, published as PR comment 6231870162; read it in full, it is the authority). I read a97059162: for a one-repository run it is origin/main's fetched-ref read plus the identity check, and the scoped ref name applies only once tickets live apart, which is the right shape; but it is the third rewrite of a path every live coordinator runs on every checkpoint and gate read, two earlier fixes in this class each introduced the next defect, and CI on the head was not complete, so it gets the bounded independent reading you recommended rather than acceptance. Launch round 4 on head a97059162 with reviewRoundLimit 4 and extendedReviewAuthorization set exactly to the invocation quoted in that comment: /orchestrate-feature #1961. One undirected reviewer at the repository's reviewer defaults, scoped to e730ff3a9..a97059162 with the full PR as context; ask it, in the round-state scope line, to judge the scoped-ref read's correctness and completeness (every fetch and read of the private ref uses the scoped name; no reader of the shared name remains; the two forced interleavings cover the race the round 2 fix opened) and the one-repository path's equivalence to origin/main. Remove the reviewer's scratch from impower.review-jobs/pr-2053 after it exits, adjudicate as usual, then send me the next checkpoint report after round 4's verified fixes and end your turn; the PR stays draft until then. The three post-cutover design points you raised are noted for the maintainer and are not conditions. Wait in the foreground for the reviewer as before.",
+            "deliveryId": "6dfd1f60",
+            "attempts": 1,
+            "time": "2026-10-17T08:42:22.433Z",
+            "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "00ca121c",
+          "kind": "extend",
+          "feature": 1961,
+          "ticket": 1965,
+          "pr": 2053,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-17T08:42:18.796Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "e730ff3a9bf4e747f936c5997a7019395ea7768d",
+          "head": "a970591624352b9e4850829e9ad4e82b23fd8684",
+          "range": {
+            "from": "e730ff3a9bf4e747f936c5997a7019395ea7768d",
+            "to": "a970591624352b9e4850829e9ad4e82b23fd8684",
+            "base": "a96dbbb3172baf33effd506b7d2f33d041bb02fa",
+            "commits": [
+              "a970591624352b9e4850829e9ad4e82b23fd8684"
+            ],
+            "diffSha256": "55917c0654989ba05a375238fc8890c639577f12af3e260cde2919460caaef02"
+          },
+          "reports": [
+            {
+              "comment": 6230802294,
+              "round": 1,
+              "reviewerId": "compat",
+              "adjudication": 6231075655
+            },
+            {
+              "comment": 6231196848,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6231270066
+            },
+            {
+              "comment": 6231386767,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6231460470
+            },
+            {
+              "comment": 6231586011,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6231836523
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "pending"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 4,
+          "limitReason": "The unreviewed range is one commit that restores origin/main's fetched-ref read and scopes the private ref name by tracker; one bounded round with a single undirected reviewer covers it, and a further round would have nothing new to read.",
+          "authority": "/orchestrate-feature #1961",
+          "assessment": {
+            "mechanisms": "Seven accepted findings in three rounds. One mechanism accounts for three of them and for both regressions: per-tracker isolation of the coordinator's local state once two trackers can share a Feature number in one checkout. Round 1 undirected (d) found the coordinator pointer keyed by the code repository, so an internal Feature #N collided with a retained public Feature #N; the fix keyed it by the tickets repository. Round 2 (f) found that this made two same-number runs possible in one checkout, which then fetched their state branches into one shared private ref, so a concurrent fetch could hand a public sync-summary the internal checkpoint; the fix read the ls-remote hash instead of the ref and added a tickets-identity check. Round 3 (g) found that reading the ls-remote hash blinded a coordinator to a takeover pushed between the listing and the fetch, for one-repository runs too; a97059162 reads the fetched ref again, as origin/main does, and closes the cross-tracker race by scoping the private ref name by tickets repository once tickets live apart, keeping the identity check as a second layer. Round 1 compat (a) was the same class at the remote boundary: the state remote was checked by its fetch URL while pushes go to every push URL, so a second push URL leaked private state; now every fetch and push URL must name the tickets repository and publish rechecks before each push. (b) case-only takeover refusal, (c) stale wording and (e) discovery missing prefixed branches (fixed by a second author-restricted search by number, checked live) are independent. I read the unreviewed diff: localStateRef gains a tickets parameter and returns the old name when tickets equal the repository, fetchState and publish's read-back use it, and the commit read goes back to rev-parse of the fetched ref; for a one-repository run that is origin/main's fetch and read plus the identity check, which their checkpoints always pass. The new test forces both interleavings by hooking execFileSync after a specific Git call: a successor pushed between ls-remote and fetch is the checkpoint read, and a one-repository Feature #900 reads its own checkpoint while the internal Feature #900's state is fetched between its fetch and its read; each case is red on the version that had the defect.",
+            "regressions": "Two corrections introduced defects in this class, each caught by the next reviewer: the pointer fix (d) made the shared-ref race (f) reachable, and the ls-remote read that fixed (f) opened the takeover blind spot (g). a97059162 removes the round 2 mechanism rather than adding another, but it is the third change to the same path in three rounds and has had no independent reading. The other fixes held through later rounds.",
+            "repairOptions": "The broader repair the writer names is already what a97059162 does: scope every per-Feature local artifact by tickets repository in one place, and only the pointer and the fetched ref exist (sidecars sit beside each record, review jobs are keyed by PR, worktrees by branch, remotes by name). No further repair before review. Three post-cutover design points the writer raised stay open for the maintainer and are not conditions here: a PR bundled under an umbrella makes the gate read the slice's thread rather than the umbrella's; round counts read from a shared ticket thread include an earlier closed PR's rounds; and orchestrate-state/feature-37 remains the internal repository's default branch until #1967 creates main.",
+            "residualRisk": "1. a97059162 is unreviewed, and this is the code path this coordinator and ORCH #1904 run on every checkpoint, discover, resume and merge-gate ownership read the moment it merges; a defect in it would be live immediately. For one-repository runs it is origin/main's read plus an identity check, so the exposure is small, but the class's history says the first reading of each change in it found something. 2. CI on a97059162: the Windows skills check was still pending at the writer's report and at the evidence read; everything else passed. 3. Discovery still misses a prefixed branch whose PR text never names the ticket number; the PR template's closing line names it whenever the PR resolves the ticket. 4. The three post-cutover design points above. 5. The symbolic-link EPERM limitation is pre-existing.",
+            "coverage": "At a97059162: all five orchestrate-feature test files pass, with the two forced interleavings in checkpoint.test.mjs red on ff45f16aa and 0e6b6fa0c respectively and green now; the round 2 and round 3 reviewers' own probes rerun on a97059162 show no leak and finalGate.called false after the takeover; the context-loading check passes. Earlier rounds: both switch positions pinned from split copies of the record; a record shaped like today's live runs planned in the off position; the live dry run from a flipped scratch clone (status comment, checkpoint decision and final report on throwaway internal tickets 37 and 38, state branch pushed to impower-internal, public state refs unchanged, throwaway public PR #2054 with zero comments throughout, one disclosed simulated merged read) with every throwaway object cleaned up except the internal state branch; both discovery searches checked live; reviewer scratch removed from the job directory after each round. CI on a97059162: test-suite, linked-issue, notifier-tests, skills ubuntu and the change detectors passed; skills windows pending; tsc passed or pending per the latest read.",
+            "nextRoundValue": "One bounded round with a single undirected reviewer over e730ff3a9..a97059162 establishes that the scoped-ref read is correct and complete: that the one-repository path is unchanged in behaviour, that the scoped name is used everywhere the private ref is fetched or read (fetchState and publish's read-back), that no other reader of the shared name remains, and that the two forced interleavings cover the race the previous fix opened. That is the independent check this class has needed at every step, and it costs about an hour against the risk of shipping a live defect into the running coordinators.",
+            "rationale": "The merge gate admits only the last reviewed head (e730ff3a9, which carries the takeover blind spot) or an accepted head. Accepting a97059162 unreviewed fails on two counts: CI on the head is not yet complete, and the correction class has not stopped recurring, with each of the last two fixes in this path introducing the next defect. The change is small and principled, but it is the third rewrite of a path that every live coordinator executes, so the guidance for a correction after a regression applies: a bounded round on it. The decision is a one-round extension, limit 4, with one undirected reviewer recommended over the a97059162 correction with the full PR as context, and the next checkpoint after round 4's verified fixes.",
+            "next": "The writer launches round 4 on head a97059162 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, scoped to e730ff3a9..a97059162 with the full PR as context, asking the reviewer to judge the scoped-ref read's correctness and completeness and the one-repository path's equivalence to origin/main; adjudicates as usual; removes reviewer scratch from the job directory after the reviewer exits; and sends the next checkpoint report after round 4's verified fixes. The PR stays draft until then.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 4,
+            "limitReason": "The unreviewed range is one commit that restores origin/main's fetched-ref read and scopes the private ref name by tracker; one bounded round with a single undirected reviewer covers it, and a further round would have nothing new to read.",
+            "findings": [
+              {
+                "comment": 6230802294,
+                "finding": "the state remote was checked by its fetch URL only while pushes go to every push URL, leaking private state through a second push URL",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230802294,
+                "finding": "a case-only --repo difference refused a takeover",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230802294,
+                "finding": "review-checkpoints.md still said the decision lives on the PR",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6231196848,
+                "finding": "the coordinator pointer was keyed by the code repository, so same-numbered Features on the two trackers collided",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6231196848,
+                "finding": "discovery missed prefixed branches such as codex/fix/N-",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6231386767,
+                "finding": "same-number runs shared one fetched private ref, so a concurrent fetch could hand a public sync-summary the internal checkpoint",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6231586011,
+                "finding": "reading the ls-remote hash let a coordinator act after its takeover had been fetched",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: authorize another bounded round\n\nDecision `00ca121c` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1965. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1961\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6230802294 in 6231075655, 6231196848 in 6231270066, 6231386767 in 6231460470, 6231586011 in 6231836523).\n- Independently reviewed through `e730ff3a9bf4e747f936c5997a7019395ea7768d`.\n- Head `a970591624352b9e4850829e9ad4e82b23fd8684`. Unreviewed: `e730ff3a9..a97059162`, 1 commit (`a97059162` fix(orchestrate-feature): read the fetched checkpoint from a ref scoped by tracker (#1965)), diff SHA-256 `55917c0654989ba05a375238fc8890c639577f12af3e260cde2919460caaef02`.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, Luau corpus gate passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, typecheck passed, skills-checks (windows-latest) pending, driver-checks passed, test-suite passed, vitest-api-integration passed.\n- Findings across all rounds: 7 accepted; unresolved: none.\n- Shared mechanisms: Seven accepted findings in three rounds. One mechanism accounts for three of them and for both regressions: per-tracker isolation of the coordinator's local state once two trackers can share a Feature number in one checkout. Round 1 undirected (d) found the coordinator pointer keyed by the code repository, so an internal Feature #N collided with a retained public Feature #N; the fix keyed it by the tickets repository. Round 2 (f) found that this made two same-number runs possible in one checkout, which then fetched their state branches into one shared private ref, so a concurrent fetch could hand a public sync-summary the internal checkpoint; the fix read the ls-remote hash instead of the ref and added a tickets-identity check. Round 3 (g) found that reading the ls-remote hash blinded a coordinator to a takeover pushed between the listing and the fetch, for one-repository runs too; a97059162 reads the fetched ref again, as origin/main does, and closes the cross-tracker race by scoping the private ref name by tickets repository once tickets live apart, keeping the identity check as a second layer. Round 1 compat (a) was the same class at the remote boundary: the state remote was checked by its fetch URL while pushes go to every push URL, so a second push URL leaked private state; now every fetch and push URL must name the tickets repository and publish rechecks before each push. (b) case-only takeover refusal, (c) stale wording and (e) discovery missing prefixed branches (fixed by a second author-restricted search by number, checked live) are independent. I read the unreviewed diff: localStateRef gains a tickets parameter and returns the old name when tickets equal the repository, fetchState and publish's read-back use it, and the commit read goes back to rev-parse of the fetched ref; for a one-repository run that is origin/main's fetch and read plus the identity check, which their checkpoints always pass. The new test forces both interleavings by hooking execFileSync after a specific Git call: a successor pushed between ls-remote and fetch is the checkpoint read, and a one-repository Feature #900 reads its own checkpoint while the internal Feature #900's state is fetched between its fetch and its read; each case is red on the version that had the defect.\n- Defects introduced by corrections: Two corrections introduced defects in this class, each caught by the next reviewer: the pointer fix (d) made the shared-ref race (f) reachable, and the ls-remote read that fixed (f) opened the takeover blind spot (g). a97059162 removes the round 2 mechanism rather than adding another, but it is the third change to the same path in three rounds and has had no independent reading. The other fixes held through later rounds.\n- Broader or simpler repair: The broader repair the writer names is already what a97059162 does: scope every per-Feature local artifact by tickets repository in one place, and only the pointer and the fetched ref exist (sidecars sit beside each record, review jobs are keyed by PR, worktrees by branch, remotes by name). No further repair before review. Three post-cutover design points the writer raised stay open for the maintainer and are not conditions here: a PR bundled under an umbrella makes the gate read the slice's thread rather than the umbrella's; round counts read from a shared ticket thread include an earlier closed PR's rounds; and orchestrate-state/feature-37 remains the internal repository's default branch until #1967 creates main.\n- Residual risk: 1. a97059162 is unreviewed, and this is the code path this coordinator and ORCH #1904 run on every checkpoint, discover, resume and merge-gate ownership read the moment it merges; a defect in it would be live immediately. For one-repository runs it is origin/main's read plus an identity check, so the exposure is small, but the class's history says the first reading of each change in it found something. 2. CI on a97059162: the Windows skills check was still pending at the writer's report and at the evidence read; everything else passed. 3. Discovery still misses a prefixed branch whose PR text never names the ticket number; the PR template's closing line names it whenever the PR resolves the ticket. 4. The three post-cutover design points above. 5. The symbolic-link EPERM limitation is pre-existing.\n- Verification coverage: At a97059162: all five orchestrate-feature test files pass, with the two forced interleavings in checkpoint.test.mjs red on ff45f16aa and 0e6b6fa0c respectively and green now; the round 2 and round 3 reviewers' own probes rerun on a97059162 show no leak and finalGate.called false after the takeover; the context-loading check passes. Earlier rounds: both switch positions pinned from split copies of the record; a record shaped like today's live runs planned in the off position; the live dry run from a flipped scratch clone (status comment, checkpoint decision and final report on throwaway internal tickets 37 and 38, state branch pushed to impower-internal, public state refs unchanged, throwaway public PR #2054 with zero comments throughout, one disclosed simulated merged read) with every throwaway object cleaned up except the internal state branch; both discovery searches checked live; reviewer scratch removed from the job directory after each round. CI on a97059162: test-suite, linked-issue, notifier-tests, skills ubuntu and the change detectors passed; skills windows pending; tsc passed or pending per the latest read.\n- What another round would establish: One bounded round with a single undirected reviewer over e730ff3a9..a97059162 establishes that the scoped-ref read is correct and complete: that the one-repository path is unchanged in behaviour, that the scoped name is used everywhere the private ref is fetched or read (fetchState and publish's read-back), that no other reader of the shared name remains, and that the two forced interleavings cover the race the previous fix opened. That is the independent check this class has needed at every step, and it costs about an hour against the risk of shipping a live defect into the running coordinators.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The merge gate admits only the last reviewed head (e730ff3a9, which carries the takeover blind spot) or an accepted head. Accepting a97059162 unreviewed fails on two counts: CI on the head is not yet complete, and the correction class has not stopped recurring, with each of the last two fixes in this path introducing the next defect. The change is small and principled, but it is the third rewrite of a path that every live coordinator executes, so the guidance for a correction after a regression applies: a bounded round on it. The decision is a one-round extension, limit 4, with one undirected reviewer recommended over the a97059162 correction with the full PR as context, and the next checkpoint after round 4's verified fixes. Next: The writer launches round 4 on head a97059162 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, scoped to e730ff3a9..a97059162 with the full PR as context, asking the reviewer to judge the scoped-ref read's correctness and completeness and the one-repository path's equivalence to origin/main; adjudicates as usual; removes reviewer scratch from the job directory after the reviewer exits; and sends the next checkpoint report after round 4's verified fixes. The PR stays draft until then.\n- Round 4 may launch with `reviewRoundLimit` 4 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: The unreviewed range is one commit that restores origin/main's fetched-ref read and scopes the private ref name by tracker; one bounded round with a single undirected reviewer covers it, and a further round would have nothing new to read. The next checkpoint follows round 4's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"00ca121c\",\n \"kind\": \"extend\",\n \"feature\": 1961,\n \"ticket\": 1965,\n \"pr\": 2053,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-17T08:42:18.796Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"e730ff3a9bf4e747f936c5997a7019395ea7768d\",\n \"head\": \"a970591624352b9e4850829e9ad4e82b23fd8684\",\n \"range\": {\n  \"from\": \"e730ff3a9bf4e747f936c5997a7019395ea7768d\",\n  \"to\": \"a970591624352b9e4850829e9ad4e82b23fd8684\",\n  \"base\": \"a96dbbb3172baf33effd506b7d2f33d041bb02fa\",\n  \"commits\": [\n   \"a970591624352b9e4850829e9ad4e82b23fd8684\"\n  ],\n  \"diffSha256\": \"55917c0654989ba05a375238fc8890c639577f12af3e260cde2919460caaef02\"\n },\n \"reports\": [\n  {\n   \"comment\": 6230802294,\n   \"round\": 1,\n   \"reviewerId\": \"compat\",\n   \"adjudication\": 6231075655\n  },\n  {\n   \"comment\": 6231196848,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6231270066\n  },\n  {\n   \"comment\": 6231386767,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6231460470\n  },\n  {\n   \"comment\": 6231586011,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6231836523\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"pending\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 4,\n \"limitReason\": \"The unreviewed range is one commit that restores origin/main's fetched-ref read and scopes the private ref name by tracker; one bounded round with a single undirected reviewer covers it, and a further round would have nothing new to read.\",\n \"authority\": \"/orchestrate-feature #1961\",\n \"assessment\": {\n  \"mechanisms\": \"Seven accepted findings in three rounds. One mechanism accounts for three of them and for both regressions: per-tracker isolation of the coordinator's local state once two trackers can share a Feature number in one checkout. Round 1 undirected (d) found the coordinator pointer keyed by the code repository, so an internal Feature #N collided with a retained public Feature #N; the fix keyed it by the tickets repository. Round 2 (f) found that this made two same-number runs possible in one checkout, which then fetched their state branches into one shared private ref, so a concurrent fetch could hand a public sync-summary the internal checkpoint; the fix read the ls-remote hash instead of the ref and added a tickets-identity check. Round 3 (g) found that reading the ls-remote hash blinded a coordinator to a takeover pushed between the listing and the fetch, for one-repository runs too; a97059162 reads the fetched ref again, as origin/main does, and closes the cross-tracker race by scoping the private ref name by tickets repository once tickets live apart, keeping the identity check as a second layer. Round 1 compat (a) was the same class at the remote boundary: the state remote was checked by its fetch URL while pushes go to every push URL, so a second push URL leaked private state; now every fetch and push URL must name the tickets repository and publish rechecks before each push. (b) case-only takeover refusal, (c) stale wording and (e) discovery missing prefixed branches (fixed by a second author-restricted search by number, checked live) are independent. I read the unreviewed diff: localStateRef gains a tickets parameter and returns the old name when tickets equal the repository, fetchState and publish's read-back use it, and the commit read goes back to rev-parse of the fetched ref; for a one-repository run that is origin/main's fetch and read plus the identity check, which their checkpoints always pass. The new test forces both interleavings by hooking execFileSync after a specific Git call: a successor pushed between ls-remote and fetch is the checkpoint read, and a one-repository Feature #900 reads its own checkpoint while the internal Feature #900's state is fetched between its fetch and its read; each case is red on the version that had the defect.\",\n  \"regressions\": \"Two corrections introduced defects in this class, each caught by the next reviewer: the pointer fix (d) made the shared-ref race (f) reachable, and the ls-remote read that fixed (f) opened the takeover blind spot (g). a97059162 removes the round 2 mechanism rather than adding another, but it is the third change to the same path in three rounds and has had no independent reading. The other fixes held through later rounds.\",\n  \"repairOptions\": \"The broader repair the writer names is already what a97059162 does: scope every per-Feature local artifact by tickets repository in one place, and only the pointer and the fetched ref exist (sidecars sit beside each record, review jobs are keyed by PR, worktrees by branch, remotes by name). No further repair before review. Three post-cutover design points the writer raised stay open for the maintainer and are not conditions here: a PR bundled under an umbrella makes the gate read the slice's thread rather than the umbrella's; round counts read from a shared ticket thread include an earlier closed PR's rounds; and orchestrate-state/feature-37 remains the internal repository's default branch until #1967 creates main.\",\n  \"residualRisk\": \"1. a97059162 is unreviewed, and this is the code path this coordinator and ORCH #1904 run on every checkpoint, discover, resume and merge-gate ownership read the moment it merges; a defect in it would be live immediately. For one-repository runs it is origin/main's read plus an identity check, so the exposure is small, but the class's history says the first reading of each change in it found something. 2. CI on a97059162: the Windows skills check was still pending at the writer's report and at the evidence read; everything else passed. 3. Discovery still misses a prefixed branch whose PR text never names the ticket number; the PR template's closing line names it whenever the PR resolves the ticket. 4. The three post-cutover design points above. 5. The symbolic-link EPERM limitation is pre-existing.\",\n  \"coverage\": \"At a97059162: all five orchestrate-feature test files pass, with the two forced interleavings in checkpoint.test.mjs red on ff45f16aa and 0e6b6fa0c respectively and green now; the round 2 and round 3 reviewers' own probes rerun on a97059162 show no leak and finalGate.called false after the takeover; the context-loading check passes. Earlier rounds: both switch positions pinned from split copies of the record; a record shaped like today's live runs planned in the off position; the live dry run from a flipped scratch clone (status comment, checkpoint decision and final report on throwaway internal tickets 37 and 38, state branch pushed to impower-internal, public state refs unchanged, throwaway public PR #2054 with zero comments throughout, one disclosed simulated merged read) with every throwaway object cleaned up except the internal state branch; both discovery searches checked live; reviewer scratch removed from the job directory after each round. CI on a97059162: test-suite, linked-issue, notifier-tests, skills ubuntu and the change detectors passed; skills windows pending; tsc passed or pending per the latest read.\",\n  \"nextRoundValue\": \"One bounded round with a single undirected reviewer over e730ff3a9..a97059162 establishes that the scoped-ref read is correct and complete: that the one-repository path is unchanged in behaviour, that the scoped name is used everywhere the private ref is fetched or read (fetchState and publish's read-back), that no other reader of the shared name remains, and that the two forced interleavings cover the race the previous fix opened. That is the independent check this class has needed at every step, and it costs about an hour against the risk of shipping a live defect into the running coordinators.\",\n  \"rationale\": \"The merge gate admits only the last reviewed head (e730ff3a9, which carries the takeover blind spot) or an accepted head. Accepting a97059162 unreviewed fails on two counts: CI on the head is not yet complete, and the correction class has not stopped recurring, with each of the last two fixes in this path introducing the next defect. The change is small and principled, but it is the third rewrite of a path that every live coordinator executes, so the guidance for a correction after a regression applies: a bounded round on it. The decision is a one-round extension, limit 4, with one undirected reviewer recommended over the a97059162 correction with the full PR as context, and the next checkpoint after round 4's verified fixes.\",\n  \"next\": \"The writer launches round 4 on head a97059162 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, scoped to e730ff3a9..a97059162 with the full PR as context, asking the reviewer to judge the scoped-ref read's correctness and completeness and the one-repository path's equivalence to origin/main; adjudicates as usual; removes reviewer scratch from the job directory after the reviewer exits; and sends the next checkpoint report after round 4's verified fixes. The PR stays draft until then.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 4,\n  \"limitReason\": \"The unreviewed range is one commit that restores origin/main's fetched-ref read and scopes the private ref name by tracker; one bounded round with a single undirected reviewer covers it, and a further round would have nothing new to read.\",\n  \"findings\": [\n   {\n    \"comment\": 6230802294,\n    \"finding\": \"the state remote was checked by its fetch URL only while pushes go to every push URL, leaking private state through a second push URL\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230802294,\n    \"finding\": \"a case-only -\\u002drepo difference refused a takeover\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230802294,\n    \"finding\": \"review-checkpoints.md still said the decision lives on the PR\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6231196848,\n    \"finding\": \"the coordinator pointer was keyed by the code repository, so same-numbered Features on the two trackers collided\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6231196848,\n    \"finding\": \"discovery missed prefixed branches such as codex/fix/N-\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6231386767,\n    \"finding\": \"same-number runs shared one fetched private ref, so a concurrent fetch could hand a public sync-summary the internal checkpoint\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6231586011,\n    \"finding\": \"reading the ls-remote hash let a coordinator act after its takeover had been fetched\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "a42c773d5dd3670cdec0c05170e31815b28e979ff9c7bac1748a90c8785618e0",
+          "blockSha256": "430ae8a35561d0bc903c5387a17ff486a91b488c30b4d2ba50cc715536f6bf8a",
+          "published": {
+            "comment": 6231870162,
+            "time": "2026-10-17T08:42:21.890Z",
+            "headAtPublish": "a970591624352b9e4850829e9ad4e82b23fd8684"
+          }
         }
       ]
     },
@@ -4174,6 +4373,16 @@
       "time": "2026-10-17T04:57:19.352Z"
     },
     {
+      "pr": 2053,
+      "url": "https://github.com/ImpowerGames/impower/pull/2053#issuecomment-6231870162",
+      "kind": "review-checkpoint extend",
+      "ticket": 1965,
+      "id": "00ca121c",
+      "round": 3,
+      "head": "a970591624352b9e4850829e9ad4e82b23fd8684",
+      "time": "2026-10-17T08:42:21.890Z"
+    },
+    {
       "pr": 2015,
       "url": "https://github.com/ImpowerGames/impower/pull/2015#issuecomment-6228245433",
       "kind": "review-checkpoint repair",
@@ -4232,7 +4441,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T08:40:26.259Z",
+      "observedAt": "2026-10-17T08:42:23.760Z",
       "held": true,
       "head": "a970591624352b9e4850829e9ad4e82b23fd8684",
       "remoteHead": "a970591624352b9e4850829e9ad4e82b23fd8684",
@@ -4430,21 +4639,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T23:05:49.959Z",
-      "event": "check-in",
-      "outcome": "no change: #1963 (pid 51820) and #1966 (pid 11732) writers running in their preflight and setup, no worktrees or PRs yet; #1962 done"
-    },
-    {
-      "time": "2026-10-16T23:23:32.072Z",
-      "event": "check-in",
-      "outcome": "no change: #1963 and #1966 writers running with worktrees at e2f91499f, no PRs yet; #1963 running the skills-tier checks, #1966 running the dry-run snapshot against the public repository"
-    },
-    {
-      "time": "2026-10-16T23:53:47.704Z",
-      "event": "check-in",
-      "outcome": "no change: #1963 opened draft PR #2009 at 5cbe91c55 (CI green so far, Windows driver check running) and is preparing review round 1; #1966 finished its dry-run snapshot (1,263 to migrate, 35 to keep) and is writing its PR body"
-    },
     {
       "time": "2026-10-17T00:23:47.486Z",
       "event": "check-in",
@@ -5157,6 +5351,30 @@
       "event": "request",
       "ticket": 1965,
       "id": "6499fb6f"
+    },
+    {
+      "time": "2026-10-17T08:42:18.796Z",
+      "event": "checkpoint-intent",
+      "ticket": 1965,
+      "id": "00ca121c",
+      "kind": "extend",
+      "round": 3,
+      "head": "a970591624352b9e4850829e9ad4e82b23fd8684"
+    },
+    {
+      "time": "2026-10-17T08:42:21.890Z",
+      "event": "checkpoint-published",
+      "ticket": 1965,
+      "id": "00ca121c",
+      "comment": 6231870162
+    },
+    {
+      "time": "2026-10-17T08:42:22.434Z",
+      "event": "answer-intent",
+      "ticket": 1965,
+      "id": "6499fb6f",
+      "deliveryId": "6dfd1f60",
+      "attempt": 1
     }
   ]
 }
