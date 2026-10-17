@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1940
 
-Checkpoint 134 (this commit), 2026-10-17T01:26:28.113Z, after result of #1974. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
+Checkpoint 135 (this commit), 2026-10-17T01:27:58.592Z, after release of #1974. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -16,14 +16,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - review job pr-1983/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 1ce9d144f, completed {"ordering":1,"undirected":1} of planned ["ordering","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ordering","undirected"]), last event finished
 - review job pr-1983/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed f0639071e, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["undirected"]), last event finished
 - review job pr-1983/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 2cd5a71ce, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["undirected"]), last event finished
-
-## #1974
-
-- claude-cli claude-opus-5-5 at medium, process 41108 on DESKTOP-726EO47
-- review job pr-1984/round-1/launch-blast-radius-1 on DESKTOP-726EO47: round 1 reviewed 00e52531f, completed {"incrementality":1,"blast-radius":1} of planned ["incrementality","blast-radius","undirected"]; last launched reviewer blast-radius attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event finished
-- review job pr-1984/round-1/launch-incrementality-1 on DESKTOP-726EO47: round 1 reviewed e83fefb53, completed {"incrementality":1} of planned ["incrementality","blast-radius","undirected"]; last launched reviewer incrementality attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event finished
-- review job pr-1984/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed df557a02b, completed {"incrementality":1,"blast-radius":1,"undirected":1} of planned ["incrementality","blast-radius","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event finished
-- review job pr-1984/round-2/launch-incrementality-1 on DESKTOP-726EO47: round 2 reviewed f6c00cd3f, completed {"incrementality":1} of planned ["incrementality","undirected"]; last launched reviewer incrementality attempt 1 of round 2 (planned ["incrementality","undirected"]), last event finished
-- review job pr-1984/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed da7056ff1, completed {"incrementality":1,"undirected":1} of planned ["incrementality","undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["incrementality","undirected"]), last event finished
-- review job pr-1984/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed f10dd9fcb, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["undirected"]), last event finished
-- review job pr-1984/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 0547bc904, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["undirected"]), last event finished
