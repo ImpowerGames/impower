@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 193,
-  "previous": "278b188f5341db8bb021b8480c5844e46af5bed8",
+  "seq": 194,
+  "previous": "6e65ea889987274aa133130a19d06df27d0404b9",
   "snapshotParents": [],
-  "time": "2026-10-17T11:31:23.929Z",
+  "time": "2026-10-17T11:31:31.536Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 175,
+    "recordRevision": 176,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4023,6 +4023,15 @@
             "time": "2026-10-17T09:23:17.787Z",
             "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
           }
+        },
+        {
+          "id": "97cadf24",
+          "owner": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
+          "time": "2026-10-17T11:31:29.701Z",
+          "text": "Round 3 checkpoint report for PR #2057: three rounds, each data then undirected, all gpt-6.1-sol xhigh; 18 accepted findings in rounds 1 and 2 (time-of-check to time-of-use before an irreversible DELETE, archive recovery dropping history, loose identity checks, runbook steps that could not run as written, test honesty), round 3 clean on both reviewers with one coverage gap closed by a test-only commit; reviewed head 52e5a21c5 equals the current head; every CI check passed. Phase A on impower-internal is done (main default with runbook, feature-37 deleted, labels, milestones, templates, autolink; migration starts at 39). Residual: nothing destructive exercised live; 41 review summaries undeletable through the API; scrub about 15.5 h at default pacing or about 3.5 h at --writes-per-hour 3000. Decisions for the maintainer: (i) the acceptance grep excludes *.test.mjs fixtures, (ii) which public labels the cutover deletes, (iii) whether to remove GitHub's default labels on internal, (iv) the 6 public orchestrate-state branches from earlier runs, (v) the 41 review summaries. Writer awaits the checkpoint decision; on finish it marks #2057 ready and reports; Phase B waits for the go.",
+          "source": "cross-session message from writer session impower-14 (CLI session 4b0d553c) received 2026-10-17 ~16:20Z",
+          "relayed": null,
+          "answer": null
         }
       ]
     }
@@ -4889,7 +4898,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T11:31:23.188Z",
+      "observedAt": "2026-10-17T11:31:30.838Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5175,12 +5184,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:45:25.942Z",
-      "event": "request",
-      "ticket": 1966,
-      "id": "fd3d8e56"
-    },
     {
       "time": "2026-10-17T02:47:26.727Z",
       "event": "checkpoint-intent",
@@ -5907,6 +5910,12 @@
       "time": "2026-10-17T11:23:35.535Z",
       "event": "check-in",
       "outcome": "no change: #1967 PR #2057 at 52e5a21c5 with round 3 reviewed and its adjudication posted, filer report #2058 relayed, Windows driver check running; the round 3 checkpoint report is next"
+    },
+    {
+      "time": "2026-10-17T11:31:29.702Z",
+      "event": "request",
+      "ticket": 1967,
+      "id": "97cadf24"
     }
   ]
 }
