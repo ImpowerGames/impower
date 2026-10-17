@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 131,
-  "previous": "cb2b998d6b19d6a50e0cfd8fcfd75392e1d61b1b",
+  "seq": 132,
+  "previous": "d02d3079abc053547a52704bfb63746c8ed214be",
   "snapshotParents": [],
-  "time": "2026-10-17T06:43:48.142Z",
+  "time": "2026-10-17T06:44:00.075Z",
   "kind": "auto",
-  "transition": "answer of #1906",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 139,
+    "recordRevision": 140,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1489,7 +1489,12 @@
             "time": "2026-10-17T05:12:09.041Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-4bcc49f5-bd97-449d-8480-09353997d26c"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "512712b3-3724-4e13-856b-cdab45204bc5",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5",
+          "time": "2026-10-17T06:43:57.197Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -3833,7 +3838,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T06:43:46.820Z",
+      "observedAt": "2026-10-17T06:43:58.654Z",
       "held": true,
       "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
       "remoteHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
@@ -4107,7 +4112,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T06:43:46.820Z",
+      "observedAt": "2026-10-17T06:43:58.654Z",
       "held": true,
       "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
       "remoteHead": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
@@ -4416,7 +4421,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T06:43:46.820Z",
+      "observedAt": "2026-10-17T06:43:58.654Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5134,11 +5139,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T09:48:30.903Z",
-      "event": "check-in",
-      "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
-    },
-    {
       "time": "2026-10-16T10:18:25.146Z",
       "event": "check-in",
       "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
@@ -5839,6 +5839,13 @@
       "id": "c88c7386",
       "deliveryId": "cdc046fa",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T06:43:57.198Z",
+      "event": "resume-intent",
+      "ticket": 1906,
+      "id": "512712b3-3724-4e13-856b-cdab45204bc5",
+      "sessionId": "e57d8cb2-3a24-4931-90ab-6d0acb246002"
     }
   ]
 }
