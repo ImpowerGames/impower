@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 199,
-  "previous": "39a871aebce6df9956d82557df7613be2f340e89",
+  "seq": 200,
+  "previous": "9fb4c8afb8b53390c2fd8ee302e09d11148a7253",
   "snapshotParents": [],
-  "time": "2026-10-17T11:35:02.952Z",
+  "time": "2026-10-17T11:35:31.198Z",
   "kind": "auto",
-  "transition": "result of #1967",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 183,
@@ -5219,7 +5219,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T11:35:02.238Z",
+      "observedAt": "2026-10-17T11:35:30.524Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5458,7 +5458,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T11:31:23.186Z",
+    "at": "2026-10-17T11:35:30.522Z",
     "tickets": [
       {
         "number": 1962,
@@ -5492,9 +5492,9 @@
       },
       {
         "number": 1967,
-        "action": "collect-report",
+        "action": "merge-gate",
         "pr": 2057,
-        "reason": "process 60408 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1967-02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "PR #2057 is ready at 52e5a21c59a790b6849d550318ccad029de8ecc3; process 25252 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       }
     ],
     "remaining": [
