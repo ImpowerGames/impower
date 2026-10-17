@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 97,
-  "previous": "cd4e6a896f43c1c4795d51d24c2992b3e1123b4e",
+  "seq": 98,
+  "previous": "89b6e5dd015143730141e8bf48a7a06c4e96b0af",
   "snapshotParents": [],
-  "time": "2026-10-17T04:07:26.895Z",
+  "time": "2026-10-17T04:09:55.934Z",
   "kind": "auto",
-  "transition": "request of #1966",
+  "transition": "answer of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 86,
+    "recordRevision": 89,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1646,7 +1646,14 @@
           "text": "Round 4 checkpoint report for PR #2015 under decision e0f6d715: one undirected reviewer on 6f5769ab5 (report 6228781538, adjudication 6228968774), 7 blocking findings accepted: one in the render oracle (a stand-in per token broke a reference link whose label held the number) and six more Markdown forms the reader misreads. Correction 51a6a7c0c (unreviewed) adds a rewrite gate: a text is rewritten only when the tool's reading agrees with two GitHub renders of the original (stand-in per token for which tokens link, stand-in per number for which numbers link in order); otherwise the text is left as the transfer wrote it with only the migration line restored and is listed as leftAsTransferred; verify's render check uses a stand-in per number; link text is protected. 47 tests, gate refuses all seven round 4 inputs through the real renderer and none of the 480 live sample texts, rehearsal 7 passed, CI green after two flake reruns. Round limit 4 is used up; writer asks: another bounded round (one undirected reviewer over 6f5769ab5..51a6a7c0c) or accept 51a6a7c0c unreviewed.",
           "source": "cross-session message from writer session impower-7e (CLI session 58c4e7e1, resumed) received 2026-10-17 ~05:20Z",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision for PR #2015 after round 4: EXTEND to round 5 (decision 0b03d427, published as PR comment 6229469770; read it in full, it is the authority). The gate correction is accepted as the repair to review, not accepted unreviewed. Launch round 5 on head 51a6a7c0c with reviewRoundLimit 5 and extendedReviewAuthorization set exactly to the invocation quoted in that comment: /orchestrate-feature #1961. One undirected reviewer at the repository's reviewer defaults; the round's correction diff is 6f5769ab5..51a6a7c0c with the full PR as context. Ask it, in the round-state scope line, to judge: the gate's two-render agreement (can a reader misreading pass both renders other than by the coincidence you named), the safety of leaving a text as transferred (what such a text holds inside code spans and on its migration line, and how verify and the final report treat it), the journaled gate's resume behaviour, and the per-number render check. Also make sure the PR body and the tool's output list every text left as transferred, since the maintainer will want to read them at the cutover. Adjudicate as usual, then send me the next checkpoint report after round 5's verified fixes and end your turn; the PR stays draft until then. Wait in the foreground for the reviewer as before.",
+            "deliveryId": "d809ab04",
+            "attempts": 1,
+            "time": "2026-10-17T04:09:53.299Z",
+            "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+          }
         }
       ],
       "checkpoints": [
@@ -2135,6 +2142,296 @@
             "time": "2026-10-17T02:47:30.423Z",
             "headAtPublish": "6f5769ab57f7323e487891630ef814a2131befb8"
           }
+        },
+        {
+          "version": 1,
+          "id": "0b03d427",
+          "kind": "extend",
+          "feature": 1961,
+          "ticket": 1966,
+          "pr": 2015,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-17T04:09:49.433Z",
+          "round": 4,
+          "limitBefore": 4,
+          "reviewedHead": "6f5769ab57f7323e487891630ef814a2131befb8",
+          "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
+          "range": {
+            "from": "6f5769ab57f7323e487891630ef814a2131befb8",
+            "to": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
+            "base": "e5b8aa876e5757949709ac031ce5376352c35135",
+            "commits": [
+              "51a6a7c0c7692b32544bfbeb7d1d43b284de352c"
+            ],
+            "diffSha256": "a48cdc027d772c2ae03b28980866cff7437d6687556144a9bfb9dd174df6e9fc"
+          },
+          "reports": [
+            {
+              "comment": 6227196134,
+              "round": 1,
+              "reviewerId": "data",
+              "adjudication": 6227312221
+            },
+            {
+              "comment": 6227553709,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6227601809
+            },
+            {
+              "comment": 6227709560,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6227915204
+            },
+            {
+              "comment": 6228050094,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6228198583
+            },
+            {
+              "comment": 6228781538,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6228968774
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 5,
+          "limitReason": "The unreviewed range is one commit that adds the rewrite gate and its fallback and fixes the oracle; one bounded round with a single undirected reviewer covers it, and the gate bounds what any further reader finding can do, so a sweep of more Markdown forms is no longer the question.",
+          "authority": "/orchestrate-feature #1961",
+          "assessment": {
+            "mechanisms": "Round 4 added seven accepted findings: six more Markdown forms the hand-written reader misreads (a blank line inside <pre>, a fence in nested list items, a table with mismatched delimiter cells, a multi-line definition, a setext heading or thematic break, a quoted title right after an angle-bracket destination), which brings the reader's share to 15 of 21 accepted findings, and one hole in the render oracle itself: a stand-in per token broke a reference link whose label held the number, and the oracle then endorsed the broken link. The reviewer also noted that four of the six misreads changed protected text in ways neither the exact-text comparison nor the render check could see, because the render check only compares issue links. The correction at 51a6a7c0c stops relying on the reader being right: before rewriting a text, the tool renders its original twice in the code repository's context, once with a stand-in per token (which tokens GitHub links) and once with a stand-in per number (which numbers it links, in order, with every label and definition kept equal), and rewrites only when its reading maps exactly those tokens and numbers; a text where they disagree is left as the transfer wrote it, where GitHub itself qualified every reference outside code spans, with only the body's migration line restored, listed under leftAsTransferred and journaled so reruns and verify read the answer. Verify's render check moves to a stand-in per number, closing the oracle hole, and the reader now protects an inline link's text, which GitHub never links. I read the diff: the gate compares reader tokens against GitHub-linked tokens and reader numbers against GitHub-linked numbers in order, a misreading that moves, adds or drops a reference therefore refuses the text, and the journaled result is consulted by both rewrite and verify. Against GitHub's real renderer the gate refuses all seven round 4 inputs and accepts four controls; on the 480-text live sample it refuses none once link text is protected; rehearsal 7 passed with nothing left as transferred.",
+            "regressions": "None found in round 4 for the round 3 and repair commits beyond the oracle hole, which is a gap in the new render check rather than a regression of earlier behaviour: the per-token stand-in could change a reference link's identity, so digits-only substitution was not meaning-preserving in that one construct. The gate's per-number render repairs it, and the render check now uses the same. The gate itself is new behaviour no reviewer has seen, and it changes the rewrite, which previous rounds had reviewed as unconditional; that is the reason not to accept 51a6a7c0c unreviewed.",
+            "repairOptions": "The gate is the broad repair: instead of a sixth patch to the reader, it bounds what any misreading can do to a refusal that keeps GitHub's own qualified text. The remaining alternative, taking reference positions from GitHub alone and dropping the reader, would give the same safety at a higher refusal rate and a larger rewrite of the tool; it is not needed while the gate refuses none of the measured corpus. One point for the round 5 reviewer rather than a change now: a refused text keeps bare old numbers inside code spans (GitHub's transfer rewrite qualifies references in fences and prose but leaves code spans alone), so the Feature's grep criterion for bare old numbers should treat code spans the way the tool does, and the final report must list every text left as transferred so the maintainer can read them.",
+            "residualRisk": "1. The gate and the fallback are unreviewed: a misreading now slips through only if the reader's tokens and numbers both match GitHub's two renders by coincidence, or where GitHub links nothing on either side (a number changed inside code when the reader and GitHub agree on every linked token), which the exact-text comparison still covers against the tool's own target for rewritten texts. 2. A text left as transferred keeps GitHub's qualified references, so its migrated references read ImpowerGames/impower#old and resolve by redirect rather than carrying the new internal number; this is a bounded, reported deviation from the Feature's rewrite rule that affected zero of the 480 sampled live texts, and the maintainer is told of it in the coordinator's report. 3. The window now needs about 7,400 renders (3,700 for the gate, 3,700 for verify), about 1.7 hours of the request budget, on top of the write hours already disclosed. 4. Operational limits unchanged: 120-second settle tested on three-issue runs, 7.5 plus 3.8 hours of writes, no REST re-archive, duplicates' canonical links, sub-issue order; rehearsals and other activity have consumed internal numbers through 30, so the migration starts at 31 or later. 5. CI on 51a6a7c0c is green after two reruns of the Windows driver tier for process-fixture flakes in untouched tests (clean-worktrees and the test-suite runner's own test, the #1810 and #1999 classes).",
+            "coverage": "At 51a6a7c0c: node --test scripts/migrate-tracker.test.mjs passes 47 cases; three of the new or changed tests fail against 6f5769ab5's tool in a scratch tree (the gate refusing a misread body, link text staying unmapped, per-number stand-ins), the fourth passing there for a stated reason; the gate refuses all seven round 4 inputs and accepts four controls through GitHub's real renderer; the gate refuses none of the 480-text live sample after link text is protected; marked agrees with the reader on all 2,441 texts with link text excluded the same way; rehearsal 7 (public #2041-#2043 to internal #28-#30) ran 6 gate renders, left nothing as transferred, rewrote 3 bodies and 1 comment, compared 6 links with 0 differences, passed verify and deleted everything from both repositories; every CI check passed on the head. Not covered: an independent reviewer's reading of the gate and the fallback, and the reviewer's own local runs in round 4, which the shared test reservation refused.",
+            "nextRoundValue": "One bounded round with a single undirected reviewer over 6f5769ab5..51a6a7c0c establishes whether the gate's two-render agreement is sound (a reader misreading cannot pass both renders except by the coincidence named above), whether leaving a text as transferred is always safe (what such a text holds inside code spans and on its migration line, and how verify and the final report treat it), whether the journaled gate resumes correctly, and whether the per-number render check still locates each reference. That is the review the new behaviour needs before anything is accepted.",
+            "rationale": "Round 4 found seven more findings, so the defect class has not stopped recurring in the reader, and the correction is new behaviour that changes the rewrite and that no reviewer has read; accepting it unreviewed fails both conditions for an acceptance. The merge gate admits only the last reviewed head (6f5769ab5, with seven accepted unfixed findings) or an accepted head. The correction is the kind of repair the guidance asks for when one mechanism keeps producing findings (it removes the reader's power to write a wrong text rather than patching its instances), and the guidance then calls for a bounded round on it. So the decision is a one-round extension, limit 5, with one undirected reviewer recommended over the gate commit, and the next checkpoint after round 5's verified fixes. The Feature's agreed behaviour is read as preserved: every text the tool rewrites still follows the rewrite rule, the acceptance criteria are unchanged, and the fallback is a reported safety net that affected no sampled text; the coordinator reports the fallback's semantics to the maintainer, who can object.",
+            "next": "The writer launches round 5 on head 51a6a7c0c with reviewRoundLimit 5 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, with the correction diff 6f5769ab5..51a6a7c0c as the round's scope and the full PR as context; asks the reviewer to judge the gate's two-render agreement, the safety of leaving a text as transferred, the journaled gate's resume behaviour and the per-number render check; adjudicates as usual; and sends the next checkpoint report after round 5's verified fixes. The PR stays draft until then.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 5,
+            "limitReason": "The unreviewed range is one commit that adds the rewrite gate and its fallback and fixes the oracle; one bounded round with a single undirected reviewer covers it, and the gate bounds what any further reader finding can do, so a sweep of more Markdown forms is no longer the question.",
+            "findings": [
+              {
+                "comment": 6227196134,
+                "finding": "reference rewriting changes URL fragments and link destinations",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "resume marks a wrong closed reason as finished (state_reason ignored without a state change)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "verify omits title, author and creation time",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "verify accepts missing or wrong computed PR closing references",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "restore cannot reproduce absent values or archived Project state",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "a lost rehearsal creation response leaves a test issue outside cleanup's reach",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227553709,
+                "finding": "fence boundaries ignore their blockquote container",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227553709,
+                "finding": "a partial journal tail swallows the next record",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227709560,
+                "finding": "a list marker closes a top-level fence",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227709560,
+                "finding": "balanced parentheses expose part of a link destination",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "the block-boundary rule rewrites valid code spans (pipe line, ordered marker) and the table fixture was wrong",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "backticks inside a link title corrupt the destination and the following reference",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "an unclosed list fence hides references after its container ends",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "code-span boundaries fabricate link reference definitions mid-line",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228781538,
+                "finding": "distinct per-token stand-ins break a reference link's identity and the oracle endorses the corruption",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228781538,
+                "finding": "a blank line inside <pre> removes its protection",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228781538,
+                "finding": "nested list containers hide a fenced-code opener",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228781538,
+                "finding": "unequal table column counts turn a code span into separate cells",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228781538,
+                "finding": "multi-line reference definitions have their destinations rewritten",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228781538,
+                "finding": "setext headings and thematic breaks do not terminate inline blocks",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228781538,
+                "finding": "an invalid adjacent title is treated as a protected link destination",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 4: authorize another bounded round\n\nDecision `0b03d427` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1966. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1961\"\n\n- Round state: round 4 is complete (limit 4 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6227196134 in 6227312221, 6227553709 in 6227601809, 6227709560 in 6227915204, 6228050094 in 6228198583, 6228781538 in 6228968774).\n- Independently reviewed through `6f5769ab57f7323e487891630ef814a2131befb8`.\n- Head `51a6a7c0c7692b32544bfbeb7d1d43b284de352c`. Unreviewed: `6f5769ab5..51a6a7c0c`, 1 commit (`51a6a7c0c` fix(github): rewrite a text only where GitHub's renderer agrees with the reading (#1966)), diff SHA-256 `a48cdc027d772c2ae03b28980866cff7437d6687556144a9bfb9dd174df6e9fc`.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, Luau corpus gate passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, test-suite passed, driver-checks (windows-latest) passed, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) passed, vitest-api-integration (windows-latest, 3.2.6) passed, hook-tests passed.\n- Findings across all rounds: 21 accepted; unresolved: none.\n- Shared mechanisms: Round 4 added seven accepted findings: six more Markdown forms the hand-written reader misreads (a blank line inside <pre>, a fence in nested list items, a table with mismatched delimiter cells, a multi-line definition, a setext heading or thematic break, a quoted title right after an angle-bracket destination), which brings the reader's share to 15 of 21 accepted findings, and one hole in the render oracle itself: a stand-in per token broke a reference link whose label held the number, and the oracle then endorsed the broken link. The reviewer also noted that four of the six misreads changed protected text in ways neither the exact-text comparison nor the render check could see, because the render check only compares issue links. The correction at 51a6a7c0c stops relying on the reader being right: before rewriting a text, the tool renders its original twice in the code repository's context, once with a stand-in per token (which tokens GitHub links) and once with a stand-in per number (which numbers it links, in order, with every label and definition kept equal), and rewrites only when its reading maps exactly those tokens and numbers; a text where they disagree is left as the transfer wrote it, where GitHub itself qualified every reference outside code spans, with only the body's migration line restored, listed under leftAsTransferred and journaled so reruns and verify read the answer. Verify's render check moves to a stand-in per number, closing the oracle hole, and the reader now protects an inline link's text, which GitHub never links. I read the diff: the gate compares reader tokens against GitHub-linked tokens and reader numbers against GitHub-linked numbers in order, a misreading that moves, adds or drops a reference therefore refuses the text, and the journaled result is consulted by both rewrite and verify. Against GitHub's real renderer the gate refuses all seven round 4 inputs and accepts four controls; on the 480-text live sample it refuses none once link text is protected; rehearsal 7 passed with nothing left as transferred.\n- Defects introduced by corrections: None found in round 4 for the round 3 and repair commits beyond the oracle hole, which is a gap in the new render check rather than a regression of earlier behaviour: the per-token stand-in could change a reference link's identity, so digits-only substitution was not meaning-preserving in that one construct. The gate's per-number render repairs it, and the render check now uses the same. The gate itself is new behaviour no reviewer has seen, and it changes the rewrite, which previous rounds had reviewed as unconditional; that is the reason not to accept 51a6a7c0c unreviewed.\n- Broader or simpler repair: The gate is the broad repair: instead of a sixth patch to the reader, it bounds what any misreading can do to a refusal that keeps GitHub's own qualified text. The remaining alternative, taking reference positions from GitHub alone and dropping the reader, would give the same safety at a higher refusal rate and a larger rewrite of the tool; it is not needed while the gate refuses none of the measured corpus. One point for the round 5 reviewer rather than a change now: a refused text keeps bare old numbers inside code spans (GitHub's transfer rewrite qualifies references in fences and prose but leaves code spans alone), so the Feature's grep criterion for bare old numbers should treat code spans the way the tool does, and the final report must list every text left as transferred so the maintainer can read them.\n- Residual risk: 1. The gate and the fallback are unreviewed: a misreading now slips through only if the reader's tokens and numbers both match GitHub's two renders by coincidence, or where GitHub links nothing on either side (a number changed inside code when the reader and GitHub agree on every linked token), which the exact-text comparison still covers against the tool's own target for rewritten texts. 2. A text left as transferred keeps GitHub's qualified references, so its migrated references read ImpowerGames/impower#old and resolve by redirect rather than carrying the new internal number; this is a bounded, reported deviation from the Feature's rewrite rule that affected zero of the 480 sampled live texts, and the maintainer is told of it in the coordinator's report. 3. The window now needs about 7,400 renders (3,700 for the gate, 3,700 for verify), about 1.7 hours of the request budget, on top of the write hours already disclosed. 4. Operational limits unchanged: 120-second settle tested on three-issue runs, 7.5 plus 3.8 hours of writes, no REST re-archive, duplicates' canonical links, sub-issue order; rehearsals and other activity have consumed internal numbers through 30, so the migration starts at 31 or later. 5. CI on 51a6a7c0c is green after two reruns of the Windows driver tier for process-fixture flakes in untouched tests (clean-worktrees and the test-suite runner's own test, the #1810 and #1999 classes).\n- Verification coverage: At 51a6a7c0c: node --test scripts/migrate-tracker.test.mjs passes 47 cases; three of the new or changed tests fail against 6f5769ab5's tool in a scratch tree (the gate refusing a misread body, link text staying unmapped, per-number stand-ins), the fourth passing there for a stated reason; the gate refuses all seven round 4 inputs and accepts four controls through GitHub's real renderer; the gate refuses none of the 480-text live sample after link text is protected; marked agrees with the reader on all 2,441 texts with link text excluded the same way; rehearsal 7 (public #2041-#2043 to internal #28-#30) ran 6 gate renders, left nothing as transferred, rewrote 3 bodies and 1 comment, compared 6 links with 0 differences, passed verify and deleted everything from both repositories; every CI check passed on the head. Not covered: an independent reviewer's reading of the gate and the fallback, and the reviewer's own local runs in round 4, which the shared test reservation refused.\n- What another round would establish: One bounded round with a single undirected reviewer over 6f5769ab5..51a6a7c0c establishes whether the gate's two-render agreement is sound (a reader misreading cannot pass both renders except by the coincidence named above), whether leaving a text as transferred is always safe (what such a text holds inside code spans and on its migration line, and how verify and the final report treat it), whether the journaled gate resumes correctly, and whether the per-number render check still locates each reference. That is the review the new behaviour needs before anything is accepted.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: Round 4 found seven more findings, so the defect class has not stopped recurring in the reader, and the correction is new behaviour that changes the rewrite and that no reviewer has read; accepting it unreviewed fails both conditions for an acceptance. The merge gate admits only the last reviewed head (6f5769ab5, with seven accepted unfixed findings) or an accepted head. The correction is the kind of repair the guidance asks for when one mechanism keeps producing findings (it removes the reader's power to write a wrong text rather than patching its instances), and the guidance then calls for a bounded round on it. So the decision is a one-round extension, limit 5, with one undirected reviewer recommended over the gate commit, and the next checkpoint after round 5's verified fixes. The Feature's agreed behaviour is read as preserved: every text the tool rewrites still follows the rewrite rule, the acceptance criteria are unchanged, and the fallback is a reported safety net that affected no sampled text; the coordinator reports the fallback's semantics to the maintainer, who can object. Next: The writer launches round 5 on head 51a6a7c0c with reviewRoundLimit 5 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, with the correction diff 6f5769ab5..51a6a7c0c as the round's scope and the full PR as context; asks the reviewer to judge the gate's two-render agreement, the safety of leaving a text as transferred, the journaled gate's resume behaviour and the per-number render check; adjudicates as usual; and sends the next checkpoint report after round 5's verified fixes. The PR stays draft until then.\n- Round 5 may launch with `reviewRoundLimit` 5 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: The unreviewed range is one commit that adds the rewrite gate and its fallback and fixes the oracle; one bounded round with a single undirected reviewer covers it, and the gate bounds what any further reader finding can do, so a sweep of more Markdown forms is no longer the question. The next checkpoint follows round 5's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"0b03d427\",\n \"kind\": \"extend\",\n \"feature\": 1961,\n \"ticket\": 1966,\n \"pr\": 2015,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-17T04:09:49.433Z\",\n \"round\": 4,\n \"limitBefore\": 4,\n \"reviewedHead\": \"6f5769ab57f7323e487891630ef814a2131befb8\",\n \"head\": \"51a6a7c0c7692b32544bfbeb7d1d43b284de352c\",\n \"range\": {\n  \"from\": \"6f5769ab57f7323e487891630ef814a2131befb8\",\n  \"to\": \"51a6a7c0c7692b32544bfbeb7d1d43b284de352c\",\n  \"base\": \"e5b8aa876e5757949709ac031ce5376352c35135\",\n  \"commits\": [\n   \"51a6a7c0c7692b32544bfbeb7d1d43b284de352c\"\n  ],\n  \"diffSha256\": \"a48cdc027d772c2ae03b28980866cff7437d6687556144a9bfb9dd174df6e9fc\"\n },\n \"reports\": [\n  {\n   \"comment\": 6227196134,\n   \"round\": 1,\n   \"reviewerId\": \"data\",\n   \"adjudication\": 6227312221\n  },\n  {\n   \"comment\": 6227553709,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227601809\n  },\n  {\n   \"comment\": 6227709560,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227915204\n  },\n  {\n   \"comment\": 6228050094,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228198583\n  },\n  {\n   \"comment\": 6228781538,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228968774\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 5,\n \"limitReason\": \"The unreviewed range is one commit that adds the rewrite gate and its fallback and fixes the oracle; one bounded round with a single undirected reviewer covers it, and the gate bounds what any further reader finding can do, so a sweep of more Markdown forms is no longer the question.\",\n \"authority\": \"/orchestrate-feature #1961\",\n \"assessment\": {\n  \"mechanisms\": \"Round 4 added seven accepted findings: six more Markdown forms the hand-written reader misreads (a blank line inside <pre>, a fence in nested list items, a table with mismatched delimiter cells, a multi-line definition, a setext heading or thematic break, a quoted title right after an angle-bracket destination), which brings the reader's share to 15 of 21 accepted findings, and one hole in the render oracle itself: a stand-in per token broke a reference link whose label held the number, and the oracle then endorsed the broken link. The reviewer also noted that four of the six misreads changed protected text in ways neither the exact-text comparison nor the render check could see, because the render check only compares issue links. The correction at 51a6a7c0c stops relying on the reader being right: before rewriting a text, the tool renders its original twice in the code repository's context, once with a stand-in per token (which tokens GitHub links) and once with a stand-in per number (which numbers it links, in order, with every label and definition kept equal), and rewrites only when its reading maps exactly those tokens and numbers; a text where they disagree is left as the transfer wrote it, where GitHub itself qualified every reference outside code spans, with only the body's migration line restored, listed under leftAsTransferred and journaled so reruns and verify read the answer. Verify's render check moves to a stand-in per number, closing the oracle hole, and the reader now protects an inline link's text, which GitHub never links. I read the diff: the gate compares reader tokens against GitHub-linked tokens and reader numbers against GitHub-linked numbers in order, a misreading that moves, adds or drops a reference therefore refuses the text, and the journaled result is consulted by both rewrite and verify. Against GitHub's real renderer the gate refuses all seven round 4 inputs and accepts four controls; on the 480-text live sample it refuses none once link text is protected; rehearsal 7 passed with nothing left as transferred.\",\n  \"regressions\": \"None found in round 4 for the round 3 and repair commits beyond the oracle hole, which is a gap in the new render check rather than a regression of earlier behaviour: the per-token stand-in could change a reference link's identity, so digits-only substitution was not meaning-preserving in that one construct. The gate's per-number render repairs it, and the render check now uses the same. The gate itself is new behaviour no reviewer has seen, and it changes the rewrite, which previous rounds had reviewed as unconditional; that is the reason not to accept 51a6a7c0c unreviewed.\",\n  \"repairOptions\": \"The gate is the broad repair: instead of a sixth patch to the reader, it bounds what any misreading can do to a refusal that keeps GitHub's own qualified text. The remaining alternative, taking reference positions from GitHub alone and dropping the reader, would give the same safety at a higher refusal rate and a larger rewrite of the tool; it is not needed while the gate refuses none of the measured corpus. One point for the round 5 reviewer rather than a change now: a refused text keeps bare old numbers inside code spans (GitHub's transfer rewrite qualifies references in fences and prose but leaves code spans alone), so the Feature's grep criterion for bare old numbers should treat code spans the way the tool does, and the final report must list every text left as transferred so the maintainer can read them.\",\n  \"residualRisk\": \"1. The gate and the fallback are unreviewed: a misreading now slips through only if the reader's tokens and numbers both match GitHub's two renders by coincidence, or where GitHub links nothing on either side (a number changed inside code when the reader and GitHub agree on every linked token), which the exact-text comparison still covers against the tool's own target for rewritten texts. 2. A text left as transferred keeps GitHub's qualified references, so its migrated references read ImpowerGames/impower#old and resolve by redirect rather than carrying the new internal number; this is a bounded, reported deviation from the Feature's rewrite rule that affected zero of the 480 sampled live texts, and the maintainer is told of it in the coordinator's report. 3. The window now needs about 7,400 renders (3,700 for the gate, 3,700 for verify), about 1.7 hours of the request budget, on top of the write hours already disclosed. 4. Operational limits unchanged: 120-second settle tested on three-issue runs, 7.5 plus 3.8 hours of writes, no REST re-archive, duplicates' canonical links, sub-issue order; rehearsals and other activity have consumed internal numbers through 30, so the migration starts at 31 or later. 5. CI on 51a6a7c0c is green after two reruns of the Windows driver tier for process-fixture flakes in untouched tests (clean-worktrees and the test-suite runner's own test, the #1810 and #1999 classes).\",\n  \"coverage\": \"At 51a6a7c0c: node -\\u002dtest scripts/migrate-tracker.test.mjs passes 47 cases; three of the new or changed tests fail against 6f5769ab5's tool in a scratch tree (the gate refusing a misread body, link text staying unmapped, per-number stand-ins), the fourth passing there for a stated reason; the gate refuses all seven round 4 inputs and accepts four controls through GitHub's real renderer; the gate refuses none of the 480-text live sample after link text is protected; marked agrees with the reader on all 2,441 texts with link text excluded the same way; rehearsal 7 (public #2041-#2043 to internal #28-#30) ran 6 gate renders, left nothing as transferred, rewrote 3 bodies and 1 comment, compared 6 links with 0 differences, passed verify and deleted everything from both repositories; every CI check passed on the head. Not covered: an independent reviewer's reading of the gate and the fallback, and the reviewer's own local runs in round 4, which the shared test reservation refused.\",\n  \"nextRoundValue\": \"One bounded round with a single undirected reviewer over 6f5769ab5..51a6a7c0c establishes whether the gate's two-render agreement is sound (a reader misreading cannot pass both renders except by the coincidence named above), whether leaving a text as transferred is always safe (what such a text holds inside code spans and on its migration line, and how verify and the final report treat it), whether the journaled gate resumes correctly, and whether the per-number render check still locates each reference. That is the review the new behaviour needs before anything is accepted.\",\n  \"rationale\": \"Round 4 found seven more findings, so the defect class has not stopped recurring in the reader, and the correction is new behaviour that changes the rewrite and that no reviewer has read; accepting it unreviewed fails both conditions for an acceptance. The merge gate admits only the last reviewed head (6f5769ab5, with seven accepted unfixed findings) or an accepted head. The correction is the kind of repair the guidance asks for when one mechanism keeps producing findings (it removes the reader's power to write a wrong text rather than patching its instances), and the guidance then calls for a bounded round on it. So the decision is a one-round extension, limit 5, with one undirected reviewer recommended over the gate commit, and the next checkpoint after round 5's verified fixes. The Feature's agreed behaviour is read as preserved: every text the tool rewrites still follows the rewrite rule, the acceptance criteria are unchanged, and the fallback is a reported safety net that affected no sampled text; the coordinator reports the fallback's semantics to the maintainer, who can object.\",\n  \"next\": \"The writer launches round 5 on head 51a6a7c0c with reviewRoundLimit 5 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, with the correction diff 6f5769ab5..51a6a7c0c as the round's scope and the full PR as context; asks the reviewer to judge the gate's two-render agreement, the safety of leaving a text as transferred, the journaled gate's resume behaviour and the per-number render check; adjudicates as usual; and sends the next checkpoint report after round 5's verified fixes. The PR stays draft until then.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 5,\n  \"limitReason\": \"The unreviewed range is one commit that adds the rewrite gate and its fallback and fixes the oracle; one bounded round with a single undirected reviewer covers it, and the gate bounds what any further reader finding can do, so a sweep of more Markdown forms is no longer the question.\",\n  \"findings\": [\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"reference rewriting changes URL fragments and link destinations\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"resume marks a wrong closed reason as finished (state_reason ignored without a state change)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"verify omits title, author and creation time\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"verify accepts missing or wrong computed PR closing references\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"restore cannot reproduce absent values or archived Project state\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"a lost rehearsal creation response leaves a test issue outside cleanup's reach\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227553709,\n    \"finding\": \"fence boundaries ignore their blockquote container\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227553709,\n    \"finding\": \"a partial journal tail swallows the next record\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227709560,\n    \"finding\": \"a list marker closes a top-level fence\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227709560,\n    \"finding\": \"balanced parentheses expose part of a link destination\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"the block-boundary rule rewrites valid code spans (pipe line, ordered marker) and the table fixture was wrong\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"backticks inside a link title corrupt the destination and the following reference\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"an unclosed list fence hides references after its container ends\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"code-span boundaries fabricate link reference definitions mid-line\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228781538,\n    \"finding\": \"distinct per-token stand-ins break a reference link's identity and the oracle endorses the corruption\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228781538,\n    \"finding\": \"a blank line inside <pre> removes its protection\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228781538,\n    \"finding\": \"nested list containers hide a fenced-code opener\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228781538,\n    \"finding\": \"unequal table column counts turn a code span into separate cells\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228781538,\n    \"finding\": \"multi-line reference definitions have their destinations rewritten\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228781538,\n    \"finding\": \"setext headings and thematic breaks do not terminate inline blocks\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228781538,\n    \"finding\": \"an invalid adjacent title is treated as a protected link destination\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "a376fe137a12a0e5006c7557eb18580e889bf7516fcae20c6309421ab6c57081",
+          "blockSha256": "f2335c71c936d1aa6ee19d04fa0ab5b38e1f3c242cccf7cc39e6b4c8b6e98c3b",
+          "published": {
+            "comment": 6229469770,
+            "time": "2026-10-17T04:09:52.665Z",
+            "headAtPublish": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c"
+          }
         }
       ]
     }
@@ -2497,6 +2794,16 @@
       "round": 3,
       "head": "6f5769ab57f7323e487891630ef814a2131befb8",
       "time": "2026-10-17T02:47:30.423Z"
+    },
+    {
+      "pr": 2015,
+      "url": "https://github.com/ImpowerGames/impower/pull/2015#issuecomment-6229469770",
+      "kind": "review-checkpoint extend",
+      "ticket": 1966,
+      "id": "0b03d427",
+      "round": 4,
+      "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
+      "time": "2026-10-17T04:09:52.665Z"
     }
   ],
   "diskRecoveries": [],
@@ -2507,7 +2814,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T04:07:25.755Z",
+      "observedAt": "2026-10-17T04:09:54.825Z",
       "held": true,
       "head": "5f4c4d3014460b1a99017e310e46089841f3e179",
       "remoteHead": "5f4c4d3014460b1a99017e310e46089841f3e179",
@@ -2618,7 +2925,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T04:07:25.755Z",
+      "observedAt": "2026-10-17T04:09:54.825Z",
       "held": true,
       "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
       "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
@@ -3483,6 +3790,30 @@
       "event": "request",
       "ticket": 1966,
       "id": "f73dfd51"
+    },
+    {
+      "time": "2026-10-17T04:09:49.433Z",
+      "event": "checkpoint-intent",
+      "ticket": 1966,
+      "id": "0b03d427",
+      "kind": "extend",
+      "round": 4,
+      "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c"
+    },
+    {
+      "time": "2026-10-17T04:09:52.665Z",
+      "event": "checkpoint-published",
+      "ticket": 1966,
+      "id": "0b03d427",
+      "comment": 6229469770
+    },
+    {
+      "time": "2026-10-17T04:09:53.300Z",
+      "event": "answer-intent",
+      "ticket": 1966,
+      "id": "f73dfd51",
+      "deliveryId": "d809ab04",
+      "attempt": 1
     }
   ]
 }
