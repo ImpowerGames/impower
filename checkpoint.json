@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 143,
-  "previous": "0d65ba2f1f9b7b55c4e39327038541d190809c88",
+  "seq": 144,
+  "previous": "c22570c2df836a2c3bd4030f35402ca498171ef0",
   "snapshotParents": [],
-  "time": "2026-10-17T07:35:36.355Z",
+  "time": "2026-10-17T07:45:24.572Z",
   "kind": "auto",
-  "transition": "the merge of PR #2022 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 152,
@@ -4395,7 +4395,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T07:35:35.060Z",
+      "observedAt": "2026-10-17T07:45:23.078Z",
       "held": true,
       "head": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
       "remoteHead": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
@@ -4669,7 +4669,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T07:35:35.060Z",
+      "observedAt": "2026-10-17T07:45:23.078Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -4978,7 +4978,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T07:35:35.060Z",
+      "observedAt": "2026-10-17T07:45:23.078Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5342,7 +5342,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T07:27:02.075Z",
+    "at": "2026-10-17T07:45:23.076Z",
     "tickets": [
       {
         "number": 984,
@@ -5526,9 +5526,9 @@
       },
       {
         "number": 1374,
-        "action": "collect-report",
-        "pr": 2022,
-        "reason": "session local_06fee41a-73da-418e-ad9e-8528ebd314ce ended its turn; read its report or answer it"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1596,
@@ -5562,15 +5562,15 @@
       },
       {
         "number": 1906,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1995,
-        "reason": "process 3156 started 639278162461521477 is running"
+        "reason": "process 3156 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1907,
-        "action": "wait-dependency",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "waiting for #1374 (open)"
+        "reason": "15 writers already hold tickets against a limit of 3"
       },
       {
         "number": 1908,
@@ -5592,9 +5592,9 @@
       },
       {
         "number": 1977,
-        "action": "blocked-route",
+        "action": "wait-capacity",
         "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
+        "reason": "15 writers already hold tickets against a limit of 3"
       },
       {
         "number": 1985,
