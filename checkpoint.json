@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 139,
-  "previous": "0e30434006a215de4f5336f2f52a00003f9d6885",
+  "seq": 140,
+  "previous": "aa6869ff88648a92db169f800f5c213372cf1166",
   "snapshotParents": [],
-  "time": "2026-10-17T01:35:07.335Z",
+  "time": "2026-10-17T01:51:39.687Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 113,
+    "recordRevision": 114,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2319,7 +2319,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:35:06.112Z",
+      "observedAt": "2026-10-17T01:51:38.706Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2516,19 +2516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:26:42.563Z",
-      "event": "launched",
-      "ticket": 1798,
-      "launchId": "cbb3d603-a40d-4802-af19-3b4cb8c6a743",
-      "handle": {
-        "kind": "process",
-        "pid": 40624,
-        "start": "639277648017542271",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\launch-1798-cbb3d603-a40d-4802-af19-3b4cb8c6a743"
-      }
-    },
     {
       "time": "2026-10-16T16:28:14.636Z",
       "event": "acknowledged",
@@ -3184,6 +3171,11 @@
       "time": "2026-10-17T01:35:03.737Z",
       "event": "check-in",
       "outcome": "no change: #1881 (PR #1983) holds at merge-gate on the #1999 Windows flake; #1999's fix is in draft PR #2024 (round 1, outside this run, maintainer authorised the coordinator to merge it when ready); #851, #1637, #1798 and #1974 done; no new transcripts, no dead launches, no open requests"
+    },
+    {
+      "time": "2026-10-17T01:51:36.954Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (PR #1983) holds at merge-gate on the #1999 Windows flake; #1999's draft PR #2024 is in review round 2 (head c13a579d0, checks running); #851, #1637, #1798 and #1974 done; no new transcripts, no dead launches, no open requests"
     }
   ]
 }
