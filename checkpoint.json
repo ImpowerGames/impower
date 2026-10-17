@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 186,
-  "previous": "c1d6b3b231f0708f0525e6d5f204dd3a9e3c83fc",
+  "seq": 187,
+  "previous": "6fb7f9bc88d62424011bb43f96d85ed9bc778d61",
   "snapshotParents": [],
-  "time": "2026-10-17T09:24:18.462Z",
+  "time": "2026-10-17T09:24:39.625Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 170,
+    "recordRevision": 171,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4889,7 +4889,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:24:17.645Z",
+      "observedAt": "2026-10-17T09:24:38.815Z",
       "held": true,
       "head": "37df96b0a24e147ce72260ce4a07403f341961e9",
       "remoteHead": null,
@@ -4947,13 +4947,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:18:01.037Z",
-      "event": "dispatch-intent",
-      "ticket": 1964,
-      "route": "claude-cli",
-      "launchId": "bd573167-9ca5-4e98-9612-56b1f8e71ea3"
-    },
     {
       "time": "2026-10-17T02:19:25.681Z",
       "event": "launched",
@@ -5694,6 +5687,11 @@
       "ticket": 1967,
       "id": "244dc915",
       "deliveryId": "39ccc7f0"
+    },
+    {
+      "time": "2026-10-17T09:24:37.534Z",
+      "event": "check-in",
+      "outcome": "no change: #1967 writer in Phase A, scrub tool and tests done, archive dry run running against the real repositories, runbook in progress with a resume hazard being fixed first; no PR yet; the internal repository is still at its throwaway default branch pending the writer's preparation"
     }
   ]
 }
