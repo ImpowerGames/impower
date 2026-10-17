@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 190,
-  "previous": "69c940807ab3cd4f99e10d980213945ab4bb4b62",
+  "seq": 191,
+  "previous": "f346abc93352c238fe9f4fea01f8d2e071d91861",
   "snapshotParents": [],
-  "time": "2026-10-17T10:24:35.365Z",
+  "time": "2026-10-17T10:53:57.561Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 173,
+    "recordRevision": 174,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4889,12 +4889,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T10:24:34.612Z",
+      "observedAt": "2026-10-17T10:53:56.760Z",
       "held": true,
-      "head": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
-      "remoteHead": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
+      "head": "c84b56346fabcb1733832469be8192e4e61a7962",
+      "remoteHead": "c84b56346fabcb1733832469be8192e4e61a7962",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 31460
+      },
       "pr": 2057,
       "reviewJobs": [
         {
@@ -4969,6 +4973,64 @@
           "commentIds": [
             6232764561
           ]
+        },
+        {
+          "job": "pr-2057/round-2/launch-data-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-data",
+            "reviewerId": "data",
+            "attempt": 1,
+            "plannedReviewers": [
+              "data",
+              "undirected"
+            ],
+            "head": "54169dbc582eecf33dc8f4fbc51d9854f9a1925a",
+            "completedRoundReviewers": {
+              "data": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-17T10:30:40.526Z"
+          },
+          "round": 2,
+          "reviewerId": "data",
+          "attempt": 1,
+          "reviewedHead": "54169dbc582eecf33dc8f4fbc51d9854f9a1925a",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "data": 1
+          },
+          "plannedRoundReviewers": [
+            "data",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6232918945
+          ]
+        },
+        {
+          "job": "pr-2057/round-2/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "data",
+              "undirected"
+            ],
+            "head": "c84b56346fabcb1733832469be8192e4e61a7962",
+            "completedRoundReviewers": {
+              "data": 1
+            },
+            "time": "2026-10-17T10:46:40.101Z"
+          }
         }
       ]
     }
@@ -5023,11 +5085,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:20:30.625Z",
-      "event": "verified",
-      "ticket": 1964
-    },
     {
       "time": "2026-10-17T02:24:04.278Z",
       "event": "check-in",
@@ -5755,6 +5812,11 @@
       "time": "2026-10-17T10:24:33.309Z",
       "event": "check-in",
       "outcome": "no change: #1967 PR #2057 at 9c0fcd697 with round 1's data findings fixed and the undirected reviewer running; plan's dead-launch sweep hit ENOENT twice on the running reviewer's probe clone and cleanup, recorded on #1866, succeeded on retry"
+    },
+    {
+      "time": "2026-10-17T10:53:55.431Z",
+      "event": "check-in",
+      "outcome": "no change: #1967 PR #2057 at c84b56346, round 1 complete and round 2 in progress (data findings fixed, undirected reviewer running), Windows CI jobs running on the head; the other five slices are done"
     }
   ]
 }
