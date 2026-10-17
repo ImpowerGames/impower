@@ -120,14 +120,19 @@ export function readExpressionAst(
   return { expr, source: { top: topOf(first), errors } };
 }
 
-/** The Luau statements some sibling nodes hold, read as one block. */
+/**
+ * The Luau statements some sibling nodes hold, read as one block; with
+ * `afterType`, as the rest of a type the nodes begin by continuing (see
+ * `readLuauBlock`).
+ */
 export function readBlockAst(
   nodes: readonly SyntaxNode[],
   ctx: LowerContext,
+  afterType = false,
 ): { unit: LuauAstUnit; source: LuauSource } | null {
   const first = nodes[0];
   if (!first) return null;
-  const unit = readLuauBlock(nodes, documentText(ctx));
+  const unit = readLuauBlock(nodes, documentText(ctx), afterType);
   return { unit, source: { top: topOf(first), errors: unit.errors } };
 }
 

@@ -94,8 +94,8 @@ const LUAU_BRANCHES = nodeNameSet([
 
 const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"]);
 
-// What may come between a declaration and a union member line that
-// continues its type: blank lines, indentation and comments.
+// What may come between a declaration and a union or intersection member
+// line that continues its type: blank lines, indentation and comments.
 const UNION_LINE_BRIDGE: ReadonlySet<string> = new Set([
   "Newline",
   "ExtraWhitespace",
@@ -226,15 +226,16 @@ const getLocalScope = (
     : text.slice(trimmed.length).includes("\n")
       ? definition.from + trimmed.length
       : definition.to;
-  // A union member line after a comment line continues the declaration's
-  // type (`local v: number` then `-- note` then `| string = 5`) and can hold
-  // its value, so the names are visible only after the last such line.
+  // A union member line after a comment line, or an intersection member
+  // line, continues the declaration's type (`local v: number` then
+  // `-- note` then `| string = 5`, or `local v: A` then `& B = v`) and can
+  // hold its value, so the names are visible only after the last such line.
   for (
     let next = type === "var" ? definition.nextSibling : null;
     next;
     next = next.nextSibling
   ) {
-    if (next.name === "LuauTypeUnionLineContinuation") {
+    if (next.name === "LuauTypeOperatorLineContinuation") {
       const lineText = read(next.from, next.to);
       const lineTrimmed = lineText.trimEnd();
       start = lineText.slice(lineTrimmed.length).includes("\n")

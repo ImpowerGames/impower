@@ -17,8 +17,7 @@ import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
 import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
 import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
-import { commaBeforeStatement, typeUnionLineValue } from "./lineContinuation";
-import { validateExplicitStatement } from "./validateExplicitStatement";
+import { commaBeforeStatement, typeOperatorLineValue } from "./lineContinuation";
 import { isUnreadTokenAt } from "../../utils/unreadTokens";
 
 // Sparkdown's own reports of Luau's parse errors in an assignment or a
@@ -93,11 +92,7 @@ export function validateStatementNode(
     validateVariableDefinition(node, continuation, ctx);
     return;
   }
-  if (node.name === "LuauExplicitStatement" || node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
-    // Stylistic diagnostic: inside a function body, the `&` prefix is
-    // redundant.
-    const diagnostics = validateExplicitStatement(node, ctx);
-    if (diagnostics.length > 0) ctx.diagnostics?.push(...diagnostics);
+  if (node.name === "LuauSparkdownExplicitStatement" || node.name === "LuauSparkdownExplicitBlockStatement") {
     const declaration = getDescendent(["LuauSparkdownVariableDefinition", "LuauSparkdownExplicitStoryVariableDefinition"], node);
     if (declaration) {
       validateVariableDefinition(declaration, continuation, ctx);
@@ -524,7 +519,7 @@ export function validateVariableDefinition(
       }
     }
   }
-  if (!firstOp && !sawAssignmentOp) firstOp = typeUnionLineValue(node);
+  if (!firstOp && !sawAssignmentOp) firstOp = typeOperatorLineValue(node);
   if (firstOp) validateAssignmentValue(firstOp, ctx);
 }
 
