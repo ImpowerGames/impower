@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 115,
-  "previous": "0ce9353180bd0077e38ac5ef41caf05f93939046",
+  "seq": 116,
+  "previous": "14eef80cd64ff862a23d41352ee369ed28c0b4bd",
   "snapshotParents": [],
-  "time": "2026-10-17T05:00:31.292Z",
+  "time": "2026-10-17T05:01:28.948Z",
   "kind": "auto",
-  "transition": "the merge of PR #2040 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 106,
@@ -3217,7 +3217,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T05:00:30.205Z",
+      "observedAt": "2026-10-17T05:01:27.870Z",
       "held": true,
       "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
       "remoteHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
@@ -3374,7 +3374,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T05:00:30.205Z",
+      "observedAt": "2026-10-17T05:01:27.870Z",
       "held": true,
       "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
       "remoteHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
@@ -3598,7 +3598,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T04:56:09.694Z",
+    "at": "2026-10-17T05:01:27.868Z",
     "tickets": [
       {
         "number": 1962,
@@ -3614,15 +3614,15 @@
       },
       {
         "number": 1964,
-        "action": "answer-request",
-        "pr": 2040,
-        "reason": "the writer asked 26ae8dd3: \"Round 3 checkpoint report for PR #2040: rounds 1 (callers + undirected), 2 (undirected) and 3 (undirected, no findings) complete, all gpt-6.1-sol xhigh; 4 accepted findings, one mechanism (record-report's read-back of a coordinator-posted report), all fixed; two corrections introduced defects caught by the next reviewer; reviewed head 3d2e5693c equals the current head; CI green except the Windows driver check pending. Live acceptance done from a flipped scratch clone with throwaway internal tickets 24-27 and PRs #2037/#2039, all cleaned up. Deviation: record-report checks a read-back file produced by a new agent-handoff read-back command rather than reading GitHub itself (cloud route has no gh login). Writer asks to confirm marking #2040 ready or to send a checkpoint decision.\"; decide or relay it, then record answer, send it and record answered"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 53628 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1965,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1964 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1966,
@@ -3634,7 +3634,7 @@
         "number": 1967,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1964 (open), #1965 (open), #1966 (open)"
+        "reason": "waiting for #1965 (open), #1966 (open)"
       }
     ],
     "remaining": [
