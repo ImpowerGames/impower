@@ -1,6 +1,8 @@
 import { expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { checkLuau } from "./typecheckTestHarness";
+import { testCompiler } from "../engineUnderTest";
+import { officialSyntaxErrors } from "../compiler/officialSyntax";
 
 // A function body is Luau, so a line there that begins with `&` continues the
 // type before it as an intersection, as Luau reads it. `&` marks a Luau
@@ -152,6 +154,36 @@ test.each([
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
   expect(ctx.errorMessages).toEqual([AMPERSAND_ERROR]);
 });
+
+// A define's method is a function body too, which the lowerer reports
+// rather than the type checker: a marked line there is reported as Luau
+// reports the same body, and nothing else (a method call's `:` is not a
+// type's).
+const errorMessages = (source: string) => {
+  const uri = "inmemory:///main.sd";
+  const compiler = testCompiler();
+  compiler.configure({
+    files: [{ uri, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }],
+  } as never);
+  const program = (compiler.compile({ textDocument: { uri } } as never) as any).program;
+  return ((program.diagnostics?.[uri] ?? []) as any[])
+    .filter((d) => d.severity === 1)
+    .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+};
+test.each(["local t = {}\n& t:missing()", "local a\n& a =", "& local v: = 1"])(
+  "a marked line in a define's method is reported as Luau reports it: %s",
+  (body) => {
+    const lines = body.split("\n");
+    const luau = officialSyntaxErrors(
+      `function greet()\n${lines.map((l) => `  ${l}`).join("\n")}\n  return 1\nend\n`,
+    ).map((e) => e.message);
+    expect(luau[0]).toBe(AMPERSAND_ERROR);
+    for (const header of ["greet()", "function greet()"]) {
+      const source = `define X with\n  ${header}\n${lines.map((l) => `    ${l}`).join("\n")}\n    return 1\n  end\nend\n`;
+      expect(errorMessages(source), header).toEqual(luau);
+    }
+  },
+);
 
 // A marked statement in a block that does not run is neither run nor moved
 // out of the block: the story still plays, and the count stays 0.

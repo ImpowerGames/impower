@@ -672,12 +672,9 @@ class Tokenizer {
       this.lex(from, to);
       return;
     }
-    // A token the grammar left unread is read as Luau's lexer reads it. So is
-    // the `&` that begins an intersection member line: the grammar cannot see
-    // whether a type comes before it, and when none does Luau reads it as the
-    // start of a statement and reports it, its recovery's errors included
-    // (#1374). After a type it reads as the operator, with no error.
-    if (UNREAD_TOKENS.has(name) || name === "LuauTypeIntersectionLineOperator") {
+    // A token the grammar left unread is read as Luau's lexer reads it, as is
+    // the `&` that begins an intersection member line (`UNREAD_TOKENS`).
+    if (UNREAD_TOKENS.has(name)) {
       const first = this.tokens.length;
       this.lex(from, to);
       for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;

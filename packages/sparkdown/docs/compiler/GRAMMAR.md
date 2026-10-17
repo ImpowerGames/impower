@@ -192,16 +192,12 @@ LuauSparkdownIfBlock:
     1: { patterns: [{ include: "#OptionalWhitespace" }] }
     2: { patterns: [{ include: "#LuauIfKeyword" }] }
     3: { patterns: [{ include: "#OptionalWhitespace" }] }
-  # Tried in declaration order against the body.
+  # Tried in declaration order against the body. `LuauSparkdownBlockBody`
+  # (§13.2) holds the narrative body's statements, display lines and
+  # whitespace, the `&` statement (`LuauSparkdownExplicitStatement`) first.
   patterns:
     - { include: "#LuauIfBlockCondition" }
-    - { include: "#LuauExplicitStatement" }
-    - { include: "#LuauImplicitStatement" }
-    - { include: "#LuauSparkdownControlBlock" }
-    - { include: "#SparkdownStatement" }
-    - { include: "#LuauExpression" }
-    - { include: "#ExtraWhitespace" }
-    - { include: "#Newline" }
+    - { include: "#LuauSparkdownBlockBody" }
   # Closes at `end`, OR bails at the next BEAT (next scene/branch) so a
   # forgotten `end` doesn't eat the rest of the document.
   end: (?={{BEAT}})|({{WS}}*)(end)\b
