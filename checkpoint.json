@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 142,
-  "previous": "4cccbbdfb13efd75f632a2755ba80fb23f42403c",
+  "seq": 143,
+  "previous": "0d65ba2f1f9b7b55c4e39327038541d190809c88",
   "snapshotParents": [],
-  "time": "2026-10-17T07:32:55.459Z",
+  "time": "2026-10-17T07:35:36.355Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #2022 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 151,
+    "recordRevision": 152,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4107,9 +4107,9 @@
       "ticket": 1374,
       "pr": 2022,
       "expectHead": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T07:32:52.777Z",
-      "evidence": "admitted as accepted-unreviewed",
+      "evidence": "PR #2022 reads back merged as a96dbbb3172baf33effd506b7d2f33d041bb02fa at 3f1944d2d9cb1fa3c1efcdc5733a003f50d71874; the merge commit is on origin/main; it landed on 68a6335fb22f647ce111dfe1860fb1c68d5d8094, while its CI covered main d5cb34d141f2c7f4caaf9b9fc17647019053d381, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "accepted-unreviewed",
         "reviewedHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
@@ -4307,7 +4307,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T07:35:33.729Z",
+      "mergeCommit": "a96dbbb3172baf33effd506b7d2f33d041bb02fa",
+      "mergedOnto": "68a6335fb22f647ce111dfe1860fb1c68d5d8094",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -4390,7 +4395,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T07:32:54.114Z",
+      "observedAt": "2026-10-17T07:35:35.060Z",
       "held": true,
       "head": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
       "remoteHead": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
@@ -4664,7 +4669,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T07:32:54.114Z",
+      "observedAt": "2026-10-17T07:35:35.060Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -4973,7 +4978,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T07:32:54.114Z",
+      "observedAt": "2026-10-17T07:35:35.060Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5691,11 +5696,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T13:18:37.651Z",
-      "event": "check-in",
-      "outcome": "no change: #1905 running; round 1 of PR #1927 found four findings, writer adding regression tests and fixes for them; head a9bc434f still green; no request pending"
-    },
-    {
       "time": "2026-10-16T13:53:49.113Z",
       "event": "check-in",
       "outcome": "no change: #1905 running; PR #1927 head 55c85a8f green with round 1 fixes pushed, 7 PR comments; writer waiting in the foreground on round 1's third reviewer (undirected); no request pending; this check-in's snapshot and plan took over four minutes under machine load"
@@ -6410,6 +6410,12 @@
       "id": "74903a1e",
       "kind": "merge",
       "pr": 2022
+    },
+    {
+      "time": "2026-10-17T07:35:33.729Z",
+      "event": "operation-outcome",
+      "id": "74903a1e",
+      "state": "confirmed"
     }
   ]
 }
