@@ -679,6 +679,7 @@ export class Pacer {
 
   /** Milliseconds until `requests` more requests, `writes` of them writes, fit the budgets. */
   wait(write, requests = 1, writes = write ? 1 : 0) {
+    if (requests > this.perHour || writes > this.writesPerHour || writes > this.writesPerMinute) throw new Error(`${requests} requests with ${writes} writes can never fit budgets of ${this.perHour} requests an hour and ${this.writesPerMinute} writes a minute and ${this.writesPerHour} an hour`);
     const t = this.now();
     this.requests = this.requests.filter((s) => s > t - 3600e3);
     this.writes = this.writes.filter((s) => s > t - 3600e3);

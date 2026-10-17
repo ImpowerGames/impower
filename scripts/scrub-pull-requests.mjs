@@ -312,7 +312,10 @@ export function cloneOf(root, repos, { run = runGit(root), remoteMatches = githu
     return r.stdout;
   };
   const top = ok(["rev-parse", "--show-toplevel"]).trim();
-  if (path.resolve(top).toLowerCase() !== path.resolve(root).toLowerCase()) throw new Error(`${root} is not the top of its clone (${top}); give the clone's root`);
+  // Compared as real paths: Git prints the long form of a Windows path that
+  // was given in its 8.3 short form (C:/Users/RUNNER~1/...).
+  const real = (p) => fs.realpathSync.native(path.resolve(p)).toLowerCase();
+  if (real(top) !== real(root)) throw new Error(`${root} is not the top of its clone (${top}); give the clone's root`);
   const origins = ok(["remote", "get-url", "--all", "origin"]).split("\n").map((u) => u.trim()).filter(Boolean);
   const foreign = origins.filter((u) => !remoteMatches(u, repos.internal));
   if (!origins.length || foreign.length) throw new Error(`${root}'s origin is ${origins.join(", ") || "unset"}, not https://github.com/${repos.internal}; the archive is written only into a clone of the internal repository`);
@@ -366,14 +369,18 @@ export function pullTracker(gh) {
     comments: (repo, n) => gh.list(`repos/${repo}/issues/${n}/comments?per_page=100`),
     reviewComments: (repo, n) => gh.list(`repos/${repo}/pulls/${n}/comments?per_page=100`),
     reviews: (repo, n) => gh.list(`repos/${repo}/pulls/${n}/reviews?per_page=100`),
-    findComment: (repo, id) => gone(() => gh.api("GET", `repos/${repo}/issues/comments/${id}`)),
-    findReviewComment: (repo, id) => gone(() => gh.api("GET", `repos/${repo}/pulls/comments/${id}`)),
+    // One attempt each: they are the scrub's last reads before a deletion,
+    // and a retry inside the client would take budget the deletion needs.
+    findComment: (repo, id) => gone(() => gh.apiOnce("GET", `repos/${repo}/issues/comments/${id}`)),
+    findReviewComment: (repo, id) => gone(() => gh.apiOnce("GET", `repos/${repo}/pulls/comments/${id}`)),
     // One attempt each: the scrub reads the comment again before a retry.
     deleteComment: (repo, id) => gh.apiOnce("DELETE", `repos/${repo}/issues/comments/${id}`),
     deleteReviewComment: (repo, id) => gh.apiOnce("DELETE", `repos/${repo}/pulls/comments/${id}`),
     // Room for a comment's read and its deletion together, so neither waits
     // for the budget between them.
     room: () => gh.pacer.room(2, 1),
+    // Whether a deletion goes now, with no wait for the budget.
+    ready: () => gh.pacer.wait(true) === 0,
   };
 }
 
@@ -420,10 +427,15 @@ export async function runArchive({ tracker, repos, clone, journal, dryRun = fals
   for (const listed of pulls) {
     const n = listed.number;
     const file = path.join(clone.root, ARCHIVE_DIR, `${n}.md`);
+    // A rerun skips a pull request whose file it wrote while the pull request
+    // has not changed since, and only while every committed copy is that same
+    // file: a copy that differs may hold a comment the working file lacks.
+    const committed = () => [clone.show(pushedCommit(), archivePath(n)), clone.show("HEAD", archivePath(n))].filter((t) => t !== null);
     if (!only && written.get(n) === listed.updated_at && fs.existsSync(file)) {
       try {
-        const kept = parseArchive(fs.readFileSync(file, "utf8"), repos);
-        if (kept.updatedAt === listed.updated_at && archiveProblems(kept).length === 0) {
+        const working = fs.readFileSync(file, "utf8");
+        const kept = parseArchive(working, repos);
+        if (kept.updatedAt === listed.updated_at && archiveProblems(kept).length === 0 && committed().every((t) => t === working)) {
           result.unchanged++;
           result.comments += kept.comments.length;
           result.reviewComments += kept.reviewComments.length;
@@ -552,11 +564,15 @@ const TRANSIENT = /timed? ?out|ECONNRESET|connection reset|TLS handshake|unexpec
  */
 async function deleteChecked(target, { tracker, sleep, log }) {
   for (let attempt = 0; ; attempt++) {
-    await tracker.room?.();
-    const now = await target.find();
-    if (now === null) return attempt ? "deleted" : "gone";
-    if ((now.body ?? "") !== target.archived) return "changed";
     try {
+      await tracker.room?.();
+      const now = await target.find();
+      if (now === null) return attempt ? "deleted" : "gone";
+      if ((now.body ?? "") !== target.archived) return "changed";
+      // The read and the deletion fit the budget together, so this holds;
+      // if it ever did not, the deletion would wait after the comparison,
+      // so the attempt starts over with a new read instead.
+      if (tracker.ready && !tracker.ready()) continue;
       await target.remove();
       return "deleted";
     } catch (error) {
@@ -676,6 +692,9 @@ export function parseArgs(argv) {
   if (!opts.mode) throw new Error(`give a mode: ${MODES.map((m) => `--${m} <clone of the internal repository>`).join(" or ")}`);
   if (!opts.dir) throw new Error(`--${opts.mode} needs --dir <attempt directory>`);
   opts.clone = path.resolve(opts.clone);
+  // The scrub reads each comment and deletes it within one reservation of
+  // two requests, so the hourly budget must hold two.
+  if (opts.perHour < 2) throw new Error("--requests-per-hour must be at least 2");
   opts.dir = path.resolve(opts.dir);
   return opts;
 }
