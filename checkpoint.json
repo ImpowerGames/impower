@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 196,
-  "previous": "28d1056d6d243e3626cceaea1b4c44135ae4bd9b",
+  "seq": 197,
+  "previous": "fb439926eed692da6974a3623f5462ff8f0308cd",
   "snapshotParents": [],
-  "time": "2026-10-17T16:23:39.059Z",
+  "time": "2026-10-17T16:23:48.855Z",
   "kind": "auto",
-  "transition": "answer of #1924",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 208,
+    "recordRevision": 209,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3285,7 +3285,12 @@
             "time": "2026-10-17T14:40:39.853Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-4a8dc615-69d5-465b-8b7e-4d94d5d823d3"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "b3736836-3679-46af-a8f5-213bf93ef256",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-b3736836-3679-46af-a8f5-213bf93ef256",
+          "time": "2026-10-17T16:23:46.841Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -6855,7 +6860,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T16:23:38.297Z",
+      "observedAt": "2026-10-17T16:23:48.110Z",
       "held": true,
       "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -7655,11 +7660,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T04:09:57.309Z",
-      "event": "check-in",
-      "outcome": "#1924 round 3 checkpoint (request 442d13e0) decided extend to round 4 (decision 3f6686ca, comment 6229458152): the unreviewed tail is a behavior-changing grammar and converter change with a history of regressions; acceptance refused; the own-line attribute alternative left to the maintainer via #921; Closes #1990 confirmed; writer resumed with the decision; #1906 running in round 2"
-    },
-    {
       "time": "2026-10-17T04:44:30.738Z",
       "event": "invocation",
       "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
@@ -8393,6 +8393,13 @@
       "id": "e0253741",
       "deliveryId": "b3b0dea3",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T16:23:46.842Z",
+      "event": "resume-intent",
+      "ticket": 1924,
+      "id": "b3736836-3679-46af-a8f5-213bf93ef256",
+      "sessionId": "18a46342-5e1d-4f43-b931-ad056aac78a7"
     }
   ]
 }
