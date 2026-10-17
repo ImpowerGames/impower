@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 137,
-  "previous": "a60910c7891a7b8588dc3428cb63873ebcfcd914",
+  "seq": 138,
+  "previous": "06d4830959f71350448db2b29b9ec30cc6754cef",
   "snapshotParents": [],
-  "time": "2026-10-17T01:31:47.880Z",
+  "time": "2026-10-17T01:32:53.025Z",
   "kind": "auto",
-  "transition": "the merge of PR #1984 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 112,
@@ -2319,7 +2319,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:31:46.557Z",
+      "observedAt": "2026-10-17T01:32:51.860Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2475,7 +2475,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T01:26:12.854Z",
+    "at": "2026-10-17T01:32:51.857Z",
     "tickets": [
       {
         "number": 851,
@@ -2503,9 +2503,9 @@
       },
       {
         "number": 1974,
-        "action": "observe",
-        "pr": 1984,
-        "reason": "process 58248, 55236, 29852 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       }
     ],
     "remaining": [
