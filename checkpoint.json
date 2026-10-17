@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 150,
-  "previous": "df56afea45dbe8df957a819f6e15c240e86c3587",
+  "seq": 151,
+  "previous": "849786488cc0acee224b81190e13ba9fdefb4672",
   "snapshotParents": [],
-  "time": "2026-10-17T03:21:05.296Z",
+  "time": "2026-10-17T03:21:36.288Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 121,
+    "recordRevision": 122,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2649,11 +2649,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T17:10:40.989Z",
-      "event": "disk-recovery",
-      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/1304-repeat-until-unit"
-    },
-    {
       "time": "2026-10-16T17:10:53.355Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/931-return-outside-function"
@@ -3312,6 +3307,11 @@
       "time": "2026-10-17T03:19:05.455Z",
       "event": "check-in",
       "outcome": "no change: Feature #1940 verified complete and closed (verification 7547a31c, closure 435c0528); all five slices done; outside the record the #2025 writer (detached CLI, maintainer-authorised flake fix) is still running with draft PR #2038 open, to be merged by the coordinator when ready"
+    },
+    {
+      "time": "2026-10-17T03:21:34.766Z",
+      "event": "check-in",
+      "outcome": "no change: Feature #1940 closed (closure 435c0528 confirmed); the plan's complete flag reads false only because main moved past the verified commit 4ba580faf after closure; outside the record the #2025 writer is still running, PR #2038 draft with round 1 adjudicated and checks green"
     }
   ]
 }
