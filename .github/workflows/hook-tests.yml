@@ -41,6 +41,7 @@ jobs:
         vscode-sparkdown/scripts/f5.mjs
         .vscode/tasks.json
         .github/scripts/**
+        .github/ISSUE_TEMPLATE/**
         .github/workflows/test-suite.yml
         .github/PULL_REQUEST_TEMPLATE.md
         .github/workflows/hook-tests.yml
@@ -109,6 +110,7 @@ jobs:
             /.codex/
             /scripts/
             /.github/scripts/
+            /.github/ISSUE_TEMPLATE/
             /.github/workflows/test-suite.yml
             /.github/workflows/hook-tests.yml
             /.github/PULL_REQUEST_TEMPLATE.md

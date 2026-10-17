@@ -3,6 +3,11 @@
 //   node .agents/skills/references/record-blockers.test.mjs
 
 import assert from "node:assert/strict";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { readRepos } from "../../repos.mjs";
 import { statedBlockers, recordBlockers, describe } from "./record-blockers.mjs";
 
 // The sentence forms the filing skills produce.
@@ -81,5 +86,31 @@ function fakeTracker(bodies, links) {
 
 // A body naming the ticket itself is refused before anything is posted.
 assert.throws(() => recordBlockers(30, fakeTracker({ 30: "Blocked by #30." }, {})), /states itself/);
+
+// The command line's client reads the tickets repository from the repos file:
+// a copy of the script beside a repos file with each switch position.
+{
+  const repos = readRepos();
+  const scratch = mkdtempSync(join(tmpdir(), "record-blockers-repos-"));
+  console.log(`Scratch directory: ${scratch}`);
+  try {
+    for (const [cutover, expected] of [[false, repos.code], [true, repos.internal]]) {
+      const dir = join(scratch, cutover ? "on" : "off", ".agents", "skills", "references");
+      mkdirSync(dir, { recursive: true });
+      copyFileSync(fileURLToPath(new URL("./record-blockers.mjs", import.meta.url)), join(dir, "record-blockers.mjs"));
+      copyFileSync(fileURLToPath(new URL("../../repos.mjs", import.meta.url)), join(dir, "..", "..", "repos.mjs"));
+      writeFileSync(join(dir, "..", "..", "repos.json"), JSON.stringify({ ...repos, cutover }));
+      const copy = await import(pathToFileURL(join(dir, "record-blockers.mjs")).href);
+      const calls = [];
+      const client = copy.ghClient(undefined, (args) => (calls.push(args), JSON.stringify({ body: "Blocked by #2.", id: 9 })));
+      const result = copy.recordBlockers(1, { ...client, blockedBy: () => [] }, { dryRun: true });
+      assert.equal(client.repo, expected);
+      assert.deepEqual(calls, [["api", `repos/${expected}/issues/1`]], `switch ${cutover ? "on" : "off"}`);
+      assert.match(copy.describe(result, client.repo), new RegExp(`^${expected}#1: stated #2`));
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
 
 console.log("record-blockers: ok");

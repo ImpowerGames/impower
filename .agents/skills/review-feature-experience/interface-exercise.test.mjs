@@ -3,8 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { interfaceElements, missingItems, reviewability, reviewabilityReport, walkthroughRecord, main, ghIssueCommand, REQUIRED_ITEMS, REQUIRED_TASKS, COLUMNS } from "./interface-exercise.mjs";
+import { readRepos, ticketsRepo } from "../../repos.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../../..");
@@ -93,7 +94,22 @@ assert.equal((record.match(/^\| 1 \|  \|  \|  \|$/gm) || []).length, 4, "each ta
 assert.match(record, /third column is a finding/);
 
 // Live issues are read through an injected fetch here; the command line uses gh.
-assert.deepEqual(ghIssueCommand(565), ["api", "repos/ImpowerGames/impower/issues/565"]);
+// The default repository follows the repos file: the committed file, and a
+// copy of the helper beside a repos file with each switch position.
+assert.deepEqual(ghIssueCommand(565), ["api", `repos/${ticketsRepo()}/issues/565`]);
+{
+  const repos = readRepos();
+  for (const [cutover, expected] of [[false, repos.code], [true, repos.internal]]) {
+    const checkout = path.join(scratch, `repos-${cutover ? "on" : "off"}`);
+    const dir = path.join(checkout, ".agents/skills/review-feature-experience");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(path.join(here, "interface-exercise.mjs"), path.join(dir, "interface-exercise.mjs"));
+    fs.copyFileSync(path.join(root, ".agents/repos.mjs"), path.join(checkout, ".agents/repos.mjs"));
+    fs.writeFileSync(path.join(checkout, ".agents/repos.json"), JSON.stringify({ ...repos, cutover }));
+    const copy = await import(pathToFileURL(path.join(dir, "interface-exercise.mjs")).href);
+    assert.deepEqual(copy.ghIssueCommand(565), ["api", `repos/${expected}/issues/565`], `with the switch ${cutover ? "on" : "off"}, tickets are read from ${expected}`);
+  }
+}
 const fetched = [];
 const fetchIssue = (number) => { fetched.push(number); return number === 570 ? partial : prose; };
 const live = main(["check", "--issue", "565", "--issue", "570"], { fetchIssue });
