@@ -428,6 +428,10 @@ type TokenKind =
   | "name"
   | "keyword"
   | "symbol"
+  /** Luau's `Attribute` lexeme: `@` with the name written right after it, or a bare `@` (no name). */
+  | "attribute"
+  /** Luau's `AttributeOpen` lexeme, `@[`. */
+  | "attributeOpen"
   | "number"
   | "string"
   | "rawstring"
@@ -488,13 +492,6 @@ interface Token {
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
   unread?: true;
-  /**
-   * Not part of Luau's tokens: for a `@`, how an error describes the
-   * attribute lexeme Luau's lexer reads there (`describe`). The tokens keep
-   * `@` and the name or `[` written right after it apart, and the `@` takes
-   * the lexeme's location (`Parser`).
-   */
-  attribute?: string;
 }
 
 
@@ -719,6 +716,18 @@ class Tokenizer {
   }
 
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
+    // Luau's lexer reads `@` as an attribute lexeme: with the name written
+    // right after it (`@native`), with `[` (`@[`), or alone, with no name.
+    if (kind === "symbol" && this.text.slice(from, to) === "@") kind = "attribute";
+    const last = this.tokens[this.tokens.length - 1];
+    if (last?.kind === "attribute" && last.text === "@" && last.to === from && to > from) {
+      const text = this.text.slice(from, to);
+      const glued: TokenKind | undefined = kind === "name" || kind === "keyword" ? "attribute" : kind === "symbol" && text === "[" ? "attributeOpen" : undefined;
+      if (glued) {
+        this.tokens[this.tokens.length - 1] = { ...last, kind: glued, text: last.text + text, to, location: this.location(last.from, to) };
+        return;
+      }
+    }
     const token: Token = { kind, text: this.text.slice(from, to), from, to, location: this.location(from, to), source: this.source };
     if (node) token.node = node;
     // A closer right after a block the tree closed before it (`until` after
@@ -974,13 +983,12 @@ class Tokenizer {
   /** The index of the first of the attributes (`@name`, `@[...]`) the tokens read so far end with. */
   private attributesStart(): number {
     const tokens = this.tokens;
-    const isAt = (token: Token | undefined, next: Token) => token?.kind === "symbol" && token.text === "@" && token.to === next.from;
     let at = tokens.length;
     for (;;) {
       const last = tokens[at - 1];
       if (!last) return at;
-      if ((last.kind === "name" || last.kind === "keyword") && isAt(tokens[at - 2], last)) {
-        at -= 2;
+      if (last.kind === "attribute" && last.text !== "@") {
+        at--;
         continue;
       }
       if (last.kind !== "symbol" || last.text !== "]") return at;
@@ -988,12 +996,11 @@ class Tokenizer {
       let open = at - 1;
       for (; open >= 0; open--) {
         const token = tokens[open]!;
-        if (token.kind !== "symbol") continue;
-        if (token.text === "]") depth++;
-        else if (token.text === "[" && --depth === 0) break;
+        if (token.kind === "symbol" && token.text === "]") depth++;
+        else if (((token.kind === "symbol" && token.text === "[") || token.kind === "attributeOpen") && --depth === 0) break;
       }
-      if (open < 1 || !isAt(tokens[open - 1], tokens[open]!)) return at;
-      at = open - 1;
+      if (open < 0 || tokens[open]!.kind !== "attributeOpen") return at;
+      at = open;
     }
   }
 
@@ -1138,44 +1145,11 @@ function skipComment(text: string, at: number, to: number): number {
 }
 
 /** A token's description in an error, as Luau's `Lexeme::toString` writes it. */
-/**
- * Whether a token is written right after another, with nothing between: a
- * token of the text, not one a reading writes itself where nothing is
- * written (the `end` closing a Sparkle closure's body, `readLuauStatements`).
- */
-function writtenRightAfter(token: Token, next: Token | undefined): next is Token {
-  return !!next && next.from === token.to && next.to > next.from;
-}
-
-/**
- * Not part of Luau: Luau's lexer reads `@` with the name written right after
- * it as one attribute lexeme (`@native`, described by its name), `@[` as one
- * (`'@['`), and a `@` with neither as an attribute with no name (`''`). An
- * error at the `@` is located and described as at that lexeme
- * (`Token.attribute`). Every token list a parser reads goes through this
- * (`Parser`, `withTokens`).
- */
-function readAttributeLexemes(tokens: Token[]): void {
-  for (let i = 0; i < tokens.length; i++) {
-    const at = tokens[i]!;
-    if (at.kind !== "symbol" || at.text !== "@" || at.attribute !== undefined) continue;
-    const next = tokens[i + 1];
-    if (writtenRightAfter(at, next) && next.kind === "symbol" && next.text === "[") {
-      at.attribute = "'@['";
-      at.location = Location.span(at.location, next.location);
-    } else if (writtenRightAfter(at, next) && (next.kind === "name" || next.kind === "keyword")) {
-      at.attribute = `'${next.text}'`;
-      at.location = Location.span(at.location, next.location);
-    } else {
-      at.attribute = "''";
-    }
-  }
-}
-
 function describe(token: Token): string {
   if (token.story && token.kind !== "keyword") return "<eof>";
-  if (token.attribute !== undefined) return token.attribute;
   switch (token.kind) {
+    case "attribute":
+      return `'${token.text.slice(1)}'`;
     case "eof":
       return "<eof>";
     case "unfinishedComment":
@@ -1567,7 +1541,6 @@ class Parser {
     const last = tokens[tokens.length - 1];
     const end = eofAt ?? (last ? last.location.end : previous.end);
     this.eof = { kind: "eof", text: "", from: last?.to ?? 0, to: last?.to ?? 0, location: new Location(end, end), source: -1 };
-    readAttributeLexemes(tokens);
   }
 
   // -- Tokens --------------------------------------------------------------
@@ -1615,7 +1588,6 @@ class Parser {
    */
   private withTokens<T>(tokens: Token[], end: Location, read: () => T): T {
     const saved = { tokens: this.tokens, pos: this.pos, previous: this.previous, eof: this.eof };
-    readAttributeLexemes(tokens);
     this.tokens = tokens;
     this.pos = 0;
     this.eof = { kind: "eof", text: "", from: 0, to: 0, location: end, source: -1 };
@@ -2250,8 +2222,8 @@ class Parser {
    * attribute with no name.
    */
   private isAttribute(): boolean {
-    const at = this.current();
-    return at.kind === "symbol" && at.text === "@";
+    const kind = this.current().kind;
+    return kind === "attribute" || kind === "attributeOpen";
   }
 
   private validateAttribute(loc: Location, name: string, attributes: AstAttr[], args: AstExpr[]): AstAttrType | undefined {
@@ -2271,19 +2243,15 @@ class Parser {
     while (this.isAttribute()) {
       const at = this.current();
       this.next();
-      const glued = writtenRightAfter(at, this.current());
-      if (!glued || !this.is("[")) {
+      if (at.kind === "attribute") {
         // The name written right after the `@`, or none (`@ function`).
-        const name = this.current();
-        const named = glued && (name.kind === "name" || name.kind === "keyword");
-        if (named) this.next();
-        const loc = named ? Location.span(at.location, name.location) : at.location;
-        const text = named ? name.text : "";
-        attributes.push(new AstAttr(loc, this.validateAttribute(loc, text, attributes, []) ?? AstAttrType.Unknown, [], text));
+        const text = at.text.slice(1);
+        attributes.push(new AstAttr(at.location, this.validateAttribute(at.location, text, attributes, []) ?? AstAttrType.Unknown, [], text));
         continue;
       }
-      const open = this.current();
-      this.next();
+      // Luau's parser closes the list's `[`, the second character of `@[`.
+      const begin = new Position(at.location.begin.line, at.location.begin.column + 1);
+      const open: Token = { ...at, kind: "symbol", text: "[", from: at.from + 1, location: new Location(begin, at.location.end) };
       this.attributeListDepth++;
       try {
         this.parseAttributeList(at, open, attributes);
