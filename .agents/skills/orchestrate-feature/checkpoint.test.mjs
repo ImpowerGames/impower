@@ -1161,6 +1161,25 @@ try {
     const { ticketsRepository, ...oneRepository } = state900.checkpoint;
     const oneSummary = cp.renderSummary({ checkpoint: { ...oneRepository, observed }, commit: state900.commit }, CODE);
     assert.ok(oneSummary.includes("| #901 | adopt-pr | #77 |") && oneSummary.includes("draft PR #77 at h has started 0 review rounds; open PRs #77, #78 and #79"));
+    // From the command line with the switch on, a snapshot is retrieved from
+    // the internal state branch and the run is taken over there, keeping its
+    // two repositories; with the switch off the same takeover finds no run.
+    // Both run from another clone, as a destination machine's would.
+    const destination = path.join(split, "destination");
+    git(tmp, "clone", "-q", codeRemote, destination);
+    for (const [k, v] of [["user.name", "t"], ["user.email", "t@example.invalid"], ["core.autocrlf", "false"]]) git(destination, "config", k, v);
+    git(destination, "remote", "add", "internal", internalRemote);
+    const retrieved = cp.main(["retrieve", "--repo", CODE, "--feature", "900", "--checkout", destination, "--ticket", "901", "--worktree", path.join(split, "wt-901-retrieved")], { repos: ON });
+    assert.equal(retrieved.verified, true);
+    assert.equal(fs.readFileSync(path.join(split, "wt-901-retrieved", "work.txt"), "utf8"), "unfinished\n");
+    const takeoverArgs = (file) => ["resume", "--record", file, "--checkout", destination, "--repo", CODE, "--feature", "900", "--harness", "claude", "--coordinator", "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c90", "--coordinator-mode", "bypassPermissions", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--slug", "split-run", "--invocation", "Use orchestrate-feature for #900.", "--merging", "maintainer", "--evidence", "the previous coordinator's session was archived"];
+    assert.throws(() => cp.main(takeoverArgs(path.join(split, "run-900-off.json")), { repos: OFF, commentsFor }), /has no checkpoint on orchestrate-state\/feature-900/);
+    const taken900 = cp.main(takeoverArgs(path.join(split, "run-900b.json")), { repos: ON, commentsFor });
+    assert.equal(taken900.action, "takeover");
+    const record900b = run.readRecord(path.join(split, "run-900b.json"));
+    assert.deepEqual([record900b.ticketsRepository, record900b.checkpoints], [INTERNAL, { remote: "internal", branch: "orchestrate-state/feature-900", codeRemote: "origin" }]);
+    assert.equal(git(checkout, "ls-remote", "internal", "refs/heads/orchestrate-state/feature-900").split("\t")[0], taken900.commit, "the takeover's checkpoint is on the tickets repository");
+    assert.equal(publicStates(), publicBefore, "and the code repository's state branches are still unchanged");
     // Review checkpoint decisions link to the ticket's review thread.
     const published = { tickets: { 901: { checkpoints: [{ state: "published", pr: 77, id: "d1", kind: "finish", round: 3, head: "h", published: { comment: 123, time: "t" } }] } } };
     assert.equal(cp.decisionLinks({ repository: CODE, ticketsRepository: INTERNAL, ...published })[0].url, `https://github.com/${INTERNAL}/issues/901#issuecomment-123`);
