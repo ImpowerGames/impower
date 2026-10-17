@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 188,
-  "previous": "38d0c3bb1ca4ccb239a83ae2e60bba632b939b90",
+  "seq": 189,
+  "previous": "5e5b08a1baa9277abede723783315a8f95e98bce",
   "snapshotParents": [],
-  "time": "2026-10-17T15:14:40.150Z",
+  "time": "2026-10-17T15:18:29.677Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1995 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 201,
+    "recordRevision": 202,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -6039,9 +6039,9 @@
       "ticket": 1906,
       "pr": 1995,
       "expectHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T15:14:37.788Z",
-      "evidence": "admitted as accepted-unreviewed",
+      "evidence": "PR #1995 reads back merged as 006d924c192a2299e3398e308b6172b4540d4115 at a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3; the merge commit is on origin/main",
       "gate": {
         "disposition": "accepted-unreviewed",
         "reviewedHead": "5fabd8bb1afa8235e76080e8159fdc84ccfe6839",
@@ -6238,7 +6238,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T15:18:27.310Z",
+      "mergeCommit": "006d924c192a2299e3398e308b6172b4540d4115",
+      "mergedOnto": "555e5300ae7b7b8483394ad36c4d6967fa740d55",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -6361,7 +6366,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T15:14:38.952Z",
+      "observedAt": "2026-10-17T15:18:28.651Z",
       "held": true,
       "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
       "remoteHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
@@ -6746,7 +6751,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:14:38.952Z",
+      "observedAt": "2026-10-17T15:18:28.651Z",
       "held": true,
       "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
       "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
@@ -7526,12 +7531,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T04:07:01.453Z",
-      "event": "request",
-      "ticket": 1924,
-      "id": "442d13e0"
-    },
-    {
       "time": "2026-10-17T04:08:39.326Z",
       "event": "checkpoint-intent",
       "ticket": 1924,
@@ -8274,6 +8273,12 @@
       "id": "8a377245",
       "kind": "merge",
       "pr": 1995
+    },
+    {
+      "time": "2026-10-17T15:18:27.310Z",
+      "event": "operation-outcome",
+      "id": "8a377245",
+      "state": "confirmed"
     }
   ]
 }
