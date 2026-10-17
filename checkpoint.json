@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 114,
-  "previous": "099b8cb7211d6f47914bb45d10dda04d9c46d350",
+  "seq": 115,
+  "previous": "e493da53b5801affd3cfc4dc9838bd945645751d",
   "snapshotParents": [],
-  "time": "2026-10-17T05:12:20.586Z",
+  "time": "2026-10-17T05:14:27.166Z",
   "kind": "auto",
-  "transition": "answered of #1906",
+  "transition": "request of #1374",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 117,
+    "recordRevision": 120,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -110,7 +110,290 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "0f12aa4d",
+          "kind": "extend",
+          "feature": 1904,
+          "ticket": 1374,
+          "pr": 2022,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T05:13:44.197Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "0aec9b1cf24054a4cd91ccdc0e168fc58dfc162d",
+          "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
+          "range": {
+            "from": "0aec9b1cf24054a4cd91ccdc0e168fc58dfc162d",
+            "to": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
+            "base": "03d96fb0fee3936d14b976718c351b103f3fa92a",
+            "commits": [
+              "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485"
+            ],
+            "diffSha256": "8006d4c3ff2c0676e84491a460bad6e1aa847d1b9acb3188e9a4890c90960205"
+          },
+          "reports": [
+            {
+              "comment": 6227678778,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6228027575
+            },
+            {
+              "comment": 6228181464,
+              "round": 1,
+              "reviewerId": "grammar",
+              "adjudication": 6228302103
+            },
+            {
+              "comment": 6228554152,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6228827434
+            },
+            {
+              "comment": 6229047169,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6229165366
+            },
+            {
+              "comment": 6229315616,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6229479904
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 4,
+          "limitReason": "one bounded round reviews the unreviewed lowering and declaration-stop corrections in a class whose failure mode is silent; a further end-rule finding is answered by a repair, not another round.",
+          "authority": "/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.",
+          "assessment": {
+            "mechanisms": "Two mechanisms account for the accepted findings. (1) Where an `&` type-continuation line inside a function ends: round 1 undirected finding 1 (the continuation ended only at its line's end, a delimiter or the next operator, so a statement on the same line was swallowed), round 2 undirected finding 1 (the added end needed whitespace at the current position, so a block comment or a statement glued to the type was missed), round 3 undirected finding 2 (the declaration stop made unconditional rejected a valid member named `store`). Each correction narrowed the end rule by one case and the next round found the case beside it; the round 3 correction bounds it structurally instead (the declaration stop applies only after a type has ended, reserved words that cannot start a type end it anywhere), which is the first version of the rule stated as a property rather than a list of cases. (2) Diagnostic and lowering ownership of the new continuation token: round 1 grammar finding 1 (the new unread token bypassed the shared ownership table) and round 3 undirected finding 1 (a member line that continues a type and begins a statement was skipped by the lowerer as type-only text, dropping an assignment with no error), fixed by routing the token through the shared table and lowering such lines as block children. Round 1 ax's finding was the CI consequence of the first mechanism (43 tests in 10 files writing `&` in function bodies), and round 2's second finding was test honesty (two runtime cases passed with the correction reverted), fixed by cases that fail without it.",
+            "regressions": "No correction introduced a defect that a later reviewer attributed to it as a regression; each later finding was a neighbouring case the narrowed end rule still missed, or an ownership gap the new token exposed. The test-honesty finding in round 2 shows one verification lapse (runtime cases that did not depend on the grammar change), corrected with cases that fail on revert and restored by SHA-256. The round 3 corrections are each pinned by a test that fails with the change undone.",
+            "repairOptions": "The round 3 correction already is the broader repair for mechanism 1: a declaration stop conditioned on a completed type rather than an enumerated list of stop words. The remaining pre-existing gap the reviewer named, that `LuauTypeLiteral` reads an adjacent identifier into a type with no space (`& {}a = 9` highlights `a` as a type name, exactly as `local v: {}a = 9` does on main), is shared by every type in the grammar and belongs in its own change; it does not affect runtime here, where the assignment now runs. No simpler repair is available for mechanism 2 beyond the shared ownership table the correction uses.",
+            "residualRisk": "0f3ab9946 is unreviewed and changes two behaviours: the lowerer now lowers a member line that continues a type and begins a statement as the block's statements (new runtime behaviour where such a line was silently dropped), and the grammar's declaration stop after a type end with the non-type reserved words ending the type anywhere. The reviewed head before it was found to swallow an adjacent assignment silently, so the class is exactly the one with the worst failure mode (no diagnostic). The highlighting of a glued identifier after a type stays as on main. #1907 (the story-body line rule) rewrites the narrative side of the same rules and is blocked on this PR, so a wrong end rule here would be built on.",
+            "coverage": "On 0f3ab9946: FunctionIntersectionContinuation (44 cases, each new case checked against the official parser and failing with its correction undone, restores by SHA-256), grammarSnapshot, vscodeGrammarSnapshot, scopeEquality, luauTreeAst, luauSyntaxAgreement, MultilineTypeUnion and luauCorpusGate passing locally; grammar ESLint, node-name and lowerer-convention checks and the filtered typecheck clean; compareEnginesFull 0 divergences on the new fixture; CI on 0f3ab9946: 29 passed, 4 skipped, none failed. Round 1's undirected reviewer ran the red-on-base comparison in independent clones and read the head's Test Suite and Typecheck runs.",
+            "nextRoundValue": "One reviewer, undirected with the grammar-conventions lens as rounds 2 and 3 used, on the correction diff 0aec9b1cf..0f3ab9946 with the whole PR for context: whether the lowering of statement-bearing member lines is complete and does not double-report with Luau's own reading of the `&` line, whether the type-end-conditioned declaration stop keeps every member spelling the fixture covers and misses none the reviewer can construct, and whether the glued-identifier highlighting gap is correctly left out. If that round finds another case of the end rule, the rule is not yet stated as a property and the next checkpoint directs a repair rather than a further round.",
+            "rationale": "Acceptance of unreviewed corrections is refused: 0f3ab9946 changes lowering and grammar behaviour in the class whose failure is silent, and the two previous rounds each found a neighbouring defect in the previous correction, so convergence is not yet shown. A root-cause repair is not needed beyond what round 3 did, since the end rule is now conditioned on a completed type rather than enumerated. One bounded round of the reviewer that found the last two defects, on the correction that answers them, is the cheapest way to establish that the rule now holds, and #1907 depends on it holding. The limit is round 4 only.",
+            "next": "Publish this extension; the writer session launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 0aec9b1cf..0f3ab9946, then sends the next checkpoint after round 4's verified fixes; the coordinator then decides again and merges through the gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 4,
+            "limitReason": "one bounded round reviews the unreviewed lowering and declaration-stop corrections in a class whose failure mode is silent; a further end-rule finding is answered by a repair, not another round.",
+            "findings": [
+              {
+                "comment": 6227678778,
+                "finding": "B1: four packages/sparkdown CI jobs failed 43 tests in 10 files that write & inside a function body",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227678778,
+                "finding": "Q1: the lowerer's continuation message pointed at the wrong line (accepted in a different form)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228181464,
+                "finding": "the new unread continuation token bypassed the shared diagnostic ownership table",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228181464,
+                "finding": "the grammar tutorial still instructed readers to include the deleted rule (quality)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228554152,
+                "finding": "the type-operator line continuation ended only at its line's end, swallowing a same-line statement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229047169,
+                "finding": "the continuation still missed valid same-line statement boundaries after a comment or a glued statement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229047169,
+                "finding": "test honesty: the two added runtime cases passed with the correction reverted",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229315616,
+                "finding": "an adjacent assignment after a member's type was swallowed as type text and silently omitted at runtime",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229315616,
+                "finding": "the unconditional declaration stop rejected a valid intersection member named store",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: authorize another bounded round\n\nDecision `0f12aa4d` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1374. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6227678778 in 6228027575, 6228181464 in 6228302103, 6228554152 in 6228827434, 6229047169 in 6229165366, 6229315616 in 6229479904).\n- Independently reviewed through `0aec9b1cf24054a4cd91ccdc0e168fc58dfc162d`.\n- Head `0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485`. Unreviewed: `0aec9b1cf..0f3ab9946`, 1 commit (`0f3ab9946` fix(compiler): lower a statement that begins on a member line, and read a member named store (#1374)), diff SHA-256 `8006d4c3ff2c0676e84491a460bad6e1aa847d1b9acb3188e9a4890c90960205`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, driver-checks passed, test-suite passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 9 accepted; unresolved: none.\n- Shared mechanisms: Two mechanisms account for the accepted findings. (1) Where an `&` type-continuation line inside a function ends: round 1 undirected finding 1 (the continuation ended only at its line's end, a delimiter or the next operator, so a statement on the same line was swallowed), round 2 undirected finding 1 (the added end needed whitespace at the current position, so a block comment or a statement glued to the type was missed), round 3 undirected finding 2 (the declaration stop made unconditional rejected a valid member named `store`). Each correction narrowed the end rule by one case and the next round found the case beside it; the round 3 correction bounds it structurally instead (the declaration stop applies only after a type has ended, reserved words that cannot start a type end it anywhere), which is the first version of the rule stated as a property rather than a list of cases. (2) Diagnostic and lowering ownership of the new continuation token: round 1 grammar finding 1 (the new unread token bypassed the shared ownership table) and round 3 undirected finding 1 (a member line that continues a type and begins a statement was skipped by the lowerer as type-only text, dropping an assignment with no error), fixed by routing the token through the shared table and lowering such lines as block children. Round 1 ax's finding was the CI consequence of the first mechanism (43 tests in 10 files writing `&` in function bodies), and round 2's second finding was test honesty (two runtime cases passed with the correction reverted), fixed by cases that fail without it.\n- Defects introduced by corrections: No correction introduced a defect that a later reviewer attributed to it as a regression; each later finding was a neighbouring case the narrowed end rule still missed, or an ownership gap the new token exposed. The test-honesty finding in round 2 shows one verification lapse (runtime cases that did not depend on the grammar change), corrected with cases that fail on revert and restored by SHA-256. The round 3 corrections are each pinned by a test that fails with the change undone.\n- Broader or simpler repair: The round 3 correction already is the broader repair for mechanism 1: a declaration stop conditioned on a completed type rather than an enumerated list of stop words. The remaining pre-existing gap the reviewer named, that `LuauTypeLiteral` reads an adjacent identifier into a type with no space (`& {}a = 9` highlights `a` as a type name, exactly as `local v: {}a = 9` does on main), is shared by every type in the grammar and belongs in its own change; it does not affect runtime here, where the assignment now runs. No simpler repair is available for mechanism 2 beyond the shared ownership table the correction uses.\n- Residual risk: 0f3ab9946 is unreviewed and changes two behaviours: the lowerer now lowers a member line that continues a type and begins a statement as the block's statements (new runtime behaviour where such a line was silently dropped), and the grammar's declaration stop after a type end with the non-type reserved words ending the type anywhere. The reviewed head before it was found to swallow an adjacent assignment silently, so the class is exactly the one with the worst failure mode (no diagnostic). The highlighting of a glued identifier after a type stays as on main. #1907 (the story-body line rule) rewrites the narrative side of the same rules and is blocked on this PR, so a wrong end rule here would be built on.\n- Verification coverage: On 0f3ab9946: FunctionIntersectionContinuation (44 cases, each new case checked against the official parser and failing with its correction undone, restores by SHA-256), grammarSnapshot, vscodeGrammarSnapshot, scopeEquality, luauTreeAst, luauSyntaxAgreement, MultilineTypeUnion and luauCorpusGate passing locally; grammar ESLint, node-name and lowerer-convention checks and the filtered typecheck clean; compareEnginesFull 0 divergences on the new fixture; CI on 0f3ab9946: 29 passed, 4 skipped, none failed. Round 1's undirected reviewer ran the red-on-base comparison in independent clones and read the head's Test Suite and Typecheck runs.\n- What another round would establish: One reviewer, undirected with the grammar-conventions lens as rounds 2 and 3 used, on the correction diff 0aec9b1cf..0f3ab9946 with the whole PR for context: whether the lowering of statement-bearing member lines is complete and does not double-report with Luau's own reading of the `&` line, whether the type-end-conditioned declaration stop keeps every member spelling the fixture covers and misses none the reviewer can construct, and whether the glued-identifier highlighting gap is correctly left out. If that round finds another case of the end rule, the rule is not yet stated as a property and the next checkpoint directs a repair rather than a further round.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: Acceptance of unreviewed corrections is refused: 0f3ab9946 changes lowering and grammar behaviour in the class whose failure is silent, and the two previous rounds each found a neighbouring defect in the previous correction, so convergence is not yet shown. A root-cause repair is not needed beyond what round 3 did, since the end rule is now conditioned on a completed type rather than enumerated. One bounded round of the reviewer that found the last two defects, on the correction that answers them, is the cheapest way to establish that the rule now holds, and #1907 depends on it holding. The limit is round 4 only. Next: Publish this extension; the writer session launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 0aec9b1cf..0f3ab9946, then sends the next checkpoint after round 4's verified fixes; the coordinator then decides again and merges through the gate.\n- Round 4 may launch with `reviewRoundLimit` 4 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: one bounded round reviews the unreviewed lowering and declaration-stop corrections in a class whose failure mode is silent; a further end-rule finding is answered by a repair, not another round. The next checkpoint follows round 4's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"0f12aa4d\",\n \"kind\": \"extend\",\n \"feature\": 1904,\n \"ticket\": 1374,\n \"pr\": 2022,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T05:13:44.197Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"0aec9b1cf24054a4cd91ccdc0e168fc58dfc162d\",\n \"head\": \"0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485\",\n \"range\": {\n  \"from\": \"0aec9b1cf24054a4cd91ccdc0e168fc58dfc162d\",\n  \"to\": \"0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485\",\n  \"base\": \"03d96fb0fee3936d14b976718c351b103f3fa92a\",\n  \"commits\": [\n   \"0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485\"\n  ],\n  \"diffSha256\": \"8006d4c3ff2c0676e84491a460bad6e1aa847d1b9acb3188e9a4890c90960205\"\n },\n \"reports\": [\n  {\n   \"comment\": 6227678778,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6228027575\n  },\n  {\n   \"comment\": 6228181464,\n   \"round\": 1,\n   \"reviewerId\": \"grammar\",\n   \"adjudication\": 6228302103\n  },\n  {\n   \"comment\": 6228554152,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228827434\n  },\n  {\n   \"comment\": 6229047169,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229165366\n  },\n  {\n   \"comment\": 6229315616,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229479904\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 4,\n \"limitReason\": \"one bounded round reviews the unreviewed lowering and declaration-stop corrections in a class whose failure mode is silent; a further end-rule finding is answered by a repair, not another round.\",\n \"authority\": \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\",\n \"assessment\": {\n  \"mechanisms\": \"Two mechanisms account for the accepted findings. (1) Where an `&` type-continuation line inside a function ends: round 1 undirected finding 1 (the continuation ended only at its line's end, a delimiter or the next operator, so a statement on the same line was swallowed), round 2 undirected finding 1 (the added end needed whitespace at the current position, so a block comment or a statement glued to the type was missed), round 3 undirected finding 2 (the declaration stop made unconditional rejected a valid member named `store`). Each correction narrowed the end rule by one case and the next round found the case beside it; the round 3 correction bounds it structurally instead (the declaration stop applies only after a type has ended, reserved words that cannot start a type end it anywhere), which is the first version of the rule stated as a property rather than a list of cases. (2) Diagnostic and lowering ownership of the new continuation token: round 1 grammar finding 1 (the new unread token bypassed the shared ownership table) and round 3 undirected finding 1 (a member line that continues a type and begins a statement was skipped by the lowerer as type-only text, dropping an assignment with no error), fixed by routing the token through the shared table and lowering such lines as block children. Round 1 ax's finding was the CI consequence of the first mechanism (43 tests in 10 files writing `&` in function bodies), and round 2's second finding was test honesty (two runtime cases passed with the correction reverted), fixed by cases that fail without it.\",\n  \"regressions\": \"No correction introduced a defect that a later reviewer attributed to it as a regression; each later finding was a neighbouring case the narrowed end rule still missed, or an ownership gap the new token exposed. The test-honesty finding in round 2 shows one verification lapse (runtime cases that did not depend on the grammar change), corrected with cases that fail on revert and restored by SHA-256. The round 3 corrections are each pinned by a test that fails with the change undone.\",\n  \"repairOptions\": \"The round 3 correction already is the broader repair for mechanism 1: a declaration stop conditioned on a completed type rather than an enumerated list of stop words. The remaining pre-existing gap the reviewer named, that `LuauTypeLiteral` reads an adjacent identifier into a type with no space (`& {}a = 9` highlights `a` as a type name, exactly as `local v: {}a = 9` does on main), is shared by every type in the grammar and belongs in its own change; it does not affect runtime here, where the assignment now runs. No simpler repair is available for mechanism 2 beyond the shared ownership table the correction uses.\",\n  \"residualRisk\": \"0f3ab9946 is unreviewed and changes two behaviours: the lowerer now lowers a member line that continues a type and begins a statement as the block's statements (new runtime behaviour where such a line was silently dropped), and the grammar's declaration stop after a type end with the non-type reserved words ending the type anywhere. The reviewed head before it was found to swallow an adjacent assignment silently, so the class is exactly the one with the worst failure mode (no diagnostic). The highlighting of a glued identifier after a type stays as on main. #1907 (the story-body line rule) rewrites the narrative side of the same rules and is blocked on this PR, so a wrong end rule here would be built on.\",\n  \"coverage\": \"On 0f3ab9946: FunctionIntersectionContinuation (44 cases, each new case checked against the official parser and failing with its correction undone, restores by SHA-256), grammarSnapshot, vscodeGrammarSnapshot, scopeEquality, luauTreeAst, luauSyntaxAgreement, MultilineTypeUnion and luauCorpusGate passing locally; grammar ESLint, node-name and lowerer-convention checks and the filtered typecheck clean; compareEnginesFull 0 divergences on the new fixture; CI on 0f3ab9946: 29 passed, 4 skipped, none failed. Round 1's undirected reviewer ran the red-on-base comparison in independent clones and read the head's Test Suite and Typecheck runs.\",\n  \"nextRoundValue\": \"One reviewer, undirected with the grammar-conventions lens as rounds 2 and 3 used, on the correction diff 0aec9b1cf..0f3ab9946 with the whole PR for context: whether the lowering of statement-bearing member lines is complete and does not double-report with Luau's own reading of the `&` line, whether the type-end-conditioned declaration stop keeps every member spelling the fixture covers and misses none the reviewer can construct, and whether the glued-identifier highlighting gap is correctly left out. If that round finds another case of the end rule, the rule is not yet stated as a property and the next checkpoint directs a repair rather than a further round.\",\n  \"rationale\": \"Acceptance of unreviewed corrections is refused: 0f3ab9946 changes lowering and grammar behaviour in the class whose failure is silent, and the two previous rounds each found a neighbouring defect in the previous correction, so convergence is not yet shown. A root-cause repair is not needed beyond what round 3 did, since the end rule is now conditioned on a completed type rather than enumerated. One bounded round of the reviewer that found the last two defects, on the correction that answers them, is the cheapest way to establish that the rule now holds, and #1907 depends on it holding. The limit is round 4 only.\",\n  \"next\": \"Publish this extension; the writer session launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 0aec9b1cf..0f3ab9946, then sends the next checkpoint after round 4's verified fixes; the coordinator then decides again and merges through the gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 4,\n  \"limitReason\": \"one bounded round reviews the unreviewed lowering and declaration-stop corrections in a class whose failure mode is silent; a further end-rule finding is answered by a repair, not another round.\",\n  \"findings\": [\n   {\n    \"comment\": 6227678778,\n    \"finding\": \"B1: four packages/sparkdown CI jobs failed 43 tests in 10 files that write & inside a function body\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227678778,\n    \"finding\": \"Q1: the lowerer's continuation message pointed at the wrong line (accepted in a different form)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228181464,\n    \"finding\": \"the new unread continuation token bypassed the shared diagnostic ownership table\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228181464,\n    \"finding\": \"the grammar tutorial still instructed readers to include the deleted rule (quality)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228554152,\n    \"finding\": \"the type-operator line continuation ended only at its line's end, swallowing a same-line statement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229047169,\n    \"finding\": \"the continuation still missed valid same-line statement boundaries after a comment or a glued statement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229047169,\n    \"finding\": \"test honesty: the two added runtime cases passed with the correction reverted\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229315616,\n    \"finding\": \"an adjacent assignment after a member's type was swallowed as type text and silently omitted at runtime\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229315616,\n    \"finding\": \"the unconditional declaration stop rejected a valid intersection member named store\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "ff7845a197c454136d6ec2b837e83f41baffc81768d23c332263b4cff1b35722",
+          "blockSha256": "1d092fcad096004e58ec8ffc2adc09748e2a0b5c7a56ce5d85111fc05e5d8b65",
+          "published": {
+            "comment": 6230032946,
+            "time": "2026-10-17T05:13:47.249Z",
+            "headAtPublish": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485"
+          }
+        }
+      ],
+      "requests": [
+        {
+          "id": "1330b629",
+          "owner": "local_06fee41a-73da-418e-ad9e-8528ebd314ce",
+          "time": "2026-10-17T05:14:23.800Z",
+          "text": "PR #2022 after review round 3 (the default cap): all nine findings accepted and fixed, last reviewed head 0aec9b1cf, head 0f3ab9946 with the round 3 corrections (lowering of statement-bearing member lines, declaration stop after a type end) unreviewed; the PR stays a draft until a fourth round is authorized or the maintainer reviews it.",
+          "source": "the session's turn-end report of 2026-10-17 (session local_06fee41a-73da-418e-ad9e-8528ebd314ce), read as a side-session note; the maintainer then handed #1374's orchestration to this coordinator",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     },
     "1905": {
       "owner": null,
@@ -2365,6 +2648,16 @@
   ],
   "decisions": [
     {
+      "pr": 2022,
+      "url": "https://github.com/ImpowerGames/impower/pull/2022#issuecomment-6230032946",
+      "kind": "review-checkpoint extend",
+      "ticket": 1374,
+      "id": "0f12aa4d",
+      "round": 3,
+      "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
+      "time": "2026-10-17T05:13:47.249Z"
+    },
+    {
       "pr": 1927,
       "url": "https://github.com/ImpowerGames/impower/pull/1927#issuecomment-6223037563",
       "kind": "review-checkpoint accept-unreviewed",
@@ -2393,7 +2686,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T05:12:19.240Z",
+      "observedAt": "2026-10-17T05:14:25.325Z",
       "held": true,
       "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
       "remoteHead": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
@@ -2599,7 +2892,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T05:12:19.240Z",
+      "observedAt": "2026-10-17T05:14:25.325Z",
       "held": true,
       "head": "8f09e4684ee87b24078b361f03182c787a013df3",
       "remoteHead": "8f09e4684ee87b24078b361f03182c787a013df3",
@@ -2871,7 +3164,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T05:12:19.240Z",
+      "observedAt": "2026-10-17T05:14:25.325Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -3583,22 +3876,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T03:17:55.928Z",
-      "event": "check-in",
-      "outcome": "answered #1909 request 97936f41: proceed with its default (keep Closes #924 and #1373 with runtime tests and residue noted, tree residues listed under a separate heading in the batch Task, #1203 re-scoped and its Closes dropped)"
-    },
-    {
-      "time": "2026-10-16T03:19:49.841Z",
-      "event": "check-in",
-      "outcome": "no change"
-    },
-    {
-      "time": "2026-10-16T03:39:35.405Z",
-      "event": "released",
-      "ticket": 1909,
-      "reason": "process 54024 is gone and no process names its launch directory"
-    },
-    {
       "time": "2026-10-16T03:40:09.755Z",
       "event": "result",
       "ticket": 1909,
@@ -4249,6 +4526,28 @@
       "ticket": 1906,
       "id": "19d362c9",
       "deliveryId": "d6479c11"
+    },
+    {
+      "time": "2026-10-17T05:13:44.197Z",
+      "event": "checkpoint-intent",
+      "ticket": 1374,
+      "id": "0f12aa4d",
+      "kind": "extend",
+      "round": 3,
+      "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485"
+    },
+    {
+      "time": "2026-10-17T05:13:47.249Z",
+      "event": "checkpoint-published",
+      "ticket": 1374,
+      "id": "0f12aa4d",
+      "comment": 6230032946
+    },
+    {
+      "time": "2026-10-17T05:14:23.801Z",
+      "event": "request",
+      "ticket": 1374,
+      "id": "1330b629"
     }
   ]
 }
