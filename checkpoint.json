@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 204,
-  "previous": "5cd7bee56c1f7f9b4ec147389cc1077ab30316cc",
+  "seq": 205,
+  "previous": "d059bd4891927ee7daaa48fe6b32ff9cb7238325",
   "snapshotParents": [],
-  "time": "2026-10-17T13:12:51.692Z",
+  "time": "2026-10-17T13:13:08.957Z",
   "kind": "auto",
-  "transition": "the intent to merge PR #2057",
+  "transition": "the outcome of operation a5d3b507",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 187,
+    "recordRevision": 188,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5094,9 +5094,10 @@
       "ticket": 1967,
       "pr": 2057,
       "expectHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T13:12:49.847Z",
-      "evidence": "maintainer's explicit instruction in chat on 2026-10-17 ~18:20Z: 'You have authority to merge'; the gate refused only for the missing closing reference, chosen so #1967 stays open through the cutover window; finish decision c6029778, every check passed, main's Test Suite green at 37df96b0a"
+      "evidence": "gh pr merge 2057 --merge --match-head-commit 52e5a21c5 succeeded on the maintainer's instruction; PR reads back MERGED with merge commit 555e5300ae7b7b8483394ad36c4d6967fa740d55, which is on origin/main",
+      "settled": "2026-10-17T13:13:07.161Z"
     }
   ],
   "decisions": [
@@ -5229,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T13:12:51.014Z",
+      "observedAt": "2026-10-17T13:13:08.292Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5515,13 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:09:52.665Z",
-      "event": "checkpoint-published",
-      "ticket": 1966,
-      "id": "0b03d427",
-      "comment": 6229469770
-    },
     {
       "time": "2026-10-17T04:09:53.300Z",
       "event": "answer-intent",
@@ -6246,6 +6240,12 @@
       "id": "a5d3b507",
       "kind": "merge",
       "pr": 2057
+    },
+    {
+      "time": "2026-10-17T13:13:07.161Z",
+      "event": "operation-outcome",
+      "id": "a5d3b507",
+      "state": "confirmed"
     }
   ]
 }
