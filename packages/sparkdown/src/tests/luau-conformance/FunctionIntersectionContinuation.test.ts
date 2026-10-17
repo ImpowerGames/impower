@@ -259,17 +259,15 @@ test.each(["& {}a = 1 +", '& {}a = "x" ..', "& {}a = `v {1}` .."])(
   },
 );
 
-// A member line's `typeof` reads its expression from the tree, as the same
-// type written on one line does (a regular expression there errors on main
-// in any type, one line or not; the member line only has to agree).
+// A member line's `typeof` reads Sparkdown's own expressions from the tree,
+// as the same type written on one line does.
 test.each([
-  ["a regular expression", "", "typeof(/hello/)", undefined],
-  ["a new", "define Foo with\n  init()\n  end\nend\n", "typeof(new Foo())", []],
-])("a member line's typeof reads %s as one line does", (_name, before, member, expected) => {
+  ["a regular expression", "", "typeof(@/hello/)"],
+  ["a new", "define Foo with\n  init()\n  end\nend\n", "typeof(new Foo())"],
+])("a member line's typeof reads %s as one line does", (_name, before, member) => {
   const body = (type: string) => `${before}function f()\n  ${type}\n  return 1\nend\n`;
-  const oneLine = errorMessages(body(`type T = {} & ${member}`));
-  if (expected) expect(oneLine).toEqual(expected);
-  expect(errorMessages(body(`type T = {}\n  & ${member}`))).toEqual(oneLine);
+  expect(errorMessages(body(`type T = {} & ${member}`))).toEqual([]);
+  expect(errorMessages(body(`type T = {}\n  & ${member}`))).toEqual([]);
 });
 
 // Controls: a statement later on a member line runs. The converter reads
