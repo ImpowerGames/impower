@@ -599,13 +599,13 @@ variables:
   LUAU_COMMENT_START: (?:[-][-])
   # The end of the line, or the start of a comment.
   LUAU_LINE_END_OR_COMMENT: (?:$|{{LUAU_COMMENT_START}})
-  # Where an assignment's `=` has only a comment after it on its line, so
+  # Where an assignment's `=` has only comments after it on its line, so
   # its value is on the next line, as after an `=` that ends its line
   # (#1247): `LuauAssignmentOperation` and `LuauVariableAssignment` end
   # there, and `LuauAssignmentLineBreak` begins.
   # lookaround: LuauAssignmentLineBreak reads the comment with the line
   # break after it; LuauComment reads a comment anywhere else.
-  LUAU_COMMENT_ENDS_ASSIGNMENT_LINE: (?<=[^=~<>]={{WS}}*)(?={{LUAU_LINE_COMMENT_START}}|{{LUAU_BLOCK_COMMENT_ON_LINE}}$)
+  LUAU_COMMENT_ENDS_ASSIGNMENT_LINE: (?<=[^=~<>]={{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}*(?:{{LUAU_LINE_COMMENT_START}}|$))
   # lookaround: LuauBlockComment reads a `--[[`.
   LUAU_LINE_COMMENT_START: (?:{{LUAU_COMMENT_START}}(?!\[=*\[))
   # A Luau name, as Luau's lexer reads one: ASCII letters, digits and `_`,
@@ -682,11 +682,16 @@ variables:
   # `--`, so only a lone `-` is the operator.
   LUAU_ARITHMETIC_MINUS: (?:-(?![>-]))
   # A character of the line before an alternator's first `|`, or a whole
-  # string there, whose `|` is not an arm's (`queue("a|b")`).
+  # string there, whose `|` is not an arm's (`queue("a|b")`). A quote or
+  # a long string's opening bracket is read only as a whole string, so the
+  # scan cannot step into one.
   # lookaround: a `|` inside a comment (`LuauComment`) is not an arm's.
-  LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--)[^\n|"'`])
+  LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--|\[=*\[)[^\n|"'`])
   # A string literal that ends on its line, quoted as Luau quotes one.
-  LUAU_LINE_STRING: (?:{{LUAU_LINE_DOUBLE_QUOTED}}|{{LUAU_LINE_SINGLE_QUOTED}}|{{LUAU_LINE_BACKTICK_QUOTED}})
+  LUAU_LINE_STRING: (?:{{LUAU_LINE_DOUBLE_QUOTED}}|{{LUAU_LINE_SINGLE_QUOTED}}|{{LUAU_LINE_BACKTICK_QUOTED}}|{{LUAU_LINE_LONG_STRING}})
+  # A long string (`[[a|b]]`, `[=[a|b]=]`), whose brackets are a block
+  # comment's after its `--`.
+  LUAU_LINE_LONG_STRING: (?:\[{{LUAU_BLOCK_COMMENT_REST}})
   LUAU_LINE_DOUBLE_QUOTED: (?:"[^"\\\n]*(?:\\.[^"\\\n]*)*")
   LUAU_LINE_SINGLE_QUOTED: (?:'[^'\\\n]*(?:\\.[^'\\\n]*)*')
   LUAU_LINE_BACKTICK_QUOTED: (?:`[^`\\\n]*(?:\\.[^`\\\n]*)*`)

@@ -304,6 +304,8 @@ describe("a structural word is a name outside its shape (#984)", () => {
     ['queue("a|b")', "a|b"],
     ['queue "a|b"', "a|b"],
     ['queue {"a|b"}', "table"],
+    ["queue([[a|b]])", "a|b"],
+    ["queue [==[a|b]==]", "a|b"],
   ])("a call %s with a `|` in its string is a call", (call, value) => {
     const source = `Value {f()}.\nfunction f()\n  local queue = function(s) return if type(s) == "table" then "table" else s end\n  local s = ${call}\n  return s\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: `Value ${value}.\n` });
@@ -386,6 +388,8 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
     ["a line comment", "local x = -- note\n    if c then 1 else 2"],
     ["a block comment", "local x = --[[ note ]]\n    if c then 1 else 2"],
     ["a reassignment's line comment", "local x\n  x = -- note\n    if c then 1 else 2"],
+    ["a block comment and a line comment", "local x = --[[ note ]] -- choose the value\n    if c then 1 else 2"],
+    ["two block comments", "local x = --[[ a ]] --[[ b ]]\n    if c then 1 else 2"],
   ])("after %s", (_name, statement) => {
     const source = `function f(c)\n  ${statement}\n  return x\nend\n\n{f(true)} {f(false)}\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 2\n" });
