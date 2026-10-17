@@ -2182,7 +2182,13 @@ export const getCompletions = (
         );
       }
     }
-    if (leftStack.some((n) => n.name === "LuauForCondition")) {
+    // A story `for` reads its condition with the bounded rule it shares with
+    // a story `while` (#1907).
+    if (
+      leftStack.some((n) => n.name === "LuauForCondition") ||
+      (leftStack.some((n) => n.name === "LuauSparkdownExplicitLoopCondition") &&
+        leftStack.some((n) => n.name === "LuauSparkdownForLoop"))
+    ) {
       const contentNode = leftStack[0];
       if (contentNode) {
         addTriggeredKeywordCompletions(

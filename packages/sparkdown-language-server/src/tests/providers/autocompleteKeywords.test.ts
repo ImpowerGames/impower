@@ -1,4 +1,4 @@
-import { describe, expect } from "vitest";
+import { describe, expect, test } from "vitest";
 import { BUG } from "./autocompleteBugs";
 import { labelsAt, upstreamCase } from "./completionHarness";
 
@@ -445,5 +445,20 @@ describe("autocomplete · keywords and statement starts", () => {
   upstreamCase.bug(BUG.emptySlot, "autocomplete_after_semicolon_should_complete_a_new_statement", "a semicolon starts a new statement", () => {
     const labels = labelsAt(openMain("local data = { x = 1 }\nlocal var = data;@1"));
     expect(labels).toEqual(expect.arrayContaining(["local", "function", "if"]));
+  });
+});
+
+// A story `for` header reads its condition with the bounded rule it shares
+// with a story `while` (#1907); its names still offer `in`, as a function's do.
+describe("autocomplete · story loop headers", () => {
+  test.each([
+    ["at the top level", "store t = {}\nfor k, v @1"],
+    ["in a scene", "store t = {}\nscene s\n  for k, v @1"],
+  ])("a story `for` offers `in` after its names %s", (_place, source) => {
+    expect(labelsAt(source)).toContain("in");
+  });
+
+  test("a story `while` does not offer `in`", () => {
+    expect(labelsAt("store x = true\nwhile x @1")).not.toContain("in");
   });
 });
