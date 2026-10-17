@@ -702,6 +702,17 @@ A whole `{…}` interpolation in display text is Sparkdown's inline conditional,
 
 Sparkdown reports Luau's `LocalUnused`, `UnreachableCode`, `DuplicateCondition` and `ForRange` lints with Luau's messages, lacks the other rules of Luau's linter, and has no `--!nolint` or other `--!` directives to silence them. [`docs/compiler/LINTS.md`](../compiler/LINTS.md) lists which lints sparkdown has, lacks and omits, and where its four rules report less than Luau's do.
 
+### A top-level line that begins with an attribute is Luau
+
+A top-level line of a `.sd` script that begins with a Luau attribute, `@` glued to a name or to `[` (`@native`, `@[deprecated]`), is Luau wherever its function stands. The function may be on the same line, after comments, or on a later line at any indentation. A line of attributes with no function after them reports Luau's missing-function error. Story text may not begin with an attribute. This is the maintainer's decision on the question #921 left open, made for #1924.
+
+A write keeps its `@`:
+- A spaced write (`@ target: text`) is never an attribute.
+- An unspaced write whose target is a name or a dotted name path (`@hud: text`, `@hud.panel: text`) stays a write, since Luau never follows an attribute with `.` or `:`.
+- Any other unspaced target (`@my target: text`) begins a Luau line, so write it spaced: `@ my target: text`.
+
+`@` elsewhere in a story line (`Mail me @ home`) stays story.
+
 ### Regex literals: `@/pattern/flags`
 
 Not a Luau form at all. A regex literal is raw, so a pattern keeps single

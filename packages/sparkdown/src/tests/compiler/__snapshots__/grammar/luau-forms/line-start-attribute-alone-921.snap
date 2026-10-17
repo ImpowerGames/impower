@@ -1,0 +1,32 @@
+sparkdown [0..15]
+ ├─ LuauFunctionAttributes [0..8]
+ │   ├─ LuauFunctionAttributes_begin 0
+ │   │   └─ LuauFunctionAttributes_begin_c1 0
+ │   ├─ LuauFunctionAttributes_content [0..8]
+ │   │   ├─ LuauAttribute [0..7]
+ │   │   │   ├─ LuauAttribute_c1 [0..1]
+ │   │   │   │   └─ LuauAttributeOperator [0..1]: "@"
+ │   │   │   ├─ LuauAttribute_c2 [1..7]
+ │   │   │   │   └─ LuauAttributeName [1..7]: "native"
+ │   │   │   └─ LuauAttribute_c3 7
+ │   │   └─ Newline [7..8]: "\n"
+ │   └─ LuauFunctionAttributes_end 8
+ ├─ ImplicitAction [8..14]
+ │   ├─ ImplicitAction_begin 8
+ │   │   └─ ImplicitAction_begin_c1 8
+ │   │       └─ OptionalWhitespace 8
+ │   ├─ ImplicitAction_content [8..14]
+ │   │   └─ ActionLineEnd [8..14]
+ │   │       ├─ ActionLineEnd_begin 8
+ │   │       │   └─ ActionLineEnd_begin_c1 8
+ │   │       │       └─ OptionalWhitespace 8
+ │   │       ├─ ActionLineEnd_content [8..14]
+ │   │       │   └─ TextChunk [8..14]
+ │   │       │       ├─ TextChunk_begin 8
+ │   │       │       ├─ TextChunk_content [8..14]
+ │   │       │       │   ├─ Word [8..13]: "Hello"
+ │   │       │       │   └─ Punctuation [13..14]: "."
+ │   │       │       └─ TextChunk_end 14
+ │   │       └─ ActionLineEnd_end 14
+ │   └─ ImplicitAction_end 14
+ └─ Newline [14..15]: "\n"

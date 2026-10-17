@@ -41,6 +41,9 @@ const VARIABLE = "variable.other.readwrite.luau";
 const DEFINE_NAME = "entity.name.type.define.luau";
 const WITH = "keyword.control.as.luau";
 const MARK = "keyword.other.statement.explicit.luau.mark.sd";
+const WRITE_MARK = "keyword.action.mark.sd";
+const WRITE_TARGET = "variable.other.property.write.target.sd";
+const STORY_TEXT = "markup.raw.text.sd";
 
 interface Form {
   /** The grammar fixture that holds the form, in `luau-forms`. */
@@ -106,6 +109,71 @@ const FORMS: Record<string, Form> = {
       ["return", FUNCTION],
     ],
     output: "Value 7.\n",
+  },
+  "#921 an unspaced write stays a write": {
+    fixture: "line-start-write-unspaced-921",
+    scopes: [
+      ["@", WRITE_MARK],
+      ["hud", WRITE_TARGET],
+    ],
+    within: [["hud", "InlineWrite"]],
+  },
+  "#921 an unspaced write to a dotted target stays a write": {
+    fixture: "line-start-write-dotted-921",
+    scopes: [
+      ["@", WRITE_MARK],
+      ["hud.panel", WRITE_TARGET],
+    ],
+    within: [["hud.panel", "InlineWrite"]],
+  },
+  "#921 a spaced write stays a write": {
+    fixture: "line-start-write-spaced-921",
+    scopes: [
+      ["@", WRITE_MARK],
+      ["hud", WRITE_TARGET],
+    ],
+    within: [["hud", "InlineWrite"]],
+  },
+  "#921 a top-level line that begins with an attribute, its function on the line": {
+    fixture: "line-start-attribute-921",
+    scopes: [
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["f", FUNCTION_NAME],
+    ],
+    within: [["return 7 end", "LuauFunctionAttributes"]],
+    output: "Value 7.\n",
+  },
+  "#921 a top-level line that begins with a list, its function on the line": {
+    fixture: "line-start-list-921",
+    scopes: [
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["f", FUNCTION_NAME],
+    ],
+    within: [["return 7 end", "LuauFunctionAttributes"]],
+    output: "Value 7.\n",
+  },
+  "#921 a top-level line that begins with a list, its function after a comment on a later line": {
+    fixture: "line-start-list-later-line-921",
+    scopes: [
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["f", FUNCTION_NAME],
+    ],
+    within: [["return 7 end", "LuauFunctionAttributes"]],
+    output: "Value 7.\n",
+  },
+  "#921 a story line with `@` not glued to a name at its start": {
+    fixture: "line-start-story-at-921",
+    scopes: [
+      ["Mail", STORY_TEXT],
+      ["native", STORY_TEXT],
+    ],
+    output: "Mail me @ home, or @native later.\n",
   },
   "#1329 an attribute before a function at the top level": {
     fixture: "attribute-top-level-1329",
@@ -580,22 +648,52 @@ test("an invalid attribute list before a top-level function reports Luau's error
   );
 });
 
-// A line of story that begins with an attribute list is Luau only when a
-// function follows the list on the line, not when its argument's string
-// holds the word.
+// A top-level line that begins with an attribute is Luau wherever its
+// function stands (#921's question, decided for #1924), so no text inside
+// a list's arguments or a comment decides it: strings holding `]` and
+// `function`, escaped quotes, backticks, long brackets at every level and
+// line comments all leave the attributes with the function that follows.
+const LEXICAL_LINES = [
+  '@[deprecated{reason = "] function"}] function f() return 7 end',
+  '@[deprecated{reason = "\\"] function"}] function f() return 7 end',
+  "@[deprecated{reason = [=[x]]=]}] --[=[ ]] function ]=]\nfunction f() return 7 end",
+  "@[native] -- ] function\nfunction f() return 7 end",
+  "@native --[=[x]]=] function f() return 7 end",
+  "@[deprecated{reason = [====[a]=====]b]====]}]\n  function f() return 7 end",
+  "@[deprecated{reason = [========[a]=========]b]========]}] function f() return 7 end",
+];
+test.each(LEXICAL_LINES)("an attribute line's arguments and comments leave it with its function (#1924): %j", (lines) => {
+  const ctx = makeRuntimeStoryFromSource(`${lines}\nThe answer is {f()}.\n`);
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe("The answer is 7.\n");
+});
+
+test.each([...LEXICAL_LINES, "@[deprecated{reason = `] function`}] function f() return 7 end"])(
+  "an attribute line holds its function in one statement (#1924): %j",
+  (lines) => {
+    expect(holders(`${lines}\n`, [["return 7 end", "LuauFunctionAttributes"]])).toEqual([["return 7 end", "LuauFunctionAttributes"]]);
+  },
+);
+
+// Each attributed function ends at its own `end`, after a block comment on
+// its line too, so the next one on the line or the next line is its own
+// statement.
 test.each([
-  ['@[deprecated("] function")]\n', '@[deprecated("] function")]\n'],
-  ["@[deprecated [=[x] function]=]]\n", "@[deprecated [=[x] function]=]]\n"],
-  // Story reads `\"` as an escaped quote.
-  ['@[deprecated("\\"] function")]\n', '@[deprecated(""] function")]\n'],
-  ["@[deprecated [=[x]]=]] extra ]=]] function\n", "@[deprecated [=[x]]=]] extra ]=]] function\n"],
-  ["@[deprecated(`] function`)]\n", "@[deprecated(`] function`)]\n"],
-  ["@[native -- ] function\n", "@[native -- ] function\n"],
-  ["@native --[=[x]]=] extra ]=] function\n", "@native --[=[x]]=] extra ]=] function\n"],
-])("a story line whose attribute argument holds `function` stays story (#1924): %j", (source, output) => {
+  ["@native function a() return 1 end @native function b() return 2 end\nValues {a()} {b()}.\n"],
+  ["@native --[[c]] function a() return 1 end\n@native --[[c]] @checked function b() return 2 end\nValues {a()} {b()}.\n"],
+  ["@native -- a note that ends with end\nfunction a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
+])("attributed functions in a row are each their own statement (#1924): %j", (source) => {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
-  expect(ctx.story.ContinueMaximally()).toBe(output);
+  expect(ctx.story.ContinueMaximally()).toBe("Values 1 2.\n");
+});
+
+// An attribute line with no function is still Luau, and Luau reports the
+// missing function; a story line with `@` anywhere else stays story.
+test("an attribute line with no function reports Luau's error (#1924)", () => {
+  const missing = "Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got <eof> instead";
+  expect(compile(readFileSync(join(FORMS_DIR, "line-start-attribute-alone-921.sd"), "utf8"))).toContain(missing);
+  expect(compile('@[deprecated{reason = "] function"}]\nHello.\n')).toContain(missing);
 });
 
 // A long string closes only at a close of its own level, so a longer close
@@ -621,10 +719,9 @@ test.each([
   expect(compile(source)).toContain(message);
 });
 
-// The lookahead that finds the function after a run of attributes reads
-// each list to its own close, so a line of many lists with no function is
-// read in time that grows with the line, not with the ways of splitting it.
-test("a story line of many attribute lists parses at once (#1924)", () => {
+// A line of many attribute lists with no function is read at once: no
+// pattern looks ahead along it for the function.
+test("a line of many attribute lists parses at once (#1924)", () => {
   const source = "@[native] ".repeat(28) + "\n";
   const start = performance.now();
   parseSource(source);

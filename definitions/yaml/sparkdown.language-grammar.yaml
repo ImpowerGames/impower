@@ -831,66 +831,52 @@ variables:
   # The space an attribute takes before what follows it on its line.
   _LUAU_ATTRIBUTE_FOLLOWER_SPACE_: (?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
-  # An attribute on a line, for a lookahead: a name, or a list that closes
-  # on the line.
-  _LUAU_ATTRIBUTE_ON_LINE_: (?:{{LUAU_ATTRIBUTE_NAME_ON_LINE}}|@\[{{_LUAU_ATTRIBUTE_LIST_TEXT_}}*\])
   LUAU_ATTRIBUTE_NAME_ON_LINE: (?:@{{LUAU_IDENTIFIER}})
-  # An attribute list's text on its line, read as Luau's tokens are: a
-  # quoted or backtick string, a long string or a block comment's long
-  # bracket, which closes only at a close of its own level, a single `-`,
-  # or any other character but a bracket, a quote or a `-`. A `--` that no
-  # long bracket follows begins a line comment, which the list never closes
-  # past. So nothing inside a string or a comment is read as the list's
-  # `]` or as the function after it, and a list never runs on past its own
-  # `]` into the next, so a line of many lists is read once.
-  _LUAU_ATTRIBUTE_LIST_TEXT_: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{_LUAU_LIST_LONG_BRACKET_}}|{{LUAU_DASHES_BEFORE_LONG_BRACKET}}|{{LUAU_SINGLE_DASH}}|[^\[\]"'`\-\r\n])
   # A quoted string on its line. A backslash is only ever an escape with
-  # the character after it, so an escaped quote (`"\"] function"`) never
-  # closes the string, and a run of backslashes reads one way.
+  # the character after it, so an escaped quote (`"\"]"`) never closes the
+  # string, and a run of backslashes reads one way.
   LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}}|{{LUAU_BACKTICK_STRING_ON_LINE}})
   LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"(?:\\.|[^"\\\r\n])*")
   LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'(?:\\.|[^'\\\r\n])*')
   LUAU_BACKTICK_STRING_ON_LINE: (?:`(?:\\.|[^`\\\r\n])*`)
-  # lookaround: a long bracket on its line, for a lookahead, whose text
-  # takes any `]` that does not begin the close of the opening's own level
-  # (`[====[a]=====]b]====]`), so _LUAU_ATTRIBUTE_LIST_TEXT_ never reads a
-  # string's text as the list's `]` or what follows it. The named group
-  # holds the opening's `=`s; _LUAU_ATTRIBUTE_LIST_TEXT_ appears once in
-  # _LUAU_FUNCTION_ATTRIBUTES_AHEAD_, the only pattern that holds it.
-  _LUAU_LIST_LONG_BRACKET_: (?:\[(?<listLevel>=*)\[(?:[^\]\r\n]|\](?!\k<listLevel>\]))*\]\k<listLevel>\])
-  # lookaround: the `--` of a block comment, whose long bracket
-  # _LUAU_LIST_LONG_BRACKET_ then reads; a `--` before anything else is a
-  # line comment, which _LUAU_ATTRIBUTE_LIST_TEXT_ leaves unread.
-  LUAU_DASHES_BEFORE_LONG_BRACKET: (?:--(?=\[=*\[))
-  # lookaround: a `-` that does not begin a comment (`-1`), which
-  # LUAU_DASHES_BEFORE_LONG_BRACKET reads before a block comment's bracket.
-  LUAU_SINGLE_DASH: (?:-(?!-))
-  # An attribute list's text on its line, for a lookbehind: as
-  # `_LUAU_ATTRIBUTE_LIST_TEXT_`, with long brackets as
-  # `LUAU_PLAIN_BLOCK_COMMENT` reads them, since a lookbehind holds no
-  # lookaround or backreference in VS Code. A header's attribute prefix
-  # reads it (`LUAU_HEADER_ATTRIBUTE`).
+  # An attribute list's text on its line, for a header's attribute prefix,
+  # which a lookbehind reads (`LUAU_HEADER_ATTRIBUTE`): a string, a long
+  # bracket as `LUAU_PLAIN_BLOCK_COMMENT` reads it, since a lookbehind holds
+  # no lookaround or backreference in VS Code, or any other character but a
+  # bracket or a quote.
   LUAU_PLAIN_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_LONG_BRACKET}}|[^\[\]"'`\r\n])
-  # lookaround: LuauFunctionDefinition owns the function after the
-  # attributes, and SparkdownStatement owns any other top-level line that
-  # begins with `@`; only the function on the line tells them apart.
-  # A list's `]` needs no space before the function (`@[native]function`),
-  # and an attribute name ends at a word boundary, so `@nativefunction` is
-  # one name.
-  _LUAU_FUNCTION_ATTRIBUTES_AHEAD_: "{{WS}}*{{_LUAU_ATTRIBUTES_ON_LINE_}}{{LUAU_LOCAL_PREFIX}}?function\\b"
-  # Whitespace or a block comment that closes on its line, between
-  # attributes and the function they mark, for a lookbehind.
+  # Whitespace or a block comment that closes on its line, after an
+  # attribute in a header's prefix.
   LUAU_ATTRIBUTE_TRIVIA: (?:{{WS}}|{{LUAU_PLAIN_BLOCK_COMMENT}})
-  # The same, for a lookahead, whose block comment closes only at a close
-  # of its own level, as _LUAU_LIST_LONG_BRACKET_ does.
-  _LUAU_ATTRIBUTE_TRIVIA_AHEAD_: (?:{{WS}}|--{{_LUAU_TRIVIA_LONG_BRACKET_}})
-  # lookaround: as _LUAU_LIST_LONG_BRACKET_, for a block comment between
-  # attributes, with a group of its own name.
-  _LUAU_TRIVIA_LONG_BRACKET_: (?:\[(?<triviaLevel>=*)\[(?:[^\]\r\n]|\](?!\k<triviaLevel>\]))*\]\k<triviaLevel>\])
-  # One or more attributes on a line, each with the whitespace or block
-  # comments after it (`@native --[[c]] @deprecated `). Each part is
-  # written once, so each named group appears once in the pattern.
-  _LUAU_ATTRIBUTES_ON_LINE_: (?:{{_LUAU_ATTRIBUTE_ON_LINE_}}{{_LUAU_ATTRIBUTE_TRIVIA_AHEAD_}}*)+
+  # lookaround: Write owns an unspaced write (`@hud: text`,
+  # `@hud.panel: text`), whose target is a name or a dotted name path glued
+  # to the `@` and followed by a `:`. Luau never follows an attribute with
+  # a `.` or a `:`, so that line is a write, and LuauFunctionAttributes
+  # owns any other line that begins with `@` glued to a name or a `[`. A
+  # spaced write (`@ hud: text`) never begins an attribute.
+  LUAU_ATTRIBUTE_LINE_START: (?=@(?:\[|{{LUAU_ATTRIBUTE_NAME_NOT_WRITE}}))
+  # lookaround: as LUAU_ATTRIBUTE_LINE_START, the attribute's name unless
+  # an unspaced write's target goes on from it, which Write owns.
+  LUAU_ATTRIBUTE_NAME_NOT_WRITE: (?:{{LUAU_IDENTIFIER}}(?!{{LUAU_WRITE_TARGET_TAIL}}))
+  # The rest of an unspaced write's target after its first name, and its
+  # `:`.
+  LUAU_WRITE_TARGET_TAIL: (?:(?:\.{{LUAU_IDENTIFIER}})*{{WS}}*:)
+  # lookaround: LuauFunctionAttributes and LuauAttributedFunctionValue hold
+  # a function and its attributes, and the enclosing block or value reads
+  # what comes after them. The `(?<!…)` keeps a line comment that ends with
+  # the word `end` from ending the rule (`LUAU_LINE_COMMENT_ON_LINE`); the
+  # line-start alternative steps aside for a line that goes on with a
+  # comment, an attribute or the function; and the last ends before any
+  # other token, which the enclosing rule reads and where Luau reports the
+  # missing function.
+  LUAU_ATTRIBUTED_FUNCTION_END: (?={{BEAT}})|(?<=\bend)(?<!{{LUAU_LINE_COMMENT_ON_LINE}})|^(?!{{WS}}*(?:$|--|@|{{LUAU_LOCAL_PREFIX}}?function\b))|(?=[^\s@])(?!--|{{LUAU_LOCAL_PREFIX}}?function\b)
+  # A line comment and the text after it on its line, for a lookbehind: a
+  # `--` that a long bracket's opening does not follow (`-- note`,
+  # `--[note]`), as Luau lexes one. A block comment (`--[[c]]`, `--[=[c]=]`)
+  # is not one, so a function after it on the line ends the rule at its
+  # `end`. A `--` inside a string or a block comment's text is still taken
+  # for one.
+  LUAU_LINE_COMMENT_ON_LINE: (?:--(?:[^\[\r\n]|\[[^=\[\r\n]|\[=+[^=\[\r\n])[^\r\n]*)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
@@ -14346,11 +14332,8 @@ repository:
   # them reaches the function; the begin opens instead before an attribute
   # on a line that something comes before (a value's position), and the
   # rule holds the function itself, so no end of the value is tried
-  # between them. The end's `(?<!--…)` keeps a line comment that ends with
-  # the word `end` from ending it, its line-start alternative steps aside
-  # for the lines this rule reads, and its last alternative ends before a
-  # token that is neither trivia, an attribute nor the function, which the
-  # value reads on.
+  # between them. Its end is LUAU_ATTRIBUTED_FUNCTION_END, shared with
+  # LuauFunctionAttributes.
   LuauAttributedFunctionValue:
     begin: (?<=\S{{WS}}*)(?=@(?:{{LUAU_IDENTIFIER}}|\[))
     patterns:
@@ -14360,29 +14343,32 @@ repository:
       - { include: "#LuauAttributeList" }
       - { include: "#LuauAttribute" }
       - { include: "#LuauFunctionDefinition" }
-    end: (?={{BEAT}})|(?<=\bend)(?<!--[^\r\n]*)|^(?!{{WS}}*(?:$|--|@|{{LUAU_LOCAL_PREFIX}}?function\b))|(?=[^\s@])(?!--|{{LUAU_LOCAL_PREFIX}}?function\b)
+    end: "{{LUAU_ATTRIBUTED_FUNCTION_END}}"
 
-  # Attributes before a function on its line at the top level of a script
-  # (`@native function f() return 7 end`, `@native --[[c]] function f()`).
-  # Elsewhere at the top level a line that begins with `@` is story text: a
-  # line of attributes alone stays one (#921 leaves where attributes may
-  # stand in a script to a question of its own), since `@Alex` alone on a
-  # line is also prose.
-  #
-  # lookaround: SparkdownStatement owns a top-level line that begins with
-  # `@` unless a function follows the attributes, and LuauFunctionDefinition
-  # owns that function, so the rule opens only before the attributes and
-  # closes before the function.
+  # A function statement and its attributes at the top level of a script,
+  # read as one statement as Luau reads it. A top-level line that begins
+  # with an attribute (`@native`, `@[deprecated]`) is Luau, wherever its
+  # function stands: on the line, after comments, or on a later line at any
+  # indentation, past line breaks and a list that spans lines (#921's open
+  # question, decided for #1924). Story text may not begin with an
+  # attribute. A line with no function after its attributes ends the rule
+  # at its next token or line, where Luau reports the missing function.
+  # An unspaced write (`@hud: text`) is not an attribute
+  # (`LUAU_ATTRIBUTE_LINE_START`).
   LuauFunctionAttributes:
-    # The begin holds no numbered group: VS Code's regex engine numbers no
-    # plain group in a pattern that holds a named one.
-    begin: (?={{_LUAU_FUNCTION_ATTRIBUTES_AHEAD_}})
+    begin: ({{WS}}*){{LUAU_ATTRIBUTE_LINE_START}}
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauAttributeList" }
-      - { include: "#LuauAttribute" }
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{LUAU_LOCAL_PREFIX}}?function\b)|$
+      - { include: "#Newline" }
+      - { include: "#LuauAttributeList" }
+      - { include: "#LuauAttribute" }
+      - { include: "#LuauFunctionDefinition" }
+    end: "{{LUAU_ATTRIBUTED_FUNCTION_END}}"
 
   LuauAttributeOperator:
     tag: operator

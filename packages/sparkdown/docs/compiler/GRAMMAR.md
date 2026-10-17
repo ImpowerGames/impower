@@ -688,6 +688,10 @@ They read naturally — that's how people describe disambiguation in English —
 
 The same translation applies at review time. A diff that adds a `(?=...)` or `(?!...)` deserves the question: _what is the rival rule, and could we reorder so this rule doesn't have to know about it?_ Either there is one and the lookahead is removable, or there isn't and you've learned something concrete about the actual constraint.
 
+Sometimes the constraint is a language decision no rule can make. Top-level attributes are the example (#1924, deciding the question #921 left open). For four review rounds, a lookahead tried to tell story text that begins with `@` from a function's attributes, by finding the function after them on the line. That meant reading every string, comment and long bracket in an attribute list. Each correction missed another lexical form, and one matched in exponential time. The maintainer then decided that a top-level line beginning with an attribute (`@` glued to a name or to `[`) is Luau wherever its function stands, and that story text may not begin with an attribute.
+
+`LuauFunctionAttributes` now opens at the attribute and holds the function wherever it follows. When no function follows, it ends at the next other token, where Luau reports the missing function. The only check left is a fixed one after the name, `LUAU_ATTRIBUTE_LINE_START`. An unspaced write (`@hud: text`, `@hud.panel: text`) stays a write, since Luau never follows an attribute with `.` or `:`. Any other unspaced write target needs the spaced form (`@ my target: text`).
+
 ---
 
 # Part V — Patterns the codebase uses
