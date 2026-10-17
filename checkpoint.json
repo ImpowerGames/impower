@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 193,
-  "previous": "d8f627361786faad96bc8d22e6afba3e28274884",
+  "seq": 194,
+  "previous": "f3806dc22317478eb1b8d5768a690683bf3050a5",
   "snapshotParents": [],
-  "time": "2026-10-17T15:24:46.603Z",
+  "time": "2026-10-17T16:22:06.949Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 204,
@@ -6372,12 +6372,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:24:45.843Z",
+      "observedAt": "2026-10-17T16:22:06.193Z",
       "held": true,
-      "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
-      "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
+      "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
+      "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1993,
       "reviewJobs": [
         {
@@ -6812,7 +6812,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T15:24:19.835Z",
+    "at": "2026-10-17T16:22:06.192Z",
     "tickets": [
       {
         "number": 984,
@@ -6968,7 +6968,7 @@
         "number": 1329,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 9296f3ce910473f6501322f14520ac6c698a1a61 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1341,
@@ -6980,13 +6980,13 @@
         "number": 1343,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 9296f3ce910473f6501322f14520ac6c698a1a61 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1344,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 9296f3ce910473f6501322f14520ac6c698a1a61 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1369,
@@ -7056,9 +7056,9 @@
       },
       {
         "number": 1924,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1993,
-        "reason": "process 45708 started 639278448395053503 is running"
+        "reason": "process 45708 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-4a8dc615-69d5-465b-8b7e-4d94d5d823d3\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1977,
@@ -7100,7 +7100,7 @@
         "number": 1990,
         "action": "adopt-pr",
         "pr": 1993,
-        "reason": "draft PR #1993 at 9296f3ce910473f6501322f14520ac6c698a1a61 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1991,
