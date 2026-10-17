@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 155,
-  "previous": "0ac5343b23a6f220644f87f894ae452a5d6b8cab",
+  "seq": 156,
+  "previous": "bef6a93277dbad45552a4e37fbe05e44325063e2",
   "snapshotParents": [],
-  "time": "2026-10-17T13:30:33.772Z",
+  "time": "2026-10-17T13:31:09.499Z",
   "kind": "auto",
-  "transition": "answered of #1906",
+  "transition": "answer of #1924",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 162,
+    "recordRevision": 165,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2512,7 +2512,14 @@
             "time": "2026-10-17T05:30:28.755Z",
             "to": "the maintainer"
           },
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "The maintainer answered the question decision 6bc44573 relayed: yes, a top-level line of a .sd script that begins with a Luau attribute (@[...] or @name) is Luau whether or not its function stands on the same line; story text may no longer begin with an attribute. That decides the question #921 left open. Checkpoint decision e43240d9, published on PR #1993 as comment 6234468080, directs the repair: remove the top-level attribute lookahead. LuauFunctionAttributes (or its successor) opens at an attribute that begins a top-level line and holds the attributes, trivia, line breaks, lists spanning lines and the function that follows at any indentation, ending before any other token where Luau reports the missing function; delete LUAU_ATTRIBUTE_LIST_TEXT, _LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_LONG_BRACKET_LONGER_LEVEL and the attribute-run prediction, and the header-prefix lookbehind if it becomes redundant; keep the value-position rule and the converter's attribute-error classification as they are. Update GRAMMAR.md and DIVERGENCES.md to say a story line may not begin with a Luau attribute, record the decision on #921 with a comment (I have posted one too), regenerate both outputs and list every fixture tree that changes with its reason. Tests: a top-level line beginning with @[...] or @name, with the function on the same line, on a later line, after comments, or absent, reads as Luau in both engines (official parser where pure Luau); a story line with @ elsewhere stays story; the lexical cases of rounds 2 to 4 read correctly without a lookahead; red/green against c0c1f78ee; both snapshot suites, scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions, the corpus gate; screenshots of the #921 script in both editors. The round count stays at 4; do not launch a round on your own: push with CI green and send the next checkpoint report, and I decide the bounded round on the repair. The tracker cutover is held open for this PR, so work promptly and wait in the foreground. Never mark ready, never merge.",
+            "deliveryId": "989bf81a",
+            "attempts": 1,
+            "time": "2026-10-17T13:31:07.277Z",
+            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+          }
         }
       ],
       "checkpoints": [
@@ -3302,6 +3309,422 @@
           "published": {
             "comment": 6230199949,
             "time": "2026-10-17T05:30:27.289Z",
+            "headAtPublish": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157"
+          }
+        },
+        {
+          "version": 1,
+          "id": "e43240d9",
+          "kind": "repair",
+          "feature": 1904,
+          "ticket": 1924,
+          "pr": 1993,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T13:31:02.111Z",
+          "round": 4,
+          "limitBefore": 4,
+          "reviewedHead": "94a0cd06d0d0fb2edd34b358183374a204960b96",
+          "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
+          "range": {
+            "from": "94a0cd06d0d0fb2edd34b358183374a204960b96",
+            "to": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
+            "base": "555e5300ae7b7b8483394ad36c4d6967fa740d55",
+            "commits": [
+              "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157"
+            ],
+            "diffSha256": "81fcee7715506ba2ccca2196bfaaae3c37cd0a8dd14e379166565fa733290b0f"
+          },
+          "reports": [
+            {
+              "comment": 6225029258,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6225406255
+            },
+            {
+              "comment": 6225734581,
+              "round": 1,
+              "reviewerId": "grammar",
+              "adjudication": 6226246996
+            },
+            {
+              "comment": 6226459027,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6226795950
+            },
+            {
+              "comment": 6227154990,
+              "round": 2,
+              "reviewerId": "ax",
+              "adjudication": 6227609669
+            },
+            {
+              "comment": 6227819767,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6228017779
+            },
+            {
+              "comment": 6228135105,
+              "round": 3,
+              "reviewerId": "ax",
+              "adjudication": 6228231193
+            },
+            {
+              "comment": 6228403392,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6229045869
+            },
+            {
+              "comment": 6229626122,
+              "round": 4,
+              "reviewerId": "ax",
+              "adjudication": 6229774991
+            },
+            {
+              "comment": 6229858390,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6229958152
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Across four rounds the dominant mechanism is predicting, from one top-level line, whether an attribute list is followed by a function: seven findings in rounds 2 and 3 and five in round 4, all lexical boundaries (strings, escapes, comments, long brackets at every level), with the round 4 correction c0c1f78ee reading the list text as Luau's tokens through a named-group backreference. The maintainer has now decided the question the prediction existed to answer: a top-level line of a .sd script that begins with a Luau attribute (@[...] or @name) is Luau whether or not its function stands on the same line, so the grammar needs no lookahead and story text may no longer begin with an attribute. That decides the question #921 left open (where attributes may stand at the top level of a script) and removes mechanism 1 entirely. The two other mechanisms, attribute-diagnostic ownership (now a malformed class 'attribute' the reporters know) and header-prefix comment matching (fixed with a documented lookbehind limit), stand.",
+            "regressions": "Corrections regressed the lookahead class in rounds 2, 3 and 4 (398588031, 5b818c040, ec8189c61, 0bed58155 levels 8 and above, the reused level 0-3 matcher crossing a list's close). Removing the prediction removes the code that regressed; the converter changes for attribute errors (ax 3-4 of round 4, 94a0cd06d) did not regress and stay.",
+            "repairOptions": "The repair is the maintainer's: delete the top-level lookahead. LuauFunctionAttributes opens at any attribute that begins a top-level line (after optional whitespace), reads attributes, block comments, line breaks and lists spanning lines, and holds the function that follows at any indentation, ending before any other token where Luau reports the missing function; the named-group backreference lookahead (_LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_ATTRIBUTE_LIST_TEXT and the level variables) and the attribute-run prediction are removed, and the value-position rule stays as c0c1f78ee left it. The header lookbehind for attribute prefixes keeps its documented limit only if it is still needed once the top-level rule holds the function; if the lookbehind becomes redundant, remove it too. A story line that begins with @[ or @name is then Luau; DIVERGENCES.md and GRAMMAR.md say so, and #921's closing question is answered on #921 and in the PR body.",
+            "residualRisk": "The repair changes what a top-level line beginning with an attribute means for authors: it is Luau now, and an attribute line without a function reports Luau's missing-function error instead of playing as story. Fixtures and snapshots that pinned the story reading change by design and must be listed. The converter attribute-error classification (94a0cd06d) and c0c1f78ee's other changes stay unreviewed until the bounded round on the repair.",
+            "coverage": "At c0c1f78ee before the repair: red/green against 94a0cd06d (5 failed then 95/95), corpus gate 1071, scopeEquality 242, luauSyntaxAgreement 153, grammar and vscode snapshots, AttributedFunctions, luauUnreadToken, luauTreeAst, the TypeInfer port, typecheckTestHarness, typecheckSparkdown, BoundedExpressionFamily931, keywordLookbehinds, web editor screenshot inspected; CI 29 passed, 4 skipped. After the repair: red/green of the new top-level reading against c0c1f78ee, both snapshot suites with every changed fixture listed, scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions, the corpus gate, and screenshots of the #921 script in both editors showing @[deprecated] on its own line as an attribute of the function below.",
+            "nextRoundValue": "After the repair is verified, one bounded round reviews it together with the still-unreviewed c0c1f78ee changes: that no top-level line beginning with an attribute is read as story, that a story line with @ in any other position stays story, that an attribute line without a function reports Luau's error, that the removed lookahead left no reference behind, and that the converter attribute-error classification is consistent. That round is decided at the next checkpoint; the round count stays at 4.",
+            "rationale": "The maintainer answered the question decision 6bc44573 relayed with yes: remove the lookahead, story text may no longer begin with an attribute. That makes the repair a change under the agreed behaviour as it now stands rather than a reversal of it, and it is the root-cause repair the checkpoint rule prefers over another round on instances. Acceptance of the current head is not sought, since the lookahead it perfects is being deleted.",
+            "next": "Publish the repair; the writer deletes the top-level lookahead and makes a line beginning with an attribute Luau, lists every changed fixture with its reason, records the decision on #921 and in GRAMMAR.md and DIVERGENCES.md, verifies red/green and both editors, pushes, and sends the next checkpoint report; the coordinator then decides a bounded round on the repair and merges through the gate after it.",
+            "scope": "Remove the top-level attribute lookahead from the grammar: LuauFunctionAttributes (or its successor) opens at an attribute that begins a top-level line and holds the attributes, trivia, line breaks, lists spanning lines and the function that follows at any indentation, ending before any other token where Luau reports the missing function; delete LUAU_ATTRIBUTE_LIST_TEXT, _LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_LONG_BRACKET_LONGER_LEVEL and the attribute-run prediction, and the header-prefix lookbehind if it becomes redundant; update GRAMMAR.md and DIVERGENCES.md to state that a story line may not begin with a Luau attribute; record the maintainer's decision on #921; regenerate both outputs and list every fixture tree that changes with its reason. The value-position rule and the converter's attribute-error classification stay as they are.",
+            "verificationChange": "Tests pin that a top-level line beginning with @[...] or @name, with the function on the same line, on a later line, after comments, or absent, is read as Luau (attribute of the function, or Luau's missing-function error) in both engines and against the official parser where the input is pure Luau; that a story line containing @ elsewhere stays story; and that the known lexical cases of rounds 2 to 4 (quoted ], escaped quotes, long brackets at every level, backticks, -- comments, levels 8 and above) read correctly without a lookahead. Red/green against c0c1f78ee; both snapshot suites with the changed fixtures listed; scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions and the corpus gate; screenshots of the #921 script in the web editor and the served VS Code workbench; CI green on the final head.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6225029258,
+                "finding": "top-level attributes highlighted but omitted from Luau's reading",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225029258,
+                "finding": "a newline after an attribute turned a stored function into nil",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225029258,
+                "finding": "valid block-comment contents hid header names (accepted for levelled comments holding ]], rejected for comments spanning lines)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225029258,
+                "finding": "three change-related Test Suite failures",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "a same-line block comment opened a line-break-only scope",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "attributes on the line before a named function (accepted for the regression; the top-level own-line form is now decided by the maintainer as Luau)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "an unindented function after a stored attribute did not initialize its store",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "a header keyword inside a body comment reopened a header",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "valid comments the matcher excluded (accepted for a ] before the close, rejected for level four and above)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "two block comments before a multi-line if expression left valid code unread",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "variadic result types fixed only in the ordinary type family",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "GRAMMAR.md misdescribed the comment matcher (quality)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "attributed function values across trivia",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "a top-level attribute on the line before its function (rejected then; the maintainer has now decided such a line is Luau, which this repair implements)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "commented function headers after a prefix (accepted for attributes, rejected for a preceding statement on the line)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "comments of level four and above",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "a ] in an argument's string disabled the multiline function value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "a comment between two top-level attributes turned a function into story",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "a comment after an attribute and another before the name failed together",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "GRAMMAR.md misstated level-four comments (quality)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227819767,
+                "finding": "long-string attribute arguments lost their function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227819767,
+                "finding": "an attribute list required whitespace before function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228135105,
+                "finding": "a multiline string argument prevented the attributed function value from being held",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228135105,
+                "finding": "the shared restricted comment matcher dropped valid level-four long-string arguments",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228403392,
+                "finding": "text inside an attribute argument erased a story line",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228403392,
+                "finding": "exponential matching on a line of many lists",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228403392,
+                "finding": "attribute argument errors no longer reported",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "a close of another level inside a level-4 long string hid a valid function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "an escaped double quote ended a quoted string so prose became Luau",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "a missing comma in an attribute list lost Luau's error",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "attribute errors were suppressed in store values, including a stored attribute with no function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229858390,
+                "finding": "the level 1-3 scanner crossed the list's own closing bracket",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229858390,
+                "finding": "backticks and -- line comments supplied a fictitious top-level function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229858390,
+                "finding": "levels eight and above closed at another level's close",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 4: direct a root-cause repair\n\nDecision `e43240d9` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1924.\n\n- Round state: round 4 is complete (limit 4 before this decision); its planned reviewers (ax, undirected) exited, and every report has its adjudication (6225029258 in 6225406255, 6225734581 in 6226246996, 6226459027 in 6226795950, 6227154990 in 6227609669, 6227819767 in 6228017779, 6228135105 in 6228231193, 6228403392 in 6229045869, 6229626122 in 6229774991, 6229858390 in 6229958152).\n- Independently reviewed through `94a0cd06d0d0fb2edd34b358183374a204960b96`.\n- Head `c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157`. Unreviewed: `94a0cd06d..c0c1f78ee`, 1 commit (`c0c1f78ee` fix(grammar): read attribute list text as Luau's tokens, with long brackets closing at their own level (#1924)), diff SHA-256 `81fcee7715506ba2ccca2196bfaaae3c37cd0a8dd14e379166565fa733290b0f`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, driver-checks passed, test-suite passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 34 accepted; unresolved: none.\n- Shared mechanisms: Across four rounds the dominant mechanism is predicting, from one top-level line, whether an attribute list is followed by a function: seven findings in rounds 2 and 3 and five in round 4, all lexical boundaries (strings, escapes, comments, long brackets at every level), with the round 4 correction c0c1f78ee reading the list text as Luau's tokens through a named-group backreference. The maintainer has now decided the question the prediction existed to answer: a top-level line of a .sd script that begins with a Luau attribute (@[...] or @name) is Luau whether or not its function stands on the same line, so the grammar needs no lookahead and story text may no longer begin with an attribute. That decides the question #921 left open (where attributes may stand at the top level of a script) and removes mechanism 1 entirely. The two other mechanisms, attribute-diagnostic ownership (now a malformed class 'attribute' the reporters know) and header-prefix comment matching (fixed with a documented lookbehind limit), stand.\n- Defects introduced by corrections: Corrections regressed the lookahead class in rounds 2, 3 and 4 (398588031, 5b818c040, ec8189c61, 0bed58155 levels 8 and above, the reused level 0-3 matcher crossing a list's close). Removing the prediction removes the code that regressed; the converter changes for attribute errors (ax 3-4 of round 4, 94a0cd06d) did not regress and stay.\n- Broader or simpler repair: The repair is the maintainer's: delete the top-level lookahead. LuauFunctionAttributes opens at any attribute that begins a top-level line (after optional whitespace), reads attributes, block comments, line breaks and lists spanning lines, and holds the function that follows at any indentation, ending before any other token where Luau reports the missing function; the named-group backreference lookahead (_LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_ATTRIBUTE_LIST_TEXT and the level variables) and the attribute-run prediction are removed, and the value-position rule stays as c0c1f78ee left it. The header lookbehind for attribute prefixes keeps its documented limit only if it is still needed once the top-level rule holds the function; if the lookbehind becomes redundant, remove it too. A story line that begins with @[ or @name is then Luau; DIVERGENCES.md and GRAMMAR.md say so, and #921's closing question is answered on #921 and in the PR body.\n- Residual risk: The repair changes what a top-level line beginning with an attribute means for authors: it is Luau now, and an attribute line without a function reports Luau's missing-function error instead of playing as story. Fixtures and snapshots that pinned the story reading change by design and must be listed. The converter attribute-error classification (94a0cd06d) and c0c1f78ee's other changes stay unreviewed until the bounded round on the repair.\n- Verification coverage: At c0c1f78ee before the repair: red/green against 94a0cd06d (5 failed then 95/95), corpus gate 1071, scopeEquality 242, luauSyntaxAgreement 153, grammar and vscode snapshots, AttributedFunctions, luauUnreadToken, luauTreeAst, the TypeInfer port, typecheckTestHarness, typecheckSparkdown, BoundedExpressionFamily931, keywordLookbehinds, web editor screenshot inspected; CI 29 passed, 4 skipped. After the repair: red/green of the new top-level reading against c0c1f78ee, both snapshot suites with every changed fixture listed, scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions, the corpus gate, and screenshots of the #921 script in both editors showing @[deprecated] on its own line as an attribute of the function below.\n- What another round would establish: After the repair is verified, one bounded round reviews it together with the still-unreviewed c0c1f78ee changes: that no top-level line beginning with an attribute is read as story, that a story line with @ in any other position stays story, that an attribute line without a function reports Luau's error, that the removed lookahead left no reference behind, and that the converter attribute-error classification is consistent. That round is decided at the next checkpoint; the round count stays at 4.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The maintainer answered the question decision 6bc44573 relayed with yes: remove the lookahead, story text may no longer begin with an attribute. That makes the repair a change under the agreed behaviour as it now stands rather than a reversal of it, and it is the root-cause repair the checkpoint rule prefers over another round on instances. Acceptance of the current head is not sought, since the lookahead it perfects is being deleted. Next: Publish the repair; the writer deletes the top-level lookahead and makes a line beginning with an attribute Luau, lists every changed fixture with its reason, records the decision on #921 and in GRAMMAR.md and DIVERGENCES.md, verifies red/green and both editors, pushes, and sends the next checkpoint report; the coordinator then decides a bounded round on the repair and merges through the gate after it.\n- Repair scope: Remove the top-level attribute lookahead from the grammar: LuauFunctionAttributes (or its successor) opens at an attribute that begins a top-level line and holds the attributes, trivia, line breaks, lists spanning lines and the function that follows at any indentation, ending before any other token where Luau reports the missing function; delete LUAU_ATTRIBUTE_LIST_TEXT, _LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_LONG_BRACKET_LONGER_LEVEL and the attribute-run prediction, and the header-prefix lookbehind if it becomes redundant; update GRAMMAR.md and DIVERGENCES.md to state that a story line may not begin with a Luau attribute; record the maintainer's decision on #921; regenerate both outputs and list every fixture tree that changes with its reason. The value-position rule and the converter's attribute-error classification stay as they are. Verification change: Tests pin that a top-level line beginning with @[...] or @name, with the function on the same line, on a later line, after comments, or absent, is read as Luau (attribute of the function, or Luau's missing-function error) in both engines and against the official parser where the input is pure Luau; that a story line containing @ elsewhere stays story; and that the known lexical cases of rounds 2 to 4 (quoted ], escaped quotes, long brackets at every level, backticks, -- comments, levels 8 and above) read correctly without a lookahead. Red/green against c0c1f78ee; both snapshot suites with the changed fixtures listed; scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions and the corpus gate; screenshots of the #921 script in the web editor and the served VS Code workbench; CI green on the final head. The round count stays at 4; the coordinator reassesses the changed risk once the repair is verified, before choosing the next action.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"e43240d9\",\n \"kind\": \"repair\",\n \"feature\": 1904,\n \"ticket\": 1924,\n \"pr\": 1993,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T13:31:02.111Z\",\n \"round\": 4,\n \"limitBefore\": 4,\n \"reviewedHead\": \"94a0cd06d0d0fb2edd34b358183374a204960b96\",\n \"head\": \"c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157\",\n \"range\": {\n  \"from\": \"94a0cd06d0d0fb2edd34b358183374a204960b96\",\n  \"to\": \"c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157\",\n  \"base\": \"555e5300ae7b7b8483394ad36c4d6967fa740d55\",\n  \"commits\": [\n   \"c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157\"\n  ],\n  \"diffSha256\": \"81fcee7715506ba2ccca2196bfaaae3c37cd0a8dd14e379166565fa733290b0f\"\n },\n \"reports\": [\n  {\n   \"comment\": 6225029258,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6225406255\n  },\n  {\n   \"comment\": 6225734581,\n   \"round\": 1,\n   \"reviewerId\": \"grammar\",\n   \"adjudication\": 6226246996\n  },\n  {\n   \"comment\": 6226459027,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6226795950\n  },\n  {\n   \"comment\": 6227154990,\n   \"round\": 2,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6227609669\n  },\n  {\n   \"comment\": 6227819767,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228017779\n  },\n  {\n   \"comment\": 6228135105,\n   \"round\": 3,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6228231193\n  },\n  {\n   \"comment\": 6228403392,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229045869\n  },\n  {\n   \"comment\": 6229626122,\n   \"round\": 4,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6229774991\n  },\n  {\n   \"comment\": 6229858390,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229958152\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Across four rounds the dominant mechanism is predicting, from one top-level line, whether an attribute list is followed by a function: seven findings in rounds 2 and 3 and five in round 4, all lexical boundaries (strings, escapes, comments, long brackets at every level), with the round 4 correction c0c1f78ee reading the list text as Luau's tokens through a named-group backreference. The maintainer has now decided the question the prediction existed to answer: a top-level line of a .sd script that begins with a Luau attribute (@[...] or @name) is Luau whether or not its function stands on the same line, so the grammar needs no lookahead and story text may no longer begin with an attribute. That decides the question #921 left open (where attributes may stand at the top level of a script) and removes mechanism 1 entirely. The two other mechanisms, attribute-diagnostic ownership (now a malformed class 'attribute' the reporters know) and header-prefix comment matching (fixed with a documented lookbehind limit), stand.\",\n  \"regressions\": \"Corrections regressed the lookahead class in rounds 2, 3 and 4 (398588031, 5b818c040, ec8189c61, 0bed58155 levels 8 and above, the reused level 0-3 matcher crossing a list's close). Removing the prediction removes the code that regressed; the converter changes for attribute errors (ax 3-4 of round 4, 94a0cd06d) did not regress and stay.\",\n  \"repairOptions\": \"The repair is the maintainer's: delete the top-level lookahead. LuauFunctionAttributes opens at any attribute that begins a top-level line (after optional whitespace), reads attributes, block comments, line breaks and lists spanning lines, and holds the function that follows at any indentation, ending before any other token where Luau reports the missing function; the named-group backreference lookahead (_LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_ATTRIBUTE_LIST_TEXT and the level variables) and the attribute-run prediction are removed, and the value-position rule stays as c0c1f78ee left it. The header lookbehind for attribute prefixes keeps its documented limit only if it is still needed once the top-level rule holds the function; if the lookbehind becomes redundant, remove it too. A story line that begins with @[ or @name is then Luau; DIVERGENCES.md and GRAMMAR.md say so, and #921's closing question is answered on #921 and in the PR body.\",\n  \"residualRisk\": \"The repair changes what a top-level line beginning with an attribute means for authors: it is Luau now, and an attribute line without a function reports Luau's missing-function error instead of playing as story. Fixtures and snapshots that pinned the story reading change by design and must be listed. The converter attribute-error classification (94a0cd06d) and c0c1f78ee's other changes stay unreviewed until the bounded round on the repair.\",\n  \"coverage\": \"At c0c1f78ee before the repair: red/green against 94a0cd06d (5 failed then 95/95), corpus gate 1071, scopeEquality 242, luauSyntaxAgreement 153, grammar and vscode snapshots, AttributedFunctions, luauUnreadToken, luauTreeAst, the TypeInfer port, typecheckTestHarness, typecheckSparkdown, BoundedExpressionFamily931, keywordLookbehinds, web editor screenshot inspected; CI 29 passed, 4 skipped. After the repair: red/green of the new top-level reading against c0c1f78ee, both snapshot suites with every changed fixture listed, scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions, the corpus gate, and screenshots of the #921 script in both editors showing @[deprecated] on its own line as an attribute of the function below.\",\n  \"nextRoundValue\": \"After the repair is verified, one bounded round reviews it together with the still-unreviewed c0c1f78ee changes: that no top-level line beginning with an attribute is read as story, that a story line with @ in any other position stays story, that an attribute line without a function reports Luau's error, that the removed lookahead left no reference behind, and that the converter attribute-error classification is consistent. That round is decided at the next checkpoint; the round count stays at 4.\",\n  \"rationale\": \"The maintainer answered the question decision 6bc44573 relayed with yes: remove the lookahead, story text may no longer begin with an attribute. That makes the repair a change under the agreed behaviour as it now stands rather than a reversal of it, and it is the root-cause repair the checkpoint rule prefers over another round on instances. Acceptance of the current head is not sought, since the lookahead it perfects is being deleted.\",\n  \"next\": \"Publish the repair; the writer deletes the top-level lookahead and makes a line beginning with an attribute Luau, lists every changed fixture with its reason, records the decision on #921 and in GRAMMAR.md and DIVERGENCES.md, verifies red/green and both editors, pushes, and sends the next checkpoint report; the coordinator then decides a bounded round on the repair and merges through the gate after it.\",\n  \"scope\": \"Remove the top-level attribute lookahead from the grammar: LuauFunctionAttributes (or its successor) opens at an attribute that begins a top-level line and holds the attributes, trivia, line breaks, lists spanning lines and the function that follows at any indentation, ending before any other token where Luau reports the missing function; delete LUAU_ATTRIBUTE_LIST_TEXT, _LUAU_LIST_LONG_BRACKET_, _LUAU_TRIVIA_LONG_BRACKET_, LUAU_LONG_BRACKET_LONGER_LEVEL and the attribute-run prediction, and the header-prefix lookbehind if it becomes redundant; update GRAMMAR.md and DIVERGENCES.md to state that a story line may not begin with a Luau attribute; record the maintainer's decision on #921; regenerate both outputs and list every fixture tree that changes with its reason. The value-position rule and the converter's attribute-error classification stay as they are.\",\n  \"verificationChange\": \"Tests pin that a top-level line beginning with @[...] or @name, with the function on the same line, on a later line, after comments, or absent, is read as Luau (attribute of the function, or Luau's missing-function error) in both engines and against the official parser where the input is pure Luau; that a story line containing @ elsewhere stays story; and that the known lexical cases of rounds 2 to 4 (quoted ], escaped quotes, long brackets at every level, backticks, -\\u002d comments, levels 8 and above) read correctly without a lookahead. Red/green against c0c1f78ee; both snapshot suites with the changed fixtures listed; scopeEquality, luauSyntaxAgreement, luauUnreadToken, AttributedFunctions and the corpus gate; screenshots of the #921 script in the web editor and the served VS Code workbench; CI green on the final head.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"top-level attributes highlighted but omitted from Luau's reading\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"a newline after an attribute turned a stored function into nil\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"valid block-comment contents hid header names (accepted for levelled comments holding ]], rejected for comments spanning lines)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"three change-related Test Suite failures\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"a same-line block comment opened a line-break-only scope\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"attributes on the line before a named function (accepted for the regression; the top-level own-line form is now decided by the maintainer as Luau)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"an unindented function after a stored attribute did not initialize its store\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"a header keyword inside a body comment reopened a header\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"valid comments the matcher excluded (accepted for a ] before the close, rejected for level four and above)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"two block comments before a multi-line if expression left valid code unread\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"variadic result types fixed only in the ordinary type family\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"GRAMMAR.md misdescribed the comment matcher (quality)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"attributed function values across trivia\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"a top-level attribute on the line before its function (rejected then; the maintainer has now decided such a line is Luau, which this repair implements)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"commented function headers after a prefix (accepted for attributes, rejected for a preceding statement on the line)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"comments of level four and above\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"a ] in an argument's string disabled the multiline function value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"a comment between two top-level attributes turned a function into story\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"a comment after an attribute and another before the name failed together\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"GRAMMAR.md misstated level-four comments (quality)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227819767,\n    \"finding\": \"long-string attribute arguments lost their function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227819767,\n    \"finding\": \"an attribute list required whitespace before function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228135105,\n    \"finding\": \"a multiline string argument prevented the attributed function value from being held\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228135105,\n    \"finding\": \"the shared restricted comment matcher dropped valid level-four long-string arguments\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228403392,\n    \"finding\": \"text inside an attribute argument erased a story line\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228403392,\n    \"finding\": \"exponential matching on a line of many lists\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228403392,\n    \"finding\": \"attribute argument errors no longer reported\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"a close of another level inside a level-4 long string hid a valid function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"an escaped double quote ended a quoted string so prose became Luau\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"a missing comma in an attribute list lost Luau's error\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"attribute errors were suppressed in store values, including a stored attribute with no function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229858390,\n    \"finding\": \"the level 1-3 scanner crossed the list's own closing bracket\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229858390,\n    \"finding\": \"backticks and -\\u002d line comments supplied a fictitious top-level function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229858390,\n    \"finding\": \"levels eight and above closed at another level's close\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "1e60674292e79f2fae118cd16244520dd037aaca9eaf339d35b457d637c66e92",
+          "blockSha256": "f92c47200e2b06739f55c2b8486a2535337e951cf8278a6264d6ce7e6316468e",
+          "published": {
+            "comment": 6234468080,
+            "time": "2026-10-17T13:31:06.708Z",
             "headAtPublish": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157"
           }
         }
@@ -4413,6 +4836,16 @@
       "round": 4,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "time": "2026-10-17T05:30:27.289Z"
+    },
+    {
+      "pr": 1993,
+      "url": "https://github.com/ImpowerGames/impower/pull/1993#issuecomment-6234468080",
+      "kind": "review-checkpoint repair",
+      "ticket": 1924,
+      "id": "e43240d9",
+      "round": 4,
+      "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
+      "time": "2026-10-17T13:31:06.708Z"
     }
   ],
   "diskRecoveries": [],
@@ -4423,7 +4856,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:30:32.831Z",
+      "observedAt": "2026-10-17T13:31:08.414Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -4732,7 +5165,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:30:32.831Z",
+      "observedAt": "2026-10-17T13:31:08.414Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5450,27 +5883,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T18:52:58.179Z",
-      "event": "request",
-      "ticket": 1905,
-      "id": "3a331217"
-    },
-    {
-      "time": "2026-10-16T19:00:47.201Z",
-      "event": "answer-intent",
-      "ticket": 1905,
-      "id": "3a331217",
-      "deliveryId": "586322ec",
-      "attempt": 1
-    },
-    {
-      "time": "2026-10-16T19:01:12.229Z",
-      "event": "resume-intent",
-      "ticket": 1905,
-      "id": "203ec39e-8bf6-405d-a574-a4e3227604d1",
-      "sessionId": "c7930980-e567-434b-b93e-e49bf72521e2"
-    },
-    {
       "time": "2026-10-16T19:01:22.150Z",
       "event": "resumed",
       "ticket": 1905,
@@ -6187,6 +6599,30 @@
       "ticket": 1906,
       "id": "8951782f",
       "deliveryId": "6ad399d8"
+    },
+    {
+      "time": "2026-10-17T13:31:02.111Z",
+      "event": "checkpoint-intent",
+      "ticket": 1924,
+      "id": "e43240d9",
+      "kind": "repair",
+      "round": 4,
+      "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157"
+    },
+    {
+      "time": "2026-10-17T13:31:06.708Z",
+      "event": "checkpoint-published",
+      "ticket": 1924,
+      "id": "e43240d9",
+      "comment": 6234468080
+    },
+    {
+      "time": "2026-10-17T13:31:07.278Z",
+      "event": "answer-intent",
+      "ticket": 1924,
+      "id": "fc721944",
+      "deliveryId": "989bf81a",
+      "attempt": 1
     }
   ]
 }
