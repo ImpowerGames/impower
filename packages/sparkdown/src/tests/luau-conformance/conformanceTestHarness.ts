@@ -124,7 +124,7 @@ export function runConformanceSource(
       const severity = (diag as { severity?: number }).severity;
       // LSP severities: 1 = Error, 2 = Warning, 3 = Information, 4 = Hint.
       // Information / Hint are advisory (deprecated-stdlib strikethrough,
-      // redundant-discard prefix, etc.) and don't block execution —
+      // unreachable code, etc.) and don't block execution —
       // drop them silently. Treat anything else (including absent
       // severity) as an error.
       if (severity === 1) errorMessages.push(message);

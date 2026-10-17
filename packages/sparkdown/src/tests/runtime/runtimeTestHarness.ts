@@ -178,8 +178,7 @@ function runCompiledStory(
       // 1 = Error, 2 = Warning, 3 = Information, 4 = Hint
       // (DiagnosticSeverity from vscode-languageserver). Information
       // and Hint severities (e.g. "Unreachable statement detected"
-      // with the `Unnecessary` tag, "`&` discard prefix is redundant
-      // inside function bodies") are stylistic — VS Code renders
+      // with the `Unnecessary` tag) are stylistic — VS Code renders
       // them faded — and tests treat them as non-fatal, so they're
       // silently dropped here rather than surfaced through
       // `errorMessages`.

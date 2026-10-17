@@ -114,15 +114,16 @@ export function leadingReturnTypeQualifier(
   return { returnType, lines };
 }
 
-// The `= value` that ends the union member lines after the declaration
-// `node`, across blank and comment lines, which the declaration ended
-// before (`local v: number` then `-- note` then `| string = 1`).
-export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
+// The `= value` that ends the union or intersection member lines after the
+// declaration `node`, across blank and comment lines, which the declaration
+// ended before (`local v: number` then `-- note` then `| string = 1`, or
+// `local v: A` then `& B = 1`).
+export function typeOperatorLineValue(node: SyntaxNode): SyntaxNode | null {
   if (!endsInTypeAnnotation(node)) return null;
   let value: SyntaxNode | null = null;
   for (let scan = node.nextSibling; scan; scan = scan.nextSibling) {
     if (SKIPPABLE.has(scan.name)) continue;
-    if (scan.name !== "LuauTypeUnionLineContinuation") break;
+    if (scan.name !== "LuauTypeOperatorLineContinuation") break;
     for (let part = firstContentChild(scan); part; part = part.nextSibling) {
       if (isExplicitRuleName(part.name, "LuauAssignmentOperation")) value = part;
     }
@@ -149,12 +150,12 @@ function endsInTypeAnnotation(node: SyntaxNode): boolean {
   );
 }
 
-// Whether the union member line `line` (a `LuauTypeUnionLineContinuation`)
-// continues a type: the nearest node before it, across blank and comment
-// lines, is a declaration that ends in its type, a type alias, an annotated
-// parameter, or another such line with no value; or it starts a function
-// body after the function's return type.
-export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
+// Whether the union or intersection member line `line` (a
+// `LuauTypeOperatorLineContinuation`) continues a type: the nearest node
+// before it, across blank and comment lines, is a declaration that ends in
+// its type, a type alias, an annotated parameter, or another such line with
+// no value; or it starts a function body after the function's return type.
+export function hasTypeOperatorLineOwner(line: SyntaxNode): boolean {
   let prev = line.prevSibling;
   while (prev && SKIPPABLE.has(prev.name)) prev = prev.prevSibling;
   if (!prev) {
@@ -165,7 +166,7 @@ export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
     }
     return false;
   }
-  if (prev.name === "LuauTypeUnionLineContinuation") {
+  if (prev.name === "LuauTypeOperatorLineContinuation") {
     return !hasDescendant(prev, "LuauAssignmentOperation");
   }
   return (
@@ -175,9 +176,11 @@ export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
   );
 }
 
-// Report a union member line that continues no type (`print(1)` then
-// `-- note` then `| string`), which Luau rejects.
-export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext): void {
+// Report a union or intersection member line that continues no type
+// (`print(1)` then `-- note` then `| string`, or `print(1)` then
+// `& string`), which Luau rejects. A function body has no `&` statement
+// marker, so a line written with one (`& print(1)`) is this error too.
+export function reportUnownedTypeOperatorLine(line: SyntaxNode, ctx: LowerContext): void {
   const raw = ctx.read(line.from, line.to);
   const text = raw.trim();
   const from = line.from + raw.length - raw.trimStart().length;

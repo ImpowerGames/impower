@@ -21,8 +21,8 @@ import {
   leadingReturnTypeQualifier,
   reportExtraTypeQualifiers,
   reportUntakenContinuation,
-  hasTypeUnionLineOwner,
-  reportUnownedTypeUnionLine,
+  hasTypeOperatorLineOwner,
+  reportUnownedTypeOperatorLine,
 } from "./utils/lineContinuation";
 import {
   lowerAudioLine,
@@ -315,7 +315,8 @@ const TREE_LOWERED_STATEMENTS = nodeNameSet(["LuauSparkdownChooseBlock"]);
  * children they continue into are skipped, and every other child is a
  * Sparkdown statement (a display line, a choice, a divert), lowered as its
  * node. A line that continues the value before it but that no statement
- * takes is reported, as is a union member line that continues no type.
+ * takes is reported, as is a union or intersection member line that
+ * continues no type.
  *
  * Each statement of a block's body is recorded with the objects it lowered
  * to (see `StatementShape`), when the context keeps shapes.
@@ -416,7 +417,7 @@ function lowerBlockStatements(
       const at = nodeIndex(ref);
       if (at === undefined || at <= i) continue;
       const node = nodes[at]!;
-      if (isLineContinuation(node) || node.name === "LuauTypeUnionLineContinuation") {
+      if (isLineContinuation(node) || node.name === "LuauTypeOperatorLineContinuation") {
         continue;
       }
       const text = ctx.read(node.from, node.to);
@@ -462,12 +463,12 @@ function lowerBlockStatements(
           )
         : [];
     if (taken.has(i) && statements.length === 0) continue;
-    if (child.name === "LuauTypeUnionLineContinuation") {
-      // A union member line after a comment line: types do not reach the
-      // runtime, and the declaration before it took it. One that continues
-      // no type is Luau's error.
-      if (!taken.has(i) && !hasTypeUnionLineOwner(child)) {
-        reportUnownedTypeUnionLine(child, ctx);
+    if (child.name === "LuauTypeOperatorLineContinuation") {
+      // A union member line after a comment line, or an intersection member
+      // line: types do not reach the runtime, and the declaration before it
+      // took it. One that continues no type is Luau's error.
+      if (!taken.has(i) && !hasTypeOperatorLineOwner(child)) {
+        reportUnownedTypeOperatorLine(child, ctx);
       }
       continue;
     }

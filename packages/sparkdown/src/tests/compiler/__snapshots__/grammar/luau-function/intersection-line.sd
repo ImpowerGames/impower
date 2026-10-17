@@ -1,0 +1,21 @@
+function f(v: { x: number }
+  & { y: string }): { x: number }
+  & { y: string }
+  type T = { x: number }
+    & { y: string }
+  -- note
+    & { z: boolean }
+  local t: T
+    & { w: number } = v
+  & print(1)
+  return t
+end
+local g = function()
+  type U = number
+  & string
+end
+store count = 0
+local s: number
+& s = 2
+& count += 1
+The count is {count}.

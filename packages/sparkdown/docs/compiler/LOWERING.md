@@ -292,7 +292,7 @@ To illustrate the layering, here's how the existing discard-call statement got b
 **Grammar** — captures `&` + access-path:
 
 ```yaml
-LuauExplicitStatement:
+LuauSparkdownExplicitStatement:
   begin: ({{WS}}*)([&])($|{{WS}}+)
   beginCaptures:
     1: { patterns: [{ include: "#Indent" }] }
@@ -305,7 +305,7 @@ LuauExplicitStatement:
   end: (?={{BEAT}})|$
 ```
 
-The grammar produces a `LuauExplicitStatement` node containing a `LuauAccessPath` (the call path).
+The grammar produces a `LuauSparkdownExplicitStatement` node containing a `LuauAccessPath` (the call path). The marker exists only in narrative bodies: a function body is Luau throughout, and a call there is written without it (#1374).
 
 **Lowerer** — `lowerExplicitStatement.ts`:
 
@@ -328,7 +328,7 @@ if (!opNode) {
 **Dispatcher** wiring (already present):
 
 ```typescript
-case "LuauExplicitStatement":
+case "LuauSparkdownExplicitStatement":
   return lowerExplicitStatement(nodeRef, ctx);
 ```
 
