@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 195,
-  "previous": "cda979f31dcd96abe8e265250061b79d2e58677a",
+  "seq": 196,
+  "previous": "28d1056d6d243e3626cceaea1b4c44135ae4bd9b",
   "snapshotParents": [],
-  "time": "2026-10-17T16:22:15.081Z",
+  "time": "2026-10-17T16:23:39.059Z",
   "kind": "auto",
-  "transition": "request of #1924",
+  "transition": "answer of #1924",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 205,
+    "recordRevision": 208,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3369,7 +3369,14 @@
           "text": "Checkpoint after review round 5 on PR #1993 (limit 5 under decision 78d86f03): five findings accepted and fixed (the end's comment handling: a -- in a string kept an attributed function open, fixed by LuauAttributeLineComment consuming its line break and a bare end; doc comments lost their scopes, fixed by delegation; @native before local lost the missing-function error; a store test strengthened; PR body rewritten); last reviewed 9296f3ce9; head fe4cd193e carries the unreviewed round-5 undirected corrections (4871f7aa7) and a merge of main resolving eight grammar hunks from #1906 with behavioural choices (loop ends, LUAU_STRUCTURE_NAME_AHEAD past block comments, header lookbehinds on LUAU_NAME_BEHIND); CI green; writer asks for the decision.",
           "source": "cross-session message from impower-85 (writer, launch cb97a4cf, resumed) on 2026-10-17 after its turn ended",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision c735d457, published on PR #1993 as comment 6236564916: authorize one more bounded round. The round 5 corrections held, but the head now carries a merge of main after #1906 that resolved eight grammar hunks with behavioural choices (the loops' closer end with your next-line condition, LUAU_STRUCTURE_NAME_AHEAD past block comments, the header lookbehinds on LUAU_NAME_BEHIND) and changed five fixture trees, plus 4871f7aa7; that range is not a small verified tail, so it gets one reviewer. Launch round 6 with reviewRoundLimit 6 and extendedReviewAuthorization set verbatim to the invocation the decision quotes (copy it from the decision comment's Authority line). One reviewer: undirected with the grammar-conventions lens on the diff 9296f3ce9..fe4cd193e with the whole PR for context. It must establish that the merge resolutions are right (the four loops against #1906's closer end and your next-line condition, the structure-name guard past block comments against #1343's commented header and #1906's token-class cases, the header lookbehinds), that the five changed fixture trees change only for those reasons, that the doc-comment delegation keeps every doc scope between attributes and their function, and that the strengthened store test fails on revert. A clean round finishes the PR through ordinary readiness. The tracker cutover is held for this PR, so adjudicate and fix promptly, wait in the foreground, and send the next checkpoint report as soon as the round's fixes are verified and CI is green. Never mark ready, never merge.",
+            "deliveryId": "b3b0dea3",
+            "attempts": 1,
+            "time": "2026-10-17T16:23:36.998Z",
+            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+          }
         }
       ],
       "checkpoints": [
@@ -4999,6 +5006,463 @@
             "time": "2026-10-17T14:40:21.022Z",
             "headAtPublish": "ce250f5ef1cdacb217eee91873ad0c468d69b803"
           }
+        },
+        {
+          "version": 1,
+          "id": "c735d457",
+          "kind": "extend",
+          "feature": 1904,
+          "ticket": 1924,
+          "pr": 1993,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T16:23:33.306Z",
+          "round": 5,
+          "limitBefore": 5,
+          "reviewedHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
+          "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
+          "range": {
+            "from": "9296f3ce910473f6501322f14520ac6c698a1a61",
+            "to": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
+            "base": "006d924c192a2299e3398e308b6172b4540d4115",
+            "commits": [
+              "4871f7aa711384af7bfe633e1a42579362058844",
+              "fe4cd193e4cb46f80b42f3ab9422591b4e783691"
+            ],
+            "diffSha256": "e649b2e08c90c91f74d1d6c1b544cf14d0492c319983f00df6513cd49dd55453"
+          },
+          "reports": [
+            {
+              "comment": 6225029258,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6225406255
+            },
+            {
+              "comment": 6225734581,
+              "round": 1,
+              "reviewerId": "grammar",
+              "adjudication": 6226246996
+            },
+            {
+              "comment": 6226459027,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6226795950
+            },
+            {
+              "comment": 6227154990,
+              "round": 2,
+              "reviewerId": "ax",
+              "adjudication": 6227609669
+            },
+            {
+              "comment": 6227819767,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6228017779
+            },
+            {
+              "comment": 6228135105,
+              "round": 3,
+              "reviewerId": "ax",
+              "adjudication": 6228231193
+            },
+            {
+              "comment": 6228403392,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6229045869
+            },
+            {
+              "comment": 6229626122,
+              "round": 4,
+              "reviewerId": "ax",
+              "adjudication": 6229774991
+            },
+            {
+              "comment": 6229858390,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6229958152
+            },
+            {
+              "comment": 6235355869,
+              "round": 5,
+              "reviewerId": "ax",
+              "adjudication": 6235469214
+            },
+            {
+              "comment": 6235609202,
+              "round": 5,
+              "reviewerId": "undirected",
+              "adjudication": 6235787417
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 6,
+          "limitReason": "one bounded round reviews the merge of main after #1906 and the round 5 corrections; a clean round finishes the PR, and a further finding in the comment-end class is a correction within the round's accounting or a repair, not another round.",
+          "authority": "/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.",
+          "assessment": {
+            "mechanisms": "Round 5 reviewed the lookahead-removal repair and found five defects, none of them the removed prediction. (1) The attribute rules' handling of comments at their end: ax 1 (a -- inside a string or block-comment text kept an attributed function open past its end and swallowed the next write or function; fixed in 9296f3ce9 by deleting the lexical guard, giving a line comment inside the attribute rules its own rule that consumes its line break, and making the shared end a bare lookbehind for end, with the line-start alternative no longer stepping aside for an unspaced write) and undirected 1 (that new comment rule took --- doc comments and lost their doc scopes; fixed in 4871f7aa7 by delegating to the existing doc and line comment rules and taking only the line break). The second was introduced by the first's correction and caught within the round. (2) Attribute-diagnostic ownership: ax 2 (@native before a local declaration lost the missing-function error; the local and export reports are now classified attribute). (3) Test honesty and description: undirected 2 (the store regression passed with the correction reverted; it now checks the statement boundary and fails on revert) and undirected 3 (the PR body described removed behaviour; rewritten and read back). The lookahead class removed by the repair produced nothing.",
+            "regressions": "One correction introduced a defect within the round (the comment rule losing doc scopes), found by the same round's second reviewer and fixed. The head fe4cd193e is then a merge of main after #1906 (PR #1995) landed, resolving eight grammar hunks, GRAMMAR.md and the corpus list with behavioural choices: the four condition loops take main's closer end in place of this PR's LUAU_LOOP_BEFORE_END while keeping this PR's next-line condition; #1906's new structure-name guard broke #1343's commented header, so LUAU_STRUCTURE_NAME_AHEAD now looks past block comments; the header lookbehinds use main's LUAU_NAME_BEHIND because LUAU_IDENTIFIER now holds a lookahead; main's LUAU_LINE_COMMENT_START replaces this PR's variable; the corpus list keeps #1988 and #1989-extent; five fixture trees change. Its remerge diff is 12 files, 240 insertions and 545 deletions. Every touched suite and CI pass on it, but no reviewer has read it.",
+            "repairOptions": "None outstanding. The repair that removed the lookahead held under review; the end's comment handling is now rule-based rather than a lexical guard, and the remaining unreviewed material is a merge resolution plus two small corrections, which need reading, not redesign. The documented header-lookbehind limit stands.",
+            "residualRisk": "Unreviewed since 9296f3ce9: 4871f7aa7 (the doc-comment delegation, the strengthened store test, the PR body) and fe4cd193e (the merge of main with its resolutions). The merge is behaviour-changing grammar: the loop end now shared with #1906's closer end, the structure-name guard looking past block comments, and the header lookbehinds on main's name-behind variable, with five fixture trees changed by those resolutions. The round 5 corrections changed the end of attribute rules around comments, a class that produced two findings in the round.",
+            "coverage": "At 9296f3ce9 against ce250f5ef: 6 failed then 140/140; at 4871f7aa7 against 9296f3ce9: 3 failed (doc comments) then 143/143; against ce250f5ef again: 7 failed including the strengthened store case, then 143/143; all restores hash-verified; web editor at 9296f3ce9 inspected (writes after attributed functions stay writes, Luau's error on answer, preview Hello there.). On the merged head fe4cd193e: the regression file (143), both snapshot suites (202 each), scopeEquality (253), luauSyntaxAgreement (162), the corpus gate (1071), luauUnreadToken, #1906's luauTokenClasses (145), luauBlockMissingEnd, grammarReachability, TernaryExpression, FunctionIntersectionContinuation, Glue, TrailingOnlyGlue, luauTreeAst, the TypeInfer port, typecheckTestHarness, typecheckSparkdown, luauOfficialAst, BoundedExpressionFamily931 passing; typecheck clean; the #921 script re-shot in the web editor on the merged head reads as before; CI at fe4cd193e: 29 passed, 4 skipped, none failed, corpus gate and all four sparkdown shards included.",
+            "nextRoundValue": "Round 6, one undirected reviewer with the grammar-conventions lens on the diff 9296f3ce9..fe4cd193e with the whole PR for context: that the merge resolutions are right (the four loops' closer end with the next-line condition, the structure-name guard past block comments against #1343's header and #1906's token-class cases, the header lookbehinds on LUAU_NAME_BEHIND), that the five changed fixture trees change only for those reasons, that the doc-comment delegation keeps every doc scope between attributes and their function, and that the strengthened store test fails on revert. A clean round finishes the PR through ordinary readiness.",
+            "rationale": "Acceptance is refused: the unreviewed range is a 12-file grammar merge with behavioural resolutions plus corrections in the one class that produced two findings this round, which is neither small nor settled, and this PR's merge also decides what #1907 and #1977 build on. A bounded round of one reviewer is the cheapest way to establish that the merged grammar is what both slices meant, and the cutover is held for exactly this.",
+            "next": "Publish this extension; the writer launches round 6 with reviewRoundLimit 6 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 9296f3ce9..fe4cd193e, adjudicates and fixes with red/green, then sends the next checkpoint report; the coordinator decides again and merges through the gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 6,
+            "limitReason": "one bounded round reviews the merge of main after #1906 and the round 5 corrections; a clean round finishes the PR, and a further finding in the comment-end class is a correction within the round's accounting or a repair, not another round.",
+            "findings": [
+              {
+                "comment": 6225029258,
+                "finding": "top-level attributes highlighted but omitted from Luau's reading",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225029258,
+                "finding": "a newline after an attribute turned a stored function into nil",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225029258,
+                "finding": "valid block-comment contents hid header names (accepted for levelled comments holding ]], rejected for comments spanning lines)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225029258,
+                "finding": "three change-related Test Suite failures",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "a same-line block comment opened a line-break-only scope",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "attributes on the line before a named function (accepted for the regression; the top-level own-line form is now decided by the maintainer as Luau)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "an unindented function after a stored attribute did not initialize its store",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "a header keyword inside a body comment reopened a header",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "valid comments the matcher excluded (accepted for a ] before the close, rejected for level four and above)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "two block comments before a multi-line if expression left valid code unread",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "variadic result types fixed only in the ordinary type family",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225734581,
+                "finding": "GRAMMAR.md misdescribed the comment matcher (quality)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "attributed function values across trivia",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "a top-level attribute on the line before its function (rejected then; the maintainer has now decided such a line is Luau, which this repair implements)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "commented function headers after a prefix (accepted for attributes, rejected for a preceding statement on the line)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226459027,
+                "finding": "comments of level four and above",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "a ] in an argument's string disabled the multiline function value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "a comment between two top-level attributes turned a function into story",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "a comment after an attribute and another before the name failed together",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227154990,
+                "finding": "GRAMMAR.md misstated level-four comments (quality)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227819767,
+                "finding": "long-string attribute arguments lost their function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227819767,
+                "finding": "an attribute list required whitespace before function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228135105,
+                "finding": "a multiline string argument prevented the attributed function value from being held",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228135105,
+                "finding": "the shared restricted comment matcher dropped valid level-four long-string arguments",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228403392,
+                "finding": "text inside an attribute argument erased a story line",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228403392,
+                "finding": "exponential matching on a line of many lists",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228403392,
+                "finding": "attribute argument errors no longer reported",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "a close of another level inside a level-4 long string hid a valid function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "an escaped double quote ended a quoted string so prose became Luau",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "a missing comma in an attribute list lost Luau's error",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229626122,
+                "finding": "attribute errors were suppressed in store values, including a stored attribute with no function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229858390,
+                "finding": "the level 1-3 scanner crossed the list's own closing bracket",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229858390,
+                "finding": "backticks and -- line comments supplied a fictitious top-level function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229858390,
+                "finding": "levels eight and above closed at another level's close",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6235355869,
+                "finding": "a -- inside a string or block-comment payload kept a completed attributed function open past its end and consumed the following write",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6235355869,
+                "finding": "the missing-function error disappeared when attributes preceded a local declaration",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6235609202,
+                "finding": "the new attribute line-comment rule removed doc-comment highlighting between attributes and their function",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6235609202,
+                "finding": "test honesty: the stored-function regression passed with the correction reverted",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6235609202,
+                "finding": "the PR description still described removed behaviour (quality)",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 5: authorize another bounded round\n\nDecision `c735d457` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1924. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\"\n\n- Round state: round 5 is complete (limit 5 before this decision); its planned reviewers (ax, undirected) exited, and every report has its adjudication (6225029258 in 6225406255, 6225734581 in 6226246996, 6226459027 in 6226795950, 6227154990 in 6227609669, 6227819767 in 6228017779, 6228135105 in 6228231193, 6228403392 in 6229045869, 6229626122 in 6229774991, 6229858390 in 6229958152, 6235355869 in 6235469214, 6235609202 in 6235787417).\n- Independently reviewed through `9296f3ce910473f6501322f14520ac6c698a1a61`.\n- Head `fe4cd193e4cb46f80b42f3ab9422591b4e783691`. Unreviewed: `9296f3ce9..fe4cd193e`, 2 commits (`4871f7aa7` fix(grammar): keep documentation comments' scopes between attributes and their function (#1924); `fe4cd193e` Merge remote-tracking branch 'origin/main' into fix/1924-unread-form-highlighting (base merge, shown as its remerge diff)), diff SHA-256 `e649b2e08c90c91f74d1d6c1b544cf14d0492c319983f00df6513cd49dd55453`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, driver-checks passed, test-suite passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 39 accepted; unresolved: none.\n- Shared mechanisms: Round 5 reviewed the lookahead-removal repair and found five defects, none of them the removed prediction. (1) The attribute rules' handling of comments at their end: ax 1 (a -- inside a string or block-comment text kept an attributed function open past its end and swallowed the next write or function; fixed in 9296f3ce9 by deleting the lexical guard, giving a line comment inside the attribute rules its own rule that consumes its line break, and making the shared end a bare lookbehind for end, with the line-start alternative no longer stepping aside for an unspaced write) and undirected 1 (that new comment rule took --- doc comments and lost their doc scopes; fixed in 4871f7aa7 by delegating to the existing doc and line comment rules and taking only the line break). The second was introduced by the first's correction and caught within the round. (2) Attribute-diagnostic ownership: ax 2 (@native before a local declaration lost the missing-function error; the local and export reports are now classified attribute). (3) Test honesty and description: undirected 2 (the store regression passed with the correction reverted; it now checks the statement boundary and fails on revert) and undirected 3 (the PR body described removed behaviour; rewritten and read back). The lookahead class removed by the repair produced nothing.\n- Defects introduced by corrections: One correction introduced a defect within the round (the comment rule losing doc scopes), found by the same round's second reviewer and fixed. The head fe4cd193e is then a merge of main after #1906 (PR #1995) landed, resolving eight grammar hunks, GRAMMAR.md and the corpus list with behavioural choices: the four condition loops take main's closer end in place of this PR's LUAU_LOOP_BEFORE_END while keeping this PR's next-line condition; #1906's new structure-name guard broke #1343's commented header, so LUAU_STRUCTURE_NAME_AHEAD now looks past block comments; the header lookbehinds use main's LUAU_NAME_BEHIND because LUAU_IDENTIFIER now holds a lookahead; main's LUAU_LINE_COMMENT_START replaces this PR's variable; the corpus list keeps #1988 and #1989-extent; five fixture trees change. Its remerge diff is 12 files, 240 insertions and 545 deletions. Every touched suite and CI pass on it, but no reviewer has read it.\n- Broader or simpler repair: None outstanding. The repair that removed the lookahead held under review; the end's comment handling is now rule-based rather than a lexical guard, and the remaining unreviewed material is a merge resolution plus two small corrections, which need reading, not redesign. The documented header-lookbehind limit stands.\n- Residual risk: Unreviewed since 9296f3ce9: 4871f7aa7 (the doc-comment delegation, the strengthened store test, the PR body) and fe4cd193e (the merge of main with its resolutions). The merge is behaviour-changing grammar: the loop end now shared with #1906's closer end, the structure-name guard looking past block comments, and the header lookbehinds on main's name-behind variable, with five fixture trees changed by those resolutions. The round 5 corrections changed the end of attribute rules around comments, a class that produced two findings in the round.\n- Verification coverage: At 9296f3ce9 against ce250f5ef: 6 failed then 140/140; at 4871f7aa7 against 9296f3ce9: 3 failed (doc comments) then 143/143; against ce250f5ef again: 7 failed including the strengthened store case, then 143/143; all restores hash-verified; web editor at 9296f3ce9 inspected (writes after attributed functions stay writes, Luau's error on answer, preview Hello there.). On the merged head fe4cd193e: the regression file (143), both snapshot suites (202 each), scopeEquality (253), luauSyntaxAgreement (162), the corpus gate (1071), luauUnreadToken, #1906's luauTokenClasses (145), luauBlockMissingEnd, grammarReachability, TernaryExpression, FunctionIntersectionContinuation, Glue, TrailingOnlyGlue, luauTreeAst, the TypeInfer port, typecheckTestHarness, typecheckSparkdown, luauOfficialAst, BoundedExpressionFamily931 passing; typecheck clean; the #921 script re-shot in the web editor on the merged head reads as before; CI at fe4cd193e: 29 passed, 4 skipped, none failed, corpus gate and all four sparkdown shards included.\n- What another round would establish: Round 6, one undirected reviewer with the grammar-conventions lens on the diff 9296f3ce9..fe4cd193e with the whole PR for context: that the merge resolutions are right (the four loops' closer end with the next-line condition, the structure-name guard past block comments against #1343's header and #1906's token-class cases, the header lookbehinds on LUAU_NAME_BEHIND), that the five changed fixture trees change only for those reasons, that the doc-comment delegation keeps every doc scope between attributes and their function, and that the strengthened store test fails on revert. A clean round finishes the PR through ordinary readiness.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: Acceptance is refused: the unreviewed range is a 12-file grammar merge with behavioural resolutions plus corrections in the one class that produced two findings this round, which is neither small nor settled, and this PR's merge also decides what #1907 and #1977 build on. A bounded round of one reviewer is the cheapest way to establish that the merged grammar is what both slices meant, and the cutover is held for exactly this. Next: Publish this extension; the writer launches round 6 with reviewRoundLimit 6 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 9296f3ce9..fe4cd193e, adjudicates and fixes with red/green, then sends the next checkpoint report; the coordinator decides again and merges through the gate.\n- Round 6 may launch with `reviewRoundLimit` 6 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: one bounded round reviews the merge of main after #1906 and the round 5 corrections; a clean round finishes the PR, and a further finding in the comment-end class is a correction within the round's accounting or a repair, not another round. The next checkpoint follows round 6's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"c735d457\",\n \"kind\": \"extend\",\n \"feature\": 1904,\n \"ticket\": 1924,\n \"pr\": 1993,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T16:23:33.306Z\",\n \"round\": 5,\n \"limitBefore\": 5,\n \"reviewedHead\": \"9296f3ce910473f6501322f14520ac6c698a1a61\",\n \"head\": \"fe4cd193e4cb46f80b42f3ab9422591b4e783691\",\n \"range\": {\n  \"from\": \"9296f3ce910473f6501322f14520ac6c698a1a61\",\n  \"to\": \"fe4cd193e4cb46f80b42f3ab9422591b4e783691\",\n  \"base\": \"006d924c192a2299e3398e308b6172b4540d4115\",\n  \"commits\": [\n   \"4871f7aa711384af7bfe633e1a42579362058844\",\n   \"fe4cd193e4cb46f80b42f3ab9422591b4e783691\"\n  ],\n  \"diffSha256\": \"e649b2e08c90c91f74d1d6c1b544cf14d0492c319983f00df6513cd49dd55453\"\n },\n \"reports\": [\n  {\n   \"comment\": 6225029258,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6225406255\n  },\n  {\n   \"comment\": 6225734581,\n   \"round\": 1,\n   \"reviewerId\": \"grammar\",\n   \"adjudication\": 6226246996\n  },\n  {\n   \"comment\": 6226459027,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6226795950\n  },\n  {\n   \"comment\": 6227154990,\n   \"round\": 2,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6227609669\n  },\n  {\n   \"comment\": 6227819767,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228017779\n  },\n  {\n   \"comment\": 6228135105,\n   \"round\": 3,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6228231193\n  },\n  {\n   \"comment\": 6228403392,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229045869\n  },\n  {\n   \"comment\": 6229626122,\n   \"round\": 4,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6229774991\n  },\n  {\n   \"comment\": 6229858390,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229958152\n  },\n  {\n   \"comment\": 6235355869,\n   \"round\": 5,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6235469214\n  },\n  {\n   \"comment\": 6235609202,\n   \"round\": 5,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6235787417\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 6,\n \"limitReason\": \"one bounded round reviews the merge of main after #1906 and the round 5 corrections; a clean round finishes the PR, and a further finding in the comment-end class is a correction within the round's accounting or a repair, not another round.\",\n \"authority\": \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\",\n \"assessment\": {\n  \"mechanisms\": \"Round 5 reviewed the lookahead-removal repair and found five defects, none of them the removed prediction. (1) The attribute rules' handling of comments at their end: ax 1 (a -\\u002d inside a string or block-comment text kept an attributed function open past its end and swallowed the next write or function; fixed in 9296f3ce9 by deleting the lexical guard, giving a line comment inside the attribute rules its own rule that consumes its line break, and making the shared end a bare lookbehind for end, with the line-start alternative no longer stepping aside for an unspaced write) and undirected 1 (that new comment rule took -\\u002d- doc comments and lost their doc scopes; fixed in 4871f7aa7 by delegating to the existing doc and line comment rules and taking only the line break). The second was introduced by the first's correction and caught within the round. (2) Attribute-diagnostic ownership: ax 2 (@native before a local declaration lost the missing-function error; the local and export reports are now classified attribute). (3) Test honesty and description: undirected 2 (the store regression passed with the correction reverted; it now checks the statement boundary and fails on revert) and undirected 3 (the PR body described removed behaviour; rewritten and read back). The lookahead class removed by the repair produced nothing.\",\n  \"regressions\": \"One correction introduced a defect within the round (the comment rule losing doc scopes), found by the same round's second reviewer and fixed. The head fe4cd193e is then a merge of main after #1906 (PR #1995) landed, resolving eight grammar hunks, GRAMMAR.md and the corpus list with behavioural choices: the four condition loops take main's closer end in place of this PR's LUAU_LOOP_BEFORE_END while keeping this PR's next-line condition; #1906's new structure-name guard broke #1343's commented header, so LUAU_STRUCTURE_NAME_AHEAD now looks past block comments; the header lookbehinds use main's LUAU_NAME_BEHIND because LUAU_IDENTIFIER now holds a lookahead; main's LUAU_LINE_COMMENT_START replaces this PR's variable; the corpus list keeps #1988 and #1989-extent; five fixture trees change. Its remerge diff is 12 files, 240 insertions and 545 deletions. Every touched suite and CI pass on it, but no reviewer has read it.\",\n  \"repairOptions\": \"None outstanding. The repair that removed the lookahead held under review; the end's comment handling is now rule-based rather than a lexical guard, and the remaining unreviewed material is a merge resolution plus two small corrections, which need reading, not redesign. The documented header-lookbehind limit stands.\",\n  \"residualRisk\": \"Unreviewed since 9296f3ce9: 4871f7aa7 (the doc-comment delegation, the strengthened store test, the PR body) and fe4cd193e (the merge of main with its resolutions). The merge is behaviour-changing grammar: the loop end now shared with #1906's closer end, the structure-name guard looking past block comments, and the header lookbehinds on main's name-behind variable, with five fixture trees changed by those resolutions. The round 5 corrections changed the end of attribute rules around comments, a class that produced two findings in the round.\",\n  \"coverage\": \"At 9296f3ce9 against ce250f5ef: 6 failed then 140/140; at 4871f7aa7 against 9296f3ce9: 3 failed (doc comments) then 143/143; against ce250f5ef again: 7 failed including the strengthened store case, then 143/143; all restores hash-verified; web editor at 9296f3ce9 inspected (writes after attributed functions stay writes, Luau's error on answer, preview Hello there.). On the merged head fe4cd193e: the regression file (143), both snapshot suites (202 each), scopeEquality (253), luauSyntaxAgreement (162), the corpus gate (1071), luauUnreadToken, #1906's luauTokenClasses (145), luauBlockMissingEnd, grammarReachability, TernaryExpression, FunctionIntersectionContinuation, Glue, TrailingOnlyGlue, luauTreeAst, the TypeInfer port, typecheckTestHarness, typecheckSparkdown, luauOfficialAst, BoundedExpressionFamily931 passing; typecheck clean; the #921 script re-shot in the web editor on the merged head reads as before; CI at fe4cd193e: 29 passed, 4 skipped, none failed, corpus gate and all four sparkdown shards included.\",\n  \"nextRoundValue\": \"Round 6, one undirected reviewer with the grammar-conventions lens on the diff 9296f3ce9..fe4cd193e with the whole PR for context: that the merge resolutions are right (the four loops' closer end with the next-line condition, the structure-name guard past block comments against #1343's header and #1906's token-class cases, the header lookbehinds on LUAU_NAME_BEHIND), that the five changed fixture trees change only for those reasons, that the doc-comment delegation keeps every doc scope between attributes and their function, and that the strengthened store test fails on revert. A clean round finishes the PR through ordinary readiness.\",\n  \"rationale\": \"Acceptance is refused: the unreviewed range is a 12-file grammar merge with behavioural resolutions plus corrections in the one class that produced two findings this round, which is neither small nor settled, and this PR's merge also decides what #1907 and #1977 build on. A bounded round of one reviewer is the cheapest way to establish that the merged grammar is what both slices meant, and the cutover is held for exactly this.\",\n  \"next\": \"Publish this extension; the writer launches round 6 with reviewRoundLimit 6 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 9296f3ce9..fe4cd193e, adjudicates and fixes with red/green, then sends the next checkpoint report; the coordinator decides again and merges through the gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 6,\n  \"limitReason\": \"one bounded round reviews the merge of main after #1906 and the round 5 corrections; a clean round finishes the PR, and a further finding in the comment-end class is a correction within the round's accounting or a repair, not another round.\",\n  \"findings\": [\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"top-level attributes highlighted but omitted from Luau's reading\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"a newline after an attribute turned a stored function into nil\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"valid block-comment contents hid header names (accepted for levelled comments holding ]], rejected for comments spanning lines)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225029258,\n    \"finding\": \"three change-related Test Suite failures\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"a same-line block comment opened a line-break-only scope\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"attributes on the line before a named function (accepted for the regression; the top-level own-line form is now decided by the maintainer as Luau)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"an unindented function after a stored attribute did not initialize its store\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"a header keyword inside a body comment reopened a header\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"valid comments the matcher excluded (accepted for a ] before the close, rejected for level four and above)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"two block comments before a multi-line if expression left valid code unread\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"variadic result types fixed only in the ordinary type family\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225734581,\n    \"finding\": \"GRAMMAR.md misdescribed the comment matcher (quality)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"attributed function values across trivia\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"a top-level attribute on the line before its function (rejected then; the maintainer has now decided such a line is Luau, which this repair implements)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"commented function headers after a prefix (accepted for attributes, rejected for a preceding statement on the line)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226459027,\n    \"finding\": \"comments of level four and above\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"a ] in an argument's string disabled the multiline function value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"a comment between two top-level attributes turned a function into story\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"a comment after an attribute and another before the name failed together\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227154990,\n    \"finding\": \"GRAMMAR.md misstated level-four comments (quality)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227819767,\n    \"finding\": \"long-string attribute arguments lost their function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227819767,\n    \"finding\": \"an attribute list required whitespace before function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228135105,\n    \"finding\": \"a multiline string argument prevented the attributed function value from being held\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228135105,\n    \"finding\": \"the shared restricted comment matcher dropped valid level-four long-string arguments\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228403392,\n    \"finding\": \"text inside an attribute argument erased a story line\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228403392,\n    \"finding\": \"exponential matching on a line of many lists\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228403392,\n    \"finding\": \"attribute argument errors no longer reported\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"a close of another level inside a level-4 long string hid a valid function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"an escaped double quote ended a quoted string so prose became Luau\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"a missing comma in an attribute list lost Luau's error\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229626122,\n    \"finding\": \"attribute errors were suppressed in store values, including a stored attribute with no function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229858390,\n    \"finding\": \"the level 1-3 scanner crossed the list's own closing bracket\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229858390,\n    \"finding\": \"backticks and -\\u002d line comments supplied a fictitious top-level function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229858390,\n    \"finding\": \"levels eight and above closed at another level's close\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6235355869,\n    \"finding\": \"a -\\u002d inside a string or block-comment payload kept a completed attributed function open past its end and consumed the following write\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6235355869,\n    \"finding\": \"the missing-function error disappeared when attributes preceded a local declaration\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6235609202,\n    \"finding\": \"the new attribute line-comment rule removed doc-comment highlighting between attributes and their function\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6235609202,\n    \"finding\": \"test honesty: the stored-function regression passed with the correction reverted\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6235609202,\n    \"finding\": \"the PR description still described removed behaviour (quality)\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "c5471b2300a2972243288918b016c3d57928f828b91f1d2aad5bf995e131ddbf",
+          "blockSha256": "98749bd267749b809b752c0e38382ac8b10300333564d7b63e3a25abeb7c1f18",
+          "published": {
+            "comment": 6236564916,
+            "time": "2026-10-17T16:23:36.399Z",
+            "headAtPublish": "fe4cd193e4cb46f80b42f3ab9422591b4e783691"
+          }
         }
       ]
     }
@@ -6371,6 +6835,16 @@
       "round": 4,
       "head": "ce250f5ef1cdacb217eee91873ad0c468d69b803",
       "time": "2026-10-17T14:40:21.022Z"
+    },
+    {
+      "pr": 1993,
+      "url": "https://github.com/ImpowerGames/impower/pull/1993#issuecomment-6236564916",
+      "kind": "review-checkpoint extend",
+      "ticket": 1924,
+      "id": "c735d457",
+      "round": 5,
+      "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
+      "time": "2026-10-17T16:23:36.399Z"
     }
   ],
   "diskRecoveries": [],
@@ -6381,7 +6855,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T16:22:14.300Z",
+      "observedAt": "2026-10-17T16:23:38.297Z",
       "held": true,
       "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -7181,33 +7655,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T04:09:29.622Z",
-      "event": "resume-intent",
-      "ticket": 1924,
-      "id": "38703c24-788c-43a4-b884-4691102a50c9",
-      "sessionId": "18a46342-5e1d-4f43-b931-ad056aac78a7"
-    },
-    {
-      "time": "2026-10-17T04:09:38.596Z",
-      "event": "resumed",
-      "ticket": 1924,
-      "id": "38703c24-788c-43a4-b884-4691102a50c9",
-      "handle": {
-        "kind": "process",
-        "pid": 13884,
-        "start": "639278069782034905",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-38703c24-788c-43a4-b884-4691102a50c9"
-      }
-    },
-    {
-      "time": "2026-10-17T04:09:48.484Z",
-      "event": "answered",
-      "ticket": 1924,
-      "id": "442d13e0",
-      "deliveryId": "04471f3a"
-    },
-    {
       "time": "2026-10-17T04:09:57.309Z",
       "event": "check-in",
       "outcome": "#1924 round 3 checkpoint (request 442d13e0) decided extend to round 4 (decision 3f6686ca, comment 6229458152): the unreviewed tail is a behavior-changing grammar and converter change with a history of regressions; acceptance refused; the own-line attribute alternative left to the maintainer via #921; Closes #1990 confirmed; writer resumed with the decision; #1906 running in round 2"
@@ -7922,6 +8369,30 @@
       "event": "request",
       "ticket": 1924,
       "id": "e0253741"
+    },
+    {
+      "time": "2026-10-17T16:23:33.306Z",
+      "event": "checkpoint-intent",
+      "ticket": 1924,
+      "id": "c735d457",
+      "kind": "extend",
+      "round": 5,
+      "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691"
+    },
+    {
+      "time": "2026-10-17T16:23:36.399Z",
+      "event": "checkpoint-published",
+      "ticket": 1924,
+      "id": "c735d457",
+      "comment": 6236564916
+    },
+    {
+      "time": "2026-10-17T16:23:36.999Z",
+      "event": "answer-intent",
+      "ticket": 1924,
+      "id": "e0253741",
+      "deliveryId": "b3b0dea3",
+      "attempt": 1
     }
   ]
 }
