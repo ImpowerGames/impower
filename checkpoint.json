@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 208,
-  "previous": "bbe199811865d80c326dacff5b6bd72a6409a718",
+  "seq": 209,
+  "previous": "85799efc9f2a41dbc8242758a4cb8f885391d5ed",
   "snapshotParents": [],
-  "time": "2026-10-17T13:53:36.537Z",
+  "time": "2026-10-17T14:23:21.006Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 190,
+    "recordRevision": 191,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T13:53:35.842Z",
+      "observedAt": "2026-10-17T14:23:20.334Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,19 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:10:12.710Z",
-      "event": "resumed",
-      "ticket": 1966,
-      "id": "94cb1eb1-c697-4fc9-b600-106d102b93e9",
-      "handle": {
-        "kind": "process",
-        "pid": 15532,
-        "start": "639278070122711751",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-94cb1eb1-c697-4fc9-b600-106d102b93e9"
-      }
-    },
     {
       "time": "2026-10-17T04:10:21.503Z",
       "event": "answered",
@@ -6241,6 +6228,11 @@
       "time": "2026-10-17T13:53:34.672Z",
       "event": "check-in",
       "outcome": "no change: all six slices' tooling merged; the cutover window is held on the maintainer's decision relayed by ORCH #1904 at ~19:50Z and extended at ~20:00Z: it opens only after Feature #1904 closes with every slice merged (PRs #1995, #1993, then #1907 and #1977), estimated 20 to 26 hours; the #1967 writer (launch 02ea0ef4, CLI session 4b0d553c) is deliberately kept unreleased and idle so one resume carries the Phase B go; no writer running; plan's release suggestion for #1967 not followed for that reason"
+    },
+    {
+      "time": "2026-10-17T14:23:19.222Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904 (maintainer's extended hold, estimated 20 to 26 hours from ~20:00Z); PR #1995 now at 5fabd8bb1 and PR #1993 at ce250f5ef, both open drafts under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
