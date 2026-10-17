@@ -7,9 +7,18 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { executionCommands, executionEnvironment, startExecutionService, validateExecutionShape, executionClientCommand } from "./reviewer-execution.mjs";
 import { requestExecution } from "./reviewer-execution-client.mjs";
-import { runHandoff } from "./agent-handoff.mjs";
-import { createReviewJob } from "./review-supervisor.mjs";
+import { runHandoff as actualRunHandoff } from "./agent-handoff.mjs";
+import { createReviewJob as actualCreate } from "./review-supervisor.mjs";
+import { readRepos } from "../.agents/repos.mjs";
 import {createReceiptDescriptor,openReceipt,readReceiptDisposition} from "./test-suite-receipt.mjs";
+
+// Launches run with the cutover switch off, read from a copy of the repos file.
+const reposDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-repos-off-"));
+fs.writeFileSync(path.join(reposDir, "repos.json"), JSON.stringify({ ...readRepos(), cutover: false }));
+const OFF = readRepos(path.join(reposDir, "repos.json"));
+fs.rmSync(reposDir, { recursive: true, force: true });
+const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
+const createReviewJob = (input, host, options) => actualCreate(input, host, { repos: OFF, ...options });
 
 // A reviewer must be able to author its own UI attempts without receiving
 // arbitrary coordinator commands or widening its filesystem permissions.

@@ -4,8 +4,16 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { runHandoff, checkCrossVendor, usageLimitWindowMs } from "./agent-handoff.mjs";
+import { runHandoff as actualRunHandoff, checkCrossVendor, usageLimitWindowMs } from "./agent-handoff.mjs";
 import { readReviewerDefaults, resolveReviewer, applyResolvedReviewer, validateReviewerDefaults } from "./reviewer-defaults.mjs";
+import { readRepos } from "../.agents/repos.mjs";
+
+// Launches run with the cutover switch off, read from a copy of the repos file.
+const reposDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-repos-off-"));
+fs.writeFileSync(path.join(reposDir, "repos.json"), JSON.stringify({ ...readRepos(), cutover: false }));
+const OFF = readRepos(path.join(reposDir, "repos.json"));
+fs.rmSync(reposDir, { recursive: true, force: true });
+const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

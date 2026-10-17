@@ -8,13 +8,20 @@ import { execFileSync, spawn } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound, validateReviewRecovery } from "./agent-handoff.mjs";
+import { runHandoff as actualHandoff, checkReviewRound, verifyReviewComment, reserveWithinBound, validateReviewRecovery } from "./agent-handoff.mjs";
+import { readRepos, reviewThread } from "../.agents/repos.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
 import { installReviewerHooks } from "./reviewer-security.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
 console.log(`Scratch repository: ${scratch}`);
+// Each cutover position is read from its own copy of the repos file; every
+// launch here runs with the switch off unless a case names the on copy.
+const committed = readRepos();
+const pinRepos = (cutover) => { const file = path.join(scratch, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committed, cutover })); return readRepos(file); };
+const OFF = pinRepos(false), ON = pinRepos(true);
+const handoff = (file, options = {}) => actualHandoff(file, { repos: OFF, ...options });
 const runHandoff = (file) => handoff(file, {jobRoot:scratch,slotRoot:path.join(scratch,"serial-slots")});
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
@@ -39,13 +46,25 @@ for (const limit of [3, 6]) {
   for (const finalCorrections of [false, true]) assert.doesNotThrow(() => validateReviewRecovery({ ...recovery, finalCorrections }), "the explicit persisted boolean is accepted without inventing its value");
 }
 let commentReads = 0, waits = 0;
-await verifyReviewComment(1, 554, "a".repeat(40), worktree, {
-  readComment: () => ++commentReads === 1 ? { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "pending" } : { issue_url: "https://api.github.com/repos/ImpowerGames/impower/issues/554", body: "a".repeat(40) },
+const prThread = reviewThread({ pr: 554 }, OFF);
+await verifyReviewComment(1, prThread, "a".repeat(40), worktree, {
+  readComment: () => ++commentReads === 1 ? { issue_url: `https://api.github.com/repos/${OFF.code}/issues/554`, body: "pending" } : { issue_url: `https://api.github.com/repos/${OFF.code}/issues/554`, body: "a".repeat(40) },
   wait: async (ms) => { assert.equal(ms, 1000); waits++; },
 });
 assert.equal(commentReads, 2, "a transient comment mismatch must be read again");
 assert.equal(waits, 1, "a transient comment mismatch waits before retrying");
-await assert.rejects(verifyReviewComment(1, 554, "a".repeat(40), worktree, { readComment: () => ({ issue_url: "wrong", body: "wrong" }), wait: async () => {}, attempts: 2 }), /Comment does not verify/);
+await assert.rejects(verifyReviewComment(1, prThread, "a".repeat(40), worktree, { readComment: () => ({ issue_url: "wrong", body: "wrong" }), wait: async () => {}, attempts: 2 }), /Comment does not verify/);
+// With the switch on, a report is a comment on the internal ticket, read by id
+// from the internal repository; the same report on the public pull request is refused.
+{
+  const ticketThread = reviewThread({ pr: 554, ticket: 12 }, ON);
+  const reads = [];
+  const comment = (issue_url) => (thread, id) => { reads.push(`${thread.repo} ${id}`); return { issue_url, body: "a".repeat(40) }; };
+  await verifyReviewComment(7, ticketThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.internal}/issues/12`), attempts: 1 });
+  assert.deepEqual(reads, [`${ON.internal} 7`], "the report is read by id from the internal repository");
+  await assert.rejects(verifyReviewComment(7, ticketThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.code}/issues/554`), attempts: 1 }), new RegExp(`does not verify review thread ${ON.internal}#12`), "a report on the public pull request is refused with the switch on");
+  await assert.rejects(verifyReviewComment(7, prThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.internal}/issues/12`), attempts: 1 }), /does not verify/, "a ticket comment does not stand in for a pull request comment with the switch off");
+}
 // A malformed plan is refused before the lock, journal or any child exists.
 const launchMarker = path.join(scratch, "malformed-plan-launched");
 const markingChild = path.join(scratch, "marking-child.mjs");
@@ -59,15 +78,19 @@ const malformed = [
   ["unknown first", (plan) => { plan.first = "frist"; }, /Unknown step: frist/],
   ["execution grant on writer", (plan) => { plan.steps.first.execution = [{ id: "tests", kind: "vitest", package: "packages/sparkdown", files: ["a.test.ts"] }]; }, /execution is only supported on review steps/],
   ["step-level completedReviewRound", (plan) => { delete plan.completedReviewRound; plan.steps.first.completedReviewRound = 0; }, /Move completedReviewRound from step first to the top level/],
+  ["ticket before the cutover", (plan) => { plan.ticket = 12; }, /ticket applies once the cutover switch .* is on/],
+  ["step-level ticket", (plan) => { plan.steps.first.ticket = 12; }, /Move ticket from step first to the top level/],
+  ["switch on without a ticket", () => {}, /Supply ticket, the ImpowerGames\/impower-internal ticket number/, ON],
+  ["switch on with a string ticket", (plan) => { plan.ticket = "12"; }, /Supply ticket/, ON],
 ];
-for (const [label, change, message] of malformed) {
+for (const [label, change, message, repos = OFF] of malformed) {
   const plan = structuredClone(config);
   plan.journal = path.join(scratch, `malformed-${label.replaceAll(" ", "-")}.jsonl`);
   for (const step of Object.values(plan.steps)) step.args = [markingChild, "--model", "writer-test"];
   change(plan);
   const planFile = path.join(scratch, `malformed-${label.replaceAll(" ", "-")}.json`);
   fs.writeFileSync(planFile, JSON.stringify(plan));
-  await assert.rejects(runHandoff(planFile), message, label);
+  await assert.rejects(handoff(planFile, { jobRoot: scratch, slotRoot: path.join(scratch, "serial-slots"), repos }), message, label);
   assert.equal(fs.existsSync(launchMarker), false, `${label} must launch no child`);
   assert.equal(fs.existsSync(plan.journal), false, `${label} must leave no journal to block the corrected plan`);
   assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} must not take the lock`);
@@ -585,7 +608,7 @@ const release = path.join(scratch, "release-reviewers");
 const reviewer = path.join(scratch, "holding-reviewer.mjs");
 fs.writeFileSync(reviewer, `import fs from 'node:fs'; let p=''; for await (const c of process.stdin) p+=c; if(p.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);} fs.writeFileSync(process.argv[2], 'review posted'); setTimeout(()=>process.exit(2),60000).unref(); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
 const coordinator = path.join(scratch, "coordinator.mjs");
-fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
+fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {repos:${JSON.stringify(OFF)},jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
 const launched = [];
 const launch = (i, extra = {}) => {
   const repo = path.join(scratch, `concurrent-repo-${i}`);
@@ -731,8 +754,9 @@ assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
   const token=()=>fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="launching").reportToken;
   const heading="### Adversarial review — undirected (reviewer-test)";
   const genuine=()=>`${heading}\n\nRound 1; reviewed head ${reviewedHead}.\n\n${token()}`;
-  const report=(id,body,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
-  const run=async(name,comments)=>{config.journal=path.join(scratch,`${name}.jsonl`);write();return handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,`${name}-slots`),listComments:()=>comments()});};
+  const report=(id,body,created_at=new Date(Date.now()+60000).toISOString(),issue_url=`https://api.github.com/repos/${OFF.code}/issues/${config.pr}`)=>({id,body,created_at,issue_url});
+  const listed=[];
+  const run=async(name,comments,repos=OFF)=>{config.journal=path.join(scratch,`${name}.jsonl`);write();return handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,`${name}-slots`),repos,listComments:(thread)=>{listed.push(`${thread.repo}#${thread.number}`);return comments();}});};
   const realExec=childProcess.execFileSync;
   try {
     childProcess.execFileSync=(exe,args,options)=>exe==="gh"?JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]),`${reviewedHead}`)):realExec(exe,args,options);
@@ -750,6 +774,25 @@ assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
     config.steps.first.next=[null,"second"];
     await assert.rejects(run("branching-artifact",()=>[report(43,genuine())]),/declares 2 transitions/);
     config.steps.first.next=[null];
+    assert.ok(listed.every((thread)=>thread===`${OFF.code}#${config.pr}`),"with the switch off the launcher lists the pull request's comments");
+    // With the switch on, the plan names the internal ticket: the launcher
+    // lists that ticket's comments and reads the adopted report by id from the
+    // internal repository; a report on the public pull request is not adopted.
+    const ticketUrl=`https://api.github.com/repos/${ON.internal}/issues/12`, reads=[];
+    let byId=ticketUrl;
+    childProcess.execFileSync=(exe,args,options)=>{if(exe!=="gh")return realExec(exe,args,options);reads.push(args[1]);return JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]),`${reviewedHead}`,undefined,byId));};
+    syncBuiltinESMExports();
+    config.ticket=12;listed.length=0;
+    await run("ticket-report",()=>[report(48,genuine(),undefined,ticketUrl)],ON);
+    const ticketRows=fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse);
+    assert.deepEqual(ticketRows.find(row=>row.event==="coordinator").thread,{repo:ON.internal,number:12,issueUrl:ticketUrl},"the journal records the review thread");
+    assert.deepEqual(ticketRows.find(row=>row.event==="completed").commentIds,[48]);
+    assert.deepEqual(listed,[`${ON.internal}#12`]);
+    assert.deepEqual(reads,[`repos/${ON.internal}/issues/comments/48`],"the report is read back by id from the internal repository");
+    await assert.rejects(run("public-report",()=>[report(49,genuine())],ON),/ENOENT.*no report naming head/,"a report on the public pull request is not adopted with the switch on");
+    byId=`https://api.github.com/repos/${ON.code}/issues/${config.pr}`;
+    await assert.rejects(run("public-by-id",()=>[report(50,genuine(),undefined,ticketUrl)],ON),new RegExp(`does not verify review thread ${ON.internal}#12`),"a comment whose read-back is on the public pull request is refused");
+    delete config.ticket;
   } finally {childProcess.execFileSync=realExec;syncBuiltinESMExports();}
 }
 console.log("PASS: a cleanly exited review without its completion artifact completes from its one posted report");
@@ -767,7 +810,7 @@ assert.equal(fs.existsSync(lock),false,"confirmed child close releases the workt
 console.log("PASS: confirmed-absent children, marker diagnostics, and actual post-spawn journal failure cleanup");
 
 const failureWorker=path.join(scratch,"failure-worker.mjs");
-fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>/* windows-hide: caller */spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
+fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>/* windows-hide: caller */spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{repos:${JSON.stringify(OFF)},jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
 for(const mode of ["combined","retained"]){
   const repo=path.join(scratch,`failure-repo-${mode}`);execFileSync("git",["clone","--quiet",worktree,repo],{windowsHide:true});
   const taskRelease=path.join(scratch,`failure-${mode}.release`);

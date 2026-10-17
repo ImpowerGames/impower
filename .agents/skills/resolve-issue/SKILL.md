@@ -48,7 +48,7 @@ For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-v
 
 ## 7. Commit, push, and open a draft PR
 
-Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft using the template. Include `Closes #N`, actual test evidence, limitations and any known performance cost. Read the PR back.
+Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft from its template. Include the closing reference, actual test evidence, limitations and any known performance cost. Read the PR back.
 
 Opening the PR starts the Test Suite workflow on every pull request. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and are otherwise skipped; its `test-suite` gate job is the required check and passes in both cases. Do not wait for it. Read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran or were skipped in Testing and verification, and fix any failure it reports as your own correction, including one that arrives after the PR is ready. Every later push starts a new run.
 
@@ -60,7 +60,7 @@ Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity 
 
 ## The completion gate
 
-Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR contains `Closes #N` and verification; and review has satisfied its gates and marked it ready.
+Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR carries its closing reference and verification; and review has satisfied its gates and marked it ready.
 
 Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), changes after that commit, and whether each CI check on the final head had passed, failed or was still pending. Where the runner wakes the session on check failures, fix a later failure as a correction under the later-round rules; otherwise the pending state in the handoff is the notice. If a gate remains unfinished, keep the PR draft and describe an incomplete draft handoff with the remaining work and next action. Disclosure of blockers does not make the implementation complete or the ticket resolved.
 

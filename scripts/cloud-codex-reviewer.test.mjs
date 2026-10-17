@@ -10,7 +10,7 @@ import childProcess from 'node:child_process';
 import {syncBuiltinESMExports} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
-import {runHandoff,recordCoordinatorReport,validatePlanShape,coordinatorReport,verifyNativeReviewResult} from './agent-handoff.mjs';
+import {runHandoff as actualRunHandoff,recordCoordinatorReport,validatePlanShape,coordinatorReport,verifyNativeReviewResult} from './agent-handoff.mjs';
 import {verifyReviewerExecutable,validateCodexReviewer} from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,removeSecretCodexHome,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
 import {validateReviewPlan} from './review-supervisor.mjs';
@@ -20,10 +20,18 @@ import {removeScratch} from './remove-scratch.mjs';
 import * as probeCleanupModule from './reviewer-probe-cleanup.mjs';
 const {removeProbeCheckouts:guardedProbeCleanup,snapshotReviewerDirectory}=probeCleanupModule;
 import {acquire} from './test-suite-process.mjs';
+import {readRepos} from '../.agents/repos.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const scratch=testScratch('cloud-codex',here);
 console.log(`Scratch repository: ${scratch}`);
+// Each cutover position is read from its own copy of the repos file. The
+// coordinator-posted route runs with the switch on: the plan names the internal
+// ticket, and the journal names it as the review thread the report goes on.
+const committed=readRepos();
+const pinRepos=cutover=>{const file=path.join(scratch,`repos-${cutover?'on':'off'}.json`);fs.writeFileSync(file,JSON.stringify({...committed,cutover}));return readRepos(file);};
+const OFF=pinRepos(false),ON=pinRepos(true);
+const runHandoff=(file,options={})=>actualRunHandoff(file,{repos:ON,...options});
 const cleanupReservationRoot=path.join(scratch,'cleanup-reservations');fs.mkdirSync(cleanupReservationRoot);
 const removeProbeCheckouts=(directory,options={})=>guardedProbeCleanup(directory,{...options,reservationRoot:cleanupReservationRoot});
 const originalExec=childProcess.execFileSync,originalSpawn=childProcess.spawn;
@@ -108,7 +116,7 @@ try {
     assert.throws(()=>validatePlanShape(shape({},{check:{...step,nativeResult:'claude-json'}})),/one native Codex review/);
     assert.throws(()=>validatePlanShape(shape({},{check:{...step,reportPosting:'coordinator'}})),/Move reportPosting from step check/);
     const supervised={worktree:repo,jobDir:job,head,base:head,pr:1281,writer:'claude-opus-5',writerEffort:'high',permissions:{permissionMode:'dontAsk'},reviewer:'gpt-test',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'turn',cwd:repo},reportPosting:'coordinator',reviews:[{id:'cloud',transport:'native-codex-jsonl',executable:process.execPath,prompt,effort:'high',permissions,args:fullArgs}]};
-    assert.throws(()=>validateReviewPlan(supervised,{jobRoot:scratch}),/awaited launcher/);
+    assert.throws(()=>validateReviewPlan(supervised,{jobRoot:scratch,repos:OFF}),/awaited launcher/);
     console.log('PASS: a coordinator-posted report is limited to a one-review awaited plan');
   }
 
@@ -425,7 +433,7 @@ console.error('diagnostic after terminal result');
     fs.writeFileSync(path.join(privateDir,'adjudication.txt'),'later step prompt');
     const external=path.join(scratch,'external');fs.mkdirSync(external);fs.writeFileSync(path.join(external,'keep.txt'),'survives');
     const journal=path.join(handoff,'handoff.jsonl'),planFile=path.join(job,'plan.json');
-    const plan={worktree:repo,journal,pr:1281,writer:'claude-opus-5',writerEffort:'high',reviewer:'gpt-test',completedReviewRound:0,maxSteps:1,first:'check',reportPosting:'coordinator',steps:{check:{role:'review',round:1,model:'gpt-test',nativeResult:'codex-jsonl',executable:process.execPath,args:fullArgs,effort:'high',permissions,prompt,next:[null]}}};
+    const plan={worktree:repo,journal,pr:1281,ticket:12,writer:'claude-opus-5',writerEffort:'high',reviewer:'gpt-test',completedReviewRound:0,maxSteps:1,first:'check',reportPosting:'coordinator',steps:{check:{role:'review',round:1,model:'gpt-test',nativeResult:'codex-jsonl',executable:process.execPath,args:fullArgs,effort:'high',permissions,prompt,next:[null]}}};
     // A partial grammar is refused before the lock, journal or a slot exists.
     const partialFile=path.join(job,'partial.json');
     fs.writeFileSync(partialFile,JSON.stringify({...plan,journal:path.join(handoff,'partial.jsonl'),steps:{check:{...plan.steps.check,args:fullArgs.filter(arg=>arg!=='--strict-config')}}}));
@@ -492,6 +500,7 @@ console.error('diagnostic after terminal result');
     refuses(`${line}\n\n${text}`,'abc',/numeric ID/);
     fs.writeFileSync(report,text+'edited\n');refuses(`${line}\n\n${text}`,101,/changed since/);fs.writeFileSync(report,text);
     fs.writeFileSync(readBack,`${line}\r\n\r\n${text.replaceAll('\n','\r\n')}`);
+    assert.deepEqual(fs.readFileSync(journal,'utf8').trim().split('\n').map(line=>JSON.parse(line)).find(row=>row.event==='coordinator').thread,{repo:ON.internal,number:12,issueUrl:`https://api.github.com/repos/${ON.internal}/issues/12`},'with the switch on the report goes on the internal ticket');
     execFileSync(process.execPath,[path.join(here,'agent-handoff.mjs'),'record-report',journal,'5704126199',readBack],{encoding:'utf8',windowsHide:true});
     const recorded=fs.readFileSync(journal,'utf8').trim().split('\n').map(line=>JSON.parse(line));
     assert.deepEqual(recorded.slice(-2).map(row=>row.event),['report-posted','finished']);

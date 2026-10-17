@@ -9,10 +9,11 @@
 //   feedbackInbox   the number of the standing skill feedback inbox issue in
 //                   the tickets repository
 //
-// Hooks and scripts call readRepos() rather than spelling a slug, and
+// Hooks and scripts call readRepos() rather than spelling a slug,
 // ticketsRepo() for the repository that holds tickets at the switch's
-// position. The file is read relative to this module, so a worktree reads its
-// own copy.
+// position, and reviewThread() for the issue a pull request's review
+// conversation lives on. The file is read relative to this module, so a
+// worktree reads its own copy.
 //
 // Run as a script, it prints one value for commands written by hand:
 //   node .agents/repos.mjs tickets   the tickets repository, as owner/name
@@ -48,6 +49,27 @@ export function readRepos(file = REPOS_FILE) {
 /** The repository that holds tickets: the code repository until the cutover, the internal one after it. */
 export function ticketsRepo(repos = readRepos()) {
   return repos.cutover ? repos.internal : repos.code;
+}
+
+/**
+ * The issue that holds a pull request's review conversation (the round state,
+ * reports, adjudications and notes): the pull request itself until the
+ * cutover, the internal ticket `ticket` (or the umbrella of several) after it.
+ * `ticket` is refused before the cutover, so a plan written for one position
+ * never posts on the other. Returns the repository, the issue number and the
+ * `issue_url` GitHub gives that issue's comments.
+ */
+export function reviewThread({ pr, ticket }, repos = readRepos()) {
+  if (!Number.isSafeInteger(pr) || pr < 1) throw new Error("Supply pr, the pull request number, as a positive integer");
+  const repo = ticketsRepo(repos);
+  let number = pr;
+  if (repos.cutover) {
+    if (!Number.isSafeInteger(ticket) || ticket < 1) throw new Error(`Supply ticket, the ${repo} ticket number pull request ${pr}'s review conversation goes on, as a positive integer: the cutover switch in .agents/repos.json is on`);
+    number = ticket;
+  } else if (ticket !== undefined) {
+    throw new Error(`ticket applies once the cutover switch in .agents/repos.json is on; until then pull request ${pr}'s review conversation is on the pull request in ${repo}, so omit ticket`);
+  }
+  return Object.freeze({ repo, number, issueUrl: `https://api.github.com/repos/${repo}/issues/${number}` });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

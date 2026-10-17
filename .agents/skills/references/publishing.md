@@ -8,14 +8,35 @@ Every issue follows a template under `.agents/templates/issues/` and every pull 
 | Feature (new functionality or changed behavior) | `.agents/templates/issues/feature_request.md` |
 | Task (refactor, tooling, perf, docs, follow-up) | `.agents/templates/issues/task.md`            |
 | Pull request                                    | `.github/PULL_REQUEST_TEMPLATE.md`            |
+| PR report (once the cutover switch is on)       | `.agents/templates/pr-report.md`              |
 
-Until the cutover below, the public issue form under `.github/ISSUE_TEMPLATE/` serves identical copies of the three issue templates; edit a template under `.agents/templates/issues/` and mirror it there, which `.agents/templates/templates.test.mjs` checks. At the cutover the public form changes to the human-facing bug report and feature request under `.agents/templates/public/`.
+Until the cutover below, the public issue form under `.github/ISSUE_TEMPLATE/` serves identical copies of the three issue templates; edit a template under `.agents/templates/issues/` and mirror it there, which `.agents/templates/templates.test.mjs` checks. At the cutover the public form changes to the human-facing bug report and feature request under `.agents/templates/public/`, and the pull request template to the shrunk one staged there as `PULL_REQUEST_TEMPLATE.md`.
 
 ## The tickets repository
 
 Tickets (issues, their comments, fields, dependencies and the feedback inbox) live in the tickets repository; code, CI and pull requests always live in the code repository. `.agents/repos.json` names both and holds a cutover switch. While the switch is off, the tickets repository is the code repository; once the cutover commit turns it on, tickets live in the internal repository that file names. `node .agents/repos.mjs tickets` prints the tickets repository for the switch as committed, and `node .agents/repos.mjs inbox` the feedback inbox number. Scripts read the same values.
 
 Commands in the skills write `<tickets>` for that slug and `<inbox>` for the inbox number: substitute the printed value literally, not through a shell substitution, which the typed-issue guard cannot read. Give every `gh issue` command `-R <tickets>`, and read tickets through `gh issue -R <tickets>` or the REST API (`gh api repos/<tickets>/issues/N`), never `gh api graphql`, which the guard refuses for ticket reads once the switch is on. A `#N` written inside a ticket names a ticket; written in a pull request body after the cutover it names a pull request.
+
+### The review thread
+
+A pull request's review conversation lives on its review thread: the round state, every reviewer report (including one posted on a reviewer's behalf), the adjudications, the notes that explain `gh pr ready --undo`, the outstanding-work statement and the PR report below. While the switch is off, the review thread is the pull request itself, number `P` in the code repository. Once it is on, it is the internal ticket the pull request resolves, or the umbrella of several, and nothing is posted on the public pull request: `gh pr ready` and `gh pr ready --undo` still run there, with no comment. `reviewThread` in `.agents/repos.mjs` resolves it for the scripts.
+
+Commands write `<T>` for the thread's number: `P` while the switch is off, the internal ticket's number once it is on. Its repository is always `<tickets>`:
+
+```sh
+gh issue comment <T> -R <tickets> --body-file comment.md                                                        # post; prints the comment's URL, ending in its id
+gh api repos/<tickets>/issues/<T>/comments --paginate --jq '.[] | [.id, (.body | split("\n")[0])] | @tsv'    # list ids and first lines
+gh api repos/<tickets>/issues/comments/<id> --jq .body                                                         # read one back by id
+```
+
+The handoff launcher's plan, the supervised route's plan and the reviewer prompt's context carry `ticket`, the internal ticket number, beside `pr` once the switch is on, and refuse it while the switch is off; each refuses the other position's shape before anything launches.
+
+### The pull request body and the PR report
+
+While the switch is off, the body follows `.github/PULL_REQUEST_TEMPLATE.md`: a summary with the closing reference, then every section, and the title ends with the issue number, `(#N)`. Once it is on, the body follows the shrunk template, one summary paragraph and the closing lines, `Closes <tickets>#N` and, when the change also resolves an issue filed in the code repository, `Closes #<public>`; the title ends with the internal ticket, `(I-N)`, which the code repository's autolink resolves. The sections the body loses go in the PR report, a comment on the review thread that follows `.agents/templates/pr-report.md` and names the pull request and its head. Post it when the pull request opens and again whenever its head changes, and read each back by id. Wherever a skill says the PR body's Changes, Testing and verification or Notes for reviewers, read the latest PR report once the switch is on.
+
+Once the switch is on, a pull request that closes several tickets gets an umbrella: a Task in the internal repository (filed with file-task and typed at creation) whose sub-issues are those tickets, each added with `gh api -X POST repos/<tickets>/issues/<umbrella>/sub_issues -F sub_issue_id=<id>`, where `<id>` is `gh api repos/<tickets>/issues/<N> --jq .id`. The body's closing lines name the umbrella and each sub-issue, the title carries the umbrella's `(I-N)`, the review thread is the umbrella (`<T>` and the plans' `ticket` are its number), and nothing about the pull request is posted on the sub-issues. While the switch is off, a pull request closing several issues repeats the keyword for each (`Closes #12, closes #34`), its conversation stays on the pull request, and no umbrella is filed.
 
 Each template's leading comment gives the title convention and the label list; its `type:` front matter names the issue type to set (`Bug`, `Feature`, or `Task`). GitHub applies that type through the web form, through `gh issue create --type`, and through the REST create call's `type` field. From the command line, create the issue with one call that carries the type, so the issue never exists untyped; the REST call also sets the labels and returns the type for checking:
 

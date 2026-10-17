@@ -11,12 +11,19 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { runHandoff, recordCoordinatorReport, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
+import { runHandoff as actualRunHandoff, recordCoordinatorReport, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
+import { readRepos } from "../.agents/repos.mjs";
 import { roundState } from "../.agents/skills/orchestrate-feature/review-checkpoint.mjs";
 
 const launcher = fileURLToPath(new URL("./agent-handoff.mjs", import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-blocked-"));
 console.log(`Scratch repository: ${scratch}`);
+// The launch runs with the switch off, read from a copy of the repos file, so
+// the review thread is pull request 1948 in the code repository.
+const reposFile = path.join(scratch, "repos-off.json");
+fs.writeFileSync(reposFile, JSON.stringify({ ...readRepos(), cutover: false }));
+const OFF = readRepos(reposFile);
+const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
 const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
@@ -107,6 +114,7 @@ console.log("PASS: a blocked journal is completed only with a clean exit on this
 // the launcher writes for a reviewer that posted its own report, except that
 // the comment is recorded as posted by the coordinator.
 rewrite(original);
+assert.deepEqual(rows().find((row) => row.event === "coordinator").thread, { repo: OFF.code, number: 1948, issueUrl: `https://api.github.com/repos/${OFF.code}/issues/1948` }, "the journal names the review thread the coordinator posts on");
 post();
 execFileSync(process.execPath, [launcher, "record-report", journal, "601", readBack], { encoding: "utf8", windowsHide: true });
 let recorded = rows();

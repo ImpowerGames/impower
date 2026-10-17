@@ -13,31 +13,37 @@ import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
+import { readRepos, reviewThread } from "../.agents/repos.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
 const gitStatus = (cwd) => git(cwd,['status','--porcelain']);
 export const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
-const readReviewComment = (id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/ImpowerGames/impower/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
+// Review comments live on the plan's review thread (reviewThread in
+// .agents/repos.mjs): the pull request until the cutover, its internal ticket
+// after it. A comment is read by id from the thread's repository.
+const readReviewComment = (thread, id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/${thread.repo}/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
+const onThread = (comment, thread) => typeof comment?.issue_url === "string" && comment.issue_url.toLowerCase() === thread.issueUrl.toLowerCase();
 
-export async function verifyReviewComment(id, pr, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6, notBefore } = {}) {
+export async function verifyReviewComment(id, thread, head, cwd, { readComment = readReviewComment, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), attempts = 6, notBefore } = {}) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    let comment;try{comment=readComment(id,cwd);}catch(error){if(attempt===attempts)throw error;}
-    if (comment?.issue_url === `https://api.github.com/repos/ImpowerGames/impower/issues/${pr}` && typeof comment.body==='string'&&comment.body.includes(head) && (notBefore===undefined||Number.isFinite(Date.parse(comment.created_at))&&Date.parse(comment.created_at)>=Math.floor(Date.parse(notBefore)/1000)*1000)) return;
+    let comment;try{comment=readComment(thread,id,cwd);}catch(error){if(attempt===attempts)throw error;}
+    if (onThread(comment, thread) && typeof comment.body==='string'&&comment.body.includes(head) && (notBefore===undefined||Number.isFinite(Date.parse(comment.created_at))&&Date.parse(comment.created_at)>=Math.floor(Date.parse(notBefore)/1000)*1000)) return;
     if (attempt < attempts) await wait(1000);
   }
-  throw new Error(notBefore===undefined?"Comment does not verify this PR and head":`Comment does not verify this PR/head and current reviewer launch time ${notBefore}`);
+  const where = `${thread.repo}#${thread.number}`;
+  throw new Error(notBefore===undefined?`Comment does not verify review thread ${where} and head`:`Comment does not verify review thread ${where}, head and current reviewer launch time ${notBefore}`);
 }
 
-const listPrComments = (pr, since, cwd) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", `repos/ImpowerGames/impower/issues/${pr}/comments?per_page=100&since=${encodeURIComponent(since)}`], { cwd, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 })).flat();
+const listThreadComments = (thread, since, cwd) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", `repos/${thread.repo}/issues/${thread.number}/comments?per_page=100&since=${encodeURIComponent(since)}`], { cwd, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 })).flat();
 
 // A review that exited cleanly without its completion artifact is covered by the one report it posted for the reviewed head since launch.
 // Only this launch's private prompt carries reportToken, so a comment containing it is attributable to this reviewer.
-export function deriveMissingCompletion(step, pr, head, notBefore, reportToken, cwd, excluded, { listComments = listPrComments } = {}) {
+export function deriveMissingCompletion(step, thread, head, notBefore, reportToken, cwd, excluded, { listComments = listThreadComments } = {}) {
   if (step.role !== "review") return null;
-  if (step.next.length !== 1) throw new Error(`Completion artifact missing and the review declares ${step.next.length} transitions; confirm coverage from the PR comments`);
+  if (step.next.length !== 1) throw new Error(`Completion artifact missing and the review declares ${step.next.length} transitions; confirm coverage from the review thread's comments`);
   const floor = Math.floor(Date.parse(notBefore) / 1000) * 1000;
-  const reports = listComments(pr, notBefore, cwd).filter((comment) => Number.isSafeInteger(comment.id) && !excluded.has(comment.id) && typeof comment.body === "string" && comment.body.includes(reportToken) && comment.body.includes(head) && Date.parse(comment.created_at) >= floor);
+  const reports = listComments(thread, notBefore, cwd).filter((comment) => Number.isSafeInteger(comment.id) && !excluded.has(comment.id) && onThread(comment, thread) && typeof comment.body === "string" && comment.body.includes(reportToken) && comment.body.includes(head) && Date.parse(comment.created_at) >= floor);
   if (!reports.length) return null;
   if (reports.length > 1) throw new Error(`Completion artifact missing and ${reports.length} reports name head ${head} since launch (${reports.map((comment) => comment.id).join(", ")}); confirm which one this reviewer posted`);
   return { head, next: step.next[0], commentIds: [reports[0].id], summary: `Derived from posted report ${reports[0].id}; no completion artifact was found at the launcher's path` };
@@ -220,7 +226,7 @@ export function validateReviewRecovery(config) {
   validateCompletedRoundReviewers(config);
 }
 
-const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "completedRoundReviewers", "plannedRoundReviewers", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
+const planFields = ["pr", "ticket", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "completedRoundReviewers", "plannedRoundReviewers", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
 
 // A review step's lens is the value scripts/build-review-prompt.mjs received.
 // An author-experience lens needs the editor, so a lens step that declares no
@@ -373,10 +379,13 @@ function blockedReview(rows, blocked) {
 // journal ends `blocked` on NEEDS_POSTED_IDS, and takes the `completed` row
 // the launcher could not write). The read-back body must be one line saying
 // it is posted on the reviewer's behalf, a blank line, and the reviewer's
-// report verbatim, with at most the host's attribution footer after it. A
-// journal whose last rows are this command's own rows for this same comment
-// (its `finished` row was never written) takes the missing rows without a
-// second post.
+// report verbatim, with at most the host's attribution footer after it. The
+// coordinator reads that comment back by id from the review thread the
+// journal's coordinator row names; a coordinator without a gh login (a cloud
+// session) reads it through its own integration, so the command takes the
+// read-back rather than reading GitHub. A journal whose last rows are this
+// command's own rows for this same comment (its `finished` row was never
+// written) takes the missing rows without a second post.
 export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   if (!/^[1-9][0-9]*$/.test(String(commentId)) || !Number.isSafeInteger(Number(commentId))) throw new Error("Supply the posted comment's numeric ID");
   const rows = fs.readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
@@ -717,10 +726,11 @@ export async function runHandoff(configFile, options = {}) {
   finally { withheld.restore(); }
 }
 
-async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs, editorPreflight = driverPreflight, probeCleanup = removeProbeCheckouts, startExecution = startExecutionService } = {}, withheld) {
+async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, repos = readRepos(), listComments = listThreadComments, probeTimeoutMs, editorPreflight = driverPreflight, probeCleanup = removeProbeCheckouts, startExecution = startExecutionService } = {}, withheld) {
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   applyLensEditorGrant(config);
   validatePlanShape(config);
+  const thread = reviewThread(config, repos);
   const cwd = fs.realpathSync.native(config.worktree);
   const journal = path.resolve(config.journal);
   const relative = path.relative(cwd, journal);
@@ -825,7 +835,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), host: os.hostname(), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
     // Job cleanup retains a job directory while any process a journal names is running.
-    append({ event: "coordinator", pid: process.pid, processIdentity: processIdentity(process.pid) });
+    append({ event: "coordinator", pid: process.pid, processIdentity: processIdentity(process.pid), thread });
     for (let index = 0; current; index++) {
       if(automaticJob)await retryBusy(()=>withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled; no further reviewer dispatch');}));
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
@@ -1000,7 +1010,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       try { done = read(completion); }
       catch (error) {
         if (error.code !== "ENOENT") throw error;
-        done = awaiting ? { head, next: null, commentIds: [], summary: `Derived from the reviewer's final report ${reportFile}; no completion artifact was found at the launcher's path` } : deriveMissingCompletion(step, config.pr, head, reportNotBefore, reportToken, cwd, usedReports, { listComments });
+        done = awaiting ? { head, next: null, commentIds: [], summary: `Derived from the reviewer's final report ${reportFile}; no completion artifact was found at the launcher's path` } : deriveMissingCompletion(step, thread, head, reportNotBefore, reportToken, cwd, usedReports, { listComments });
         if (!done) { error.message += `; no report naming head ${head} was posted since launch`; throw error; }
         append({ event: "completion-artifact-missing", index, step: current, completion, commentIds: done.commentIds });
       }
@@ -1010,7 +1020,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       if (step.role !== "implement" && !awaiting && !done.commentIds.length) throw new Error(NEEDS_POSTED_IDS);
       for (const id of done.commentIds) {
         if(automaticJob&&usedReports.has(id))throw new Error('Each automatic reviewer requires distinct report IDs');
-        await verifyReviewComment(id, config.pr, done.head, cwd,{notBefore:automaticJob?reportNotBefore:undefined});
+        await verifyReviewComment(id, thread, done.head, cwd,{notBefore:automaticJob?reportNotBefore:undefined});
         usedReports.add(id);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
@@ -1043,7 +1053,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     try { if (fd !== undefined) fs.closeSync(fd); }
     finally { try { fs.closeSync(owner); } finally { if (!activeChild) fs.unlinkSync(lock); } }
   }
-  return { journal, pendingReport };
+  return { journal, pendingReport, thread };
 }
 
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -1057,7 +1067,7 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
       if (process.argv.length !== 4) throw new Error("Usage: node scripts/agent-handoff.mjs recover-lock <worktree>");
       console.log(JSON.stringify(recoverHandoffLock(process.argv[3])));
     } catch (error) { console.error(error.message); process.exitCode = 1; }
-  } else runHandoff(process.argv[2]).then(({ journal, pendingReport }) => {
-    if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim after one line saying it is posted on the reviewer's behalf and why, read the comment back into a file, then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back-body-file>`);
+  } else runHandoff(process.argv[2]).then(({ journal, pendingReport, thread }) => {
+    if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim on review thread ${thread.repo}#${thread.number} after one line saying it is posted on the reviewer's behalf and why, read the comment back into a file, then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back-body-file>`);
   }).catch((error) => { console.error(error.message); process.exitCode = 1; });
 }
