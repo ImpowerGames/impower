@@ -917,6 +917,20 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
+  it("is served, with the line that reads it, by the edit after a rename whose compile made no program (#1974)", () => {
+    // The update that declares the store also writes a construct the
+    // program has no emit path for, so the compile that resolves the
+    // carried block again commits no build and completes no memo; the
+    // compile that removes the construct resolves the block again.
+    const s = warmed(localScript(["store other = 1", ""]));
+    s.edit("store other = 1", "store here = 1\nexternal message(x)");
+    expect(s.program.chunks ?? null).toBeNull();
+    s.edit("external message(x)\n", "");
+    s.edit("Line last.", "Line last!");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
   it("collides again when a store of its name is declared in its own scene, and stops when it goes", () => {
     // A store in the local's own scene shares its scope, so the two collide
     // (#1742) whichever statement the edit lowers.

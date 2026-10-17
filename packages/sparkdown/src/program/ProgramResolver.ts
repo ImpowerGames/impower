@@ -830,9 +830,11 @@ export class ProgramResolver {
         }
       }
       // A statement whose record a resolve made that its compile did not keep
-      // (a preview's, or an attempt's that met a memo it could not compile
-      // from): what it found can rest on what the statements served from
-      // those memos repeated, which their lowering anew may not (#1974).
+      // (a preview's, an attempt's that met a memo it could not compile
+      // from, or one whose build made no program): what it found can rest on
+      // what the statements served from those memos repeated, which their
+      // lowering anew may not, and no compile completed the memos of its
+      // block (#1974).
       for (const unit of this._order) {
         if (unit.record && unit.record.at > this._committed) {
           invalidate(unit, "uncommitted");
@@ -2029,19 +2031,16 @@ export class ProgramResolver {
     this._owners = ProgramResolver.ownersOf(candidates);
   }
 
-  /** Notes that the compile of the last resolve kept what it resolved: it
-   *  was no preview, and met no memo it could not compile from
-   *  (`StatementMemoRetry`). The next resolve resolves again each statement
-   *  a resolve after the last such compile resolved: what that resolve found
+  /** Notes that the compile of the last resolve kept what it resolved: the
+   *  chunk store committed its build, and the compile completed the memos
+   *  of its statements (`SparkdownCompiler.completeMemos`). It was no
+   *  preview, met no memo it could not compile from (`StatementMemoRetry`)
+   *  and made a program. The next resolve resolves again each statement a
+   *  resolve after the last such compile resolved: what that resolve found
    *  can rest on what a stale memo's stand-in repeated, and the memos of the
    *  statement's block are completed by none (`noteCarriedMemos`, #1974). */
   committed(): void {
     this._committed = this._compile;
-  }
-
-  /** The number of resolves this resolver has made. */
-  get resolves(): number {
-    return this._compile;
   }
 
   /** The memo candidate whose objects `obj` stands among, or none. */
