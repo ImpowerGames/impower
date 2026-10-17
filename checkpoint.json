@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 82,
-  "previous": "24355679f086ca123f0c0e7c079deea8e2f7c185",
+  "seq": 83,
+  "previous": "aec32e094ba78b84ca250eb384fffc4bc5c7e049",
   "snapshotParents": [],
-  "time": "2026-10-17T02:20:34.145Z",
+  "time": "2026-10-17T02:23:45.730Z",
   "kind": "auto",
-  "transition": "verify of #1964",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 74,
@@ -2219,19 +2219,22 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:20:32.719Z",
+      "observedAt": "2026-10-17T02:23:43.902Z",
       "held": true,
-      "exists": false
+      "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": false
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool": {
       "ticket": 1966,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:20:32.719Z",
+      "observedAt": "2026-10-17T02:23:43.902Z",
       "held": true,
-      "head": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
-      "remoteHead": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
+      "head": "6f5769ab57f7323e487891630ef814a2131befb8",
+      "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
       "unpushed": false,
       "dirty": false,
       "pr": 2015,
@@ -2384,7 +2387,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T02:18:21.003Z",
+    "at": "2026-10-17T02:23:43.899Z",
     "tickets": [
       {
         "number": 1962,
@@ -2400,9 +2403,9 @@
       },
       {
         "number": 1964,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch bd573167-9ca5-4e98-9612-56b1f8e71ea3 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 14592 started 639278003650279718 is running"
       },
       {
         "number": 1965,
