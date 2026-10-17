@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 221,
-  "previous": "19e6fdfac7bae6a0252273cf20bcef5b61a2e8ca",
+  "seq": 222,
+  "previous": "b07c79a074f6d16ab540dae830c2584691bec264",
   "snapshotParents": [],
-  "time": "2026-10-17T16:57:34.712Z",
+  "time": "2026-10-17T16:57:56.867Z",
   "kind": "auto",
-  "transition": "acknowledged of #1907",
+  "transition": "acknowledged of #1977",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 230,
+    "recordRevision": 231,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -6064,7 +6064,18 @@
           "time": "2026-10-17T16:56:55.165Z",
           "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
         },
-        "since": "2026-10-17T16:56:55.165Z"
+        "since": "2026-10-17T16:56:55.165Z",
+        "sessionId": "20960a08-990a-4bd3-b4c8-7c6b17aed5af",
+        "acknowledged": {
+          "time": "2026-10-17T16:57:55.422Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "low",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from impower-db on 2026-10-17 naming assignment 860f0d1d with claude-opus-5-5, low (CLAUDE_EFFORT=low), bypassPermissions; launch-1977 out.jsonl init line reports model claude-opus-5-5, bypassPermissions, session 20960a08",
+          "deliveryId": "451d12d4"
+        }
       },
       "pending": null,
       "history": [],
@@ -7667,7 +7678,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:57:34.712Z",
+      "observedAt": "2026-10-17T16:57:56.866Z",
       "held": true,
       "exists": false
     },
@@ -7676,7 +7687,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T16:57:34.712Z",
+      "observedAt": "2026-10-17T16:57:56.866Z",
       "held": true,
       "exists": false
     }
@@ -8049,13 +8060,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:21:01.472Z",
-      "event": "checkpoint-published",
-      "ticket": 1374,
-      "id": "f7d1fa9b",
-      "comment": 6230625423
-    },
     {
       "time": "2026-10-17T06:21:02.043Z",
       "event": "answer-intent",
@@ -8797,6 +8801,16 @@
       "confirmed": {
         "model": "claude-opus-5-5",
         "effort": "high",
+        "permissionMode": "bypassPermissions"
+      }
+    },
+    {
+      "time": "2026-10-17T16:57:55.423Z",
+      "event": "acknowledged",
+      "ticket": 1977,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "low",
         "permissionMode": "bypassPermissions"
       }
     }
