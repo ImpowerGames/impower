@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 212,
-  "previous": "13c7cbba9a4db13cd372cafb9d43ad7b870c5f6d",
+  "seq": 213,
+  "previous": "de6aa56184e60937652af463affc8dcae84fbd10",
   "snapshotParents": [],
-  "time": "2026-10-17T16:55:36.515Z",
+  "time": "2026-10-17T16:55:43.204Z",
   "kind": "auto",
-  "transition": "release of #1924",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 224,
@@ -7586,7 +7586,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T16:55:26.711Z",
+    "at": "2026-10-17T16:55:43.203Z",
     "tickets": [
       {
         "number": 984,
@@ -7830,9 +7830,9 @@
       },
       {
         "number": 1924,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 9612 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1977,
