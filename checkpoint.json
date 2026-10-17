@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 57,
-  "previous": "cb57d09aef65a3cbf56d76e5405f623a33014f23",
+  "seq": 58,
+  "previous": "8a5621c9f15dacd8d74ecc8722ffc370a1d519dd",
   "snapshotParents": [],
-  "time": "2026-10-17T00:53:57.349Z",
+  "time": "2026-10-17T01:24:44.532Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 50,
+    "recordRevision": 51,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1474,12 +1474,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T00:53:54.503Z",
+      "observedAt": "2026-10-17T01:24:42.565Z",
       "held": true,
-      "head": "5115444f69eb4e7b3cce2bc8221cb90e8f881d89",
-      "remoteHead": "5115444f69eb4e7b3cce2bc8221cb90e8f881d89",
+      "head": "2d5c55e4189e9609db2435edd552c64d531c1e7b",
+      "remoteHead": "2d5c55e4189e9609db2435edd552c64d531c1e7b",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 42660
+      },
       "pr": 2009,
       "reviewJobs": [
         {
@@ -1554,6 +1558,26 @@
           "commentIds": [
             6227490154
           ]
+        },
+        {
+          "job": "pr-2009/round-2/launch-persistence-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-persistence",
+            "reviewerId": "persistence",
+            "attempt": 1,
+            "plannedReviewers": [
+              "persistence",
+              "undirected"
+            ],
+            "head": "2d5c55e4189e9609db2435edd552c64d531c1e7b",
+            "completedRoundReviewers": {
+              "callers": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-17T00:58:16.250Z"
+          }
         }
       ]
     },
@@ -1562,16 +1586,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T00:53:54.503Z",
+      "observedAt": "2026-10-17T01:24:42.565Z",
       "held": true,
-      "head": "0b2192e9c10e938d62e66afe459945173524e111",
-      "remoteHead": "0b2192e9c10e938d62e66afe459945173524e111",
-      "unpushed": false,
+      "head": "720b408e32c65ecdad582995f68e1a3d970772a7",
+      "remoteHead": "ceaec71337f6155b6e4ec088e2234f6e20a26bf6",
+      "unpushed": true,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 12448
-      },
       "pr": 2015,
       "reviewJobs": [
         {
@@ -1649,7 +1669,7 @@
         },
         {
           "job": "pr-2015/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -1664,7 +1684,23 @@
               "undirected": 1
             },
             "time": "2026-10-17T00:53:21.228Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "0b2192e9c10e938d62e66afe459945173524e111",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6227709560
+          ]
         }
       ]
     }
@@ -2079,6 +2115,11 @@
       "time": "2026-10-17T00:53:50.764Z",
       "event": "check-in",
       "outcome": "no change: #1963 PR #2009 at 5115444f6 (CI green) finishing round 1 corrections before its undirected reviewer; #1966 PR #2015 at 0b2192e9c in round 2 with CI running on the new head; both writers running"
+    },
+    {
+      "time": "2026-10-17T01:24:40.574Z",
+      "event": "check-in",
+      "outcome": "no change: #1963 PR #2009 at 2d5c55e41 (CI green) entering round 2 with reviewer persistence; #1966 PR #2015 at 0b2192e9c (CI green) preparing round 3 on ceaec7133 with one undirected reviewer; both writers running"
     }
   ]
 }
