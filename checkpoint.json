@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 151,
-  "previous": "849786488cc0acee224b81190e13ba9fdefb4672",
+  "seq": 152,
+  "previous": "162c11763aea183afd0b06ac66b4c093cabfb7be",
   "snapshotParents": [],
-  "time": "2026-10-17T03:21:36.288Z",
+  "time": "2026-10-17T03:49:31.658Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 122,
+    "recordRevision": 123,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2649,11 +2649,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T17:10:53.355Z",
-      "event": "disk-recovery",
-      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/931-return-outside-function"
-    },
-    {
       "time": "2026-10-16T17:11:04.229Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1093-function-story-lines"
@@ -3312,6 +3307,11 @@
       "time": "2026-10-17T03:21:34.766Z",
       "event": "check-in",
       "outcome": "no change: Feature #1940 closed (closure 435c0528 confirmed); the plan's complete flag reads false only because main moved past the verified commit 4ba580faf after closure; outside the record the #2025 writer is still running, PR #2038 draft with round 1 adjudicated and checks green"
+    },
+    {
+      "time": "2026-10-17T03:49:30.072Z",
+      "event": "check-in",
+      "outcome": "run over: Feature #1940 closed (closure 435c0528); the maintainer-authorised flake fixes outside the record are merged (#1999 PR #2024 as c4e4cd51a, #2025 PR #2038 as e5b8aa876); the periodic check-in job 093a0670 is deleted since nothing remains to observe"
     }
   ]
 }
