@@ -34,4 +34,4 @@ The brief went with the writer's start, and a resend follows the same steps: `de
 
 After a takeover, a writer a previous coordinator briefed still reports to that coordinator. Before any brief resend reaches it, `contact --ticket N` records the intent and prints a notice naming this coordinator's id and how to reach it; send it, then record `contacted`, with the same retry rule as an answer. A resent brief names this coordinator too but never settles the contact, since a writer that already has its assignment ignores the copy. An answer from this coordinator, and a resume of a writer whose turn ended, end with a contact line that holds even when the writer sets the rest aside as a copy it already has, so recording either delivered records the contact.
 
-Writers do not post a separate protocol of PR comments for these exchanges; their normal review comments stay on the PR.
+Writers do not post a separate protocol of comments for these exchanges; their normal review comments stay on the PR's review thread (the PR, or its internal ticket once the cutover switch is on).

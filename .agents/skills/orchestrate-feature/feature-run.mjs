@@ -28,6 +28,7 @@ import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 import { routeVendor, writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
 import { liveDeps, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
+import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -203,6 +204,50 @@ export function pointerFile(checkout, repository, feature) {
   return path.join(common, "orchestrate-feature", `${repository.replace(/[^A-Za-z0-9.-]+/g, "_")}-${feature}.json`);
 }
 
+// --- Repositories -----------------------------------------------------------
+
+// A run spans the repositories .agents/repos.json names, at the position of
+// its cutover switch when the run starts (init, or resume's takeover). Pull
+// requests, CI, protection, merges and the writers' branches stay on the
+// run's own repository, the code repository. Its tickets (the Feature and its
+// slices with their sub-issues, dependencies, field values and comments, the
+// review threads, the status comment, checkpoint decisions and the final
+// report) and its state branch live in the tickets repository, ticketsRepo().
+// While the switch is off those are one repository and the record names no
+// second one, as no record from before the switch does; once it is on, the
+// record keeps the tickets repository it started with. A repository the file
+// does not name as its code repository keeps its own tickets.
+export function startRepositories(repository, repos = readRepos()) {
+  const tickets = ticketsRepo(repos);
+  return tickets !== repos.code && sameRepository(repository, repos.code) ? { ticketsRepository: tickets } : {};
+}
+
+// The repositories a record or a checkpoint names, with the review thread of
+// a slice's pull request as reviewThread in .agents/repos.mjs resolves it:
+// the pull request itself in one repository, the slice's ticket once tickets
+// live apart.
+export function repositoriesOf({ repository, ticketsRepository }) {
+  const tickets = ticketsRepository ?? repository, split = tickets !== repository;
+  const repos = { code: repository, internal: tickets, cutover: split };
+  return Object.freeze({
+    code: repository, tickets, split,
+    thread: (pr, ticket) => reviewThread(split ? { pr, ticket } : { pr }, repos),
+    commentUrl: (thread, comment) => `https://github.com/${thread.repo}/${split ? "issues" : "pull"}/${thread.number}#issuecomment-${comment}`,
+  });
+}
+const sameRepository = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+
+// A pull request's closing references in the tickets repository. GitHub names
+// each reference's repository, so a ticket is matched by repository and
+// number; a reference without one names the pull request's own repository.
+export const closingIn = (refs, tickets, code) => (refs ?? []).filter((r) => sameRepository(r.repository?.name ? `${r.repository.owner?.login}/${r.repository.name}` : code, tickets));
+
+// Once tickets live apart, a ticket's number says nothing about the code
+// repository's pull requests, so its pull requests are found by the shared
+// account as author and a head branch <type>/<N>-, searched for each branch
+// type a claim or an adoption uses.
+export const DISCOVERY_TYPES = ["fix", "feat", "perf", "docs", "test", "refactor", "ci", "chore"];
+
 // What an invocation authorizes; a takeover starts from it again rather than
 // inheriting the previous coordinator's grant. Who merges is the coordinator's
 // recorded reading of the request it quotes: `coordinator` for an explicit
@@ -315,10 +360,12 @@ export function carriedRun(prev, { file, record, defaults }) {
 }
 
 export function initRecord(options, { defaults = readWriterDefaults(), freeBytes, totalMemory = os.totalmem(), host = os.hostname(), identify = processIdentity } = {}) {
-  const { record: file, checkout, repository, feature, coordinator, harness, invocation } = options;
+  const { record: file, checkout, repository, ticketsRepository, feature, coordinator, harness, invocation } = options;
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
   scheduleCommand(file);
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? "")) throw new Error("--repo must be owner/name");
+  // Set only once tickets live apart from the code (startRepositories).
+  if (ticketsRepository !== undefined && (!/^[\w.-]+\/[\w.-]+$/.test(ticketsRepository) || sameRepository(ticketsRepository, repository))) throw new Error("The tickets repository must be another owner/name than --repo");
   if (!Number.isSafeInteger(feature) || feature <= 0) throw new Error("--feature must be the Feature's issue number");
   if (!coordinator) throw new Error("--coordinator must name the coordinator's session");
   if (!invocation) throw new Error("--invocation must quote the user's request that invoked the skill");
@@ -336,7 +383,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   const pointer = pointerFile(checkout, repository, feature);
   const self = { session: coordinator, host, harness, model: options.coordinatorModel, effort: options.coordinatorEffort, ...(options.coordinatorMode !== undefined && { permissionMode: options.coordinatorMode }), since: new Date().toISOString() };
   const fresh = (carried = {}) => ({
-    version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, feature, checkout, coordinator: self,
+    version: RECORD_VERSION, revision: 1, runId: randomUUID(), repository, ...(ticketsRepository !== undefined && { ticketsRepository }), feature, checkout, coordinator: self,
     invocation: { text: invocation, merging, ...(options.writerModel !== undefined && { writerModel: options.writerModel }), ...(options.concurrency !== undefined && { concurrency: options.concurrency }) },
     authority: authorityFor(merging),
     writer, concurrency, tickets: carried.tickets ?? {}, diskRecoveries: carried.diskRecoveries ?? [], previousCoordinators: carried.previousCoordinators ?? [],
@@ -368,6 +415,7 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     const releaseOld = acquire(existing.record, identify);
     try {
       const old = readRecord(existing.record);
+      if (repositoriesOf(old).tickets !== (ticketsRepository ?? repository)) throw new Error(`Takeover refused: the run's tickets live in ${repositoriesOf(old).tickets}, but this takeover would read them from ${ticketsRepository ?? repository}; the cutover switch in .agents/repos.json moved since the run started, so finish the run where it started`);
       writeExclusive(file, fresh({ tickets: old.tickets, diskRecoveries: old.diskRecoveries, previousCoordinators: [...old.previousCoordinators, { ...old.coordinator, record: existing.record, ended: prior.reason }], run: carriedRun(old, { file, record: { feature, coordinator: self }, defaults }) }));
       writeAtomic(pointer, { record: file, coordinator, host, since: self.since });
     } finally { releaseOld(); }
@@ -436,17 +484,30 @@ export function parseWorktrees(text) {
   return text.split(/\r?\n\r?\n/).map((block) => Object.fromEntries(block.split(/\r?\n/).filter(Boolean).map((line) => { const i = line.indexOf(" "); return i < 0 ? [line, true] : [line.slice(0, i), line.slice(i + 1)]; }))).filter((w) => w.worktree).map((w) => ({ path: w.worktree, head: w.HEAD ?? null, branch: typeof w.branch === "string" ? w.branch.replace(/^refs\/heads\//, "") : null }));
 }
 
-export function githubClient(repository, checkout) {
-  const run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+// The run's GitHub reads, given the record (or its repository and tickets
+// repository): tickets through REST on the tickets repository, pull requests
+// and their checks on the code repository, and a pull request's comments on
+// its review thread, `comments(pr, ticket)`.
+export function githubClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 }) } = {}) {
+  const { code, tickets, split, thread } = repositoriesOf(names);
   const pages = (args) => JSON.parse(run("gh", ["api", "--paginate", "--slurp", ...args])).flat();
+  const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit";
+  let account;
+  const accountPulls = (n) => {
+    account ??= run("gh", ["api", "user", "--jq", ".login"]).trim();
+    const heads = DISCOVERY_TYPES.map((type) => `head:${type}/${n}-`).join(" ");
+    return JSON.parse(run("gh", ["pr", "list", "--repo", code, "--author", "@me", "--state", "all", "--search", heads, "--limit", "100", "--json", `${fields},author`]))
+      .filter((p) => p.author?.login === account && branchTicket(p.headRefName) === n)
+      .map(({ author, ...p }) => ({ ...p, closingIssuesReferences: closingIn(p.closingIssuesReferences, tickets, code) }));
+  };
   return {
-    issue: (n) => JSON.parse(run("gh", ["api", `repos/${repository}/issues/${n}`])),
-    subIssues: (n) => pages([`repos/${repository}/issues/${n}/sub_issues`]),
-    blockedBy: (n) => pages([`repos/${repository}/issues/${n}/dependencies/blocked_by`]),
-    effort: (n) => pages(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${repository}/issues/${n}/issue-field-values`]).find((v) => v.issue_field_name === "Effort")?.single_select_option?.name ?? null,
-    pulls: (n) => JSON.parse(run("gh", ["pr", "list", "--repo", repository, "--state", "all", "--search", String(n), "--limit", "100", "--json", "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit"])),
-    comments: (pr) => pages([`repos/${repository}/issues/${pr}/comments`]),
-    checks: (pr) => JSON.parse(run("gh", ["pr", "view", String(pr), "--repo", repository, "--json", "statusCheckRollup"])).statusCheckRollup.map((c) => ({ name: c.name ?? c.context, state: c.conclusion || c.state || c.status })),
+    issue: (n) => JSON.parse(run("gh", ["api", `repos/${tickets}/issues/${n}`])),
+    subIssues: (n) => pages([`repos/${tickets}/issues/${n}/sub_issues`]),
+    blockedBy: (n) => pages([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]),
+    effort: (n) => pages(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]).find((v) => v.issue_field_name === "Effort")?.single_select_option?.name ?? null,
+    pulls: (n) => (split ? accountPulls(n) : JSON.parse(run("gh", ["pr", "list", "--repo", code, "--state", "all", "--search", String(n), "--limit", "100", "--json", fields]))),
+    comments: (pr, ticket) => { const t = thread(pr, ticket); return pages([`repos/${t.repo}/issues/${t.number}/comments`]); },
+    checks: (pr) => JSON.parse(run("gh", ["pr", "view", String(pr), "--repo", code, "--json", "statusCheckRollup"])).statusCheckRollup.map((c) => ({ name: c.name ?? c.context, state: c.conclusion || c.state || c.status })),
     fetchMain: () => { run("git", ["fetch", "-q", "origin", "main"]); return run("git", ["rev-parse", "origin/main"]).trim(); },
     onMain: (sha) => spawnSync("git", ["merge-base", "--is-ancestor", sha, "origin/main"], { cwd: checkout, windowsHide: true }).status === 0,
     worktrees: () => parseWorktrees(run("git", ["worktree", "list", "--porcelain"])),
@@ -454,7 +515,7 @@ export function githubClient(repository, checkout) {
 }
 
 // The rounds a PR's review has started, from the round-state comments the
-// review workflow posts.
+// review workflow posts on its review thread.
 // GitHub nests sub-issues at most eight levels deep, counting the Feature.
 export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
@@ -477,7 +538,7 @@ export function takeSnapshot({ repository, feature }, client) {
       const n = sub.number;
       const children = client.subIssues(n);
       const truncated = children.length > 0 && depth >= MAX_SUB_ISSUE_DEPTH;
-      const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number)), checks: client.checks(p.number) }) }));
+      const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
       tickets.push({
         number: n, title: sub.title, state: sub.state, parent, container: children.length > 0, ...(truncated && { truncated: true }), effort: client.effort(n),
         delivered: sub.state === "closed" && delivered(n),
@@ -658,7 +719,7 @@ export const verificationHolds = (record, snapshot) => verificationGaps(record, 
 export function remainingFor(record, complete) {
   if (complete) return ["Every slice is merged and the Feature's acceptance criteria were verified on main; close the Feature with integration.mjs close-feature if it is still open, and give the final report."];
   return [
-    "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
+    `A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on ${repositoriesOf(record).split ? "the slice's ticket, its review thread" : "the PR"}.`,
     coordinatorMerges(record)
       ? "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main."
       : "Ready PRs wait for the maintainer to merge them, since the invocation stops at ready; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
@@ -1647,8 +1708,9 @@ function briefBody(record, planFile, number, decisions, defaults) {
   const how = route.reports?.[record.coordinator.harness] ?? { unsupported: `no message from ${work.route} to a ${record.coordinator.harness} coordinator is configured` };
   const mode = work.permissionMode ? ` in permission mode ${work.permissionMode}` : "";
   const confirmed = work.permissionMode ? "model, effort and permission mode" : "model and effort";
+  const { tickets, split } = repositoriesOf(record);
   return [
-    `${work.launchId ? `Assignment ${work.launchId}. ` : ""}You are the writer for ${record.repository} ticket #${number} (${entry.title}), a slice of Feature #${record.feature}, coordinated by ${coordinator} on ${record.coordinator.host}.`,
+    `${work.launchId ? `Assignment ${work.launchId}. ` : ""}You are the writer for ${tickets} ticket #${number} (${entry.title}), a slice of Feature #${record.feature}, coordinated by ${coordinator} on ${record.coordinator.host}.`,
     `Route: ${work.route}, model ${work.model} at effort ${work.effort}${mode}. Before any work and before building any reviewer plan, confirm your own ${confirmed}: ${route.selfCheck}. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.`,
     how.mechanism
       ? `Your first act after reading this brief: send ${coordinator} an acknowledgement naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed (${how.mechanism}). A brief left unacknowledged for one check-in interval is treated as undelivered.`
@@ -1661,7 +1723,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
     ...decisions.map((d) => `- ${d}`),
     "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
     "After every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.",
-    "The coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.",
+    `The coordinator answers with a checkpoint decision it publishes on ${split ? `your ticket in ${tickets}, the PR's review thread` : "the PR"}. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.`,
     "Your review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.",
     "Never merge, and never mark the PR ready before the review gates pass.",
     `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.`,
@@ -1700,7 +1762,7 @@ const readOptional = (file) => (file ? readJson(absolute(file, "file")) : undefi
 // untracked writer.
 const SIDE_EFFECTS = new Set(["launch", "open", "resume"]);
 
-export function main(argv, { defaults = readWriterDefaults(), github, runners = {} } = {}) {
+export function main(argv, { defaults = readWriterDefaults(), github, runners = {}, repos } = {}) {
   const { command, options: o } = parseArgs(argv);
   const transition = () => `${command}${o.ticket ? ` of #${o.ticket}` : ""}`;
   if (SIDE_EFFECTS.has(command)) ensureSaved(absolute(o.record, "record"), { coordinator: o.coordinator, github });
@@ -1721,13 +1783,13 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       checkCoordinatorId(o.harness, o.coordinator);
       if (!PERMISSION_MODES.includes(o.coordinatorMode)) throw new Error(`--coordinator-mode must be this session's own permission mode: ${PERMISSION_MODES.join(", ")}`);
       orchestrationTitle(o.feature, o.slug);
-      const done = initRecord({ ...o, feature: integer(o.feature, "feature"), repository: o.repo, concurrency: o.concurrency === undefined ? undefined : integer(o.concurrency, "concurrency"), observations: readOptional(o.observations) }, { defaults });
+      const done = initRecord({ ...o, feature: integer(o.feature, "feature"), repository: o.repo, ticketsRepository: startRepositories(o.repo, repos ?? readRepos()).ticketsRepository, concurrency: o.concurrency === undefined ? undefined : integer(o.concurrency, "concurrency"), observations: readOptional(o.observations) }, { defaults });
       return { action: done.action, revision: done.record.revision, pointer: done.pointer, title: done.record.title ?? null, permissionMode: done.record.coordinator.permissionMode, writer: done.record.writer, concurrency: done.record.concurrency, ...(done.diskAdmits !== undefined && { diskAdmitsNow: done.diskAdmits }), ...(modeBlock(done.record) && { dispatchBlocked: modeBlock(done.record) }) };
     }
     case "schedule": { const file = absolute(o.record, "record"); return scheduleSpec(readRecord(file), file, defaults); }
     case "snapshot": {
       const record = readRecord(absolute(o.record, "record"));
-      const snap = takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record.repository, record.checkout));
+      const snap = takeSnapshot({ repository: record.repository, feature: record.feature }, githubClient(record, record.checkout));
       fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(snap, null, 2) + "\n");
       return { tickets: snap.tickets.length, originMain: snap.originMain };
     }

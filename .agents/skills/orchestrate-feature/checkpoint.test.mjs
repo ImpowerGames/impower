@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { reserveFreeze, worktreePaths, assertFrozen } from "../../../scripts/review-job-store.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
+import { readRepos } from "../../repos.mjs";
 import * as run from "./feature-run.mjs";
 import * as cp from "./checkpoint.mjs";
 
@@ -1063,6 +1064,84 @@ try {
   assert.equal(stopped[806], "wait-handoff", "new work waits for the next coordinator");
   assert.throws(() => run.openWriter(rec800, { coordinator: "local_cli", expectRevision: rev(rec800), ticket: 803, executable: process.execPath, runner: () => ({ requested: true, pid: 1 }) }), /planned handoff stopped new work/);
   assert.throws(() => run.deliver(structuredClone(run.readRecord(rec800)), { ticket: 802, retry: true }), /planned handoff stopped new starts/);
+
+  // --- Feature 900: tickets apart from the code -----------------------------
+  // With the cutover switch on (pinned from a copy of the repos file), the
+  // state branch, the run record it carries, the writers' snapshots and the
+  // status comment go to the tickets repository; the writers' branches stay
+  // on the code repository, whose state branches are left as they were.
+  {
+    const committedRepos = readRepos(), CODE = "acme/widgets", INTERNAL = "acme/widgets-internal";
+    const pinRepos = (cutover) => { const file = path.join(tmp, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committedRepos, code: CODE, internal: INTERNAL, cutover })); return readRepos(file); };
+    const ON = pinRepos(true), OFF = pinRepos(false);
+    const split = path.join(tmp, "split");
+    const codeRemote = path.join(split, "acme", "widgets.git"), internalRemote = path.join(split, "acme", "widgets-internal.git");
+    for (const r of [codeRemote, internalRemote]) { fs.mkdirSync(r, { recursive: true }); git(r, "init", "-q", "--bare", "-b", "main"); }
+    const checkout = path.join(split, "checkout");
+    git(tmp, "clone", "-q", codeRemote, checkout);
+    for (const [k, v] of [["user.name", "t"], ["user.email", "t@example.invalid"], ["core.autocrlf", "false"]]) git(checkout, "config", k, v);
+    fs.writeFileSync(path.join(checkout, "README.md"), "base\n");
+    git(checkout, "add", "-A");
+    git(checkout, "commit", "-q", "-m", "base");
+    git(checkout, "push", "-q", "origin", "main", "main:refs/heads/orchestrate-state/feature-1");
+    // History the public code repository already shows: a fixture that looks
+    // like a token, which a snapshot may carry to the private repository.
+    const token = ["gh", "p_", "Q".repeat(36)].join("");
+    fs.writeFileSync(path.join(checkout, "fixture.txt"), `${token}\n`);
+    git(checkout, "add", "fixture.txt");
+    git(checkout, "commit", "-q", "-m", "a public fixture");
+    git(checkout, "push", "-q", "origin", "main");
+    const publicStates = () => git(checkout, "ls-remote", "origin", "refs/heads/orchestrate-state/*");
+    const publicBefore = publicStates();
+    const stores = { [CODE]: fakeGithub(), [INTERNAL]: fakeGithub() };
+    const commentsFor = (repository) => stores[repository];
+    const record = path.join(split, "run-900.json");
+    run.initRecord({ record, checkout, repository: CODE, ...run.startRepositories(CODE, ON), feature: 900, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #900." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    const enableCli = (...more) => cp.main(["enable", "--record", record, "--coordinator", "local_split", "--expect-revision", String(rev(record)), ...more], { commentsFor });
+    assert.throws(() => enableCli(), new RegExp(`No remote of .* names the tickets repository ${INTERNAL}.*git remote add internal https://github\\.com/${INTERNAL}\\.git`), "without a remote of the tickets repository nothing is published");
+    git(checkout, "remote", "add", "internal", internalRemote);
+    assert.throws(() => enableCli("--remote", "origin"), new RegExp(`Remote origin is .*, not the tickets repository ${INTERNAL}`), "the code repository's remote is refused for the state branch");
+    const enabled = enableCli();
+    assert.equal(enabled.checkpoint.saved, true, enabled.checkpoint.reason);
+    assert.deepEqual(run.readRecord(record).checkpoints, { remote: "internal", branch: "orchestrate-state/feature-900", codeRemote: "origin" });
+    assert.equal(git(checkout, "ls-remote", "internal", "refs/heads/orchestrate-state/feature-900").split("\t")[0], enabled.checkpoint.commit, "the state branch is on the tickets repository");
+    assert.equal(enabled.checkpoint.url, `https://github.com/${INTERNAL}/tree/${enabled.checkpoint.commit}`);
+    const status900 = [...stores[INTERNAL].comments.values()].find((c) => c.issue === 900);
+    assert.ok(status900, "the status comment is created on the internal Feature");
+    assert.match(status900.body, new RegExp(`\\(https://github\\.com/${INTERNAL}/tree/${enabled.checkpoint.commit}\\)`), "and links the internal state branch");
+    assert.equal(stores[CODE].comments.size, 0, "nothing is posted on the code repository");
+    const state900 = cp.fetchState(checkout, "internal", CODE, 900);
+    assert.deepEqual([state900.checkpoint.repository, state900.checkpoint.ticketsRepository, state900.checkpoint.run.runId], [CODE, INTERNAL, run.readRecord(record).runId], "the checkpoint carries the run record and names both repositories");
+    // A writer's branch is pushed to the code repository and observed there;
+    // its unfinished files are snapshotted onto the internal state branch,
+    // whose history the public code repository already holds.
+    const worktree = path.join(split, "wt-901"), branch = "feat/901-split";
+    git(checkout, "worktree", "add", "-q", "-b", branch, worktree, "main");
+    git(worktree, "push", "-q", "origin", branch);
+    fs.writeFileSync(path.join(worktree, "work.txt"), "unfinished\n");
+    mutate(record, "local_split", (r) => { r.tickets[901] = { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree, branch, handle: { kind: "session", id: "local_w901", host: SRC }, since: new Date().toISOString() }, pending: null, history: [], results: [] }; });
+    assert.equal(cp.snapshotCredentials(worktree, git(worktree, "rev-parse", "HEAD"), [], "internal", { live: true }).length, 1, "measured against the internal repository alone, the public fixture would refuse the snapshot");
+    cp.prepareHandoff(record, { coordinator: "local_split", expectRevision: rev(record), step: "stop", github: stores[INTERNAL], host: SRC });
+    const handed = cp.prepareHandoff(record, { coordinator: "local_split", expectRevision: rev(record), step: "publish", observations: { sessions: { local_w901: { state: "running", host: SRC } } }, github: stores[INTERNAL], host: SRC });
+    assert.equal(handed.checkpoint.saved, true, handed.checkpoint.reason);
+    const snap901 = handed.snapshots[901];
+    assert.ok(snap901 && !snap901.clean, "the unfinished work is snapshotted");
+    const handedState = cp.fetchState(checkout, "internal", CODE, 900);
+    assert.ok(handedState.checkpoint.snapshots[901].commit === snap901.commit && git(checkout, "merge-base", "--is-ancestor", snap901.commit, handedState.commit) === "", "the snapshot travels on the internal state branch");
+    const work901 = cp.workFor(handedState.checkpoint, 901)[0];
+    assert.deepEqual([work901.remoteHead, work901.unpushed], [git(worktree, "rev-parse", "HEAD"), false], "the writer's branch is observed on the code repository's remote");
+    assert.equal(publicStates(), publicBefore, "git ls-remote origin refs/heads/orchestrate-state/* is unchanged");
+    assert.equal(git(checkout, "ls-remote", "origin", branch).split("\t")[0], git(worktree, "rev-parse", "HEAD"), "the writer's branch stays where it was pushed");
+    // Discovery from the Feature number follows the switch: on, it finds the
+    // run on the tickets repository; off, the code repository holds none.
+    const discovered = cp.main(["discover", "--repo", CODE, "--feature", "900", "--checkout", checkout], { repos: ON, commentsFor });
+    assert.deepEqual([discovered.found, discovered.commit, discovered.summary.stale], [true, handedState.commit, false]);
+    assert.equal(cp.main(["discover", "--repo", CODE, "--feature", "900", "--checkout", checkout], { repos: OFF, commentsFor }).found, false, "with the switch off the code repository holds no state branch for the Feature");
+    // Review checkpoint decisions link to the ticket's review thread.
+    const published = { tickets: { 901: { checkpoints: [{ state: "published", pr: 77, id: "d1", kind: "finish", round: 3, head: "h", published: { comment: 123, time: "t" } }] } } };
+    assert.equal(cp.decisionLinks({ repository: CODE, ticketsRepository: INTERNAL, ...published })[0].url, `https://github.com/${INTERNAL}/issues/901#issuecomment-123`);
+    assert.equal(cp.decisionLinks({ repository: CODE, ...published })[0].url, `https://github.com/${CODE}/pull/77#issuecomment-123`, "with one repository the link is the PR's, as before");
+  }
 
   console.log("PASS: discovery from the Feature number, takeover with fresh authority, stale and competing updates, interrupted summary repair, uncertain launch and merge outcomes, foreign-host evidence, planned handoff snapshot beside a review freeze, abrupt loss of unpublished work, credential refusal and automatic checkpoints");
 } finally {

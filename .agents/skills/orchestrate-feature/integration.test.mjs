@@ -279,6 +279,17 @@ try {
     return ig.admission(rec, { ticket: n, pr, snapshot: snapshotNow(), facts: facts ?? ig.gatherFacts({ record: rec, pr, client, git: g }), git: g });
   };
   const blocked = (result, pattern, why) => assert.ok(!result.admitted && result.blockers.some((b) => pattern.test(b)), `${why}: ${result.blockers.join(" | ")}`);
+  // The same gate with the run's tickets apart from its code: a copy of the
+  // record naming the tickets repository, and a GitHub whose review thread
+  // for the PR is the slice's ticket. With `onTicket` the PR's review
+  // conversation is there; without it, only on the PR, which then counts for
+  // nothing.
+  const INTERNAL = "acme/widgets-internal";
+  const threadGate = (n, onTicket) => {
+    const rec = { ...record(), ticketsRepository: INTERNAL }, pr = 100 + n, g = gitOf(src), asked = [];
+    const routed = { ...client, comments: (m, ticket) => { asked.push([m, ticket]); return ticket === undefined ? client.comments(m) : ticket === n && onTicket ? client.comments(pr) : []; } };
+    return { result: ig.admission(rec, { ticket: n, pr, snapshot: snapshotNow(), facts: ig.gatherFacts({ record: rec, ticket: n, pr, client: routed, git: g }), git: g }), asked };
+  };
   const merge = (n, file = recordFile, coordinator = "local_coord", dir = src, afterIntent = () => cp.ensureSaved(file, { coordinator, github: statusGithub, host: dir === src ? SRC : DST })) => ig.mergeAdmitted(file, { coordinator, expectRevision: run.readRecord(file).revision, ticket: n, pr: 100 + n, takeSnapshot: () => snapshotNow(dir), readScope: () => scopeNow(dir), client, git: gitOf(dir), afterIntent });
 
   // --- #41: normal reviewed completion ----------------------------------------
@@ -293,6 +304,47 @@ try {
   assert.deepEqual(g41.blockers, [], "a reviewed head with passed CI, current main, every reviewer exited and nothing outstanding is admitted");
   assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince], [true, "reviewed", h41, []]);
   assert.deepEqual(g41.checks.map((c) => [c.name, c.result, c.required]), [["test-suite", "passed", true], ["packages (sparkdown)", "skipped", false], ["hook-tests", "passed", false]], "a skipped package job is reported as skipped, not as a check that ran");
+  // With tickets apart, the gate reads the report and its adjudication from
+  // the ticket's comments, and the PR's own comments do not stand in for them.
+  const split41 = threadGate(41, true);
+  assert.deepEqual([split41.result.blockers, split41.asked], [[], [[141, 41]]], "the gate asks for PR #141's review thread on ticket #41 and admits the head from it");
+  blocked(threadGate(41, false).result, new RegExp(`report \\d+ \\(round 1, undirected\\) is not on review thread ${INTERNAL}#41`), "a report left on the PR alone, once tickets live apart");
+  gh.pulls.get(141).closes = [];
+  blocked(threadGate(41, true).result, new RegExp(`does not close ${INTERNAL}#41 \\(its body has no Closes ${INTERNAL}#41\\)`), "a PR whose closing references name no internal ticket");
+  gh.pulls.get(141).closes = [41];
+  // The client behind it: the PR, its checks, protection, main's runs and the
+  // merge on the code repository; the Feature, its comments and closure and
+  // the review thread on the tickets repository. A PR closes a ticket only by
+  // a reference to the tickets repository's issue of that number; with one
+  // repository its references count by number, as before.
+  {
+    const ref = (slug, number) => ({ number, repository: { name: slug.split("/")[1], owner: { login: slug.split("/")[0] } } });
+    const calls = [];
+    const exec = (cmd, args) => {
+      calls.push(`${cmd} ${args.join(" ")}`);
+      if (args[0] === "pr") return JSON.stringify({ state: "OPEN", isDraft: false, headRefOid: "h", headRefName: "feat/41-alpha", baseRefName: "main", mergeable: "MERGEABLE", mergeStateStatus: "CLEAN", mergeCommit: null, closingIssuesReferences: [ref(REPO, 41), ref(INTERNAL, 43), ref("acme/other", 41), { number: 42 }], statusCheckRollup: [] });
+      if (args[0] === "run") return "[]";
+      if (args.includes("--slurp")) return "[[]]";
+      if (/protection/.test(args.at(-1))) throw Object.assign(new Error("HTTP 404"), { stderr: "HTTP 404" });
+      return JSON.stringify({ id: 9, state: "open", title: "t", body: "b", html_url: "u" });
+    };
+    const spawn = (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return { status: 0, stdout: "", stderr: "" }; };
+    const exercise = (names) => {
+      calls.length = 0;
+      const c = ig.integrationClient(names, src, { exec, spawn });
+      const closes = c.pull(141).closes;
+      c.comments(141, 41); c.comments(FEATURE); c.protection("main"); c.mainRuns("main"); c.merge(141, "h"); c.issue(FEATURE); c.createComment(FEATURE, "report"); c.getComment(9); c.closeIssue(FEATURE);
+      return { closes, calls: [...calls] };
+    };
+    const one = exercise({ repository: REPO }), split = exercise({ repository: REPO, ticketsRepository: INTERNAL });
+    assert.deepEqual(one.closes, [41, 43, 41, 42], "with one repository closing references count by number, as before");
+    assert.deepEqual(split.closes, [43], "with tickets apart only the tickets repository's references close a ticket: not the code repository's #41, another repository's, or a bare one");
+    const pull = `gh pr view 141 --repo ${REPO} --json state,isDraft,headRefOid,headRefName,baseRefName,mergeable,mergeStateStatus,mergeCommit,closingIssuesReferences,statusCheckRollup`;
+    const shared = [`gh api repos/${REPO}/branches/main/protection/required_status_checks`, `gh api --paginate --slurp repos/${REPO}/rules/branches/main`, `gh run list --repo ${REPO} --workflow Test Suite --branch main --event push --limit 10 --json databaseId,headSha,status,conclusion,createdAt,url`, `gh ${ig.mergeArgs(REPO, 141, "h").join(" ")}`];
+    const ticketsCalls = (t) => [`gh api repos/${t}/issues/${FEATURE}`, `gh api -X POST repos/${t}/issues/${FEATURE}/comments --input -`, `gh api repos/${t}/issues/comments/9`, `gh api -X PATCH repos/${t}/issues/${FEATURE} -f state=closed -f state_reason=completed`];
+    assert.deepEqual(one.calls, [pull, `gh api --paginate --slurp repos/${REPO}/issues/141/comments`, `gh api --paginate --slurp repos/${REPO}/issues/${FEATURE}/comments`, ...shared, ...ticketsCalls(REPO)], "with one repository every call is today's");
+    assert.deepEqual(split.calls, [pull, `gh api --paginate --slurp repos/${INTERNAL}/issues/41/comments`, `gh api --paginate --slurp repos/${INTERNAL}/issues/${FEATURE}/comments`, ...shared, ...ticketsCalls(INTERNAL)], "with tickets apart the review thread, the Feature and its closure are on the tickets repository, and the merge stays on the code repository");
+  }
 
   // Authority: a run that records the maintainer's merge, a grant in other
   // words, a request asking to stop at ready, a discussion, and a coordinator
@@ -499,6 +551,12 @@ try {
   const g42 = gate(42);
   trace("gate-42-accepted", g42);
   assert.deepEqual([g42.admitted, g42.disposition, g42.acceptance?.id, g42.reviewedHead], [true, "accepted-unreviewed", decided.id, h42[3]], g42.blockers.join(" | "));
+  // With tickets apart, the published checkpoint decision and every round's
+  // adjudications are read from ticket #42's comments; left only on the PR,
+  // the acceptance covers nothing.
+  const split42 = threadGate(42, true).result;
+  assert.deepEqual([split42.admitted, split42.disposition, split42.acceptance?.id], [true, "accepted-unreviewed", decided.id], split42.blockers.join(" | "));
+  blocked(threadGate(42, false).result, /no acceptance covers it/, "an acceptance left on the PR alone, once tickets live apart");
   // A new push invalidates the acceptance for merging.
   const stale = commitIn(worktrees[42], "beta.txt", "late change\n", "fix: late change (#42)");
   setHead(42, stale);

@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 import { reserveFreeze, worktreePaths } from "../../../scripts/review-job-store.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
+import { readRepos } from "../../repos.mjs";
 import * as run from "./feature-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -421,6 +422,120 @@ try {
   assert.deepEqual(byNumber[202].blockers, [{ number: 191, state: "closed", delivered: false }]);
   assert.deepEqual(byNumber[202].worktrees.map((w) => w.branch), ["codex/fix/202-thing"]);
   assert.deepEqual([byNumber[210].container, byNumber[211].parent], [true, 210]);
+
+  // The cutover switch, each position pinned from its own copy of the repos
+  // file; no case reads the committed position.
+  const committedRepos = readRepos();
+  const pinRepos = (cutover) => { const file = path.join(tmp, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committedRepos, code: "acme/widgets", internal: "acme/widgets-internal", cutover })); return readRepos(file); };
+  const OFF = pinRepos(false), ON = pinRepos(true), INTERNAL = "acme/widgets-internal";
+  const featureSnapshot = (feature, tickets) => ({ repository: "acme/widgets", feature: { number: feature, state: "open" }, originMain: "abc", tickets });
+  assert.deepEqual(run.startRepositories("acme/widgets", OFF), {}, "with the switch off a run has one repository, and its record names no second one");
+  assert.deepEqual(run.startRepositories("acme/widgets", ON), { ticketsRepository: INTERNAL });
+  assert.deepEqual(run.startRepositories("acme/other", ON), {}, "a repository the file does not name keeps its own tickets");
+
+  // The GitHub calls of each position, through an injected gh.
+  const ghCalls = (names, reply) => { const calls = []; return { calls, client: run.githubClient(names, checkout, { run: (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return reply(args); } }) }; };
+  const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
+  const listFields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit";
+  {
+    const { client: one, calls } = ghCalls({ repository: "acme/widgets" }, replies([]));
+    one.issue(200); one.subIssues(200); one.blockedBy(201); one.effort(201); one.pulls(201); one.comments(401, 201); one.checks(401);
+    assert.deepEqual(calls, [
+      "gh api repos/acme/widgets/issues/200",
+      "gh api --paginate --slurp repos/acme/widgets/issues/200/sub_issues",
+      "gh api --paginate --slurp repos/acme/widgets/issues/201/dependencies/blocked_by",
+      "gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/acme/widgets/issues/201/issue-field-values",
+      `gh pr list --repo acme/widgets --state all --search 201 --limit 100 --json ${listFields}`,
+      "gh api --paginate --slurp repos/acme/widgets/issues/401/comments",
+      "gh pr view 401 --repo acme/widgets --json statusCheckRollup",
+    ], "with one repository the client makes today's calls, and a PR's comments are its own");
+  }
+  // With tickets apart, every ticket read goes through REST on the internal
+  // repository, and a ticket's PRs are the shared account's on a head branch
+  // <type>/<N>-: a same-numbered branch from another author and a branch of
+  // another number are not the ticket's, and only closing references to the
+  // tickets repository stay. A PR's review rounds come from its ticket.
+  {
+    const ref = (slug, number) => ({ number, repository: { name: slug.split("/")[1], owner: { login: slug.split("/")[0] } } });
+    const pr = (number, branch, login, refs) => ({ number, state: "OPEN", isDraft: true, headRefName: branch, headRefOid: `h${number}`, baseRefName: "main", closingIssuesReferences: refs, mergeCommit: null, author: { login } });
+    const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 7)])];
+    const { client: split, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(listed, { [`repos/${INTERNAL}/issues/7/comments`]: [{ body: "### Review round 2 state\n" }], "repos/acme/widgets/issues/701/comments": [{ body: "### Review round 5 state\n" }] }));
+    split.issue(6); split.subIssues(6); split.blockedBy(7); split.effort(7);
+    const found = split.pulls(7);
+    assert.deepEqual(found.map((p) => [p.number, p.closingIssuesReferences.map((r) => `${r.repository.owner.login}/${r.repository.name}#${r.number}`)]), [[701, [`${INTERNAL}#7`]]], "only the shared account's PR on the ticket's own branch is the ticket's, with its references to the tickets repository");
+    assert.ok(!("author" in found[0]), "the author is read for discovery only");
+    split.comments(701, 7); split.checks(701);
+    assert.deepEqual(calls, [
+      `gh api repos/${INTERNAL}/issues/6`,
+      `gh api --paginate --slurp repos/${INTERNAL}/issues/6/sub_issues`,
+      `gh api --paginate --slurp repos/${INTERNAL}/issues/7/dependencies/blocked_by`,
+      `gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/${INTERNAL}/issues/7/issue-field-values`,
+      "gh api user --jq .login",
+      `gh pr list --repo acme/widgets --author @me --state all --search ${run.DISCOVERY_TYPES.map((t) => `head:${t}/7-`).join(" ")} --limit 100 --json ${listFields},author`,
+      `gh api --paginate --slurp repos/${INTERNAL}/issues/7/comments`,
+      "gh pr view 701 --repo acme/widgets --json statusCheckRollup",
+    ]);
+    assert.ok(!calls.some((c) => /graphql|^gh issue|repos\/acme\/widgets\//.test(c)), "nothing reads tickets or comments of the code repository, and nothing uses GraphQL for them");
+    assert.throws(() => split.comments(701), /Supply ticket/, "a PR's review thread needs its ticket once tickets live apart");
+    const splitSnap = run.takeSnapshot({ repository: "acme/widgets", feature: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], effort: () => "Medium" });
+    assert.deepEqual(splitSnap.tickets[0].prs.map((p) => [p.number, p.rounds]), [[701, 2]], "the PR's rounds come from the round-state comments on its ticket");
+    // The record names the tickets repository; its brief and remaining work
+    // send the writer and the checkpoint decisions there.
+    const dir = path.join(tmp, "split-run");
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "run.json");
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", ...run.startRepositories("acme/widgets", ON), feature: 6, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.throws(() => run.initRecord({ record: path.join(dir, "bad.json"), checkout: dir, repository: "acme/widgets", ticketsRepository: "acme/widgets", feature: 9, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "x" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB }), /another owner\/name than --repo/);
+    const splitRecord = run.readRecord(file);
+    assert.equal(splitRecord.ticketsRepository, INTERNAL);
+    assert.deepEqual(run.repositoriesOf(splitRecord).thread(701, 7), { repo: INTERNAL, number: 7, issueUrl: `https://api.github.com/repos/${INTERNAL}/issues/7` });
+    const splitSnapshot = featureSnapshot(6, [{ ...ticket(7), parent: 6 }]);
+    const splitPlanFile = write("split-plan.json", run.planDispatch({ record: splitRecord, snapshot: splitSnapshot, preflights: [available("claude-cli", "claude-opus-5-5", [7])], freeBytes: 100 * GB, defaults }));
+    assert.match(readJsonFile(splitPlanFile).remaining[0], /publishes it on the slice's ticket, its review thread\.$/);
+    run.updateRecord(file, { expectRevision: 1, coordinator: "local_split" }, (r) => run.claim(r, { plan: splitPlanFile, ticket: 7, worktree: path.join(dir, "wt-7"), branch: "feat/7-thing", artifactParent: dir }));
+    const splitBrief = run.brief(run.readRecord(file), splitPlanFile, 7, [], defaults);
+    assert.match(splitBrief, new RegExp(`You are the writer for ${INTERNAL} ticket #7 `));
+    assert.match(splitBrief, new RegExp(`checkpoint decision it publishes on your ticket in ${INTERNAL}, the PR's review thread\\.`));
+  }
+
+  // A run record shaped like the live ones from before the switch existed (no
+  // tickets repository, checkpoints on origin, a revision past 100) loads,
+  // plans, briefs and changes in the off position exactly as before.
+  {
+    const dir = path.join(tmp, "legacy-run");
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "run.json"), since = "2026-10-16T10:00:00.000Z", host = os.hostname();
+    const legacy = {
+      version: 1, revision: 119, runId: "6d7a2c1e-1c2b-4f3a-8e5d-000000000119", repository: "acme/widgets", feature: 1900, checkout: dir,
+      coordinator: { session: "local_legacy", host, harness: "claude", model: "claude-opus-5-5", effort: "high", permissionMode: "bypassPermissions", since },
+      invocation: { text: "/orchestrate-feature #1900", merging: "coordinator" }, authority: run.authorityFor("coordinator"),
+      writer: { model: "claude-opus-5-5", source: "claude orchestrator default" }, concurrency: { limit: 3, basis: "the smaller of 3 (reviewer slots) and 15 by memory at 4 GB per writer" },
+      tickets: { 1901: { owner: null, pending: null, history: [], results: [], requests: [], checkpoints: [] } },
+      diskRecoveries: [], previousCoordinators: [], title: "ORCH #1900: legacy shaped run", log: [{ time: since, event: "init", coordinator: "local_legacy", writer: "claude-opus-5-5", concurrency: 3 }],
+      checkpoints: { remote: "origin", branch: "orchestrate-state/feature-1900" }, updated: since,
+      checkIn: { interval: 30, cron: "10,40 * * * *", prompt: "check in", command: run.scheduleCommand(file), job: "job-1", none: null, state: "scheduled", since, expires: null }, operations: [],
+    };
+    fs.writeFileSync(file, JSON.stringify(legacy, null, 2));
+    const pointer = run.pointerFile(dir, "acme/widgets", 1900);
+    fs.mkdirSync(path.dirname(pointer), { recursive: true });
+    fs.writeFileSync(pointer, JSON.stringify({ record: file, coordinator: "local_legacy", host, since }));
+    const loaded = run.readRecord(file);
+    assert.deepEqual([run.repositoriesOf(loaded).split, run.repositoriesOf(loaded).tickets], [false, "acme/widgets"], "a record without a tickets repository is a one-repository run");
+    assert.deepEqual(run.repositoriesOf(loaded).thread(2001, 1902), { repo: "acme/widgets", number: 2001, issueUrl: "https://api.github.com/repos/acme/widgets/issues/2001" }, "its review threads are the PRs");
+    const legacySnap = featureSnapshot(1900, [{ ...ticket(1901), parent: 1900, state: "closed", delivered: true }, { ...ticket(1902), parent: 1900, blockers: [{ number: 1901, state: "closed", delivered: true }] }]);
+    const legacyPlanFile = write("legacy-plan.json", run.planDispatch({ record: loaded, snapshot: legacySnap, preflights: [available("claude-cli", "claude-opus-5-5", [1902])], freeBytes: 100 * GB, defaults }));
+    const legacyPlan = readJsonFile(legacyPlanFile);
+    assert.deepEqual(actions(legacyPlan), { 1901: "done", 1902: "dispatch" });
+    assert.equal(legacyPlan.remaining[0], "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.");
+    const claimed = run.updateRecord(file, { expectRevision: 119, coordinator: "local_legacy" }, (r) => run.claim(r, { plan: legacyPlanFile, ticket: 1902, worktree: path.join(dir, "wt-1902"), branch: "feat/1902-thing", artifactParent: dir }));
+    assert.equal(claimed.record.revision, 120);
+    assert.ok(!("ticketsRepository" in claimed.record), "a change adds no tickets repository to the record");
+    const legacyBrief = run.brief(run.readRecord(file), legacyPlanFile, 1902, [], defaults);
+    assert.match(legacyBrief, /You are the writer for acme\/widgets ticket #1902 /);
+    assert.match(legacyBrief, /The coordinator answers with a checkpoint decision it publishes on the PR\. Launch a further round/);
+  }
 
   // The command line refuses with exit 1 and leaves the record unchanged.
   const cli = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: "utf8", windowsHide: true });
