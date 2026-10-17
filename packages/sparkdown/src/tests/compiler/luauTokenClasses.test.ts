@@ -240,6 +240,22 @@ describe("a reserved word is never a name", () => {
     expect(errorsOf(source)).toContain(error);
   });
 
+  test("a `local` with spaces before a reserved word is Luau's error too, never a define's key", () => {
+    const source = "function f()\n  local  nil = 3\nend\n";
+    expect(errorsOf(source)).toEqual(officialErrors(source));
+    expect(stripAnsi(dumpTree(source))).not.toMatch(/LuauDefineKeywordKey/);
+  });
+
+  // Luau reads a reserved word written right after a `.` as the member's
+  // name, in error, so a closer there closes nothing.
+  test.each(["function f(t)\n  local x = t.end\nend\n", "function f(t)\n  return t.until\nend\n"])(
+    "a reserved word right after a `.` is the member, with Luau's error: %j",
+    (source) => {
+      expect(officialErrors(source)).toHaveLength(1);
+      expect(errorsOf(source)).toEqual(officialErrors(source));
+    },
+  );
+
   test("a define's key may be a reserved word (#1081)", () => {
     const source = "define cfg with\n  repeat = 3\n  if = 4\n  x = 5\nend\nValue {cfg['repeat']} {cfg['if']} {cfg.x}.\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 3 4 5.\n" });
@@ -280,6 +296,17 @@ describe("a structural word is a name outside its shape (#984)", () => {
   ])("a %s with a later `|` on its line is a name: %s", (word, statement, value) => {
     const source = `Value {f()}.\nfunction f()\n  local ${word} = "q"\n  ${statement}\n  return s\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: expect.any(Array), output: `Value ${value}.\n` });
+    expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorBlock \[/);
+  });
+
+  // A `|` inside a string is not an arm's.
+  test.each([
+    ['queue("a|b")', "a|b"],
+    ['queue "a|b"', "a|b"],
+    ['queue {"a|b"}', "table"],
+  ])("a call %s with a `|` in its string is a call", (call, value) => {
+    const source = `Value {f()}.\nfunction f()\n  local queue = function(s) return if type(s) == "table" then "table" else s end\n  local s = ${call}\n  return s\nend\n`;
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: `Value ${value}.\n` });
     expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorBlock \[/);
   });
 
@@ -349,7 +376,18 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
   });
 
   test("a statement on the next line is not a value", () => {
-    const source = "function f()\n  local x =\n  return 1\nend\n";
-    expect(errorsOf(source)).toEqual(officialErrors(source));
+    for (const source of ["function f()\n  local x =\n  return 1\nend\n", "function f()\n  local x = -- c\n  return 1\nend\n"]) {
+      expect(errorsOf(source), source).toEqual(officialErrors(source));
+    }
+  });
+
+  // A comment that ends the `=`'s line leaves the value on the next line.
+  test.each([
+    ["a line comment", "local x = -- note\n    if c then 1 else 2"],
+    ["a block comment", "local x = --[[ note ]]\n    if c then 1 else 2"],
+    ["a reassignment's line comment", "local x\n  x = -- note\n    if c then 1 else 2"],
+  ])("after %s", (_name, statement) => {
+    const source = `function f(c)\n  ${statement}\n  return x\nend\n\n{f(true)} {f(false)}\n`;
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 2\n" });
   });
 });

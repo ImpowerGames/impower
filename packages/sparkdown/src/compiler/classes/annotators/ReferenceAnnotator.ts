@@ -521,7 +521,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const begin = getDescendent(["LuauVariableAssignment_begin", "LuauSparkdownExplicitVariableAssignment_begin"], nodeRef.node);
       const nameNode = begin
         ? getDescendent("LuauVariableName", begin)
-        : getDescendent("LuauVariableName", nodeRef.node);
+        : getDescendent(["LuauVariableName", "LuauDefineKeywordKey"], nodeRef.node);
       if (nameNode) {
         const propName = this.read(nameNode.from, nameNode.to).trim();
         annotations.push(

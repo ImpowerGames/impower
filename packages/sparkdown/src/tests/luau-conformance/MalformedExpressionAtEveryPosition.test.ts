@@ -372,11 +372,7 @@ describe("the reported layouts", () => {
     ["function f(t)\n  t.a.return 1\nend", ["1:6-1:12 Expected identifier, got 'return'"]],
     ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],
     ["function f(t)\n  t.a.return x = 2 +;\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:21 Expected identifier when parsing expression, got ';'"]],
-    // Luau reads `return` as the name and `if 1 + then end` as a statement
-    // that holds the first `end`; the grammar reads a return statement
-    // whose if expression ends before that `end`, a closer (#1906), so the
-    // function ends there.
-    ["function f(t)\n  t.a.return if 1 + then end\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:24 Expected identifier when parsing expression, got 'then'"], false],
+    ["function f(t)\n  t.a.return if 1 + then end\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:24 Expected identifier when parsing expression, got 'then'"]],
     ["function f(t)\n  x + function() end\nend", [
       "1:2-1:3 Incomplete statement: expected assignment or a function call",
       "1:14-1:15 Expected identifier when parsing function name, got '('",

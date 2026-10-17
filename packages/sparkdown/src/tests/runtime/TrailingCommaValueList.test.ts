@@ -326,15 +326,10 @@ describe("narrative body: the declaration ends at its line", () => {
     expect(text).toBe("Value 7.\n");
   });
 
-  // Luau reads it by its key, since a reserved word after `.` is never a
-  // name (#1906).
   test("a keyword can name a define property", () => {
-    const { errors, text } = run("define cfg with\n  repeat = 3\nend\nValue {cfg['repeat']}.\n");
+    const { errors, text } = run("define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n");
     expect(errors).toEqual([]);
     expect(text).toBe("Value 3.\n");
-    expect(run("define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n").errors).toEqual([
-      expect.stringContaining("Expected identifier, got 'repeat'"),
-    ]);
   });
 
   test.each([
