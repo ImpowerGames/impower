@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1904
 
-Checkpoint 233 (this commit), 2026-10-17T17:33:36.384Z, after a new plan. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
+Checkpoint 234 (this commit), 2026-10-17T17:33:45.658Z, after release of #1977. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,9 +12,4 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1907
 
 - claude-cli claude-opus-5-5 at high, process 21592 on DESKTOP-726EO47
-- as of 2026-10-17T17:33:35.450Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule that may exist only there; recover those bytes there before restarting or overwriting this work
-
-## #1977
-
-- claude-cli claude-opus-5-5 at low, process 19964 on DESKTOP-726EO47
-- review job pr-2061/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 42255fec4, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["undirected"]), last event finished
+- as of 2026-10-17T17:33:44.711Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule that may exist only there; recover those bytes there before restarting or overwriting this work
