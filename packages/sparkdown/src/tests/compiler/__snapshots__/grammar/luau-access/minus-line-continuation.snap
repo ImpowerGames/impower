@@ -80,10 +80,8 @@ sparkdown [0..136]
  │   │       │   ├─ Newline [34..35]: "\n"
  │   │       │   ├─ LuauMinusLineContinuation [35..48]
  │   │       │   │   ├─ LuauMinusLineContinuation_begin [35..39]
- │   │       │   │   │   ├─ LuauMinusLineContinuation_begin_c1 [35..39]
- │   │       │   │   │   │   └─ ExtraWhitespace [35..39]: "    "
- │   │       │   │   │   ├─ LuauMinusLineContinuation_begin_c2 39
- │   │       │   │   │   └─ LuauMinusLineContinuation_begin_c3 39
+ │   │       │   │   │   └─ LuauMinusLineContinuation_begin_c1 [35..39]
+ │   │       │   │   │       └─ ExtraWhitespace [35..39]: "    "
  │   │       │   │   ├─ LuauMinusLineContinuation_content [39..48]
  │   │       │   │   │   └─ LuauArithmeticOperation [39..48]
  │   │       │   │   │       ├─ LuauArithmeticOperation_begin 39
@@ -144,10 +142,8 @@ sparkdown [0..136]
  │   │       │   ├─ Newline [63..64]: "\n"
  │   │       │   ├─ LuauMinusLineContinuation [64..71]
  │   │       │   │   ├─ LuauMinusLineContinuation_begin [64..68]
- │   │       │   │   │   ├─ LuauMinusLineContinuation_begin_c1 [64..68]
- │   │       │   │   │   │   └─ ExtraWhitespace [64..68]: "    "
- │   │       │   │   │   ├─ LuauMinusLineContinuation_begin_c2 68
- │   │       │   │   │   └─ LuauMinusLineContinuation_begin_c3 68
+ │   │       │   │   │   └─ LuauMinusLineContinuation_begin_c1 [64..68]
+ │   │       │   │   │       └─ ExtraWhitespace [64..68]: "    "
  │   │       │   │   ├─ LuauMinusLineContinuation_content [68..71]
  │   │       │   │   │   └─ LuauArithmeticOperation [68..71]
  │   │       │   │   │       ├─ LuauArithmeticOperation_begin 68

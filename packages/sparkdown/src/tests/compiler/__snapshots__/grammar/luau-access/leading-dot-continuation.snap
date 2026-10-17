@@ -90,10 +90,8 @@ sparkdown [0..185]
  │   │       │   ├─ Newline [38..39]: "\n"
  │   │       │   ├─ LuauLineContinuation [39..45]
  │   │       │   │   ├─ LuauLineContinuation_begin [39..43]
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c1 [39..43]
- │   │       │   │   │   │   └─ ExtraWhitespace [39..43]: "    "
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c2 43
- │   │       │   │   │   └─ LuauLineContinuation_begin_c3 43
+ │   │       │   │   │   └─ LuauLineContinuation_begin_c1 [39..43]
+ │   │       │   │   │       └─ ExtraWhitespace [39..43]: "    "
  │   │       │   │   ├─ LuauLineContinuation_content [43..45]
  │   │       │   │   │   └─ LuauAccessPart [43..45]
  │   │       │   │   │       └─ LuauPropertyAccessor [43..45]
@@ -107,10 +105,8 @@ sparkdown [0..185]
  │   │       │   ├─ Newline [45..46]: "\n"
  │   │       │   ├─ LuauLineContinuation [46..55]
  │   │       │   │   ├─ LuauLineContinuation_begin [46..50]
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c1 [46..50]
- │   │       │   │   │   │   └─ ExtraWhitespace [46..50]: "    "
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c2 50
- │   │       │   │   │   └─ LuauLineContinuation_begin_c3 50
+ │   │       │   │   │   └─ LuauLineContinuation_begin_c1 [46..50]
+ │   │       │   │   │       └─ ExtraWhitespace [46..50]: "    "
  │   │       │   │   ├─ LuauLineContinuation_content [50..55]
  │   │       │   │   │   ├─ LuauAccessPart [50..52]
  │   │       │   │   │   │   └─ LuauFunctionAccessor [50..52]
@@ -137,10 +133,8 @@ sparkdown [0..185]
  │   │       │   ├─ Newline [55..56]: "\n"
  │   │       │   ├─ LuauLineContinuation [56..66]
  │   │       │   │   ├─ LuauLineContinuation_begin [56..60]
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c1 [56..60]
- │   │       │   │   │   │   └─ ExtraWhitespace [56..60]: "    "
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c2 60
- │   │       │   │   │   └─ LuauLineContinuation_begin_c3 60
+ │   │       │   │   │   └─ LuauLineContinuation_begin_c1 [56..60]
+ │   │       │   │   │       └─ ExtraWhitespace [56..60]: "    "
  │   │       │   │   ├─ LuauLineContinuation_content [60..66]
  │   │       │   │   │   └─ LuauConcatOperation [60..66]
  │   │       │   │   │       ├─ LuauConcatOperation_begin 60
@@ -276,10 +270,8 @@ sparkdown [0..185]
  │   │       │   │   │   │   │   ├─ Newline [106..107]: "\n"
  │   │       │   │   │   │   │   └─ LuauLineContinuation [107..114]
  │   │       │   │   │   │   │       ├─ LuauLineContinuation_begin [107..111]
- │   │       │   │   │   │   │       │   ├─ LuauLineContinuation_begin_c1 [107..111]
- │   │       │   │   │   │   │       │   │   └─ ExtraWhitespace [107..111]: "    "
- │   │       │   │   │   │   │       │   ├─ LuauLineContinuation_begin_c2 111
- │   │       │   │   │   │   │       │   └─ LuauLineContinuation_begin_c3 111
+ │   │       │   │   │   │   │       │   └─ LuauLineContinuation_begin_c1 [107..111]
+ │   │       │   │   │   │   │       │       └─ ExtraWhitespace [107..111]: "    "
  │   │       │   │   │   │   │       ├─ LuauLineContinuation_content [111..114]
  │   │       │   │   │   │   │       │   └─ LuauAccessPart [111..114]
  │   │       │   │   │   │   │       │       └─ LuauPropertyAccessor [111..114]
@@ -344,10 +336,8 @@ sparkdown [0..185]
  │   │       │   ├─ Newline [152..153]: "\n"
  │   │       │   ├─ LuauLineContinuation [153..166]
  │   │       │   │   ├─ LuauLineContinuation_begin [153..157]
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c1 [153..157]
- │   │       │   │   │   │   └─ ExtraWhitespace [153..157]: "    "
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c2 157
- │   │       │   │   │   └─ LuauLineContinuation_begin_c3 157
+ │   │       │   │   │   └─ LuauLineContinuation_begin_c1 [153..157]
+ │   │       │   │   │       └─ ExtraWhitespace [153..157]: "    "
  │   │       │   │   ├─ LuauLineContinuation_content [157..166]
  │   │       │   │   │   ├─ LuauAccessPart [157..163]
  │   │       │   │   │   │   └─ LuauFunctionAccessor [157..163]
@@ -401,10 +391,8 @@ sparkdown [0..185]
  │   │       │   │   │   ├─ Newline [171..172]: "\n"
  │   │       │   │   │   ├─ LuauLineContinuation [172..178]
  │   │       │   │   │   │   ├─ LuauLineContinuation_begin [172..176]
- │   │       │   │   │   │   │   ├─ LuauLineContinuation_begin_c1 [172..176]
- │   │       │   │   │   │   │   │   └─ ExtraWhitespace [172..176]: "    "
- │   │       │   │   │   │   │   ├─ LuauLineContinuation_begin_c2 176
- │   │       │   │   │   │   │   └─ LuauLineContinuation_begin_c3 176
+ │   │       │   │   │   │   │   └─ LuauLineContinuation_begin_c1 [172..176]
+ │   │       │   │   │   │   │       └─ ExtraWhitespace [172..176]: "    "
  │   │       │   │   │   │   ├─ LuauLineContinuation_content [176..178]
  │   │       │   │   │   │   │   └─ LuauAccessPart [176..178]
  │   │       │   │   │   │   │       └─ LuauPropertyAccessor [176..178]

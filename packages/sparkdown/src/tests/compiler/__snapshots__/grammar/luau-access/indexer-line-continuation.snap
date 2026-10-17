@@ -100,10 +100,8 @@ sparkdown [0..163]
  │   │       │   ├─ Newline [38..39]: "\n"
  │   │       │   ├─ LuauLineContinuation [39..45]
  │   │       │   │   ├─ LuauLineContinuation_begin [39..43]
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c1 [39..43]
- │   │       │   │   │   │   └─ ExtraWhitespace [39..43]: "    "
- │   │       │   │   │   ├─ LuauLineContinuation_begin_c2 43
- │   │       │   │   │   └─ LuauLineContinuation_begin_c3 43
+ │   │       │   │   │   └─ LuauLineContinuation_begin_c1 [39..43]
+ │   │       │   │   │       └─ ExtraWhitespace [39..43]: "    "
  │   │       │   │   ├─ LuauLineContinuation_content [43..45]
  │   │       │   │   │   └─ LuauAccessPart [43..45]
  │   │       │   │   │       └─ LuauPropertyAccessor [43..45]

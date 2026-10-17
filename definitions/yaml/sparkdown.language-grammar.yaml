@@ -913,9 +913,6 @@ variables:
   LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|[.](?![.\d])|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   # A `-` that is neither a `--` comment nor a `->` divert.
   LUAU_MINUS_LINE_START: -(?![->])
-  # The redundant `&` that may mark a line continuing the expression before
-  # it in a Luau body, with the space after it.
-  _LUAU_CONTINUATION_MARK_: (?:([&])({{WS}}+))?
   # A `.` that is not concatenation, which a continuation line keeps reading
   # after its access parts, as a member access or a dangling accessor
   # (`LuauDanglingAccessor`), so the line does not end before it.
@@ -4278,12 +4275,6 @@ repository:
     end: (?={{BEAT}})|$|(?=^)
 
   LuauExplicitStatementMark:
-    tag: keyword
-    name: keyword.other.statement.explicit.luau.mark.sd
-
-  # The redundant `&` of a Luau body line that continues the expression
-  # before it (`LuauLineContinuation`), highlighted as a statement's mark.
-  LuauContinuationMark:
     tag: keyword
     name: keyword.other.statement.explicit.luau.mark.sd
 
@@ -8444,18 +8435,11 @@ repository:
   LuauSparkdownExplicitLineContinuation:
     # lookaround: LuauAccessPath owns ordinary identifiers; this continuation opens only at an accessor or operator and yields when its continuation ends.
     # See bounded-entry rationale above for the structural alternatives.
-    # The captures are `LuauLineContinuation`'s, the redundant `&` included.
-    begin: ^({{WS}}*){{_LUAU_CONTINUATION_MARK_}}(?={{LUAU_LINE_CONTINUATION}})
+    begin: ^({{WS}}*)(?={{LUAU_LINE_CONTINUATION}})
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauContinuationMark" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#LuauSparkdownExplicitLogicalOperation" }
       - { include: "#LuauSparkdownExplicitAccessPart" }
@@ -11748,26 +11732,12 @@ repository:
   #
   # `and` and `or` are tried before an access part, which would otherwise
   # read either as a name.
-  #
-  # A redundant `&` may mark the line, as it may any line of a Luau body
-  # (`& return 1` then `& + 2`, which Luau reads as `return 1 + 2`): the
-  # line still continues the expression before it (#1369). The mark is a
-  # `LuauContinuationMark`, not the `LuauExplicitStatementMark` that begins
-  # a statement, so the converter reads past it (`SPARKDOWN_ONLY`), as it
-  # reads past the line break, and every reading of the body reads the one
-  # expression.
   LuauLineContinuation:
-    begin: ^({{WS}}*){{_LUAU_CONTINUATION_MARK_}}(?={{LUAU_LINE_CONTINUATION}})
+    begin: ^({{WS}}*)(?={{LUAU_LINE_CONTINUATION}})
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauContinuationMark" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauAccessPart" }
@@ -11787,17 +11757,11 @@ repository:
   # of the expression there, so only `LuauBlockBody` includes this rule. A
   # `--` line is a comment, and a `->` line a divert.
   LuauMinusLineContinuation:
-    begin: ^({{WS}}*){{_LUAU_CONTINUATION_MARK_}}(?={{LUAU_MINUS_LINE_START}})
+    begin: ^({{WS}}*)(?={{LUAU_MINUS_LINE_START}})
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauContinuationMark" }
-      3:
-        patterns:
-          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#LuauAccessPart" }
       - { include: "#LuauParenthetical" }

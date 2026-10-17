@@ -772,10 +772,8 @@ sparkdown [0..475]
  │   │       │   │   │       │       │       │   │   │   ├─ Newline [321..322]: "\n"
  │   │       │   │   │       │       │       │   │   │   ├─ LuauLineContinuation [322..329]
  │   │       │   │   │       │       │       │   │   │   │   ├─ LuauLineContinuation_begin [322..326]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauLineContinuation_begin_c1 [322..326]
- │   │       │   │   │       │       │       │   │   │   │   │   │   └─ ExtraWhitespace [322..326]: "    "
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauLineContinuation_begin_c2 326
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauLineContinuation_begin_c3 326
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauLineContinuation_begin_c1 [322..326]
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ ExtraWhitespace [322..326]: "    "
  │   │       │   │   │       │       │       │   │   │   │   ├─ LuauLineContinuation_content [326..329]
  │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauAccessPart [326..329]
  │   │       │   │   │       │       │       │   │   │   │   │       └─ LuauPropertyAccessor [326..329]
@@ -816,10 +814,8 @@ sparkdown [0..475]
  │   │       │   │   │       │       │       │   │   │   ├─ Newline [340..341]: "\n"
  │   │       │   │   │       │       │       │   │   │   ├─ LuauLineContinuation [341..350]
  │   │       │   │   │       │       │       │   │   │   │   ├─ LuauLineContinuation_begin [341..347]
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauLineContinuation_begin_c1 [341..347]
- │   │       │   │   │       │       │       │   │   │   │   │   │   └─ ExtraWhitespace [341..347]: "      "
- │   │       │   │   │       │       │       │   │   │   │   │   ├─ LuauLineContinuation_begin_c2 347
- │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauLineContinuation_begin_c3 347
+ │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauLineContinuation_begin_c1 [341..347]
+ │   │       │   │   │       │       │       │   │   │   │   │       └─ ExtraWhitespace [341..347]: "      "
  │   │       │   │   │       │       │       │   │   │   │   ├─ LuauLineContinuation_content [347..350]
  │   │       │   │   │       │       │       │   │   │   │   │   └─ LuauArithmeticOperation [347..350]
  │   │       │   │   │       │       │       │   │   │   │   │       ├─ LuauArithmeticOperation_begin 347

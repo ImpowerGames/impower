@@ -4,8 +4,7 @@
 // with no scope of its own, or a statement rule closed unfinished at it.
 // Outside a pure-Luau body, or where the tree read the form as something
 // else, the form also compiled or ran wrongly (a header's name, a loop's
-// condition, an attributed function at the top level, a marked operator
-// line). Each form here is read by the grammar's own rules: no unread leaf
+// condition, an attributed function at the top level). Each form here is read by the grammar's own rules: no unread leaf
 // and no unfinished node, each token carries the scope it carries in the
 // forms the grammar already read (`@deprecated`, `T...`, `number | string`,
 // ...), and the script compiles and runs. Each form is a grammar fixture in
@@ -40,7 +39,6 @@ const PARAMETER = "variable.parameter.function.luau";
 const VARIABLE = "variable.other.readwrite.luau";
 const DEFINE_NAME = "entity.name.type.define.luau";
 const WITH = "keyword.control.as.luau";
-const MARK = "keyword.other.statement.explicit.luau.mark.sd";
 const WRITE_MARK = "keyword.action.mark.sd";
 const WRITE_TARGET = "variable.other.property.write.target.sd";
 const STORY_TEXT = "markup.raw.text.sd";
@@ -538,22 +536,6 @@ const FORMS: Record<string, Form> = {
       ["greet", FUNCTION_NAME],
       ["greet", FUNCTION_NAME],
     ],
-  },
-  "#1369 a marked leading operator after return": {
-    fixture: "marked-continuation-1369",
-    scopes: [
-      ["return", FUNCTION],
-      ["&", MARK],
-      ["+", "keyword.operator.arithmetic.luau"],
-      ["return", FUNCTION],
-      ["&", MARK],
-      ["-", "keyword.operator.arithmetic.luau"],
-    ],
-    within: [
-      ["& + 2", "LuauLineContinuation"],
-      ["& - 2", "LuauMinusLineContinuation"],
-    ],
-    output: "Value 3 -1.\n",
   },
 };
 

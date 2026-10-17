@@ -44,13 +44,12 @@ export const LUAU_STATEMENTS = new Set([
 export const FLOW_HEADERS = new Set(["Scene", "Branch"]);
 
 // Nodes inside Luau statements that are Sparkdown's own: the `&` that marks
-// a statement or a line that continues the expression before it, the
-// `choose`, `then` and `end` of a `choose` block, and the constructs Luau has
-// no syntax for. A `choose` block opens no scope (a choice's statements run
-// in its flow's), so the statements inside it are kept where they stand.
+// a statement, the `choose`, `then` and `end` of a `choose` block, and the
+// constructs Luau has no syntax for. A `choose` block opens no scope (a
+// choice's statements run in its flow's), so the statements inside it are
+// kept where they stand.
 export const SPARKDOWN_ONLY = new Set([
   "LuauExplicitStatementMark",
-  "LuauContinuationMark",
   "LuauSparkdownChooseBlock_begin",
   "LuauSparkdownChooseThenClause_begin",
   "LuauSparkdownChooseBlock_end",
