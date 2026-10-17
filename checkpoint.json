@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 215,
-  "previous": "7573ce63361deea4938a170fe009f80bc689dbb9",
+  "seq": 216,
+  "previous": "e82e3daa3783f80d197f5fb6b313f6d0654011c9",
   "snapshotParents": [],
-  "time": "2026-10-17T16:56:25.089Z",
+  "time": "2026-10-17T16:56:32.334Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1977",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 225,
+    "recordRevision": 226,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -6009,6 +6009,25 @@
           }
         }
       ]
+    },
+    "1977": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "860f0d1d-0994-490d-9b78-c52d30cc1eb3",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "low",
+        "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
+        "branch": "refactor/1977-tokenizer-attribute-lexemes",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-17T16:56:31.053Z"
+      },
+      "history": [],
+      "results": []
     }
   },
   "operations": [
@@ -7607,7 +7626,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:56:25.089Z",
+      "observedAt": "2026-10-17T16:56:32.334Z",
+      "held": true,
+      "exists": false
+    },
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes": {
+      "ticket": 1977,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
+      "branch": "refactor/1977-tokenizer-attribute-lexemes",
+      "observedAt": "2026-10-17T16:56:32.334Z",
       "held": true,
       "exists": false
     }
@@ -7980,13 +8008,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T05:30:27.289Z",
-      "event": "checkpoint-published",
-      "ticket": 1924,
-      "id": "6bc44573",
-      "comment": 6230199949
-    },
     {
       "time": "2026-10-17T05:30:28.757Z",
       "event": "relayed",
@@ -8716,6 +8737,13 @@
       "ticket": 1907,
       "route": "claude-cli",
       "launchId": "4c537485-e0db-474a-9884-f2d42c3243c1"
+    },
+    {
+      "time": "2026-10-17T16:56:31.054Z",
+      "event": "dispatch-intent",
+      "ticket": 1977,
+      "route": "claude-cli",
+      "launchId": "860f0d1d-0994-490d-9b78-c52d30cc1eb3"
     }
   ]
 }
