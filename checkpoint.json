@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 181,
-  "previous": "f67647a1f75ea3737701cbf89b59a5c9099e3183",
+  "seq": 182,
+  "previous": "b43231e5c6461ce40dd372365fb4d8eac410c252",
   "snapshotParents": [],
-  "time": "2026-10-17T15:04:18.712Z",
+  "time": "2026-10-17T15:09:34.585Z",
   "kind": "auto",
-  "transition": "request of #1906",
+  "transition": "answer of #1906",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 192,
+    "recordRevision": 195,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1916,7 +1916,14 @@
           "text": "Checkpoint after review round 4 on PR #1995 (limit 4 under decision 7b1dad9e): axg found one comment-only quality finding, fixed in 5fabd8bb1; undirected found nothing at 5fabd8bb1; all four coordinator questions answered yes by both reviewers; head a35ea4a98 is a conflict-resolving merge of main (#1374 removed LuauExplicitStatement; nine files resolved) with CI green and every touched suite passing; the writer asks for the decision on the head.",
           "source": "cross-session message from impower-05 (writer, launch bb7eb9b8, resumed) on 2026-10-17 after its turn ended",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision 9a9813dc, published on PR #1995 as comment 6235514127: the merge of main a35ea4a98 is accepted without another independent round, on head a35ea4a98 only. Round 4 found no instance of any mechanism and only a comment fix; the remerge diff is a conflict resolution that mostly takes main's own deletions, and every touched suite, the corpus gate and CI are green on it. Make no further change to the branch: any push invalidates the acceptance. I mark the PR ready naming the decision and merge it through the gate now; you need do nothing more on #1906, and your turn can end. Thank you for the four rounds and the repair.",
+            "deliveryId": "02672b60",
+            "attempts": 1,
+            "time": "2026-10-17T15:09:31.594Z",
+            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+          }
         }
       ],
       "checkpoints": [
@@ -2633,6 +2640,385 @@
             "comment": 6234513190,
             "time": "2026-10-17T13:35:37.885Z",
             "headAtPublish": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92"
+          }
+        },
+        {
+          "version": 1,
+          "id": "9a9813dc",
+          "kind": "accept-unreviewed",
+          "feature": 1904,
+          "ticket": 1906,
+          "pr": 1995,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T15:09:26.316Z",
+          "round": 4,
+          "limitBefore": 4,
+          "reviewedHead": "5fabd8bb1afa8235e76080e8159fdc84ccfe6839",
+          "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
+          "range": {
+            "from": "5fabd8bb1afa8235e76080e8159fdc84ccfe6839",
+            "to": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
+            "base": "555e5300ae7b7b8483394ad36c4d6967fa740d55",
+            "commits": [
+              "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3"
+            ],
+            "diffSha256": "390611cf509004767461386e4563a83e3d5f9ec4c4330e7db91b71e99ff41ac5"
+          },
+          "reports": [
+            {
+              "comment": 6225382429,
+              "round": 1,
+              "reviewerId": "gram",
+              "adjudication": 6226722520
+            },
+            {
+              "comment": 6226905089,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6226924746
+            },
+            {
+              "comment": 6227523977,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6228087438
+            },
+            {
+              "comment": 6228226010,
+              "round": 2,
+              "reviewerId": "axg",
+              "adjudication": 6228345598
+            },
+            {
+              "comment": 6228684372,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6229040688
+            },
+            {
+              "comment": 6229606869,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6229761796
+            },
+            {
+              "comment": 6230483903,
+              "round": 3,
+              "reviewerId": "axg",
+              "adjudication": 6230562726
+            },
+            {
+              "comment": 6234798892,
+              "round": 4,
+              "reviewerId": "axg",
+              "adjudication": 6234824000
+            },
+            {
+              "comment": 6235055428,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6235206186
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "authority": "/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.",
+          "assessment": {
+            "mechanisms": "Four mechanisms across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead: an unrelated pipe, a quoted pipe, a pipe in a long string, levels above three, and the level-four-or-higher long string with a lower-level closer (the known limit kept under #2049). (b) The = whose value is on the next line: a trailing comment, two trailing comments, block comments spanning lines or of high level, an = inside a trailing comment, a comment's closing line holding the if; the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies (LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator), and repair B (decision 6350ae80, commit 4c287cc5d) then confined that scope to Luau bodies by giving the narrative declaration and reassignment rules twins of the two assignment rules without it, so narrative behaviour is main's again. (c) The reserved-word check for local names in readLuauAst, now a token walk across lines that ends at an =, a statement or a keyword. (d) Define keys, settled in round 2; round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator. Round 4 found no new instance of any of the four mechanisms: axg's one finding was a quality note that two YAML comments overclaimed (a block comment opening on the = line is read whole, as on main), fixed in 5fabd8bb1 with both generated grammars byte-identical; undirected found nothing and confirmed all four coordinator questions (no narrative tree or diagnostic changed beyond the rename-only snapshots and the #1580 tests pass unchanged, every consumer reads the twins, every round 3 mechanism (b) Luau-body case holds, the axg-2 corrections hold), with 36 narrative inputs compared against the merge base.",
+            "regressions": "Round 4 found no defect introduced by a correction; its only change is comments. The head a35ea4a98 is a conflict-resolving merge of main (ten files, 37 insertions and 229 deletions in the remerge diff): #1374 had removed LuauExplicitStatement, which this branch had only given a closer end, so the resolution takes main's removal (grammar, trailingStatementNames.ts, GRAMMAR.md), keeps both sides in readLuauAst.ts and unreadTokens.ts (this branch's zero-width closer bookkeeping and #1374's intersection-line reading, under disjoint conditions), drops the function-body & test as main did, and applies the two twin renames to main's new intersection-line fixture. Every touched suite and CI pass on it.",
+            "repairOptions": "None outstanding. Mechanism (a) keeps its documented limit, filed as #2049 for the converter-side alternative. The merge resolution is the only unreviewed code and it introduces no new rule or reading; a reviewer would check the readLuauAst.ts ordering, which the disjoint guards (a zero-width node versus a named intersection line) make immaterial.",
+            "residualRisk": "The merge resolution a35ea4a98 has no independent review: its risk is the combination of this branch's stray-closer bookkeeping with #1374's intersection-line reading in one Tokenizer method, covered by FunctionIntersectionContinuation (62), RepeatLocalBeforeUntil, the trailing-comma suites and the corpus gate. Mechanism (a)'s known limit stands. Nothing else is open.",
+            "coverage": "On a35ea4a98 before pushing: both grammar snapshot suites (174 each), scopeEquality 225, luauTokenClasses 145, programIncrementalDiagnostics 5, luauTreeAst, luauCorpusGate 1071, compileSnapshot, the trailing-comma suites, RepeatLocalBeforeUntil, BoundedExpressionFamily931, every test file main changed (FunctionIntersectionContinuation, ReturnSemicolonRange931, returnFinalStatement1298, StoryReturnText931 and the five program suites), the language server's formatSnapshot and its scope and formatting suites; typecheck, grammar lint, baseline, the 83 rule tests and the node-name and lowerer checks pass; Oniguruma 1032 patterns with 12 refused as on main. undirected's red-on-base run: all 20 changed test files pass on the head, 17 fail and 3 pass as controls on 68a6335fb. CI on a35ea4a98: 29 passed, 4 skipped, none failed, including all four sparkdown shards, test-suite, the corpus gate and typecheck.",
+            "nextRoundValue": "A round 5 would establish only that the merge resolution is right, mainly the readLuauAst.ts ordering and the LuauExplicitStatement removal against this branch's closer ends, which the touched suites and CI already exercise; it would not change the four mechanisms' standing, which round 4 confirmed.",
+            "rationale": "The defect classes have stopped recurring: round 4 found no instance of any mechanism and its one finding was a comment. What remains unreviewed is a conflict-resolving merge of main whose remerge diff is mostly main's own deletions, with every touched suite, the corpus gate and CI green. Under this run's rule, that is the small verified tail acceptance is for, and #1907's dispatch and the tracker cutover wait on this merge.",
+            "next": "Accept head a35ea4a98 unreviewed; the coordinator marks the PR ready naming this decision and merges it through the gate; the writer makes no further change to the branch.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "verification": [
+              "on a35ea4a98: both grammar snapshot suites (174 each), scopeEquality 225, luauTokenClasses 145, programIncrementalDiagnostics 5, luauTreeAst, luauCorpusGate 1071, compileSnapshot, trailing-comma suites, RepeatLocalBeforeUntil, BoundedExpressionFamily931, every test file main changed, language-server formatSnapshot and scope and formatting suites passing",
+              "typecheck, grammar lint, baseline, 83 rule tests, node-name and lowerer checks pass; Oniguruma 1032 patterns with 12 refused as on main",
+              "round 4 undirected red-on-base: all 20 changed test files pass on the head, 17 fail and 3 controls pass on 68a6335fb; 36 narrative inputs match the merge base",
+              "CI on a35ea4a98: 29 passed, 4 skipped, none failed or pending"
+            ],
+            "findings": [
+              {
+                "comment": 6225382429,
+                "finding": "an unrelated pipe turned an ordinary name into an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225382429,
+                "finding": "continue was rejected as a declaration-list value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225382429,
+                "finding": "a foreign closer escaping the outer function lost Luau's diagnostic",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226905089,
+                "disposition": "none"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "an existing test hid a function-boundary regression",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "two spaces let reserved local bindings become define keys",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "a quoted pipe turned an ordinary call into an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "a trailing comment defeated next-line assignment values",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "the reassignment test still expected the old continue behaviour, leaving CI red",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228226010,
+                "finding": "a pipe inside a Luau long string opened an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228226010,
+                "finding": "two trailing comments defeated the next-line assignment value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "a reserved-word define key took its function value's local name",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "modifier words used as define keys were silently dropped",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "valid block comments after = let the next-line if expression consume the function's end",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "reserved words after a binding comma silently compiled",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229173107,
+                "finding": "a type annotation bypassed the reserved-name-after-comma correction",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229173107,
+                "finding": "the new arm discriminator rejected valid long strings above level three",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "an = inside a trailing comment changed the following statement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "a multiline comment's closing line turned an initializer into an if block",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "pipes inside higher-level long strings still opened alternators",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "reserved names after a local comma still compiled silently across a newline",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "the new assignment scope discarded a define property's actual value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "a blank line bypassed the reserved-local-name correction",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "a pipe inside a valid level-four-or-higher long string with a lower-level closer still opens an alternator (the known limit filed as #2049)",
+                "disposition": "deferred"
+              },
+              {
+                "comment": 6234798892,
+                "finding": "two YAML narrative-boundary comments overclaimed for a block comment opening on the = line (quality, comments only)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6235055428,
+                "disposition": "none"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 4: accept the final verified corrections without another independent round\n\nDecision `9a9813dc` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1906. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\"\n\n- Round state: round 4 is complete (limit 4 before this decision); its planned reviewers (axg, undirected) exited, and every report has its adjudication (6225382429 in 6226722520, 6226905089 in 6226924746, 6227523977 in 6228087438, 6228226010 in 6228345598, 6228684372 in 6229040688, 6229606869 in 6229761796, 6230483903 in 6230562726, 6234798892 in 6234824000, 6235055428 in 6235206186).\n- Independently reviewed through `5fabd8bb1afa8235e76080e8159fdc84ccfe6839`.\n- Head `a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3`. Unreviewed: `5fabd8bb1..a35ea4a98`, 1 commit (`a35ea4a98` Merge remote-tracking branch 'origin/main' into fix/1906-luau-token-classes (base merge, shown as its remerge diff)), diff SHA-256 `390611cf509004767461386e4563a83e3d5f9ec4c4330e7db91b71e99ff41ac5`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, driver-checks passed, test-suite passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 23 accepted, 1 deferred, 2 none; unresolved: none.\n- Shared mechanisms: Four mechanisms across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead: an unrelated pipe, a quoted pipe, a pipe in a long string, levels above three, and the level-four-or-higher long string with a lower-level closer (the known limit kept under #2049). (b) The = whose value is on the next line: a trailing comment, two trailing comments, block comments spanning lines or of high level, an = inside a trailing comment, a comment's closing line holding the if; the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies (LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator), and repair B (decision 6350ae80, commit 4c287cc5d) then confined that scope to Luau bodies by giving the narrative declaration and reassignment rules twins of the two assignment rules without it, so narrative behaviour is main's again. (c) The reserved-word check for local names in readLuauAst, now a token walk across lines that ends at an =, a statement or a keyword. (d) Define keys, settled in round 2; round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator. Round 4 found no new instance of any of the four mechanisms: axg's one finding was a quality note that two YAML comments overclaimed (a block comment opening on the = line is read whole, as on main), fixed in 5fabd8bb1 with both generated grammars byte-identical; undirected found nothing and confirmed all four coordinator questions (no narrative tree or diagnostic changed beyond the rename-only snapshots and the #1580 tests pass unchanged, every consumer reads the twins, every round 3 mechanism (b) Luau-body case holds, the axg-2 corrections hold), with 36 narrative inputs compared against the merge base.\n- Defects introduced by corrections: Round 4 found no defect introduced by a correction; its only change is comments. The head a35ea4a98 is a conflict-resolving merge of main (ten files, 37 insertions and 229 deletions in the remerge diff): #1374 had removed LuauExplicitStatement, which this branch had only given a closer end, so the resolution takes main's removal (grammar, trailingStatementNames.ts, GRAMMAR.md), keeps both sides in readLuauAst.ts and unreadTokens.ts (this branch's zero-width closer bookkeeping and #1374's intersection-line reading, under disjoint conditions), drops the function-body & test as main did, and applies the two twin renames to main's new intersection-line fixture. Every touched suite and CI pass on it.\n- Broader or simpler repair: None outstanding. Mechanism (a) keeps its documented limit, filed as #2049 for the converter-side alternative. The merge resolution is the only unreviewed code and it introduces no new rule or reading; a reviewer would check the readLuauAst.ts ordering, which the disjoint guards (a zero-width node versus a named intersection line) make immaterial.\n- Residual risk: The merge resolution a35ea4a98 has no independent review: its risk is the combination of this branch's stray-closer bookkeeping with #1374's intersection-line reading in one Tokenizer method, covered by FunctionIntersectionContinuation (62), RepeatLocalBeforeUntil, the trailing-comma suites and the corpus gate. Mechanism (a)'s known limit stands. Nothing else is open.\n- Verification coverage: On a35ea4a98 before pushing: both grammar snapshot suites (174 each), scopeEquality 225, luauTokenClasses 145, programIncrementalDiagnostics 5, luauTreeAst, luauCorpusGate 1071, compileSnapshot, the trailing-comma suites, RepeatLocalBeforeUntil, BoundedExpressionFamily931, every test file main changed (FunctionIntersectionContinuation, ReturnSemicolonRange931, returnFinalStatement1298, StoryReturnText931 and the five program suites), the language server's formatSnapshot and its scope and formatting suites; typecheck, grammar lint, baseline, the 83 rule tests and the node-name and lowerer checks pass; Oniguruma 1032 patterns with 12 refused as on main. undirected's red-on-base run: all 20 changed test files pass on the head, 17 fail and 3 pass as controls on 68a6335fb. CI on a35ea4a98: 29 passed, 4 skipped, none failed, including all four sparkdown shards, test-suite, the corpus gate and typecheck.\n- What another round would establish: A round 5 would establish only that the merge resolution is right, mainly the readLuauAst.ts ordering and the LuauExplicitStatement removal against this branch's closer ends, which the touched suites and CI already exercise; it would not change the four mechanisms' standing, which round 4 confirmed.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The defect classes have stopped recurring: round 4 found no instance of any mechanism and its one finding was a comment. What remains unreviewed is a conflict-resolving merge of main whose remerge diff is mostly main's own deletions, with every touched suite, the corpus gate and CI green. Under this run's rule, that is the small verified tail acceptance is for, and #1907's dispatch and the tracker cutover wait on this merge. Next: Accept head a35ea4a98 unreviewed; the coordinator marks the PR ready naming this decision and merges it through the gate; the writer makes no further change to the branch.\n- Verification on the head: on a35ea4a98: both grammar snapshot suites (174 each), scopeEquality 225, luauTokenClasses 145, programIncrementalDiagnostics 5, luauTreeAst, luauCorpusGate 1071, compileSnapshot, trailing-comma suites, RepeatLocalBeforeUntil, BoundedExpressionFamily931, every test file main changed, language-server formatSnapshot and scope and formatting suites passing; typecheck, grammar lint, baseline, 83 rule tests, node-name and lowerer checks pass; Oniguruma 1032 patterns with 12 refused as on main; round 4 undirected red-on-base: all 20 changed test files pass on the head, 17 fail and 3 controls pass on 68a6335fb; 36 narrative inputs match the merge base; CI on a35ea4a98: 29 passed, 4 skipped, none failed or pending.\n- This is the coordinator's exception for an orchestrated Feature: not ordinary readiness and not an independent review. Reviewed code ends at `5fabd8bb1afa8235e76080e8159fdc84ccfe6839`; the range above is accepted unreviewed. It applies to head `a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3` only: any later push invalidates it and needs a new checkpoint.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"9a9813dc\",\n \"kind\": \"accept-unreviewed\",\n \"feature\": 1904,\n \"ticket\": 1906,\n \"pr\": 1995,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T15:09:26.316Z\",\n \"round\": 4,\n \"limitBefore\": 4,\n \"reviewedHead\": \"5fabd8bb1afa8235e76080e8159fdc84ccfe6839\",\n \"head\": \"a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3\",\n \"range\": {\n  \"from\": \"5fabd8bb1afa8235e76080e8159fdc84ccfe6839\",\n  \"to\": \"a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3\",\n  \"base\": \"555e5300ae7b7b8483394ad36c4d6967fa740d55\",\n  \"commits\": [\n   \"a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3\"\n  ],\n  \"diffSha256\": \"390611cf509004767461386e4563a83e3d5f9ec4c4330e7db91b71e99ff41ac5\"\n },\n \"reports\": [\n  {\n   \"comment\": 6225382429,\n   \"round\": 1,\n   \"reviewerId\": \"gram\",\n   \"adjudication\": 6226722520\n  },\n  {\n   \"comment\": 6226905089,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6226924746\n  },\n  {\n   \"comment\": 6227523977,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228087438\n  },\n  {\n   \"comment\": 6228226010,\n   \"round\": 2,\n   \"reviewerId\": \"axg\",\n   \"adjudication\": 6228345598\n  },\n  {\n   \"comment\": 6228684372,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229040688\n  },\n  {\n   \"comment\": 6229606869,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229761796\n  },\n  {\n   \"comment\": 6230483903,\n   \"round\": 3,\n   \"reviewerId\": \"axg\",\n   \"adjudication\": 6230562726\n  },\n  {\n   \"comment\": 6234798892,\n   \"round\": 4,\n   \"reviewerId\": \"axg\",\n   \"adjudication\": 6234824000\n  },\n  {\n   \"comment\": 6235055428,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6235206186\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"authority\": \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\",\n \"assessment\": {\n  \"mechanisms\": \"Four mechanisms across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead: an unrelated pipe, a quoted pipe, a pipe in a long string, levels above three, and the level-four-or-higher long string with a lower-level closer (the known limit kept under #2049). (b) The = whose value is on the next line: a trailing comment, two trailing comments, block comments spanning lines or of high level, an = inside a trailing comment, a comment's closing line holding the if; the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies (LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator), and repair B (decision 6350ae80, commit 4c287cc5d) then confined that scope to Luau bodies by giving the narrative declaration and reassignment rules twins of the two assignment rules without it, so narrative behaviour is main's again. (c) The reserved-word check for local names in readLuauAst, now a token walk across lines that ends at an =, a statement or a keyword. (d) Define keys, settled in round 2; round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator. Round 4 found no new instance of any of the four mechanisms: axg's one finding was a quality note that two YAML comments overclaimed (a block comment opening on the = line is read whole, as on main), fixed in 5fabd8bb1 with both generated grammars byte-identical; undirected found nothing and confirmed all four coordinator questions (no narrative tree or diagnostic changed beyond the rename-only snapshots and the #1580 tests pass unchanged, every consumer reads the twins, every round 3 mechanism (b) Luau-body case holds, the axg-2 corrections hold), with 36 narrative inputs compared against the merge base.\",\n  \"regressions\": \"Round 4 found no defect introduced by a correction; its only change is comments. The head a35ea4a98 is a conflict-resolving merge of main (ten files, 37 insertions and 229 deletions in the remerge diff): #1374 had removed LuauExplicitStatement, which this branch had only given a closer end, so the resolution takes main's removal (grammar, trailingStatementNames.ts, GRAMMAR.md), keeps both sides in readLuauAst.ts and unreadTokens.ts (this branch's zero-width closer bookkeeping and #1374's intersection-line reading, under disjoint conditions), drops the function-body & test as main did, and applies the two twin renames to main's new intersection-line fixture. Every touched suite and CI pass on it.\",\n  \"repairOptions\": \"None outstanding. Mechanism (a) keeps its documented limit, filed as #2049 for the converter-side alternative. The merge resolution is the only unreviewed code and it introduces no new rule or reading; a reviewer would check the readLuauAst.ts ordering, which the disjoint guards (a zero-width node versus a named intersection line) make immaterial.\",\n  \"residualRisk\": \"The merge resolution a35ea4a98 has no independent review: its risk is the combination of this branch's stray-closer bookkeeping with #1374's intersection-line reading in one Tokenizer method, covered by FunctionIntersectionContinuation (62), RepeatLocalBeforeUntil, the trailing-comma suites and the corpus gate. Mechanism (a)'s known limit stands. Nothing else is open.\",\n  \"coverage\": \"On a35ea4a98 before pushing: both grammar snapshot suites (174 each), scopeEquality 225, luauTokenClasses 145, programIncrementalDiagnostics 5, luauTreeAst, luauCorpusGate 1071, compileSnapshot, the trailing-comma suites, RepeatLocalBeforeUntil, BoundedExpressionFamily931, every test file main changed (FunctionIntersectionContinuation, ReturnSemicolonRange931, returnFinalStatement1298, StoryReturnText931 and the five program suites), the language server's formatSnapshot and its scope and formatting suites; typecheck, grammar lint, baseline, the 83 rule tests and the node-name and lowerer checks pass; Oniguruma 1032 patterns with 12 refused as on main. undirected's red-on-base run: all 20 changed test files pass on the head, 17 fail and 3 pass as controls on 68a6335fb. CI on a35ea4a98: 29 passed, 4 skipped, none failed, including all four sparkdown shards, test-suite, the corpus gate and typecheck.\",\n  \"nextRoundValue\": \"A round 5 would establish only that the merge resolution is right, mainly the readLuauAst.ts ordering and the LuauExplicitStatement removal against this branch's closer ends, which the touched suites and CI already exercise; it would not change the four mechanisms' standing, which round 4 confirmed.\",\n  \"rationale\": \"The defect classes have stopped recurring: round 4 found no instance of any mechanism and its one finding was a comment. What remains unreviewed is a conflict-resolving merge of main whose remerge diff is mostly main's own deletions, with every touched suite, the corpus gate and CI green. Under this run's rule, that is the small verified tail acceptance is for, and #1907's dispatch and the tracker cutover wait on this merge.\",\n  \"next\": \"Accept head a35ea4a98 unreviewed; the coordinator marks the PR ready naming this decision and merges it through the gate; the writer makes no further change to the branch.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"verification\": [\n   \"on a35ea4a98: both grammar snapshot suites (174 each), scopeEquality 225, luauTokenClasses 145, programIncrementalDiagnostics 5, luauTreeAst, luauCorpusGate 1071, compileSnapshot, trailing-comma suites, RepeatLocalBeforeUntil, BoundedExpressionFamily931, every test file main changed, language-server formatSnapshot and scope and formatting suites passing\",\n   \"typecheck, grammar lint, baseline, 83 rule tests, node-name and lowerer checks pass; Oniguruma 1032 patterns with 12 refused as on main\",\n   \"round 4 undirected red-on-base: all 20 changed test files pass on the head, 17 fail and 3 controls pass on 68a6335fb; 36 narrative inputs match the merge base\",\n   \"CI on a35ea4a98: 29 passed, 4 skipped, none failed or pending\"\n  ],\n  \"findings\": [\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"an unrelated pipe turned an ordinary name into an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"continue was rejected as a declaration-list value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"a foreign closer escaping the outer function lost Luau's diagnostic\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226905089,\n    \"disposition\": \"none\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"an existing test hid a function-boundary regression\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"two spaces let reserved local bindings become define keys\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"a quoted pipe turned an ordinary call into an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"a trailing comment defeated next-line assignment values\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"the reassignment test still expected the old continue behaviour, leaving CI red\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228226010,\n    \"finding\": \"a pipe inside a Luau long string opened an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228226010,\n    \"finding\": \"two trailing comments defeated the next-line assignment value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"a reserved-word define key took its function value's local name\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"modifier words used as define keys were silently dropped\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"valid block comments after = let the next-line if expression consume the function's end\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"reserved words after a binding comma silently compiled\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229173107,\n    \"finding\": \"a type annotation bypassed the reserved-name-after-comma correction\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229173107,\n    \"finding\": \"the new arm discriminator rejected valid long strings above level three\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"an = inside a trailing comment changed the following statement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"a multiline comment's closing line turned an initializer into an if block\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"pipes inside higher-level long strings still opened alternators\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"reserved names after a local comma still compiled silently across a newline\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"the new assignment scope discarded a define property's actual value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"a blank line bypassed the reserved-local-name correction\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"a pipe inside a valid level-four-or-higher long string with a lower-level closer still opens an alternator (the known limit filed as #2049)\",\n    \"disposition\": \"deferred\"\n   },\n   {\n    \"comment\": 6234798892,\n    \"finding\": \"two YAML narrative-boundary comments overclaimed for a block comment opening on the = line (quality, comments only)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6235055428,\n    \"disposition\": \"none\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "8543afad11522adfea3d20f51134bb375f5d293a9eebfb68ed29367038ce89b8",
+          "blockSha256": "9c226140e6e60954179f2e0425037e40d14215e81c45f3ae654e798cb482a4d7",
+          "published": {
+            "comment": 6235514127,
+            "time": "2026-10-17T15:09:29.502Z",
+            "headAtPublish": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3"
           }
         }
       ]
@@ -5693,6 +6079,16 @@
       "time": "2026-10-17T13:35:37.885Z"
     },
     {
+      "pr": 1995,
+      "url": "https://github.com/ImpowerGames/impower/pull/1995#issuecomment-6235514127",
+      "kind": "review-checkpoint accept-unreviewed",
+      "ticket": 1906,
+      "id": "9a9813dc",
+      "round": 4,
+      "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
+      "time": "2026-10-17T15:09:29.502Z"
+    },
+    {
       "pr": 1993,
       "url": "https://github.com/ImpowerGames/impower/pull/1993#issuecomment-6229458152",
       "kind": "review-checkpoint extend",
@@ -5741,7 +6137,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T15:04:17.397Z",
+      "observedAt": "2026-10-17T15:09:33.346Z",
       "held": true,
       "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
       "remoteHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
@@ -6126,12 +6522,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:04:17.397Z",
+      "observedAt": "2026-10-17T15:09:33.346Z",
       "held": true,
-      "head": "ce250f5ef1cdacb217eee91873ad0c468d69b803",
-      "remoteHead": "ce250f5ef1cdacb217eee91873ad0c468d69b803",
+      "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
+      "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 11176
+      },
       "pr": 1993,
       "reviewJobs": [
         {
@@ -6522,6 +6922,25 @@
           "commentIds": [
             6235355869
           ]
+        },
+        {
+          "job": "pr-1993/round-5/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 5,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "ax",
+              "undirected"
+            ],
+            "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
+            "completedRoundReviewers": {
+              "ax": 1
+            },
+            "time": "2026-10-17T15:05:29.877Z"
+          }
         }
       ]
     }
@@ -6882,24 +7301,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:40:01.252Z",
-      "event": "check-in",
-      "outcome": "#1905 checkpoint decided accept-unreviewed (41203445, comment 6223037563), PR #1927 marked ready and merged as bdba348d (operation 9834267a); writer released and its final report stored; #1906 (High), #1908 (Medium) and #1924 (High) claimed, launched on claude-cli, acknowledged and verified; main's run on bdba348d was cancelled by the #1960 merge, watching the run on f654256e7; #1907 still waits on #1374 whose PR #1402 is a stale draft"
-    },
-    {
-      "time": "2026-10-17T01:01:24.089Z",
-      "event": "result",
-      "ticket": 1908,
-      "pr": 1996,
-      "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b"
-    },
-    {
-      "time": "2026-10-17T01:01:34.717Z",
-      "event": "released",
-      "ticket": 1908,
-      "reason": "process 52132 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-17T01:04:26.289Z",
       "event": "result",
@@ -7616,6 +8017,30 @@
       "event": "request",
       "ticket": 1906,
       "id": "b2271e4b"
+    },
+    {
+      "time": "2026-10-17T15:09:26.316Z",
+      "event": "checkpoint-intent",
+      "ticket": 1906,
+      "id": "9a9813dc",
+      "kind": "accept-unreviewed",
+      "round": 4,
+      "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3"
+    },
+    {
+      "time": "2026-10-17T15:09:29.502Z",
+      "event": "checkpoint-published",
+      "ticket": 1906,
+      "id": "9a9813dc",
+      "comment": 6235514127
+    },
+    {
+      "time": "2026-10-17T15:09:31.595Z",
+      "event": "answer-intent",
+      "ticket": 1906,
+      "id": "b2271e4b",
+      "deliveryId": "02672b60",
+      "attempt": 1
     }
   ]
 }
