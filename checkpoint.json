@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 127,
-  "previous": "58f7e013fc181ee20bf8057abe934c8dc1ce75e2",
+  "seq": 128,
+  "previous": "165051ce909954bc7b487c9df4d027b875ccb38a",
   "snapshotParents": [],
-  "time": "2026-10-17T06:21:45.872Z",
+  "time": "2026-10-17T06:39:33.789Z",
   "kind": "auto",
-  "transition": "answered of #1374",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 134,
@@ -3449,12 +3449,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T06:21:44.403Z",
+      "observedAt": "2026-10-17T06:39:32.374Z",
       "held": true,
       "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
       "remoteHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 2022,
       "reviewJobs": [
         {
@@ -3681,6 +3681,40 @@
           "commentIds": [
             6230176446
           ]
+        },
+        {
+          "job": "pr-2022/round-5/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 5,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
+            "completedRoundReviewers": {
+              "undirected": 1
+            },
+            "time": "2026-10-17T06:22:08.187Z"
+          },
+          "round": 5,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6230719709
+          ]
         }
       ]
     },
@@ -3689,7 +3723,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T06:21:44.403Z",
+      "observedAt": "2026-10-17T06:39:32.374Z",
       "held": true,
       "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
       "remoteHead": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
@@ -3998,7 +4032,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T06:21:44.403Z",
+      "observedAt": "2026-10-17T06:39:32.374Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -4362,13 +4396,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T06:19:37.318Z",
+    "at": "2026-10-17T06:39:32.372Z",
     "tickets": [
       {
         "number": 984,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 51231beb1a3bbada90801ced5abe8dcf8c190db2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1002,
@@ -4386,7 +4420,7 @@
         "number": 1102,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 51231beb1a3bbada90801ced5abe8dcf8c190db2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1121,
@@ -4398,7 +4432,7 @@
         "number": 1195,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 51231beb1a3bbada90801ced5abe8dcf8c190db2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1197,
@@ -4452,7 +4486,7 @@
         "number": 1209,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 51231beb1a3bbada90801ced5abe8dcf8c190db2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1243,
@@ -4464,7 +4498,7 @@
         "number": 1247,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 51231beb1a3bbada90801ced5abe8dcf8c190db2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1248,
@@ -4494,7 +4528,7 @@
         "number": 1266,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 51231beb1a3bbada90801ced5abe8dcf8c190db2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1290,
@@ -4524,7 +4558,7 @@
         "number": 1341,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at 51231beb1a3bbada90801ced5abe8dcf8c190db2 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1343,
@@ -4582,9 +4616,9 @@
       },
       {
         "number": 1906,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 1995,
-        "reason": "process 60332 started 639278107286327539 is running"
+        "reason": "process 60332 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-4bcc49f5-bd97-449d-8480-09353997d26c\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1907,
