@@ -23,7 +23,10 @@
 //
 // An archive file is never replaced by one that lacks a comment it holds:
 // once the scrub has deleted that comment, the file is its only copy, so a
-// rerun keeps it and reports it under keptEarlier.
+// rerun carries it into the new file, names it under "Comments kept after
+// deletion" and reports the pull request under carried. Files are written
+// beside their place and renamed into it, so an interrupted write leaves
+// the earlier file whole.
 //
 // Both modes take --dir <dir>, a private attempt directory outside any Git
 // work tree, which holds the journal, pull-requests.jsonl. Every file
@@ -32,10 +35,17 @@
 // pull request's updated time has not moved, and scrub reads the live
 // comments again, so one already deleted is not deleted twice.
 //
-// The clone's origin must be the internal repository, so an archive is never
-// written into a checkout of the public one, and archive/** must carry the
+// The clone's origin must be the internal repository on GitHub, so an
+// archive is never written into a checkout of the public one and never
+// checked against a backup or another host, and archive/** must carry the
 // attribute -text (in the clone's .gitattributes), so Git stores the bodies'
-// line ends exactly as written.
+// line ends exactly as written. Git runs with replacement objects off.
+//
+// GitHub has no conditional deletion. The scrub reads each comment again
+// just before deleting it and stops that pull request's scrub on any edit
+// since the archive, which leaves about a second between the read and the
+// deletion in which an edit would be lost; the cutover window, in which
+// nobody else writes, closes it.
 //
 // Submitted reviews cannot be deleted, so a review's summary text stays on
 // its pull request; it is archived, and both modes report the reviews whose
@@ -88,6 +98,10 @@ export function describePull(pull, { comments = [], reviewComments = [], reviews
     // archived lists are checked against.
     commentCount: pull.comments,
     reviewCommentCount: pull.review_comments,
+    // The ids of comments a later archive carries over from an earlier one
+    // because they are no longer on the pull request (see carryForward).
+    keptComments: [],
+    keptReviewComments: [],
     body: pull.body ?? "",
     comments: comments.map((c) => ({ id: c.id, author: c.user?.login ?? null, createdAt: c.created_at, updatedAt: c.updated_at, body: c.body ?? "" })).sort(byCreated),
     reviewComments: reviewComments
@@ -121,6 +135,8 @@ const PULL_FIELDS = [
   ["updatedAt", "Updated"],
   ["commentCount", "Comments"],
   ["reviewCommentCount", "Review comments"],
+  ["keptComments", "Comments kept after deletion"],
+  ["keptReviewComments", "Review comments kept after deletion"],
 ];
 const SECTIONS = [
   { list: "comments", heading: "Comment", fields: [["author", "Author"], ["createdAt", "Created"], ["updatedAt", "Updated"]] },
@@ -210,16 +226,45 @@ export function parseArchive(text, repos) {
   return record;
 }
 
+const LISTS = [
+  { list: "comments", count: "commentCount", kept: "keptComments", what: "comments" },
+  { list: "reviewComments", count: "reviewCommentCount", kept: "keptReviewComments", what: "review comments" },
+];
+
 /**
  * What makes an archive record incomplete: lists shorter or longer than the
- * counts the pull request reported. An empty list means the record is
- * complete.
+ * counts the pull request reported plus the comments carried over from an
+ * earlier archive. An empty list means the record is complete.
  */
 export function archiveProblems(record) {
   const problems = [];
-  if (record.comments.length !== record.commentCount) problems.push(`holds ${record.comments.length} of ${record.commentCount} comments`);
-  if (record.reviewComments.length !== record.reviewCommentCount) problems.push(`holds ${record.reviewComments.length} of ${record.reviewCommentCount} review comments`);
+  for (const { list, count, kept, what } of LISTS) {
+    const expected = record[count] + record[kept].length;
+    if (record[list].length !== expected) problems.push(`holds ${record[list].length} of ${expected} ${what}`);
+    const held = new Set(record[list].map((c) => c.id));
+    const missing = record[kept].filter((id) => !held.has(id));
+    if (missing.length) problems.push(`names kept ${what} it does not hold: ${missing.join(", ")}`);
+  }
   return problems;
+}
+
+/**
+ * The live record with every comment of an earlier archive that is no
+ * longer on the pull request carried over and named as kept: once the scrub
+ * has deleted a comment, the earlier archive is its only copy. A comment
+ * still on the pull request takes its live text.
+ */
+export function carryForward(record, earlier) {
+  const out = { ...record };
+  let carried = 0;
+  for (const { list, kept } of LISTS) {
+    const live = new Set(record[list].map((c) => c.id));
+    const gone = earlier[list].filter((c) => !live.has(c.id));
+    carried += gone.length;
+    out[list] = [...record[list], ...gone].sort(byCreated);
+    out[kept] = gone.map((c) => c.id).sort((a, b) => a - b);
+  }
+  return { record: out, carried };
 }
 
 const archivePath = (n) => `${ARCHIVE_DIR}/${n}.md`;
@@ -228,42 +273,65 @@ const withSummary = (reviews) => reviews.filter((r) => r.body.trim() !== "");
 // ---------------------------------------------------------------------------
 // The internal repository's clone
 
-/** True when a remote URL names the repository `slug` (owner/name), in any of Git's URL forms. */
-export function remoteNames(url, slug) {
+/**
+ * True when a remote URL is the GitHub repository `slug` (owner/name) over
+ * HTTPS or SSH. A path or another host that ends in the same owner/name is
+ * a different repository, such as a local backup, and is refused.
+ */
+export function githubRemote(url, slug) {
   const escaped = slug.replace(/[.*+?^${}()|[\]\x5c]/g, "\x5c$&");
-  return new RegExp(`(?:^|[/:])${escaped}(?:[.]git)?/?$`, "i").test(url.trim().replace(/\x5c/g, "/"));
+  return new RegExp(`^(?:https://(?:[^@/]+@)?github[.]com/|ssh://git@github[.]com/|git@github[.]com:)${escaped}(?:[.]git)?/?$`, "i").test(url.trim());
 }
+
+const runGit = (root) => (args, input) => spawnSync("git", ["--no-replace-objects", "-C", root, ...args], { input, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, windowsHide: true, env: { ...process.env, GIT_NO_REPLACE_OBJECTS: "1" } });
 
 /**
  * Git operations on the clone the archive is written into. Refuses a clone
- * whose origin is not the internal repository and one where archive/** is
- * not stored verbatim.
+ * whose origin is not the internal repository on GitHub (every fetch URL,
+ * as Git expands it) and one where archive/** is not stored verbatim.
+ * Every command runs with replacement objects off, so a local replace ref
+ * cannot stand in for what the internal repository holds.
  */
-export function cloneOf(root, repos, run = (args) => spawnSync("git", ["-C", root, ...args], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, windowsHide: true })) {
-  const git = (args) => {
-    const r = run(args);
+export function cloneOf(root, repos, { run = runGit(root), remoteMatches = githubRemote } = {}) {
+  const git = (args, input) => {
+    const r = run(args, input);
     if (r.error) throw r.error;
     return r;
   };
-  const ok = (args) => {
-    const r = git(args);
+  const ok = (args, input) => {
+    const r = git(args, input);
     if (r.status !== 0) throw new Error(`git ${args.join(" ")} in ${root} failed: ${(r.stderr ?? "").trim().split("\n")[0]}`);
     return r.stdout;
   };
   const top = ok(["rev-parse", "--show-toplevel"]).trim();
   if (path.resolve(top).toLowerCase() !== path.resolve(root).toLowerCase()) throw new Error(`${root} is not the top of its clone (${top}); give the clone's root`);
-  const origin = ok(["remote", "get-url", "origin"]).trim();
-  if (!remoteNames(origin, repos.internal)) throw new Error(`${root}'s origin is ${origin}, not ${repos.internal}; the archive is written only into a clone of the internal repository`);
+  const origins = ok(["remote", "get-url", "--all", "origin"]).split("\n").map((u) => u.trim()).filter(Boolean);
+  const foreign = origins.filter((u) => !remoteMatches(u, repos.internal));
+  if (!origins.length || foreign.length) throw new Error(`${root}'s origin is ${origins.join(", ") || "unset"}, not https://github.com/${repos.internal}; the archive is written only into a clone of the internal repository`);
   const attribute = ok(["check-attr", "text", "--", `${ARCHIVE_DIR}/1.md`]).trim();
   if (!/: text: unset$/.test(attribute)) throw new Error(`${root} stores ${ARCHIVE_DIR} with line-end conversion (${attribute}); commit "archive/** -text" to its .gitattributes first`);
   return {
     root,
-    /** Fetches the internal repository's default branch and returns the commit it points at. */
+    /** Fetches the internal repository's default branch and returns the commit it points at, as the remote reports it. */
     fetchDefault() {
-      const head = /^ref: refs\/heads\/(\S+)\s+HEAD$/m.exec(ok(["ls-remote", "--symref", "origin", "HEAD"]))?.[1];
-      if (!head) throw new Error(`${repos.internal} reports no default branch`);
+      const listed = ok(["ls-remote", "--symref", "origin", "HEAD"]);
+      const head = /^ref: refs\/heads\/(\S+)\s+HEAD$/m.exec(listed)?.[1];
+      const reported = /^([0-9a-f]{40,64})\s+HEAD$/m.exec(listed)?.[1];
+      if (!head || !reported) throw new Error(`${repos.internal} reports no default branch`);
       ok(["fetch", "--quiet", "origin", `refs/heads/${head}`]);
-      return { branch: head, commit: ok(["rev-parse", "FETCH_HEAD"]).trim() };
+      const commit = ok(["rev-parse", "FETCH_HEAD"]).trim();
+      if (commit !== reported) throw new Error(`${repos.internal}'s ${head} moved from ${reported} to ${commit} while it was fetched; rerun`);
+      return { branch: head, commit };
+    },
+    /** The files among `files` that Git would not store byte for byte. */
+    converted(files) {
+      if (!files.length) return [];
+      const out = ok(["check-attr", "text", "--stdin"], `${files.join("\n")}\n`);
+      return out.split("\n").filter((l) => l.trim() && !/: text: unset$/.test(l)).map((l) => l.replace(/: text: [^:]*$/, ""));
+    },
+    /** Whether the clone's own HEAD holds `file`: a file it has never committed has no copy in its history. */
+    committed(file) {
+      return this.show("HEAD", file) !== null;
     },
     /** The file at `file` in `commit`, or null when the commit has none. */
     show(commit, file) {
@@ -298,6 +366,9 @@ export function pullTracker(gh) {
     findReviewComment: (repo, id) => gone(() => gh.api("GET", `repos/${repo}/pulls/comments/${id}`)),
     deleteComment: (repo, id) => gh.api("DELETE", `repos/${repo}/issues/comments/${id}`),
     deleteReviewComment: (repo, id) => gh.api("DELETE", `repos/${repo}/pulls/comments/${id}`),
+    // Room for a comment's read and its deletion together, so neither waits
+    // for the budget between them.
+    room: () => gh.pacer.room(2, 1),
   };
 }
 
@@ -332,8 +403,13 @@ function archivedAt(journal) {
 
 export async function runArchive({ tracker, repos, clone, journal, dryRun = false, only = null, log = () => {} }) {
   const pulls = await pullsToVisit(tracker, repos, only);
+  const converted = clone.converted(pulls.map((p) => archivePath(p.number)));
+  if (converted.length) throw new Error(`${clone.root} would store ${converted.length} archive files with line-end conversion (first ${converted[0]}); make "archive/** -text" cover all of ${ARCHIVE_DIR} first`);
   const written = archivedAt(journal);
-  const result = { pullRequests: pulls.length, written: 0, unchanged: 0, keptEarlier: [], comments: 0, reviewComments: 0, reviewsWithSummary: [], failed: [] };
+  const result = { pullRequests: pulls.length, written: 0, unchanged: 0, carried: [], comments: 0, reviewComments: 0, reviewsWithSummary: [], failed: [] };
+  // A partial file left by an interrupted write was never renamed into place.
+  const dir = path.join(clone.root, ARCHIVE_DIR);
+  if (!dryRun && fs.existsSync(dir)) for (const name of fs.readdirSync(dir)) if (/^[.][0-9]+[.]md[.]partial$/.test(name)) fs.rmSync(path.join(dir, name));
   for (const listed of pulls) {
     const n = listed.number;
     const file = path.join(clone.root, ARCHIVE_DIR, `${n}.md`);
@@ -351,40 +427,50 @@ export async function runArchive({ tracker, repos, clone, journal, dryRun = fals
         if (!(error instanceof ArchiveFormatError)) throw error;
       }
     }
-    const record = await readConversation(tracker, repos, n);
-    const problems = archiveProblems(record);
+    const live = await readConversation(tracker, repos, n);
+    const problems = archiveProblems(live);
     if (problems.length) {
       // The conversation changed between reading the counts and the lists; a rerun reads it again.
       result.failed.push({ pr: n, problems });
       log(`#${n}: ${problems.join("; ")}`);
       continue;
     }
-    // A file that holds a comment the pull request no longer has is the only
-    // copy of that comment once the scrub has started, so it is never
-    // replaced.
+    // An earlier file is the only copy of any comment the scrub has since
+    // deleted, so its comments that are no longer on the pull request are
+    // carried into the new file.
+    let record = live;
     if (fs.existsSync(file)) {
-      let earlier;
+      let earlier = null;
       try {
         earlier = parseArchive(fs.readFileSync(file, "utf8"), repos);
       } catch (error) {
         if (!(error instanceof ArchiveFormatError)) throw error;
-        result.failed.push({ pr: n, problems: [`${file} exists and does not read back (${error.message}); restore it from the internal repository's history before archiving it again`] });
-        continue;
+        // Files are replaced whole, so a damaged one was damaged by hand; it
+        // is replaced only when no commit holds a copy to restore.
+        const restore = clone.committed(archivePath(n)) ? `git -C ${clone.root} checkout HEAD -- ${archivePath(n)}` : clone.show(clone.fetchDefault().commit, archivePath(n)) !== null ? `git -C ${clone.root} checkout FETCH_HEAD -- ${archivePath(n)}` : null;
+        if (restore) {
+          result.failed.push({ pr: n, problems: [`${file} does not read back (${error.message}); restore it with ${restore} before archiving it again`] });
+          continue;
+        }
+        log(`#${n}: replacing ${file}, which does not read back and was never committed`);
       }
-      const gone = ["comments", "reviewComments"].reduce((sum, list) => {
-        const live = new Set(record[list].map((c) => c.id));
-        return sum + earlier[list].filter((c) => !live.has(c.id)).length;
-      }, 0);
-      if (gone) {
-        result.keptEarlier.push({ pr: n, gone });
-        log(`#${n}: kept the earlier archive, which holds ${gone} comments the pull request no longer has`);
-        continue;
+      if (earlier) {
+        const carried = carryForward(live, earlier);
+        record = carried.record;
+        if (carried.carried) {
+          result.carried.push({ pr: n, kept: carried.carried });
+          log(`#${n}: carried ${carried.carried} comments the pull request no longer has from the earlier archive`);
+        }
       }
     }
     const text = renderArchive(record, repos);
     if (!dryRun) {
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, text);
+      // Written beside the file and renamed over it, so an interrupted write
+      // leaves the earlier file whole.
+      const partial = path.join(path.dirname(file), `.${n}.md.partial`);
+      fs.writeFileSync(partial, text);
+      fs.renameSync(partial, file);
       let back;
       try {
         back = parseArchive(fs.readFileSync(file, "utf8"), repos);
@@ -487,16 +573,33 @@ export async function runScrub({ tracker, repos, clone, journal, dryRun = false,
       result.scrubbed++;
       continue;
     }
+    const archived = parseArchive(text, repos);
+    const copies = Object.fromEntries(LISTS.map(({ list }) => [list, new Map(archived[list].map((c) => [c.id, c.body]))]));
     // Replies before the comments they answer, newest first.
-    for (const c of [...live.reviewComments].reverse()) {
-      const was = await deleteOne(() => tracker.deleteReviewComment(repos.code, c.id), () => tracker.findReviewComment(repos.code, c.id));
-      journal.append({ mode: "scrub", pr: n, step: "deleted", kind: "review comment", id: c.id, ...(was ? {} : { alreadyGone: true }) });
-      result.deleted.reviewComments++;
+    const targets = [
+      ...[...live.reviewComments].reverse().map((c) => ({ list: "reviewComments", kind: "review comment", id: c.id, remove: () => tracker.deleteReviewComment(repos.code, c.id), find: () => tracker.findReviewComment(repos.code, c.id) })),
+      ...[...live.comments].reverse().map((c) => ({ list: "comments", kind: "comment", id: c.id, remove: () => tracker.deleteComment(repos.code, c.id), find: () => tracker.findComment(repos.code, c.id) })),
+    ];
+    let changed = null;
+    for (const t of targets) {
+      // GitHub has no conditional deletion, so each comment is read again
+      // just before it is deleted, after any wait for the write budget: an
+      // edit made since the comparison above stops the pull request's scrub
+      // instead of being deleted unarchived.
+      await tracker.room?.();
+      const now = await t.find();
+      if (now !== null && (now.body ?? "") !== copies[t.list].get(t.id)) {
+        changed = `${t.kind} ${t.id} changed after it was archived`;
+        break;
+      }
+      const was = now !== null && (await deleteOne(t.remove, t.find));
+      journal.append({ mode: "scrub", pr: n, step: "deleted", kind: t.kind, id: t.id, ...(was ? {} : { alreadyGone: true }) });
+      result.deleted[t.list]++;
     }
-    for (const c of [...live.comments].reverse()) {
-      const was = await deleteOne(() => tracker.deleteComment(repos.code, c.id), () => tracker.findComment(repos.code, c.id));
-      journal.append({ mode: "scrub", pr: n, step: "deleted", kind: "comment", id: c.id, ...(was ? {} : { alreadyGone: true }) });
-      result.deleted.comments++;
+    if (changed) {
+      result.refused.push({ pr: n, refusals: [changed] });
+      log(`#${n}: refused: ${changed}`);
+      continue;
     }
     const after = await tracker.getPull(repos.code, n);
     if (after.comments !== 0 || after.review_comments !== 0) {
@@ -571,7 +674,7 @@ export async function main(argv = process.argv.slice(2), { repos = readRepos(), 
     mode: "scrub",
     ...result,
     reviewsWithSummary: result.reviewsWithSummary.length,
-    ...(opts.dryRun ? { estimateHours: Number(estimateHours({ reads: pacer.total, writes: deletions }, budgets).toFixed(1)) } : {}),
+    ...(opts.dryRun ? { estimateHours: Number(estimateHours({ reads: pacer.total + deletions, writes: deletions }, budgets).toFixed(1)) } : {}),
     requestsMade: pacer.total,
     next: result.refused.length || result.failed.length ? "rerun --archive --only <the refused and failed numbers>, commit and push, then rerun --scrub" : "every pull request reads back with no comments and no review comments",
   });

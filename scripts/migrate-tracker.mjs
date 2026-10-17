@@ -677,18 +677,31 @@ export class Pacer {
     this.totalWrites = 0;
   }
 
-  wait(write) {
+  /** Milliseconds until `requests` more requests, `writes` of them writes, fit the budgets. */
+  wait(write, requests = 1, writes = write ? 1 : 0) {
     const t = this.now();
     this.requests = this.requests.filter((s) => s > t - 3600e3);
     this.writes = this.writes.filter((s) => s > t - 3600e3);
     const waits = [0];
-    if (this.requests.length >= this.perHour) waits.push(this.requests[this.requests.length - this.perHour] + 3600e3 - t);
-    if (write) {
-      if (this.writes.length >= this.writesPerHour) waits.push(this.writes[this.writes.length - this.writesPerHour] + 3600e3 - t);
-      const minute = this.writes.filter((s) => s > t - 60e3);
-      if (minute.length >= this.writesPerMinute) waits.push(minute[minute.length - this.writesPerMinute] + 60e3 - t);
+    // The window holds `limit`; `more` new ones fit once the oldest
+    // `length + more - limit` have left it.
+    const room = (stamps, limit, more, span) => {
+      if (stamps.length + more > limit) waits.push(stamps[stamps.length + more - limit - 1] + span - t);
+    };
+    room(this.requests, this.perHour, requests, 3600e3);
+    if (writes) {
+      room(this.writes, this.writesPerHour, writes, 3600e3);
+      room(this.writes.filter((s) => s > t - 60e3), this.writesPerMinute, writes, 60e3);
     }
     return Math.max(...waits);
+  }
+
+  /** Waits until `requests` more requests, `writes` of them writes, fit without waiting, and records none of them. */
+  async room(requests, writes = 0) {
+    for (let wait = this.wait(writes > 0, requests, writes); wait > 0; wait = this.wait(writes > 0, requests, writes)) {
+      if (wait > 5000) this.log(`pacing: waiting ${Math.ceil(wait / 1000)}s for room for ${requests} requests`);
+      await this.sleep(wait);
+    }
   }
 
   async take(write = false) {

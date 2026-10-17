@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { GhError, Journal } from "./migrate-tracker.mjs";
+import { GhError, Journal, Pacer } from "./migrate-tracker.mjs";
 import {
   ARCHIVE_DIR,
   ArchiveFormatError,
@@ -19,7 +19,7 @@ import {
   main,
   parseArchive,
   parseArgs,
-  remoteNames,
+  githubRemote,
   renderArchive,
   runArchive,
   runScrub,
@@ -87,10 +87,10 @@ function fakeTracker(conversations) {
       return repo.get(n).reviews.map((r) => ({ ...r }));
     },
     async findComment(_repo, id) {
-      return find("comments", id) ? { id } : null;
+      return find("comments", id)?.comments.find((c) => c.id === id) ?? null;
     },
     async findReviewComment(_repo, id) {
-      return find("reviewComments", id) ? { id } : null;
+      return find("reviewComments", id)?.reviewComments.find((c) => c.id === id) ?? null;
     },
     async deleteComment(_repo, id) {
       calls.push(`delete comment ${id}`);
@@ -105,7 +105,7 @@ function fakeTracker(conversations) {
   };
 }
 
-/** A clone whose pushed default branch is the files committed() was last called with. */
+/** A clone whose own HEAD and pushed default branch are the archive files as push() last found them. */
 function fakeClone(root) {
   let pushed = new Map();
   return {
@@ -117,6 +117,8 @@ function fakeClone(root) {
     },
     fetchDefault: () => ({ branch: "main", commit: "c0ffee" }),
     show: (_commit, file) => pushed.get(file) ?? null,
+    committed: (file) => pushed.has(file),
+    converted: () => [],
   };
 }
 
@@ -155,6 +157,8 @@ test("the archive file is the pull request's fields, its body and each comment, 
       `- Updated: "${at(6)}"`,
       "- Comments: 1",
       "- Review comments: 1",
+      "- Comments kept after deletion: []",
+      "- Review comments kept after deletion: []",
       "",
       "## Body",
       "",
@@ -264,7 +268,7 @@ test("archive writes one file per pull request, reads each back and journals it;
   const tracker = fakeTracker([conversation(1, { comments: [{ body: "c" }] }), conversation(2), conversation(5, { reviewComments: [{ body: "r" }], reviews: [{ body: "s" }, { body: "" }] })]);
   const journal = new Journal(path.join(dir, "journal.jsonl"));
   const first = await runArchive({ tracker, repos, clone, journal });
-  assert.deepEqual(first, { pullRequests: 3, written: 3, unchanged: 0, keptEarlier: [], comments: 1, reviewComments: 1, reviewsWithSummary: [{ pr: 5, review: 50001 }], failed: [] });
+  assert.deepEqual(first, { pullRequests: 3, written: 3, unchanged: 0, carried: [], comments: 1, reviewComments: 1, reviewsWithSummary: [{ pr: 5, review: 50001 }], failed: [] });
   assert.deepEqual(fs.readdirSync(path.join(clone.root, ARCHIVE_DIR)).sort(), ["1.md", "2.md", "5.md"]);
   assert.deepEqual(parseArchive(fs.readFileSync(path.join(clone.root, ARCHIVE_DIR, "1.md"), "utf8"), repos), record(tracker.repo.get(1)));
   assert.deepEqual(journal.of("archive").map((r) => r.pr), [1, 2, 5]);
@@ -385,25 +389,117 @@ test("a scrub resumed after a crash deletes what is left and treats a comment al
   assert.deepEqual(deleted.map((r) => [r.id, Boolean(r.alreadyGone)]), [[103, false], [102, true], [101, false]]);
 });
 
-test("an archive rerun after a partial scrub keeps the file that holds the deleted comments", async () => {
+test("after a partial scrub, an archive rerun keeps the deleted comments and takes in new and edited ones, and the scrub then finishes", async () => {
   const dir = scratch();
   const clone = fakeClone(path.join(dir, "clone"));
   const tracker = fakeTracker([conversation(1, { comments: [{ body: "a" }, { body: "b" }] })]);
   const journal = new Journal(path.join(dir, "journal.jsonl"));
   await runArchive({ tracker, repos, clone, journal });
-  const file = path.join(clone.root, ARCHIVE_DIR, "1.md");
-  const before = fs.readFileSync(file, "utf8");
-  // The scrub deleted one comment, which moves the pull request's updated time.
-  tracker.repo.get(1).comments.pop();
-  tracker.repo.get(1).pull.updated_at = at(40);
+  clone.push();
+  // The scrub deletes 102, newest first, and is interrupted before 101.
+  const deleteComment = tracker.deleteComment;
+  tracker.deleteComment = async function (repo, id) {
+    if (id === 101) throw new Error("killed");
+    return deleteComment.call(this, repo, id);
+  };
+  await assert.rejects(runScrub({ tracker, repos, clone, journal }), /killed/);
+  tracker.deleteComment = deleteComment;
+  // Then 103 is posted and 101 edited.
+  const pull = tracker.repo.get(1);
+  pull.comments.push({ id: 103, user: user("maintainer"), created_at: at(50), updated_at: at(50), body: "new" });
+  pull.comments[0].body = "a, edited";
+  pull.pull.updated_at = at(50);
+  const refused = await runScrub({ tracker, repos, clone, journal });
+  assert.deepEqual(refused.refused, [{ pr: 1, refusals: ["comment 101 was edited after it was archived", "comment 103 is not in the archive"] }]);
+
   for (const only of [null, [1]]) {
     const result = await runArchive({ tracker, repos, clone, journal, only });
-    assert.deepEqual(result.keptEarlier, [{ pr: 1, gone: 1 }]);
-    assert.equal(result.written, 0);
-    assert.equal(fs.readFileSync(file, "utf8"), before, "the file still holds the deleted comment");
+    assert.deepEqual(result.carried, [{ pr: 1, kept: 1 }]);
+    assert.deepEqual(result.failed, []);
+    const archived = parseArchive(fs.readFileSync(path.join(clone.root, ARCHIVE_DIR, "1.md"), "utf8"), repos);
+    assert.deepEqual(archived.comments.map((c) => [c.id, c.body]), [[101, "a, edited"], [102, "b"], [103, "new"]], "the deleted comment stays, the new and edited ones are taken in");
+    assert.deepEqual(archived.keptComments, [102]);
+    assert.equal(archived.commentCount, 2);
+    assert.deepEqual(archiveProblems(archived), []);
   }
-  fs.writeFileSync(file, before.slice(0, -3));
-  assert.match((await runArchive({ tracker, repos, clone, journal })).failed[0].problems[0], /does not read back.*restore it/, "a damaged file is not replaced either");
+  clone.push();
+  const result = await runScrub({ tracker, repos, clone, journal });
+  assert.deepEqual(result.refused, []);
+  assert.equal(result.scrubbed, 1);
+  assert.deepEqual(tracker.repo.get(1).comments, []);
+  // An archive taken now still holds every comment, all of them kept.
+  await runArchive({ tracker, repos, clone, journal, only: [1] });
+  assert.deepEqual(parseArchive(fs.readFileSync(path.join(clone.root, ARCHIVE_DIR, "1.md"), "utf8"), repos).keptComments, [101, 102, 103]);
+});
+
+test("a record that names a kept comment it does not hold, or holds more than its counts and kept comments, is incomplete", () => {
+  const full = record(conversation(4, { comments: [{ body: "a" }, { body: "b" }] }));
+  assert.deepEqual(archiveProblems({ ...full, keptComments: [999] }), ["holds 2 of 3 comments", "names kept comments it does not hold: 999"]);
+  assert.deepEqual(archiveProblems({ ...full, commentCount: 1 }), ["holds 2 of 1 comments"]);
+  assert.deepEqual(archiveProblems({ ...full, commentCount: 1, keptComments: [401] }), []);
+});
+
+test("an interrupted first write is replaced on the rerun; a damaged file with a committed copy is restored first", async () => {
+  const dir = scratch();
+  const clone = fakeClone(path.join(dir, "clone"));
+  const tracker = fakeTracker([conversation(1, { comments: [{ body: "a" }] })]);
+  const journal = new Journal(path.join(dir, "journal.jsonl"));
+  const folder = path.join(clone.root, ARCHIVE_DIR);
+  fs.mkdirSync(folder, { recursive: true });
+  // A file cut short before it was ever committed, and a partial file left by a crash.
+  fs.writeFileSync(path.join(folder, "1.md"), "# Pull request 1: Pull 1\n\nArch");
+  fs.writeFileSync(path.join(folder, ".1.md.partial"), "junk");
+  const first = await runArchive({ tracker, repos, clone, journal });
+  assert.deepEqual(first.failed, []);
+  assert.equal(first.written, 1);
+  assert.deepEqual(fs.readdirSync(folder), ["1.md"], "the partial file is removed");
+  assert.deepEqual(parseArchive(fs.readFileSync(path.join(folder, "1.md"), "utf8"), repos), record(tracker.repo.get(1)));
+  clone.push();
+  const good = fs.readFileSync(path.join(folder, "1.md"), "utf8");
+  fs.writeFileSync(path.join(folder, "1.md"), good.slice(0, -3));
+  const damaged = await runArchive({ tracker, repos, clone, journal, only: [1] });
+  assert.match(damaged.failed[0].problems[0], /does not read back .*restore it with git -C .* checkout HEAD -- archive\/pull-requests\/1[.]md/);
+  assert.equal(fs.readFileSync(path.join(folder, "1.md"), "utf8"), good.slice(0, -3), "a file with a committed copy is left for the operator to restore");
+});
+
+test("an edit made while the scrub waits for the write budget stops that pull request's scrub", async () => {
+  const dir = scratch();
+  const clone = fakeClone(path.join(dir, "clone"));
+  const tracker = fakeTracker([conversation(1, { comments: [{ body: "a" }, { body: "b" }] }), conversation(2, { reviewComments: [{ body: "r" }] })]);
+  const journal = new Journal(path.join(dir, "journal.jsonl"));
+  await runArchive({ tracker, repos, clone, journal });
+  clone.push();
+  let waits = 0;
+  tracker.room = async () => {
+    // The second wait comes after comment 102 is deleted; a human edits 101 during it.
+    if (++waits === 2) tracker.repo.get(1).comments[0].body = "edited while the scrub waited";
+  };
+  const result = await runScrub({ tracker, repos, clone, journal });
+  assert.deepEqual(result.refused, [{ pr: 1, refusals: ["comment 101 changed after it was archived"] }]);
+  assert.deepEqual(tracker.repo.get(1).comments.map((c) => [c.id, c.body]), [[101, "edited while the scrub waited"]], "the edited comment is not deleted");
+  assert.equal(result.scrubbed, 1, "the next pull request is still scrubbed");
+  assert.deepEqual(tracker.calls.filter((c) => c.startsWith("delete")), ["delete comment 102", "delete review comment 2001"]);
+});
+
+test("the pacer makes room for a read and a deletion together before either is taken", async () => {
+  let t = 0;
+  const slept = [];
+  const pacer = new Pacer({ perHour: 10, writesPerMinute: 60, writesPerHour: 1, now: () => t, sleep: async (ms) => (slept.push(ms), (t += ms)) });
+  await pacer.take(true);
+  t = 1000;
+  await pacer.room(2, 1);
+  assert.deepEqual(slept, [3600e3 - 1000 + 0], "it waits for the hour's one write to leave the window");
+  await pacer.take(false);
+  await pacer.take(true);
+  assert.equal(slept.length, 1, "the read and the deletion then go without waiting");
+  t += 1;
+  const full = new Pacer({ perHour: 3, writesPerHour: 10, now: () => t, sleep: async (ms) => (slept.push(ms), (t += ms)) });
+  await full.take(false);
+  await full.take(false);
+  await full.room(2, 1);
+  assert.equal(slept.length, 2, "two more requests do not fit an hour of three that holds two");
+  assert.equal(full.wait(false), 0);
+  assert.equal(full.wait(true, 2, 1), 0);
 });
 
 test("a deletion that fails in a way that may have taken effect is checked against the live comment", async () => {
@@ -455,12 +551,12 @@ const git = (cwd, ...args) => {
   return r.stdout;
 };
 
-test("a remote names the internal repository in any URL form, and no other repository", () => {
-  for (const url of ["https://github.com/Org/internal.git", "https://github.com/org/Internal", "git@github.com:Org/internal.git", "C:/tmp/x/Org/internal.git", "/tmp/x/Org/internal/"]) assert.ok(remoteNames(url, "Org/internal"), url);
-  for (const url of ["https://github.com/Org/code.git", "https://github.com/Org/internal-other.git", "https://github.com/XOrg/internal.git", "https://github.com/Org/internalx"]) assert.ok(!remoteNames(url, "Org/internal"), url);
+test("a remote is the internal repository only at its GitHub address, not at a namesake path or host", () => {
+  for (const url of ["https://github.com/Org/internal.git", "https://github.com/org/Internal", "https://x-access-token@github.com/Org/internal.git", "git@github.com:Org/internal.git", "ssh://git@github.com/Org/internal.git"]) assert.ok(githubRemote(url, "Org/internal"), url);
+  for (const url of ["https://github.com/Org/code.git", "https://github.com/Org/internal-other.git", "https://github.com/XOrg/internal.git", "https://github.com/Org/internalx", "https://elsewhere.invalid/Org/internal.git", "https://github.com.evil/Org/internal.git", "C:/backup/Org/internal.git", "/tmp/x/Org/internal/", "file:///tmp/Org/internal.git"]) assert.ok(!githubRemote(url, "Org/internal"), url);
 });
 
-test("the clone must be the internal repository's, store the archive verbatim, and serve what was pushed", () => {
+test("the clone must be the internal repository's, store the archive verbatim, and serve what was pushed and nothing else", () => {
   const dir = scratch();
   console.log(`Scratch directory: ${dir}`);
   try {
@@ -470,11 +566,21 @@ test("the clone must be the internal repository's, store the archive verbatim, a
     const root = path.join(dir, "clone");
     git(dir, "clone", "--quiet", bare, root);
     for (const [k, v] of [["user.name", "Test"], ["user.email", "test@example.com"], ["core.autocrlf", "true"]]) git(root, "config", k, v);
-    assert.throws(() => cloneOf(root, repos), /line-end conversion/, "a clone without the attribute is refused");
+    // The scratch remote stands in for GitHub; only its exact path is accepted.
+    const local = { remoteMatches: (url) => path.resolve(url) === path.resolve(bare) };
+    assert.throws(() => cloneOf(root, repos), /not https:\/\/github[.]com\/Org\/internal/, "a local namesake of the internal repository is refused");
+    assert.throws(() => cloneOf(root, repos, local), /line-end conversion/, "a clone without the attribute is refused");
     fs.writeFileSync(path.join(root, ".gitattributes"), "archive/** -text\n");
-    const clone = cloneOf(root, repos);
-    assert.throws(() => cloneOf(path.join(root, "archive"), repos), /not the top of its clone|cannot|failed/, "a directory inside the clone is refused");
-    assert.throws(() => cloneOf(root, { ...repos, internal: "Org/other" }), /not Org\/other/, "a clone of another repository is refused");
+    const clone = cloneOf(root, repos, local);
+    const paths = [`${ARCHIVE_DIR}/1.md`, `${ARCHIVE_DIR}/2054.md`];
+    assert.deepEqual(clone.converted(paths), []);
+    fs.writeFileSync(path.join(root, ".gitattributes"), `${ARCHIVE_DIR}/1.md -text\n`);
+    assert.deepEqual(clone.converted(paths), [`${ARCHIVE_DIR}/2054.md`], "an attribute that covers only the sampled file is caught for the others");
+    fs.writeFileSync(path.join(root, ".gitattributes"), "archive/** -text\n");
+    assert.throws(() => cloneOf(path.join(root, "archive"), repos, local), /not the top of its clone|cannot|failed/, "a directory inside the clone is refused");
+    git(root, "remote", "set-url", "--add", "origin", "https://elsewhere.invalid/Org/internal.git");
+    assert.throws(() => cloneOf(root, repos, local), /elsewhere[.]invalid/, "a second fetch URL elsewhere is refused");
+    git(root, "remote", "set-url", "--delete", "origin", "elsewhere");
 
     const text = renderArchive(record(conversation(1, { comments: [{ body: "CRLF\r\nkept" }] })), repos);
     fs.mkdirSync(path.join(root, ARCHIVE_DIR), { recursive: true });
@@ -493,6 +599,13 @@ test("the clone must be the internal repository's, store the archive verbatim, a
     git(root, "add", ARCHIVE_DIR);
     git(root, "commit", "--quiet", "-m", "more");
     assert.equal(clone.show(clone.fetchDefault().commit, `${ARCHIVE_DIR}/2.md`), null);
+    assert.ok(clone.committed(`${ARCHIVE_DIR}/2.md`), "the clone's own HEAD holds it");
+    assert.ok(!clone.committed(`${ARCHIVE_DIR}/3.md`));
+    // Nor can a local replace ref stand the unpushed commit in for the pushed one.
+    git(root, "replace", commit, git(root, "rev-parse", "HEAD").trim());
+    assert.equal(spawnSync("git", ["-C", root, "cat-file", "blob", `${commit}:${ARCHIVE_DIR}/2.md`], { encoding: "utf8", windowsHide: true }).stdout, text, "plain Git follows the replace ref");
+    assert.equal(clone.show(commit, `${ARCHIVE_DIR}/2.md`), null, "the clone's reads do not");
+    assert.equal(clone.fetchDefault().commit, commit);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -39,7 +39,7 @@ At the default pacing (4,500 requests an hour; writes at 60 a minute and 450 an 
 | Rewrite | about 5,600 gate renders, then the rewritten texts | about 0.8 hours of renders plus 3.8 hours of writes |
 | Verify | about 3,700 renders | about 0.8 hours |
 | Archive | 2,021 reads for 714 pull requests in the 2026-10-17 dry run | about 0.5 hours |
-| Scrub | the same reads and about 7,000 deletions (6,946 comments and 42 review comments on 2026-10-17) | about 15.5 hours at 450 deletions an hour, or about 2 hours if deletions are not limited as writes (see step 4) |
+| Scrub | the same reads, then for each of about 7,000 comments (6,946 issue comments and 42 review comments on 2026-10-17) a read and a deletion | about 15.5 hours at 450 deletions an hour, or about 3.5 hours if deletions are not limited as writes (see step 4) |
 
 The migration alone takes at least 11 to 13 hours unless `--writes-per-hour` is raised. Restore and rewrite each wait 120 seconds after the last transfer before they start. GitHub's secondary limit on the Markdown endpoint can pause a paced run; the tools wait and retry, and print a `rate limited, retrying` line when they do.
 
@@ -156,7 +156,7 @@ Expected: `entries` equal to the snapshot's `migrate`, and `remote: "ImpowerGame
 
 ```sh
 node scripts/migrate-tracker.mjs --verify --dir "$ATTEMPT/migration"; echo "exit $?"
-node -e "console.log(JSON.stringify(require(process.argv[1]).filter((d) => !String(d.field).startsWith('left as transferred'))))" "$ATTEMPT/migration/verify-report.json"
+node -e 'console.log(JSON.stringify(require(process.argv[1]).filter((d) => !String(d.field).startsWith("left as transferred"))))' "$ATTEMPT/migration/verify-report.json"
 ```
 
 Expected: `"passed": true` and `exit 0`; or, when `left-as-transferred.json` is not empty, `exit 1` with only `left as transferred` differences, in which case the second command prints `[]`. The maintainer then reads each listed text on the internal repository by hand and records the result in `$ATTEMPT/left-as-transferred-read.md`. **Stop** on any other difference: verify also checks that the public issue list is exactly the 35 kept issues and that every open pull request's computed closing references point at the internal repository.
@@ -198,7 +198,7 @@ git -C "$INTERNAL" status -sb | head -1
 node scripts/scrub-pull-requests.mjs --scrub "$INTERNAL" --dir "$ATTEMPT/pull-requests" --dry-run 2> "$ATTEMPT/scrub-dry-run.log"; echo "exit $?"
 ```
 
-Expected: the status line is `## main...origin/main`; the dry run exits 0 with `refused: []`, `deleted.comments` and `deleted.reviewComments` equal to the archive's counts, `reviewsWithSummary` (see below) and `estimateHours`. **Stop** on any refusal: a refused pull request names why, and the fix is `--archive --only <numbers>`, commit, push and the dry run again.
+Expected: the status line is `## main...origin/main`; the dry run exits 0 with `refused: []`, `deleted.comments` and `deleted.reviewComments` equal to the archive's counts, `reviewsWithSummary` (see below) and `estimateHours`. **Stop** on any refusal: a refused pull request names why, and the fix is `--archive --only <numbers>`, commit, push and the dry run again. The same fix applies after the real scrub, when a pull request gained or changed a comment partway through. A rerun of `--archive` never drops a comment its earlier file holds: a comment no longer on the pull request is carried into the new file and listed under `Comments kept after deletion`, and the run reports the pull request under `carried`.
 
 Pacing the deletions: GitHub limits content-creating requests to 80 a minute and 500 an hour and does not say whether a deletion is one. The default treats a deletion as a write (450 an hour, about 15.5 hours). To try the faster pace, start with `--writes-per-hour 3000`: if the log shows more than one `rate limited, retrying` line in ten minutes, press Ctrl+C and rerun without it.
 
@@ -235,10 +235,13 @@ The templates move in the same commit that flips the switch. In a worktree of a 
 ```sh
 git -C "$CODE" worktree add -b feat/1967-cutover-switch ../impower.worktrees/feat/1967-cutover-switch origin/main
 cd "$CODE/../impower.worktrees/feat/1967-cutover-switch"
-git rm --quiet .github/ISSUE_TEMPLATE/task.md .github/ISSUE_TEMPLATE/bug_report.md .github/ISSUE_TEMPLATE/feature_request.md .github/ISSUE_TEMPLATE/config.yml .github/PULL_REQUEST_TEMPLATE.md
-for f in bug_report.md feature_request.md config.yml; do git mv .agents/templates/public/$f .github/ISSUE_TEMPLATE/$f; done
-git mv .agents/templates/public/PULL_REQUEST_TEMPLATE.md .github/PULL_REQUEST_TEMPLATE.md
+git rm --quiet .github/ISSUE_TEMPLATE/task.md
+for f in bug_report.md feature_request.md config.yml; do git mv -f .agents/templates/public/$f .github/ISSUE_TEMPLATE/$f; done
+git mv -f .agents/templates/public/PULL_REQUEST_TEMPLATE.md .github/PULL_REQUEST_TEMPLATE.md
+rmdir .agents/templates/public 2>/dev/null; ls .agents/templates .github/ISSUE_TEMPLATE
 ```
+
+Expected: `.agents/templates` lists `issues`, `pr-report.md` and `templates.test.mjs` (no `public`), and `.github/ISSUE_TEMPLATE` lists `bug_report.md`, `config.yml` and `feature_request.md`. The template check reads `.agents/templates/public/` whenever it exists, so it must be gone.
 
 With an editor, set `"cutover": true` and `"feedbackInbox": <INBOX>` in `.agents/repos.json`, and in `.agents/skills/references/feedback-reporting.md` remove ` (#510 on the code repository until the cutover)`. Then:
 
@@ -247,11 +250,12 @@ node .agents/templates/templates.test.mjs
 node .claude/hooks/typed-issue-hook.test.mjs | tail -2
 node .github/scripts/check-linked-issue.test.mjs | tail -2
 node scripts/link-agent-skills.mjs && node scripts/check-agent-tooling.mjs --tier skills | tail -3
-git grep -n "#510" -- .agents AGENTS.md; echo "grep exit $?"
+node .agents/skills/triage-skill-feedback/triage-skill-feedback.test.mjs | tail -1
+git grep -n "#510" -- .agents AGENTS.md ':(exclude)*.test.mjs'; echo "grep exit $?"
 node .agents/repos.mjs tickets; node .agents/repos.mjs inbox
 ```
 
-Expected: each test ends with its pass line, the grep prints nothing and `grep exit 1`, then `ImpowerGames/impower-internal` and `<INBOX>`. Commit, push and open the pull request with the shrunk body (one summary paragraph and `Part of ImpowerGames/impower-internal#<TASK>` with `No linked issue.`), titled `feat(github): flip the tracker cutover switch (I-<TASK>)`, as a draft; post its PR report on internal `<TASK>`. It is the only pull request of the window that changes the code repository, and the maintainer merges it.
+Expected: each test ends with its pass line (`ok: ImpowerGames/impower-internal serves the same Bug, Feature and Task templates`, `all checks passed`, the linked-issue CLI line, `All 38 triage checks passed.` or the current count, and the tooling summary with 0 failed). The grep prints nothing and `grep exit 1`, then come `ImpowerGames/impower-internal` and `<INBOX>`. The grep leaves out test files because `triage-skill-feedback.test.mjs` pins inbox 510 as its fixture for the switch-off position on purpose; do not change it. This block was rehearsed on 2026-10-17 in a scratch clone at `37df96b0a` with the inbox set to a stand-in number, and every check passed. Commit, push and open the pull request with the shrunk body (one summary paragraph and `Part of ImpowerGames/impower-internal#<TASK>` with `No linked issue.`), titled `feat(github): flip the tracker cutover switch (I-<TASK>)`, as a draft; post its PR report on internal `<TASK>`. It is the only pull request of the window that changes the code repository, and the maintainer merges it.
 
 ## 6. The switch
 
@@ -306,6 +310,6 @@ Then run the Feature's acceptance checks and post the results as a comment on in
 5. to 7. Step 3's verify: `passed: true`, or only `left as transferred` entries the maintainer has read; it covers every snapshotted issue and its fields, the 35 public issues, no bare reference to an old number, and the open pull requests' computed closing references.
 8. Step 4's check run: every pull request reads back with zero comments and zero review comments, and `archive/pull-requests/` on the internal repository's main holds one file per pull request.
 9. Step 5's label and milestone counts are `0` and `0`, and `https://github.com/ImpowerGames/impower/issues/new/choose` offers only the bug report and feature request with no blank issue.
-10. The references: `git -C "$CODE" grep -n "#510" -- .agents AGENTS.md` prints nothing, `node .agents/repos.mjs inbox` prints `<INBOX>`, and `node .github/scripts/check-linked-issue.test.mjs` passes, covering a body with `Closes ImpowerGames/impower-internal#N` passing and one with only a bare `#N` failing.
+10. The references: `git -C "$CODE" grep -n "#510" -- .agents AGENTS.md ':(exclude)*.test.mjs'` prints nothing (step 5 says why test files are left out), `node .agents/repos.mjs inbox` prints `<INBOX>`, and `node .github/scripts/check-linked-issue.test.mjs` passes, covering a body with `Closes ImpowerGames/impower-internal#N` passing and one with only a bare `#N` failing.
 
 When all ten pass, close internal `<TASK>` as completed with a comment naming the attempt directory's reports, and tell the coordinators the window is over.
