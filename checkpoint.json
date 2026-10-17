@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 174,
-  "previous": "241638d0656c745dde270c1e921e6d5418c4f8f0",
+  "seq": 175,
+  "previous": "da3127ac89261aeccaea6fb8060212e7fa968c5e",
   "snapshotParents": [],
-  "time": "2026-10-17T09:01:36.733Z",
+  "time": "2026-10-17T09:03:10.325Z",
   "kind": "auto",
-  "transition": "the merge of PR #2053 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 162,
@@ -4820,7 +4820,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T09:01:35.996Z",
+      "observedAt": "2026-10-17T09:03:09.574Z",
       "held": true,
       "head": "a970591624352b9e4850829e9ad4e82b23fd8684",
       "remoteHead": "a970591624352b9e4850829e9ad4e82b23fd8684",
@@ -5003,7 +5003,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T08:57:00.728Z",
+    "at": "2026-10-17T09:03:09.573Z",
     "tickets": [
       {
         "number": 1962,
@@ -5025,9 +5025,9 @@
       },
       {
         "number": 1965,
-        "action": "collect-report",
-        "pr": 2053,
-        "reason": "process 43216 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1965-00e8d2f0-e716-4909-8877-302141c9c76b\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 45864 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1966,
@@ -5037,9 +5037,9 @@
       },
       {
         "number": 1967,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1965 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       }
     ],
     "remaining": [
