@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 237,
-  "previous": "b2e95c42924ea92b0fc98923bdb503557e6525f1",
+  "seq": 238,
+  "previous": "9fac6140692928f48f188a8f175e910acd325be4",
   "snapshotParents": [],
-  "time": "2026-10-17T18:20:14.416Z",
+  "time": "2026-10-17T18:23:04.026Z",
   "kind": "auto",
-  "transition": "answer of #1907",
+  "transition": "request of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 244,
+    "recordRevision": 245,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3112,6 +3112,15 @@
             "time": "2026-10-17T18:20:12.162Z",
             "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
           }
+        },
+        {
+          "id": "96d7350a",
+          "owner": "4c537485-e0db-474a-9884-f2d42c3243c1",
+          "time": "2026-10-17T18:23:01.774Z",
+          "text": "Maintainer instruction, read by the coordinator on 2026-10-17 after request a903654d was recorded: the story for/while header asymmetry must be fixed sooner rather than later, by the current writer in PR #2062 if possible, or else filed and assigned to a writer at once. Does the #1907 writer take it in PR #2062?",
+          "source": "maintainer (user) message in the coordinator session on 2026-10-17, superseding the coordinator's answer a903654d, which was never sent",
+          "relayed": null,
+          "answer": null
         }
       ]
     },
@@ -7940,12 +7949,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T18:20:13.569Z",
+      "observedAt": "2026-10-17T18:23:03.276Z",
       "held": true,
-      "head": "8c8af18af43b9a088d806cf664eafae50a5645e9",
-      "remoteHead": "198464946753110ffd3e134df9ffc2b0092dab6f",
-      "unpushed": true,
-      "dirty": false
+      "head": "a9866c98ec1651ee83afbab2814014ef48025995",
+      "remoteHead": "a9866c98ec1651ee83afbab2814014ef48025995",
+      "unpushed": false,
+      "dirty": true
     }
   },
   "snapshots": {},
@@ -8316,15 +8325,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T07:29:04.407Z",
-      "event": "checkpoint-intent",
-      "ticket": 1374,
-      "id": "67ce463c",
-      "kind": "accept-unreviewed",
-      "round": 5,
-      "head": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874"
-    },
     {
       "time": "2026-10-17T07:29:07.360Z",
       "event": "checkpoint-published",
@@ -9055,6 +9055,12 @@
       "id": "a903654d",
       "deliveryId": "5fa566bd",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T18:23:01.775Z",
+      "event": "request",
+      "ticket": 1907,
+      "id": "96d7350a"
     }
   ]
 }
