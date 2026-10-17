@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 213,
-  "previous": "e15ae7ab667cd883b27cf80587e3c285ded9e0c2",
+  "seq": 214,
+  "previous": "e99bb9f19380940d75de5a1fa06ceb9e9f08c648",
   "snapshotParents": [],
-  "time": "2026-10-17T16:23:21.430Z",
+  "time": "2026-10-17T16:53:23.943Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 195,
+    "recordRevision": 196,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T16:23:20.564Z",
+      "observedAt": "2026-10-17T16:53:23.192Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,19 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:54:09.490Z",
-      "event": "resumed",
-      "ticket": 1964,
-      "id": "235ae39d-a8e6-46b5-9ad6-d42946cee047",
-      "handle": {
-        "kind": "process",
-        "pid": 56308,
-        "start": "639278096490981996",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1964-235ae39d-a8e6-46b5-9ad6-d42946cee047"
-      }
-    },
     {
       "time": "2026-10-17T04:57:15.885Z",
       "event": "checkpoint-intent",
@@ -6228,6 +6215,11 @@
       "time": "2026-10-17T16:23:19.264Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main 006d924c1; PR #1993 at fe4cd193e in #1904's round 5, open draft; #1907 and #1977 still to come; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T16:53:21.934Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main 006d924c1; PR #1993 at fe4cd193e now marked ready, open, awaiting #1904's gate; #1907 and #1977 still to come; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
