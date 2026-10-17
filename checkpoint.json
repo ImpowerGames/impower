@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 216,
-  "previous": "e82e3daa3783f80d197f5fb6b313f6d0654011c9",
+  "seq": 217,
+  "previous": "16f9f8920e82fa870dd9d02cd0f3b6bd96016741",
   "snapshotParents": [],
-  "time": "2026-10-17T16:56:32.334Z",
+  "time": "2026-10-17T16:56:39.148Z",
   "kind": "auto",
-  "transition": "claim of #1977",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 226,
@@ -7626,7 +7626,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:56:32.334Z",
+      "observedAt": "2026-10-17T16:56:39.148Z",
       "held": true,
       "exists": false
     },
@@ -7635,7 +7635,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T16:56:32.334Z",
+      "observedAt": "2026-10-17T16:56:39.148Z",
       "held": true,
       "exists": false
     }
@@ -7643,7 +7643,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T16:56:25.088Z",
+    "at": "2026-10-17T16:56:39.147Z",
     "tickets": [
       {
         "number": 984,
@@ -7893,9 +7893,9 @@
       },
       {
         "number": 1977,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 860f0d1d-0994-490d-9b78-c52d30cc1eb3 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1985,
