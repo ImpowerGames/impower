@@ -40,11 +40,12 @@ for (const [name, type] of Object.entries(TYPES)) {
   assert.match(front[1], new RegExp(`^type: ${type}$`, "m"), `${name} names the ${type} type`);
 }
 const PUBLIC = ["bug_report.md", "config.yml", "feature_request.md"];
-// The cutover may move the public set into .github/ISSUE_TEMPLATE/.
-if (existsSync(publicDir)) {
-  assert.deepEqual(readdirSync(publicDir).sort(), PUBLIC, "the public chooser offers a bug report and a feature request");
-  assert.match(read(publicDir + "config.yml"), /^blank_issues_enabled: false$/m, "the public chooser keeps blank issues off");
-}
+// The public set waits under .agents/templates/public/ until the cutover, which
+// may move it into .github/ISSUE_TEMPLATE/; after that the chooser holds it.
+assert.ok(repos.cutover || existsSync(publicDir), "before the cutover the public set waits under .agents/templates/public/");
+const publicSet = existsSync(publicDir) ? publicDir : chooserDir;
+assert.deepEqual(readdirSync(publicSet).sort(), PUBLIC, "the public chooser offers a bug report and a feature request");
+assert.match(read(publicSet + "config.yml"), /^blank_issues_enabled: false$/m, "the public chooser keeps blank issues off");
 console.log("ok: the internal templates name their types and the public set is a bug report, a feature request and the chooser configuration");
 
 // Throws when a chooser directory does not match the switch's position.
@@ -71,8 +72,8 @@ function checkChooser(cutover, dir) {
       for (const [file, source] of Object.entries(files)) writeFileSync(dir + file, readFileSync(source));
       return dir;
     };
-    const before = fixture("before", { "config.yml": publicDir + "config.yml", ...Object.fromEntries(Object.keys(TYPES).map((name) => [name, internalDir + name])) });
-    const after = fixture("after", Object.fromEntries(PUBLIC.map((name) => [name, publicDir + name])));
+    const before = fixture("before", { "config.yml": publicSet + "config.yml", ...Object.fromEntries(Object.keys(TYPES).map((name) => [name, internalDir + name])) });
+    const after = fixture("after", Object.fromEntries(PUBLIC.map((name) => [name, publicSet + name])));
     checkChooser(false, before);
     checkChooser(true, after);
     assert.throws(() => checkChooser(true, before), /exactly a bug report and a feature request/, "the internal set fails with the switch on");

@@ -5,9 +5,9 @@ import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { ticketsRepo } from '../../repos.mjs';
-import { parseLegacyTable, parseIntake, keyOf, fold, makePlan, readPlan, preview, applyPlan, lookupReports } from './triage-skill-feedback.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readRepos, ticketsRepo } from '../../repos.mjs';
+import { parseLegacyTable, parseIntake, keyOf, fold, makePlan, readPlan, preview, applyPlan, lookupReports, github } from './triage-skill-feedback.mjs';
 
 const body = 'Intro\n\n## Intake\n\nPost one report per comment.\n\nFooter stays.\n';
 const reported = (id, session, problem = 'new', friction = 'Completion lost', skill = 'review-pr, section 3') => ({ id, body: `Problem: ${problem}\n\nSession: ${session}\n\nSkill and section: ${skill}\n\nWhat happened: ${friction}\n\nProposed edit: Preserve the result.`, html_url: `https://example.test/${id}` });
@@ -516,6 +516,33 @@ await test('preview marks a reopen only where apply will reopen', async () => {
   assert.equal(preview(plan).find(group => group.number === 740).reopen, true);
   plan.groups = [{ action: 'existing', number: 740, keys: ['F-5', 'F-21'], context: '' }];
   assert.throws(() => preview(plan), /Task #740 is closed and does not record every problem in this group/);
+});
+
+await test('tickets and the inbox follow the repos file in both positions while pull requests stay in the code repository', async () => {
+  const committed = readRepos();
+  const scratch = mkdtempSync(resolve(tmpdir(), 'triage-repos-'));
+  try {
+    // A checkout copy whose repos file has the switch on and a migrated inbox.
+    const checkout = resolve(scratch, 'repo');
+    const dir = resolve(checkout, '.agents/skills/triage-skill-feedback');
+    mkdirSync(dir, { recursive: true });
+    for (const name of ['triage-skill-feedback.mjs', 'feedback-reports.mjs', 'feedback-archive.mjs']) copyFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), resolve(dir, name));
+    copyFileSync(fileURLToPath(new URL('../../repos.mjs', import.meta.url)), resolve(checkout, '.agents/repos.mjs'));
+    writeFileSync(resolve(checkout, '.agents/repos.json'), JSON.stringify({ ...committed, cutover: true, feedbackInbox: 777 }));
+    const on = await import(pathToFileURL(resolve(dir, 'triage-skill-feedback.mjs')).href);
+    for (const [label, module, tickets, inbox] of [['off', { github, makePlan, preview }, committed.code, committed.feedbackInbox], ['on', on, committed.internal, 777]]) {
+      const calls = [];
+      const api = module.github(resolve(scratch, `bodies-${label}`), args => { calls.push(args); return '{}'; });
+      api.inbox(); api.issue(5); api.pr(503); api.createTicket('t', 'b'); api.updateBody('b');
+      assert.deepEqual(calls.map(args => args.find(arg => /^repos\//.test(arg)) ?? args[args.indexOf('--repo') + 1]), [`repos/${tickets}/issues/${inbox}`, `repos/${tickets}/issues/5`, `repos/${committed.code}/pulls/503`, `repos/${tickets}/issues`, tickets], `switch ${label}`);
+      assert.equal(calls[4][2], String(inbox), `switch ${label}: the inbox body edit names the inbox`);
+      const [ticket] = module.preview(module.makePlan(body, [reported(1, 'codex:alpha')]));
+      const mentions = [...ticket.body.matchAll(/#(\d+)/g)].map(m => Number(m[1]));
+      assert.ok(mentions.length >= 2 && mentions.every(n => n === inbox), `switch ${label}: the Task body names only inbox #${inbox}: ${mentions}`);
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {

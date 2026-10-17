@@ -98,9 +98,11 @@ export function describe(result, repo) {
   return lines.join("\n");
 }
 
-function ghClient(repo) {
-  const gh = (args) => JSON.parse(execFileSync("gh", args, { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, windowsHide: true }) || "null");
+/** The client the command line uses; `run` takes the gh arguments and returns its stdout. */
+export function ghClient(repo = ticketsRepo(), run = (args) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, windowsHide: true })) {
+  const gh = (args) => JSON.parse(run(args) || "null");
   return {
+    repo,
     body: (n) => gh(["api", `repos/${repo}/issues/${n}`]).body ?? "",
     id: (n) => gh(["api", `repos/${repo}/issues/${n}`]).id,
     blockedBy: (n) => gh(["api", `repos/${repo}/issues/${n}/dependencies/blocked_by`, "--paginate", "--slurp"]).flat(),
@@ -116,12 +118,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error("Usage: node .agents/skills/references/record-blockers.mjs <issue> [<issue> ...] [--dry-run]");
     process.exit(2);
   }
-  const repo = ticketsRepo();
-  const client = ghClient(repo);
+  const client = ghClient();
   let failed = false;
   for (const n of numbers) {
     const result = recordBlockers(Number(n), client, { dryRun });
-    console.log(describe(result, repo));
+    console.log(describe(result, client.repo));
     if (result.absent.length) failed = true;
   }
   process.exit(failed ? 1 : 0);

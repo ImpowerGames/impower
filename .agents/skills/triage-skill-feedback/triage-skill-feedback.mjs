@@ -8,9 +8,11 @@ import { readReports } from './feedback-reports.mjs';
 import { hydrateReports, persistReports, prepareReports, inspectReportsArchive } from './feedback-archive.mjs';
 import { readRepos, ticketsRepo } from '../../repos.mjs';
 
-// The inbox and its tickets live in the tickets repository the repos file names.
+// The inbox and its tickets live in the tickets repository the repos file
+// names; pull requests stay in the code repository.
 const REPOS = readRepos();
 const REPO = ticketsRepo(REPOS);
+const CODE = REPOS.code;
 const INBOX = REPOS.feedbackInbox;
 const PLAN_VERSION = 4;
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 20);
@@ -297,7 +299,7 @@ function evidenceBody(rows, marker, context, target) {
 
 function ticketBody(rows, marker, context) {
   context = referenceContext(rows, context);
-  return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #${INBOX}.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #510.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
+  return `## Description\n\n${description(rows)}\n\n## Motivation\n\nThese items were observed while following the repository skills and collected in #${INBOX}.\n\n## Scope\n\nAddress the items above. Prefer a checked mechanism for preventable mistakes; confirm prose proposals against current code and instructions before applying them.\n\n## Acceptance criteria\n\n- [ ] Each item above is fixed or explicitly adjudicated.\n- [ ] Any mechanism has a failing-then-passing check and the standalone checks pass.\n- [ ] Skill text describes current behavior and the pull request lists applied feedback.\n\n## Additional context\n\nFiled by the hand-invoked triage-skill-feedback run for #${INBOX}.${context ? `\n\n${context}` : ''}\n\n${marker}\n`;
 }
 
 export function preview(plan) {
@@ -468,10 +470,11 @@ export async function applyPlan(plan, api) {
   return { summary, url: readback.html_url, run };
 }
 
-function github(scratch) {
+// The GitHub adapter; `run` takes the gh arguments and returns its stdout.
+export function github(scratch, run = args => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, windowsHide: true })) {
   let sequence = 0;
   let directory;
-  const gh = args => JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, windowsHide: true }));
+  const gh = args => JSON.parse(run(args));
   const api = path => gh(['api', `repos/${REPO}/${path}`]);
   const pages = path => gh(['api', `repos/${REPO}/${path}`, '--paginate', '--slurp']).flat();
   function bodyFile(body) {
@@ -480,15 +483,15 @@ function github(scratch) {
   }
   return {
     inbox: () => api(`issues/${INBOX}`), comments: () => pages(`issues/${INBOX}/comments?per_page=100`),
-    issues: () => pages('issues?state=all&per_page=100'), issue: number => api(`issues/${number}`), pr: number => api(`pulls/${number}`),
+    issues: () => pages('issues?state=all&per_page=100'), issue: number => api(`issues/${number}`), pr: number => gh(['api', `repos/${CODE}/pulls/${number}`]),
     issueComments: number => pages(`issues/${number}/comments?per_page=100`),
     subIssues: () => pages(`issues/${INBOX}/sub_issues?per_page=100`),
     addSubIssue: id => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${INBOX}/sub_issues`, '-F', `sub_issue_id=${id}`]),
     reopenIssue: number => gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${number}`, '-f', 'state=open']),
     postIssueComment: (number, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${number}/comments`, '-F', `body=@${bodyFile(body)}`]),
     createTicket: (title, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-F', `body=@${bodyFile(body)}`, '-f', 'type=Task', '-f', 'labels[]=workflow: skills']),
-    updateBody: body => execFileSync('gh', ['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)], { encoding: 'utf8', windowsHide: true }),
-    deleteComment: id => execFileSync('gh', ['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`], { encoding: 'utf8', windowsHide: true }),
+    updateBody: body => run(['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)]),
+    deleteComment: id => run(['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`]),
     postSummary: body => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${INBOX}/comments`, '-F', `body=@${bodyFile(body)}`]),
   };
 }
