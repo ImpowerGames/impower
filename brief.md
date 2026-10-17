@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1904
 
-Checkpoint 231 (this commit), 2026-10-17T17:29:15.952Z, after the intent before a side effect. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
+Checkpoint 232 (this commit), 2026-10-17T17:31:45.463Z, after the merge of PR #2061 (confirmed). Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,13 +12,9 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1907
 
 - claude-cli claude-opus-5-5 at high, process 21592 on DESKTOP-726EO47
-- as of 2026-10-17T17:29:14.994Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule that may exist only there; recover those bytes there before restarting or overwriting this work
+- as of 2026-10-17T17:31:44.492Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule that may exist only there; recover those bytes there before restarting or overwriting this work
 
 ## #1977
 
 - claude-cli claude-opus-5-5 at low, process 19964 on DESKTOP-726EO47
 - review job pr-2061/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 42255fec4, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["undirected"]), last event finished
-
-## Unsettled operations
-
-- 56f25e65: merge of PR #2061 at 42255fec43ce8d588b85fdad19d118ccc5bf9b0b, intent; settle it with checkpoint.mjs reconcile-operations before any retry

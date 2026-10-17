@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 231,
-  "previous": "651980ad129f08224cf0ac4ec49579702fb1ada1",
+  "seq": 232,
+  "previous": "714ea3dc60a65db7b2b028575318979956d27354",
   "snapshotParents": [],
-  "time": "2026-10-17T17:29:15.952Z",
+  "time": "2026-10-17T17:31:45.463Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #2061 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 239,
+    "recordRevision": 240,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -7585,9 +7585,9 @@
       "ticket": 1977,
       "pr": 2061,
       "expectHead": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T17:29:13.609Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #2061 reads back merged as b3dd72d54c9a821731f8b7795b05e692547ad0f6 at 42255fec43ce8d588b85fdad19d118ccc5bf9b0b; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
@@ -7770,7 +7770,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T17:31:43.088Z",
+      "mergeCommit": "b3dd72d54c9a821731f8b7795b05e692547ad0f6",
+      "mergedOnto": "991b99457f415601f06af89ff2afaedf8721832e",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -7913,7 +7918,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T17:29:14.994Z",
+      "observedAt": "2026-10-17T17:31:44.492Z",
       "held": true,
       "head": "991b99457f415601f06af89ff2afaedf8721832e",
       "remoteHead": null,
@@ -7925,7 +7930,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T17:29:14.994Z",
+      "observedAt": "2026-10-17T17:31:44.492Z",
       "held": true,
       "head": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
       "remoteHead": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
@@ -8336,13 +8341,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:43:57.198Z",
-      "event": "resume-intent",
-      "ticket": 1906,
-      "id": "512712b3-3724-4e13-856b-cdab45204bc5",
-      "sessionId": "e57d8cb2-3a24-4931-90ab-6d0acb246002"
-    },
     {
       "time": "2026-10-17T06:44:06.537Z",
       "event": "resumed",
@@ -9082,6 +9080,12 @@
       "id": "56f25e65",
       "kind": "merge",
       "pr": 2061
+    },
+    {
+      "time": "2026-10-17T17:31:43.088Z",
+      "event": "operation-outcome",
+      "id": "56f25e65",
+      "state": "confirmed"
     }
   ]
 }
