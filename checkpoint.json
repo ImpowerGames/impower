@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 205,
-  "previous": "d059bd4891927ee7daaa48fe6b32ff9cb7238325",
+  "seq": 206,
+  "previous": "651f64f2103c2f609e93df5b111e3ce38c295668",
   "snapshotParents": [],
-  "time": "2026-10-17T13:13:08.957Z",
+  "time": "2026-10-17T13:13:54.579Z",
   "kind": "auto",
-  "transition": "the outcome of operation a5d3b507",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 188,
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T13:13:08.292Z",
+      "observedAt": "2026-10-17T13:13:53.897Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5469,7 +5469,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T11:35:30.522Z",
+    "at": "2026-10-17T13:13:53.896Z",
     "tickets": [
       {
         "number": 1962,
@@ -5503,9 +5503,9 @@
       },
       {
         "number": 1967,
-        "action": "merge-gate",
-        "pr": 2057,
-        "reason": "PR #2057 is ready at 52e5a21c59a790b6849d550318ccad029de8ecc3; process 25252 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "process 25252 is gone and no process names its launch directory; read its transcript, then record release with that evidence before a new writer continues"
       }
     ],
     "remaining": [
