@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 182,
-  "previous": "30f900e303968eb37afa6a306e63c889c3674b7e",
+  "seq": 183,
+  "previous": "6e4da4e1ad4bae76774ef6a6c0e5d1ac216d0ff2",
   "snapshotParents": [],
-  "time": "2026-10-17T09:06:01.033Z",
+  "time": "2026-10-17T09:22:40.420Z",
   "kind": "auto",
-  "transition": "verify of #1967",
+  "transition": "request of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 167,
+    "recordRevision": 168,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4006,7 +4006,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "244dc915",
+          "owner": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
+          "time": "2026-10-17T09:22:38.261Z",
+          "text": "The Phase A tooling PR does not finish #1967 (Phase B is the window). If its body says Closes #1967, the merge closes #1967 before the cutover; the merge gate looks for the ticket among the PR's closing references. Options: (a) Closes #1967 anyway and reopen #1967 after the merge; (b) 'No linked issue.' plus 'Part of #1967' in the summary, found by branch feat/1967-archive-scrub-cutover. Writer will use (b) unless told otherwise before opening the draft. Status: scrub tool and 16 tests pass, --archive --dry-run running against the real repositories, runbook and internal repository preparation next.",
+          "source": "cross-session message from writer session impower-14 (CLI session 4b0d553c) received 2026-10-17 ~14:05Z; the writer keeps working",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     }
   },
   "operations": [
@@ -4871,9 +4882,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:06:01.033Z",
+      "observedAt": "2026-10-17T09:22:39.571Z",
       "held": true,
-      "exists": false
+      "head": "37df96b0a24e147ce72260ce4a07403f341961e9",
+      "remoteHead": null,
+      "unpushed": true,
+      "dirty": true
     }
   },
   "snapshots": {},
@@ -4926,13 +4940,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:15:09.157Z",
-      "event": "operation-intent",
-      "id": "d0289c2a",
-      "kind": "merge",
-      "pr": 2009
-    },
     {
       "time": "2026-10-17T02:16:12.251Z",
       "event": "operation-outcome",
@@ -5671,6 +5678,12 @@
       "time": "2026-10-17T09:05:59.663Z",
       "event": "verified",
       "ticket": 1967
+    },
+    {
+      "time": "2026-10-17T09:22:38.262Z",
+      "event": "request",
+      "ticket": 1967,
+      "id": "244dc915"
     }
   ]
 }
