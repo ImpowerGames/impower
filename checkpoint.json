@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 91,
-  "previous": "5eb2e230ce2c6f0fd84a516c6f7ec1184bd50670",
+  "seq": 92,
+  "previous": "f9af33f0da15c9343bb038156f0fb05516e78917",
   "snapshotParents": [],
-  "time": "2026-10-17T02:53:55.331Z",
+  "time": "2026-10-17T02:54:18.188Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 82,
+    "recordRevision": 83,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2498,7 +2498,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:53:53.957Z",
+      "observedAt": "2026-10-17T02:54:16.721Z",
       "held": true,
       "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
       "remoteHead": null,
@@ -2510,7 +2510,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:53:53.957Z",
+      "observedAt": "2026-10-17T02:54:16.721Z",
       "held": true,
       "head": "6f5769ab57f7323e487891630ef814a2131befb8",
       "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
@@ -3342,6 +3342,11 @@
       "ticket": 1966,
       "id": "fd3d8e56",
       "deliveryId": "2ad911fb"
+    },
+    {
+      "time": "2026-10-17T02:54:14.895Z",
+      "event": "check-in",
+      "outcome": "no change: #1964 writer editing review-pr references and tests, no PR yet; #1966 launched round 4 on 6f5769ab5 under decision e0f6d715 (CI green) and is waiting on the reviewer; both writers running"
     }
   ]
 }
