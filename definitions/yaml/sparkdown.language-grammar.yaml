@@ -494,8 +494,12 @@ variables:
   # so a story statement's unclosed `(`, `[` or `{` stops at the next header
   # with Luau's missing-closer error, while the keyword alone or before an
   # operator stays a name inside a function's brackets (`(` then `scene`
-  # then `+ 1`).
-  NAMED_BEAT: (?:^{{WS}}*{{FLOW_BEAT_KEYWORDS}}{{WS}}+{{IDENTIFIER_START}})
+  # then `+ 1`, or `scene or true`).
+  # lookaround: LuauLogicalOperator and the if expression's `then` and `else`
+  # read a reserved word after the name `scene` or `branch` in a function's
+  # brackets. A header's name is never a reserved word, and the bracket's
+  # `end:` that uses this cannot leave the word to a child rule by order.
+  NAMED_BEAT: (?:^{{WS}}*{{FLOW_BEAT_KEYWORDS}}{{WS}}+(?!{{LUAU_KEYWORD}}){{IDENTIFIER_START}})
   END: (?:{{WS}}*(?:end)\b)
   # Just after an operand that a keyword can follow with no space between
   # them: a closing bracket, a quote, a backtick, the vararg `...`, or the

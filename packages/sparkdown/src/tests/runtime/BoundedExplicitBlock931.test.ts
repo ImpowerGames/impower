@@ -96,6 +96,20 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     expect(diagnostics(source).map(messageOf).filter((m) => m.includes("missing its closing") || m.includes("Branches are only"))).toEqual([]);
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
+  // A reserved word after the name is an operator or a clause keyword, never
+  // a header's name (#1907, round 1 of #2062's review).
+  test.each([
+    ["scene or true", "true"],
+    ["branch or true", "true"],
+    ["if\n    scene then 1 else 2", "2"],
+    ["if\n    branch then 1 else 2", "2"],
+  ])("a function parenthetical preserves the name before a reserved word in %s", async (expression, value) => {
+    const source = `Value {f()}.\nfunction f()\n  return (${expression.startsWith("if") ? "" : "\n    "}${expression}\n  )\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
+    expect((await compareEnginesFull(source)).divergences).toEqual([]);
+  });
   test.each([
     ["sceneValue\n    + branchValue", "9"],
     ["(sceneValue + branchValue)", "9"],
