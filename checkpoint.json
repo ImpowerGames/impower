@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 171,
-  "previous": "9c384b625b9883faabb0bc5f69b94b69247d739a",
+  "seq": 172,
+  "previous": "0a1e1476a03e741ea3f34d6eead709e1e18b9748",
   "snapshotParents": [],
-  "time": "2026-10-17T13:38:01.431Z",
+  "time": "2026-10-17T13:50:56.116Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 182,
+    "recordRevision": 183,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5278,12 +5278,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:38:00.541Z",
+      "observedAt": "2026-10-17T13:50:54.770Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 50476
+      },
       "pr": 1995,
       "reviewJobs": [
         {
@@ -5579,6 +5583,26 @@
           "commentIds": [
             6229606869
           ]
+        },
+        {
+          "job": "pr-1995/round-4/launch-axg-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 4,
+            "step": "review-axg",
+            "reviewerId": "axg",
+            "attempt": 1,
+            "plannedReviewers": [
+              "axg",
+              "undirected"
+            ],
+            "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
+            "completedRoundReviewers": {
+              "undirected": 1,
+              "axg": 2
+            },
+            "time": "2026-10-17T13:48:38.491Z"
+          }
         }
       ]
     },
@@ -5587,12 +5611,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:38:00.541Z",
+      "observedAt": "2026-10-17T13:50:54.770Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1993,
       "reviewJobs": [
         {
@@ -6304,13 +6328,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:37:08.568Z",
-      "event": "dispatch-intent",
-      "ticket": 1924,
-      "route": "claude-cli",
-      "launchId": "cb97a4cf-003c-46ed-aeaf-5b42615c3729"
-    },
     {
       "time": "2026-10-16T19:37:39.982Z",
       "event": "launched",
@@ -7056,6 +7073,11 @@
       "time": "2026-10-17T13:37:59.418Z",
       "event": "check-in",
       "outcome": "#1906: launch-axg-1 journal restored to end with its blocked row (exited row keeps executionDrained true with the census), backup moved out of the review-jobs tree; extension decision 7b1dad9e published (comment 6234513190) and the writer resumed with it; #1924: repair decision e43240d9 published (comment 6234468080), the maintainer decision recorded on #921, and the writer resumed with the ruling that an unspaced write (@name or dotted path then a colon) stays a write; cutover held by ORCH #1961 until both PRs merge"
+    },
+    {
+      "time": "2026-10-17T13:50:53.099Z",
+      "event": "check-in",
+      "outcome": "maintainer extended the cutover hold until Feature #1904 closes (every slice merged and verified), so #1907 and #1977 run before the migration on the public numbers; ORCH #1961 informed with a 20 to 26 hour estimate; #1906 round 4 and #1924 repair in progress"
     }
   ]
 }
