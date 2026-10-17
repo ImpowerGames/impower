@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 96,
-  "previous": "79158c06b36696d4a2bcc73466e590147eeabd5a",
+  "seq": 97,
+  "previous": "beed6e7f0687e63f62cc44ed2fb6a985f2fcd107",
   "snapshotParents": [],
-  "time": "2026-10-17T01:13:36.911Z",
+  "time": "2026-10-17T01:16:54.579Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1996 (confirmed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 99,
+    "recordRevision": 100,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1712,9 +1712,9 @@
       "ticket": 1908,
       "pr": 1996,
       "expectHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T01:13:33.233Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1996 reads back merged as e9287075bfcb6a5f035b836f74bd19a051b1fc90 at 855be21068d55f6f5dc050ed31c7d704b065698b; the merge commit is on origin/main; it landed on e2f91499ffa0eea13870e0ea468e3a42fe11f484, while its CI covered main f654256e7b6f330ac05c06a99310aea05ddad2ff, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
@@ -1902,7 +1902,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T01:16:50.255Z",
+      "mergeCommit": "e9287075bfcb6a5f035b836f74bd19a051b1fc90",
+      "mergedOnto": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -1925,7 +1930,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T01:13:35.190Z",
+      "observedAt": "2026-10-17T01:16:52.800Z",
       "held": true,
       "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
       "remoteHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
@@ -2061,16 +2066,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T01:13:35.190Z",
+      "observedAt": "2026-10-17T01:16:52.800Z",
       "held": true,
       "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
       "remoteHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 14884
-      },
       "pr": 1993,
       "reviewJobs": [
         {
@@ -2236,7 +2237,7 @@
         },
         {
           "job": "pr-1993/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -2251,7 +2252,25 @@
               "ax": 1
             },
             "time": "2026-10-17T00:54:05.963Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "ax": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "ax",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6227819767
+          ]
         }
       ]
     }
@@ -3253,6 +3272,12 @@
       "id": "38aa7ae4",
       "kind": "merge",
       "pr": 1996
+    },
+    {
+      "time": "2026-10-17T01:16:50.255Z",
+      "event": "operation-outcome",
+      "id": "38aa7ae4",
+      "state": "confirmed"
     }
   ]
 }
