@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 149,
-  "previous": "5693d9dee641184e227cfbee1a78170c45dcc77e",
+  "seq": 150,
+  "previous": "49f9e127d5d6b3380b54d0268499a71a5bf405ee",
   "snapshotParents": [],
-  "time": "2026-10-17T07:58:38.476Z",
+  "time": "2026-10-17T13:19:43.181Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "release of #1374",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 156,
+    "recordRevision": 157,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -88,28 +88,34 @@
       "results": []
     },
     "1374": {
-      "owner": {
-        "route": "claude-desktop",
-        "model": "claude-opus-5-5",
-        "effort": "high",
-        "requestedEffort": "high",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
-        "branch": "feat/1374-function-intersections-redo",
-        "artifactParent": null,
-        "handle": {
-          "kind": "session",
-          "id": "local_06fee41a-73da-418e-ad9e-8528ebd314ce",
-          "host": "DESKTOP-726EO47"
-        },
-        "verified": true,
-        "adopted": {
-          "pr": 2022,
-          "rounds": 0
-        },
-        "since": "2026-10-17T05:11:23.218Z"
-      },
+      "owner": null,
       "pending": null,
-      "history": [],
+      "history": [
+        {
+          "owner": {
+            "route": "claude-desktop",
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "requestedEffort": "high",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
+            "branch": "feat/1374-function-intersections-redo",
+            "artifactParent": null,
+            "handle": {
+              "kind": "session",
+              "id": "local_06fee41a-73da-418e-ad9e-8528ebd314ce",
+              "host": "DESKTOP-726EO47"
+            },
+            "verified": true,
+            "adopted": {
+              "pr": 2022,
+              "rounds": 0
+            },
+            "since": "2026-10-17T05:11:23.218Z"
+          },
+          "released": "session local_06fee41a-73da-418e-ad9e-8528ebd314ce is archived; PR #2022 merged as a96dbbb3 (operation 74903a1e); the maintainer approved archiving the writer session local_06fee41a on 2026-10-17 and archive_session reported it archived; its final report is held as request fea301f2 and its answer",
+          "time": "2026-10-17T13:19:40.749Z"
+        }
+      ],
       "results": [],
       "checkpoints": [
         {
@@ -4399,286 +4405,12 @@
   "diskRecoveries": [],
   "verifications": [],
   "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo": {
-      "ticket": 1374,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
-      "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T07:58:37.139Z",
-      "held": true,
-      "head": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
-      "remoteHead": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 2022,
-      "reviewJobs": [
-        {
-          "job": "pr-2022/round-1/launch-ax-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-ax",
-            "reviewerId": "ax",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "grammar",
-              "undirected"
-            ],
-            "head": "6e5952b59c2af2c0f8a930ac434b84b5e1c4ca4d",
-            "completedRoundReviewers": null,
-            "time": "2026-10-17T00:49:20.720Z"
-          },
-          "round": 1,
-          "reviewerId": "ax",
-          "attempt": 1,
-          "reviewedHead": "6e5952b59c2af2c0f8a930ac434b84b5e1c4ca4d",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "ax": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "grammar",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "grammar",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6227678778
-          ]
-        },
-        {
-          "job": "pr-2022/round-1/launch-grammar-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-grammar",
-            "reviewerId": "grammar",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "grammar",
-              "undirected"
-            ],
-            "head": "487b255eddbf994f83b3aef318f340426f2a329b",
-            "completedRoundReviewers": {
-              "ax": 1
-            },
-            "time": "2026-10-17T01:38:25.114Z"
-          },
-          "round": 1,
-          "reviewerId": "grammar",
-          "attempt": 1,
-          "reviewedHead": "487b255eddbf994f83b3aef318f340426f2a329b",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "ax": 1,
-            "grammar": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "grammar",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6228181464
-          ]
-        },
-        {
-          "job": "pr-2022/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax",
-              "grammar",
-              "undirected"
-            ],
-            "head": "6356f13b9f38e144060bcdca1ba70e584fc3730c",
-            "completedRoundReviewers": {
-              "ax": 1,
-              "grammar": 1
-            },
-            "time": "2026-10-17T02:19:49.929Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "6356f13b9f38e144060bcdca1ba70e584fc3730c",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "ax": 1,
-            "grammar": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "ax",
-            "grammar",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6228554152
-          ]
-        },
-        {
-          "job": "pr-2022/round-2/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "e1d372183ec4747a6e49bd7d8d62e504584ec60f",
-            "completedRoundReviewers": {
-              "ax": 1,
-              "grammar": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T03:05:05.020Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "e1d372183ec4747a6e49bd7d8d62e504584ec60f",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6229047169
-          ]
-        },
-        {
-          "job": "pr-2022/round-3/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "0aec9b1cf24054a4cd91ccdc0e168fc58dfc162d",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T03:42:05.017Z"
-          },
-          "round": 3,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "0aec9b1cf24054a4cd91ccdc0e168fc58dfc162d",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6229315616
-          ]
-        },
-        {
-          "job": "pr-2022/round-4/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 4,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T05:16:14.608Z"
-          },
-          "round": 4,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6230176446
-          ]
-        },
-        {
-          "job": "pr-2022/round-5/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 5,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T06:22:08.187Z"
-          },
-          "round": 5,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6230719709
-          ]
-        }
-      ]
-    },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes": {
       "ticket": 1906,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T07:58:37.139Z",
+      "observedAt": "2026-10-17T13:19:41.897Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -4987,7 +4719,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T07:58:37.139Z",
+      "observedAt": "2026-10-17T13:19:41.897Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5705,11 +5437,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T15:59:52.538Z",
-      "event": "check-in",
-      "outcome": "no change: #1905 running; round 2's second reviewer reported on PR #1927 (14 comments, head 1c731c6e green); writer verifying its round 2 fixes across test batches (2130 passing so far); no request pending"
-    },
-    {
       "time": "2026-10-16T16:31:11.874Z",
       "event": "check-in",
       "outcome": "no change: #1905 running; PR #1927 head 23f8b6b4 green, review round 3 opened (state 6219904511, fix3 reviewer running, writer waiting in the foreground), 16 PR comments; no request pending"
@@ -6426,6 +6153,12 @@
       "time": "2026-10-17T07:58:35.854Z",
       "event": "check-in",
       "outcome": "correction of the previous check-in row: #1907 was NOT claimed or launched; the plan held it at wait-capacity (15 places counted against the limit of 3 because the Bugs that PRs #1995 and #1993 close are counted as held) and the chain's launch step received no claim; #1374's desktop writer remains unreleased (idle counts as waiting); three friction reports filed on #510 (6231398067, 6231398359, 6231398624); both pending merges wait on the maintainer's answers (6350ae80, 6bc44573)"
+    },
+    {
+      "time": "2026-10-17T13:19:40.750Z",
+      "event": "released",
+      "ticket": 1374,
+      "reason": "session local_06fee41a-73da-418e-ad9e-8528ebd314ce is archived"
     }
   ]
 }
