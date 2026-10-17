@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 73,
-  "previous": "f6e2e3b5a094c70c712087d93a9f79f169db5cd3",
+  "seq": 74,
+  "previous": "faeb234960e3f6dadb6cc5001046ddea3d245a00",
   "snapshotParents": [],
-  "time": "2026-10-17T02:15:12.582Z",
+  "time": "2026-10-17T02:16:15.361Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #2009 (confirmed)",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 68,
+    "recordRevision": 69,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1980,9 +1980,9 @@
       "ticket": 1963,
       "pr": 2009,
       "expectHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T02:15:09.157Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #2009 reads back merged as 065a55ebcc116e8064a3a422800194c1cba2eef0 at 23ebfd91bc97c7e4d8e585d88553c1a9e268546d; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -2110,7 +2110,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T02:16:12.251Z",
+      "mergeCommit": "065a55ebcc116e8064a3a422800194c1cba2eef0",
+      "mergedOnto": "d5cb34d141f2c7f4caaf9b9fc17647019053d381",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -2163,7 +2168,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T02:15:11.093Z",
+      "observedAt": "2026-10-17T02:16:14.153Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -2362,7 +2367,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:15:11.093Z",
+      "observedAt": "2026-10-17T02:16:14.153Z",
       "held": true,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
@@ -3063,6 +3068,12 @@
       "id": "d0289c2a",
       "kind": "merge",
       "pr": 2009
+    },
+    {
+      "time": "2026-10-17T02:16:12.251Z",
+      "event": "operation-outcome",
+      "id": "d0289c2a",
+      "state": "confirmed"
     }
   ]
 }
