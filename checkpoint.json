@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 143,
-  "previous": "3f92e812863187bbd517d2e61344588176489cb7",
+  "seq": 144,
+  "previous": "90420db3123bdf844d2e2007b6174c7362bc9756",
   "snapshotParents": [],
-  "time": "2026-10-17T03:03:44.903Z",
+  "time": "2026-10-17T03:04:10.425Z",
   "kind": "auto",
-  "transition": "release of #1881",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 117,
@@ -2548,7 +2548,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T01:32:51.857Z",
+    "at": "2026-10-17T03:04:10.422Z",
     "tickets": [
       {
         "number": 851,
@@ -2570,9 +2570,9 @@
       },
       {
         "number": 1881,
-        "action": "merge-gate",
-        "pr": 1983,
-        "reason": "PR #1983 is ready at 2cd5a71cea73b09693c4527c7edc98c2bd2aeda2; process 56704 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1974,
