@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 185,
-  "previous": "c31f26e979cd783a8b1e17239c52056148177e3d",
+  "seq": 186,
+  "previous": "c0d6192a1afc4474da405d6b7a629ca1781e6753",
   "snapshotParents": [],
-  "time": "2026-10-17T15:10:06.455Z",
+  "time": "2026-10-17T15:10:15.953Z",
   "kind": "auto",
-  "transition": "answered of #1906",
+  "transition": "the intent to ready PR #1995",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 198,
+    "recordRevision": 199,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -6021,6 +6021,15 @@
       "mergedOnto": "68a6335fb22f647ce111dfe1860fb1c68d5d8094",
       "baseMoved": true,
       "onMain": true
+    },
+    {
+      "id": "5189068c",
+      "kind": "ready",
+      "ticket": 1906,
+      "pr": 1995,
+      "expectHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
+      "state": "intent",
+      "time": "2026-10-17T15:10:13.298Z"
     }
   ],
   "decisions": [
@@ -6143,7 +6152,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T15:10:05.111Z",
+      "observedAt": "2026-10-17T15:10:14.800Z",
       "held": true,
       "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
       "remoteHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
@@ -6528,7 +6537,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:10:05.111Z",
+      "observedAt": "2026-10-17T15:10:14.800Z",
       "held": true,
       "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
       "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
@@ -7308,13 +7317,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T01:13:33.233Z",
-      "event": "operation-intent",
-      "id": "38aa7ae4",
-      "kind": "merge",
-      "pr": 1996
-    },
-    {
       "time": "2026-10-17T01:16:50.255Z",
       "event": "operation-outcome",
       "id": "38aa7ae4",
@@ -8054,6 +8056,13 @@
       "ticket": 1906,
       "id": "b2271e4b",
       "deliveryId": "02672b60"
+    },
+    {
+      "time": "2026-10-17T15:10:13.298Z",
+      "event": "operation-intent",
+      "id": "5189068c",
+      "kind": "ready",
+      "pr": 1995
     }
   ]
 }
