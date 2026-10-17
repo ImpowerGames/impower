@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 141,
-  "previous": "b30302d87ebffc490ff3f2f9dccf862485aa71cf",
+  "seq": 142,
+  "previous": "16a6a6e07e869a3a1f4fa1024a323d6497719d51",
   "snapshotParents": [],
-  "time": "2026-10-17T03:02:13.899Z",
+  "time": "2026-10-17T03:03:01.080Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1983 (confirmed)",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 115,
+    "recordRevision": 116,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2139,9 +2139,9 @@
       "ticket": 1881,
       "pr": 1983,
       "expectHead": "e681cad7d3c447383a8d909ca8791f17d72fc269",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T03:02:11.108Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1983 reads back merged as 4ba580faf754bef7d7b9db96c9c8635cf2672669 at e681cad7d3c447383a8d909ca8791f17d72fc269; the merge commit is on origin/main",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2351,7 +2351,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T03:02:58.186Z",
+      "mergeCommit": "4ba580faf754bef7d7b9db96c9c8635cf2672669",
+      "mergedOnto": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
+      "baseMoved": false,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -2539,7 +2544,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T03:02:12.804Z",
+      "observedAt": "2026-10-17T03:02:59.894Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "e681cad7d3c447383a8d909ca8791f17d72fc269",
@@ -2736,11 +2741,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:28:30.391Z",
-      "event": "verified",
-      "ticket": 1798
-    },
     {
       "time": "2026-10-16T17:00:26.979Z",
       "event": "disk-recovery",
@@ -3393,6 +3393,12 @@
       "id": "4c9c73e3",
       "kind": "merge",
       "pr": 1983
+    },
+    {
+      "time": "2026-10-17T03:02:58.186Z",
+      "event": "operation-outcome",
+      "id": "4c9c73e3",
+      "state": "confirmed"
     }
   ]
 }
