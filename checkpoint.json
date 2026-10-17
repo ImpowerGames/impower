@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 132,
-  "previous": "260f1d76745b855c014cf8f0b506b7adaf221ce5",
+  "seq": 133,
+  "previous": "4c2232beec5b974313ef8285c732b12960d11bbf",
   "snapshotParents": [],
-  "time": "2026-10-17T01:23:52.887Z",
+  "time": "2026-10-17T01:26:14.347Z",
   "kind": "auto",
-  "transition": "answered of #1974",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 108,
@@ -2102,7 +2102,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:23:51.538Z",
+      "observedAt": "2026-10-17T01:26:12.858Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2259,7 +2259,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T01:23:51.538Z",
+      "observedAt": "2026-10-17T01:26:12.858Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2540,7 +2540,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T01:20:03.954Z",
+    "at": "2026-10-17T01:26:12.854Z",
     "tickets": [
       {
         "number": 851,
@@ -2570,7 +2570,7 @@
         "number": 1974,
         "action": "observe",
         "pr": 1984,
-        "reason": "process 8440, 46748, 55580 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-7a097718-7636-4e93-9a2d-b75836432bde"
+        "reason": "process 58248, 55236, 29852 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac"
       }
     ],
     "remaining": [
