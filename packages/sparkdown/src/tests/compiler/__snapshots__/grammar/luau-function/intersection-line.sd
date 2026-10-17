@@ -23,6 +23,9 @@ function h()
   & {}local c = 9
   type V4 = {}
   & {}function g() end
+  type store = {}
+  type V5 = {}
+  & store
   local w: number
     & number = a
   local x: number

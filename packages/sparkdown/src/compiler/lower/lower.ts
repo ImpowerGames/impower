@@ -464,22 +464,28 @@ function lowerBlockStatements(
           )
         : [];
     if (taken.has(i) && statements.length === 0) continue;
-    if (child.name === "LuauTypeOperatorLineContinuation") {
+    const ownedTypeLine =
+      child.name === "LuauTypeOperatorLineContinuation" &&
+      (taken.has(i) || hasTypeOperatorLineOwner(child));
+    if (
+      child.name === "LuauTypeOperatorLineContinuation" &&
+      !(ownedTypeLine && statements.length > 0)
+    ) {
       // A union member line after a comment line, or an intersection member
       // line: types do not reach the runtime, and the declaration before it
       // took it. One that continues no type is Luau's error. Luau reads an
       // `&` that begins a statement as an expression and reports it in its
       // own words (a function body has no `&` marker, so `& print(1)` is
       // that error), and the lowerer adds nothing to it.
-      if (
-        !taken.has(i) &&
-        !hasTypeOperatorLineOwner(child) &&
-        !continuesIntersection(child)
-      ) {
+      if (!ownedTypeLine && !continuesIntersection(child)) {
         reportUnownedTypeOperatorLine(child, ctx);
       }
       continue;
     }
+    // A member line that a statement begins in after its type, with nothing
+    // between them that the grammar ends the line at (`& {}a = 9`, which Luau
+    // reads as the type `{}` and the statement `a = 9`), is lowered as the
+    // statements the converter read from it, as any other child is.
     if (isLineContinuation(child)) {
       // A continuation line that no statement before it took.
       if (!taken.has(i)) reportUntakenContinuation(child, previous, ctx);

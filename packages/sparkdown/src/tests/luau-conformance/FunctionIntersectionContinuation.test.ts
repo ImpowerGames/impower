@@ -158,6 +158,28 @@ test.each([
   expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
 });
 
+// A member may be named by a word that begins a declaration elsewhere
+// (`store`, `const`) or that Luau reads as a name where a type stands
+// (`continue`, `goto`): the line ends before such a word only after a type.
+test.each(["store", "const", "continue", "goto"])(
+  "an intersection member named %s reads as Luau",
+  (name) => {
+    const body = `type ${name} = {}\ntype T = {}\n& ${name}\nreturn 1`;
+    expect(officialSyntaxErrors(`function f()\n${body}\nend\n`)).toEqual([]);
+    expect(checkLuau(body).syntaxDiagnostics).toEqual([]);
+  },
+);
+
+// A statement right after a member's type, with nothing between them (`{}a`),
+// is the next statement, as Luau reads it, and runs.
+test("a statement right after a member's type on its line runs", () => {
+  const ctx = makeRuntimeStoryFromSource(
+    inFunction("local a = 1\ntype T = {}\n& {}a = 9\nreturn a"),
+  );
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
+});
+
 // Controls: a statement later on a member line runs. The converter reads
 // the line as Luau does, so these ran before the member line's end moved to
 // that statement too; the "reads as Luau" cases above and the grammar
