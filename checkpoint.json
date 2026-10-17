@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 121,
-  "previous": "f1dae06c22df1c3940d44c7dc7b8c81528800160",
+  "seq": 122,
+  "previous": "f86cf06acbeca5eacb13298317a50b78cf5542cf",
   "snapshotParents": [],
-  "time": "2026-10-17T05:30:36.526Z",
+  "time": "2026-10-17T05:30:53.316Z",
   "kind": "auto",
-  "transition": "relay of #1924",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 127,
+    "recordRevision": 128,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3131,7 +3131,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T05:30:33.401Z",
+      "observedAt": "2026-10-17T05:30:51.631Z",
       "held": true,
       "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
       "remoteHead": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
@@ -3371,7 +3371,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T05:30:33.401Z",
+      "observedAt": "2026-10-17T05:30:51.631Z",
       "held": true,
       "head": "8f09e4684ee87b24078b361f03182c787a013df3",
       "remoteHead": "8f09e4684ee87b24078b361f03182c787a013df3",
@@ -3643,7 +3643,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T05:30:33.401Z",
+      "observedAt": "2026-10-17T05:30:51.631Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -4355,13 +4355,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T05:29:53.645Z",
-      "event": "operation-intent",
-      "id": "04a40bf9",
-      "kind": "merge",
-      "pr": 1925
-    },
-    {
       "time": "2026-10-16T05:31:46.666Z",
       "event": "operation-outcome",
       "id": "04a40bf9",
@@ -5039,6 +5032,11 @@
       "ticket": 1924,
       "id": "fc721944",
       "to": "the maintainer"
+    },
+    {
+      "time": "2026-10-17T05:30:49.243Z",
+      "event": "check-in",
+      "outcome": "#1924 round 4 checkpoint (request fc721944): five more lookahead instances, so decision 6bc44573 (kind maintainer, comment 6230199949) asks the maintainer whether a top-level line beginning with a Luau attribute is Luau regardless of where its function stands; request relayed to the maintainer; #1906 writer running the item-6 repair before relaunching axg; #1374 session ended its turn after the round 4 extension"
     }
   ]
 }
