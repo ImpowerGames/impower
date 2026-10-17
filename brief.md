@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1904
 
-Checkpoint 211 (this commit), 2026-10-17T16:55:27.498Z, after a new plan. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
+Checkpoint 212 (this commit), 2026-10-17T16:55:36.515Z, after release of #1924. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -8,19 +8,3 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - A review continuation belongs to the writer session that submitted it. Never claim it from another session; once that writer is observed to have ended, cancel and release the job on its host as the review supervisor describes, and continue the PR with a new writer whose round count continues from the PR's posted rounds.
 - The periodic check-in is session-scoped and ended with its coordinator; recreate it on your own runner with: node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/7a83a6cc-dde9-433a-856d-3a42ddfab2af/scratchpad/writer-1904-6kT7jd/run.json'.
 - New and replacement writers use your harness's default writer model unless the invocation's explicit model override still applies; writers already running keep their recorded model and effort. Confirm each new route with its preflight before dispatch, and let review-pr select reviewers against the actual new writer.
-
-## #1924
-
-- claude-cli claude-opus-5-5 at high, process 9612 on DESKTOP-726EO47
-- review job pr-1993/round-1/launch-ax-1 on DESKTOP-726EO47: round 1 reviewed 6e7a7b974, completed {"ax":1} of planned ["ax","grammar","undirected"]; last launched reviewer ax attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
-- review job pr-1993/round-1/launch-grammar-1 on DESKTOP-726EO47: round 1 reviewed 3920a7861, completed {"ax":1,"grammar":1} of planned ["ax","grammar","undirected"]; last launched reviewer grammar attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
-- review job pr-1993/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 4628b32c0, completed {"ax":1,"grammar":1,"undirected":1} of planned ["ax","grammar","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["ax","grammar","undirected"]), last event finished
-- review job pr-1993/round-2/launch-ax-1 on DESKTOP-726EO47: round 2 reviewed 0c6a8af24, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 2 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 398588031, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-3/launch-ax-1 on DESKTOP-726EO47: round 3 reviewed 5b818c040, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 3 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed ec8189c61, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-4/launch-ax-1 on DESKTOP-726EO47: round 4 reviewed 0bed58155, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 4 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 94a0cd06d, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-5/launch-ax-1 on DESKTOP-726EO47: round 5 reviewed ce250f5ef, completed {"ax":1} of planned ["ax","undirected"]; last launched reviewer ax attempt 1 of round 5 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-5/launch-undirected-1 on DESKTOP-726EO47: round 5 reviewed 9296f3ce9, completed {"ax":1,"undirected":1} of planned ["ax","undirected"]; last launched reviewer undirected attempt 1 of round 5 (planned ["ax","undirected"]), last event finished
-- review job pr-1993/round-6/launch-undirected-1 on DESKTOP-726EO47: round 6 reviewed fe4cd193e, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 6 (planned ["undirected"]), last event finished
