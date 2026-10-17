@@ -2,11 +2,18 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { buildReviewPrompt } from "./build-review-prompt.mjs";
+import { buildReviewPrompt as build } from "./build-review-prompt.mjs";
 import { testScratch } from "./review-job-root.mjs";
+import { readRepos } from "../.agents/repos.mjs";
 
 const scratch = testScratch("review-prompt", process.cwd());
 console.log(`Review prompt fixtures: ${scratch}`);
+// Each cutover position is read from its own copy of the repos file, so the
+// committed switch never decides what these cases expect.
+const committed = readRepos();
+const pinRepos = (cutover) => { const file = path.join(scratch, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committed, cutover })); return readRepos(file); };
+const OFF = pinRepos(false), ON = pinRepos(true);
+const buildReviewPrompt = (context, markdown, repos = OFF) => build(context, markdown, repos);
 const round = path.join(scratch, "pr-521", "round-1");
 fs.mkdirSync(path.join(round, "reviewer-a-1"), { recursive: true });
 fs.writeFileSync(path.join(round, "diff.patch"), "diff --git a/caf\u00e9 b/caf\u00e9\n+\u2728\n");
@@ -24,12 +31,26 @@ assert.throws(() => buildReviewPrompt({ ...context, reviewDir: path.resolve("pri
 const unlinked = buildReviewPrompt({ ...context, issue: null });
 assert.match(unlinked, /reviewing a change with no linked issue/);
 assert.ok(!unlinked.includes("issue #"));
-assert.match(unlinked, /gh pr comment 521 --body-file/);
+assert.ok(unlinked.includes(`gh issue comment 521 --repo ${OFF.code} --body-file`));
 for (const issue of [undefined, 0, -1, "none"]) assert.throws(() => buildReviewPrompt({ ...context, issue }), /Invalid issue/);
 assert.match(prompt, /writer model is `writer-1`/);
 assert.match(prompt, /reviewer model is `reviewer-2`/);
 assert.doesNotMatch(prompt, /runtime identity|self-report|route mismatch|check the pin/i);
-assert.match(prompt, /gh pr comment 521 --body-file/);
+// Before the cutover the review thread is the pull request in the code repository.
+assert.ok(prompt.includes(`reviewing a fix for issue ${OFF.code}#496 in the Impower monorepo, round 1 on PR #521`));
+assert.ok(prompt.includes(`post it as a comment on ${OFF.code}#521,`));
+assert.ok(prompt.includes(`gh issue comment 521 --repo ${OFF.code} --body-file`));
+assert.ok(prompt.includes(`gh api repos/${OFF.code}/issues/521/comments --paginate`));
+assert.throws(() => buildReviewPrompt({ ...context, ticket: 12 }), /ticket applies once the cutover switch/, "a ticket is refused before the cutover");
+// After it the thread is the internal ticket, and nothing names the public pull request's comments.
+const internal = buildReviewPrompt({ ...context, issue: 12, ticket: 12 }, undefined, ON);
+assert.ok(internal.includes(`reviewing a fix for issue ${ON.internal}#12 in the Impower monorepo, round 1 on PR #521`));
+assert.ok(internal.includes(`post it as a comment on ${ON.internal}#12,`));
+assert.ok(internal.includes(`gh issue comment 12 --repo ${ON.internal} --body-file`));
+assert.ok(internal.includes(`gh api repos/${ON.internal}/issues/12/comments --paginate`));
+assert.ok(!internal.includes(`${ON.code}/issues`) && !internal.includes("gh pr comment"), "the switch on leaves no public comment command");
+assert.throws(() => buildReviewPrompt(context, undefined, ON), /Supply ticket/, "the switch on needs the internal ticket");
+assert.throws(() => buildReviewPrompt({ ...context, ticket: "12" }, undefined, ON), /Supply ticket/);
 assert.ok(!/\b(?:WRITER|REVIEWER|REVDIR)\b/.test(prompt));
 for (const key of ["writer", "reviewer", "invocation"]) {
   for (const value of [undefined, "", key.toUpperCase(), "<model>"]) assert.throws(() => buildReviewPrompt({ ...context, [key]: value }), undefined, key + ":" + value);
@@ -42,7 +63,7 @@ assert.ok(!prompt.includes("All commands run from the worktree root"), "text out
 
 assert.match(prompt, /is: Authors can blink a portrait's eyes\./);
 for (const task of [undefined, "", "   "]) assert.throws(() => buildReviewPrompt({ ...context, task }), /task/);
-for (const token of ["WRITER", "REVIEWER", "ROUND", "HEAD", "WORKTREE", "DIFF", "REVDIR", "PREVIOUS", "TASK", "P", "N", "LENS"]) {
+for (const token of ["WRITER", "REVIEWER", "ROUND", "HEAD", "WORKTREE", "DIFF", "REVDIR", "PREVIOUS", "TASK", "THREAD", "REPO", "P", "N", "T", "LENS"]) {
   const boundary = template.indexOf("<!-- review-prompt:start -->");
   const prefix = template.slice(0, boundary), body = template.slice(boundary);
   for (const replacement of ["removed", token + " " + token]) assert.throws(() => buildReviewPrompt(context, prefix + body.replace(new RegExp("\\b" + token + "\\b"), () => replacement)), /Unsafe/, token);

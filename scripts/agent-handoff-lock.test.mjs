@@ -3,8 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { processIdentity } from "./reviewer-slots.mjs";
+import { readRepos } from "../.agents/repos.mjs";
 
 const launcher = fileURLToPath(new URL("./agent-handoff.mjs", import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-lock-"));
@@ -18,6 +19,15 @@ const lock = git("rev-parse", "--path-format=absolute", "--git-path", "agent-han
 const jobDir = path.join(scratch, "repo.review-jobs", "pr-962", "round-1");
 fs.mkdirSync(jobDir, { recursive: true });
 const run = (...args) => spawnSync(process.execPath, [launcher, ...args], { encoding: "utf8", windowsHide: true });
+// A coordinator runs as its own process through a wrapper that pins the cutover
+// switch off, from a copy of the repos file, and reports a refusal on stderr as
+// the launcher does.
+const reposFile = path.join(scratch, "repos-off.json");
+fs.writeFileSync(reposFile, JSON.stringify({ ...readRepos(), cutover: false }));
+const OFF = readRepos(reposFile);
+const coordinatorWrapper = path.join(scratch, "coordinator.mjs");
+fs.writeFileSync(coordinatorWrapper, `import { runHandoff } from ${JSON.stringify(pathToFileURL(launcher).href)}; runHandoff(process.argv[2], { repos: ${JSON.stringify(OFF)} }).catch((error) => { console.error(error.message); process.exitCode = 1; });`);
+const coordinate = (planFile) => spawnSync(process.execPath, [coordinatorWrapper, planFile], { encoding: "utf8", windowsHide: true });
 const until = (predicate, what) => { const end = Date.now() + 60000; while (!predicate()) { if (Date.now() > end) throw new Error(`Timed out waiting for ${what}`); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50); } };
 
 // A coordinator that dies abruptly while its child runs, as one killed with
@@ -35,14 +45,14 @@ const plan = (journal) => {
   return file;
 };
 const journal = path.join(jobDir, "killed.jsonl");
-run(plan(journal));
+coordinate(plan(journal));
 const recorded = JSON.parse(fs.readFileSync(capturedLock, "utf8"));
 assert.equal(recorded.host, os.hostname(), "the lock records the host its coordinator runs on");
 assert.equal(fs.readFileSync(lock, "utf8"), fs.readFileSync(capturedLock, "utf8"), "the killed coordinator leaves its lock behind");
 const rows = fs.readFileSync(journal, "utf8").trim().split("\n").map(JSON.parse);
 assert.equal(rows.at(-1).event, "running", "the killed coordinator journals no exit for its child");
 until(() => processIdentity(recorded.pid) === null && processIdentity(rows.at(-1).pid) === null, "the coordinator and its child to exit");
-const relaunch = run(plan(path.join(jobDir, "relaunch.jsonl")));
+const relaunch = coordinate(plan(path.join(jobDir, "relaunch.jsonl")));
 assert.match(relaunch.stderr, /EEXIST.*recover-lock/, "the lock refusal names the recovery command");
 const recovered = run("recover-lock", worktree);
 assert.equal(recovered.status, 0, recovered.stderr);
@@ -114,7 +124,7 @@ assert.throws(() => recoverHandoffLock(worktree, { identifyProcess: probe({}), h
 assert.ok(fs.existsSync(lock) && fs.existsSync(marker), "a held marker keeps the lock and the marker");
 fs.unlinkSync(lock);
 const blockedJournal = path.join(jobDir, "during-recovery.jsonl");
-const duringRecovery = run(plan(blockedJournal));
+const duringRecovery = coordinate(plan(blockedJournal));
 assert.match(duringRecovery.stderr, /lock recovery is running/, "a coordinator refuses a lock taken while a recovery runs");
 assert.ok(!fs.existsSync(lock) && !fs.existsSync(blockedJournal), "the refused coordinator gives the lock up before writing a journal");
 fs.unlinkSync(marker);
@@ -133,7 +143,8 @@ console.log("PASS: recover-lock removes the lock of a gone coordinator whose jou
 // delegated service has closed, and false when the close fails; recovery
 // accepts the first journal and refuses the second.
 {
-  const { runHandoff } = await import("./agent-handoff.mjs");
+  const { runHandoff: actualRunHandoff } = await import("./agent-handoff.mjs");
+  const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
   const repo = path.join(scratch, "exec-repo");
   fs.mkdirSync(path.join(repo, ".agents", "skills", "drive-web-editor"), { recursive: true });
   fs.writeFileSync(path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs"), "");
@@ -206,7 +217,7 @@ assert.equal(aside.length, 1, "the unrestored record stays aside");
 assert.equal(fs.readFileSync(path.join(path.dirname(lock), aside[0]), "utf8"), unrestored, "the record aside is the lock as it was");
 assert.ok(!fs.existsSync(lock) && fs.existsSync(marker), "the marker keeps protecting the worktree while its lock is aside");
 const whileAside = path.join(jobDir, "while-aside.jsonl");
-assert.match(run(plan(whileAside)).stderr, /lock recovery is running/, "a coordinator refuses the worktree while a record is aside");
+assert.match(coordinate(plan(whileAside)).stderr, /lock recovery is running/, "a coordinator refuses the worktree while a record is aside");
 assert.ok(!fs.existsSync(lock) && !fs.existsSync(whileAside), "the refused coordinator leaves no lock or journal");
 fs.unlinkSync(path.join(path.dirname(lock), aside[0])); fs.unlinkSync(marker);
 console.log("PASS: a failure after the lock is moved aside puts it back, and a failed restore keeps the recovery marker");

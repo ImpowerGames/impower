@@ -10,11 +10,11 @@ A PR marked ready does not stay ready through its next code change. Whenever mor
 gh pr ready --undo
 ```
 
-Say why in a PR comment, so the state change is not a mystery to anyone watching. Undoing returns the label but not the notifications the first `gh pr ready` already sent.
+Say why in a comment on the [review thread](../../references/publishing.md#the-review-thread) (the PR while the cutover switch is off, the internal ticket once it is on, where the command itself still runs on the public PR and posts nothing there), so the state change is not a mystery to anyone watching. Undoing returns the label but not the notifications the first `gh pr ready` already sent.
 
 Then assess behavior and risk. PR-body edits or narrow non-behavioral documentation, comments, and test corrections may finish after verification and explicit disclosure without another independent review. Skill instructions, configuration, or tests that change workflow decisions or remove meaningful coverage are not exempt merely because of their file type. Behavior-changing corrections that no planned reviewer of the round has yet reviewed make the reviewed version outdated and require another round before readiness.
 
-Size every follow-up round by the correction's concrete risks and relevant callers, with the full PR available for context. A one-line serialization or deletion fix can require multiple reviewers. Fill in the prompt's ROUND placeholder ([launch procedure](launch.md)) with the new round number and PREVIOUS with what round R-1 found and how this commit answers it. Summarise the earlier findings in PREVIOUS rather than sending reviewers to `gh pr view P --comments`: after a few long reviews that output runs past the tool's 400-line cut and the later rounds are the ones that fall off. A reviewer that must read an earlier comment can list them with `gh api repos/ImpowerGames/impower/issues/P/comments --paginate --jq '.[] | [.id, (.body | split("\n")[0])] | @tsv'` and fetch one by id with `gh api repos/ImpowerGames/impower/issues/comments/<id> --jq .body`.
+Size every follow-up round by the correction's concrete risks and relevant callers, with the full PR available for context. A one-line serialization or deletion fix can require multiple reviewers. Fill in the prompt's ROUND placeholder ([launch procedure](launch.md)) with the new round number and PREVIOUS with what round R-1 found and how this commit answers it. Summarise the earlier findings in PREVIOUS rather than sending reviewers to read the whole thread: after a few long reviews it runs past the tool's 400-line cut and the later rounds are the ones that fall off. A reviewer that must read an earlier comment can list them with `gh api repos/<tickets>/issues/<T>/comments --paginate --jq '.[] | [.id, (.body | split("\n")[0])] | @tsv'` and fetch one by id with `gh api repos/<tickets>/issues/comments/<id> --jq .body`; the reviewer prompt gives it these commands with the thread filled in.
 
 Capture the later round's patch from the head the previous round's last reviewer reviewed, with explicit paths this change owns:
 
@@ -32,6 +32,6 @@ New scope, a resumed session, a new journal, or a changed head does not reset th
 
 A writer under orchestrate-feature answers to its Feature's coordinator, whose checkpoint decision after round 3's verified fixes, and after each later round's, is that request: sent to the writer and published on the PR, an extension gives the limit and the invocation to carry verbatim, and a decision the coordinator did not send authorizes nothing. Only that coordinator may accept final verified corrections without another round, for one exact head, under [review checkpoints](../../orchestrate-feature/references/review-checkpoints.md). That acceptance is the coordinator's recorded exception, not readiness: the writer keeps the PR draft and never waives its own review.
 
-Every round posts its own comments and its own adjudication. Do not edit the previous round's comments to fit the new code; the record of what was reviewed when is what lets a human tell which findings apply to which version.
+Every round posts its own comments and its own adjudication on the review thread. Do not edit the previous round's comments to fit the new code; the record of what was reviewed when is what lets a human tell which findings apply to which version.
 
 ---

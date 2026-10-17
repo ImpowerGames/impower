@@ -10,13 +10,26 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
-import { runHandoff, recordCoordinatorReport, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
+import { runHandoff as actualRunHandoff, recordCoordinatorReport as actualRecord, writeReportReadBack, reviewAccounting, readJournalRows } from "./agent-handoff.mjs";
+import { readRepos } from "../.agents/repos.mjs";
 import { roundState } from "../.agents/skills/orchestrate-feature/review-checkpoint.mjs";
 
 const launcher = fileURLToPath(new URL("./agent-handoff.mjs", import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-blocked-"));
 console.log(`Scratch repository: ${scratch}`);
+// The launch runs with the switch off, read from a copy of the repos file, so
+// the review thread is pull request 1948 in the code repository.
+const reposFile = path.join(scratch, "repos-off.json");
+fs.writeFileSync(reposFile, JSON.stringify({ ...readRepos(), cutover: false }));
+const OFF = readRepos(reposFile);
+const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
+const onFile = path.join(scratch, "repos-on.json");
+fs.writeFileSync(onFile, JSON.stringify({ ...readRepos(), cutover: true }));
+const ON = readRepos(onFile);
+const recordCoordinatorReport = (journal, id, file, repos = OFF) => actualRecord(journal, id, file, { repos });
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
 const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
@@ -69,9 +82,13 @@ console.log("PASS: a reviewer that exits 0 with a report and no comment IDs leav
 
 // The coordinator posts the report verbatim after one prefix line and reads
 // the comment back.
-const readBack = path.join(jobDir, "readback-ax.md");
+// The read-back is the comment as GitHub's REST API returns it, on the review
+// thread the journal's coordinator row names.
+const readBack = path.join(jobDir, "readback-ax.json");
+const threadUrl = `https://api.github.com/repos/${OFF.code}/issues/1948`;
+const comment = (body, id = 601, issue_url = threadUrl) => fs.writeFileSync(readBack, JSON.stringify({ id, issue_url, body }));
 const line = "Posted on behalf of reviewer `ax`: its own post failed on the GraphQL rate limit.";
-const post = (text = report) => fs.writeFileSync(readBack, `${line}\n\n${text}`);
+const post = (text = report, id = 601) => comment(`${line}\n\n${text}`, id);
 const refuses = (pattern, what, prepare = () => {}) => {
   rewrite(original);
   post();
@@ -84,7 +101,25 @@ const journalWith = (edit) => () => { const list = rows(); edit(list); rewriteRo
 
 // Every other refusal stays in place.
 refuses(/verbatim/, "an edited report is refused", () => post(report.replace("No findings", "Some findings")));
-refuses(/verbatim/, "a read-back without the behalf line is refused", () => fs.writeFileSync(readBack, `Posted by the coordinator.\n\n${report}`));
+refuses(/verbatim/, "a read-back without the behalf line is refused", () => comment(`Posted by the coordinator.\n\n${report}`));
+refuses(/REST API returns it/, "a read-back of the body alone is refused", () => fs.writeFileSync(readBack, `${line}\n\n${report}`));
+refuses(/is on https:\/\/api\.github\.com\/repos\/.*\/issues\/77, not review thread .*#1948/, "a comment on another issue is refused", () => comment(`${line}\n\n${report}`, 601, `https://api.github.com/repos/${OFF.internal}/issues/77`));
+refuses(/read-back is comment 602, not comment 601/, "a read-back of another comment is refused", () => post(report, 602));
+// A journal from a launcher that predates review threads names none; while the
+// switch is off it takes a comment on an issue of the code repository, where
+// that launcher posted, and nothing else.
+const legacy = journalWith((list) => { delete list.find((row) => row.event === "coordinator").thread; });
+refuses(/not a pull request in .*, where this journal's launcher posted reviews/, "a legacy journal refuses a comment outside the code repository", () => { legacy(); comment(`${line}\n\n${report}`, 601, `https://api.github.com/repos/${OFF.internal}/issues/1948`); });
+{
+  rewrite(original);
+  post();
+  legacy();
+  const before = fs.readFileSync(journal, "utf8");
+  assert.throws(() => recordCoordinatorReport(journal, 601, readBack, ON), /names no review thread.*cutover switch on/, "a legacy journal cannot be recorded once the switch is on");
+  assert.equal(fs.readFileSync(journal, "utf8"), before, "the refusal writes nothing");
+  recordCoordinatorReport(journal, 601, readBack);
+  assert.deepEqual(rows().map((row) => row.event).slice(-3), ["completed", "report-posted", "finished"], "a legacy journal is still recorded from a comment on the pull request while the switch is off");
+}
 refuses(/does not end/, "a journal blocked for another reason is refused", journalWith((list) => { list.at(-1).reason = "Undeclared transition"; }));
 refuses(/exit/, "a launch that exited nonzero is refused", journalWith((list) => { list.at(-2).code = 1; }));
 refuses(/exit/, "a launch with no exited row is refused", journalWith((list) => { list.splice(list.findIndex((row) => row.event === "exited"), 1); }));
@@ -107,8 +142,34 @@ console.log("PASS: a blocked journal is completed only with a clean exit on this
 // the launcher writes for a reviewer that posted its own report, except that
 // the comment is recorded as posted by the coordinator.
 rewrite(original);
+assert.deepEqual(rows().find((row) => row.event === "coordinator").thread, { repo: OFF.code, number: 1948, issueUrl: `https://api.github.com/repos/${OFF.code}/issues/1948` }, "the journal names the review thread the coordinator posts on");
 post();
-execFileSync(process.execPath, [launcher, "record-report", journal, "601", readBack], { encoding: "utf8", windowsHide: true });
+// The read-back command writes gh's output byte for byte, so the report's
+// em dash survives it; a shell redirect could re-encode it on the way.
+const ghReadBack = path.join(jobDir, "readback-gh.json");
+const ghCalls = [];
+const asGh = (bytes) => (args) => { ghCalls.push(args); return bytes; };
+assert.ok([...report].some((character) => character.charCodeAt(0) > 127), "the report carries a character outside ASCII");
+assert.throws(() => writeReportReadBack(journal, 601, ghReadBack, { repos: OFF, run: asGh(Buffer.from(JSON.stringify({ id: 600, issue_url: threadUrl, body: report }), "utf8")) }), /no comment 601/, "gh's answer for another comment is refused");
+// Its default reader runs gh itself; here a stand-in native process prints
+// the comment's UTF-8 bytes in gh's place.
+{
+  const realExec = childProcess.execFileSync;
+  let ghOptions;
+  childProcess.execFileSync = (exe, args, options) => {
+    if (exe !== "gh") return realExec(exe, args, options);
+    ghCalls.push(args);
+    ghOptions = options;
+    return realExec(process.execPath, ["-e", "process.stdout.write(require('node:fs').readFileSync(process.argv[1]))", readBack], { ...options });
+  };
+  syncBuiltinESMExports();
+  try { writeReportReadBack(journal, 601, ghReadBack, { repos: OFF }); }
+  finally { childProcess.execFileSync = realExec; syncBuiltinESMExports(); }
+  assert.equal(ghOptions.encoding, undefined, "gh's output is taken as bytes, not decoded text");
+}
+assert.deepEqual(ghCalls.at(-1), ["api", `repos/${OFF.code}/issues/comments/601`], "the comment is read by id from the review thread's repository");
+assert.ok(fs.readFileSync(ghReadBack).equals(fs.readFileSync(readBack)), "the read-back holds gh's bytes unchanged");
+execFileSync(process.execPath, [launcher, "record-report", journal, "601", ghReadBack], { encoding: "utf8", windowsHide: true });
 let recorded = rows();
 assert.deepEqual(recorded.map((row) => row.event).slice(-5), ["exited", "blocked", "completed", "report-posted", "finished"]);
 const completed = recorded.find((row) => row.event === "completed");
@@ -160,6 +221,8 @@ assert.throws(() => recordCoordinatorReport(journal, 602, readBack), /already re
 post(report + "\n\n---\n_Generated by someone else_");
 assert.throws(() => recordCoordinatorReport(journal, 601, readBack), /already records comment 601/, "a different read-back cannot complete a record interrupted after its completed row");
 post();
+// Saved as UTF-16 with its byte order mark, as an editor or Windows PowerShell 5.1 may write it.
+fs.writeFileSync(readBack, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(fs.readFileSync(readBack, "utf8"), "utf16le")]));
 recordCoordinatorReport(journal, 601, readBack);
 recorded = rows();
 assert.deepEqual(recorded.map((row) => row.event).slice(-3), ["completed", "report-posted", "finished"]);
@@ -179,7 +242,8 @@ const awaiting = path.join(jobDir, "awaiting.jsonl");
 const awaitingReport = path.join(jobDir, "awaiting-report.md");
 fs.writeFileSync(awaitingReport, report);
 const sha = (text) => execFileSync(process.execPath, ["-e", "process.stdout.write(require('node:crypto').createHash('sha256').update(require('node:fs').readFileSync(process.argv[1],'utf8')).digest('hex'))", awaitingReport], { encoding: "utf8", windowsHide: true });
-fs.writeFileSync(awaiting, [{ event: "coordinator" }, { event: "report-awaiting-post", index: 0, step: "review", head, report: awaitingReport, reportSha256: sha() }].map((row) => JSON.stringify(row)).join("\n") + "\n");
+fs.writeFileSync(awaiting, [{ event: "coordinator", thread: { repo: OFF.code, number: 1948, issueUrl: threadUrl } }, { event: "report-awaiting-post", index: 0, step: "review", head, report: awaitingReport, reportSha256: sha() }].map((row) => JSON.stringify(row)).join("\n") + "\n");
+post(report, 603);
 recordCoordinatorReport(awaiting, 603, readBack);
 assert.deepEqual(readJournalRows(awaiting).map((row) => row.event), ["coordinator", "report-awaiting-post", "report-posted", "finished"]);
 console.log("PASS: a journal awaiting a coordinator-posted report is still completed without a completed row of its own");
