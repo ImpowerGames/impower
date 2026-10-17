@@ -278,6 +278,7 @@ const IF_CONDITION_TRIVIA = nodeNameSet([
 ]);
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
+const LUAU_UNTIL_KEYWORD = nodeNameSet(["LuauUntilKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
 // The parts of an if expression's clause that are not its value.
 const IF_CLAUSE_TRIVIA = new Set([
@@ -1447,6 +1448,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const begin = childNamed(nodeRef.node, `${nodeRef.name}_begin`);
         const at = this.text?.lineAt(begin?.to ?? nodeRef.from).to ?? nodeRef.to;
         this.error(annotations, `${MISSING_EXPRESSION}, got <eof>`, at, this.lineBreakEnd(at));
+      }
+    }
+    // Likewise a story `repeat` loop's `until` that ends its line: the
+    // condition the body around the loop reads after it is not on its line.
+    if (nodeRef.name === "LuauSparkdownRepeatLoop") {
+      const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
+      const until = end ? firstDescendant(end, LUAU_UNTIL_KEYWORD) : null;
+      if (until) {
+        const at = this.text?.lineAt(until.to).to ?? until.to;
+        let next = nodeRef.node.nextSibling;
+        while (next && next.from === next.to) next = next.nextSibling;
+        if (next?.name !== "LuauSparkdownExplicitUntilCondition" || next.from > at) {
+          this.error(annotations, `${MISSING_EXPRESSION}, got <eof>`, at, this.lineBreakEnd(at));
+        }
       }
     }
     // An if statement's condition that its line ends without a `then`: the

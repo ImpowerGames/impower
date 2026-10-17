@@ -479,23 +479,9 @@ const FORMS: Record<string, Form> = {
       ["w", PARAMETER],
     ],
   },
-  "#1344 a loop condition on the line after for or while": {
-    fixture: "loop-condition-next-line-1344",
-    scopes: [
-      ["for", "keyword.control.for.luau"],
-      ["i", VARIABLE],
-      ["do", "keyword.control.do.luau"],
-      ["while", "keyword.control.while.luau"],
-      ["x", VARIABLE],
-      ["do", "keyword.control.do.luau"],
-    ],
-    within: [
-      ["for\n  i", "LuauForCondition"],
-      ["3\ndo", "LuauSparkdownForLoop"],
-      ["while\n  x", "LuauWhileCondition"],
-      ["  x\ndo", "LuauSparkdownWhileLoop"],
-    ],
-  },
+  // At story scope a loop's header ends at its line (#1907), so the story
+  // form of #1344 (fixture loop-condition-next-line-1344) is missing its
+  // condition; `storyBodyLineRule.test.ts` pins that reading.
   "#1344 a loop condition on the line after for or while, in a function": {
     fixture: "loop-condition-next-line-in-function-1344",
     scopes: [

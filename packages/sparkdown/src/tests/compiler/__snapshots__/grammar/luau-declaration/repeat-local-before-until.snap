@@ -149,16 +149,16 @@ sparkdown [0..63]
  │       │       └─ OptionalWhitespace [40..41]: " "
  │       └─ LuauSparkdownRepeatLoop_end_c2 [41..46]
  │           └─ LuauUntilKeyword [41..46]: "until"
- ├─ LuauUntilCondition [46..51]
- │   ├─ LuauUntilCondition_begin [46..47]
- │   │   └─ LuauUntilCondition_begin_c1 [46..47]
- │   │       └─ LuauUntilCondition_begin_c1 [46..47]
+ ├─ LuauSparkdownExplicitUntilCondition [46..51]
+ │   ├─ LuauSparkdownExplicitUntilCondition_begin [46..47]
+ │   │   └─ LuauSparkdownExplicitUntilCondition_begin_c1 [46..47]
+ │   │       └─ LuauSparkdownExplicitUntilCondition_begin_c1 [46..47]
  │   │           └─ OptionalWhitespace [46..47]: " "
- │   ├─ LuauUntilCondition_content [47..51]
+ │   ├─ LuauSparkdownExplicitUntilCondition_content [47..51]
  │   │   └─ LuauBoolean [47..51]
  │   │       ├─ LuauBoolean_c1 [47..51]: "true"
  │   │       └─ LuauBoolean_c2 51
- │   └─ LuauUntilCondition_end 51
+ │   └─ LuauSparkdownExplicitUntilCondition_end 51
  ├─ Newline [51..52]: "\n"
  ├─ ImplicitAction [52..62]
  │   ├─ ImplicitAction_begin 52

@@ -9,6 +9,7 @@
 import { describe, expect, test, vi } from "vitest";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
@@ -229,6 +230,61 @@ describe("a story `if` header ends at its line", () => {
   });
 });
 
+// A story loop's header ends at its line too, on the maintainer's
+// instruction: this reverses #1344's condition on the line after `for` or
+// `while` at story scope. In Luau code the condition still begins there.
+describe("a story loop header ends at its line", () => {
+  test.each([
+    ["a `for` with its body on later lines", "store x = 0\nfor i = 1, 3 do\n  x = i\nend\nValue {x}.\n", "Value 3.\n"],
+    ["a one-line `for`", "store x = 0\nfor i = 1, 3 do x = i end\nValue {x}.\n", "Value 3.\n"],
+    ["a `while`", "store x = 3\nwhile x > 0 do\n  x = x - 1\nend\nValue {x}.\n", "Value 0.\n"],
+    ["a `repeat` with its `until` condition on its line", "store x = 0\nrepeat\n  x = x + 1\nuntil x > 2\nValue {x}.\n", "Value 3.\n"],
+    [
+      "a `for` in a function, whose condition is on the next line",
+      "Value {f()}.\nfunction f()\n  local x = 0\n  for\n    i = 1, 3\n  do\n    x = i\n  end\n  return x\nend\n",
+      "Value 3.\n",
+    ],
+  ])("%s still runs", (_name, source, expected) => {
+    const { errors, output } = run(source);
+    expect(errors).toEqual([]);
+    expect(output).toBe(expected);
+  });
+
+  test.each([
+    ["for", "store x = 0\nfor\n  i = 1, 3\ndo\n  x = i\nend\n", "  i = 1, 3", "1:0-1:3 Expected `do` after the `for` loop's condition. Write `for ... do`, the body, then `end`."],
+    ["for", "store x = 0\nfor i = 1, 3\ndo\n  x = i\nend\n", "do\n", "1:0-1:3 Expected `do` after the `for` loop's condition. Write `for ... do`, the body, then `end`."],
+    ["while", "store x = 0\nwhile\n  x\ndo\n  x = nil\nend\n", "  x\n", "1:0-1:5 Expected `do` after the `while` loop's condition. Write `while ... do`, the body, then `end`."],
+  ])("a `%s` whose condition or `do` is on a later line is missing it on its own line", (_keyword, source, later, error) => {
+    expect(parserWarnings(source)).toEqual([]);
+    expect(errorsOf(source)).toContain(error);
+    expect(nodesCrossing(source, later)).toEqual([]);
+  });
+
+  test("the formatter keeps one space between a story `for`'s names, `in` and the iterator", () => {
+    const text = "store t = {}\nfor _, v in pairs(t) do\n  Item.\nend\n";
+    const registry = new SparkdownDocumentRegistry(["formatting"]);
+    registry.add({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
+    const annotations = registry.annotations(URI) as Record<string, any>;
+    const header = { from: text.indexOf("for"), to: text.indexOf(" do") };
+    const marks: string[] = [];
+    for (const iter = annotations["formatting"]!.iter(0); iter.value; iter.next()) {
+      if (iter.from >= header.from && iter.to <= header.to && /^\s+$/.test(text.slice(iter.from, iter.to))) {
+        marks.push(`${text.slice(iter.from - 1, iter.to + 1)} ${JSON.stringify(iter.value.type)}`);
+      }
+    }
+    expect(marks.filter((mark) => mark.endsWith('"extra"'))).toEqual([]);
+  });
+
+  test.each([
+    ["a `while` condition that ends with an operator", "store x = 3\nwhile x > 0 and\n  x < 10 do\n  x = x - 1\nend\n", "1:15-2:0"],
+    ["an `until` with its condition on the next line", "store x = 0\nrepeat\n  x = x + 1\nuntil\n  x > 2\n", "3:5-4:0"],
+    ["an `until` condition that ends with an operator", "store x = 0\nrepeat\n  x = x + 1\nuntil x >\n  2\n", "3:9-4:0"],
+  ])("%s is missing its expression at the line's end", (_name, source, at) => {
+    expect(parserWarnings(source)).toEqual([]);
+    expect(errorsOf(source)).toContain(`${at} Expected identifier when parsing expression, got <eof>`);
+  });
+});
+
 describe("brackets carry a story statement on", () => {
   test("a multi-line store table declares", () => {
     const source = "store inventory = {\n  sword = 1,\n  shield = 2,\n}\nCount {inventory.sword + inventory.shield}.\n";
@@ -256,6 +312,17 @@ describe("brackets carry a story statement on", () => {
     const source = `${statement}\n  2\nscene t\n  After.\nend\n`;
     expect(errorsOf(source)).toEqual(["1:3-2:0 Expected ')' (to close '(' at line 1), got <eof>"]);
     expect(topNodes(source).find((node) => node.name === "Scene")?.from).toBe(source.indexOf("scene t"));
+  });
+
+  // The block ends with the line its bracket closes on, so the story line
+  // after it stays story, as the `&` block's own message says.
+  test("an `&` block that a bracket carries past its line still leaves the story line after it", () => {
+    const source = "-> s\nscene s\n  & do x = math.max(1,\n    2)\n  After.\nend\n";
+    const missing = errorsOf(source).filter((error) => error.includes("missing its closing"));
+    expect(missing).toEqual([
+      "2:4-2:22 This `do` block is missing its closing `end` keyword on this `&` line. The following line remains story text.",
+    ]);
+    expect(nodesCrossing(source, "  After.")).toEqual([]);
   });
 
   test.each(["local x = f(g(", "local t = { a = { 1,", "& if ((", "x = t[u["])("a bracket inside a bracket stops at the next header too (`%s`)", (statement) => {
@@ -311,7 +378,19 @@ describe("the story statement rules", () => {
 
   test("reach no line break and no next-line rule outside a bracket, a string, a comment or a closed block", () => {
     const reached = new Map<string, string>();
-    const queue = ["LuauSparkdownVariableDefinition", "LuauSparkdownReassignment", "LuauSparkdownExplicitStatement", "LuauSparkdownExplicitIfCondition"];
+    const queue = [
+      "LuauSparkdownVariableDefinition",
+      "LuauSparkdownReassignment",
+      "LuauSparkdownExplicitStatement",
+      "LuauSparkdownExplicitIfCondition",
+      "LuauSparkdownExplicitLoopCondition",
+      "LuauSparkdownExplicitUntilCondition",
+    ];
+    // The story blocks read their headers with these.
+    expect(repository["LuauSparkdownIfBlock"]!.patterns).toContainEqual({ include: "#LuauSparkdownExplicitIfCondition" });
+    expect(repository["LuauSparkdownForLoop"]!.patterns).toContainEqual({ include: "#LuauSparkdownExplicitLoopCondition" });
+    expect(repository["LuauSparkdownWhileLoop"]!.patterns).toContainEqual({ include: "#LuauSparkdownExplicitLoopCondition" });
+    expect(repository["LuauSparkdownControlBlock"]!.patterns).toContainEqual({ include: "#LuauSparkdownExplicitUntilCondition" });
     for (const name of queue) reached.set(name, name);
     while (queue.length) {
       const name = queue.shift()!;

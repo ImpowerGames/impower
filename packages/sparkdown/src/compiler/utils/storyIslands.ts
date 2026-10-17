@@ -12,9 +12,16 @@ const STORY_STATEMENTS = new Set([
   "LuauSparkdownReassignment",
 ]);
 
-// The story blocks whose condition ends at its line, as a story statement
-// does.
-const STORY_CONDITION_BLOCKS = new Set(["LuauSparkdownIfBlock", "LuauSparkdownElseifBlock"]);
+// The story blocks whose header's condition ends at its line, as a story
+// statement does, each with the bounded rule that reads it.
+const STORY_CONDITIONS: Record<string, ReadonlySet<string>> = {
+  LuauSparkdownExplicitIfCondition: new Set(["LuauSparkdownIfBlock", "LuauSparkdownElseifBlock"]),
+  LuauSparkdownExplicitLoopCondition: new Set(["LuauSparkdownForLoop", "LuauSparkdownWhileLoop"]),
+};
+
+// Story loops, whose header ends at its line: one with no `do` block on it
+// is an island of its own, missing its `do` (#1907).
+const STORY_LOOPS = new Set(["LuauSparkdownForLoop", "LuauSparkdownWhileLoop"]);
 
 /** The rule a node is a part of, past the `_content` node that holds it. */
 function ruleOf(node: SyntaxNode): SyntaxNode | null {
@@ -47,19 +54,40 @@ export function storyIslandEnd(node: SyntaxNode, text: string): number | undefin
     if (n.name === "LuauFunctionBody") return undefined;
     if (n.name === "LuauSparkdownExplicitStatement") return n.to;
     if (STORY_STATEMENTS.has(n.name)) return lastLineEnd(text, n.to);
-    if (n.name === "LuauSparkdownExplicitIfCondition" && STORY_CONDITION_BLOCKS.has(ruleOf(n)?.name ?? "")) {
-      return lastLineEnd(text, n.to);
-    }
+    if (STORY_CONDITIONS[n.name]?.has(ruleOf(n)?.name ?? "")) return lastLineEnd(text, n.to);
+    if (n.name === "LuauSparkdownExplicitUntilCondition" && isStoryUntilCondition(n)) return lastLineEnd(text, n.to);
   }
   return undefined;
 }
 
+/** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */
+function inMarkedStatementOrFunction(node: SyntaxNode): boolean {
+  for (let n = node.parent; n; n = n.parent) {
+    if (n.name === "LuauFunctionBody" || n.name === "LuauSparkdownExplicitStatement") return true;
+  }
+  return false;
+}
+
+/** Whether a bounded `until` condition is a story `repeat` loop's rather than a marked statement's. */
+function isStoryUntilCondition(node: SyntaxNode): boolean {
+  return !inMarkedStatementOrFunction(node);
+}
+
+/** Whether a story loop's header has no `do` block on it, so the loop ends with its header's line. */
+function isHeaderOnlyLoop(node: SyntaxNode): boolean {
+  return STORY_LOOPS.has(node.name) && !node.getChild(`${node.name}_content`)?.getChild("LuauSparkdownDoBlock");
+}
+
 /**
- * Whether a node is a story declaration or reassignment that is its own
- * island: not inside another story statement, whose island it is part of,
- * and not inside a function.
+ * Whether a node is a story statement that is its own island: a story
+ * declaration or reassignment not inside another story statement, whose
+ * island it is part of; a story `repeat` loop's `until` condition; or a
+ * story `for` or `while` whose header has no `do` block on its line. None
+ * is inside a function.
  */
 export function isStoryStatementIsland(node: SyntaxNode): boolean {
+  if (node.name === "LuauSparkdownExplicitUntilCondition") return isStoryUntilCondition(node);
+  if (isHeaderOnlyLoop(node)) return !inMarkedStatementOrFunction(node);
   if (node.name !== "LuauSparkdownVariableDefinition" && node.name !== "LuauSparkdownReassignment") return false;
   for (let n = node.parent; n; n = n.parent) {
     if (n.name === "LuauFunctionBody" || STORY_STATEMENTS.has(n.name)) return false;

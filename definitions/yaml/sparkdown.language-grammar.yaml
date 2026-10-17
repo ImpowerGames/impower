@@ -8103,8 +8103,10 @@ repository:
 
   LuauSparkdownControlBlock:
     patterns:
-      # First: it opens only right after a `repeat` loop's `until`.
-      - { include: "#LuauUntilCondition" }
+      # First: it opens only right after a `repeat` loop's `until`. A story
+      # loop's condition ends at its line, as every story statement does
+      # (#1907), so it is the bounded one.
+      - { include: "#LuauSparkdownExplicitUntilCondition" }
       # An `until` that no story `repeat` took, which Luau reports.
       - { include: "#LuauStrayUntilStatement" }
       - { include: "#LuauSparkdownForLoop" }
@@ -8326,14 +8328,17 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauForCondition" }
+      - { include: "#LuauSparkdownExplicitLoopCondition" }
       - { include: "#LuauSparkdownBlockBody" }
     # `(?<=\bend)` — close right after the do-block's `end` so one-line
     # `for ... do BODY end return x` doesn't swallow trailing
-    # statements (see LuauSparkdownWhileLoop). The line's end does not close
-    # it after a `for` that ends its line, whose condition begins on the
-    # next (`LUAU_NOT_AFTER_LOOP_KEYWORD`).
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
+    # statements (see LuauSparkdownWhileLoop). The header ends at its line,
+    # as every story statement does (#1907): its condition is the bounded
+    # one, and a loop whose `do` is not on the header's line ends there,
+    # missing it. This reverses #1344's condition on the line after `for` at
+    # story scope, on the maintainer's instruction; in Luau code
+    # (`LuauForLoop`) the condition still begins on the next line.
+    end: (?={{BEAT}})|(?<=\bend)|$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauForLoop:
     begin: ({{WS}}*)(for)\b({{WS}}*)
@@ -8406,18 +8411,18 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauWhileCondition" }
+      - { include: "#LuauSparkdownExplicitLoopCondition" }
       - { include: "#LuauSparkdownBlockBody" }
     # `(?<=\bend)` closes the loop immediately after its do-block's
     # `end` token, so a one-line `while c do BODY end return x` doesn't
     # swallow the trailing statements into the loop (the `$` alternative
     # only fires at end-of-line). The lookbehind can't false-trigger on
     # identifiers like `friend` — `\b` requires a word boundary before
-    # the `e`. The line's end does not close it after a `while` that ends
-    # its line, as Luau lets the condition begin on the next line; the
-    # condition opens there and reads on to its `do`
-    # (`LUAU_NOT_AFTER_LOOP_KEYWORD`).
-    end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
+    # the `e`. The header ends at its line, as every story statement does
+    # (#1907; see `LuauSparkdownForLoop`): a `while` whose condition or `do`
+    # is not on its line ends there, missing it. In Luau code
+    # (`LuauWhileLoop`) the condition still begins on the next line.
+    end: (?={{BEAT}})|(?<=\bend)|$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauWhileLoop:
     begin: ({{WS}}*)(while)\b({{WS}}*)
@@ -8705,13 +8710,21 @@ repository:
     # lookaround: anchor the header once after for/while so it cannot reopen
     # over LuauSparkdownExplicitBlockBody assignments. The specific do rule
     # precedes this header, so it owns do when the condition is missing.
-    begin: (?<=\b{{LUAU_CONDITION_LOOP_KEYWORDS}}\b{{WS}}*)
+    # It is also the condition of a story `for` or `while` (#1907), whose
+    # loop reads its `do` block after the header, so it never opens at a
+    # line end or right before `do`: there it would end where it opened,
+    # and the loop would open it again at the same place until the parser's
+    # empty-match limit stopped it.
+    begin: (?<=\b{{LUAU_CONDITION_LOOP_KEYWORDS}}\b{{WS}}*)(?!$|do\b)
+    # The whitespace between its names and `in` is a separator, as in
+    # `LuauForCondition`, so the formatter keeps one space there
+    # (`for i in pairs(t)`, never `for iinpairs(t)`).
     patterns:
       - { include: "#LuauInKeyword" }
       - { include: "#LuauParenthetical" }
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
+      - { include: "#RequiredWhitespace" }
     end: (?={{BEAT}}|{{END}}|[}]|{{WS}}*do\b)|$
 
   LuauSparkdownExplicitRepeatLoop:

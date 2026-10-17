@@ -119,13 +119,6 @@ function boundedMissingMessage(label: string, closer: "end" | "until"): string {
   return `This ${label} is missing its closing \`${closer}\` keyword on this \`&\` line. The following line remains story text.`;
 }
 
-// Whether a bounded block goes on past its `&` line, which a bracket left
-// open carries on to its closer or the next header (#1907): its missing
-// closer then leaves the lines below it in the block, not in the story.
-function spansLines(node: SyntaxNode, ctx: LowerContext): boolean {
-  return ctx.read(node.from, node.to).trimEnd().includes("\n");
-}
-
 function missingEndMessage(label: string): string {
   return `This ${label} is missing its closing \`end\` keyword. Without it, the lines below it are read as part of this ${label}, up to the next \`scene\`, \`branch\` or the end of the file.`;
 }
@@ -260,7 +253,7 @@ export function validateBlockEnds(
         (block.bounded || findChildByName(node, `${node.name}_end`)) &&
         !closedBeforeOuterCloser(node, OWNS_END, chunk)
       ) {
-        report(diagnostics, block.header, block.bounded && !spansLines(node, ctx)
+        report(diagnostics, block.header, block.bounded
           ? boundedMissingMessage(block.label, "end") : missingEndMessage(block.label), ctx);
       }
     } else if (
@@ -274,7 +267,7 @@ export function validateBlockEnds(
       !closedBeforeOuterCloser(node, OWNS_UNTIL, chunk)
     ) {
       openRepeat = true;
-      report(diagnostics, node, BOUNDED_BLOCKS.has(node.name) && !spansLines(node, ctx)
+      report(diagnostics, node, BOUNDED_BLOCKS.has(node.name)
         ? boundedMissingMessage("`repeat` loop", "until") : MISSING_UNTIL, ctx);
     }
     for (let child = node.firstChild; child; child = child.nextSibling) {
