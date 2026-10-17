@@ -257,10 +257,11 @@ describe("a reserved word is never a name", () => {
   );
 
   test.each([
-    ["nil", "1:11-1:14"],
-    ["true", "1:11-1:15"],
-  ])("a reserved word after a `local`'s comma is Luau's error at the word: %s", (word, at) => {
-    const source = `function f()\n  local a, ${word} = 1, 2\nend\n`;
+    ["nil", "a", "1:11-1:14"],
+    ["true", "a", "1:11-1:15"],
+    ["nil", "a: number", "1:19-1:22"],
+  ])("a reserved word after a `local`'s comma is Luau's error at the word: %s after %s", (word, first, at) => {
+    const source = `function f()\n  local ${first}, ${word} = 1, 2\nend\n`;
     const error = `${at} Expected identifier when parsing variable name, got '${word}'`;
     expect(officialErrors(source)).toContain(error);
     expect(errorsOf(source)).toContain(error);
@@ -326,6 +327,10 @@ describe("a structural word is a name outside its shape (#984)", () => {
     const source = `Value {f()}.\nfunction f()\n  local queue = function(s) return if type(s) == "table" then "table" else s end\n  local s = ${call}\n  return s\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: `Value ${value}.\n` });
     expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorBlock \[/);
+  });
+
+  test.each(['{cycle [===[a]===] | "b" end}', '{cycle [====[a]====] | "b" end}'])("an inline alternator whose first arm is a long string still alternates: %s", (alternator) => {
+    expect(run(`Value ${alternator}.\n`)).toEqual({ errors: [], warnings: [], output: "Value b.\n" });
   });
 
   test.each(["queue -- note", "shuffle cycle --[[ note ]]"])("a block-form head %j with a comment after it still opens its block", (head) => {

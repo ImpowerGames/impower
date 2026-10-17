@@ -697,11 +697,13 @@ variables:
   # `--`, so only a lone `-` is the operator.
   LUAU_ARITHMETIC_MINUS: (?:-(?![>-]))
   # A character of the line before an alternator's first `|`, or a whole
-  # string there, whose `|` is not an arm's (`queue("a|b")`). A quote or
-  # a long string's opening bracket is read only as a whole string, so the
-  # scan cannot step into one.
+  # string there, whose `|` is not an arm's (`queue("a|b")`). A quote, or
+  # the opening bracket of a long string `LUAU_LINE_LONG_STRING` reads
+  # (levels 0 to 3), is read only as a whole string, so the scan cannot
+  # step into one; a long string of a higher level (`[====[a]====]`) is
+  # scanned as its characters, so the arms after it are still found.
   # lookaround: a `|` inside a comment (`LuauComment`) is not an arm's.
-  LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--|\[=*\[)[^\n|"'`])
+  LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--|\[={0,3}\[)[^\n|"'`])
   # A string literal that ends on its line, quoted as Luau quotes one.
   LUAU_LINE_STRING: (?:{{LUAU_LINE_DOUBLE_QUOTED}}|{{LUAU_LINE_SINGLE_QUOTED}}|{{LUAU_LINE_BACKTICK_QUOTED}}|{{LUAU_LINE_LONG_STRING}})
   # A long string (`[[a|b]]`, `[=[a|b]=]`), whose brackets are a block

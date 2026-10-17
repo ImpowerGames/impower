@@ -521,6 +521,9 @@ const KEYWORDS = new Set([
 // The keywords that close a block, which the grammar reads only as closers.
 const BLOCK_CLOSERS = new Set(["end", "else", "elseif", "until"]);
 
+// The reserved words a type can hold, among a `local`'s annotated names.
+const TYPE_KEYWORDS = new Set(["nil", "true", "false"]);
+
 // The rules of an if expression that read its `else` and `elseif`.
 const IF_EXPRESSION_RULES = ["LuauTernaryExpression", "LuauElseOperator"];
 
@@ -719,15 +722,24 @@ class Tokenizer {
     this.tokens.push(token);
   }
 
-  /** Whether a token stands where a `local` needs a name: right after the `local`, or after a comma on its line that follows one of the names. */
+  /**
+   * Whether a token stands where a `local` needs a name: right after the
+   * `local`, or after a comma in the `local`'s names on the same line,
+   * before any `=` (`local a: number, nil`). A type's own words (`nil`, `true`,
+   * `false`) can stand among the names; any other keyword ends the search.
+   */
   private atLocalName(token: Token): boolean {
-    let i = this.tokens.length - 1;
     const isLocal = (t: Token | undefined) => t?.kind === "keyword" && t.text === "local";
-    if (isLocal(this.tokens[i])) return true;
-    if (this.tokens[i]?.location.end.line !== token.location.begin.line) return false;
-    while (this.tokens[i]?.kind === "symbol" && this.tokens[i]!.text === "," && this.tokens[i - 1]?.kind === "name") {
-      i -= 2;
-      if (isLocal(this.tokens[i])) return true;
+    const last = this.tokens[this.tokens.length - 1];
+    if (isLocal(last)) return true;
+    if (last?.kind !== "symbol" || last.text !== "," || last.location.end.line !== token.location.begin.line) return false;
+    for (let i = this.tokens.length - 2; i >= 0; i--) {
+      const t = this.tokens[i]!;
+      if (t.location.end.line !== token.location.begin.line) return false;
+      if (isLocal(t)) return true;
+      if (t.kind === "symbol" && t.text === "=") return false;
+      if (t.kind === "keyword" && !TYPE_KEYWORDS.has(t.text)) return false;
+      if (t.kind !== "name" && t.kind !== "symbol" && t.kind !== "keyword" && t.kind !== "string") return false;
     }
     return false;
   }
