@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 136,
-  "previous": "51bbd997cd6ad0e18b0818f9ae7bf630fa78cf64",
+  "seq": 137,
+  "previous": "a60910c7891a7b8588dc3428cb63873ebcfcd914",
   "snapshotParents": [],
-  "time": "2026-10-17T01:29:45.200Z",
+  "time": "2026-10-17T01:31:47.880Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1984 (confirmed)",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 111,
+    "recordRevision": 112,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -1946,9 +1946,9 @@
       "ticket": 1974,
       "pr": 1984,
       "expectHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
-      "state": "intent",
+      "state": "confirmed",
       "time": "2026-10-17T01:29:41.291Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "PR #1984 reads back merged as d5cb34d141f2c7f4caaf9b9fc17647019053d381 at 0547bc904445405d804fbc744c1ac1f2f483cddd; the merge commit is on origin/main; it landed on e9287075bfcb6a5f035b836f74bd19a051b1fc90, while its CI covered main e2f91499ffa0eea13870e0ea468e3a42fe11f484, so CI never ran on that combination before main's own run",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2126,7 +2126,12 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T01:31:44.363Z",
+      "mergeCommit": "d5cb34d141f2c7f4caaf9b9fc17647019053d381",
+      "mergedOnto": "e9287075bfcb6a5f035b836f74bd19a051b1fc90",
+      "baseMoved": true,
+      "onMain": true
     }
   ],
   "decisions": [
@@ -2314,7 +2319,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:29:43.719Z",
+      "observedAt": "2026-10-17T01:31:46.557Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2511,11 +2516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:25:32.997Z",
-      "event": "verified",
-      "ticket": 1637
-    },
     {
       "time": "2026-10-16T16:26:15.983Z",
       "event": "dispatch-intent",
@@ -3180,6 +3180,12 @@
       "id": "8f6f8b7d",
       "kind": "merge",
       "pr": 1984
+    },
+    {
+      "time": "2026-10-17T01:31:44.363Z",
+      "event": "operation-outcome",
+      "id": "8f6f8b7d",
+      "state": "confirmed"
     }
   ]
 }
