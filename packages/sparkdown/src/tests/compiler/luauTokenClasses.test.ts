@@ -267,6 +267,14 @@ describe("a reserved word is never a name", () => {
     expect(errorsOf(source)).toContain(error);
   });
 
+  test.each([
+    ["the next line", "function f()\n  local a,\n    nil = 1, 2\nend\n", "2:4-2:7 Expected identifier when parsing variable name, got 'nil'"],
+    ["`function`", "function f()\n  local a, function = 1, 2\nend\n", "1:11-1:19 Expected identifier when parsing variable name, got 'function'"],
+  ])("a reserved word after a `local`'s comma on %s is Luau's error at the word", (_name, source, error) => {
+    expect(officialErrors(source)).toContain(error);
+    expect(errorsOf(source)).toContain(error);
+  });
+
   test("a define's key may be a modifier, and a reserved word's value may hold assignments (#1081)", () => {
     const source =
       "define cfg with\n  repeat = function() local inner = 7; return inner end\n  local = 3\n  store = 4\n  read = 5\n  local x = 8\n  store y = 9\nend\nValue {cfg['repeat']()} {cfg['local']} {cfg.store} {cfg.read} {cfg.x} {cfg.y}.\n";
@@ -323,6 +331,8 @@ describe("a structural word is a name outside its shape (#984)", () => {
     ['queue {"a|b"}', "table"],
     ["queue([[a|b]])", "a|b"],
     ["queue [==[a|b]==]", "a|b"],
+    ["queue([====[a|b]====])", "a|b"],
+    ["queue([==========[a|b]==========])", "a|b"],
   ])("a call %s with a `|` in its string is a call", (call, value) => {
     const source = `Value {f()}.\nfunction f()\n  local queue = function(s) return if type(s) == "table" then "table" else s end\n  local s = ${call}\n  return s\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: `Value ${value}.\n` });
@@ -415,6 +425,11 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
     }
   });
 
+  test.each(["-- note =", "-- note +=", "--[[ a ]] -- note ="])("an `=` inside a comment after a complete declaration is not one: %s", (comment) => {
+    const source = `function f(c)\n  local x = 0 ${comment}\nif c then\n  x = 1\nend\n  return x\nend\n\n{f(true)} {f(false)}\n`;
+    expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 0\n" });
+  });
+
   // A comment that ends the `=`'s line leaves the value on the next line.
   test.each([
     ["a line comment", "local x = -- note\n    if c then 1 else 2"],
@@ -424,6 +439,7 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
     ["two block comments", "local x = --[[ a ]] --[[ b ]]\n    if c then 1 else 2"],
     ["a block comment that spans lines", "local x = --[[ first\n  second ]]\n    if c then 1 else 2"],
     ["a block comment of a high level", "local x = --[====[ note ]====]\n    if c then 1 else 2"],
+    ["a block comment whose closing line holds the value", "local x = --[[ a\n b ]] if c then 1\n  else 2"],
   ])("after %s", (_name, statement) => {
     const source = `function f(c)\n  ${statement}\n  return x\nend\n\n{f(true)} {f(false)}\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 2\n" });

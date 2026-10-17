@@ -568,7 +568,16 @@ variables:
   # end can leave the line break to it. The `=` is inside the assignment's
   # `LuauAssignmentOperation`, which has closed by then, so the end can see
   # it only behind the position.
-  LUAU_LINE_END_AFTER_VALUE: (?<![^=~<>]={{WS}}*)(?=$)
+  LUAU_LINE_END_AFTER_VALUE: (?:(?<![^=~<>]={{WS}}*)|{{LUAU_IN_LINE_COMMENT}})(?=$)
+  # Inside a comment on its line, whose own `=` (`-- note =`) is not an
+  # assignment's.
+  # lookaround: LuauComment reads the comment; the line break after an
+  # assignment's `=` is LuauAssignmentLineBreak's only outside one.
+  LUAU_IN_LINE_COMMENT: (?<={{LUAU_COMMENT_START}}[^\n]*)
+  # An assignment's `=` behind the position, not one inside a comment.
+  # lookaround: LuauAssignmentOperation has read the `=`; LuauComment reads
+  # a comment's.
+  LUAU_ASSIGNMENT_EQUALS_BEHIND: (?<=[^=~<>]={{WS}}*)(?!{{LUAU_IN_LINE_COMMENT}})
   # The start of a reassignment statement: its targets and an assignment
   # operator. The rules that end before a following reassignment look ahead
   # for it.
@@ -697,18 +706,23 @@ variables:
   # `--`, so only a lone `-` is the operator.
   LUAU_ARITHMETIC_MINUS: (?:-(?![>-]))
   # A character of the line before an alternator's first `|`, or a whole
-  # string there, whose `|` is not an arm's (`queue("a|b")`). A quote, or
-  # the opening bracket of a long string `LUAU_LINE_LONG_STRING` reads
-  # (levels 0 to 3), is read only as a whole string, so the scan cannot
-  # step into one; a long string of a higher level (`[====[a]====]`) is
-  # scanned as its characters, so the arms after it are still found.
+  # string there, whose `|` is not an arm's (`queue("a|b")`). A quote or a
+  # long string's opening bracket is read only as a whole string, so the
+  # scan cannot step into one.
   # lookaround: a `|` inside a comment (`LuauComment`) is not an arm's.
-  LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--|\[={0,3}\[)[^\n|"'`])
+  LUAU_ARM_LINE_CHARACTER: (?:{{LUAU_LINE_STRING}}|(?!--|\[=*\[)[^\n|"'`])
   # A string literal that ends on its line, quoted as Luau quotes one.
   LUAU_LINE_STRING: (?:{{LUAU_LINE_DOUBLE_QUOTED}}|{{LUAU_LINE_SINGLE_QUOTED}}|{{LUAU_LINE_BACKTICK_QUOTED}}|{{LUAU_LINE_LONG_STRING}})
   # A long string (`[[a|b]]`, `[=[a|b]=]`), whose brackets are a block
-  # comment's after its `--`.
-  LUAU_LINE_LONG_STRING: (?:\[{{LUAU_BLOCK_COMMENT_REST}})
+  # comment's after its `--`, or one of a higher level (`[====[a|b]====]`).
+  LUAU_LINE_LONG_STRING: (?:\[{{LUAU_BLOCK_COMMENT_REST}}|{{LUAU_LINE_HIGH_LONG_STRING}})
+  # A long string of level 4 or more. Matching its own closing level needs
+  # a back-reference, which a variable cannot hold, so it ends at the first
+  # closing bracket of any level 1 or more; one that holds a lower-level
+  # closer (`]=]`) ends there.
+  # lookaround: LuauMultilineString reads the string; here its closing
+  # bracket ends it, and any other `]` is its text.
+  LUAU_LINE_HIGH_LONG_STRING: (?:\[={4,}\[(?:[^\]\n]|\](?!=+\]))*\]=+\])
   LUAU_LINE_DOUBLE_QUOTED: (?:"[^"\\\n]*(?:\\.[^"\\\n]*)*")
   LUAU_LINE_SINGLE_QUOTED: (?:'[^'\\\n]*(?:\\.[^'\\\n]*)*')
   LUAU_LINE_BACKTICK_QUOTED: (?:`[^`\\\n]*(?:\\.[^`\\\n]*)*`)
@@ -1197,10 +1211,12 @@ variables:
   # Just after a token an inline `if` expression can follow: a line start,
   # an operator, an opening bracket, a comma, `..` or a keyword, and any
   # block comments on its line after it (`local x = --[[ c ]] if c then`,
-  # #1647), which Luau reads past. Without them the `if` would be read as a
-  # bare keyword, and an `else` that begins a later line of the expression
-  # would close the body around it, which no closer may be read in (#1906).
-  AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*(?:--\[=*\[[^\n]*\]=*\]{{WS}}*)?)
+  # #1647), which Luau reads past, or the close of a comment that began on
+  # an earlier line (a line whose `]]` has no `[` before it). Without them
+  # the `if` would be read as a bare keyword, and an `else` that begins a
+  # later line of the expression would close the body around it, which no
+  # closer may be read in (#1906).
+  AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*(?:--\[=*\[[^\n]*\]=*\]{{WS}}*)?|^[^\[\n]*\]=*\]{{WS}}*)
   # A token an inline `if` expression can follow, other than a line start.
   LUAU_TERNARY_PRECEDING_TOKEN: (?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_TERNARY_PRECEDING_KEYWORDS}})
   # An `if` whose line holds an `else`, `elseif` or `}` before any lone `=`.
@@ -13368,20 +13384,20 @@ repository:
   # it holds under VS Code's line-at-a-time tokenizer, where no pattern on
   # the value's line could see the `=` on the line before. As after a
   # comma (`LuauCommaLineBreak`), an indented value is read by the
-  # statement once this scope ends at the line's first token, an `if` that
-  # starts an unindented line is the if expression this scope reads, and
-  # any other unindented line ends the statement there.
+  # statement once this scope ends at the line's first token, an `if` the
+  # value begins with, indented or not, or after a comment's close on its
+  # line (`--[[ a` / `b ]] if c then 1`), is the if expression this scope
+  # reads, and any other unindented line ends the statement there.
   # lookaround: the `=` is `LuauAssignmentOperation`'s, which has closed at
   # the line end, so the begin and the end see it only behind the
-  # position; the end leaves an unindented `if` to the
-  # `LuauTernaryExpression` this rule reads, which `LuauIfBlock` would
-  # otherwise take as a statement.
+  # position; the end leaves an `if` to the `LuauTernaryExpression` this
+  # rule reads, which `LuauIfBlock` would otherwise take as a statement.
   LuauAssignmentLineBreak:
-    begin: (?<=[^=~<>]={{WS}}*)(?=$)|{{LUAU_COMMENT_ENDS_ASSIGNMENT_LINE}}
+    begin: "{{LUAU_ASSIGNMENT_EQUALS_BEHIND}}(?=$)|{{LUAU_COMMENT_ENDS_ASSIGNMENT_LINE}}"
     patterns:
       - { include: "#LuauCommaLineBreakGap" }
       - { include: "#LuauTernaryExpression" }
-    end: (?={{BEAT}})|(?<![^=~<>]={{WS}}*)(?!^if\b)
+    end: (?={{BEAT}})|(?<![^=~<>]={{WS}}*)(?!if\b)
 
   # The comments, line breaks and whitespace after a `LuauCommaLineBreak`'s
   # comma, up to the next token.

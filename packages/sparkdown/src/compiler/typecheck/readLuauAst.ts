@@ -716,26 +716,32 @@ class Tokenizer {
     // So is a reserved word where a `local` needs its name (`local end`,
     // #1906): the grammar ends the declaration with no name, and the word
     // begins whatever it begins, as in Luau.
-    // So is one after a comma of its names on the comma's line (`local a,
-    // nil`); the validator reports a comma that ends its line.
-    if (kind === "keyword" && token.text !== "function" && this.atLocalName(token)) token.unread = true;
+    // So is one after a comma of its names (`local a, nil`). `local
+    // function` is a function declaration.
+    const afterLocal = this.tokens[this.tokens.length - 1]?.kind === "keyword" && this.tokens[this.tokens.length - 1]!.text === "local";
+    if (kind === "keyword" && !(afterLocal && token.text === "function") && this.atLocalName(token)) token.unread = true;
     this.tokens.push(token);
   }
 
   /**
    * Whether a token stands where a `local` needs a name: right after the
-   * `local`, or after a comma in the `local`'s names on the same line,
+   * `local`, or after a comma in the `local`'s names on the comma's line,
    * before any `=` (`local a: number, nil`). A type's own words (`nil`, `true`,
    * `false`) can stand among the names; any other keyword ends the search.
+   * The word may begin the next line only if it is one of those, since the
+   * validator reports a statement that begins the line after the comma
+   * (`local a,` before `end`).
    */
   private atLocalName(token: Token): boolean {
     const isLocal = (t: Token | undefined) => t?.kind === "keyword" && t.text === "local";
     const last = this.tokens[this.tokens.length - 1];
     if (isLocal(last)) return true;
-    if (last?.kind !== "symbol" || last.text !== "," || last.location.end.line !== token.location.begin.line) return false;
+    if (last?.kind !== "symbol" || last.text !== ",") return false;
+    const line = last.location.end.line;
+    if (token.location.begin.line !== line && !(TYPE_KEYWORDS.has(token.text) && token.location.begin.line === line + 1)) return false;
     for (let i = this.tokens.length - 2; i >= 0; i--) {
       const t = this.tokens[i]!;
-      if (t.location.end.line !== token.location.begin.line) return false;
+      if (t.location.end.line !== line) return false;
       if (isLocal(t)) return true;
       if (t.kind === "symbol" && t.text === "=") return false;
       if (t.kind === "keyword" && !TYPE_KEYWORDS.has(t.text)) return false;

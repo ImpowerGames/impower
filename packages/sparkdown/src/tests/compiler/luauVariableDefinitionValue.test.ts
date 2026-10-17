@@ -42,7 +42,7 @@ describe("the two declaration rules", () => {
     const narrative = repository["LuauSparkdownVariableDefinition"]!;
     expect(narrative.begin).toBe(luau.begin);
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
-    const lineEndAfterValue = String.raw`|(?<![^=~<>]=(?:[^\S\n\r])*)(?=$)`;
+    const lineEndAfterValue = String.raw`|(?:(?<![^=~<>]=(?:[^\S\n\r])*)|(?<=(?:[-][-])[^\n]*))(?=$)`;
     expect(luau.end).toContain(lineEndAfterValue);
     expect(luau.end!.replace(lineEndAfterValue, "").replace("(?=^|[;)\\]}])", "(?=^|$|[;)\\]}])")).toBe(narrative.end);
   });
