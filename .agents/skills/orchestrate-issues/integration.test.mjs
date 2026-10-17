@@ -778,10 +778,11 @@ try {
   {
     const withDelivered = snapshotNow(dst);
     const slice43 = withDelivered.tickets.find((t) => t.number === 43), merged43 = slice43.prs.find((p) => p.state === "MERGED");
-    withDelivered.tickets.push({ number: 45, title: "bug #43 delivered", state: "closed", type: "Bug", parent: ISSUE, container: false, effort: "High", delivered: true, blockers: [], prs: [], worktrees: [], deliveredBy: { ticket: 43, via: "pr", pr: merged43.number, merged: true } });
+    withDelivered.tickets.push({ number: 45, title: "bug #43 delivered", state: "closed", type: "Bug", parent: ISSUE, container: false, effort: "High", delivered: true, blockers: [], prs: [{ number: 990, state: "MERGED", isDraft: false, branch: "fix/999-elsewhere", head: "h990", base: "main", mergeCommit: "c".repeat(40), closes: [45] }], worktrees: [], deliveredBy: { ticket: 43, via: "pr", pr: merged43.number, merged: true } });
     const report = ig.finalReport(run.readRecord(dstRecord), withDelivered, run.readRecord(dstRecord).verifications.find((v) => v.id === done.id));
     const row = report.split("\n").find((l) => l.startsWith("| #45 |"));
     assert.ok(row, "the delivered ticket has a row");
+    assert.doesNotMatch(row, /#990|ccccccccc/, "an unrelated merged PR in the ticket's own list is not its delivery");
     assert.match(row, new RegExp(`^\\| #45 \\| delivered \\| #${merged43.number} \\| delivered by #43's PR: merged by the coordinator as \\\`${String(merged43.mergeCommit).slice(0, 9)}\\\``), "the row names the deliverer, its PR and its merge through the gate");
   }
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);

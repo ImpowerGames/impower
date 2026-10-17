@@ -527,6 +527,30 @@ try {
     assert.match(taskBrief, /Your PR also delivers #213, #214 \(sub-issues of #212, or tickets its body or PR closes\), never dispatched to another writer, so the PR body carries a closing reference for each of them beside the one for #212/);
     assert.match(taskBrief, /The design of record is the body of Task #200, as its template structures it, together with the decisions below\. Settled decisions: none beyond the ticket and that body\./);
     assert.doesNotMatch(taskBrief, /Feature/, "nothing in the brief calls the Task a Feature");
+    // A delivered Bug's own blocker holds its deliverer; a claim by a ticket
+    // that cannot deliver (a container, or a ticket itself delivered) is a
+    // decision, not a delivery; a body claim written as the issue's URL counts.
+    const task = (number, title, body) => ({ number, state: "open", title, type: { name: "Task" }, ...(body && { body }) });
+    const bug = (number, title, body) => ({ number, state: "open", title, type: { name: "Bug" }, ...(body && { body }) });
+    const miniTree = {
+      200: [task(301, "slice"), task(303, "blocker slice"), task(311, "claiming container", "Closes #313."), bug(313, "claimed by a container"), task(321, "slice with a claiming bug"), bug(323, "claimed by a delivered bug"), task(331, "url claimant", "Closes https://github.com/acme/widgets/issues/334, and closes https://github.com/other/repo/issues/336."), task(333, "url umbrella"), task(335, "foreign url umbrella")],
+      301: [bug(302, "blocked bug")], 311: [task(312, "inner task")], 321: [bug(322, "claiming bug", "Closes #323.")], 333: [bug(334, "url-claimed bug")], 335: [bug(336, "bug a foreign url names")],
+    };
+    const mini = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => miniTree[n] ?? [], blockedBy: (n) => (n === 302 ? [{ number: 303, state: "open" }] : []), effort: () => "Medium", pulls: () => [], comments: () => [], checks: () => [] };
+    const miniSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, mini);
+    const m = Object.fromEntries(miniSnap.tickets.map((t) => [t.number, t]));
+    assert.deepEqual([m[311].container, m[313].claimInvalid, m[313].deliveredBy], [true, { ticket: 311, via: "body", reason: "a container, planned through its own sub-issues" }, undefined], "a container's claim delivers nothing");
+    assert.deepEqual([m[322].deliveredBy, m[323].claimInvalid?.ticket, m[323].deliveredBy], [{ ticket: 321, via: "sub-issue", pr: null, merged: false }, 322, undefined], "a delivered ticket's claim delivers nothing");
+    assert.deepEqual([m[333].container, m[334].deliveredBy, m[335].container, m[336].deliveredBy], [true, { ticket: 331, via: "body", pr: null, merged: false }, false, { ticket: 335, via: "sub-issue", pr: null, merged: false }], "a URL claim counts for the tickets repository and names nothing for another");
+    assert.deepEqual(run.readIssueScope({ issue: 200, tickets: "acme/widgets" }, mini).slices, run.snapshotScope(miniSnap).slices, "the scope read agrees");
+    const miniPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: miniSnap, preflights: [available("claude-cli", "claude-opus-5-5", [303])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([301, 302, 303, 313, 323, 334].map((n) => actions(miniPlan)[n]), ["wait-dependency", "delivered-by", "dispatch", "decision-needed", "decision-needed", "delivered-by"]);
+    assert.match(miniPlan.tickets.find((t) => t.number === 301).reason, /#302, which its PR delivers, waits for #303 \(open\)/);
+    assert.deepEqual(miniPlan.tickets.find((t) => t.number === 301).waitingFor, [303]);
+    assert.match(miniPlan.tickets.find((t) => t.number === 313).reason, /#311's body claims it, but #311 cannot deliver it \(a container/);
+    assert.match(miniPlan.tickets.find((t) => t.number === 323).reason, /#322's body claims it, but #322 cannot deliver it \(itself delivered by another slice or contested\)/);
+    assert.deepEqual(miniPlan.tickets.find((t) => t.number === 321).delivers, [322], "no writer is handed a claim its slice cannot carry");
+    assert.deepEqual(run.closingReferences("Fixes https://github.com/acme/widgets/issues/7 and closes http://github.com/o/r/issues/8").map((r) => `${r.repository}#${r.number}`), ["acme/widgets#7", "o/r#8"]);
   }
 
   // The cutover switch, each position pinned from its own copy of the repos

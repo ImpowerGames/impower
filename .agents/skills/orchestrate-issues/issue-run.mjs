@@ -551,13 +551,15 @@ export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
 
 // GitHub's closing keywords, as a slice's body names the tickets its PR closes,
-// with the repository a reference qualifies.
-const CLOSING_REFERENCE = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:([\w.-]+\/[\w.-]+))?#(\d+)/gi;
+// with the repository a reference qualifies: #N, owner/repo#N, or the issue's
+// URL, the forms the linked-issue check reads too.
+const CLOSING_REFERENCE = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:https?:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/(\d+)|(?:([\w.-]+\/[\w.-]+))?#(\d+))/gi;
 export function closingReferences(body) {
   const seen = new Map();
   for (const m of String(body ?? "").matchAll(CLOSING_REFERENCE)) {
-    const key = `${m[1] ?? ""}#${m[2]}`;
-    if (!seen.has(key)) seen.set(key, { number: Number(m[2]), repository: m[1] ?? null });
+    const repository = m[1] ?? m[3] ?? null, number = Number(m[2] ?? m[4]);
+    const key = `${repository ?? ""}#${number}`;
+    if (!seen.has(key)) seen.set(key, { number, repository });
   }
   return [...seen.values()];
 }
@@ -626,13 +628,22 @@ export function walkSubIssues(issue, client, { tickets = null, pullsOf = pullsFi
     node.container = node.children.length > 0 && !node.delivers;
     if (node.container && node.depth >= MAX_SUB_ISSUE_DEPTH) node.truncated = true;
   }
+  // A claimant delivers only as a slice of its own: a container is planned
+  // through its sub-issues and never merges, and a ticket that is itself
+  // delivered or contested has no PR of its own to carry the claim. Such a
+  // claim is reported for the maintainer rather than taken as a delivery.
+  const deliveredItself = (c) => { const r = resolved.get(c.number); return Boolean((r && r.kind !== "own") || (!r && c.type === "Bug" && listed.get(c.parent)?.delivers)); };
+  const cannotDeliver = (ticket) => { const c = listed.get(ticket); return c.container ? "a container, planned through its own sub-issues" : deliveredItself(c) ? "itself delivered by another slice or contested" : null; };
   return nodes.map(({ children, closes, depth, delivers, ownPrs, ...node }) => {
     if (node.container) return node;
     const r = resolved.get(node.number);
     if (r?.kind === "own") return node;
     if (r?.kind === "conflict") return { ...node, deliveryConflict: r.tickets };
-    if (r?.kind === "pr") return { ...node, deliveredBy: { ticket: r.ticket, via: "pr", pr: r.pr } };
-    if (r?.kind === "body") return { ...node, deliveredBy: { ticket: r.ticket, via: "body", pr: null } };
+    if (r?.kind === "pr" || r?.kind === "body") {
+      const why = cannotDeliver(r.ticket);
+      if (why) return { ...node, claimInvalid: { ticket: r.ticket, via: r.kind, reason: why } };
+      return { ...node, deliveredBy: r.kind === "pr" ? { ticket: r.ticket, via: "pr", pr: r.pr } : { ticket: r.ticket, via: "body", pr: null } };
+    }
     if (listed.get(node.parent)?.delivers && node.type === "Bug") return { ...node, deliveredBy: { ticket: node.parent, via: "sub-issue", pr: null } };
     return node;
   });
@@ -934,6 +945,22 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
   }
   const heldDelivery = (n) => heldDeliverers.get(n) ?? null;
+  // A delivered ticket's own dependencies are its deliverer's: a blocker that
+  // is not delivered, and is neither the deliverer nor delivered by it, holds
+  // the deliverer, since its PR carries the blocked work.
+  const blockedDeliverers = new Map();
+  const deliveredBySlice = new Map(snapshot.tickets.filter((t) => t.deliveredBy).map((t) => [t.number, t.deliveredBy.ticket]));
+  for (const t of snapshot.tickets) {
+    if (!t.deliveredBy || t.state === "closed") continue;
+    const s = t.deliveredBy.ticket;
+    for (const b of t.blockers) {
+      if (b.delivered || b.number === s || deliveredBySlice.get(b.number) === s) continue;
+      if (!blockedDeliverers.has(s)) blockedDeliverers.set(s, []);
+      blockedDeliverers.get(s).push({ ticket: t.number, blocker: b });
+    }
+  }
+  const blockedDelivery = (n) => blockedDeliverers.get(n) ?? null;
+  const blockedText = (list) => list.map((x) => `#${x.ticket}, which its PR delivers, waits for #${x.blocker.number} (${x.blocker.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join("; ");
   // Each owner is observed once per plan; the sweep below reuses it.
   const statuses = new Map();
   const statusOf = (n, owner) => { if (!statuses.has(n)) statuses.set(n, ownerStatus(owner, observations, { host, identify })); return statuses.get(n); };
@@ -948,6 +975,12 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const reserves = Boolean(own.owner || own.pending || (t.worktrees.length && !writerKnownEnded(own)));
       if (reserves) active++;
       add(t, "decision-needed", `${t.deliveryConflict.map((n) => `#${n}`).join(" and ")} both claim it (by an open or merged PR or a body closing reference), so which slice delivers it is the maintainer's decision; it is not dispatched meanwhile${reserves ? ", and its writer, pending start or worktree keeps a place until it is settled" : ""}`, { deliveryConflict: t.deliveryConflict, ...(reserves && { reserves: true }) });
+      continue;
+    }
+    if (t.claimInvalid) {
+      const c = t.claimInvalid, reserves = Boolean(own.owner || own.pending || (t.worktrees.length && !writerKnownEnded(own)));
+      if (reserves) active++;
+      add(t, "decision-needed", `#${c.ticket}'s ${c.via === "pr" ? "PR" : "body"} claims it, but #${c.ticket} cannot deliver it (${c.reason}); remove the closing reference or move the work to a slice that delivers it, since it is not dispatched meanwhile${reserves ? ", and its writer, pending start or worktree keeps a place until it is settled" : ""}`, { claimInvalid: c, ...(reserves && { reserves: true }) });
       continue;
     }
     if (t.deliveredBy) {
@@ -1079,6 +1112,8 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (held !== null) { add(t, "wait-dependency", `its parent #${held} is still held by a writer; settle that writer before its sub-issues are dispatched`, { waitingFor: [held] }); continue; }
     const holding = heldDelivery(t.number);
     if (holding) { add(t, "wait-dependency", `${holding.map((n) => `#${n}`).join(", ")}, which its PR delivers, ${holding.length > 1 ? "hold" : "holds"} a writer or work of its own; settle that before #${t.number} is dispatched`, { waitingFor: holding }); continue; }
+    const blockedBy = blockedDelivery(t.number);
+    if (blockedBy) { add(t, "wait-dependency", blockedText(blockedBy), { waitingFor: [...new Set(blockedBy.map((x) => x.blocker.number))] }); continue; }
     eligible.push(t);
   }
   // A writer the record still holds for a ticket the parent issue no longer lists
@@ -1102,6 +1137,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (waiting.length) { entry.continueBlocked = waitingFor(waiting); continue; }
     if (heldAncestor(t) !== null) { entry.continueBlocked = `its parent #${heldAncestor(t)} is still held by a writer`; continue; }
     if (heldDelivery(t.number)) { entry.continueBlocked = `${heldDelivery(t.number).map((n) => `#${n}`).join(", ")}, which its PR delivers, still holds a writer or work of its own`; continue; }
+    if (blockedDelivery(t.number)) { entry.continueBlocked = blockedText(blockedDelivery(t.number)); continue; }
     const choice = chooseRoute(t);
     const others = active - (reserves ? 1 : 0);
     if (!choice.chosen) entry.continueBlocked = choice.reasons.join("; ");
