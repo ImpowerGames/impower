@@ -162,6 +162,23 @@ const TARGETED: Record<string, string> = {
   // their shape, and closers only close (#1906).
   "token-classes-1906":
     "function f(c)\n  local style, match, queue, continue = 1, 2, 3, 4\n  local y = style + match + queue + continue\n  if match then y = layout end\n  if match == (2)then y = 2 end\n  while y == (0)do y = 1 end\n  repeat\n    repeat y = (y + 1)until true\n  until y > 2\n  local z =\n    if c then 1 else 2\n  do local w = (1)end\n  if c then\n    while c do y = 1 else y = 2 end\n  end\n  return y\nend\n",
+  // A story statement ends at its line unless a bracket, a long string or a
+  // block comment carries it on (#1907): a trailing operator, an if
+  // expression's `then` or `else`, a type before a `|` or `&` line and an
+  // indented line leave the next line to the story; a story `if` header
+  // ends at its line too; an unclosed bracket stops at the next header.
+  "story-line-rule-trailing-operator-1254":
+    "local a = 1 +\nThe first story line.\nscene s\n  local b = \"x\" ..\n  Story.\n  b = true and\n  Story.\nend\n",
+  "story-line-rule-if-arms-1658":
+    "store ready = true\nstore x = 0\nx = if ready then 1 else\nThe hero waits.\nlocal y = if ready then\n  1 else 2\nlocal z = if ready then 1 else\nender\n",
+  "story-line-rule-comments-1200-1207":
+    "local --[[c]] r = 1\nlocal --[[c]]q = 1\nlocal a --[[b]]print(1)\nlocal a2: number --[[b]] print(1)\nlocal a3 --[[b\n]]print(1)\nstore s --[[b]]print(1)\nlocal s2 = [[a\nb]]\n",
+  "story-line-rule-if-header-1199":
+    "store flag = true\nif flag:\n  Went down the true side.\nend\nif\n  flag\nthen\n  Story.\nelseif\n  Story.\nend\n",
+  "story-line-rule-brackets":
+    "store inventory = {\n  sword = 1,\n}\nlocal x = math.max(1,\n  2)\n& print(1,\n  2)\nlocal t: {\n  a: number\n} = { a = 1 }\nstore f = @[\n  native\n] function() return 5 end\nlocal y = f(g(\n  1\nbranch b\n  After.\nend\n",
+  "story-line-rule-type-lines":
+    "local v: number?\n| string\nlocal w: number\n& w = 2\nstore second = @[native]\nfunction() return 9 end\n",
   // A statement rule open at a character it cannot read: vscode-textmate
   // passes over it inside the rule, and the tree ends the rule there and
   // reads it as an unread token of the body.

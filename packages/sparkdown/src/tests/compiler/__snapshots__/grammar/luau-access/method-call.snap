@@ -51,11 +51,11 @@ sparkdown [0..24]
      │       │   │   │           └─ LuauFunctionAccessor_c5 15
      │       │   │   └─ LuauSparkdownExplicitAccessPath_end 15
      │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 15
-     │       │   └─ LuauSparkdownExplicitParenthetical [15..24]
-     │       │       ├─ LuauSparkdownExplicitParenthetical_begin [15..16]
-     │       │       │   └─ LuauSparkdownExplicitParenthetical_begin_c1 [15..16]
+     │       │   └─ LuauParenthetical [15..24]
+     │       │       ├─ LuauParenthetical_begin [15..16]
+     │       │       │   └─ LuauParenthetical_begin_c1 [15..16]
      │       │       │       └─ PunctuationParenOpen [15..16]: "("
-     │       │       ├─ LuauSparkdownExplicitParenthetical_content [16..23]
+     │       │       ├─ LuauParenthetical_content [16..23]
      │       │       │   └─ LuauDoubleQuotedString [16..23]
      │       │       │       ├─ LuauDoubleQuotedString_begin [16..17]
      │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [16..17]
@@ -66,9 +66,9 @@ sparkdown [0..24]
      │       │       │           ├─ LuauDoubleQuotedString_end_c1 [22..23]
      │       │       │           │   └─ PunctuationStringDoubleQuoteClose [22..23]: "\""
      │       │       │           └─ LuauDoubleQuotedString_end_c2 23
-     │       │       └─ LuauSparkdownExplicitParenthetical_end [23..24]
-     │       │           ├─ LuauSparkdownExplicitParenthetical_end_c1 [23..24]
+     │       │       └─ LuauParenthetical_end [23..24]
+     │       │           ├─ LuauParenthetical_end_c1 [23..24]
      │       │           │   └─ PunctuationParenClose [23..24]: ")"
-     │       │           └─ LuauSparkdownExplicitParenthetical_end_c2 24
+     │       │           └─ LuauParenthetical_end_c2 24
      │       └─ LuauSparkdownExplicitAssignmentOperation_end 24
      └─ LuauSparkdownExplicitStatement_end 24

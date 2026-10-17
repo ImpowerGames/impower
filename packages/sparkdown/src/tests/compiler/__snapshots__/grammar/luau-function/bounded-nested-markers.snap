@@ -223,43 +223,43 @@ sparkdown [0..292]
  │   │       │       │   ├─ LuauSparkdownExplicitLoopCondition [71..78]
  │   │       │       │   │   ├─ LuauSparkdownExplicitLoopCondition_begin 71
  │   │       │       │   │   ├─ LuauSparkdownExplicitLoopCondition_content [71..78]
- │   │       │       │   │   │   └─ LuauSparkdownExplicitParenthetical [71..78]
- │   │       │       │   │   │       ├─ LuauSparkdownExplicitParenthetical_begin [71..72]
- │   │       │       │   │   │       │   └─ LuauSparkdownExplicitParenthetical_begin_c1 [71..72]
+ │   │       │       │   │   │   └─ LuauParenthetical [71..78]
+ │   │       │       │   │   │       ├─ LuauParenthetical_begin [71..72]
+ │   │       │       │   │   │       │   └─ LuauParenthetical_begin_c1 [71..72]
  │   │       │       │   │   │       │       └─ PunctuationParenOpen [71..72]: "("
- │   │       │       │   │   │       ├─ LuauSparkdownExplicitParenthetical_content [72..77]
- │   │       │       │   │   │       │   ├─ LuauSparkdownExplicitAccessPath [72..74]
- │   │       │       │   │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 72
- │   │       │       │   │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [72..73]
- │   │       │       │   │   │       │   │   │   └─ LuauSparkdownExplicitAccessPart [72..73]
+ │   │       │       │   │   │       ├─ LuauParenthetical_content [72..77]
+ │   │       │       │   │   │       │   ├─ LuauAccessPath [72..74]
+ │   │       │       │   │   │       │   │   ├─ LuauAccessPath_begin 72
+ │   │       │       │   │   │       │   │   ├─ LuauAccessPath_content [72..73]
+ │   │       │       │   │   │       │   │   │   └─ LuauAccessPart [72..73]
  │   │       │       │   │   │       │   │   │       └─ LuauVariable [72..73]
  │   │       │       │   │   │       │   │   │           └─ LuauVariable_c1 [72..73]
  │   │       │       │   │   │       │   │   │               └─ LuauVariableName [72..73]: "x"
- │   │       │       │   │   │       │   │   └─ LuauSparkdownExplicitAccessPath_end [73..74]
- │   │       │       │   │   │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [73..74]
- │   │       │       │   │   │       │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [73..74]
+ │   │       │       │   │   │       │   │   └─ LuauAccessPath_end [73..74]
+ │   │       │       │   │   │       │   │       └─ LuauAccessPath_end_c1 [73..74]
+ │   │       │       │   │   │       │   │           └─ LuauAccessPath_end_c1 [73..74]
  │   │       │       │   │   │       │   │               └─ OptionalWhitespace [73..74]: " "
- │   │       │       │   │   │       │   └─ LuauSparkdownExplicitCompareOperation [74..77]
- │   │       │       │   │   │       │       ├─ LuauSparkdownExplicitCompareOperation_begin 74
- │   │       │       │   │   │       │       │   └─ LuauSparkdownExplicitCompareOperation_begin_c1 74
- │   │       │       │   │   │       │       ├─ LuauSparkdownExplicitCompareOperation_content [74..77]
- │   │       │       │   │   │       │       │   ├─ LuauSparkdownExplicitCompareOperator [74..76]
- │   │       │       │   │   │       │       │   │   ├─ LuauSparkdownExplicitCompareOperator_begin [74..76]
- │   │       │       │   │   │       │       │   │   │   ├─ LuauSparkdownExplicitCompareOperator_begin_c1 74
+ │   │       │       │   │   │       │   └─ LuauCompareOperation [74..77]
+ │   │       │       │   │   │       │       ├─ LuauCompareOperation_begin 74
+ │   │       │       │   │   │       │       │   └─ LuauCompareOperation_begin_c1 74
+ │   │       │       │   │   │       │       ├─ LuauCompareOperation_content [74..77]
+ │   │       │       │   │   │       │       │   ├─ LuauCompareOperator [74..76]
+ │   │       │       │   │   │       │       │   │   ├─ LuauCompareOperator_begin [74..76]
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauCompareOperator_begin_c1 74
  │   │       │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 74
- │   │       │       │   │   │       │       │   │   │   ├─ LuauSparkdownExplicitCompareOperator_begin_c2 [74..75]: "<"
- │   │       │       │   │   │       │       │   │   │   └─ LuauSparkdownExplicitCompareOperator_begin_c3 [75..76]
- │   │       │       │   │   │       │       │   │   │       └─ LuauSparkdownExplicitCompareOperator_begin_c3 [75..76]
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [74..75]: "<"
+ │   │       │       │   │   │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [75..76]
+ │   │       │       │   │   │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [75..76]
  │   │       │       │   │   │       │       │   │   │           └─ OptionalWhitespace [75..76]: " "
- │   │       │       │   │   │       │       │   │   └─ LuauSparkdownExplicitCompareOperator_end 76
+ │   │       │       │   │   │       │       │   │   └─ LuauCompareOperator_end 76
  │   │       │       │   │   │       │       │   └─ LuauNumericDecimal [76..77]
  │   │       │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [76..77]: "3"
  │   │       │       │   │   │       │       │       └─ LuauNumericDecimal_c2 77
- │   │       │       │   │   │       │       └─ LuauSparkdownExplicitCompareOperation_end 77
- │   │       │       │   │   │       └─ LuauSparkdownExplicitParenthetical_end [77..78]
- │   │       │       │   │   │           ├─ LuauSparkdownExplicitParenthetical_end_c1 [77..78]
+ │   │       │       │   │   │       │       └─ LuauCompareOperation_end 77
+ │   │       │       │   │   │       └─ LuauParenthetical_end [77..78]
+ │   │       │       │   │   │           ├─ LuauParenthetical_end_c1 [77..78]
  │   │       │       │   │   │           │   └─ PunctuationParenClose [77..78]: ")"
- │   │       │       │   │   │           └─ LuauSparkdownExplicitParenthetical_end_c2 78
+ │   │       │       │   │   │           └─ LuauParenthetical_end_c2 78
  │   │       │       │   │   └─ LuauSparkdownExplicitLoopCondition_end 78
  │   │       │       │   └─ LuauSparkdownExplicitDoBlock [78..94]
  │   │       │       │       ├─ LuauSparkdownExplicitDoBlock_begin [78..82]
@@ -630,43 +630,43 @@ sparkdown [0..292]
  │   │       │       │   ├─ LuauSparkdownExplicitIfCondition [183..195]
  │   │       │       │   │   ├─ LuauSparkdownExplicitIfCondition_begin 183
  │   │       │       │   │   ├─ LuauSparkdownExplicitIfCondition_content [183..190]
- │   │       │       │   │   │   └─ LuauSparkdownExplicitParenthetical [183..190]
- │   │       │       │   │   │       ├─ LuauSparkdownExplicitParenthetical_begin [183..184]
- │   │       │       │   │   │       │   └─ LuauSparkdownExplicitParenthetical_begin_c1 [183..184]
+ │   │       │       │   │   │   └─ LuauParenthetical [183..190]
+ │   │       │       │   │   │       ├─ LuauParenthetical_begin [183..184]
+ │   │       │       │   │   │       │   └─ LuauParenthetical_begin_c1 [183..184]
  │   │       │       │   │   │       │       └─ PunctuationParenOpen [183..184]: "("
- │   │       │       │   │   │       ├─ LuauSparkdownExplicitParenthetical_content [184..189]
- │   │       │       │   │   │       │   ├─ LuauSparkdownExplicitAccessPath [184..186]
- │   │       │       │   │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 184
- │   │       │       │   │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [184..185]
- │   │       │       │   │   │       │   │   │   └─ LuauSparkdownExplicitAccessPart [184..185]
+ │   │       │       │   │   │       ├─ LuauParenthetical_content [184..189]
+ │   │       │       │   │   │       │   ├─ LuauAccessPath [184..186]
+ │   │       │       │   │   │       │   │   ├─ LuauAccessPath_begin 184
+ │   │       │       │   │   │       │   │   ├─ LuauAccessPath_content [184..185]
+ │   │       │       │   │   │       │   │   │   └─ LuauAccessPart [184..185]
  │   │       │       │   │   │       │   │   │       └─ LuauVariable [184..185]
  │   │       │       │   │   │       │   │   │           └─ LuauVariable_c1 [184..185]
  │   │       │       │   │   │       │   │   │               └─ LuauVariableName [184..185]: "x"
- │   │       │       │   │   │       │   │   └─ LuauSparkdownExplicitAccessPath_end [185..186]
- │   │       │       │   │   │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [185..186]
- │   │       │       │   │   │       │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [185..186]
+ │   │       │       │   │   │       │   │   └─ LuauAccessPath_end [185..186]
+ │   │       │       │   │   │       │   │       └─ LuauAccessPath_end_c1 [185..186]
+ │   │       │       │   │   │       │   │           └─ LuauAccessPath_end_c1 [185..186]
  │   │       │       │   │   │       │   │               └─ OptionalWhitespace [185..186]: " "
- │   │       │       │   │   │       │   └─ LuauSparkdownExplicitCompareOperation [186..189]
- │   │       │       │   │   │       │       ├─ LuauSparkdownExplicitCompareOperation_begin 186
- │   │       │       │   │   │       │       │   └─ LuauSparkdownExplicitCompareOperation_begin_c1 186
- │   │       │       │   │   │       │       ├─ LuauSparkdownExplicitCompareOperation_content [186..189]
- │   │       │       │   │   │       │       │   ├─ LuauSparkdownExplicitCompareOperator [186..188]
- │   │       │       │   │   │       │       │   │   ├─ LuauSparkdownExplicitCompareOperator_begin [186..188]
- │   │       │       │   │   │       │       │   │   │   ├─ LuauSparkdownExplicitCompareOperator_begin_c1 186
+ │   │       │       │   │   │       │   └─ LuauCompareOperation [186..189]
+ │   │       │       │   │   │       │       ├─ LuauCompareOperation_begin 186
+ │   │       │       │   │   │       │       │   └─ LuauCompareOperation_begin_c1 186
+ │   │       │       │   │   │       │       ├─ LuauCompareOperation_content [186..189]
+ │   │       │       │   │   │       │       │   ├─ LuauCompareOperator [186..188]
+ │   │       │       │   │   │       │       │   │   ├─ LuauCompareOperator_begin [186..188]
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauCompareOperator_begin_c1 186
  │   │       │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 186
- │   │       │       │   │   │       │       │   │   │   ├─ LuauSparkdownExplicitCompareOperator_begin_c2 [186..187]: ">"
- │   │       │       │   │   │       │       │   │   │   └─ LuauSparkdownExplicitCompareOperator_begin_c3 [187..188]
- │   │       │       │   │   │       │       │   │   │       └─ LuauSparkdownExplicitCompareOperator_begin_c3 [187..188]
+ │   │       │       │   │   │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [186..187]: ">"
+ │   │       │       │   │   │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [187..188]
+ │   │       │       │   │   │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [187..188]
  │   │       │       │   │   │       │       │   │   │           └─ OptionalWhitespace [187..188]: " "
- │   │       │       │   │   │       │       │   │   └─ LuauSparkdownExplicitCompareOperator_end 188
+ │   │       │       │   │   │       │       │   │   └─ LuauCompareOperator_end 188
  │   │       │       │   │   │       │       │   └─ LuauNumericDecimal [188..189]
  │   │       │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [188..189]: "0"
  │   │       │       │   │   │       │       │       └─ LuauNumericDecimal_c2 189
- │   │       │       │   │   │       │       └─ LuauSparkdownExplicitCompareOperation_end 189
- │   │       │       │   │   │       └─ LuauSparkdownExplicitParenthetical_end [189..190]
- │   │       │       │   │   │           ├─ LuauSparkdownExplicitParenthetical_end_c1 [189..190]
+ │   │       │       │   │   │       │       └─ LuauCompareOperation_end 189
+ │   │       │       │   │   │       └─ LuauParenthetical_end [189..190]
+ │   │       │       │   │   │           ├─ LuauParenthetical_end_c1 [189..190]
  │   │       │       │   │   │           │   └─ PunctuationParenClose [189..190]: ")"
- │   │       │       │   │   │           └─ LuauSparkdownExplicitParenthetical_end_c2 190
+ │   │       │       │   │   │           └─ LuauParenthetical_end_c2 190
  │   │       │       │   │   └─ LuauSparkdownExplicitIfCondition_end [190..195]
  │   │       │       │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [190..191]
  │   │       │       │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [190..191]

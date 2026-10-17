@@ -83,16 +83,19 @@ describe("an assignment after an if expression's else value (#1205)", () => {
     expect(r.errors).toEqual([GOT_EQUALS]);
   });
 
-  test("after a `local` declaration's if expression at the top level, it is Luau's error", () => {
+  // A story declaration ends at its line (#1907): the else value is missing
+  // at the line's end, and the indented line is a reassignment of its own.
+  test("after a `local` declaration's if expression at the top level, the else value is missing at its line's end", () => {
     const r = run(
       "local a = false\nlocal y = 0\nlocal x = if a then 1 else\n  y = 6\nValue {x} {y}.\n",
     );
-    expect(r.errors).toEqual([GOT_EQUALS]);
+    expect(r.errors).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });
 });
 
 describe("an indented else value that begins with `end` (#1206)", () => {
-  // The column-0 layout belongs to the story-body line rule (#1907).
+  // In Luau code; a story declaration ends at its line, so there both
+  // layouts leave the else value missing (`storyBodyLineRule.test.ts`).
   let logged: string[];
   beforeEach(() => {
     logged = [];
@@ -108,7 +111,7 @@ describe("an indented else value that begins with `end` (#1206)", () => {
     "`%s` is the else value, with no empty-match warning",
     (name) => {
       const r = run(
-        `local a = false\nlocal ${name} = 5\nlocal x = if a then 1 else\n  ${name}\nValue {x}.\n`,
+        `Value {f()}.\nfunction f()\n  local a = false\n  local ${name} = 5\n  local x = if a then 1 else\n    ${name}\n  return x\nend\n`,
       );
       expect(r.errors).toEqual([]);
       expect(r.output).toBe("Value 5.\n");

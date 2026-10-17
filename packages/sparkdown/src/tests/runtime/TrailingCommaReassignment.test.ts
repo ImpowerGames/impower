@@ -219,6 +219,8 @@ describe("Luau code: an operator that cannot begin a value after a comma", () =>
   });
 });
 
+// Its Luau meets its end of input at the line's end, as an `&` line's does,
+// so the comma's value is missing at `<eof>` (#1907).
 describe("narrative body: the reassignment ends at its line", () => {
   test.each([
     ["next line", "  a, b = 1,\n  2\n"],
@@ -227,14 +229,14 @@ describe("narrative body: the reassignment ends at its line", () => {
     const { errorMessages } = collectDiagnostics(
       `store a, b = 0, 0\n-> one\nscene one\n${body}  Value {a}.\nend\n`,
     );
-    expect(errorMessages).toEqual([missingValue("2")]);
+    expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });
 
   test("before prose: the error, and the story line is untouched", () => {
     const { errorMessages, warningMessages } = collectDiagnostics(
       "store a, b = 0, 0\n-> one\nscene one\n  a, b = 1,\n  The hero has {a} health.\nend\n",
     );
-    expect(errorMessages).toEqual([missingValue("The")]);
+    expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 
@@ -258,7 +260,7 @@ describe("narrative body: the reassignment ends at its line", () => {
     const { errorMessages, warningMessages } = collectDiagnostics(
       "store a, b = 0, 0\n-> one\nscene one\n  if true then\n    a, b = 1,\n    The hero has {a} health.\n  end\nend\n",
     );
-    expect(errorMessages).toEqual([missingValue("The")]);
+    expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 });

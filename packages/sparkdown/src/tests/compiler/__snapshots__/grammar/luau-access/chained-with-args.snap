@@ -51,18 +51,18 @@ sparkdown [0..18]
  │   │       │   │   │           └─ LuauFunctionAccessor_c5 9
  │   │       │   │   └─ LuauSparkdownExplicitAccessPath_end 9
  │   │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 9
- │   │       │   ├─ LuauSparkdownExplicitParenthetical [9..12]
- │   │       │   │   ├─ LuauSparkdownExplicitParenthetical_begin [9..10]
- │   │       │   │   │   └─ LuauSparkdownExplicitParenthetical_begin_c1 [9..10]
+ │   │       │   ├─ LuauParenthetical [9..12]
+ │   │       │   │   ├─ LuauParenthetical_begin [9..10]
+ │   │       │   │   │   └─ LuauParenthetical_begin_c1 [9..10]
  │   │       │   │   │       └─ PunctuationParenOpen [9..10]: "("
- │   │       │   │   ├─ LuauSparkdownExplicitParenthetical_content [10..11]
+ │   │       │   │   ├─ LuauParenthetical_content [10..11]
  │   │       │   │   │   └─ LuauNumericDecimal [10..11]
  │   │       │   │   │       ├─ LuauNumericDecimal_c1 [10..11]: "1"
  │   │       │   │   │       └─ LuauNumericDecimal_c2 11
- │   │       │   │   └─ LuauSparkdownExplicitParenthetical_end [11..12]
- │   │       │   │       ├─ LuauSparkdownExplicitParenthetical_end_c1 [11..12]
+ │   │       │   │   └─ LuauParenthetical_end [11..12]
+ │   │       │   │       ├─ LuauParenthetical_end_c1 [11..12]
  │   │       │   │       │   └─ PunctuationParenClose [11..12]: ")"
- │   │       │   │       └─ LuauSparkdownExplicitParenthetical_end_c2 12
+ │   │       │   │       └─ LuauParenthetical_end_c2 12
  │   │       │   ├─ LuauSparkdownExplicitChainedFunctionCall [12..14]
  │   │       │   │   ├─ LuauSparkdownExplicitChainedFunctionCall_begin 12
  │   │       │   │   │   └─ LuauSparkdownExplicitChainedFunctionCall_begin_c1 12
@@ -76,18 +76,18 @@ sparkdown [0..18]
  │   │       │   │   │       │   └─ LuauFunctionName [13..14]: "c"
  │   │       │   │   │       └─ LuauFunctionAccessor_c5 14
  │   │       │   │   └─ LuauSparkdownExplicitChainedFunctionCall_end 14
- │   │       │   └─ LuauSparkdownExplicitParenthetical [14..17]
- │   │       │       ├─ LuauSparkdownExplicitParenthetical_begin [14..15]
- │   │       │       │   └─ LuauSparkdownExplicitParenthetical_begin_c1 [14..15]
+ │   │       │   └─ LuauParenthetical [14..17]
+ │   │       │       ├─ LuauParenthetical_begin [14..15]
+ │   │       │       │   └─ LuauParenthetical_begin_c1 [14..15]
  │   │       │       │       └─ PunctuationParenOpen [14..15]: "("
- │   │       │       ├─ LuauSparkdownExplicitParenthetical_content [15..16]
+ │   │       │       ├─ LuauParenthetical_content [15..16]
  │   │       │       │   └─ LuauNumericDecimal [15..16]
  │   │       │       │       ├─ LuauNumericDecimal_c1 [15..16]: "2"
  │   │       │       │       └─ LuauNumericDecimal_c2 16
- │   │       │       └─ LuauSparkdownExplicitParenthetical_end [16..17]
- │   │       │           ├─ LuauSparkdownExplicitParenthetical_end_c1 [16..17]
+ │   │       │       └─ LuauParenthetical_end [16..17]
+ │   │       │           ├─ LuauParenthetical_end_c1 [16..17]
  │   │       │           │   └─ PunctuationParenClose [16..17]: ")"
- │   │       │           └─ LuauSparkdownExplicitParenthetical_end_c2 17
+ │   │       │           └─ LuauParenthetical_end_c2 17
  │   │       └─ LuauSparkdownExplicitAssignmentOperation_end 17
  │   └─ LuauSparkdownExplicitStatement_end 17
  └─ Newline [17..18]: "\n"

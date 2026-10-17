@@ -44,7 +44,7 @@ export const EXEMPT: readonly { names: RegExp; reason: string }[] = [
   {
     names: /^LuauSparkdown/,
     reason:
-      "Luau read at story scope: a narrative body tiles with story text already, and an `&` statement reads what its rules cannot with `LuauInvalidStatementToken` and ends at its line",
+      "Luau read at story scope: a narrative body tiles with story text already, and an `&` statement reads what its rules cannot with `LuauInvalidStatementToken` and ends at its line, where only a bracket, which is the tiled Luau rule, carries it on",
   },
   {
     names: /^Luau(?:Style|Animation|Theme|Morph|Layout|Screen|Component)$|^LuauStruct|^LuauSparkle(?!HandlerClosure$)/,

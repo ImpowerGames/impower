@@ -258,8 +258,10 @@ describe("the reported layouts", () => {
     // An if expression with no condition, in a value.
     ["function f()\n  local a = if then 1 else 2\nend", ["1:15-1:19 Expected identifier when parsing expression, got 'then'"]],
     ["function f(c)\n  local a = if c then 1 elseif then 2 else 3\n  return a\nend", ["1:31-1:35 Expected identifier when parsing expression, got 'then'"]],
-    // The checker's statement after a narrative line is never named.
-    ["-> s\nscene s\n  local x = t:m\n  Hello.\nend", []],
+    // The checker's statement after a narrative line is never named: the
+    // declaration ends at its line, so the call is missing its arguments at
+    // the line's end (#1907).
+    ["-> s\nscene s\n  local x = t:m\n  Hello.\nend", ["2:12-3:0 Expected '(', '{' or <string> when parsing function call, got <eof>"]],
     // Round 1's undirected review: an error on the line before that leaves
     // nothing open hides no later mistake.
     ["function f()\n  local x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
@@ -438,19 +440,19 @@ describe("the reported layouts", () => {
   });
 
   // In a narrative body a declaration ends at its line, and the checker does
-  // not read the story after it: what the statement is missing is
-  // Sparkdown's own error, once.
+  // not read the story after it: what the statement is missing is missing
+  // at the end of its line, `<eof>` to Luau's reading of it (#1907), once.
   test.each([
-    ["-> s\nscene s\n  local y = 1 +\n  local z = 2\nend", ["3:2-3:7 Expected identifier when parsing expression, got 'local'"]],
-    ["-> s\nscene s\n  local y = 1 +\nend", ["3:0-3:3 Expected identifier when parsing expression, got 'end'"]],
-    ["-> s\nscene s\n  local a, b = 1,\n  Hello there.\n  local c = 3\nend", ["2:16-2:17 Expected identifier when parsing expression, got 'Hello'"]],
+    ["-> s\nscene s\n  local y = 1 +\n  local z = 2\nend", ["2:15-3:0 Expected identifier when parsing expression, got <eof>"]],
+    ["-> s\nscene s\n  local y = 1 +\nend", ["2:15-3:0 Expected identifier when parsing expression, got <eof>"]],
+    ["-> s\nscene s\n  local a, b = 1,\n  Hello there.\n  local c = 3\nend", ["2:17-3:0 Expected identifier when parsing expression, got <eof>"]],
     ["store hp = 100,\nThe hero has {hp} health.\nstore mp = 50,\nscene s\n  Hi.\nend", [
-      "0:14-0:15 Expected identifier when parsing expression, got 'The'",
-      "2:13-2:14 Expected identifier when parsing expression, got 'scene'",
+      "0:14-0:15 Expected identifier when parsing expression, got <eof>",
+      "2:13-2:14 Expected identifier when parsing expression, got <eof>",
     ]],
-    ["store a, b = 1,\n  2", ["0:14-0:15 Expected identifier when parsing expression, got '2'"]],
+    ["store a, b = 1,\n  2", ["0:14-0:15 Expected identifier when parsing expression, got <eof>"]],
     ["store x = 1 +;", ["0:13-0:14 Expected identifier when parsing expression, got ';'"]],
-    ["store x = 1 +\nlocal z = 2", ["1:0-1:5 Expected identifier when parsing expression, got 'local'"]],
+    ["store x = 1 +\nlocal z = 2", ["0:13-1:0 Expected identifier when parsing expression, got <eof>"]],
     // Round 2: a `store` declaration's complete value ends its statement.
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
     // Round 3: a line break inside a comment ends the line too.

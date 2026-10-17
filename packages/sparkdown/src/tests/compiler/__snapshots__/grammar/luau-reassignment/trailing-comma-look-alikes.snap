@@ -444,17 +444,17 @@ sparkdown [0..249]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [188..189]
  │   │           └─ OptionalWhitespace [188..189]: " "
  │   ├─ LuauSparkdownIfBlock_content [189..239]
- │   │   ├─ LuauIfBlockCondition [189..198]
- │   │   │   ├─ LuauIfBlockCondition_begin 189
- │   │   │   ├─ LuauIfBlockCondition_content [189..193]
+ │   │   ├─ LuauSparkdownExplicitIfCondition [189..198]
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 189
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [189..193]
  │   │   │   │   └─ LuauBoolean [189..193]
  │   │   │   │       ├─ LuauBoolean_c1 [189..193]: "true"
  │   │   │   │       └─ LuauBoolean_c2 193
- │   │   │   └─ LuauIfBlockCondition_end [193..198]
- │   │   │       ├─ LuauIfBlockCondition_end_c1 [193..194]
- │   │   │       │   └─ LuauIfBlockCondition_end_c1 [193..194]
+ │   │   │   └─ LuauSparkdownExplicitIfCondition_end [193..198]
+ │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [193..194]
+ │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [193..194]
  │   │   │       │       └─ OptionalWhitespace [193..194]: " "
- │   │   │       └─ LuauIfBlockCondition_end_c2 [194..198]
+ │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [194..198]
  │   │   │           └─ LuauThenKeyword [194..198]: "then"
  │   │   ├─ Newline [198..199]: "\n"
  │   │   ├─ LuauSparkdownReassignment [199..212]

@@ -239,8 +239,10 @@ describe("shared AST name facts", () => {
     const nodeNames = new Set<string>();
     value.tree.iterate({ enter(node) { nodeNames.add(node.name); } });
     expect(nodeNames.has("LuauSparkdownExplicitAccessPath")).toBe(bounded);
-    expect(nodeNames.has("LuauSparkdownExplicitTable")).toBe(bounded);
-    expect(nodeNames.has("LuauSparkdownExplicitLogicalOperator")).toBe(bounded);
+    // A story statement's brackets are the Luau ones, which span lines
+    // (#1907), so what the call's parentheses hold is read as Luau.
+    expect(nodeNames.has("LuauTable")).toBe(true);
+    expect(nodeNames.has("LuauLogicalOperator")).toBe(true);
     const facts = names(value);
     expect(facts.references.map((r: any) => r.name)).toEqual([...(bounded ? ["print"] : []), "target", "a", "key", "a", "a", "a"]);
     expect(value.result.lints.filter(l => l.code === "DuplicateCondition")).toHaveLength(1);

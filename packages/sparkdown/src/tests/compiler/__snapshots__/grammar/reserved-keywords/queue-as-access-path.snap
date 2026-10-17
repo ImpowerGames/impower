@@ -30,14 +30,14 @@ sparkdown [0..25]
  │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [13..14]
  │   │       │       │   │   │           └─ OptionalWhitespace [13..14]: " "
  │   │       │       │   │   └─ LuauAssignmentOperator_end 14
- │   │       │       │   └─ LuauAccessPath [14..24]
- │   │       │       │       ├─ LuauAccessPath_begin 14
- │   │       │       │       ├─ LuauAccessPath_content [14..24]
- │   │       │       │       │   ├─ LuauAccessPart [14..19]
+ │   │       │       │   └─ LuauSparkdownExplicitAccessPath [14..24]
+ │   │       │       │       ├─ LuauSparkdownExplicitAccessPath_begin 14
+ │   │       │       │       ├─ LuauSparkdownExplicitAccessPath_content [14..24]
+ │   │       │       │       │   ├─ LuauSparkdownExplicitAccessPart [14..19]
  │   │       │       │       │   │   └─ LuauVariable [14..19]
  │   │       │       │       │   │       └─ LuauVariable_c1 [14..19]
  │   │       │       │       │   │           └─ LuauVariableName [14..19]: "queue"
- │   │       │       │       │   └─ LuauAccessPart [19..24]
+ │   │       │       │       │   └─ LuauSparkdownExplicitAccessPart [19..24]
  │   │       │       │       │       └─ LuauPropertyAccessor [19..24]
  │   │       │       │       │           ├─ LuauPropertyAccessor_c1 19
  │   │       │       │       │           ├─ LuauPropertyAccessor_c2 [19..20]
@@ -45,8 +45,8 @@ sparkdown [0..25]
  │   │       │       │       │           ├─ LuauPropertyAccessor_c3 20
  │   │       │       │       │           └─ LuauPropertyAccessor_c4 [20..24]
  │   │       │       │       │               └─ LuauPropertyName [20..24]: "head"
- │   │       │       │       └─ LuauAccessPath_end 24
- │   │       │       │           └─ LuauAccessPath_end_c1 24
+ │   │       │       │       └─ LuauSparkdownExplicitAccessPath_end 24
+ │   │       │       │           └─ LuauSparkdownExplicitAccessPath_end_c1 24
  │   │       │       └─ LuauSparkdownAssignmentOperation_end 24
  │   │       └─ LuauSparkdownVariableAssignment_end 24
  │   └─ LuauSparkdownVariableDefinition_end 24

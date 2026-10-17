@@ -153,9 +153,11 @@ export function typeOperatorLineValue(node: SyntaxNode): SyntaxNode | null {
 }
 
 // Whether the declaration `node` ends in its last target's type annotation,
-// with no value after it (`local v: number`).
+// with no value after it (`local v: number`). Member lines follow only a
+// declaration in Luau code: a story declaration ends at its line, so a `|`
+// or `&` line after it is story (#1907).
 function endsInTypeAnnotation(node: SyntaxNode): boolean {
-  if (!isExplicitRuleName(node.name, "LuauVariableDefinition") && !isExplicitRuleName(node.name, "LuauSparkdownVariableDefinition")) {
+  if (!isExplicitRuleName(node.name, "LuauVariableDefinition")) {
     return false;
   }
   let content: SyntaxNode | null = null;

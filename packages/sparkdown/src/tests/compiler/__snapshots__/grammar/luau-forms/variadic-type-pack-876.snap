@@ -409,17 +409,17 @@ sparkdown [0..223]
  │   │       │       │   └─ LuauSparkdownExplicitTypeLiteral [200..215]
  │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_begin 200
  │   │       │       │       ├─ LuauSparkdownExplicitTypeLiteral_content [200..215]
- │   │       │       │       │   ├─ LuauSparkdownExplicitTypeFunctionParameters [200..203]
- │   │       │       │       │   │   ├─ LuauSparkdownExplicitTypeFunctionParameters_begin [200..201]
- │   │       │       │       │   │   │   └─ LuauSparkdownExplicitTypeFunctionParameters_begin_c1 [200..201]
+ │   │       │       │       │   ├─ LuauTypeFunctionParameters [200..203]
+ │   │       │       │       │   │   ├─ LuauTypeFunctionParameters_begin [200..201]
+ │   │       │       │       │   │   │   └─ LuauTypeFunctionParameters_begin_c1 [200..201]
  │   │       │       │       │   │   │       └─ PunctuationParenOpen [200..201]: "("
- │   │       │       │       │   │   └─ LuauSparkdownExplicitTypeFunctionParameters_end [201..203]
- │   │       │       │       │   │       ├─ LuauSparkdownExplicitTypeFunctionParameters_end_c1 [201..202]
+ │   │       │       │       │   │   └─ LuauTypeFunctionParameters_end [201..203]
+ │   │       │       │       │   │       ├─ LuauTypeFunctionParameters_end_c1 [201..202]
  │   │       │       │       │   │       │   └─ PunctuationParenClose [201..202]: ")"
- │   │       │       │       │   │       ├─ LuauSparkdownExplicitTypeFunctionParameters_end_c2 [202..203]
- │   │       │       │       │   │       │   └─ LuauSparkdownExplicitTypeFunctionParameters_end_c2 [202..203]
+ │   │       │       │       │   │       ├─ LuauTypeFunctionParameters_end_c2 [202..203]
+ │   │       │       │       │   │       │   └─ LuauTypeFunctionParameters_end_c2 [202..203]
  │   │       │       │       │   │       │       └─ OptionalWhitespace [202..203]: " "
- │   │       │       │       │   │       └─ LuauSparkdownExplicitTypeFunctionParameters_end_c3 203
+ │   │       │       │       │   │       └─ LuauTypeFunctionParameters_end_c3 203
  │   │       │       │       │   └─ LuauSparkdownExplicitTypeBinaryOperation [203..215]
  │   │       │       │       │       ├─ LuauSparkdownExplicitTypeBinaryOperation_begin 203
  │   │       │       │       │       │   └─ LuauSparkdownExplicitTypeBinaryOperation_begin_c1 203
