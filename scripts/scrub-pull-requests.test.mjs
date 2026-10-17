@@ -528,6 +528,34 @@ test("a comment held only by the clone's HEAD, or only by the pushed default bra
   }
 });
 
+test("a committed copy short of its own counts stops the pull request instead of being carried as complete", async () => {
+  const dir = scratch();
+  const clone = fakeClone(path.join(dir, "clone"));
+  const tracker = fakeTracker([conversation(1, { comments: [{ body: "a" }, { body: "b" }] })]);
+  const journal = new Journal(path.join(dir, "journal.jsonl"));
+  await runArchive({ tracker, repos, clone, journal });
+  clone.push();
+  await runScrub({ tracker, repos, clone, journal });
+  // Every copy has lost comment 102's section but kept the count of 2.
+  const file = path.join(clone.root, ARCHIVE_DIR, "1.md");
+  const full = parseArchive(fs.readFileSync(file, "utf8"), repos);
+  fs.writeFileSync(file, renderArchive({ ...full, comments: full.comments.slice(0, 1) }, repos));
+  clone.push();
+  const result = await runArchive({ tracker, repos, clone, journal, only: [1] });
+  assert.equal(result.written, 0);
+  assert.match(result.failed[0]?.problems[0] ?? "", /is incomplete \(it holds 1 of 2 comments\); recover the missing comments/);
+  assert.deepEqual(archiveProblems(parseArchive(fs.readFileSync(file, "utf8"), repos)), ["holds 1 of 2 comments"], "the file still shows its deficit");
+});
+
+test("a pull request with no archive and a review summary is refused, not counted empty", async () => {
+  const dir = scratch();
+  const clone = fakeClone(path.join(dir, "clone"));
+  const tracker = fakeTracker([conversation(98, { reviews: [{ body: "" }] }), conversation(99, { reviews: [{ body: "agent text" }] })]);
+  const result = await runScrub({ tracker, repos, clone, journal: new Journal(path.join(dir, "journal.jsonl")) });
+  assert.deepEqual(result.emptyWithoutArchive, [98]);
+  assert.deepEqual(result.refused, [{ pr: 99, refusals: ["no archive on the internal repository's default branch"] }]);
+});
+
 test("a resumed archive does not skip a working file that differs from a committed copy", async () => {
   const dir = scratch();
   const clone = fakeClone(path.join(dir, "clone"));

@@ -472,7 +472,12 @@ export async function runArchive({ tracker, repos, clone, journal, dryRun = fals
     ]) {
       if (text === null) continue;
       try {
-        earlier.push(parseArchive(text, repos));
+        const copy = parseArchive(text, repos);
+        // A committed copy short of its own counts is missing comments no
+        // copy here can supply; carrying what it holds would hide that.
+        const short = where === file ? [] : archiveProblems(copy);
+        if (short.length) unreadable = `the copy of ${archivePath(n)} in ${where} is incomplete (it ${short.join("; ")}); recover the missing comments from the internal repository's history before archiving it again`;
+        earlier.push(copy);
       } catch (error) {
         if (!(error instanceof ArchiveFormatError)) throw error;
         if (where === file) log(`#${n}: replacing ${file}, which does not read back (${error.message})`);
@@ -595,9 +600,10 @@ export async function runScrub({ tracker, repos, clone, journal, dryRun = false,
     const text = clone.show(commit, archivePath(n));
     if (text === null) {
       // A pull request opened after the archive with nothing on it, such as
-      // one opened once the switch is on, has nothing to lose.
+      // one opened once the switch is on, has nothing to lose; one with a
+      // review summary has a conversation to archive.
       const pull = await tracker.getPull(repos.code, n);
-      if (pull.comments === 0 && pull.review_comments === 0) {
+      if (pull.comments === 0 && pull.review_comments === 0 && withSummary(describePull(pull, { reviews: await tracker.reviews(repos.code, n) }).reviews).length === 0) {
         result.alreadyEmpty++;
         result.emptyWithoutArchive.push(n);
       } else result.refused.push({ pr: n, refusals: scrubRefusals(null) });
