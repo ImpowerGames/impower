@@ -1,7 +1,8 @@
-Value {f()} {k()} {m()} {n()} {q()} {r()}.
+Value {f()} {k()} {m()} {n()} {q()} {r()} {s()}.
 @native function f() return 7 end
   @native function k() return 1 end
 @native --[[c]] function m() return 2 end
 @native --[[c]] @checked function n() return 3 end
 @[deprecated{ reason = [[x]] }] function q() return 4 end
 @[native]function r() return 5 end
+@[deprecated{reason = [====[x]y]====]}] function s() return 6 end
