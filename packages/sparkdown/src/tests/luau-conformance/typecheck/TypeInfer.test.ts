@@ -489,6 +489,7 @@ end
     // TypeInfer.test.cpp:700 TEST_CASE_FIXTURE(BuiltinsFixture, "invalide_deprecated_attribute_doesn't_chrash_checker")
     name: "invalide_deprecated_attribute_doesn't_chrash_checker",
     fixture: "BuiltinsFixture",
+    malformed: "`@deprecated`'s `reason` is a name, not a literal string",
     source: `
 @[deprecated{ reason = reasonString }]
 function hello(x: number, y: number): number
