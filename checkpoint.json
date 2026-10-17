@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 97,
-  "previous": "beed6e7f0687e63f62cc44ed2fb6a985f2fcd107",
+  "seq": 98,
+  "previous": "4faa174f622b1541bdc12ee0fb33a4624e67fcf1",
   "snapshotParents": [],
-  "time": "2026-10-17T01:16:54.579Z",
+  "time": "2026-10-17T01:17:35.448Z",
   "kind": "auto",
-  "transition": "the merge of PR #1996 (confirmed)",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 100,
+    "recordRevision": 101,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1930,7 +1930,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T01:16:52.800Z",
+      "observedAt": "2026-10-17T01:17:33.711Z",
       "held": true,
       "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
       "remoteHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
@@ -2066,12 +2066,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T01:16:52.800Z",
+      "observedAt": "2026-10-17T01:17:33.711Z",
       "held": true,
       "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
       "remoteHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1993,
       "reviewJobs": [
         {
@@ -2613,13 +2613,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T02:55:00.531Z",
-      "event": "init",
-      "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
-      "writer": "claude-opus-5-5",
-      "concurrency": 3
-    },
     {
       "time": "2026-10-16T02:55:19.645Z",
       "event": "check-in-scheduled",
@@ -3278,6 +3271,11 @@
       "event": "operation-outcome",
       "id": "38aa7ae4",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-17T01:17:31.789Z",
+      "event": "check-in",
+      "outcome": "#1908 final report stored and writer released; PR #1996 merged as e9287075 (operation 38aa7ae4) on the third gate run: the first was refused because the stored report's findings field was prose rather than None, the second stopped when Bug #2023 joined the Feature's slices mid-check; #1906 told to drop the #879 and #922 known-list entries; #1906 and #1924 running; #1907 waits on #1374 (session started by the maintainer)"
     }
   ]
 }
