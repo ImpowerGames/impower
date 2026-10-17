@@ -725,27 +725,27 @@ class Tokenizer {
 
   /**
    * Whether a token stands where a `local` needs a name: right after the
-   * `local`, or after a comma in the `local`'s names on the comma's line,
-   * before any `=` (`local a: number, nil`). A type's own words (`nil`, `true`,
-   * `false`) can stand among the names; any other keyword ends the search.
-   * The word may begin the next line only if it is one of those, since the
-   * validator reports a statement that begins the line after the comma
-   * (`local a,` before `end`).
+   * `local`, or after a comma in the `local`'s names, before any `=`
+   * (`local a: number, nil`), on any line. A type's own words (`nil`,
+   * `true`, `false`) can stand among the names; any other keyword ends the
+   * search, and so do two names in a row, which are two statements
+   * (`local x` then `f(a, nil)`). A word on a later line than the comma
+   * counts only if it is one of those, since the validator reports a
+   * statement that begins a later line (`local a,` before `end`).
    */
   private atLocalName(token: Token): boolean {
     const isLocal = (t: Token | undefined) => t?.kind === "keyword" && t.text === "local";
     const last = this.tokens[this.tokens.length - 1];
     if (isLocal(last)) return true;
     if (last?.kind !== "symbol" || last.text !== ",") return false;
-    const line = last.location.end.line;
-    if (token.location.begin.line !== line && !(TYPE_KEYWORDS.has(token.text) && token.location.begin.line === line + 1)) return false;
+    if (token.location.begin.line !== last.location.end.line && !TYPE_KEYWORDS.has(token.text)) return false;
     for (let i = this.tokens.length - 2; i >= 0; i--) {
       const t = this.tokens[i]!;
-      if (t.location.end.line !== line) return false;
       if (isLocal(t)) return true;
       if (t.kind === "symbol" && t.text === "=") return false;
       if (t.kind === "keyword" && !TYPE_KEYWORDS.has(t.text)) return false;
       if (t.kind !== "name" && t.kind !== "symbol" && t.kind !== "keyword" && t.kind !== "string") return false;
+      if (t.kind === "name" && this.tokens[i + 1]?.kind === "name") return false;
     }
     return false;
   }

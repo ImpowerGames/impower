@@ -269,6 +269,9 @@ describe("a reserved word is never a name", () => {
 
   test.each([
     ["the next line", "function f()\n  local a,\n    nil = 1, 2\nend\n", "2:4-2:7 Expected identifier when parsing variable name, got 'nil'"],
+    ["a line after a blank one", "function f()\n  local a,\n\n    nil = 1, 2\nend\n", "3:4-3:7 Expected identifier when parsing variable name, got 'nil'"],
+    ["a line after a comment", "function f()\n  local a, -- c\n    true = 1, 2\nend\n", "2:4-2:8 Expected identifier when parsing variable name, got 'true'"],
+    ["a third line of names", "function f()\n  local a,\n    b,\n    nil = 1, 2, 3\nend\n", "3:4-3:7 Expected identifier when parsing variable name, got 'nil'"],
     ["`function`", "function f()\n  local a, function = 1, 2\nend\n", "1:11-1:19 Expected identifier when parsing variable name, got 'function'"],
   ])("a reserved word after a `local`'s comma on %s is Luau's error at the word", (_name, source, error) => {
     expect(officialErrors(source)).toContain(error);
@@ -361,6 +364,12 @@ describe("a structural word is a name outside its shape (#984)", () => {
     const tree = (source: string) => stripAnsi(dumpTree(source));
     // A narrative reassignment with no value leaves the next line to the story.
     expect(tree("scene A\n  y = -- note\n  Hello there.\nend\n")).toMatch(/─ ActionLineEnd \[/);
+    // A define property whose value begins the next line keeps it.
+    expect(run("define cfg with\n  sameLine = if true then 10 else 0\n  nextLine =\n    if true then 10 else 0\nend\nValues {cfg.sameLine} {cfg.nextLine}.\n")).toEqual({
+      errors: [],
+      warnings: [],
+      output: "Values 10 10.\n",
+    });
     // A define property with no value leaves the `end` to the define.
     expect(tree("define cfg with\n  name =\nend\n")).toMatch(/LuauDefine_end \[\d+\.\.\d+\]/);
     expect(tree("define cfg with\n  name =\nend\n")).not.toMatch(/ERROR_INCOMPLETE/);
