@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 80,
-  "previous": "8c622150a5fc23929ade7748a32ffa8c47f3bd75",
+  "seq": 81,
+  "previous": "a44d90b61ddcab6a1a8fa14a57aa4ce26c781626",
   "snapshotParents": [],
-  "time": "2026-10-17T02:19:28.242Z",
+  "time": "2026-10-17T02:20:11.979Z",
   "kind": "auto",
-  "transition": "launch of #1964",
+  "transition": "acknowledged of #1964",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 72,
+    "recordRevision": 73,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1533,7 +1533,18 @@
           "time": "2026-10-17T02:19:25.679Z",
           "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
         },
-        "since": "2026-10-17T02:19:25.681Z"
+        "since": "2026-10-17T02:19:25.681Z",
+        "sessionId": "c9c18b15-a72a-49cc-afc1-7735155f7814",
+        "acknowledged": {
+          "time": "2026-10-17T02:20:09.094Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from writer session impower-df at 2026-10-17 ~03:15Z naming assignment bd573167, its claude command line --model claude-opus-5-5 --effort high --permission-mode bypassPermissions and CLAUDE_EFFORT=high; out.jsonl init line reports model claude-opus-5-5 and permissionMode bypassPermissions",
+          "deliveryId": "b38562d1"
+        }
       },
       "pending": null,
       "history": [],
@@ -2208,7 +2219,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:19:27.318Z",
+      "observedAt": "2026-10-17T02:20:10.825Z",
       "held": true,
       "exists": false
     },
@@ -2217,7 +2228,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:19:27.318Z",
+      "observedAt": "2026-10-17T02:20:10.825Z",
       "held": true,
       "head": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
       "remoteHead": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
@@ -2949,6 +2960,16 @@
         "start": "639278003650279718",
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1964-bd573167-9ca5-4e98-9612-56b1f8e71ea3"
+      }
+    },
+    {
+      "time": "2026-10-17T02:20:09.095Z",
+      "event": "acknowledged",
+      "ticket": 1964,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "permissionMode": "bypassPermissions"
       }
     }
   ]
