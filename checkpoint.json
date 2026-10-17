@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 111,
-  "previous": "e30612754e7030b4f6ce958bda275f43d2597aaa",
+  "seq": 112,
+  "previous": "acba4ff0d56385e6c5d4015b4082576abcbea272",
   "snapshotParents": [],
-  "time": "2026-10-17T04:57:49.452Z",
+  "time": "2026-10-17T04:58:08.668Z",
   "kind": "auto",
-  "transition": "answered of #1964",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 102,
+    "recordRevision": 103,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3057,7 +3057,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T04:57:48.278Z",
+      "observedAt": "2026-10-17T04:58:07.611Z",
       "held": true,
       "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
       "remoteHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
@@ -3214,7 +3214,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T04:57:48.278Z",
+      "observedAt": "2026-10-17T04:58:07.611Z",
       "held": true,
       "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
       "remoteHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
@@ -3485,12 +3485,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T18:17:56.120Z",
-      "event": "check-in-scheduled",
-      "job": "c87ab494",
-      "none": null
-    },
     {
       "time": "2026-10-16T18:20:32.891Z",
       "event": "dispatch-intent",
@@ -4234,6 +4228,11 @@
       "ticket": 1964,
       "id": "26ae8dd3",
       "deliveryId": "96b93752"
+    },
+    {
+      "time": "2026-10-17T04:58:06.146Z",
+      "event": "check-in",
+      "outcome": "#1964 round 3 checkpoint decided finish (038210f9, comment 6229886555) after the writer cleared reviewer fixture scratch that blocked the evidence scan (evidence attached to #1866); writer resumed to mark PR #2040 ready and send its final report. #1966 PR #2015 round 5 reviewed, head 37679545e merged main with CI running; writer waiting for CI before its checkpoint report."
     }
   ]
 }
