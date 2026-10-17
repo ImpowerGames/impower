@@ -19,8 +19,10 @@
 //                     with bare #N references mapped, and rewrite the
 //                     closing lines of open pull requests
 //   --map             write migration/issue-map.json and read it back
-//   --verify          compare the internal repository with the snapshot and
-//                     exit non-zero on any difference
+//   --verify          compare the internal repository with the snapshot,
+//                     including a render check of every rewritten reference
+//                     through GitHub's Markdown API, and exit non-zero on any
+//                     difference
 //   --rehearsal       create three test issues, run the pipeline on them,
 //                     report what transfer kept and dropped, then delete them
 //   --dry-run         on any mode: read, plan and report, write nothing
@@ -768,6 +770,10 @@ export function ghClient({ pacer = new Pacer(), run = runGh, sleep = realSleep, 
     async command(args, { write = true } = {}) {
       return call(args, { write, idempotent: !write });
     },
+    // A render creates nothing, so it is paced and retried as a read.
+    async render(text, context) {
+      return call(["api", "-X", "POST", "markdown", "--input", "-"], { write: false, idempotent: true, input: JSON.stringify({ text, mode: "gfm", context }) });
+    },
   };
 }
 
@@ -823,6 +829,8 @@ export function restTracker(gh, repos) {
     createComment: (repo, n, body) => gh.api("POST", `repos/${repo}/issues/${n}/comments`, { body }),
     updateComment: (repo, id, body) => gh.api("PATCH", `repos/${repo}/issues/comments/${id}`, { body }),
     openPulls: (repo) => gh.list(`repos/${repo}/pulls?state=open&per_page=100`),
+    pullNumbers: async (repo) => (await gh.list(`repos/${repo}/pulls?state=all&per_page=100`)).map((p) => p.number),
+    renderMarkdown: (text, context) => gh.render(text, context),
     latestPull: async (repo) => (await gh.api("GET", `repos/${repo}/pulls?state=closed&per_page=1`))?.[0] ?? null,
     updatePull: (repo, n, body) => gh.api("PATCH", `repos/${repo}/pulls/${n}`, { body }),
     async closingRefs(repo, n) {
@@ -1365,16 +1373,140 @@ export function closingComparison(body, computedRefs, snapshot, repos) {
   return { expected: [...new Set(expected)].sort(), computed: [...new Set(computed)].sort() };
 }
 
+// ---------------------------------------------------------------------------
+// Render check: GitHub's renderer as the oracle for references
+
+/** The (repository, number) of every issue or pull request link GitHub rendered, in order, as `owner/name#N`. */
+export function renderedLinks(html) {
+  const out = [];
+  for (const m of (html ?? "").matchAll(/<a\s[^>]*>/g)) {
+    if (!/\bclass="[^"]*\bissue-link\b/.test(m[0])) continue;
+    const href = m[0].match(/\bhref="https:\/\/github\.com\/([^/"]+\/[^/"]+)\/(?:issues|pull)\/(\d+)/);
+    if (href) out.push(`${href[1].toLowerCase()}#${Number(href[2])}`);
+  }
+  return out;
+}
+
+/**
+ * The text with the number of each `#N` that could be a bare reference (the
+ * lead rule alone, with no reading of the Markdown) replaced by a distinct
+ * pull request number from `pool`, and the tokens in order. Only digits
+ * change, so the Markdown means the same; GitHub then links a sentinel
+ * exactly where it reads that token as a reference. A pool number already
+ * written in the text is not used.
+ */
+export function withSentinels(text, pool) {
+  const source = text ?? "";
+  const free = pool.filter((n) => !source.includes(`#${n}`) && !source.includes(`/${n}`));
+  const tokens = [];
+  const replaced = source.replace(BARE_REF, (all, lead, n) => {
+    if (tokens.length >= free.length) throw new Error(`more possible references (${tokens.length + 1}) than pull request numbers to stand in for them`);
+    const sentinel = free[tokens.length];
+    tokens.push({ sentinel, number: Number(n) });
+    return `${lead}#${sentinel}`;
+  });
+  return { text: replaced, tokens };
+}
+
+/** A body without its migration line, which names the old address the render check does not compare. */
+function withoutMigrationLine(body, line) {
+  return (body ?? "")
+    .split(/\r?\n/)
+    .filter((l) => l.trim() !== line)
+    .join("\n")
+    .replace(/\s+$/, "");
+}
+
+/** Each migrated body and comment with a possible reference: its original from the snapshot and its text now. */
+async function renderPairs(tracker, repos, snapshot, map) {
+  const current = await gatherInternal(tracker, repos, snapshot, map, { links: false, threads: true });
+  const targets = targetTexts(snapshot, map, repos);
+  const pairs = [];
+  const possible = (t) => [...(t ?? "").matchAll(BARE_REF)].length > 0;
+  for (const issue of snapshot.issues) {
+    const now = current.byOld.get(issue.number);
+    if (!now) continue;
+    const n = now.issue.number;
+    const final = withoutMigrationLine(now.issue.body, migrationLine(repos, issue));
+    if (possible(issue.body) || possible(final)) pairs.push({ old: issue.number, new: n, key: `body:${n}`, original: issue.body ?? "", final });
+    const { pairs: comments } = pairThread(targets.get(issue.number).thread, now.thread);
+    for (const p of comments) {
+      const original = (issue.thread ?? []).find((c) => c.id === p.expected.id)?.body ?? "";
+      if (possible(original) || possible(p.actual.body)) pairs.push({ old: issue.number, new: n, key: `comment:${p.actual.id}`, original, final: p.actual.body ?? "" });
+    }
+  }
+  return pairs;
+}
+
+/** Renders a migration must make for the render check: two per text with a possible reference. */
+export function renderCount(snapshot) {
+  const possible = (t) => [...(t ?? "").matchAll(BARE_REF)].length > 0;
+  return 2 * snapshot.issues.reduce((sum, i) => sum + [i.body, ...(i.thread ?? []).map((c) => c.body)].filter(possible).length, 0);
+}
+
+/**
+ * Checks the rewritten references with GitHub's renderer, independent of the
+ * tool's own Markdown reading. For each migrated text with a possible
+ * reference, the original is rendered in the code repository's context with
+ * its possible references replaced by pull request numbers (a moved issue's
+ * old number renders no link in either repository after the transfer, but a
+ * pull request never moves); the links GitHub renders on those stand-ins,
+ * mapped through the map (a migrated ticket to its new internal number, a
+ * pull request or kept public issue to the code repository; a number the
+ * code repository never had to no link), together with every other link
+ * GitHub renders there, are the links the final text must render, in order,
+ * in the internal repository's context. A reference the rewrite left with
+ * its old number, mapped where GitHub reads code, or mapped wrongly, is a
+ * difference.
+ */
+export async function renderCheck(tracker, repos, snapshot, map) {
+  const pulls = new Set([...(await tracker.pullNumbers(repos.code)), ...snapshot.pullRequests.map((p) => p.number)]);
+  const pool = [...pulls].sort((a, b) => b - a);
+  const kept = new Set(snapshot.kept);
+  const image = (n) => (map.has(n) ? `${repos.internal.toLowerCase()}#${map.get(n)}` : pulls.has(n) || kept.has(n) ? `${repos.code.toLowerCase()}#${n}` : null);
+  const differences = [];
+  const checked = [];
+  let renders = 0;
+  for (const pair of await renderPairs(tracker, repos, snapshot, map)) {
+    let stand;
+    try {
+      stand = withSentinels(pair.original, pool);
+    } catch (error) {
+      differences.push({ old: pair.old, new: pair.new, field: `linked references of ${pair.key}`, expected: "a render check", actual: error.message });
+      continue;
+    }
+    const bySentinel = new Map(stand.tokens.map((t) => [`${repos.code.toLowerCase()}#${t.sentinel}`, t.number]));
+    const expected = [];
+    for (const link of renderedLinks(await tracker.renderMarkdown(stand.text, repos.code))) {
+      if (!bySentinel.has(link)) expected.push(link);
+      else if (image(bySentinel.get(link))) expected.push(image(bySentinel.get(link)));
+    }
+    const actual = renderedLinks(await tracker.renderMarkdown(pair.final, repos.internal));
+    renders += 2;
+    checked.push({ key: pair.key, expected, actual });
+    if (!isDeepStrictEqual(expected, actual)) differences.push({ old: pair.old, new: pair.new, field: `linked references of ${pair.key}`, expected, actual });
+  }
+  return { differences, renders, checked };
+}
+
+/** What the render check compared, for the report: texts, renders, links and each text's lists. */
+function renderSummary(result) {
+  return { texts: result.checked.length, renders: result.renders, links: result.checked.reduce((n, c) => n + c.expected.length, 0), differences: result.differences.length, checked: result.checked };
+}
+
 /**
  * Compares the internal repository with the snapshot field by field;
  * compares every migrated body and comment with its rewritten original (so
  * a body without its migration line, a bare reference to an old number, or
  * a reference the transfer qualified and the rewrite did not restore, is a
- * difference); and, for the migration, checks that the public issue list
+ * difference); checks the references GitHub links in each of them against
+ * the original through the map with the render check, which does not rely
+ * on the tool's own Markdown reading; and, for the migration, checks that
+ * the public issue list
  * holds exactly the kept issues and that every open pull request's closing
  * references name the internal repository. Returns the differences.
  */
-export async function runVerify({ tracker, repos, snapshot, journal }) {
+export async function runVerify({ tracker, repos, snapshot, journal, report = {} }) {
   const map = transferMap(journal);
   const differences = [];
   for (const issue of snapshot.issues) if (!map.has(issue.number)) differences.push({ old: issue.number, field: "transfer", expected: "a new number", actual: null });
@@ -1390,6 +1522,9 @@ export async function runVerify({ tracker, repos, snapshot, journal }) {
     if (d.mismatch) differences.push({ old: d.old, new: d.new, field: "comment thread", expected: "the snapshot's comments in order", actual: d.mismatch });
     else differences.push({ old: d.old, new: d.new, field: `text of ${d.key}`, expected: { bareReferences: bareRefs(d.expected) }, actual: { bareReferences: bareRefs(d.actual), oldQualifiedReferences: staleRefs(d.actual, repos, map), migrationLine: d.key.startsWith("body:") ? hasLine(d.actual, migrationLine(repos, snapshot.issues.find((i) => i.number === d.old))) : undefined } });
   }
+  const rendered = await renderCheck(tracker, repos, snapshot, map);
+  differences.push(...rendered.differences);
+  report.renderCheck = renderSummary(rendered);
   if (snapshot.kind === "migration") {
     const publicIssues = (await tracker.listIssues(repos.code)).filter((i) => !i.pull_request).map((i) => i.number).sort((a, b) => a - b);
     if (!isDeepStrictEqual(publicIssues, [...snapshot.kept].sort((a, b) => a - b))) differences.push({ field: "public issues", expected: snapshot.kept, actual: publicIssues });
@@ -1547,10 +1682,13 @@ export async function runRehearsal({ tracker, repos, dir, journal, dryRun = fals
   }
   const restored = await runRestore({ tracker, repos, snapshot, journal, log });
   const rewritten = await runRewrite({ tracker, repos, snapshot, journal, log });
-  const differences = await runVerify({ tracker, repos, snapshot, journal });
+  const verified = {};
+  const differences = await runVerify({ tracker, repos, snapshot, journal, report: verified });
   writeJson(path.join(dir, "verify-report.json"), differences);
+  writeJson(path.join(dir, "render-check.json"), verified.renderCheck);
   const cleanup = keep ? "kept; rerun with --rehearsal --cleanup to delete" : await rehearsalCleanup({ tracker, repos, journal, log });
-  return { survival: report, restored, rewritten, verify: differences.length ? differences : "passed", cleanup };
+  const { checked, ...renderCheck } = verified.renderCheck;
+  return { survival: report, restored, rewritten, verify: differences.length ? differences : "passed", renderCheck, cleanup };
 }
 
 /** Per field, which test issues kept it through transfer and which lost it. */
@@ -1695,7 +1833,7 @@ export async function main(argv = process.argv.slice(2), { repos = readRepos(), 
     const summary = summarize(snapshot);
     if (!opts.dryRun) writeJson(file, snapshot);
     const transfer = await runTransfer({ tracker, repos, snapshot, journal: { of: () => [] }, dryRun: true });
-    print({ mode: "snapshot", dryRun: opts.dryRun, file: opts.dryRun ? null : file, ...summary, transferEstimate: { ...transfer.requests, hours: Number(estimateHours(transfer.requests, budgets).toFixed(1)) }, requestsMade: pacer.total });
+    print({ mode: "snapshot", dryRun: opts.dryRun, file: opts.dryRun ? null : file, ...summary, transferEstimate: { ...transfer.requests, hours: Number(estimateHours(transfer.requests, budgets).toFixed(1)) }, verifyEstimate: { renders: renderCount(snapshot), hours: Number(estimateHours({ reads: renderCount(snapshot), writes: 0 }, budgets).toFixed(1)) }, requestsMade: pacer.total });
     return 0;
   }
   if (opts.mode === "rehearsal") {
@@ -1715,9 +1853,14 @@ export async function main(argv = process.argv.slice(2), { repos = readRepos(), 
   } else if (opts.mode === "rewrite") print({ mode: "rewrite", ...(await runRewrite(args)), requestsMade: pacer.total });
   else if (opts.mode === "map") print({ mode: "map", ...(await runMap(args)), requestsMade: pacer.total });
   else if (opts.mode === "verify") {
-    const differences = await runVerify(args);
-    if (!opts.dryRun) writeJson(path.join(opts.dir, "verify-report.json"), differences);
-    print({ mode: "verify", passed: differences.length === 0, differences, requestsMade: pacer.total });
+    const verified = {};
+    const differences = await runVerify({ ...args, report: verified });
+    if (!opts.dryRun) {
+      writeJson(path.join(opts.dir, "verify-report.json"), differences);
+      writeJson(path.join(opts.dir, "render-check.json"), verified.renderCheck);
+    }
+    const { checked, ...renderCheck } = verified.renderCheck;
+    print({ mode: "verify", passed: differences.length === 0, differences, renderCheck, requestsMade: pacer.total });
     return differences.length ? 1 : 0;
   }
   return 0;

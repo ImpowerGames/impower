@@ -21,7 +21,11 @@ import {
   main,
   migrationLine,
   parseArgs,
+  renderCheck,
+  renderCount,
+  renderedLinks,
   rewriteBareRefs,
+  withSentinels,
   rewriteClosingRefs,
   runRehearsal,
   runRestore,
@@ -184,6 +188,7 @@ function fakeTracker({ drops = [] } = {}) {
     ["org/internal", repo("Org/internal")],
   ]);
   const at = (name) => repos_.get(name.toLowerCase());
+  const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
   const calls = [];
   const fail = { on: null };
   const items = new Map(); // project -> [{ id, issueId, repo, number, status }]
@@ -453,6 +458,40 @@ function fakeTracker({ drops = [] } = {}) {
       const { r } = find(name, n);
       r.issues.delete(n);
       r.comments = r.comments.filter((c) => c.number !== n);
+    },
+    // Pull requests beyond the seeded #3, for the render check's stand-ins.
+    extraPulls: Array.from({ length: 60 }, (_, k) => 900 + k),
+    async pullNumbers() {
+      return [3, ...tracker.extraPulls];
+    },
+    // GitHub's renderer, modelled independently of the tool and simply: a
+    // bare `#N` or `owner/repo#N` outside backtick spans and fences links
+    // to what it names now, resolved in the context's repository. A moved
+    // issue's old address renders no link in either repository, as GitHub
+    // was measured to do. It gives `<code>` no special reading, unlike the
+    // tool, which is the disagreement the misread test uses.
+    renders: 0,
+    async renderMarkdown(text, context) {
+      tracker.renders++;
+      const live = (name, n) => {
+        const r = at(name);
+        if (!r) return null;
+        if (sameName(name, "Org/code") && (n === 3 || tracker.extraPulls.includes(n))) return { repo: r.name, kind: "pull", number: n };
+        const issue = r.issues.get(n);
+        return issue ? { repo: r.name, kind: issue.rest.pull_request ? "pull" : "issues", number: n } : null;
+      };
+      const html = text
+        .split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/)
+        .map((part, k) =>
+          k % 2
+            ? part
+            : part.replace(/(^|[^\w&#\x5c])(?:([\w.-]+\/[\w.-]+))?#(\d+)(?!\w)/g, (all, lead, repo, n) => {
+                const target = live(repo ?? context, Number(n));
+                return target ? `${lead}<a class="issue-link js-issue-link" href="https://github.com/${target.repo}/${target.kind}/${target.number}">#${n}</a>` : all;
+              }),
+        )
+        .join("");
+      return `<p>${html}</p>`;
     },
     async orgIssueFields() {
       return [{ id: 1, name: "Effort", data_type: "single_select", options: [{ name: "Low" }, { name: "High" }] }];
@@ -768,6 +807,56 @@ test("comments by one author in one second pair by their text, not their order",
   assert.deepEqual(await runVerify({ tracker, repos, snapshot, journal }), []);
 });
 
+// ---------------------------------------------------------------------------
+// Render check
+
+test("rendered links are read from GitHub's issue-link anchors, and stand-ins change only digits", () => {
+  const html = '<p><a class="issue-link js-issue-link" data-url="x" href="https://github.com/Org/Code/pull/3">#3</a> <a href="https://x.test/">x</a> <a class="anchor" href="#h">h</a> <a data-hovercard-type="issue" class="issue-link" href="https://github.com/org/internal/issues/9">o/i#9</a></p>';
+  assert.deepEqual(renderedLinks(html), ["org/code#3", "org/internal#9"]);
+  const stand = withSentinels("See #12, `#40` and word#5; #901 is taken.", [900, 901, 902, 903]);
+  assert.equal(stand.text, "See #900, `#902` and word#5; #903 is taken.");
+  assert.deepEqual(stand.tokens, [{ sentinel: 900, number: 12 }, { sentinel: 902, number: 40 }, { sentinel: 903, number: 901 }]);
+  assert.throws(() => withSentinels("#1 #2", [7]), /more possible references/);
+});
+
+test("the render check passes a correct migration and its renders are counted for the estimate", async () => {
+  const tracker = await seeded();
+  tracker.commentStore("Org/code").push({ id: 501, number: 5, body: "Blocked by #4; see #2 and #3." });
+  const dir = scratch();
+  const { snapshot, journal } = await transferred(tracker, dir);
+  await runRewrite({ tracker, repos, snapshot, journal });
+  tracker.renders = 0;
+  const { differences, renders } = await renderCheck(tracker, repos, snapshot, transferMap(journal));
+  assert.deepEqual(differences, []);
+  assert.equal(renders, tracker.renders);
+  assert.equal(renderCount(snapshot), 2 * 3, "two renders for each of old 4's and old 6's bodies and the comment, the texts with a possible reference");
+  assert.equal(renders, renderCount(snapshot));
+});
+
+test("a misread body that passes the text comparison fails the render check", async () => {
+  const tracker = await seeded();
+  // The tool reads <code> as code and leaves #4 alone; the renderer links it.
+  tracker.raw("Org/code", 7).rest.body = "See <code>#4</code> and #5.";
+  const dir = scratch();
+  const { snapshot, journal } = await transferred(tracker, dir);
+  await runRewrite({ tracker, repos, snapshot, journal });
+  assert.equal(tracker.raw("Org/internal", 5).rest.body, "See <code>#4</code> and #3.\n\nMigrated from Org/code#7");
+  const differences = await runVerify({ tracker, repos, snapshot, journal });
+  assert.ok(!differences.some((d) => d.field.startsWith("text of")), "the text matches the tool's own target");
+  assert.deepEqual(differences, [{ old: 7, new: 5, field: "linked references of body:5", expected: ["org/internal#2", "org/internal#3"], actual: ["org/internal#4", "org/internal#3"] }], "the old #4 now links the internal #4, a different ticket");
+});
+
+test("the render check reports a reference the rewrite left with its old number", async () => {
+  const tracker = await seeded();
+  const dir = scratch();
+  const { snapshot, journal } = await transferred(tracker, dir);
+  await runRewrite({ tracker, repos, snapshot, journal });
+  // As if a misreading had left the bare old #5 in the text of old 6.
+  tracker.raw("Org/internal", 4).rest.body = "Duplicate of #5\n\nMigrated from Org/code#6; originally closed 2025-01-02";
+  const { differences } = await renderCheck(tracker, repos, snapshot, transferMap(journal));
+  assert.deepEqual(differences.map((d) => [d.field, d.expected, d.actual]), [["linked references of body:4", ["org/internal#3"], ["org/internal#5"]]]);
+});
+
 test("a comment thread that no longer matches the snapshot is reported and left alone", async () => {
   const tracker = await seeded();
   tracker.commentStore("Org/code").push({ id: 501, number: 5, body: "See #4." });
@@ -816,6 +905,9 @@ test("a rehearsal survives a lost creation response, passes verify and leaves no
   assert.equal(tracker.calls.filter(([op, arg]) => op === "createIssue" && arg.endsWith("] child")).length, 1, "the child was found by its title, not made twice");
   assert.equal(result.survival.fields.parent["#9"], 'dropped or changed: expected "Org/internal#1", found null');
   assert.equal(result.verify, "passed");
+  assert.ok(result.renderCheck.texts >= 3 && result.renderCheck.links >= 4, `the render check compared links: ${JSON.stringify(result.renderCheck)}`);
+  const checked = JSON.parse(fs.readFileSync(path.join(dir, "render-check.json"), "utf8")).checked;
+  assert.ok(checked.some((c) => c.expected.includes("org/internal#1") && c.expected.includes("org/code#3")), "a migrated and a pull request reference among them");
   assert.deepEqual([...(await rehearsalIssues(tracker, "Org/code")), ...(await rehearsalIssues(tracker, "Org/internal"))], []);
 });
 
