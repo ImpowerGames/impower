@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 103,
-  "previous": "b3c55bc4a9733a3da017e471dde032cd083c40ba",
+  "seq": 104,
+  "previous": "b1cbd4636a4cc3cd4d14afada4ce51421788fb53",
   "snapshotParents": [],
-  "time": "2026-10-17T04:25:01.033Z",
+  "time": "2026-10-17T04:49:22.853Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "request of #1964",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 93,
+    "recordRevision": 94,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1548,7 +1548,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "26ae8dd3",
+          "owner": "bd573167-9ca5-4e98-9612-56b1f8e71ea3",
+          "time": "2026-10-17T04:49:20.316Z",
+          "text": "Round 3 checkpoint report for PR #2040: rounds 1 (callers + undirected), 2 (undirected) and 3 (undirected, no findings) complete, all gpt-6.1-sol xhigh; 4 accepted findings, one mechanism (record-report's read-back of a coordinator-posted report), all fixed; two corrections introduced defects caught by the next reviewer; reviewed head 3d2e5693c equals the current head; CI green except the Windows driver check pending. Live acceptance done from a flipped scratch clone with throwaway internal tickets 24-27 and PRs #2037/#2039, all cleaned up. Deviation: record-report checks a read-back file produced by a new agent-handoff read-back command rather than reading GitHub itself (cloud route has no gh login). Writer asks to confirm marking #2040 ready or to send a checkpoint decision.",
+          "source": "cross-session message from writer session impower-df (CLI session c9c18b15) received 2026-10-17 ~06:20Z",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     },
     "1966": {
       "owner": {
@@ -2819,16 +2830,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T04:24:59.281Z",
+      "observedAt": "2026-10-17T04:49:21.716Z",
       "held": true,
-      "head": "5f4c4d3014460b1a99017e310e46089841f3e179",
-      "remoteHead": "5f4c4d3014460b1a99017e310e46089841f3e179",
+      "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+      "remoteHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 59280
-      },
       "pr": 2040,
       "reviewJobs": [
         {
@@ -2906,7 +2913,7 @@
         },
         {
           "job": "pr-2040/round-2/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 2,
             "step": "review-undirected",
@@ -2921,7 +2928,57 @@
               "undirected": 1
             },
             "time": "2026-10-17T04:05:13.529Z"
-          }
+          },
+          "round": 2,
+          "reviewerId": "undirected-2",
+          "attempt": 1,
+          "reviewedHead": "5f4c4d3014460b1a99017e310e46089841f3e179",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected-2": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected-2"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6229609639
+          ]
+        },
+        {
+          "job": "pr-2040/round-3/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected-3",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected-3"
+            ],
+            "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+            "completedRoundReviewers": {
+              "undirected-2": 1
+            },
+            "time": "2026-10-17T04:34:18.733Z"
+          },
+          "round": 3,
+          "reviewerId": "undirected-3",
+          "attempt": 1,
+          "reviewedHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected-3": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected-3"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6229763842
+          ]
         }
       ]
     },
@@ -2930,16 +2987,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T04:24:59.281Z",
+      "observedAt": "2026-10-17T04:49:21.716Z",
       "held": true,
-      "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
-      "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
+      "head": "c1de71a6513245ad5f65da49faa74a2d7ba5f3c4",
+      "remoteHead": "c1de71a6513245ad5f65da49faa74a2d7ba5f3c4",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 53100
-      },
       "pr": 2015,
       "reviewJobs": [
         {
@@ -3120,7 +3173,7 @@
         },
         {
           "job": "pr-2015/round-5/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 5,
             "step": "review-undirected",
@@ -3134,7 +3187,23 @@
               "undirected": 1
             },
             "time": "2026-10-17T04:11:35.675Z"
-          }
+          },
+          "round": 5,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6229629736
+          ]
         }
       ]
     }
@@ -3873,6 +3942,12 @@
       "time": "2026-10-17T04:24:57.666Z",
       "event": "check-in",
       "outcome": "no change: #1964 PR #2040 at 5f4c4d301 entering round 2 (one Windows api-integration check red on that head, the writer's to clear); #1966 PR #2015 round 5 launched on 51a6a7c0c under decision 0b03d427, writer waiting on the reviewer; both writers running"
+    },
+    {
+      "time": "2026-10-17T04:49:20.317Z",
+      "event": "request",
+      "ticket": 1964,
+      "id": "26ae8dd3"
     }
   ]
 }
