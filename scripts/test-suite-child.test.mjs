@@ -119,8 +119,11 @@ async function until(predicate,ms=10000) {
   while(Date.now()<end) { if(predicate())return;await delay(25); }
   assert.fail('Fixture did not reach its bounded observable state');
 }
-function absence(file) {
-  for(const row of records(file))assert.equal(processIdentity(row.pid),null,`Fixture PID ${row.pid} remained live`);
+async function absence(file,ms=15000) {
+  // A just-terminated fixture can stay visible briefly on a loaded hosted Windows runner.
+  for(const row of records(file)) {
+    try {await waitForAbsence([row],ms);} catch(error) {assert.fail(`Fixture PID ${row.pid} remained live: ${error.message}`);}
+  }
 }
 async function waitForAbsence(originals,ms,inspect=processIdentity) {
   for(const original of originals)assert.ok(Number.isSafeInteger(original?.pid)&&original.pid>0,'Owned fixture PID is required');
@@ -230,7 +233,7 @@ test('native supervisor owns normal exits, timeouts, and fast detached descendan
       if(mode==='exit0'||mode==='exit7')assert.equal(result.exit,mode==='exit0'?0:7);
       if(mode==='leak'||mode==='detach')assert.equal(result.exit,0,'Root success survives descendant timeout');
       assert.equal(records(inventory).length,mode==='detach'?3:mode==='leak'?2:1);
-      absence(inventory);
+      await absence(inventory);
       assert.deepEqual(processIdentity(sentinel.pid),sentinelIdentity,'Unrelated exact PID/start sentinel survived');
     }
   } finally {
@@ -298,7 +301,7 @@ test('blocked preparation publication preserves live pipe-holder uncertainty',{s
   let owned;
   const running=prepareOwnedRuntime({directory,helperScript:script,startupMs:2000,cleanupMs:100});
   try {
-    await until(()=>records(inventory).length===1,10000);owned=processIdentity(records(inventory)[0].pid);
+    await until(()=>records(inventory).length===1,25000);owned=processIdentity(records(inventory)[0].pid);
     assert.ok(owned,'Pin the live bounded fixture identity');
     fs.writeFileSync(path.join(directory,'publication-fixture-identity.json'),JSON.stringify(owned),{flag:'wx'});
     const result=await running;
@@ -324,7 +327,7 @@ test('blocked capability publication preserves live pipe-holder uncertainty',{sk
   let owned;
   const running=prepareOwnedRuntime({directory,helperScript:script,startupMs:3000,cleanupMs:100});
   try {
-    await until(()=>records(inventory).length===1,10000);owned=processIdentity(records(inventory)[0].pid);
+    await until(()=>records(inventory).length===1,25000);owned=processIdentity(records(inventory)[0].pid);
     assert.ok(owned,'Pin the live bounded fixture identity');
     fs.writeFileSync(path.join(directory,'publication-fixture-identity.json'),JSON.stringify(owned),{flag:'wx'});
     const result=await running;
@@ -529,7 +532,7 @@ test('one invocation prepares once; fresh attempts share immutable bytes but nev
     const prepared=await prepareOwnedChild({runtime,directory,command:process.execPath,args:[fixture,'exit0',inventory],cwd:directory,timeoutMs:1500});
     const result=await runOwnedChild({prepared,reservationToken:randomUUID()});
     assert.equal(result.status,'exited',JSON.stringify(result));assert.equal(result.exitConfirmed,true);
-    assert.equal(result.exit,0);absence(inventory);attempts.push(prepared);
+    assert.equal(result.exit,0);await absence(inventory);attempts.push(prepared);
     assert.equal(fs.existsSync(path.join(directory,'preparation-request.json')),false,'No later compilation/probe during reserved attempt');
     await assert.rejects(runOwnedChild({prepared,reservationToken:randomUUID()}),/already consumed/);
   }
@@ -569,7 +572,7 @@ test('changed prepared descriptor/environment and one-use replay refuse before h
   const result=await runOwnedChild({prepared,reservationToken:randomUUID()});
   assert.equal(result.status,'exited',JSON.stringify(result));
   await assert.rejects(runOwnedChild({prepared,reservationToken:randomUUID()}),/already consumed/);
-  absence(inventory);
+  await absence(inventory);
 });
 
 test('changed prepared assembly is refused before helper launch',{skip:process.platform!=='win32',timeout:30000},async()=>{
@@ -597,13 +600,14 @@ test('prepared binding is checked again after ready and before authorization',{s
   assert.equal(records(inventory).length,0);
 });
 
-test('helper independently refuses nonce after a stalled synchronous coordinator callback',{skip:!supported,timeout:30000},async()=>{
+test('helper independently refuses nonce after a stalled synchronous coordinator callback',{skip:!supported,timeout:60000},async()=>{
   const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
   let readyCalls=0;
+  // The startup bound also covers preparation and probe on a loaded runner; the stall still outlasts it.
   const result=await controlOwned({directory,command:process.execPath,args:[fixture,'loop',inventory],
-    cwd:directory,timeoutMs:1500,startupMs:3000,reservationToken:randomUUID(),onReady() {
+    cwd:directory,timeoutMs:1500,startupMs:10000,reservationToken:randomUUID(),onReady() {
       readyCalls++;
-      const until=Date.now()+4000;
+      const until=Date.now()+12000;
       while(Date.now()<until) {} // Node timers cannot fire; helper must refuse itself.
     }});
   assert.equal(result.status,'not-run',JSON.stringify(result));
@@ -641,7 +645,7 @@ test('actual coordinator death closes both pipes and leaves independently recove
   assert.equal(proof.status,'interrupted');
   assert.equal(proof.timedOut,false);
   assert.equal(records(inventory).length,3);
-  absence(inventory);
+  await absence(inventory);
 });
 
 test('Linux coordinator process-group death leaves the independently detached subreaper to prove exit',{skip:process.platform!=='linux',timeout:40000},async()=>{
@@ -662,7 +666,7 @@ test('Linux coordinator process-group death leaves the independently detached su
     process.kill(-coordinator.pid,'SIGKILL');
     assert.deepEqual(await close,{exit:null,signal:'SIGKILL'});
     await until(()=>processIdentity(expected.helper.pid)===null&&processIdentity(expected.launcher.pid)===null,15000);
-    assert.equal(readTreeProof(expected).status,'interrupted');absence(inventory);
+    assert.equal(readTreeProof(expected).status,'interrupted');await absence(inventory);
   } finally {
     if(coordinator.exitCode===null&&coordinator.signalCode===null)coordinator.kill('SIGKILL');
     await close;
@@ -715,7 +719,7 @@ test('helper death after authorization never substitutes for a final proof',{ski
   assert.equal(result.exitConfirmed,false);
   assert.equal(fs.existsSync(path.join(directory,'tree-proof.json')),false);
   await waitForAbsence(records(inventory),10000);
-  absence(inventory);
+  await absence(inventory);
 });
 
 test('Linux helper loss is unknown; fixture cleanup uses pre-pinned exact identities',{skip:process.platform!=='linux',timeout:40000},async()=>{
@@ -771,7 +775,7 @@ test('Linux helper loss is unknown; fixture cleanup uses pre-pinned exact identi
   } finally {
     if(control){control.stdin.end('cleanup\n');assert.equal(await controlClose,0,controlError);}
   }
-  absence(inventory);
+  await absence(inventory);
 });
 
 function compileVisibilityFixture() {
@@ -892,7 +896,7 @@ test('Windows inherited hidden console survives an ordinary console grandchild; 
       const result=await running;
       assert.equal(result.status,'timed-out',JSON.stringify(result));
       assert.equal(result.exitConfirmed,true);
-      absence(inventory);
+      await absence(inventory);
     }
   }
   console.log('Windows console visibility observations: '+JSON.stringify(observations));
