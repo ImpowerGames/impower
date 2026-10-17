@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 209,
-  "previous": "85799efc9f2a41dbc8242758a4cb8f885391d5ed",
+  "seq": 210,
+  "previous": "63738e7b8066546603a058c0366ead86fac8e742",
   "snapshotParents": [],
-  "time": "2026-10-17T14:23:21.006Z",
+  "time": "2026-10-17T14:53:22.810Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 191,
+    "recordRevision": 192,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T14:23:20.334Z",
+      "observedAt": "2026-10-17T14:53:22.064Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,13 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:10:21.503Z",
-      "event": "answered",
-      "ticket": 1966,
-      "id": "f73dfd51",
-      "deliveryId": "d809ab04"
-    },
     {
       "time": "2026-10-17T04:24:57.666Z",
       "event": "check-in",
@@ -6233,6 +6226,11 @@
       "time": "2026-10-17T14:23:19.222Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904 (maintainer's extended hold, estimated 20 to 26 hours from ~20:00Z); PR #1995 now at 5fabd8bb1 and PR #1993 at ce250f5ef, both open drafts under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T14:53:20.895Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904 (maintainer's extended hold); PR #1995 now at a35ea4a98, PR #1993 at ce250f5ef, both open drafts; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
