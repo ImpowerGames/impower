@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 199,
-  "previous": "6134029c10ddb5f3d4d71c87ed4b56a0441d0d61",
+  "seq": 200,
+  "previous": "45e8b4195f4ecf5f63b6340f3284424a43eac5d8",
   "snapshotParents": [],
-  "time": "2026-10-17T16:24:04.909Z",
+  "time": "2026-10-17T16:24:12.771Z",
   "kind": "auto",
-  "transition": "answered of #1924",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 211,
+    "recordRevision": 212,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -6861,7 +6861,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T16:24:04.064Z",
+      "observedAt": "2026-10-17T16:24:12.041Z",
       "held": true,
       "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -7661,11 +7661,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T05:11:31.843Z",
-      "event": "verified",
-      "ticket": 1374
-    },
-    {
       "time": "2026-10-17T05:11:40.852Z",
       "event": "request",
       "ticket": 1906,
@@ -8399,6 +8394,11 @@
       "ticket": 1924,
       "id": "e0253741",
       "deliveryId": "b3b0dea3"
+    },
+    {
+      "time": "2026-10-17T16:24:10.774Z",
+      "event": "check-in",
+      "outcome": "#1924 round 5 complete with five findings fixed; head fe4cd193e carries an unreviewed 12-file merge of main after #1906 plus 4871f7aa7, so decided extend to round 6 with one undirected reviewer (decision c735d457, comment 6236564916) and resumed the writer; #1906 merged earlier (006d924c, main green); #1907 and #1977 wait-capacity until PR #1993 merges; cutover held"
     }
   ]
 }
