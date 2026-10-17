@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 75 (this commit), 2026-10-17T02:17:08.608Z, after a new plan. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 76 (this commit), 2026-10-17T02:17:37.276Z, after release of #1963. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -8,15 +8,6 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 - A review continuation belongs to the writer session that submitted it. Never claim it from another session; once that writer is observed to have ended, cancel and release the job on its host as the review supervisor describes, and continue the PR with a new writer whose round count continues from the PR's posted rounds.
 - The periodic check-in is session-scoped and ended with its coordinator; recreate it on your own runner with: node .agents/skills/orchestrate-feature/feature-run.mjs schedule --record 'C:/Users/Brode/AppData/Local/Temp/claude/C--Users-Brode-Documents-GitHub-impower/ef5ffdf2-69b9-48fe-8a73-c572cee971e0/scratchpad/writer-1961-lLqMQS/run.json'.
 - New and replacement writers use your harness's default writer model unless the invocation's explicit model override still applies; writers already running keep their recorded model and effort. Confirm each new route with its preflight before dispatch, and let review-pr select reviewers against the actual new writer.
-
-## #1963
-
-- claude-cli claude-opus-5-5 at medium, process 54624 on DESKTOP-726EO47
-- review job pr-2009/round-1/launch-callers-1 on DESKTOP-726EO47: round 1 reviewed 5cbe91c55, completed {"callers":1} of planned ["callers","undirected"]; last launched reviewer callers attempt 1 of round 1 (planned ["callers","undirected"]), last event finished
-- review job pr-2009/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 5115444f6, completed {"callers":1,"undirected":1} of planned ["callers","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["callers","undirected"]), last event finished
-- review job pr-2009/round-2/launch-persistence-1 on DESKTOP-726EO47: round 2 reviewed 2d5c55e41, completed {"persistence":1} of planned ["persistence","undirected"]; last launched reviewer persistence attempt 1 of round 2 (planned ["persistence","undirected"]), last event finished
-- review job pr-2009/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 9f225f20e, completed {"persistence":1,"undirected":1} of planned ["persistence","undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["persistence","undirected"]), last event finished
-- review job pr-2009/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 23ebfd91b, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["undirected"]), last event finished
 
 ## #1966
 
