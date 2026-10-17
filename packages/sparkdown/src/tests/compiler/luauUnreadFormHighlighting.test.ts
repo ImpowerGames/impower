@@ -131,8 +131,18 @@ const FORMS: Record<string, Form> = {
       ["checked", ATTRIBUTE],
       ["function", FUNCTION],
       ["n", FUNCTION_NAME],
+      // with a long string in a list's argument
+      ["@", ATTRIBUTE_OPERATOR],
+      ["deprecated", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["q", FUNCTION_NAME],
+      // with no space after a list
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["r", FUNCTION_NAME],
     ],
-    output: "Value 7 1 2 3.\n",
+    output: "Value 7 1 2 3 4 5.\n",
   },
   "#1329 attributes that end their line before the function value they mark": {
     fixture: "attribute-line-break-1329",
@@ -158,6 +168,10 @@ const FORMS: Record<string, Form> = {
       ["deprecated", ATTRIBUTE],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
+      // with a long string in an argument
+      ["@", ATTRIBUTE_OPERATOR],
+      ["deprecated", ATTRIBUTE],
+      ["function", FUNCTION],
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
@@ -175,10 +189,11 @@ const FORMS: Record<string, Form> = {
       ["@[native] --[[c]] function", "LuauSparkdownVariableDefinition"],
       ["  native\n]\nfunction", "LuauSparkdownVariableDefinition"],
       ['"]" },\n  native\n]\nfunction', "LuauSparkdownVariableDefinition"],
+      ["[=[x]]=] }]\nfunction", "LuauSparkdownVariableDefinition"],
       ["@native\n    function", "LuauVariableDefinition"],
       ["@checked function", "LuauVariableDefinition"],
     ],
-    output: "Value 9 3 4 5 6 15.\n",
+    output: "Value 9 3 4 5 6 10 15.\n",
   },
   "#921 attributes on their own line before a function statement, and a block comment after an attribute": {
     fixture: "attribute-statement-lines-921",
