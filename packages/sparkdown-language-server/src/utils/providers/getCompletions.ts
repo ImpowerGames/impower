@@ -2183,11 +2183,25 @@ export const getCompletions = (
       }
     }
     // A story `for` reads its condition with the bounded rule it shares with
-    // a story `while` (#1907).
+    // a story `while` (#1907), so the loop that owns the condition, the first
+    // story loop outside it, decides (a `while` nested in a `for` offers no
+    // `in`).
+    const storyCondition = leftStack.findIndex(
+      (n) => n.name === "LuauSparkdownExplicitLoopCondition",
+    );
+    const storyConditionLoop =
+      storyCondition < 0
+        ? undefined
+        : leftStack
+            .slice(storyCondition + 1)
+            .find(
+              (n) =>
+                n.name === "LuauSparkdownForLoop" ||
+                n.name === "LuauSparkdownWhileLoop",
+            );
     if (
       leftStack.some((n) => n.name === "LuauForCondition") ||
-      (leftStack.some((n) => n.name === "LuauSparkdownExplicitLoopCondition") &&
-        leftStack.some((n) => n.name === "LuauSparkdownForLoop"))
+      storyConditionLoop?.name === "LuauSparkdownForLoop"
     ) {
       const contentNode = leftStack[0];
       if (contentNode) {

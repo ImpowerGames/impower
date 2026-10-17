@@ -458,7 +458,15 @@ describe("autocomplete · story loop headers", () => {
     expect(labelsAt(source)).toContain("in");
   });
 
-  test("a story `while` does not offer `in`", () => {
-    expect(labelsAt("store x = true\nwhile x @1")).not.toContain("in");
+  test.each([
+    ["on its own", "store x = true\nwhile x @1"],
+    // The `for` around it does not own its condition (#2062 round 3).
+    ["inside a story `for`", "store t = {1}\nfor k, v in pairs(t) do\n  while true @1\n  The hero waits.\nend\n"],
+  ])("a story `while` does not offer `in` %s", (_place, source) => {
+    expect(labelsAt(source)).not.toContain("in");
+  });
+
+  test("a story `for` inside a story `while` offers `in` after its names", () => {
+    expect(labelsAt("store x = true\nwhile x do\n  for k, v @1\nend\n")).toContain("in");
   });
 });
