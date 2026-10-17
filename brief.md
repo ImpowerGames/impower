@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 92 (this commit), 2026-10-17T02:54:18.188Z, after checked-in. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 93 (this commit), 2026-10-17T03:24:03.384Z, after a new plan. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,14 +12,14 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1964
 
 - claude-cli claude-opus-5-5 at high, process 14592 on DESKTOP-726EO47
-- as of 2026-10-17T02:54:16.721Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket that may exist only there; recover those bytes there before restarting or overwriting this work
+- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket removes it once its coordinator and child are confirmed gone
+- review job pr-2040/round-1/launch-callers-1 on DESKTOP-726EO47: no completed review; last launched reviewer callers attempt 1 of round 1 (planned ["callers","undirected"]), last event identified
 
 ## #1966
 
 - claude-cli claude-opus-5-5 at high, process 4028 on DESKTOP-726EO47
-- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool removes it once its coordinator and child are confirmed gone
 - review job pr-2015/round-1/launch-data-1 on DESKTOP-726EO47: round 1 reviewed 8c7d5a1e1, completed {"data":1} of planned ["data","undirected"]; last launched reviewer data attempt 1 of round 1 (planned ["data","undirected"]), last event finished
 - review job pr-2015/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed 7e449aa2e, completed {"data":1,"undirected":1} of planned ["data","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["data","undirected"]), last event finished
 - review job pr-2015/round-2/launch-undirected-1 on DESKTOP-726EO47: round 2 reviewed 0b2192e9c, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 2 (planned ["undirected"]), last event finished
 - review job pr-2015/round-3/launch-undirected-1 on DESKTOP-726EO47: round 3 reviewed 720b408e3, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 3 (planned ["undirected"]), last event finished
-- review job pr-2015/round-4/launch-undirected-1 on DESKTOP-726EO47: no completed review; last launched reviewer undirected attempt 1 of round 4 (planned ["undirected"]), last event identified
+- review job pr-2015/round-4/launch-undirected-1 on DESKTOP-726EO47: round 4 reviewed 6f5769ab5, completed {"undirected":1} of planned ["undirected"]; last launched reviewer undirected attempt 1 of round 4 (planned ["undirected"]), last event finished

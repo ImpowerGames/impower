@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 92,
-  "previous": "f9af33f0da15c9343bb038156f0fb05516e78917",
+  "seq": 93,
+  "previous": "564f07400478f5b766eb9a9232680aa31cb730b1",
   "snapshotParents": [],
-  "time": "2026-10-17T02:54:18.188Z",
+  "time": "2026-10-17T03:24:03.384Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 83,
@@ -2498,28 +2498,48 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:54:16.721Z",
+      "observedAt": "2026-10-17T03:24:02.223Z",
       "held": true,
-      "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
+      "remoteHead": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 1288
+      },
+      "pr": 2040,
+      "reviewJobs": [
+        {
+          "job": "pr-2040/round-1/launch-callers-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-callers",
+            "reviewerId": "callers",
+            "attempt": 1,
+            "plannedReviewers": [
+              "callers",
+              "undirected"
+            ],
+            "head": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
+            "completedRoundReviewers": null,
+            "time": "2026-10-17T03:07:56.902Z"
+          }
+        }
+      ]
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool": {
       "ticket": 1966,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:54:16.721Z",
+      "observedAt": "2026-10-17T03:24:02.223Z",
       "held": true,
-      "head": "6f5769ab57f7323e487891630ef814a2131befb8",
-      "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
+      "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
+      "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 24968
-      },
       "pr": 2015,
       "reviewJobs": [
         {
@@ -2666,7 +2686,7 @@
         },
         {
           "job": "pr-2015/round-4/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 4,
             "step": "review-undirected",
@@ -2680,7 +2700,23 @@
               "undirected": 1
             },
             "time": "2026-10-17T02:49:55.206Z"
-          }
+          },
+          "round": 4,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "6f5769ab57f7323e487891630ef814a2131befb8",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6228781538
+          ]
         }
       ]
     }
@@ -2688,7 +2724,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T02:53:53.955Z",
+    "at": "2026-10-17T03:24:02.222Z",
     "tickets": [
       {
         "number": 1962,
@@ -2705,7 +2741,7 @@
       {
         "number": 1964,
         "action": "observe",
-        "pr": null,
+        "pr": 2040,
         "reason": "process 14592 started 639278003650279718 is running"
       },
       {
