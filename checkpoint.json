@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 74,
-  "previous": "faeb234960e3f6dadb6cc5001046ddea3d245a00",
+  "seq": 75,
+  "previous": "0239df6ce811e2c09a41e86bf24cc63d5fee3294",
   "snapshotParents": [],
-  "time": "2026-10-17T02:16:15.361Z",
+  "time": "2026-10-17T02:17:08.608Z",
   "kind": "auto",
-  "transition": "the merge of PR #2009 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 69,
@@ -2168,7 +2168,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T02:16:14.153Z",
+      "observedAt": "2026-10-17T02:17:07.402Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -2367,12 +2367,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:16:14.153Z",
+      "observedAt": "2026-10-17T02:17:07.402Z",
       "held": true,
-      "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
-      "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
+      "head": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
+      "remoteHead": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 2015,
       "reviewJobs": [
         {
@@ -2523,7 +2523,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T02:07:28.971Z",
+    "at": "2026-10-17T02:17:07.400Z",
     "tickets": [
       {
         "number": 1962,
@@ -2533,15 +2533,15 @@
       },
       {
         "number": 1963,
-        "action": "collect-report",
-        "pr": 2009,
-        "reason": "process 51820 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1963-c7b0d9e3-f7ae-4c8a-ae6a-e1ef52a07fba\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 54624 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1964,
-        "action": "wait-dependency",
+        "action": "dispatch",
         "pr": null,
-        "reason": "waiting for #1963 (open)"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1965,
@@ -2559,7 +2559,7 @@
         "number": 1967,
         "action": "wait-dependency",
         "pr": null,
-        "reason": "waiting for #1963 (open), #1964 (open), #1965 (open), #1966 (open)"
+        "reason": "waiting for #1964 (open), #1965 (open), #1966 (open)"
       }
     ],
     "remaining": [
