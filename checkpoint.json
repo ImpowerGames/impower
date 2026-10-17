@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 203,
-  "previous": "367e4fa6e9d5475e29d51715f9303e2d9b3e9d42",
+  "seq": 204,
+  "previous": "5cd7bee56c1f7f9b4ec147389cc1077ab30316cc",
   "snapshotParents": [],
-  "time": "2026-10-17T12:53:33.391Z",
+  "time": "2026-10-17T13:12:51.692Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "the intent to merge PR #2057",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 186,
+    "recordRevision": 187,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5087,6 +5087,16 @@
       "mergedOnto": "a96dbbb3172baf33effd506b7d2f33d041bb02fa",
       "baseMoved": false,
       "onMain": true
+    },
+    {
+      "id": "a5d3b507",
+      "kind": "merge",
+      "ticket": 1967,
+      "pr": 2057,
+      "expectHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
+      "state": "intent",
+      "time": "2026-10-17T13:12:49.847Z",
+      "evidence": "maintainer's explicit instruction in chat on 2026-10-17 ~18:20Z: 'You have authority to merge'; the gate refused only for the missing closing reference, chosen so #1967 stays open through the cutover window; finish decision c6029778, every check passed, main's Test Suite green at 37df96b0a"
     }
   ],
   "decisions": [
@@ -5219,7 +5229,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T12:53:32.705Z",
+      "observedAt": "2026-10-17T13:12:51.014Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5505,15 +5515,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:09:49.433Z",
-      "event": "checkpoint-intent",
-      "ticket": 1966,
-      "id": "0b03d427",
-      "kind": "extend",
-      "round": 4,
-      "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c"
-    },
     {
       "time": "2026-10-17T04:09:52.665Z",
       "event": "checkpoint-published",
@@ -6238,6 +6239,13 @@
       "time": "2026-10-17T12:53:31.574Z",
       "event": "check-in",
       "outcome": "no change: PR #2057 (#1967 Phase A) still open and ready at 52e5a21c5, awaiting the maintainer's merge and go; writer idle; no writer running"
+    },
+    {
+      "time": "2026-10-17T13:12:49.847Z",
+      "event": "operation-intent",
+      "id": "a5d3b507",
+      "kind": "merge",
+      "pr": 2057
     }
   ]
 }
