@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 210,
-  "previous": "63738e7b8066546603a058c0366ead86fac8e742",
+  "seq": 211,
+  "previous": "c3283ce33906b0a5ce11c619a55d98bd87123d33",
   "snapshotParents": [],
-  "time": "2026-10-17T14:53:22.810Z",
+  "time": "2026-10-17T15:23:23.612Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 192,
+    "recordRevision": 193,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T14:53:22.064Z",
+      "observedAt": "2026-10-17T15:23:22.795Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,11 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:24:57.666Z",
-      "event": "check-in",
-      "outcome": "no change: #1964 PR #2040 at 5f4c4d301 entering round 2 (one Windows api-integration check red on that head, the writer's to clear); #1966 PR #2015 round 5 launched on 51a6a7c0c under decision 0b03d427, writer waiting on the reviewer; both writers running"
-    },
     {
       "time": "2026-10-17T04:49:20.317Z",
       "event": "request",
@@ -6231,6 +6226,11 @@
       "time": "2026-10-17T14:53:20.895Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904 (maintainer's extended hold); PR #1995 now at a35ea4a98, PR #1993 at ce250f5ef, both open drafts; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T15:23:21.436Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main now 006d924c1 after #1904 merged PR #1995; PR #1993 at 9296f3ce9 in #1904's round 5, open draft; #1907 and #1977 still to come; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
