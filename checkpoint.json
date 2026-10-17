@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 117,
-  "previous": "436c254619aba076a67ca63fb9cf6d8af861eeaf",
+  "seq": 118,
+  "previous": "79ed71ee555cfcb3cdaf98ca90bc8285322dc91e",
   "snapshotParents": [],
-  "time": "2026-10-17T00:21:16.687Z",
+  "time": "2026-10-17T00:21:44.033Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 92,
+    "recordRevision": 93,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -1479,7 +1479,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T00:21:15.461Z",
+      "observedAt": "2026-10-17T00:21:42.993Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1636,7 +1636,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T00:21:15.461Z",
+      "observedAt": "2026-10-17T00:21:42.993Z",
       "held": true,
       "head": "f10dd9fcbf92a924ee940114d722caab03c4f576",
       "remoteHead": "f10dd9fcbf92a924ee940114d722caab03c4f576",
@@ -2538,6 +2538,11 @@
       "ticket": 1881,
       "id": "4d9f1a01",
       "comment": 6226858825
+    },
+    {
+      "time": "2026-10-17T00:21:41.138Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (PR #1983) holds at merge-gate with its finish checkpoint published but the Windows driver-checks job red on the #1999 flake after five attempts, maintainer asked whether to merge outside the gate; #1974 (draft PR #1984, head f10dd9fcb, round 2) writer running; #851, #1637 and #1798 done; no new transcripts, no dead launches, no open requests"
     }
   ]
 }
