@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 90,
-  "previous": "33e5e0006907f46d75bf7ac1a503110ad60e8c2a",
+  "seq": 91,
+  "previous": "5eb2e230ce2c6f0fd84a516c6f7ec1184bd50670",
   "snapshotParents": [],
-  "time": "2026-10-17T02:48:32.887Z",
+  "time": "2026-10-17T02:53:55.331Z",
   "kind": "auto",
-  "transition": "answered of #1966",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 82,
@@ -2498,7 +2498,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:48:31.469Z",
+      "observedAt": "2026-10-17T02:53:53.957Z",
       "held": true,
       "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
       "remoteHead": null,
@@ -2510,12 +2510,16 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:48:31.469Z",
+      "observedAt": "2026-10-17T02:53:53.957Z",
       "held": true,
       "head": "6f5769ab57f7323e487891630ef814a2131befb8",
       "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
       "unpushed": false,
       "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 24968
+      },
       "pr": 2015,
       "reviewJobs": [
         {
@@ -2659,6 +2663,24 @@
           "commentIds": [
             6228050094
           ]
+        },
+        {
+          "job": "pr-2015/round-4/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 4,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "6f5769ab57f7323e487891630ef814a2131befb8",
+            "completedRoundReviewers": {
+              "undirected": 1
+            },
+            "time": "2026-10-17T02:49:55.206Z"
+          }
         }
       ]
     }
@@ -2666,7 +2688,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T02:45:16.314Z",
+    "at": "2026-10-17T02:53:53.955Z",
     "tickets": [
       {
         "number": 1962,
@@ -2694,9 +2716,9 @@
       },
       {
         "number": 1966,
-        "action": "collect-report",
+        "action": "observe",
         "pr": 2015,
-        "reason": "process 52916 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-f157f40d-e345-4b6c-a2c7-496abeb81f39\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "process 4028 started 639278020975143160 is running"
       },
       {
         "number": 1967,
