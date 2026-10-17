@@ -18,7 +18,9 @@ import {
   closingRefs,
   closingResolver,
   ghClient,
+  githubReferences,
   main,
+  mapTokens,
   migrationLine,
   parseArgs,
   renderCheck,
@@ -40,6 +42,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repos = { code: "Org/code", internal: "Org/internal", autolinkPrefix: "I-", cutover: false };
 const scratch = () => fs.mkdtempSync(path.join(os.tmpdir(), "migrate-tracker-"));
+const writeSnapshot = (dir, snapshot) => fs.writeFileSync(path.join(dir, "snapshot.json"), JSON.stringify(snapshot));
 
 // ---------------------------------------------------------------------------
 // Rewrite rules
@@ -830,7 +833,8 @@ test("the render check passes a correct migration and its renders are counted fo
   assert.deepEqual(differences, []);
   assert.equal(renders, tracker.renders);
   assert.equal(renderCount(snapshot), 2 * 3, "two renders for each of old 4's and old 6's bodies and the comment, the texts with a possible reference");
-  assert.equal(renders, renderCount(snapshot));
+  assert.equal(renderCount(snapshot, 3), 3 * 3, "the gate renders each of them three times, the first as written");
+  assert.equal(renders, renderCount(snapshot, 3), "with no gate answer to reuse, the check also renders each original as written");
 });
 
 test("the rewrite maps the references GitHub reads, not the tool's reading, and the render check catches the tool's", async () => {
@@ -906,7 +910,7 @@ test("a journaled gate answer is reused only for the text it read, and a failed 
   // A changed original is asked again.
   snapshot.issues.find((i) => i.number === 4).body = "    #1 in code now";
   await runRewrite({ tracker, repos, snapshot, journal: new Journal(path.join(dir, "journal.jsonl")) });
-  assert.equal(tracker.renders, 2);
+  assert.equal(tracker.renders, 3, "as written, a stand-in per token, a stand-in per number");
 
   // A render that fails leaves the text unrewritten and unjournaled; the next run asks again.
   const fresh = await seeded();
@@ -922,6 +926,41 @@ test("a journaled gate answer is reused only for the text it read, and a failed 
   fresh.renderMarkdown = render;
   const recovered = await runRewrite({ tracker: fresh, repos, snapshot: run.snapshot, journal: new Journal(path.join(freshDir, "journal.jsonl")) });
   assert.deepEqual(recovered.leftAsTransferred, []);
+});
+
+test("a pull request the text already links, however it is spelled, is never a stand-in", async () => {
+  // As GitHub does, this renderer decodes `&#35;&#50;040` to a link to pull request 2040,
+  // and reads an indented line as code.
+  const stub = {
+    async renderMarkdown(text) {
+      const links = [];
+      if (text.includes("&#35;&#50;040")) links.push(2040);
+      for (const line of text.split("\n")) if (!line.startsWith("    ")) for (const m of line.matchAll(/(^|[^\w&#])#(\d+)/g)) links.push(Number(m[2]));
+      return links.map((n) => `<a class="issue-link" href="https://github.com/Org/code/pull/${n}">#${n}</a>`).join(" ");
+    },
+  };
+  const answer = await githubReferences(stub, repos, "&#35;&#50;040\n\n    #12", [2040, 2039, 2038]);
+  assert.deepEqual(answer.existing, [2040]);
+  assert.deepEqual(answer.tokens, [], "the code token is not read as linked");
+  assert.equal(mapTokens("&#35;&#50;040\n\n    #12", answer.tokens, (n) => (n === 12 ? "#3" : null)), "&#35;&#50;040\n\n    #12");
+});
+
+test("verify reports what it found when every render fails, and writes it", async () => {
+  const tracker = await seeded();
+  const dir = scratch();
+  const { snapshot } = await transferred(tracker, dir);
+  writeSnapshot(dir, snapshot);
+  tracker.renderMarkdown = async () => {
+    throw new Error("HTTP 502");
+  };
+  const out = [];
+  assert.equal(await main(["--verify", "--dir", dir], { repos, tracker, out: (s) => out.push(s), log: () => {} }), 1);
+  const printed = JSON.parse(out.join(""));
+  assert.equal(printed.passed, false);
+  assert.ok(printed.leftAsTransferred.length > 0 && printed.leftAsTransferred.every((t) => /could not be asked: HTTP 502/.test(t.reason)));
+  assert.ok(printed.differences.some((d) => d.field.startsWith("linked references of") && /could not render: HTTP 502/.test(d.actual)));
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "left-as-transferred.json"), "utf8")), printed.leftAsTransferred);
+  assert.ok(fs.existsSync(path.join(dir, "verify-report.json")));
 });
 
 test("a stand-in is never a number the text already holds, written as an entity or in a URL", () => {
@@ -994,6 +1033,7 @@ test("a rehearsal survives a lost creation response, passes verify and leaves no
   assert.equal(tracker.calls.filter(([op, arg]) => op === "createIssue" && arg.endsWith("] child")).length, 1, "the child was found by its title, not made twice");
   assert.equal(result.survival.fields.parent["#9"], 'dropped or changed: expected "Org/internal#1", found null');
   assert.equal(result.verify, "passed");
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "left-as-transferred.json"), "utf8")), [], "the rehearsal writes the list of texts left as transferred");
   assert.ok(result.renderCheck.texts >= 3 && result.renderCheck.links >= 4, `the render check compared links: ${JSON.stringify(result.renderCheck)}`);
   const checked = JSON.parse(fs.readFileSync(path.join(dir, "render-check.json"), "utf8")).checked;
   assert.ok(checked.some((c) => c.expected.includes("org/internal#1") && c.expected.includes("org/code#3")), "a migrated and a pull request reference among them");
