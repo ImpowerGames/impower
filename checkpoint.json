@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 200,
-  "previous": "9fb4c8afb8b53390c2fd8ee302e09d11148a7253",
+  "seq": 201,
+  "previous": "b0896d3d0bb07ba16b8ee5c94405db52221359fd",
   "snapshotParents": [],
-  "time": "2026-10-17T11:35:31.198Z",
+  "time": "2026-10-17T11:53:33.863Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 183,
+    "recordRevision": 184,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5219,7 +5219,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T11:35:30.524Z",
+      "observedAt": "2026-10-17T11:53:33.175Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5505,11 +5505,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T03:24:20.974Z",
-      "event": "check-in",
-      "outcome": "no change: #1964 opened draft PR #2040 at b670e0739 and is launching review round 1 (callers reviewer); #1966 round 4 reviewed and corrected, head 51a6a7c0c with CI running, writer waiting for CI before its checkpoint report; both writers running"
-    },
     {
       "time": "2026-10-17T03:54:14.653Z",
       "event": "check-in",
@@ -6239,6 +6234,11 @@
       "ticket": 1967,
       "pr": 2057,
       "reviewedHead": "52e5a21c59a790b6849d550318ccad029de8ecc3"
+    },
+    {
+      "time": "2026-10-17T11:53:32.075Z",
+      "event": "check-in",
+      "outcome": "no change: PR #2057 (#1967 Phase A) is ready at 52e5a21c5 and still open, awaiting the maintainer's merge since the gate refuses a PR without a closing reference; the writer is idle with its report recorded; no writer running"
     }
   ]
 }
