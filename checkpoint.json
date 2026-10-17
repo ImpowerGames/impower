@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 219,
-  "previous": "cd934207cbc63badf07653230402e91e11c44012",
+  "seq": 220,
+  "previous": "0f636dfbf796572faf57666491267c623e30450a",
   "snapshotParents": [],
-  "time": "2026-10-17T19:23:21.963Z",
+  "time": "2026-10-17T19:53:26.334Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 201,
+    "recordRevision": 202,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5230,7 +5230,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T19:23:21.207Z",
+      "observedAt": "2026-10-17T19:53:25.497Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5516,13 +5516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:57:46.925Z",
-      "event": "answered",
-      "ticket": 1964,
-      "id": "26ae8dd3",
-      "deliveryId": "96b93752"
-    },
     {
       "time": "2026-10-17T04:58:06.146Z",
       "event": "check-in",
@@ -6201,6 +6194,11 @@
       "time": "2026-10-17T19:23:19.896Z",
       "event": "check-in",
       "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main b3dd72d54; #1907's PR #2062 still at 143cfc186, open draft under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
+    },
+    {
+      "time": "2026-10-17T19:53:24.158Z",
+      "event": "check-in",
+      "outcome": "no change: window held until ORCH #1904 closes Feature #1904; origin/main b3dd72d54; #1907's PR #2062 at ac158d8c9, open draft under #1904's review; the #1967 writer stays idle and unreleased for the Phase B resume; no writer running"
     }
   ]
 }
