@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 144,
-  "previous": "90420db3123bdf844d2e2007b6174c7362bc9756",
+  "seq": 145,
+  "previous": "bf402127132fd630d7ab4bebf96e91c6dc4c4710",
   "snapshotParents": [],
-  "time": "2026-10-17T03:04:10.425Z",
+  "time": "2026-10-17T03:14:47.710Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "feature verification 7547a31c (complete)",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 117,
+    "recordRevision": 118,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2543,7 +2543,50 @@
       "classifier": "removed 621.3 MB by --remove: not a registered worktree (interrupted removal, no .git); 9 links unlinked first"
     }
   ],
-  "verifications": [],
+  "verifications": [
+    {
+      "id": "7547a31c",
+      "time": "2026-10-17T03:14:46.205Z",
+      "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+      "mainSha": "4ba580faf754bef7d7b9db96c9c8635cf2672669",
+      "snapshotAt": "2026-10-17T03:14:44.951Z",
+      "verdict": "complete",
+      "criteria": [
+        {
+          "index": 1,
+          "criterion": "Every sub-issue is closed with its before-and-after measurement recorded on the pull request.",
+          "status": "met",
+          "evidence": [
+            "#1798 closed completed; PR #1957 merged as cd50ceb1e; its body records the instrumented count of carried content reads inside decideWrites for N = 100/1000/2000 carried lines: base 200/2000/4000, fix 2/2/2 (also ticket comment 6220342324).",
+            "#851 closed completed; PR #1959 merged as 59739ecf7; its body records the 12-scene fixture measurement: a continuation typed into scene 3 emitted 11 chunks before and 2 after, a function typed into scene 3 left 20 flows holding renamed names before and 2 after, with 18 statements re-resolved for renames before and 0 after (also ticket comment 6220925517).",
+            "#1637 closed completed; PR #1960 merged as f654256e7; its body records the passesLastBuild.identity table at N = 30/60/240 for both edits (244 and 233 re-lowered declarations at N = 240 down to 2) and the bench medians 103 to 135 ms down to 19 to 23 ms (also ticket comment 6221068465).",
+            "#1881 closed completed; PR #1983 merged as 4ba580faf; its body records the private project's line 3514 measurement, accepted edit, base to fix: debounce 116.7 to 119.9 ms down to 51.6 to 58.1 ms, msFromKey 219.0 to 238.8 ms down to 123.9 to 141.2 ms, ms 106.7 to 119.5 down to 60.6 to 90.2, suggestion path unchanged, and the decision to keep the 50 ms timer (also ticket comment 6223679486).",
+            "#1974 closed completed; PR #1984 merged as d5cb34d14; its body records loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40 for the store-above shape and 2 to 1 and 6/80 to 5/81 for the store-below shape, whose remainder is Bug #2013 (also ticket comment 6223869256)."
+          ]
+        },
+        {
+          "index": 2,
+          "criterion": "`incrementalEquivalence.test.ts` and `incrementalCumulativeEquivalence.test.ts` stay green.",
+          "status": "met",
+          "evidence": [
+            "Run on the main checkout at origin/main 4ba580faf (the merge of the last slice, PR #1983) on 2026-10-17 at about 03:20Z: node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/incrementalEquivalence.test.ts src/tests/compiler/incrementalCumulativeEquivalence.test.ts --wait 1800 reported Test Files 2 passed (2), Tests 38 passed (38), runner status passed exit 0; log in the run directory's verify-equivalence.log.",
+            "Every slice PR's own CI ran the sparkdown shards that hold both files and passed on its merged head: PR #1957 at f61f8756e, PR #1959 at 419269e63, PR #1960 at d97776bf5, PR #1984 at 0547bc904 and PR #1983 at e681cad7d, and main's Test Suite push runs on d5cb34d14 (run 38991245619) and c4e4cd51a (run 38994488583) completed with success; main's push run on 4ba580faf (run 38997273656) was queued at verification time and is named in the closure once it completes."
+          ]
+        }
+      ],
+      "acceptanceSha256": "01b2fbd85a3e94be58956d9b2655e1e186e05f2a4c67977d6ad15116560262ea",
+      "incomplete": [],
+      "unsettled": [],
+      "tickets": [
+        851,
+        1637,
+        1798,
+        1881,
+        1974
+      ],
+      "report": "<!-- orchestrate-feature final report: verification 7547a31c -->\n## Final report: Feature #1940\n\nVerdict: complete. Verified on main at `4ba580faf754bef7d7b9db96c9c8635cf2672669` at 2026-10-17T03:14:46.205Z by coordinator `local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29`, from the snapshot of 2026-10-17T03:14:44.951Z.\n\n### Slices\n\n| Ticket | State | PR | Integration |\n| --- | --- | --- | --- |\n| #851 | delivered | #1959 | merged by the coordinator as `59739ecf7`; independently reviewed through `419269e63`; it landed on main `dc84c6470`, while its CI covered main `7ae0fffa2`, so CI never ran on that combination before main's own run |\n| #1637 | delivered | #1960 | merged by the coordinator as `f654256e7`; independently reviewed through `d97776bf5`; it landed on main `bdba348d5`, while its CI covered main `e7fffe0c0`, so CI never ran on that combination before main's own run |\n| #1798 | delivered | #1957 | merged by the coordinator as `cd50ceb1e`; independently reviewed through `f61f8756e`; it landed on main `4cb586458`, while its CI covered main `41c4a6b2f`, so CI never ran on that combination before main's own run |\n| #1881 | delivered | #1983 | merged by the coordinator as `4ba580faf`; independently reviewed through `2cd5a71ce` plus 1 clean merge of main |\n| #1974 | delivered | #1984 | merged by the coordinator as `d5cb34d14`; independently reviewed through `0547bc904`; it landed on main `e9287075b`, while its CI covered main `e2f91499f`, so CI never ran on that combination before main's own run |\n\n### Accepted unreviewed corrections\n\nNone.\n\n### Acceptance criteria\n\n- [x] Every sub-issue is closed with its before-and-after measurement recorded on the pull request. Evidence: #1798 closed completed; PR #1957 merged as cd50ceb1e; its body records the instrumented count of carried content reads inside decideWrites for N = 100/1000/2000 carried lines: base 200/2000/4000, fix 2/2/2 (also ticket comment 6220342324).; #851 closed completed; PR #1959 merged as 59739ecf7; its body records the 12-scene fixture measurement: a continuation typed into scene 3 emitted 11 chunks before and 2 after, a function typed into scene 3 left 20 flows holding renamed names before and 2 after, with 18 statements re-resolved for renames before and 0 after (also ticket comment 6220925517).; #1637 closed completed; PR #1960 merged as f654256e7; its body records the passesLastBuild.identity table at N = 30/60/240 for both edits (244 and 233 re-lowered declarations at N = 240 down to 2) and the bench medians 103 to 135 ms down to 19 to 23 ms (also ticket comment 6221068465).; #1881 closed completed; PR #1983 merged as 4ba580faf; its body records the private project's line 3514 measurement, accepted edit, base to fix: debounce 116.7 to 119.9 ms down to 51.6 to 58.1 ms, msFromKey 219.0 to 238.8 ms down to 123.9 to 141.2 ms, ms 106.7 to 119.5 down to 60.6 to 90.2, suggestion path unchanged, and the decision to keep the 50 ms timer (also ticket comment 6223679486).; #1974 closed completed; PR #1984 merged as d5cb34d14; its body records loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40 for the store-above shape and 2 to 1 and 6/80 to 5/81 for the store-below shape, whose remainder is Bug #2013 (also ticket comment 6223869256).\n- [x] `incrementalEquivalence.test.ts` and `incrementalCumulativeEquivalence.test.ts` stay green. Evidence: Run on the main checkout at origin/main 4ba580faf (the merge of the last slice, PR #1983) on 2026-10-17 at about 03:20Z: node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/incrementalEquivalence.test.ts src/tests/compiler/incrementalCumulativeEquivalence.test.ts --wait 1800 reported Test Files 2 passed (2), Tests 38 passed (38), runner status passed exit 0; log in the run directory's verify-equivalence.log.; Every slice PR's own CI ran the sparkdown shards that hold both files and passed on its merged head: PR #1957 at f61f8756e, PR #1959 at 419269e63, PR #1960 at d97776bf5, PR #1984 at 0547bc904 and PR #1983 at e681cad7d, and main's Test Suite push runs on d5cb34d14 (run 38991245619) and c4e4cd51a (run 38994488583) completed with success; main's push run on 4ba580faf (run 38997273656) was queued at verification time and is named in the closure once it completes.\n\n### Incomplete work\n\nNone.\n\n### Next action\n\nNone: every slice is delivered on main and every criterion has evidence, so this report accompanies the Feature's closure."
+    }
+  ],
   "work": {},
   "snapshots": {},
   "handoff": null,
@@ -2589,11 +2632,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T17:00:42.025Z",
-      "event": "disk-recovery",
-      "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/839-block-missing-end"
-    },
     {
       "time": "2026-10-16T17:01:05.941Z",
       "event": "disk-recovery",
@@ -3248,6 +3286,13 @@
       "event": "released",
       "ticket": 1881,
       "reason": "process 56704 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-17T03:14:46.205Z",
+      "event": "feature-verification",
+      "id": "7547a31c",
+      "verdict": "complete",
+      "mainSha": "4ba580faf754bef7d7b9db96c9c8635cf2672669"
     }
   ]
 }
