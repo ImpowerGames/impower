@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 217,
-  "previous": "16f9f8920e82fa870dd9d02cd0f3b6bd96016741",
+  "seq": 218,
+  "previous": "0e1d654dd9b6b3ab1a8943d2abf1135907bcf69c",
   "snapshotParents": [],
-  "time": "2026-10-17T16:56:39.148Z",
+  "time": "2026-10-17T16:56:48.144Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 226,
+    "recordRevision": 227,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3036,10 +3036,7 @@
       ]
     },
     "1907": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "4c537485-e0db-474a-9884-f2d42c3243c1",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "high",
@@ -3048,9 +3045,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
         "branch": "fix/1907-story-body-line-rule",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-17T16:56:16.726Z"
+        "launchId": "4c537485-e0db-474a-9884-f2d42c3243c1",
+        "handle": {
+          "kind": "process",
+          "pid": 21592,
+          "start": "639278530064988717",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1907-4c537485-e0db-474a-9884-f2d42c3243c1"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment 4c537485-e0db-474a-9884-f2d42c3243c1. You are the writer for ImpowerGames/impower ticket #1907 (End a story-body Luau statement at its line unless brackets, a long string or a block comment carry it on), a slice of Feature #1904, coordinated by coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 an acknowledgement naming assignment 4c537485-e0db-474a-9884-f2d42c3243c1 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1907 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule on branch fix/1907-story-body-line-rule from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904, and keep every artifact in it.\nSettled decisions:\n- The PR body carries Closes #1907 and a Closes line for each Bug the Feature assigns to this slice: #1200 #1207 #1254 #1658; each gets a regression test, and the story form of #1199 and the column-0 case of #1206 get tests without Closes lines. Where a listed Bug is not fixed by this slice, the PR says so and leaves it open.\n- Branch from current origin/main, which contains #1905 (bdba348d), #1374 (a96dbbb3), #1906 (006d924c) and #1924 (merged today). The design of record is Feature #1904 rule 3: in a scene, a branch or the file's top level a Luau statement ends at its physical line unless an open (, [ or {, a long string or a block comment carries it on, bounded by the next scene or branch header where an unclosed opener gets Luau's missing-closer error; nothing else continues a statement (no trailing operator, comma, =, then, else, | or indentation). This deletes the indented continuation of an unfinished if expression and the continuation of a type onto a | line at story scope. Function bodies keep Luau's own rules.\n- The maintainer's standing decision that a narrative declaration ends at its line (a trailing comma is an error; the next line is story) is the same rule seen from the other side; rule 3's three continuations are its only exceptions. The #1580 programIncrementalDiagnostics tests pin today's narrative behaviour; where rule 3 changes a pinned case (for example a value after a multi-line block comment's close), update the precondition and say so in the PR body, keeping the incremental-equals-cold check.\n- #1906 added narrative twins of the Luau assignment rules, LuauSparkdownVariableAssignment and LuauSparkdownAssignmentOperation, so that the Luau-body value scope opened at an = (LuauAssignmentLineBreak) never reaches narrative statements; build the story-body line rule on those twins and never on the Luau rules' scope. GRAMMAR.md section 11.5 is rewritten for the line rule and must no longer carry the indented-continuation or the |-line exception; the lowerers and validators that read those two exceptions change with the grammar; a multi-line store table at story scope must still declare, with a test.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "77895904",
+          "attempts": 1,
+          "time": "2026-10-17T16:56:46.838Z",
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+        },
+        "since": "2026-10-17T16:56:46.839Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     },
@@ -7626,7 +7641,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:56:39.148Z",
+      "observedAt": "2026-10-17T16:56:48.143Z",
       "held": true,
       "exists": false
     },
@@ -7635,7 +7650,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T16:56:39.148Z",
+      "observedAt": "2026-10-17T16:56:48.143Z",
       "held": true,
       "exists": false
     }
@@ -8008,13 +8023,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T05:30:28.757Z",
-      "event": "relayed",
-      "ticket": 1924,
-      "id": "fc721944",
-      "to": "the maintainer"
-    },
     {
       "time": "2026-10-17T05:30:49.243Z",
       "event": "check-in",
@@ -8744,6 +8752,19 @@
       "ticket": 1977,
       "route": "claude-cli",
       "launchId": "860f0d1d-0994-490d-9b78-c52d30cc1eb3"
+    },
+    {
+      "time": "2026-10-17T16:56:46.839Z",
+      "event": "launched",
+      "ticket": 1907,
+      "launchId": "4c537485-e0db-474a-9884-f2d42c3243c1",
+      "handle": {
+        "kind": "process",
+        "pid": 21592,
+        "start": "639278530064988717",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\launch-1907-4c537485-e0db-474a-9884-f2d42c3243c1"
+      }
     }
   ]
 }
