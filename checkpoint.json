@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 136,
-  "previous": "53893baa2d8c1567242827131333868663c3db18",
+  "seq": 137,
+  "previous": "05dd4bba716386b363a3a98a6c6452844562b5e7",
   "snapshotParents": [],
-  "time": "2026-10-17T07:27:03.515Z",
+  "time": "2026-10-17T07:27:14.336Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1374",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 143,
+    "recordRevision": 144,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -708,6 +708,15 @@
             "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
             "evidence": "SendMessage to the desktop session local_06fee41a-73da-418e-ad9e-8528ebd314ce delivered (message 361554b5) on 2026-10-17; its turn started on it"
           }
+        },
+        {
+          "id": "fea301f2",
+          "owner": "local_06fee41a-73da-418e-ad9e-8528ebd314ce",
+          "time": "2026-10-17T07:27:11.670Z",
+          "text": "Checkpoint after review round 5 on PR #2022 (limit 5 under decision f7d1fa9b): no further member-line end-rule case in 78 combinations; one finding accepted and fixed in b4e0a35de (the converter lexed a member line raw, losing string interpolation and typeof(new Foo()) after the member) plus test-only 3f1944d2d, both unreviewed; last reviewed 082a8f5fe; CI all green on b4e0a35de, pending on 3f1944d2d; writer asks: accept the correction and mark ready and merge, or authorize round 6.",
+          "source": "cross-session message from the desktop session local_06fee41a-73da-418e-ad9e-8528ebd314ce on 2026-10-17 after its turn ended",
+          "relayed": null,
+          "answer": null
         }
       ]
     },
@@ -3839,7 +3848,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T07:27:02.077Z",
+      "observedAt": "2026-10-17T07:27:12.979Z",
       "held": true,
       "head": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
       "remoteHead": "3f1944d2d9cb1fa3c1efcdc5733a003f50d71874",
@@ -4113,7 +4122,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T07:27:02.077Z",
+      "observedAt": "2026-10-17T07:27:12.979Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -4422,7 +4431,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T07:27:02.077Z",
+      "observedAt": "2026-10-17T07:27:12.979Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5140,11 +5149,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T11:48:25.368Z",
-      "event": "check-in",
-      "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
-    },
-    {
       "time": "2026-10-16T12:15:10.761Z",
       "event": "check-in",
       "outcome": "maintainer reports usage restored and the merge gate relaxed (0789edcdd on main, checkout at 45e2dd1e3); raw CLI probes for claude-opus-5-5 and claude-sonnet-5-5 on the CLI login lovelle.therese.cardoso@gmail.com still return the weekly-limit api_error, so #1905 is not resumed yet; asked the maintainer to check the CLI account"
@@ -5857,6 +5861,12 @@
       "time": "2026-10-17T06:44:24.746Z",
       "event": "check-in",
       "outcome": "#1906 round 3 checkpoint (request c88c7386) not due: CI red on 51231beb1 (#1580 tests, the shared assignment scope leaking into narrative) and launch-axg-1 still counted unended (executionDrained false); recorded decision 6350ae80 (kind maintainer, comment 6230817527) asking whether a hand-verified shutdown may count or the launcher needs a record-shutdown command; writer resumed to take repair B (Luau-only assignment scope via narrative twins) with narrative behaviour unchanged; #1924 still waits on the attribute-line answer; #1374 in round 5"
+    },
+    {
+      "time": "2026-10-17T07:27:11.671Z",
+      "event": "request",
+      "ticket": 1374,
+      "id": "fea301f2"
     }
   ]
 }
