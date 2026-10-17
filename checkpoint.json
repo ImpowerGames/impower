@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 125,
-  "previous": "6597fb8b964e940da4ba2191c78df2c2d2575f3e",
+  "seq": 126,
+  "previous": "a6805fc90169f0033a7d3a97c6f3ed7e12746381",
   "snapshotParents": [],
-  "time": "2026-10-17T00:52:13.048Z",
+  "time": "2026-10-17T00:52:57.171Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 100,
+    "recordRevision": 101,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -1788,7 +1788,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T00:52:10.520Z",
+      "observedAt": "2026-10-17T00:52:54.198Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1945,7 +1945,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T00:52:10.520Z",
+      "observedAt": "2026-10-17T00:52:54.198Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2255,13 +2255,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:18:29.861Z",
-      "event": "init",
-      "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
-      "writer": "claude-opus-5-5",
-      "concurrency": 3
-    },
     {
       "time": "2026-10-16T16:18:39.862Z",
       "event": "checkpoints-enabled",
@@ -2931,6 +2924,11 @@
       "ticket": 1974,
       "id": "6e80b10b",
       "deliveryId": "14c7db1c"
+    },
+    {
+      "time": "2026-10-17T00:52:52.327Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (PR #1983) holds at merge-gate on the #1999 Windows flake pending the maintainer's call; #1974 (draft PR #1984, round 4 under extension ec7c56fe) writer running; #851, #1637 and #1798 done; no new transcripts, no dead launches, no open requests"
     }
   ]
 }
