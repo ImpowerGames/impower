@@ -34,7 +34,8 @@ describe("closed narrative expression family", () => {
   test("all recursive counterparts keep scopes and never escape to an ordinary expression child", () => {
     // A story statement's brackets are the Luau ones, which carry it on to
     // their closer or the next header (#1907), so they have no counterpart.
-    expect(pairs).toHaveLength(72);
+    // The type function parameters' named-parameter twin went with them.
+    expect(pairs).toHaveLength(71);
     const originals = new Set(pairs.map(([original]) => original));
     for (const [original, twin] of pairs) {
       for (const field of ["name", "contentName", "captures", "beginCaptures", "endCaptures"]) expect(captureScopes(repository[twin]![field])).toEqual(captureScopes(repository[original]![field]));
