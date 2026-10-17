@@ -84,4 +84,60 @@ describe("the point the player's workspace compiles toward (#1874)", () => {
     const workspace = createWorkspace();
     expect((workspace as any).publishesStoryOfStandaloneCompiles).toBe(true);
   });
+
+  it("moves with an edit that says where it left the author's selection (#1881)", () => {
+    const workspace = createWorkspace();
+    void workspace.selectTextDocument(select(MAIN, 5, true));
+    // The edit's compile can be sent before the selection the editor sent
+    // after the edit is handled; it routes to where the edit left the author.
+    const edit = (version: number, line: number, userEvent: boolean) =>
+      void workspace.changeTextDocument({
+        textDocument: { uri: MAIN, version },
+        contentChanges: [{ text: "" }],
+        selection: {
+          selectedRange: {
+            start: { line, character: 0 },
+            end: { line, character: 0 },
+          },
+          userEvent,
+        },
+      });
+    edit(2, 6, true);
+    expect((workspace as any).compileStartFrom()).toEqual({ file: MAIN, line: 6 });
+    // A selection the author did not make moves it no more than it would
+    // when it came on its own.
+    edit(3, 9, false);
+    expect((workspace as any).compileStartFrom()).toEqual({ file: MAIN, line: 6 });
+  });
+
+  it("is published for the author's selection when a later one the author did not make is answered first (#1881)", async () => {
+    const workspace: any = createWorkspace();
+    const published: any[] = [];
+    workspace.sendNotification = async (_method: string, params: any) => {
+      published.push(params);
+    };
+    workspace.compilerReady = async () => {};
+    // The compiler answers the author's selection late.
+    const held: (() => void)[] = [];
+    workspace._compilerChannelConnection = {
+      sendRequest: (_type: unknown, params: any) =>
+        new Promise((resolve) => held.push(() => resolve({ ...params }))),
+    };
+    // A point set aside after the worker stopped answering there, which the
+    // workspace answers itself.
+    workspace._setAside.add({ file: MAIN, line: 9 });
+    const author = workspace.selectTextDocument(select(MAIN, 5, true));
+    await workspace.selectTextDocument(select(MAIN, 9, false));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(held).toHaveLength(1);
+    for (const answer of held.splice(0)) answer();
+    await author;
+    // The page takes only the author's selections, so the one it was not
+    // given cannot supersede the author's.
+    expect(
+      published
+        .filter((p) => p.userEvent)
+        .map((p) => p.selectedRange.start.line),
+    ).toEqual([5]);
+  });
 });

@@ -10,7 +10,7 @@ Open as a draft until it is ready for review. Keep every heading; write "None" o
 
 Closes #
 
-<!-- Keep the line above, with the issue number filled in, whenever this pull request resolves an issue. GitHub closes the issue on merge only when a closing keyword and the number appear together in this body; a number in the title does nothing. For several issues, repeat the keyword: "Closes #12, closes #34". When there is no issue, replace the line with "No linked issue." -->
+<!-- Keep the line above, with the issue number filled in, whenever this pull request resolves an issue. GitHub closes the issue on merge only when a closing keyword and the number appear together in this body; a number in the title does nothing. For several issues, repeat the keyword: "Closes #12, closes #34". Once the cutover switch in .agents/repos.json is on, tickets live in the internal repository it names, so write the reference with that repository, "Closes <owner>/<internal repository>#12"; a bare "#12" then names a pull request here and passes the check only beside such a line. When there is no issue, replace the line with "No linked issue." -->
 
 ## Motivation
 

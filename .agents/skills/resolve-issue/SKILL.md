@@ -17,7 +17,7 @@ Before artifacts, run `writer-artifacts.mjs` via [private allocation](references
 
 ## 1. Read the ticket
 
-Read the full body, current labels and type with `gh issue view N --json number,title,body,labels` and the issue REST API. Verify cited code still supports the claim; investigate missing evidence yourself.
+Read the full body, labels and type with `gh issue view N -R <tickets> --json number,title,body,labels` and REST ([tickets](../references/publishing.md#the-tickets-repository)). Verify cited code still supports the claim; investigate missing evidence yourself.
 
 ## 2. Create the worktree
 
