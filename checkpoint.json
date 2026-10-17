@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 138,
-  "previous": "06d4830959f71350448db2b29b9ec30cc6754cef",
+  "seq": 139,
+  "previous": "0e30434006a215de4f5336f2f52a00003f9d6885",
   "snapshotParents": [],
-  "time": "2026-10-17T01:32:53.025Z",
+  "time": "2026-10-17T01:35:07.335Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 112,
+    "recordRevision": 113,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2319,7 +2319,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:32:51.860Z",
+      "observedAt": "2026-10-17T01:35:06.112Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2516,13 +2516,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:26:15.983Z",
-      "event": "dispatch-intent",
-      "ticket": 1798,
-      "route": "claude-cli",
-      "launchId": "cbb3d603-a40d-4802-af19-3b4cb8c6a743"
-    },
     {
       "time": "2026-10-16T16:26:42.563Z",
       "event": "launched",
@@ -3186,6 +3179,11 @@
       "event": "operation-outcome",
       "id": "8f6f8b7d",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-17T01:35:03.737Z",
+      "event": "check-in",
+      "outcome": "no change: #1881 (PR #1983) holds at merge-gate on the #1999 Windows flake; #1999's fix is in draft PR #2024 (round 1, outside this run, maintainer authorised the coordinator to merge it when ready); #851, #1637, #1798 and #1974 done; no new transcripts, no dead launches, no open requests"
     }
   ]
 }
