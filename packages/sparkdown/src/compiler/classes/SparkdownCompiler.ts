@@ -1858,8 +1858,10 @@ export class SparkdownCompiler {
       // chunk recorded that now reads otherwise (`StatementWatch`).
       const watch = this._chunkStore?.watch;
       // An attempt after the first keeps the marks of the attempts before
-      // it: the objects they resolved again are not resolved again now, as
-      // the resolver resolved them in the first (`compileStory`).
+      // it. The resolver resolves again now what they resolved, as no
+      // compile kept their resolves (`ProgramResolver.committed`), which
+      // marks again what still reads otherwise; a mark left from them only
+      // has the store build a chunk anew (`compileStory`).
       if (this._memoAttempt === 0) {
         watch?.changed.clear();
       }
@@ -1929,6 +1931,7 @@ export class SparkdownCompiler {
           renamed: this._renamedNames,
           cold: false,
           memoCandidates: this._memoCandidates,
+          carriedMemos: (blocks) => this.noteCarriedMemos(blocks),
         },
         onDiagnostic,
       );
@@ -3809,12 +3812,18 @@ export class SparkdownCompiler {
     if (block.memoized?.length) {
       this._memoBlocks.add(block);
     }
-    if (
-      this._prevCompilationIds?.has(block) ||
-      !block.statement ||
-      !record.lineAt ||
-      !record.text
-    ) {
+    if (!this._prevCompilationIds?.has(block)) {
+      this.addMemoCandidates(block, record);
+    }
+  }
+
+  /** Adds to the compile's memo candidates the statements of `block` whose
+   *  memos its lowering made, with each statement's lines in its script. */
+  protected addMemoCandidates(
+    block: CompiledBlock,
+    record: StatementRecord,
+  ): void {
+    if (!block.statement || !record.lineAt || !record.text) {
       return;
     }
     for (const shape of memosOf(block.statement).lowered) {
@@ -3853,7 +3862,29 @@ export class SparkdownCompiler {
   }
 
   /**
-   * Completes the memos of the statements this compile lowered anew, once
+   * Adds to the compile's memo candidates the statements of `blocks`, blocks
+   * the compile carried, a statement of each of which the resolver resolves
+   * again (`ResolveInput.carriedMemos`): their memos are completed with what
+   * this resolution reports and reads, so that the next lowering of a block
+   * serves them by what their names declare now (#1974).
+   */
+  protected noteCarriedMemos(blocks: Iterable<object>): void {
+    let added = false;
+    for (const block of blocks) {
+      const record = this._statementRecords.get(block);
+      if (record && this._prevCompilationIds?.has(block)) {
+        this.addMemoCandidates(block as CompiledBlock, record);
+        added = true;
+      }
+    }
+    if (added) {
+      this.dropNumberedMemos();
+    }
+  }
+
+  /**
+   * Completes the memos of the statements this compile lowered anew, and of
+   * those of a carried block it resolved again (`noteCarriedMemos`), once
    * its build is committed: with what their resolution reported and read
    * (`ProgramResolver.memoResolutionsLastResolve`) and the chunk the store
    * gave them (`ChunkStore.memoChunk`).
@@ -4002,6 +4033,11 @@ export class SparkdownCompiler {
     if (build.root && this._chunkStore.current === build.root) {
       this._chunkStoreBlocks = this._compilationIds;
       this.completeMemos();
+      // The resolve whose memos this completes is kept; one of a preview, of
+      // an attempt that met a memo it could not compile from, or of a build
+      // that made no program is resolved again by the next resolve
+      // (`ProgramResolver.committed`).
+      this._programResolver?.committed();
     }
     const unsupported = flows.unsupported ?? build.unsupported;
     for (const [construct, count] of Object.entries(flows.unsupportedCounts)) {
