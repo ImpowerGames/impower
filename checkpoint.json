@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 234,
-  "previous": "9e85211d50ae98d145cf964c3e4cc31f9e45504d",
+  "seq": 235,
+  "previous": "42a9cb633810e75fd39d176455b0086afa827538",
   "snapshotParents": [],
-  "time": "2026-10-17T17:33:45.658Z",
+  "time": "2026-10-17T17:33:53.566Z",
   "kind": "auto",
-  "transition": "release of #1977",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 241,
+    "recordRevision": 242,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -7924,7 +7924,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T17:33:44.711Z",
+      "observedAt": "2026-10-17T17:33:52.872Z",
       "held": true,
       "head": "991b99457f415601f06af89ff2afaedf8721832e",
       "remoteHead": null,
@@ -8300,13 +8300,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:44:15.277Z",
-      "event": "answered",
-      "ticket": 1906,
-      "id": "c88c7386",
-      "deliveryId": "cdc046fa"
-    },
     {
       "time": "2026-10-17T06:44:24.746Z",
       "event": "check-in",
@@ -9038,6 +9031,11 @@
       "event": "released",
       "ticket": 1977,
       "reason": "process 19964 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-17T17:33:51.577Z",
+      "event": "check-in",
+      "outcome": "#1977 final report stored; PR #2061 merged through the gate; writer released if ended; #1907 running (option X ruled for story-scope & lines)"
     }
   ]
 }
