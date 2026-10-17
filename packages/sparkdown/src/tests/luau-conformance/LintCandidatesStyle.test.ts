@@ -8,7 +8,9 @@
 // result is silence run now.
 
 import { describe, expect, test } from "vitest";
+import { runConformanceSource } from "./conformanceTestHarness";
 import {
+  diagnoseDetailed,
   diagnoseWithLintsInFunction,
   lintInFunction,
   lintMessagesInFunction,
@@ -304,26 +306,101 @@ local _ = a <= (b == 0)
   });
 });
 
+const IMPRECISE =
+  "Number literal exceeded available precision and was truncated to closest representable number";
+
 // Luau: IntegerParsing
-describe.skip("binary and hex literals past 2^64 (not implemented: IntegerParsing)", () => {
-  test("0b1 followed by 64 zeros and 0x1 followed by 16 zeros", () => {
+// Adapted: Sparkdown's runtime preserves exact powers beyond uint64, so the
+// original overflow inputs are silent controls; their inexact neighbors warn.
+describe("binary and hex literals past 2^64", () => {
+  test("original powers stay exact, while their neighbors lose precision", () => {
     expect(
       lintMessagesInFunction(`
 local _ = 0b10000000000000000000000000000000000000000000000000000000000000000
 local _ = 0x10000000000000000
+local _ = 0b10000000000000000000000000000000000000000000000000000000000000001
+local _ = 0x10000000000000001
 `),
     ).toEqual([
-      "Binary number literal exceeded available precision and was truncated to 2^64",
-      "Hexadecimal number literal exceeded available precision and was truncated to 2^64",
+      IMPRECISE,
+      IMPRECISE,
     ]);
   });
 });
 
-const IMPRECISE =
-  "Number literal exceeded available precision and was truncated to closest representable number";
+describe("IntegerParsing boundaries and spellings", () => {
+  test("the largest uint64 rounds, while the next integer stays exact", () => {
+    expect(lintMessagesInFunction(`
+local _ = 0xffffffffffffffff
+local _ = 0x10000000000000000
+local _ = 0b100000000000000000000000000000000000000000000000000001
+`)).toEqual([
+      IMPRECISE,
+      IMPRECISE,
+    ]);
+  });
+
+  test("warnings reflect actual runtime rounding beyond uint64", () => {
+    const result = runConformanceSource(`
+assert(0xffffffffffffffff == 2^64)
+assert(0x10000000000000000 == 2^64)
+assert(0x20000000000000000 == 2^65)
+assert(0x20000000000000001 == 2^65)
+assert(0x20000000000000003 == 2^65)
+assert(0b100000000000000000000000000000000000000000000000000000000000000000 == 2^65)
+assert(0b100000000000000000000000000000000000000000000000000000000000000001 == 2^65)
+assert(18446744073709551616 == 2^64)
+assert(18446744073709551617 == 2^64)
+`);
+    expect(result.returnedOK).toBe(true);
+    expect(result.errorMessages).toEqual([]);
+    expect(result.warningMessages).toEqual([IMPRECISE, IMPRECISE, IMPRECISE, IMPRECISE, IMPRECISE]);
+  });
+
+  test("fraction and exponent spellings stay silent, as Luau's parseDouble requires digits only", () => {
+    expect(lintMessagesInFunction(`
+local _ = 0.1
+local _ = 9007199254740993.0
+local _ = 9007199254740993e0
+local _ = 1e309
+local _ = 9_007_199_254_740_992
+local _ = 0x20_0000_0000_0000
+`)).toEqual([]);
+  });
+
+  test("separators preserve the integer's exact value", () => {
+    expect(lintMessagesInFunction(`local _ = 9_007_199_254_740_993`)).toEqual([IMPRECISE]);
+    expect(lintMessagesInFunction(`local _ = 0x20_0000_0000_0001`)).toEqual([IMPRECISE]);
+  });
+
+  test("embedded literals warn once, at the literal's range and warning severity", () => {
+    const source = "Precision: {9007199254740993}\n";
+    const diagnostics = diagnoseDetailed(source).filter(d => d.code === "IntegerParsing");
+    expect(diagnostics).toEqual([{
+      file: "main.sd", code: "IntegerParsing", severity: 2, message: IMPRECISE,
+      range: { start: { line: 0, character: 12 }, end: { line: 0, character: 28 } },
+    }]);
+  });
+
+  test("strings, comments, narrative digits and malformed numeric text are not integer literals", () => {
+    expect(diagnoseDetailed(`
+9007199254740993
+function run()
+  local _ = "9007199254740993"
+  -- 9007199254740993
+  local _ = 0xnothex
+  local _ = 0x1234567890ABCDEFi
+  local _ = 0xFEDCBA0987654321i
+  local _ = 0x10000000000000000oops
+  local _ = 9007199254740993oops
+  local _ = 9007199254740993.."text"
+end
+`).filter(d => d.code === "IntegerParsing")).toEqual([]);
+  });
+});
 
 // Luau: IntegerParsingDecimalImprecise
-describe.skip("decimal literals a double cannot hold exactly (not implemented: IntegerParsing)", () => {
+describe("decimal literals a double cannot hold exactly", () => {
   test("five imprecise literals", () => {
     expect(
       lintInFunction(`
@@ -357,7 +434,7 @@ local _ = -9223372036854775808
 });
 
 // Luau: IntegerParsingHexImprecise
-describe.skip("hex literals a double cannot hold exactly (not implemented: IntegerParsing)", () => {
+describe("hex literals a double cannot hold exactly", () => {
   test("two imprecise literals", () => {
     expect(
       lintInFunction(`

@@ -93,6 +93,7 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "IntegerParsing",
   "SameLineStatement",
   "MultiLineStatement",
 ] as const;
@@ -794,6 +795,37 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 
 // ---------------------------------------------------------------------------
 
+/** Luau checks integer spellings; fractions and exponents intentionally stay silent. */
+function lintIntegerParsing(source: AstNode, text: string, offsets: NameRoot["offsets"], out: LuauLint[]): void {
+  visitAst(source, {
+    visit(node) {
+      if (!(node instanceof AstExprConstantNumber)) return true;
+      const range = offsets.range(node.location);
+      // Unsupported integer suffixes and malformed numbers can be read as
+      // a numeric prefix followed by a name; that prefix is not a literal.
+      if (/[A-Za-z0-9_.]/.test(text[range.to] ?? "")) return true;
+      const literal = text.slice(range.from, range.to).replaceAll("_", "");
+      const binary = /^0[bB][01]+$/.test(literal);
+      const hex = /^0[xX][0-9a-fA-F]+$/.test(literal);
+      const decimal = /^[0-9]+$/.test(literal);
+      if (!binary && !hex && !decimal) return true;
+      // Match lowerNumber's conversion of the spelling, rather than the AST's
+      // uint64-clamped value for binary and hexadecimal integers.
+      const value = binary ? parseInt(literal.slice(2), 2) : Number(literal);
+      // Avoid exact arithmetic for the overwhelmingly common small decimal literals.
+      if (decimal && value < 2 ** 53) return true;
+      const exact = BigInt(literal);
+      if (!Number.isFinite(value) || BigInt(value) !== exact) {
+        out.push({
+          code: "IntegerParsing", ...range,
+          message: "Number literal exceeded available precision and was truncated to closest representable number",
+        });
+      }
+      return true;
+    },
+  });
+}
+
 /** Luau's statement-layout rules, using the boundaries of the existing AST. */
 function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], sameLines: Set<number>): void {
   const stack: { start: Position; lastLine: number; flagged: boolean }[] = [];
@@ -916,5 +948,6 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
+  for (const { root, offsets } of facts.roots) lintIntegerParsing(root, text, offsets, out);
   return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to), names: facts.names, roots: facts.roots };
 }
