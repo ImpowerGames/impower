@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 95,
-  "previous": "3b68dfed9f0bef2aa06e7e393a7049104411c676",
+  "seq": 96,
+  "previous": "adb75e42fb47ece486803b5812f6adf0a46b2674",
   "snapshotParents": [],
-  "time": "2026-10-17T03:54:17.148Z",
+  "time": "2026-10-17T04:07:18.126Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 85,
@@ -2498,15 +2498,15 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T03:54:16.043Z",
+      "observedAt": "2026-10-17T04:07:16.987Z",
       "held": true,
-      "head": "a2598bca035eee0c73ba2eeadcef88c79a6dbe7a",
-      "remoteHead": "a2598bca035eee0c73ba2eeadcef88c79a6dbe7a",
+      "head": "5f4c4d3014460b1a99017e310e46089841f3e179",
+      "remoteHead": "5f4c4d3014460b1a99017e310e46089841f3e179",
       "unpushed": false,
       "dirty": false,
       "handoffLock": {
         "host": "DESKTOP-726EO47",
-        "pid": 13932
+        "pid": 59280
       },
       "pr": 2040,
       "reviewJobs": [
@@ -2548,7 +2548,7 @@
         },
         {
           "job": "pr-2040/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -2563,6 +2563,43 @@
               "callers": 1
             },
             "time": "2026-10-17T03:40:25.697Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "a2598bca035eee0c73ba2eeadcef88c79a6dbe7a",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "callers": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "callers",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6229324730
+          ]
+        },
+        {
+          "job": "pr-2040/round-2/launch-undirected-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected-2",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected-2"
+            ],
+            "head": "5f4c4d3014460b1a99017e310e46089841f3e179",
+            "completedRoundReviewers": {
+              "callers": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-17T04:05:13.529Z"
           }
         }
       ]
@@ -2572,7 +2609,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T03:54:16.043Z",
+      "observedAt": "2026-10-17T04:07:16.987Z",
       "held": true,
       "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
       "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
@@ -2762,7 +2799,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T03:24:02.222Z",
+    "at": "2026-10-17T04:07:16.985Z",
     "tickets": [
       {
         "number": 1962,
@@ -2790,9 +2827,9 @@
       },
       {
         "number": 1966,
-        "action": "observe",
+        "action": "collect-report",
         "pr": 2015,
-        "reason": "process 4028 started 639278020975143160 is running"
+        "reason": "process 4028 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-bad5c2f2-272e-4cf0-9943-d182f5fac6a1\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       },
       {
         "number": 1967,
