@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 240,
-  "previous": "8c61d39029c167462a4b64ea0f5a9b217eb6c7f3",
+  "seq": 241,
+  "previous": "308de77dca00e5713d9cc1b905fdcb8d2c15ab02",
   "snapshotParents": [],
-  "time": "2026-10-17T18:23:53.345Z",
+  "time": "2026-10-17T18:24:01.420Z",
   "kind": "auto",
   "transition": "answered of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 247,
+    "recordRevision": 248,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3122,12 +3122,13 @@
           "source": "maintainer (user) message in the coordinator session on 2026-10-17, superseding the coordinator's answer a903654d, which was never sent",
           "relayed": null,
           "answer": {
-            "state": "intent",
+            "state": "delivered",
             "text": "Supersedes answer a903654d before you act on it: bound story for and while headers under rule 3 in this PR, in PR #2062, not a follow-up. The maintainer read the loop question in the coordinator session on 2026-10-17 and instructed that the asymmetry be fixed sooner rather than later, in your PR if possible; that instruction replaces my earlier ruling. So the story forms of for, while and repeat-until headers end at their line like the if and elseif headers: a condition or range left on the next line is reported as unread Luau where it is written, under the same message family as the other rule-3 forms. Update the #1344 fixture (luau-forms/loop-condition-next-line-1344) to pin the new reading and name the reversal in its comment, the PR body (Closes #1907 only; mention that this supersedes #1344's next-line loop form at story scope on the maintainer's instruction) and GRAMMAR.md section 11.5. Keep the Luau reading inside braces and inside function bodies unchanged, as rule 3 only governs story scope. Your review workflow stays yours: do not touch the reviewed head while round-1 reviewers run; apply the change once they have exited, as a scope extension of the round-1 repair, and say in the round report that the loop change arrived after round 1 started. If the change turns out larger than the small grammar edit plus fixture update you described, report before widening further.",
             "deliveryId": "417d2f3d",
             "attempts": 1,
-            "time": "2026-10-17T18:23:10.323Z",
-            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+            "time": "2026-10-17T18:23:59.319Z",
+            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+            "evidence": "SendMessage to impower-f8 succeeded at 2026-10-17T18:23:50Z, msg_id 2b47c04a-de7f-4323-8233-07ac90cf5bbb, carrying both printed answers (5fa566bd and the superseding 417d2f3d) in one message while the writer (pid 21592) was running"
           }
         }
       ]
@@ -7957,7 +7958,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T18:23:52.676Z",
+      "observedAt": "2026-10-17T18:24:00.741Z",
       "held": true,
       "head": "a9866c98ec1651ee83afbab2814014ef48025995",
       "remoteHead": "a9866c98ec1651ee83afbab2814014ef48025995",
@@ -8333,13 +8334,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T07:30:09.843Z",
-      "event": "answered",
-      "ticket": 1374,
-      "id": "fea301f2",
-      "deliveryId": "3bbcd964"
-    },
     {
       "time": "2026-10-17T07:30:18.821Z",
       "event": "operation-intent",
@@ -9069,6 +9063,13 @@
       "ticket": 1907,
       "id": "a903654d",
       "deliveryId": "5fa566bd"
+    },
+    {
+      "time": "2026-10-17T18:23:59.320Z",
+      "event": "answered",
+      "ticket": 1907,
+      "id": "96d7350a",
+      "deliveryId": "417d2f3d"
     }
   ]
 }
