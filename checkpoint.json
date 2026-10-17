@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 78,
-  "previous": "89f9e95d83432f037363b5039dda9d6fe4060146",
+  "seq": 79,
+  "previous": "b07cfe044d02448d967d95e1a212294d419fd30d",
   "snapshotParents": [],
-  "time": "2026-10-17T02:18:03.495Z",
+  "time": "2026-10-17T02:18:22.021Z",
   "kind": "auto",
-  "transition": "claim of #1964",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 71,
@@ -2193,7 +2193,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:18:02.448Z",
+      "observedAt": "2026-10-17T02:18:21.006Z",
       "held": true,
       "exists": false
     },
@@ -2202,7 +2202,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:18:02.448Z",
+      "observedAt": "2026-10-17T02:18:21.006Z",
       "held": true,
       "head": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
       "remoteHead": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
@@ -2358,7 +2358,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T02:17:53.434Z",
+    "at": "2026-10-17T02:18:21.003Z",
     "tickets": [
       {
         "number": 1962,
@@ -2374,9 +2374,9 @@
       },
       {
         "number": 1964,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch bd573167-9ca5-4e98-9612-56b1f8e71ea3 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1965,
