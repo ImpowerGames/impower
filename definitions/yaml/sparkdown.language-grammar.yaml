@@ -4542,8 +4542,9 @@ repository:
   # or `choose` around dialogue and actions). It ends at its line: the next
   # line is prose, never a continued value, so a comma that ends the line is
   # left without a value and the lowerer reports it. Its begin, content and
-  # end are otherwise `LuauReassignment`'s; `reassignmentRules.test.ts`
-  # holds the two rules together.
+  # end are otherwise `LuauReassignment`'s, but for its operation,
+  # `LuauSparkdownAssignmentOperation`, which has no line break after its
+  # `=` (#1906); `reassignmentRules.test.ts` holds the two rules together.
   LuauSparkdownReassignment:
     begin: ({{WS}}*)({{LUAU_REASSIGNMENT_TARGETS}})(?={{WS}}*(?:{{LUAU_ASSIGNMENT_OPERATORS}}))
     beginCaptures:
@@ -4558,12 +4559,10 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauAccessPath" }
-      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauSparkdownAssignmentOperation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    # It ends at its line, and at the first token of a later line that its
-    # `LuauAssignmentOperation` carried it onto after an `=` with no value.
-    end: "{{LUAU_REASSIGNMENT_END}}|(?={{LUAU_GLUED_KEYWORD}})|$|{{LUAU_AT_LATER_LINE_TOKEN}}"
+    end: "{{LUAU_REASSIGNMENT_END}}|(?={{LUAU_GLUED_KEYWORD}})"
 
   # A reassignment's targets, which its begin consumes, read as its content
   # would read them. A capture is tokenized on its own text, so the rules
@@ -7803,7 +7802,10 @@ repository:
   # statement after it on the same line (`& local x = 5 return`) is the
   # body's next statement. A second declaration on the line is this rule
   # too, ahead of the Luau declaration `LuauExpression` reaches, so it also
-  # ends at the line (`store a = 1 local b = 2,`).
+  # ends at the line (`store a = 1 local b = 2,`). Its targets are
+  # `LuauSparkdownVariableAssignment`, whose operation has no line break
+  # after its `=`, so a value after a comment that spans lines, or on the
+  # next line, is not read as its value (#1906).
   LuauSparkdownVariableDefinition:
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
     beginCaptures:
@@ -7820,12 +7822,12 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTargetTypeCast" }
-      - { include: "#LuauVariableAssignment" }
+      - { include: "#LuauSparkdownVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
-    end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|{{LUAU_AT_LATER_LINE_TOKEN}}"
+    end: "(?={{BEAT}})|(?=^|$|[;)\\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}"
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
@@ -7925,6 +7927,28 @@ repository:
     # before a comment that ends the `=`'s line, which the declaration's
     # `LuauAssignmentLineBreak` reads.
     end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})|{{LUAU_AT_LATER_LINE_TOKEN}}
+
+  # One target of a narrative declaration (`LuauSparkdownVariableDefinition`),
+  # with its annotation and `= value`: `LuauVariableAssignment` but for its
+  # operation, `LuauSparkdownAssignmentOperation`, which ends at its line, so
+  # a narrative declaration never reads its value from a later line (#1906).
+  # lookaround: as for `LuauVariableAssignment`.
+  LuauSparkdownVariableAssignment:
+    begin: "(?!{{LUAU_RESERVED_WORDS}}{{WS}}*(?:--|,|$))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*{{LUAU_SHARED_VARIABLE_HEAD_END}})"
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauVariableName" }
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTargetTypeCastAfterComment" }
+      - { include: "#LuauTypeAnnotationOperation" }
+      - { include: "#LuauSparkdownAssignmentOperation" }
+      - { include: "#LuauFunctionDefinition" }
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -12912,6 +12936,28 @@ repository:
     # (#1247); the operation then ends at the first token of a later line,
     # so the statement around it decides whether that token is the value.
     end: (?={{BEAT}})|(?=^|{{WS}}|[,;)\]}])|{{LUAU_PAST_ASSIGNMENT_OPERATOR}}(?=$|{{LUAU_LINE_COMMENT_START}})|{{LUAU_AT_LATER_LINE_TOKEN}}|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+
+  # The `= value` of a narrative declaration or reassignment
+  # (`LuauSparkdownVariableAssignment`, `LuauSparkdownReassignment`):
+  # `LuauAssignmentOperation` without `LuauAssignmentLineBreak`, so it ends
+  # at its line, and a narrative statement whose `=` has no value on its
+  # line ends there, as story-body statements do (#1906; their continued
+  # values belong to #1907).
+  # lookaround: `LuauAssignmentOperator`, the operation's first part, reads
+  # the operator the begin looks for, as in `LuauAssignmentOperation`.
+  LuauSparkdownAssignmentOperation:
+    begin: ({{WS}}*)(?={{LUAU_ASSIGNMENT_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauOperatorMissingOperand" }
+      - { include: "#LuauAssignmentOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
     beginCaptures:

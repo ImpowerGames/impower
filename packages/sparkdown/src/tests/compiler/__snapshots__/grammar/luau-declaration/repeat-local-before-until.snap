@@ -9,18 +9,18 @@ sparkdown [0..63]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauSparkdownVariableDefinition_content [6..11]
- │   │   └─ LuauVariableAssignment [6..11]
- │   │       ├─ LuauVariableAssignment_begin [6..8]
- │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..7]
+ │   │   └─ LuauSparkdownVariableAssignment [6..11]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [6..8]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [6..7]
  │   │       │   │   └─ LuauVariableName [6..7]: "n"
- │   │       │   └─ LuauVariableAssignment_begin_c2 [7..8]
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [7..8]
  │   │       │       └─ OptionalWhitespace [7..8]: " "
- │   │       ├─ LuauVariableAssignment_content [8..11]
- │   │       │   └─ LuauAssignmentOperation [8..11]
- │   │       │       ├─ LuauAssignmentOperation_begin 8
- │   │       │       │   └─ LuauAssignmentOperation_begin_c1 8
+ │   │       ├─ LuauSparkdownVariableAssignment_content [8..11]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [8..11]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 8
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 8
  │   │       │       │       └─ OptionalWhitespace 8
- │   │       │       ├─ LuauAssignmentOperation_content [8..11]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [8..11]
  │   │       │       │   ├─ LuauAssignmentOperator [8..10]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [8..10]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 8
@@ -33,8 +33,8 @@ sparkdown [0..63]
  │   │       │       │   └─ LuauNumericDecimal [10..11]
  │   │       │       │       ├─ LuauNumericDecimal_c1 [10..11]: "0"
  │   │       │       │       └─ LuauNumericDecimal_c2 11
- │   │       │       └─ LuauAssignmentOperation_end 11
- │   │       └─ LuauVariableAssignment_end 11
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 11
+ │   │       └─ LuauSparkdownVariableAssignment_end 11
  │   └─ LuauSparkdownVariableDefinition_end 11
  ├─ Newline [11..12]: "\n"
  ├─ LuauSparkdownRepeatLoop [12..46]
@@ -62,11 +62,11 @@ sparkdown [0..63]
  │   │   │   │           └─ LuauAccessPath_end 20
  │   │   │   │               └─ LuauAccessPath_end_c1 20
  │   │   │   ├─ LuauSparkdownReassignment_content [20..28]
- │   │   │   │   └─ LuauAssignmentOperation [20..28]
- │   │   │   │       ├─ LuauAssignmentOperation_begin [20..21]
- │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 [20..21]
+ │   │   │   │   └─ LuauSparkdownAssignmentOperation [20..28]
+ │   │   │   │       ├─ LuauSparkdownAssignmentOperation_begin [20..21]
+ │   │   │   │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 [20..21]
  │   │   │   │       │       └─ OptionalWhitespace [20..21]: " "
- │   │   │   │       ├─ LuauAssignmentOperation_content [21..28]
+ │   │   │   │       ├─ LuauSparkdownAssignmentOperation_content [21..28]
  │   │   │   │       │   ├─ LuauAssignmentOperator [21..23]
  │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [21..23]
  │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 21
@@ -104,7 +104,7 @@ sparkdown [0..63]
  │   │   │   │       │       │       ├─ LuauNumericDecimal_c1 [27..28]: "1"
  │   │   │   │       │       │       └─ LuauNumericDecimal_c2 28
  │   │   │   │       │       └─ LuauArithmeticOperation_end 28
- │   │   │   │       └─ LuauAssignmentOperation_end 28
+ │   │   │   │       └─ LuauSparkdownAssignmentOperation_end 28
  │   │   │   └─ LuauSparkdownReassignment_end 28
  │   │   └─ LuauSparkdownVariableDefinition [28..40]
  │   │       ├─ LuauSparkdownVariableDefinition_begin [28..35]
@@ -116,18 +116,18 @@ sparkdown [0..63]
  │   │       │       └─ LuauSparkdownVariableDefinition_begin_c3 [34..35]
  │   │       │           └─ OptionalWhitespace [34..35]: " "
  │   │       ├─ LuauSparkdownVariableDefinition_content [35..40]
- │   │       │   └─ LuauVariableAssignment [35..40]
- │   │       │       ├─ LuauVariableAssignment_begin [35..37]
- │   │       │       │   ├─ LuauVariableAssignment_begin_c1 [35..36]
+ │   │       │   └─ LuauSparkdownVariableAssignment [35..40]
+ │   │       │       ├─ LuauSparkdownVariableAssignment_begin [35..37]
+ │   │       │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [35..36]
  │   │       │       │   │   └─ LuauVariableName [35..36]: "z"
- │   │       │       │   └─ LuauVariableAssignment_begin_c2 [36..37]
+ │   │       │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [36..37]
  │   │       │       │       └─ OptionalWhitespace [36..37]: " "
- │   │       │       ├─ LuauVariableAssignment_content [37..40]
- │   │       │       │   └─ LuauAssignmentOperation [37..40]
- │   │       │       │       ├─ LuauAssignmentOperation_begin 37
- │   │       │       │       │   └─ LuauAssignmentOperation_begin_c1 37
+ │   │       │       ├─ LuauSparkdownVariableAssignment_content [37..40]
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation [37..40]
+ │   │       │       │       ├─ LuauSparkdownAssignmentOperation_begin 37
+ │   │       │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 37
  │   │       │       │       │       └─ OptionalWhitespace 37
- │   │       │       │       ├─ LuauAssignmentOperation_content [37..40]
+ │   │       │       │       ├─ LuauSparkdownAssignmentOperation_content [37..40]
  │   │       │       │       │   ├─ LuauAssignmentOperator [37..39]
  │   │       │       │       │   │   ├─ LuauAssignmentOperator_begin [37..39]
  │   │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 37
@@ -140,8 +140,8 @@ sparkdown [0..63]
  │   │       │       │       │   └─ LuauNumericDecimal [39..40]
  │   │       │       │       │       ├─ LuauNumericDecimal_c1 [39..40]: "1"
  │   │       │       │       │       └─ LuauNumericDecimal_c2 40
- │   │       │       │       └─ LuauAssignmentOperation_end 40
- │   │       │       └─ LuauVariableAssignment_end 40
+ │   │       │       │       └─ LuauSparkdownAssignmentOperation_end 40
+ │   │       │       └─ LuauSparkdownVariableAssignment_end 40
  │   │       └─ LuauSparkdownVariableDefinition_end 40
  │   └─ LuauSparkdownRepeatLoop_end [40..46]
  │       ├─ LuauSparkdownRepeatLoop_end_c1 [40..41]

@@ -9,18 +9,18 @@ sparkdown [0..57]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauSparkdownVariableDefinition_content [6..25]
- │   │   └─ LuauVariableAssignment [6..25]
- │   │       ├─ LuauVariableAssignment_begin [6..8]
- │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..7]
+ │   │   └─ LuauSparkdownVariableAssignment [6..25]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [6..8]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [6..7]
  │   │       │   │   └─ LuauVariableName [6..7]: "a"
- │   │       │   └─ LuauVariableAssignment_begin_c2 [7..8]
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [7..8]
  │   │       │       └─ OptionalWhitespace [7..8]: " "
- │   │       ├─ LuauVariableAssignment_content [8..25]
- │   │       │   └─ LuauAssignmentOperation [8..25]
- │   │       │       ├─ LuauAssignmentOperation_begin 8
- │   │       │       │   └─ LuauAssignmentOperation_begin_c1 8
+ │   │       ├─ LuauSparkdownVariableAssignment_content [8..25]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [8..25]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 8
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 8
  │   │       │       │       └─ OptionalWhitespace 8
- │   │       │       ├─ LuauAssignmentOperation_content [8..25]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [8..25]
  │   │       │       │   ├─ LuauAssignmentOperator [8..10]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [8..10]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 8
@@ -63,8 +63,8 @@ sparkdown [0..57]
  │   │       │       │           ├─ LuauInterpolatedString_end_c1 [24..25]
  │   │       │       │           │   └─ PunctuationStringBacktickQuoteClose [24..25]: "`"
  │   │       │       │           └─ LuauInterpolatedString_end_c2 25
- │   │       │       └─ LuauAssignmentOperation_end 25
- │   │       └─ LuauVariableAssignment_end 25
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 25
+ │   │       └─ LuauSparkdownVariableAssignment_end 25
  │   └─ LuauSparkdownVariableDefinition_end 25
  ├─ Newline [25..26]: "\n"
  ├─ LuauSparkdownVariableDefinition [26..56]
@@ -77,18 +77,18 @@ sparkdown [0..57]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [31..32]
  │   │           └─ OptionalWhitespace [31..32]: " "
  │   ├─ LuauSparkdownVariableDefinition_content [32..56]
- │   │   └─ LuauVariableAssignment [32..56]
- │   │       ├─ LuauVariableAssignment_begin [32..34]
- │   │       │   ├─ LuauVariableAssignment_begin_c1 [32..33]
+ │   │   └─ LuauSparkdownVariableAssignment [32..56]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [32..34]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [32..33]
  │   │       │   │   └─ LuauVariableName [32..33]: "b"
- │   │       │   └─ LuauVariableAssignment_begin_c2 [33..34]
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [33..34]
  │   │       │       └─ OptionalWhitespace [33..34]: " "
- │   │       ├─ LuauVariableAssignment_content [34..56]
- │   │       │   └─ LuauAssignmentOperation [34..56]
- │   │       │       ├─ LuauAssignmentOperation_begin 34
- │   │       │       │   └─ LuauAssignmentOperation_begin_c1 34
+ │   │       ├─ LuauSparkdownVariableAssignment_content [34..56]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [34..56]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 34
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 34
  │   │       │       │       └─ OptionalWhitespace 34
- │   │       │       ├─ LuauAssignmentOperation_content [34..56]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [34..56]
  │   │       │       │   ├─ LuauAssignmentOperator [34..36]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [34..36]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 34
@@ -155,7 +155,7 @@ sparkdown [0..57]
  │   │       │       │           ├─ LuauDoubleQuotedString_end_c1 [55..56]
  │   │       │       │           │   └─ PunctuationStringDoubleQuoteClose [55..56]: "\""
  │   │       │       │           └─ LuauDoubleQuotedString_end_c2 56
- │   │       │       └─ LuauAssignmentOperation_end 56
- │   │       └─ LuauVariableAssignment_end 56
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 56
+ │   │       └─ LuauSparkdownVariableAssignment_end 56
  │   └─ LuauSparkdownVariableDefinition_end 56
  └─ Newline [56..57]: "\n"

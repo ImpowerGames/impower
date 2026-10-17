@@ -359,8 +359,9 @@ describe("a structural word is a name outside its shape (#984)", () => {
 
   // The operation holds the line break after an `=` with no value on its
   // line, so it decides nothing from the comment's text, and it ends at a
-  // later line's first token wherever it stands.
-  test("the scope opened at an `=` ends at a later line's first token in narrative and define bodies too", () => {
+  // later line's first token wherever it stands. A narrative statement has
+  // no such scope and ends at its line.
+  test("the scope opened at an `=` ends at a later line's first token in define bodies, and narrative statements end at their line", () => {
     const tree = (source: string) => stripAnsi(dumpTree(source));
     // A narrative reassignment with no value leaves the next line to the story.
     expect(tree("scene A\n  y = -- note\n  Hello there.\nend\n")).toMatch(/─ ActionLineEnd \[/);
@@ -464,5 +465,36 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
   ])("after %s", (_name, statement) => {
     const source = `function f(c)\n  ${statement}\n  return x\nend\n\n{f(true)} {f(false)}\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 2\n" });
+  });
+});
+
+// A narrative declaration or reassignment ends at its line, so an `=` that
+// ends it is missing its value there, whatever the next lines hold; only
+// Luau bodies read a value from a later line. A block comment carrying a
+// narrative statement on is #1907's.
+describe("a narrative `=` that ends its line has no value (#1906)", () => {
+  test.each([
+    ["declaration", "local q =", "0:8-0:9"],
+    ["reassignment", "store q = 0\nq =", "1:2-1:3"],
+  ])("a %s's value after a multi-line comment's close is not read", (_kind, statement, at) => {
+    const source = `${statement}\n--[[ a\nb\n]] l\nAfter.\n`;
+    expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got 'b'`]);
+  });
+
+  test.each([
+    ["declaration", "local y =", "0:8-0:9"],
+    ["reassignment", "store y = 0\ny =", "1:2-1:3"],
+  ])("a %s before an if line ends at its line", (_kind, statement, at) => {
+    const source = `${statement}\nif true then\n  Inside.\nend\nAfter.\n`;
+    expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got 'if'`]);
+    // The `if` line is a narrative if block, and no statement crosses into it.
+    const ifAt = source.indexOf("\nif") + 1;
+    const top = stripAnsi(dumpTree(source))
+      .split("\n")
+      .map((line) => /^ [├└]─ (\S+) \[(\d+)\.\.(\d+)\]/.exec(line))
+      .filter((m) => m !== null)
+      .map((m) => ({ name: m[1], from: Number(m[2]), to: Number(m[3]) }));
+    expect(top.find((node) => node.from === ifAt)?.name).toBe("LuauSparkdownIfBlock");
+    expect(top.filter((node) => node.from < ifAt && node.to > ifAt)).toEqual([]);
   });
 });

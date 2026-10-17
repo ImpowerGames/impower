@@ -450,13 +450,13 @@ sparkdown [0..195]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [177..178]
  │   │           └─ OptionalWhitespace [177..178]: " "
  │   ├─ LuauSparkdownVariableDefinition_content [178..188]
- │   │   └─ LuauVariableAssignment [178..188]
- │   │       ├─ LuauVariableAssignment_begin [178..179]
- │   │       │   ├─ LuauVariableAssignment_begin_c1 [178..179]
+ │   │   └─ LuauSparkdownVariableAssignment [178..188]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [178..179]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [178..179]
  │   │       │   │   └─ LuauVariableName [178..179]: "w"
- │   │       │   └─ LuauVariableAssignment_begin_c2 179
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 179
  │   │       │       └─ OptionalWhitespace 179
- │   │       ├─ LuauVariableAssignment_content [179..188]
+ │   │       ├─ LuauSparkdownVariableAssignment_content [179..188]
  │   │       │   └─ LuauTypeAnnotationOperation [179..188]
  │   │       │       ├─ LuauTypeAnnotationOperation_begin 179
  │   │       │       │   └─ LuauTypeAnnotationOperation_begin_c1 179
@@ -486,7 +486,7 @@ sparkdown [0..195]
  │   │       │       │       │       └─ LuauNamedTypeReference_end 188
  │   │       │       │       └─ LuauTypeLiteral_end 188
  │   │       │       └─ LuauTypeAnnotationOperation_end 188
- │   │       └─ LuauVariableAssignment_end 188
+ │   │       └─ LuauSparkdownVariableAssignment_end 188
  │   └─ LuauSparkdownVariableDefinition_end 188
  ├─ ImplicitAction [188..194]
  │   ├─ ImplicitAction_begin 188

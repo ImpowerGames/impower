@@ -45,6 +45,7 @@ const VALUE_TAKING_STATEMENTS: ReadonlySet<string> = new Set([
   "LuauSparkdownVariableDefinition",
   "LuauReassignment",
   "LuauAssignmentOperation",
+  "LuauSparkdownAssignmentOperation",
   "LuauReturnStatement",
   "LuauPropertyDefinition",
 ]);
