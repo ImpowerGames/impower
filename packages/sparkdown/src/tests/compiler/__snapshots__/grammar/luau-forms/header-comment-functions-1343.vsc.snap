@@ -1,4 +1,4 @@
-text.source.sparkdown [0..191]
+text.source.sparkdown [0..248]
  ├─ meta.function.luau [0..23]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -130,4 +130,45 @@ text.source.sparkdown [0..191]
  ├─ Newline [186..187]: "\n"
  ├─ meta.function.luau [187..190]
  │   └─ keyword.control.end.luau [187..190]: "end"
- └─ Newline [190..191]: "\n"
+ ├─ Newline [190..191]: "\n"
+ ├─ keyword.operator.attribute.luau [191..192]: "@"
+ ├─ storage.type.attribute.luau [192..198]: "native"
+ ├─ comment.block.luau [198..209]
+ │   ├─ punctuation.whitespace.sd [198..199]: " "
+ │   ├─ comment.luau [199..202]: "--["
+ │   ├─ comment.luau [202..203]: "["
+ │   ├─ punctuation.definition.comment.content.sd [203..204]: " "
+ │   ├─ punctuation.definition.comment.content.sd [204..205]: "c"
+ │   ├─ punctuation.definition.comment.content.sd [205..206]: " "
+ │   ├─ comment.luau [206..207]: "]"
+ │   ├─ comment.luau [207..208]: "]"
+ │   └─ punctuation.whitespace.optional.sd [208..209]: " "
+ ├─ meta.function.luau [209..232]
+ │   ├─ keyword.control.luau [209..217]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [217..218]: " "
+ │   ├─ comment.block.luau [218..228]
+ │   │   ├─ comment.luau [218..221]: "--["
+ │   │   ├─ comment.luau [221..222]: "["
+ │   │   ├─ punctuation.definition.comment.content.sd [222..223]: " "
+ │   │   ├─ punctuation.definition.comment.content.sd [223..224]: "c"
+ │   │   ├─ punctuation.definition.comment.content.sd [224..225]: " "
+ │   │   ├─ comment.luau [225..226]: "]"
+ │   │   ├─ comment.luau [226..227]: "]"
+ │   │   └─ punctuation.whitespace.optional.sd [227..228]: " "
+ │   ├─ entity.name.function.luau [228..229]: "p"
+ │   └─ meta.parameter.luau [229..232]
+ │       ├─ punctuation.definition.template-expression.begin.sd [229..230]: "("
+ │       ├─ variable.parameter.function.luau [230..231]: "w"
+ │       └─ punctuation.definition.template-expression.end.sd [231..232]: ")"
+ ├─ Newline [232..233]: "\n"
+ ├─ meta.function.luau [233..243]
+ │   └─ meta.function.body.luau [233..243]
+ │       └─ meta.function.luau [233..243]
+ │           ├─ punctuation.whitespace.optional.sd [233..235]: "  "
+ │           ├─ keyword.control.luau [235..241]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [241..242]: " "
+ │           └─ variable.other.readwrite.luau [242..243]: "w"
+ ├─ Newline [243..244]: "\n"
+ ├─ meta.function.luau [244..247]
+ │   └─ keyword.control.end.luau [244..247]: "end"
+ └─ Newline [247..248]: "\n"

@@ -124,8 +124,15 @@ const FORMS: Record<string, Form> = {
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["m", FUNCTION_NAME],
+      // with a block comment between two attributes
+      ["@", ATTRIBUTE_OPERATOR],
+      ["native", ATTRIBUTE],
+      ["@", ATTRIBUTE_OPERATOR],
+      ["checked", ATTRIBUTE],
+      ["function", FUNCTION],
+      ["n", FUNCTION_NAME],
     ],
-    output: "Value 7 1 2.\n",
+    output: "Value 7 1 2 3.\n",
   },
   "#1329 attributes that end their line before the function value they mark": {
     fixture: "attribute-line-break-1329",
@@ -146,6 +153,11 @@ const FORMS: Record<string, Form> = {
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
+      // with a `]` in an argument's string on its first line
+      ["@", ATTRIBUTE_OPERATOR],
+      ["deprecated", ATTRIBUTE],
+      ["native", ATTRIBUTE],
+      ["function", FUNCTION],
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
@@ -162,10 +174,11 @@ const FORMS: Record<string, Form> = {
       ["@checked\n  function", "LuauSparkdownVariableDefinition"],
       ["@[native] --[[c]] function", "LuauSparkdownVariableDefinition"],
       ["  native\n]\nfunction", "LuauSparkdownVariableDefinition"],
+      ['"]" },\n  native\n]\nfunction', "LuauSparkdownVariableDefinition"],
       ["@native\n    function", "LuauVariableDefinition"],
       ["@checked function", "LuauVariableDefinition"],
     ],
-    output: "Value 9 3 4 5 15.\n",
+    output: "Value 9 3 4 5 6 15.\n",
   },
   "#921 attributes on their own line before a function statement, and a block comment after an attribute": {
     fixture: "attribute-statement-lines-921",
@@ -368,6 +381,9 @@ const FORMS: Record<string, Form> = {
       // after an attribute
       ["h", FUNCTION_NAME],
       ["z", PARAMETER],
+      // after an attribute and a block comment
+      ["p", FUNCTION_NAME],
+      ["w", PARAMETER],
     ],
   },
   "#1344 a loop condition on the line after for or while": {

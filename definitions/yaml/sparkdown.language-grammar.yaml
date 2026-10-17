@@ -825,7 +825,13 @@ variables:
   # The space an attribute takes before what follows it on its line.
   _LUAU_ATTRIBUTE_FOLLOWER_SPACE_: (?:({{WS}}+){{LUAU_ATTRIBUTE_FOLLOWER}})?
   LUAU_LOCAL_PREFIX: (?:local{{WS}}+)
-  LUAU_ATTRIBUTE_ON_LINE: (?:@{{LUAU_IDENTIFIER}}|@\[[^\r\n]*?\])
+  LUAU_ATTRIBUTE_ON_LINE: (?:@{{LUAU_IDENTIFIER}}|@\[{{LUAU_ATTRIBUTE_LIST_TEXT}}*\])
+  # The text of an attribute list on its line: a string, a block comment
+  # that closes on the line, or any other character but a bracket or a
+  # quote, so a `]` in an argument's string (`@[deprecated{ reason = "]" }]`)
+  # does not close the list.
+  LUAU_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|{{LUAU_PLAIN_BLOCK_COMMENT}}|[^\[\]"'\r\n])
+  LUAU_ATTRIBUTE_LIST_STRING: (?:{{QUOTED_STRING}}|'(?:\\.|[^'\\\r\n])*')
   # lookaround: LuauFunctionDefinition owns the function after the
   # attributes, and SparkdownStatement owns any other top-level line that
   # begins with `@`; only the function on the line tells them apart.
@@ -837,12 +843,12 @@ variables:
   # attributes, then the function on the line, the line's end or a comment
   # after which it may follow; or a list that does not close on its line.
   LUAU_ATTRIBUTED_FUNCTION_VALUE_AHEAD: (?:{{LUAU_ATTRIBUTES_ON_LINE}}{{LUAU_ATTRIBUTE_TRIVIA}}*(?:{{LUAU_LOCAL_PREFIX}}?function\b|$|--)|{{LUAU_UNCLOSED_ATTRIBUTE_LIST}})
-  # lookaround: LuauAttributeList reads a list that closes on its line; one
-  # that does not leaves the function on a later line to
-  # LuauAttributedFunctionValue.
-  LUAU_UNCLOSED_ATTRIBUTE_LIST: (?:@\[(?![^\r\n]*\]))
-  # One or more attributes side by side on a line.
-  LUAU_ATTRIBUTES_ON_LINE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}(?:{{WS}}*{{LUAU_ATTRIBUTE_ON_LINE}})*)
+  # An attribute list that does not close on its line, whose function
+  # follows the list's close on a later line.
+  LUAU_UNCLOSED_ATTRIBUTE_LIST: (?:@\[{{LUAU_ATTRIBUTE_LIST_TEXT}}*(?:--[^\r\n]*)?$)
+  # One or more attributes on a line, with any whitespace or block comments
+  # between them (`@native --[[c]] @deprecated`).
+  LUAU_ATTRIBUTES_ON_LINE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}(?:{{LUAU_ATTRIBUTE_TRIVIA}}*{{LUAU_ATTRIBUTE_ON_LINE}})*)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
@@ -1063,8 +1069,9 @@ variables:
   # modifiers a declaration's keyword may follow (`@native local function`,
   # `export type function`).
   LUAU_HEADER_LINE_START: (?:^{{WS}}*{{LUAU_HEADER_ATTRIBUTE}}*{{LUAU_DECLARATION_MODIFIER}}*)
-  # An attribute before a function's header keyword (`@native function`).
-  LUAU_HEADER_ATTRIBUTE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}{{WS}}*)
+  # An attribute before a function's header keyword, with the whitespace or
+  # block comments after it (`@native function`, `@native --[[c]] function`).
+  LUAU_HEADER_ATTRIBUTE: (?:{{LUAU_ATTRIBUTE_ON_LINE}}{{LUAU_ATTRIBUTE_TRIVIA}}*)
   LUAU_DECLARATION_MODIFIER: (?:{{LUAU_DECLARATION_MODIFIER_WORDS}}\b{{WS}}*)
   LUAU_DECLARATION_MODIFIER_WORDS: (?:local|export|type)
   # The keywords that declare a function's name.

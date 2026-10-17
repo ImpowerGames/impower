@@ -1,5 +1,5 @@
-text.source.sparkdown [0..137]
- ├─ string.display.text.chunk.sd [0..24]
+text.source.sparkdown [0..194]
+ ├─ string.display.text.chunk.sd [0..30]
  │   ├─ markup.raw.text.sd [0..5]: "Value"
  │   ├─ markup.raw.space.sd [5..6]: " "
  │   ├─ meta.template.expression.luau [6..11]
@@ -28,70 +28,108 @@ text.source.sparkdown [0..137]
  │   │   │       ├─ punctuation.definition.template-expression.begin.sd [20..21]: "("
  │   │   │       └─ punctuation.definition.template-expression.end.sd [21..22]: ")"
  │   │   └─ punctuation.definition.template-expression.end.sd [22..23]: "}"
- │   └─ markup.raw.punctuation.sd [23..24]: "."
- ├─ Newline [24..25]: "\n"
- ├─ keyword.operator.attribute.luau [25..26]: "@"
- ├─ storage.type.attribute.luau [26..32]: "native"
- ├─ punctuation.whitespace.required.sd [32..33]: " "
- ├─ meta.function.luau [33..58]
- │   ├─ keyword.control.luau [33..41]: "function"
- │   ├─ punctuation.whitespace.optional.sd [41..42]: " "
- │   ├─ entity.name.function.luau [42..43]: "f"
- │   ├─ meta.parameter.luau [43..45]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [43..44]: "("
- │   │   └─ punctuation.definition.template-expression.end.sd [44..45]: ")"
- │   ├─ meta.function.body.luau [45..54]
- │   │   └─ meta.function.luau [45..54]
- │   │       ├─ punctuation.whitespace.optional.sd [45..46]: " "
- │   │       ├─ keyword.control.luau [46..52]: "return"
- │   │       ├─ punctuation.whitespace.optional.sd [52..53]: " "
- │   │       └─ constant.numeric.decimal.luau [53..54]: "7"
- │   ├─ punctuation.whitespace.optional.sd [54..55]: " "
- │   └─ keyword.control.end.luau [55..58]: "end"
- ├─ Newline [58..59]: "\n"
- ├─ punctuation.whitespace.extra.sd [59..61]: "  "
- ├─ keyword.operator.attribute.luau [61..62]: "@"
- ├─ storage.type.attribute.luau [62..68]: "native"
- ├─ punctuation.whitespace.required.sd [68..69]: " "
- ├─ meta.function.luau [69..94]
- │   ├─ keyword.control.luau [69..77]: "function"
- │   ├─ punctuation.whitespace.optional.sd [77..78]: " "
- │   ├─ entity.name.function.luau [78..79]: "k"
- │   ├─ meta.parameter.luau [79..81]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [79..80]: "("
- │   │   └─ punctuation.definition.template-expression.end.sd [80..81]: ")"
- │   ├─ meta.function.body.luau [81..90]
- │   │   └─ meta.function.luau [81..90]
- │   │       ├─ punctuation.whitespace.optional.sd [81..82]: " "
- │   │       ├─ keyword.control.luau [82..88]: "return"
- │   │       ├─ punctuation.whitespace.optional.sd [88..89]: " "
- │   │       └─ constant.numeric.decimal.luau [89..90]: "1"
- │   ├─ punctuation.whitespace.optional.sd [90..91]: " "
- │   └─ keyword.control.end.luau [91..94]: "end"
- ├─ Newline [94..95]: "\n"
- ├─ keyword.operator.attribute.luau [95..96]: "@"
- ├─ storage.type.attribute.luau [96..102]: "native"
- ├─ comment.block.luau [102..111]
- │   ├─ punctuation.whitespace.sd [102..103]: " "
- │   ├─ comment.luau [103..106]: "--["
- │   ├─ comment.luau [106..107]: "["
- │   ├─ punctuation.definition.comment.content.sd [107..108]: "c"
- │   ├─ comment.luau [108..109]: "]"
- │   ├─ comment.luau [109..110]: "]"
- │   └─ punctuation.whitespace.optional.sd [110..111]: " "
- ├─ meta.function.luau [111..136]
- │   ├─ keyword.control.luau [111..119]: "function"
- │   ├─ punctuation.whitespace.optional.sd [119..120]: " "
- │   ├─ entity.name.function.luau [120..121]: "m"
- │   ├─ meta.parameter.luau [121..123]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [121..122]: "("
- │   │   └─ punctuation.definition.template-expression.end.sd [122..123]: ")"
- │   ├─ meta.function.body.luau [123..132]
- │   │   └─ meta.function.luau [123..132]
- │   │       ├─ punctuation.whitespace.optional.sd [123..124]: " "
- │   │       ├─ keyword.control.luau [124..130]: "return"
- │   │       ├─ punctuation.whitespace.optional.sd [130..131]: " "
- │   │       └─ constant.numeric.decimal.luau [131..132]: "2"
- │   ├─ punctuation.whitespace.optional.sd [132..133]: " "
- │   └─ keyword.control.end.luau [133..136]: "end"
- └─ Newline [136..137]: "\n"
+ │   ├─ markup.raw.space.sd [23..24]: " "
+ │   ├─ meta.template.expression.luau [24..29]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [24..25]: "{"
+ │   │   ├─ meta.embedded.line.luau [25..28]
+ │   │   │   ├─ entity.name.function.luau [25..26]: "n"
+ │   │   │   └─ meta.parameter.luau [26..28]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [26..27]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [27..28]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [28..29]: "}"
+ │   └─ markup.raw.punctuation.sd [29..30]: "."
+ ├─ Newline [30..31]: "\n"
+ ├─ keyword.operator.attribute.luau [31..32]: "@"
+ ├─ storage.type.attribute.luau [32..38]: "native"
+ ├─ punctuation.whitespace.required.sd [38..39]: " "
+ ├─ meta.function.luau [39..64]
+ │   ├─ keyword.control.luau [39..47]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [47..48]: " "
+ │   ├─ entity.name.function.luau [48..49]: "f"
+ │   ├─ meta.parameter.luau [49..51]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [49..50]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [50..51]: ")"
+ │   ├─ meta.function.body.luau [51..60]
+ │   │   └─ meta.function.luau [51..60]
+ │   │       ├─ punctuation.whitespace.optional.sd [51..52]: " "
+ │   │       ├─ keyword.control.luau [52..58]: "return"
+ │   │       ├─ punctuation.whitespace.optional.sd [58..59]: " "
+ │   │       └─ constant.numeric.decimal.luau [59..60]: "7"
+ │   ├─ punctuation.whitespace.optional.sd [60..61]: " "
+ │   └─ keyword.control.end.luau [61..64]: "end"
+ ├─ Newline [64..65]: "\n"
+ ├─ punctuation.whitespace.extra.sd [65..67]: "  "
+ ├─ keyword.operator.attribute.luau [67..68]: "@"
+ ├─ storage.type.attribute.luau [68..74]: "native"
+ ├─ punctuation.whitespace.required.sd [74..75]: " "
+ ├─ meta.function.luau [75..100]
+ │   ├─ keyword.control.luau [75..83]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [83..84]: " "
+ │   ├─ entity.name.function.luau [84..85]: "k"
+ │   ├─ meta.parameter.luau [85..87]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [85..86]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [86..87]: ")"
+ │   ├─ meta.function.body.luau [87..96]
+ │   │   └─ meta.function.luau [87..96]
+ │   │       ├─ punctuation.whitespace.optional.sd [87..88]: " "
+ │   │       ├─ keyword.control.luau [88..94]: "return"
+ │   │       ├─ punctuation.whitespace.optional.sd [94..95]: " "
+ │   │       └─ constant.numeric.decimal.luau [95..96]: "1"
+ │   ├─ punctuation.whitespace.optional.sd [96..97]: " "
+ │   └─ keyword.control.end.luau [97..100]: "end"
+ ├─ Newline [100..101]: "\n"
+ ├─ keyword.operator.attribute.luau [101..102]: "@"
+ ├─ storage.type.attribute.luau [102..108]: "native"
+ ├─ comment.block.luau [108..117]
+ │   ├─ punctuation.whitespace.sd [108..109]: " "
+ │   ├─ comment.luau [109..112]: "--["
+ │   ├─ comment.luau [112..113]: "["
+ │   ├─ punctuation.definition.comment.content.sd [113..114]: "c"
+ │   ├─ comment.luau [114..115]: "]"
+ │   ├─ comment.luau [115..116]: "]"
+ │   └─ punctuation.whitespace.optional.sd [116..117]: " "
+ ├─ meta.function.luau [117..142]
+ │   ├─ keyword.control.luau [117..125]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [125..126]: " "
+ │   ├─ entity.name.function.luau [126..127]: "m"
+ │   ├─ meta.parameter.luau [127..129]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [127..128]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [128..129]: ")"
+ │   ├─ meta.function.body.luau [129..138]
+ │   │   └─ meta.function.luau [129..138]
+ │   │       ├─ punctuation.whitespace.optional.sd [129..130]: " "
+ │   │       ├─ keyword.control.luau [130..136]: "return"
+ │   │       ├─ punctuation.whitespace.optional.sd [136..137]: " "
+ │   │       └─ constant.numeric.decimal.luau [137..138]: "2"
+ │   ├─ punctuation.whitespace.optional.sd [138..139]: " "
+ │   └─ keyword.control.end.luau [139..142]: "end"
+ ├─ Newline [142..143]: "\n"
+ ├─ keyword.operator.attribute.luau [143..144]: "@"
+ ├─ storage.type.attribute.luau [144..150]: "native"
+ ├─ comment.block.luau [150..159]
+ │   ├─ punctuation.whitespace.sd [150..151]: " "
+ │   ├─ comment.luau [151..154]: "--["
+ │   ├─ comment.luau [154..155]: "["
+ │   ├─ punctuation.definition.comment.content.sd [155..156]: "c"
+ │   ├─ comment.luau [156..157]: "]"
+ │   ├─ comment.luau [157..158]: "]"
+ │   └─ punctuation.whitespace.optional.sd [158..159]: " "
+ ├─ keyword.operator.attribute.luau [159..160]: "@"
+ ├─ storage.type.attribute.luau [160..167]: "checked"
+ ├─ punctuation.whitespace.required.sd [167..168]: " "
+ ├─ meta.function.luau [168..193]
+ │   ├─ keyword.control.luau [168..176]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [176..177]: " "
+ │   ├─ entity.name.function.luau [177..178]: "n"
+ │   ├─ meta.parameter.luau [178..180]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [178..179]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [179..180]: ")"
+ │   ├─ meta.function.body.luau [180..189]
+ │   │   └─ meta.function.luau [180..189]
+ │   │       ├─ punctuation.whitespace.optional.sd [180..181]: " "
+ │   │       ├─ keyword.control.luau [181..187]: "return"
+ │   │       ├─ punctuation.whitespace.optional.sd [187..188]: " "
+ │   │       └─ constant.numeric.decimal.luau [188..189]: "3"
+ │   ├─ punctuation.whitespace.optional.sd [189..190]: " "
+ │   └─ keyword.control.end.luau [190..193]: "end"
+ └─ Newline [193..194]: "\n"

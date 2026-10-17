@@ -1,4 +1,5 @@
-Value {f()} {k()} {m()}.
+Value {f()} {k()} {m()} {n()}.
 @native function f() return 7 end
   @native function k() return 1 end
 @native --[[c]] function m() return 2 end
+@native --[[c]] @checked function n() return 3 end

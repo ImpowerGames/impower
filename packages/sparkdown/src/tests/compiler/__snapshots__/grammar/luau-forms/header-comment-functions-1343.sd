@@ -4,3 +4,6 @@ function --[[ c ]] f(x)
   @native function --[[ c ]] h(z) return z end
   return g(x)
 end
+@native --[[ c ]] function --[[ c ]] p(w)
+  return w
+end
