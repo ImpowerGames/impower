@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 220,
-  "previous": "00c345699326f45a8f7beaf55a2b4ff412a0e853",
+  "seq": 221,
+  "previous": "19e6fdfac7bae6a0252273cf20bcef5b61a2e8ca",
   "snapshotParents": [],
-  "time": "2026-10-17T16:57:03.976Z",
+  "time": "2026-10-17T16:57:34.712Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "acknowledged of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 229,
+    "recordRevision": 230,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3063,7 +3063,18 @@
           "time": "2026-10-17T16:56:46.838Z",
           "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
         },
-        "since": "2026-10-17T16:56:46.839Z"
+        "since": "2026-10-17T16:56:46.839Z",
+        "sessionId": "7f2136c3-9032-46bb-8be3-193e66b4e7a0",
+        "acknowledged": {
+          "time": "2026-10-17T16:57:33.373Z",
+          "confirmed": {
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "permissionMode": "bypassPermissions"
+          },
+          "evidence": "cross-session message from impower-f8 on 2026-10-17 naming assignment 4c537485 with --model claude-opus-5-5, --effort high (CLAUDE_EFFORT=high), --permission-mode bypassPermissions",
+          "deliveryId": "77895904"
+        }
       },
       "pending": null,
       "history": [],
@@ -7656,7 +7667,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:57:03.975Z",
+      "observedAt": "2026-10-17T16:57:34.712Z",
       "held": true,
       "exists": false
     },
@@ -7665,7 +7676,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T16:57:03.975Z",
+      "observedAt": "2026-10-17T16:57:34.712Z",
       "held": true,
       "exists": false
     }
@@ -8038,15 +8049,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:20:58.510Z",
-      "event": "checkpoint-intent",
-      "ticket": 1374,
-      "id": "f7d1fa9b",
-      "kind": "extend",
-      "round": 4,
-      "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6"
-    },
     {
       "time": "2026-10-17T06:21:01.472Z",
       "event": "checkpoint-published",
@@ -8787,6 +8789,16 @@
       "time": "2026-10-17T16:57:02.717Z",
       "event": "check-in",
       "outcome": "PR #1993 merged as 991b9945 (operation 9711dd68) and the #1924 writer released; #1907 (High) and #1977 (Low) claimed, briefed and launched on claude-cli; awaiting acknowledgements"
+    },
+    {
+      "time": "2026-10-17T16:57:33.374Z",
+      "event": "acknowledged",
+      "ticket": 1907,
+      "confirmed": {
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "permissionMode": "bypassPermissions"
+      }
     }
   ]
 }
