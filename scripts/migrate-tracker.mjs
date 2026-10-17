@@ -59,9 +59,11 @@ const MODES = ["snapshot", "transfer", "restore", "rewrite", "map", "verify", "r
 // ---------------------------------------------------------------------------
 // References in Markdown
 
-// A fence marker once a line's blockquote markers are removed, allowing a
-// list-item marker before it.
+// A fence opener once a line's blockquote markers are removed, allowing a
+// list-item marker before it, and a closer, which is the marker alone: a
+// line that starts a list item inside a fence is code, not its end.
 const FENCE = /^[ \t]*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?(`{3,}|~{3,})(.*)$/;
+const FENCE_CLOSE = /^[ \t]*(`{3,}|~{3,})[ \t]*$/;
 
 /** A line's blockquote depth (its leading `>` markers) and the text after them. */
 function quoted(line) {
@@ -104,7 +106,8 @@ export function splitCode(text) {
     if (fence && depth < fence.depth) fence = null;
     if (fence) {
       push(true, line);
-      if (depth === fence.depth && m && m[1][0] === fence.char && m[1].length >= fence.length && m[2].trim() === "") fence = null;
+      const close = rest.match(FENCE_CLOSE);
+      if (depth === fence.depth && close && close[1][0] === fence.char && close[1].length >= fence.length) fence = null;
       continue;
     }
     if (m && !(m[1][0] === "`" && m[2].includes("`"))) {
@@ -159,39 +162,106 @@ function splitInline(text, push) {
   push(false, text.slice(start));
 }
 
-/** The offset of the run of exactly n backticks closing a span, or -1; a blank line ends the paragraph. */
+// A line that starts a new block, so no code span reaches into it from the
+// line before: a blank line, a list item, a heading or a table row, after
+// any blockquote markers.
+const BLOCK_START = /^[ \t]*(?:>[ \t]?)*(?:[ \t]*\r?$|(?:[-*+]|\d{1,9}[.)])[ \t]|#{1,6}(?:[ \t]|\r?$)|\|)/;
+const HEADING = /^[ \t]{0,3}(?:>[ \t]?)*#{1,6}(?:[ \t]|$)/;
+
+/**
+ * The offset of the run of exactly n backticks closing a span that opens
+ * before `from`, or -1. A span stays within its block: it ends at a line
+ * that starts a new block, and with the line of a heading.
+ */
 function spanCloser(text, from, n) {
-  const re = /`+|\n[ \t]*\r?\n/g;
+  const re = /`+|\n/g;
   re.lastIndex = from;
+  let lineStart = text.lastIndexOf("\n", from - 1) + 1;
   for (let m; (m = re.exec(text)); ) {
-    if (m[0][0] !== "`") return -1;
+    if (m[0] === "\n") {
+      if (HEADING.test(text.slice(lineStart, m.index))) return -1;
+      lineStart = m.index + 1;
+      const end = text.indexOf("\n", lineStart);
+      if (BLOCK_START.test(text.slice(lineStart, end < 0 ? text.length : end))) return -1;
+      continue;
+    }
     if (m[0].length === n) return m.index;
   }
   return -1;
 }
 
-// A bare reference: `#N` at the start, after white space or after
-// punctuation that GitHub links it behind, and not followed by a word
-// character. `owner/repo#N`, `word#N`, a URL fragment, an HTML entity
-// (`&#12;`) and an escaped `\#12` are not bare references.
-const BARE_REF = /(^|[\s([{<>"'*_~,;:!?|=+])#(\d+)(?!\w)/g;
+// A bare reference: `#N` not preceded by a word character and not followed
+// by one, as GitHub links it, so `#216/#218`, `#1386–#1389` and `pre-#1061`
+// are references (GitHub's renderer linked each of them in the corpus
+// check). `owner/repo#N`, `word#N`, a URL fragment, an HTML entity
+// (`&#12;`), `##12` and an escaped `\#12` are not bare references.
+const BARE_REF = /(^|[^\w&#\x5c])#(\d+)(?!\w)/g;
 
-// Link destinations are not references: a Markdown inline link's `](...)`,
-// a link reference definition's `[label]: destination`, and a URL written
-// out (`https://host/?q=#12`). Bare references are not mapped inside them.
-const LINK_DESTINATION = /\]\([^)\s]*(?:\s+(?:"[^"]*"|'[^']*'))?\)|^[ \t]{0,3}\[[^\]]+\]:[ \t]*\S+|(?:https?|ftp):\/\/[^\s<>]+/gm;
+// Link destinations are not references: a Markdown inline link's `](...)`
+// (see inlineLinkEnd), a link reference definition's `[label]: destination`,
+// and a URL written out (`https://host/?q=#12`). Bare references are not
+// mapped inside them.
+const LINK_DEFINITION_OR_URL = /^[ \t]{0,3}\[[^\]]+\]:[ \t]*\S+|(?:https?|ftp):\/\/[^\s<>]+/gm;
 
 function mapProse(text, fn) {
   return splitCode(text ?? "").map((p) => (p.code ? p.text : fn(p.text))).join("");
 }
 
+/**
+ * The end of an inline link's `(destination "title")` that starts at
+ * `open` (the offset of its `(`), or -1 when none is there. The destination
+ * is `<...>` or a run without spaces whose parentheses balance, a backslash
+ * escaping the next character, as CommonMark has it.
+ */
+function inlineLinkEnd(text, open) {
+  let i = open + 1;
+  const space = () => {
+    while (/\s/.test(text[i] ?? "")) i++;
+  };
+  space();
+  if (text[i] === "<") {
+    while (i < text.length && text[i] !== ">" && text[i] !== "\n") i += text[i] === "\x5c" ? 2 : 1;
+    if (text[i] !== ">") return -1;
+    i++;
+  } else {
+    let depth = 0;
+    for (; i < text.length && !/\s/.test(text[i]); i++) {
+      if (text[i] === "\x5c") i++;
+      else if (text[i] === "(") depth++;
+      else if (text[i] === ")") {
+        if (depth === 0) break;
+        depth--;
+      }
+    }
+    if (depth !== 0) return -1;
+  }
+  space();
+  const quote = { '"': '"', "'": "'", "(": ")" }[text[i]];
+  if (quote) {
+    for (i++; i < text.length && text[i] !== quote; i++) if (text[i] === "\x5c") i++;
+    if (text[i] !== quote) return -1;
+    i++;
+    space();
+  }
+  return text[i] === ")" ? i + 1 : -1;
+}
+
 /** Applies fn to the parts of prose outside link destinations. */
 function outsideLinks(prose, fn) {
+  const ranges = [];
+  for (let at = prose.indexOf("]("); at >= 0; at = prose.indexOf("](", at + 1)) {
+    const end = inlineLinkEnd(prose, at + 1);
+    if (end > 0) ranges.push([at, end]);
+  }
+  for (const m of prose.matchAll(LINK_DEFINITION_OR_URL)) ranges.push([m.index, m.index + m[0].length]);
+  ranges.sort((a, b) => a[0] - b[0]);
   let out = "";
   let last = 0;
-  for (const m of prose.matchAll(LINK_DESTINATION)) {
-    out += fn(prose.slice(last, m.index)) + m[0];
-    last = m.index + m[0].length;
+  for (const [start, end] of ranges) {
+    if (end <= last) continue;
+    const from = Math.max(start, last);
+    out += fn(prose.slice(last, from)) + prose.slice(from, end);
+    last = end;
   }
   return out + fn(prose.slice(last));
 }

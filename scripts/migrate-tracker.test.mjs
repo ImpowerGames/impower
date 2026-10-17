@@ -55,6 +55,10 @@ test("a bare reference to a migrated ticket takes its new number, a pull request
   assert.equal(rw("a number the code repository never had: #999"), "a number the code repository never had: #999");
 });
 
+test("references joined by a slash, a dash or an en dash are each references, as GitHub links them", () => {
+  assert.equal(rw("#12/#40, #12–#40, pre-#12 and exact#12"), "#3/#41, #3–#41, pre-#3 and exact#12");
+});
+
 test("the rewrite maps every reference once, from the old numbers, even when a new number is another old one", () => {
   // 12 -> 3 and 3 -> 7: a sequential replace would turn #12 into #7.
   assert.equal(rw("#12 then #3"), "#3 then #7");
@@ -77,11 +81,19 @@ test("a fence belongs to the blockquote it opened in", () => {
   assert.equal(rw("> ```\n> #12\n\nSee #12."), "> ```\n> #12\n\nSee #3.", "leaving the quote ends a fence opened in it");
   assert.equal(rw("> ```\n> #12\n> ```\n> #12"), "> ```\n> #12\n> ```\n> #3", "a marker at the same depth closes it");
   assert.equal(rw("> > ```\n> > #12\n> #12"), "> > ```\n> > #12\n> #3", "a nested quote's fence ends with the inner quote");
+  assert.equal(rw("```markdown\n- ```\n#12\n```\nSee #12."), "```markdown\n- ```\n#12\n```\nSee #3.", "a list marker before a fence marker does not close the fence");
+  assert.equal(rw("- ```\n  #12\n  ```\n#12"), "- ```\n  #12\n  ```\n#3", "an indented closer closes a list item's fence");
 });
 
 test("an unmatched backtick and a span broken by a blank line do not hide what follows", () => {
   assert.equal(rw("a ` stray #12"), "a ` stray #3");
   assert.equal(rw("`open\n\n#12 `"), "`open\n\n#3 `");
+  // From #1241's body: the stray backtick at the end of one list item does
+  // not pair with the next item's, as GitHub renders it.
+  assert.equal(rw("- a `b`) }`.\n- raises `missing #12` here #12"), "- a `b`) }`.\n- raises `missing #12` here #3");
+  assert.equal(rw("## Title `x\nsee #12 `y`"), "## Title `x\nsee #3 `y`", "a span ends with its heading's line");
+  assert.equal(rw("`a\nb #12` c"), "`a\nb #12` c", "a span still continues across a paragraph's lines");
+  assert.equal(rw("| `a | #12 |\n| b` | #12 |"), "| `a | #3 |\n| b` | #3 |", "a span does not cross table rows");
 });
 
 test("qualified, word-joined, URL, entity and escaped forms are not bare references", () => {
@@ -96,6 +108,9 @@ test("link destinations and written-out URLs keep their fragments", () => {
   assert.equal(rw('[docs](#12 "title") then #40'), '[docs](#12 "title") then #41');
   assert.equal(rw("[ref]: #12\n\nsee #12"), "[ref]: #12\n\nsee #3", "a link reference definition");
   assert.deepEqual(bareRefs("<https://x.test/#12> (#40)"), [40]);
+  assert.equal(rw("[docs](docs/(x)#12) and #12"), "[docs](docs/(x)#12) and #3", "balanced parentheses in a destination");
+  assert.equal(rw("[a](<my page#12>) [b](p\x5c)#12) [c](x#12 (title)) #12"), "[a](<my page#12>) [b](p\x5c)#12) [c](x#12 (title)) #3", "angle-bracket and escaped destinations, a parenthesised title");
+  assert.equal(rw("[unclosed](x #12"), "[unclosed](x #3", "no destination without its closing parenthesis");
 });
 
 test("the migration line names the old repository, so the rewrite leaves it", () => {
