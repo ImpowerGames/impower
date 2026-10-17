@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 252,
-  "previous": "f99ef356fc913cf74da2c20c5dfc10f73fc9e15b",
+  "seq": 253,
+  "previous": "3b8631986f5708759a7ee406357bd50b4ff19630",
   "snapshotParents": [],
-  "time": "2026-10-17T23:00:18.406Z",
+  "time": "2026-10-17T23:01:05.482Z",
   "kind": "auto",
-  "transition": "the outcome of operation 3ed70927",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 262,
@@ -8669,7 +8669,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T23:00:17.711Z",
+      "observedAt": "2026-10-17T23:01:04.779Z",
       "held": true,
       "head": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
       "remoteHead": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
@@ -9041,217 +9041,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T17:33:35.448Z",
+    "at": "2026-10-17T23:01:04.778Z",
     "tickets": [
-      {
-        "number": 984,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1002,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1093,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1102,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1121,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1195,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1197,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1199,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1200,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1203,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1204,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1205,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1206,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1207,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1209,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1243,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1247,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1248,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1254,
-        "action": "decision-needed",
-        "pr": null,
-        "reason": "the ticket has no Effort value; assign one through the issue-fields procedure"
-      },
-      {
-        "number": 1258,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1261,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1266,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1290,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1293,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1318,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1329,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1341,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1343,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1344,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1369,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
       {
         "number": 1374,
         "action": "done",
         "pr": null,
         "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1596,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1647,
-        "action": "done",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1658,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1890,
-        "action": "container",
-        "pr": null,
-        "reason": "its own sub-issues are planned individually"
       },
       {
         "number": 1905,
@@ -9267,9 +9063,9 @@
       },
       {
         "number": 1907,
-        "action": "observe",
-        "pr": null,
-        "reason": "process 21592 started 639278530064988717 is running"
+        "action": "merge-gate",
+        "pr": 2062,
+        "reason": "PR #2062 is ready at 08f9ad28f53ff87e753c9c410c7c5a39585d2df0; process 27532 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1908,
@@ -9291,111 +9087,9 @@
       },
       {
         "number": 1977,
-        "action": "release",
-        "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 19964 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
-      },
-      {
-        "number": 1985,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1986,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1987,
-        "action": "decision-needed",
-        "pr": null,
-        "reason": "the ticket has no Effort value; assign one through the issue-fields procedure"
-      },
-      {
-        "number": 1988,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1989,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1990,
         "action": "done",
         "pr": null,
         "reason": "closed with its merged deliverable on origin/main"
-      },
-      {
-        "number": 1991,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1992,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 1997,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
-      },
-      {
-        "number": 1998,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 2000,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 2001,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 2018,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 2023,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 2049,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at high: claude-cli: no preflight result for claude-opus-5-5 at high"
-      },
-      {
-        "number": 2059,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
-      },
-      {
-        "number": 2060,
-        "action": "blocked-route",
-        "pr": null,
-        "reason": "no supported route runs claude-opus-5-5 at low: claude-cli: no preflight result for claude-opus-5-5 at low"
       }
     ],
     "remaining": [
