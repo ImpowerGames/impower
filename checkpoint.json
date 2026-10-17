@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 170,
-  "previous": "a58f5ce74ba854956009c7f1f39c77f8328b063f",
+  "seq": 171,
+  "previous": "9c384b625b9883faabb0bc5f69b94b69247d739a",
   "snapshotParents": [],
-  "time": "2026-10-17T13:37:54.026Z",
+  "time": "2026-10-17T13:38:01.431Z",
   "kind": "auto",
-  "transition": "answered of #1924",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 181,
+    "recordRevision": 182,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5278,7 +5278,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:37:53.134Z",
+      "observedAt": "2026-10-17T13:38:00.541Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -5587,7 +5587,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:37:53.134Z",
+      "observedAt": "2026-10-17T13:38:00.541Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -6304,13 +6304,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:36:53.491Z",
-      "event": "dispatch-intent",
-      "ticket": 1908,
-      "route": "claude-cli",
-      "launchId": "157a9a9c-bce5-4635-b65a-7b7f25fc3b63"
-    },
     {
       "time": "2026-10-16T19:37:08.568Z",
       "event": "dispatch-intent",
@@ -7058,6 +7051,11 @@
       "ticket": 1924,
       "id": "71b72757",
       "deliveryId": "01625ad2"
+    },
+    {
+      "time": "2026-10-17T13:37:59.418Z",
+      "event": "check-in",
+      "outcome": "#1906: launch-axg-1 journal restored to end with its blocked row (exited row keeps executionDrained true with the census), backup moved out of the review-jobs tree; extension decision 7b1dad9e published (comment 6234513190) and the writer resumed with it; #1924: repair decision e43240d9 published (comment 6234468080), the maintainer decision recorded on #921, and the writer resumed with the ruling that an unspaced write (@name or dotted path then a colon) stays a write; cutover held by ORCH #1961 until both PRs merge"
     }
   ]
 }
