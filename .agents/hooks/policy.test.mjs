@@ -59,7 +59,7 @@ const checks = [
   [inRoot(event("Bash", { command: "npm run typecheck" })), true],
   [inRoot(event("Bash", { command: "npm run typecheck -- packages/sparkdown/tsconfig.json" })), false],
   [event("Bash", { command: "gh issue create --title x" }), true],
-  [event("Bash", { command: "gh issue create --title x --type Task" }), false],
+  [event("Bash", { command: "gh issue create --title x --type Task -R ImpowerGames/impower-internal" }), false],
   [event("Bash", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"}' }), true],
   [event("Write", { file_path: "C:\\repo\\packages\\sparkdown\\language\\sparkdown.language-grammar.json" }), true],
   [event("Edit", { file_path: "definitions/yaml/sparkdown.language-grammar.yaml" }), false],

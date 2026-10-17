@@ -4,7 +4,7 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 5. Write the ticket
 
-Follow `.github/ISSUE_TEMPLATE/bug_report.md`: same headings, same order, the leading comment gives the title convention and the label list. GitHub applies templates only in the web form, so read the file and produce the body yourself. Write the body to a file first; it survives a bad invocation.
+Follow `.agents/templates/issues/bug_report.md`: same headings, same order, the leading comment gives the title convention and the label list. GitHub applies templates only in the web form, so read the file and produce the body yourself. Write the body to a file first; it survives a bad invocation.
 
 What goes where:
 
@@ -20,15 +20,17 @@ Strip the template's HTML comments. Write "Unknown" under a heading you cannot f
 
 ## 6. File it and read it back
 
+`<tickets>` is the [tickets repository](../../references/publishing.md#the-tickets-repository) that `node .agents/repos.mjs tickets` prints.
+
 ```sh
-gh api -X POST repos/ImpowerGames/impower/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=system: sparkdown" -f "labels[]=app: web-editor" --jq '{number, url: .html_url, type: .type.name}'
-gh issue view <N> --json title,body,labels
+gh api -X POST repos/<tickets>/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=system: sparkdown" -f "labels[]=app: web-editor" --jq '{number, url: .html_url, type: .type.name}'
+gh issue view <N> -R <tickets> --json title,body,labels
 ```
 
 When the body embeds screenshots, create the issue with `gh issue create` instead, from the directory that holds the PNGs, so the type, labels and uploads land in one call; [attaching images](../../references/publishing.md#attach-images-and-videos) covers the reference format and the read-back:
 
 ```sh
-gh issue create --repo ImpowerGames/impower --title "<title>" --body-file ticket.md --type Bug --label "app: web-editor" --attach ./before.png --attach ./after.png
+gh issue create --repo <tickets> --title "<title>" --body-file ticket.md --type Bug --label "app: web-editor" --attach ./before.png --attach ./after.png
 ```
 
 One call creates the issue with its type and labels, so it never exists untyped. Always supply the type in the creation call, whether hooks run or not: `gh issue create --type` or a REST creation call with `type=`. `-F body=@ticket.md` reads the body from the file; never pass `--body @-` or `-f body=@-`, which `gh` takes as literal text. Read the body back and check that it is the body you wrote.

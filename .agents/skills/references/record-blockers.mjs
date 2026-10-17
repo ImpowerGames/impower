@@ -10,13 +10,13 @@
 // that are missing (by the blocker's database id, which the endpoint requires
 // in place of the number), and reads the list back. It exits non-zero when the
 // read-back lacks a stated blocker. Entries the body does not state are
-// reported and left alone.
+// reported and left alone. The tickets live in the repository ticketsRepo()
+// reads from .agents/repos.json, and the report names it.
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-const REPO = "ImpowerGames/impower";
+import { ticketsRepo } from "../../repos.mjs";
 
 /** The issue numbers a body states as blockers, in order, without repeats. */
 export function statedBlockers(body) {
@@ -88,9 +88,9 @@ export function recordBlockers(number, client, { dryRun = false } = {}) {
   return { number, stated, added: dryRun ? [] : missing, pending: dryRun ? missing : [], after, absent, unstated };
 }
 
-export function describe(result) {
+export function describe(result, repo) {
   const list = (numbers) => (numbers.length ? numbers.map((n) => `#${n}`).join(", ") : "none");
-  const lines = [`#${result.number}: stated ${list(result.stated)}; blocked-by read back ${list(result.after)}`];
+  const lines = [`${repo ?? ""}#${result.number}: stated ${list(result.stated)}; blocked-by read back ${list(result.after)}`];
   if (result.added.length) lines.push(`  added ${list(result.added)}`);
   if (result.pending.length) lines.push(`  would add ${list(result.pending)} (dry run)`);
   if (result.unstated.length) lines.push(`  not stated in the body, left alone: ${list(result.unstated)}`);
@@ -98,9 +98,11 @@ export function describe(result) {
   return lines.join("\n");
 }
 
-function ghClient(repo = REPO) {
-  const gh = (args) => JSON.parse(execFileSync("gh", args, { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, windowsHide: true }) || "null");
+/** The client the command line uses; `run` takes the gh arguments and returns its stdout. */
+export function ghClient(repo = ticketsRepo(), run = (args) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, windowsHide: true })) {
+  const gh = (args) => JSON.parse(run(args) || "null");
   return {
+    repo,
     body: (n) => gh(["api", `repos/${repo}/issues/${n}`]).body ?? "",
     id: (n) => gh(["api", `repos/${repo}/issues/${n}`]).id,
     blockedBy: (n) => gh(["api", `repos/${repo}/issues/${n}/dependencies/blocked_by`, "--paginate", "--slurp"]).flat(),
@@ -120,7 +122,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   let failed = false;
   for (const n of numbers) {
     const result = recordBlockers(Number(n), client, { dryRun });
-    console.log(describe(result));
+    console.log(describe(result, client.repo));
     if (result.absent.length) failed = true;
   }
   process.exit(failed ? 1 : 0);
