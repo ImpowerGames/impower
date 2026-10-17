@@ -773,6 +773,17 @@ try {
   const doneEvidence = { criteria: [met(criteria[0], ["merge operations of PRs #141, #142 and #143 carry the gate's admission and read-back"]), met(criteria[1], ["the final report names decision on PR #142 with its range"]), met(criteria[2], ["the unmet run above stayed open; this run closes with evidence"])] };
   const done = verify(doneEvidence);
   assert.equal(done.verdict, "complete");
+  // A delivered ticket's row carries its deliverer's PR and merge, which its
+  // own PR list lacks once tickets live apart.
+  {
+    const withDelivered = snapshotNow(dst);
+    const slice43 = withDelivered.tickets.find((t) => t.number === 43), merged43 = slice43.prs.find((p) => p.state === "MERGED");
+    withDelivered.tickets.push({ number: 45, title: "bug #43 delivered", state: "closed", type: "Bug", parent: ISSUE, container: false, effort: "High", delivered: true, blockers: [], prs: [], worktrees: [], deliveredBy: { ticket: 43, via: "pr", pr: merged43.number, merged: true } });
+    const report = ig.finalReport(run.readRecord(dstRecord), withDelivered, run.readRecord(dstRecord).verifications.find((v) => v.id === done.id));
+    const row = report.split("\n").find((l) => l.startsWith("| #45 |"));
+    assert.ok(row, "the delivered ticket has a row");
+    assert.match(row, new RegExp(`^\\| #45 \\| delivered \\| #${merged43.number} \\| delivered by #43's PR: merged by the coordinator as \\\`${String(merged43.mergeCommit).slice(0, 9)}\\\``), "the row names the deliverer, its PR and its merge through the gate");
+  }
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);
   // A complete verification stops holding once its premises change: a new
   // criterion, an unsettled operation, or main moving on. Neither the plan

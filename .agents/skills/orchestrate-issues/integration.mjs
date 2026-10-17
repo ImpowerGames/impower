@@ -355,10 +355,15 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
 // What the run merged, and how: through this run's gate with its
 // disposition, or outside it.
 function slices(record, snapshot) {
+  // A delivered ticket's PR and merge are its deliverer's; its own list may
+  // lack that PR once tickets live apart.
+  const prOf = (t) => (t.deliveredBy?.pr ? snapshot.tickets.find((x) => x.number === t.deliveredBy.ticket)?.prs.find((p) => p.number === t.deliveredBy.pr) ?? null : null);
   return snapshot.tickets.filter((t) => !t.container).map((t) => {
-    const merged = t.prs.find((p) => p.state === "MERGED" && p.mergeCommit);
+    const viaDeliverer = prOf(t);
+    const prs = viaDeliverer && !t.prs.some((p) => p.number === viaDeliverer.number) ? [...t.prs, viaDeliverer] : t.prs;
+    const merged = prs.find((p) => p.state === "MERGED" && p.mergeCommit);
     const op = merged && (record.operations ?? []).find((o) => o.kind === "merge" && o.pr === merged.number && o.state === "confirmed");
-    return { number: t.number, title: t.title, deliveredBy: t.deliveredBy ?? null, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
+    return { number: t.number, title: t.title, deliveredBy: t.deliveredBy ?? null, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
   });
 }
 
@@ -639,8 +644,8 @@ const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || 
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
 // The parent issue's snapshot, taken afresh each time a command needs one.
-const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, issue: record.issue }, githubClient(record, record.checkout));
-const liveScope = (record) => () => readIssueScope({ issue: record.issue }, githubClient(record, record.checkout));
+const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
+const liveScope = (record) => () => readIssueScope({ issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
 
 export function main(argv, { clientFor = integrationClient, gitFor = integrationGit, github, snapshotFor = liveSnapshot, scopeFor = liveScope } = {}) {
   const { command, o } = parse(argv);
