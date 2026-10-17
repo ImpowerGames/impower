@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 94,
-  "previous": "b98de6336905b21bba7fdc4d73176b50ef9de547",
+  "seq": 95,
+  "previous": "9e4779991bb657d383a72a904ca75a36cc3affbf",
   "snapshotParents": [],
-  "time": "2026-10-17T01:06:58.469Z",
+  "time": "2026-10-17T01:10:01.676Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "the merge of PR #1996 (failed)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 97,
+    "recordRevision": 98,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1513,9 +1513,9 @@
       "ticket": 1908,
       "pr": 1996,
       "expectHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
-      "state": "intent",
+      "state": "failed",
       "time": "2026-10-17T01:06:55.009Z",
-      "evidence": "admitted as reviewed",
+      "evidence": "not run: while the intent was saved, the Feature's slices changed during the final checks, from #1002 open, #1093 closed, #1102 open, #1121 open, #1195 open, #1197 open, #1199 open, #1200 open, #1203 open, #1204 open, #1205 closed, #1206 closed, #1207 open, #1209 open, #1243 closed, #1247 open, #1248 closed, #1254 open, #1258 closed, #1261 closed, #1266 open, #1290 closed, #1293 closed, #1318 closed, #1329 open, #1341 open, #1343 open, #1344 open, #1369 open, #1596 closed, #1647 closed, #1658 open, #1905 closed, #1906 open, #1907 open, #1908 open, #1909 closed, #1924 open, #1977 open, #1985 open, #1986 open, #1987 open, #1988 open, #1989 open, #1990 open, #1991 open, #1992 open, #1997 open, #1998 open, #2000 open, #2001 open, #2018 open, #984 open to #1002 open, #1093 closed, #1102 open, #1121 open, #1195 open, #1197 open, #1199 open, #1200 open, #1203 open, #1204 open, #1205 closed, #1206 closed, #1207 open, #1209 open, #1243 closed, #1247 open, #1248 closed, #1254 open, #1258 closed, #1261 closed, #1266 open, #1290 closed, #1293 closed, #1318 closed, #1329 open, #1341 open, #1343 open, #1344 open, #1369 open, #1596 closed, #1647 closed, #1658 open, #1905 closed, #1906 open, #1907 open, #1908 open, #1909 closed, #1924 open, #1977 open, #1985 open, #1986 open, #1987 open, #1988 open, #1989 open, #1990 open, #1991 open, #1992 open, #1997 open, #1998 open, #2000 open, #2001 open, #2018 open, #2023 open, #984 open; run the gate again",
       "gate": {
         "disposition": "reviewed",
         "reviewedHead": "855be21068d55f6f5dc050ed31c7d704b065698b",
@@ -1703,7 +1703,8 @@
             "result": "passed"
           }
         ]
-      }
+      },
+      "settled": "2026-10-17T01:09:57.033Z"
     }
   ],
   "decisions": [
@@ -1726,7 +1727,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T01:06:56.946Z",
+      "observedAt": "2026-10-17T01:09:59.500Z",
       "held": true,
       "head": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
       "remoteHead": "9e0c5e19d1d6d67aea7b56636ed4eebe7f7e4f38",
@@ -1862,7 +1863,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T01:06:56.946Z",
+      "observedAt": "2026-10-17T01:09:59.500Z",
       "held": true,
       "head": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
       "remoteHead": "398588031110f7340fc168c6bd0a384d2e4f9c1a",
@@ -3041,6 +3042,12 @@
       "id": "5b4c5541",
       "kind": "merge",
       "pr": 1996
+    },
+    {
+      "time": "2026-10-17T01:09:57.033Z",
+      "event": "operation-outcome",
+      "id": "5b4c5541",
+      "state": "failed"
     }
   ]
 }
