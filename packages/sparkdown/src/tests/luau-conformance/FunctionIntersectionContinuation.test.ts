@@ -85,6 +85,22 @@ test.each([
     "a return type, with a statement after it on its line",
     "local function g(): number\n  & number return 1\nend\nreturn g()",
   ],
+  [
+    "a type alias, with a block comment and a statement after it on its line",
+    "type T = number\n& number --[[note]] local a = 9\nreturn a",
+  ],
+  [
+    "a type alias, with a statement right after it on its line",
+    "type T = {}\n& {}local a = 9\nreturn a",
+  ],
+  [
+    "a return type, with a return right after it on its line",
+    "local function g(): {}\n  & {}return {}\nend\nreturn 1",
+  ],
+  [
+    "an annotation, with a value, a block comment and a statement on its line",
+    "local a = 1\nlocal w: number\n  & number = a --[[note]] local b = 2\nreturn w + b",
+  ],
 ])("an intersection line after %s reads as Luau", (_name, body) => {
   expect(checkLuau(body).syntaxDiagnostics).toEqual([]);
 });
@@ -132,17 +148,20 @@ test.each([
     'local function g(): { x: number }\n  & { y: string }\n  return { x = 7, y = "ok" }\nend\nreturn g().x',
     "7",
   ],
-  [
-    "a type alias, with a statement after it on its line",
-    "type T = number\n& number local a = 9\nreturn a",
-    "9",
-  ],
-  [
-    "a return type, with a statement after it on its line",
-    "local function g(): number\n  & number return 8\nend\nreturn g()",
-    "8",
-  ],
 ])("an intersection line after %s runs", (_name, body, value) => {
+  const ctx = makeRuntimeStoryFromSource(inFunction(body));
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
+});
+
+// Controls: a statement later on a member line runs. The converter reads
+// the line as Luau does, so these ran before the member line's end moved to
+// that statement too; the "reads as Luau" cases above and the grammar
+// fixture are what pin the boundary.
+test.each([
+  ["a type alias", "type T = number\n& number local a = 9\nreturn a", "9"],
+  ["a return type", "local function g(): number\n  & number return 8\nend\nreturn g()", "8"],
+])("a statement after a member line of %s runs", (_name, body, value) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);

@@ -17,12 +17,21 @@ end
 function h()
   type V = number
   & number local a = 9
+  type V2 = number
+  & number --[[note]] local b = 9
+  type V3 = {}
+  & {}local c = 9
   local w: number
     & number = a
+  local x: number
+    & number = a --[[note]] local d = 1
   return w
 end
 local function k(): number
   & number return 1
+end
+local function m(): {}
+  & {}return {}
 end
 store count = 0
 local s: number

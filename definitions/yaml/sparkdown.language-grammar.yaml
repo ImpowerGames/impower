@@ -11632,6 +11632,12 @@ repository:
   # The begin takes an `&` itself: a type that began at the `&` would begin
   # at the line's start, where `LUAU_TYPE_LINE_BREAK` ends it before it reads
   # anything. The type after the `&` is `LuauTypeLiteral`.
+  #
+  # lookaround: LuauComment and the enclosing body's declarations and
+  # returns (LuauVariableDefinition, LuauReturnStatement) own a block
+  # comment and the statement after it later on the line. No pattern of
+  # this rule can close it before them, so its end carries the boundary
+  # (§10.1), as LuauVariableDefinition's end does with the same variables.
   LuauTypeOperatorLineContinuation:
     begin: ^({{WS}}*)(?:([&])({{WS}}*)|(?=[|](?![|])))
     beginCaptures:
@@ -11652,13 +11658,16 @@ repository:
       - { include: "#LuauTypeLiteral" }
     # It ends where its type does: at the line's end, at the next line of
     # code that is not itself a `|` or `&` line (a type took the line break),
-    # at a comma or closing bracket (`| string)` in a parameter list), or, as
-    # a declaration does, at whitespace before a statement later on the line
-    # (`& number local a = 9`, `& { y: string } return v`), which Luau reads
-    # as the next statement; the `= value` the line ends with stays in it. It
-    # does not end where `LUAU_TYPE_LINE_BREAK` would at an `&` line's start,
-    # or it would end where it begins.
-    end: (?={{BEAT}})|(?=^{{WS}}*[^|&\s]|$|[,;)\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})
+    # or at a comma or closing bracket (`| string)` in a parameter list). It
+    # also ends, as `LuauVariableDefinition` does, before a statement later on
+    # the line, which Luau reads as the next statement: at whitespace before
+    # it (`& number local a = 9`), at its keyword right after the type
+    # (`& {}local a = 9`, `& {}return v`), and before a block comment that
+    # such a statement follows, after the type (`& number --[[c]] local a`)
+    # or after the `= value` the line ends with, which stays in it. It does
+    # not end where `LUAU_TYPE_LINE_BREAK` would at an `&` line's start, or
+    # it would end where it begins.
+    end: (?={{BEAT}})|(?=^{{WS}}*[^|&\s]|$|[,;)\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # The `&` that begins an intersection member line. Its node tells the
   # lowerer the line is an intersection: Luau reports one that continues no
