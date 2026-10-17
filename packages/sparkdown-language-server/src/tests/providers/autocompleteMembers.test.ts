@@ -32,45 +32,44 @@ describe("autocomplete · member access", () => {
   });
 
   upstreamCase("get_member_completions#2", "a decimal point inside a number offers nothing", () => {
-    // Member completion offers nothing anywhere while #867 is open, so this
-    // starts guarding numbers once that is fixed.
+    // A decimal point stays part of the number, never a member operator.
     expect(labelsTypedAt("function main()\n  local a = 12.@13\nend\n")).toEqual([]);
   });
 
-  upstreamCase.bug(BUG.members, "nested_member_completions", "a nested table offers its fields", () => {
+  upstreamCase("nested_member_completions", "a nested table offers its fields", () => {
     const labels = labelsTypedAt(
       "store tbl = { abc = { def = 1234, egh = false } }\nfunction main()\n  tbl.abc. @1\nend\n",
     );
     expect(labels.sort()).toEqual(["def", "egh"]);
   });
 
-  upstreamCase.bug(BUG.members, "nested_member_completions", "a typed field name offers the matching fields", () => {
+  upstreamCase("nested_member_completions", "a typed field name offers the matching fields", () => {
     const labels = labelsTypedAt(
       "store tbl = { abc = { def = 1234, egh = false } }\nfunction main()\n  return tbl.abc.d@1\nend\n",
     );
     expect(labels).toContain("def");
   });
 
-  upstreamCase.bug(BUG.members, "unsealed_table", "a field assigned after the table is built is offered", () => {
+  upstreamCase("unsealed_table", "a field assigned after the table is built is offered", () => {
     const labels = labelsTypedAt("function main()\n  local tbl = {}\n  tbl.prop = 5\n  tbl.@1\nend\n");
     expect(labels).toEqual(["prop"]);
   });
 
-  upstreamCase.bug(BUG.members, "unsealed_table_2", "a field that holds another table offers that table's fields", () => {
+  upstreamCase("unsealed_table_2", "a field that holds another table offers that table's fields", () => {
     const labels = labelsTypedAt(
       "function main()\n  local tbl = {}\n  local inner = { prop = 5 }\n  tbl.inner = inner\n  tbl.inner. @1\nend\n",
     );
     expect(labels).toEqual(["prop"]);
   });
 
-  upstreamCase.bug(BUG.members, "cyclic_table", "two tables that refer to each other offer their fields", () => {
+  upstreamCase("cyclic_table", "two tables that refer to each other offer their fields", () => {
     const labels = labelsTypedAt(
       "function main()\n  local abc = {}\n  local def = { abc = abc }\n  abc.def = def\n  abc.def. @1\nend\n",
     );
     expect(labels).toContain("abc");
   });
 
-  upstreamCase.bug(BUG.members, "method_call_inside_function_body", "a colon after a table offers its methods and no globals", () => {
+  upstreamCase("method_call_inside_function_body", "a colon after a table offers its methods and no globals", () => {
     const labels = labelsTypedAt(
       "store game = { GetService = function(s) return 'hello' end }\n\nfunction a()\n  game:  @1\nend\n",
     );
@@ -84,7 +83,7 @@ describe("autocomplete · member access", () => {
     expect(labels).not.toContain("math");
   });
 
-  upstreamCase.bug(BUG.members, "keyword_members", "fields named like keywords are offered", () => {
+  upstreamCase("keyword_members", "fields named like keywords are offered", () => {
     const source =
       "function main()\n  local a = { done = 1, forever = 2 }\n  local b = a.do@1\n  local c = a.for@2\n  local d = a.@3\n  do\n  end\nend\n";
     for (const at of ["1", "2", "3"]) {
@@ -92,18 +91,18 @@ describe("autocomplete · member access", () => {
     }
   });
 
-  upstreamCase.bug(BUG.members, "keyword_methods", "a method named like a keyword is offered", () => {
+  upstreamCase("keyword_methods", "a method named like a keyword is offered", () => {
     expect(
       labelsTypedAt("function main()\n  local a = {}\n  function a:done() end\n  local b = a:do@1\nend\n"),
     ).toEqual(["done"]);
   });
 
-  upstreamCase.bug(BUG.members, "do_compatible_self_calls", "a colon offers a method declared with a colon", () => {
+  upstreamCase("do_compatible_self_calls", "a colon offers a method declared with a colon", () => {
     // Upstream also checks wrongIndexType, a type-checker judgment (#589).
     expect(labelsTypedAt("function main()\n  local t = {}\n  function t:m() end\n  t:@1\nend\n")).toContain("m");
   });
 
-  upstreamCase.bug(BUG.members, "no_incompatible_self_calls", "a colon offers a function declared with a dot", () => {
+  upstreamCase("no_incompatible_self_calls", "a colon offers a function declared with a dot", () => {
     // Upstream also checks wrongIndexType, a type-checker judgment (#589).
     expect(labelsTypedAt("function main()\n  local t = {}\n  function t.m() end\n  t:@1\nend\n")).toContain("m");
   });
@@ -119,31 +118,31 @@ describe("autocomplete · member access", () => {
     );
   });
 
-  upstreamCase.bug(BUG.members, "autocomplete_at_end_of_stmt_should_continue_as_part_of_stmt", "a dot at the end of a statement completes the table's fields", () => {
+  upstreamCase("autocomplete_at_end_of_stmt_should_continue_as_part_of_stmt", "a dot at the end of a statement completes the table's fields", () => {
     expect(
       labelsTypedAt("function main()\n  local data = { x = 1 }\n  local var = data.@1\nend\n"),
     ).toContain("x");
   });
 
-  upstreamCase.bug(BUG.members, "autocomplete_method_in_unfinished_repeat_body_eof", "a method is offered in an unfinished repeat at the end of the file", () => {
+  upstreamCase("autocomplete_method_in_unfinished_repeat_body_eof", "a method is offered in an unfinished repeat at the end of the file", () => {
     expect(
       labelsTypedAt("function main()\n  local t = {}\n  function t:Foo() end\n  repeat\n  t:@1"),
     ).toContain("Foo");
   });
 
-  upstreamCase.bug(BUG.members, "autocomplete_method_in_unfinished_repeat_body_not_eof", "a method is offered in an unfinished repeat", () => {
+  upstreamCase("autocomplete_method_in_unfinished_repeat_body_not_eof", "a method is offered in an unfinished repeat", () => {
     expect(
       labelsTypedAt("function main()\n  local t = {}\n  function t:Foo() end\n  repeat\n  t:@1\n\n"),
     ).toContain("Foo");
   });
 
-  upstreamCase.bug(BUG.members, "autocomplete_method_in_unfinished_while_body", "a method is offered in an unfinished while", () => {
+  upstreamCase("autocomplete_method_in_unfinished_while_body", "a method is offered in an unfinished while", () => {
     expect(
       labelsTypedAt("function main()\n  local t = {}\n  function t:Foo() end\n  while true do\n  t:@1"),
     ).toContain("Foo");
   });
 
-  upstreamCase.bug(BUG.members, "autocomplete_implicit_named_index_index_expr_without_annotation", "a quoted index offers the table's string keys", () => {
+  upstreamCase("autocomplete_implicit_named_index_index_expr_without_annotation", "a quoted index offers the table's string keys", () => {
     // Upstream also checks each entry's inferred value type (#589).
     const labels = labelsTypedAt(
       'function main()\n  local foo = {\n    ["Item/Foo"] = 42,\n    ["Item/Bar"] = "it\'s true",\n    ["Item/Baz"] = true,\n  }\n  foo["@1"]\nend\n',
@@ -151,7 +150,7 @@ describe("autocomplete · member access", () => {
     expect(labels).toEqual(expect.arrayContaining(["Item/Foo", "Item/Bar", "Item/Baz"]));
   });
 
-  upstreamCase.bug(BUG.members, "we_know_the_fields_of_a_class_instance", "a define's fields are offered after a dot", () => {
+  upstreamCase("we_know_the_fields_of_a_class_instance", "a define's fields are offered after a dot", () => {
     // Upstream uses a `class`, which sparkdown does not implement; a `define`
     // declares the sparkdown struct with the same fields.
     const labels = labelsTypedAt(
@@ -162,7 +161,7 @@ describe("autocomplete · member access", () => {
     expect(labels).not.toContain("z");
   });
 
-  upstreamCase.bug(BUG.members, "ac_static_method_autocomplete", "a define's method is offered after a dot", () => {
+  upstreamCase("ac_static_method_autocomplete", "a define's method is offered after a dot", () => {
     // Upstream uses a `class`; a `define` with a method is the sparkdown form.
     const labels = labelsTypedAt(
       "define Bar with\n  value = 0\n  function new()\n    return Bar\n  end\nend\n\nfunction main()\n  Bar.@1\nend\n",
