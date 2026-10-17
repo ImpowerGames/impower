@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 228,
-  "previous": "1449060997d174c9c4536bbd66c6efe6363f6ac7",
+  "seq": 229,
+  "previous": "f791ffc898a6e4fdafbc8fd0c1e8be26df93d5d7",
   "snapshotParents": [],
-  "time": "2026-10-17T17:06:18.673Z",
+  "time": "2026-10-17T17:27:00.646Z",
   "kind": "auto",
-  "transition": "answered of #1907",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 237,
@@ -7697,30 +7697,65 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T17:06:17.083Z",
+      "observedAt": "2026-10-17T17:26:59.701Z",
       "held": true,
       "head": "991b99457f415601f06af89ff2afaedf8721832e",
       "remoteHead": null,
       "unpushed": true,
-      "dirty": false
+      "dirty": true
     },
     "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes": {
       "ticket": 1977,
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T17:06:17.083Z",
+      "observedAt": "2026-10-17T17:26:59.701Z",
       "held": true,
-      "head": "991b99457f415601f06af89ff2afaedf8721832e",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
+      "remoteHead": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
+      "unpushed": false,
+      "dirty": false,
+      "pr": 2061,
+      "reviewJobs": [
+        {
+          "job": "pr-2061/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
+            "completedRoundReviewers": null,
+            "time": "2026-10-17T17:12:10.325Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6237511962
+          ]
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T16:56:39.147Z",
+    "at": "2026-10-17T17:26:59.699Z",
     "tickets": [
       {
         "number": 984,
@@ -7946,9 +7981,9 @@
       },
       {
         "number": 1907,
-        "action": "reconcile-pending",
+        "action": "observe",
         "pr": null,
-        "reason": "launch 4c537485-e0db-474a-9884-f2d42c3243c1 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "reason": "process 21592 started 639278530064988717 is running"
       },
       {
         "number": 1908,
@@ -7970,9 +8005,9 @@
       },
       {
         "number": 1977,
-        "action": "reconcile-pending",
-        "pr": null,
-        "reason": "launch 860f0d1d-0994-490d-9b78-c52d30cc1eb3 on claude-cli has no confirmed outcome; run reconcile before any retry"
+        "action": "merge-gate",
+        "pr": 2061,
+        "reason": "PR #2061 is ready at 42255fec43ce8d588b85fdad19d118ccc5bf9b0b; process 19964 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1985,
