@@ -13,15 +13,18 @@ const STORY_STATEMENTS = new Set([
 ]);
 
 // The story blocks whose header's condition ends at its line, as a story
-// statement does, each with the bounded rule that reads it.
+// statement does, each with the bounded rule that reads it. A marked (`&`)
+// loop shares the story loops' condition.
 const STORY_CONDITIONS: Record<string, ReadonlySet<string>> = {
   LuauSparkdownExplicitIfCondition: new Set(["LuauSparkdownIfBlock", "LuauSparkdownElseifBlock"]),
-  LuauSparkdownExplicitLoopCondition: new Set(["LuauSparkdownForLoop", "LuauSparkdownWhileLoop"]),
+  LuauSparkdownExplicitLoopCondition: new Set(["LuauSparkdownForLoop", "LuauSparkdownWhileLoop", "LuauSparkdownExplicitLoop"]),
 };
 
 // Story loops, whose header ends at its line: one with no `do` block on it
-// is an island of its own, missing its `do` (#1907).
-const STORY_LOOPS = new Set(["LuauSparkdownForLoop", "LuauSparkdownWhileLoop"]);
+// is an island of its own, missing its `do` (#1907). A marked loop's header
+// ends with its marked statement's line.
+const STORY_LOOPS = new Set(["LuauSparkdownForLoop", "LuauSparkdownWhileLoop", "LuauSparkdownExplicitLoop"]);
+const LOOP_DO_BLOCKS = ["LuauSparkdownDoBlock", "LuauSparkdownExplicitDoBlock"];
 
 /** The rule a node is a part of, past the `_content` node that holds it. */
 function ruleOf(node: SyntaxNode): SyntaxNode | null {
@@ -95,16 +98,23 @@ function isStoryUntilCondition(node: SyntaxNode): boolean {
 
 /** Whether a story loop's header has no `do` block on it, so the loop ends with its header's line. */
 function isHeaderOnlyLoop(node: SyntaxNode): boolean {
-  return STORY_LOOPS.has(node.name) && !node.getChild(`${node.name}_content`)?.getChild("LuauSparkdownDoBlock");
+  const content = node.getChild(`${node.name}_content`);
+  return STORY_LOOPS.has(node.name) && !LOOP_DO_BLOCKS.some((name) => content?.getChild(name));
+}
+
+/** Whether a node is the loop a marked statement holds as its own statement (`& while x`), not one nested in its block. */
+function isMarkedStatementLoop(node: SyntaxNode): boolean {
+  return node.name === "LuauSparkdownExplicitLoop" && ruleOf(node)?.name === "LuauSparkdownExplicitStatement";
 }
 
 /**
- * Whether a node is a story `for` or `while` whose header has no `do` block
- * on its line: an island whose Luau meets its end of input where the `do`
- * should be, so Luau's error there is the loop's diagnostic.
+ * Whether a node is a story `for` or `while`, or a marked statement's own loop,
+ * whose header has no `do` block on its line: its Luau meets its end of input
+ * where the `do` should be, so Luau's error there is the loop's diagnostic.
+ * A loop nested in a marked block meets that block's `end` instead.
  */
 export function isStoryHeaderOnlyLoop(node: SyntaxNode): boolean {
-  return isHeaderOnlyLoop(node) && !inMarkedStatementOrFunction(node);
+  return isHeaderOnlyLoop(node) && (isMarkedStatementLoop(node) || !inMarkedStatementOrFunction(node));
 }
 
 /**

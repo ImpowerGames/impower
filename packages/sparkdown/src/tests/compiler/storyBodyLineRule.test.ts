@@ -302,6 +302,35 @@ describe("a story loop header ends at its line", () => {
     expect(nodesCrossing(source, later)).toEqual([]);
   });
 
+  // A marked loop shares the story loops' condition, and its header ends
+  // with its marked statement's line, so it reports Luau's error there too
+  // (#2062 round 4).
+  test.each(["& while true", "& for k, v", "& for i = 1, 3"])(
+    "`%s` before a story line reports Luau's error at its line's end",
+    (header) => {
+      const native = parseOfficialTree(`${header.slice(2)}\n`).errors[0]!;
+      expect(errorsOf(`${header}\nThe hero waits.\n`)).toEqual([`0:${header.length}-1:0 ${native.message}`]);
+      expect(run(`${header}\nThe hero waits.\n`).output).toBe("The hero waits.\n");
+    },
+  );
+
+  test("a marked loop in a scene, and one with a token where its `do` should be, report Luau's error", () => {
+    expect(errorsOf("-> s\nscene s\n  & while true\n  The hero waits.\nend\n")).toEqual([
+      "2:14-3:0 Expected 'do' when parsing while loop, got <eof>",
+    ]);
+    expect(errorsOf("& while true print(1)\nThe hero waits.\n")).toEqual([
+      "0:13-0:18 Expected 'do' when parsing while loop, got 'print'",
+    ]);
+  });
+
+  test.each([
+    ["while", "store x = 0\n& while x < 2 do x = x + 1 end\nValue {x}.\n", "Value 2.\n"],
+    ["for", "store x = 0\n& for i = 1, 3 do x = i end\nValue {x}.\n", "Value 3.\n"],
+  ])("a marked `%s` with its `do` block still runs", (_keyword, source, output) => {
+    expect(errorsOf(source)).toEqual([]);
+    expect(run(source).output).toBe(output);
+  });
+
   // Luau's reading of the header meets its end of input at the line's end,
   // so its first error there is the loop's one diagnostic, as the official
   // parser reports it for the header alone.

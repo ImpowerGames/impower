@@ -886,7 +886,13 @@ class Tokenizer {
       if (this.text[eof - 1] === "\n") eof--;
       if (this.text[eof - 1] === "\r") eof--;
       if (this.tokens.length > first) eof = Math.max(eof, this.tokens[this.tokens.length - 1]!.to);
-      this.tokens.push({ kind: "break", text: "", from: eof, to: eof, location: this.location(eof, eof), source: this.source, story: true, authoredEnd: true });
+      // A marked loop with no `do` on its line meets this EOF where the `do`
+      // should be, as a story loop does (#1907): Luau's error in its header
+      // is the loop's diagnostic.
+      const loop = node.getChild("LuauSparkdownExplicitStatement_content")?.getChild("LuauSparkdownExplicitLoop");
+      const headerOnly = !!loop && isStoryHeaderOnlyLoop(loop);
+      if (headerOnly) for (let i = first; i < this.tokens.length; i++) if (this.tokens[i]!.from < loop.to) this.tokens[i]!.loopHeader = true;
+      this.tokens.push({ kind: "break", text: "", from: eof, to: eof, location: this.location(eof, eof), source: this.source, story: true, authoredEnd: true, ...(headerOnly ? { loopHeaderEnd: true as const } : {}) });
       return;
     }
     // A story declaration or reassignment ends at its line as a marked
