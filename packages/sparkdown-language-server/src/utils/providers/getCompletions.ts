@@ -2183,9 +2183,10 @@ export const getCompletions = (
       }
     }
     // A story `for` reads its condition with the bounded rule it shares with
-    // a story `while` (#1907), so the loop that owns the condition, the first
-    // story loop outside it, decides (a `while` nested in a `for` offers no
-    // `in`).
+    // a story `while` and a marked (`&`) loop (#1907), so the loop that owns
+    // the condition, the first such loop outside it, decides (a `while`
+    // nested in a `for` offers no `in`). A marked loop is a `for` when its
+    // header's keyword is.
     const storyCondition = leftStack.findIndex(
       (n) => n.name === "LuauSparkdownExplicitLoopCondition",
     );
@@ -2197,11 +2198,23 @@ export const getCompletions = (
             .find(
               (n) =>
                 n.name === "LuauSparkdownForLoop" ||
-                n.name === "LuauSparkdownWhileLoop",
+                n.name === "LuauSparkdownWhileLoop" ||
+                n.name === "LuauSparkdownExplicitLoop",
             );
+    const markedLoopBegin =
+      storyConditionLoop?.name === "LuauSparkdownExplicitLoop"
+        ? storyConditionLoop.getChild("LuauSparkdownExplicitLoop_begin")
+        : null;
+    const storyConditionIsFor =
+      storyConditionLoop?.name === "LuauSparkdownForLoop" ||
+      (!!markedLoopBegin &&
+        !!getDescendent(
+          "LuauForKeyword",
+          markedLoopBegin as GrammarSyntaxNode<SparkdownNodeName>,
+        ));
     if (
       leftStack.some((n) => n.name === "LuauForCondition") ||
-      storyConditionLoop?.name === "LuauSparkdownForLoop"
+      storyConditionIsFor
     ) {
       const contentNode = leftStack[0];
       if (contentNode) {
