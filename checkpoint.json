@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 160,
-  "previous": "8c3bee89a27520c945ad4724c6fd419be6aaeae9",
+  "seq": 161,
+  "previous": "58595ff1704e189f82ded1527ee73bf671ffd948",
   "snapshotParents": [],
-  "time": "2026-10-17T13:31:43.802Z",
+  "time": "2026-10-17T13:35:40.383Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "request of #1906",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 169,
+    "recordRevision": 172,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1886,6 +1886,15 @@
             "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
             "evidence": "resumed the #1906 writer CLI session e57d8cb2 with the answer as its prompt on 2026-10-17"
           }
+        },
+        {
+          "id": "da3e57cf",
+          "owner": "bb7eb9b8-394b-4504-a291-e7aa45147ebc",
+          "time": "2026-10-17T13:35:38.351Z",
+          "text": "Blocker from the writer: the round 4 extension was never published and the previous answer carried empty ids; it asks for the published decision id, its comment id and the exact invocation text it quotes before launching round 4 (plans prepared: axg on d284cd2c7..21296ce9b, then undirected on the whole PR, reviewRoundLimit 4; head 21296ce9b frozen, CI green).",
+          "source": "cross-session message from impower-21 (writer, launch bb7eb9b8, resumed) on 2026-10-17",
+          "relayed": null,
+          "answer": null
         }
       ],
       "checkpoints": [
@@ -2240,6 +2249,368 @@
             "comment": 6230817527,
             "time": "2026-10-17T06:43:34.326Z",
             "headAtPublish": "51231beb1a3bbada90801ced5abe8dcf8c190db2"
+          }
+        },
+        {
+          "version": 1,
+          "id": "7b1dad9e",
+          "kind": "extend",
+          "feature": 1904,
+          "ticket": 1906,
+          "pr": 1995,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T13:35:34.847Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
+          "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
+          "range": {
+            "from": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
+            "to": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
+            "base": "555e5300ae7b7b8483394ad36c4d6967fa740d55",
+            "commits": [
+              "51231beb1a3bbada90801ced5abe8dcf8c190db2",
+              "4c287cc5da2018c8044e0b48cbc4e62cd4450c36",
+              "21296ce9ba3eaed9e389ccf1f58429a06bafaa92"
+            ],
+            "diffSha256": "ed11494675c8361fdfc793a2bfa947e936be5793d6596e42142d12b0de2a3daf"
+          },
+          "reports": [
+            {
+              "comment": 6225382429,
+              "round": 1,
+              "reviewerId": "gram",
+              "adjudication": 6226722520
+            },
+            {
+              "comment": 6226905089,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6226924746
+            },
+            {
+              "comment": 6227523977,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6228087438
+            },
+            {
+              "comment": 6228226010,
+              "round": 2,
+              "reviewerId": "axg",
+              "adjudication": 6228345598
+            },
+            {
+              "comment": 6228684372,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6229040688
+            },
+            {
+              "comment": 6229606869,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6229761796
+            },
+            {
+              "comment": 6230483903,
+              "round": 3,
+              "reviewerId": "axg",
+              "adjudication": 6230562726
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 4,
+          "limitReason": "one bounded round reviews the repair B grammar and consumer changes and the axg-2 corrections; a further narrative instance of mechanism (b) is answered by a repair, not another round.",
+          "authority": "/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.",
+          "assessment": {
+            "mechanisms": "Four mechanisms across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead: an unrelated pipe, a quoted pipe, a pipe in a long string, levels above three, and the level-four-or-higher long string with a lower-level closer (the known limit kept under #2049). (b) The = whose value is on the next line: a trailing comment, two trailing comments, block comments spanning lines or of high level, an = inside a trailing comment, a comment's closing line holding the if; the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies (LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator), and repair B (decision 6350ae80, commit 4c287cc5d) then confined that scope to Luau bodies by giving the narrative declaration and reassignment rules twins of the two assignment rules without it, so narrative behaviour is main's again. (c) The reserved-word check for local names in readLuauAst, now a token walk across lines that ends at an =, a statement or a keyword. (d) Define keys, settled in round 2; round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator.",
+            "regressions": "Corrections introduced defects in rounds 2 and 3 (modifier define keys dropped, the comma check missing annotations, the value scope hiding a define property's value), each found by the next reviewer and fixed. The round 3 repair exposed the narrative leak through CI (four #1580 tests), which repair B removes at its source; the writer's red/green shows the four narrative pins, the four #1580 tests and five rule tests fail with the twins reverted and 159/159 pass with them, and the same narrative pins pass on main's sources, so the narrative reading is main's. No reviewer has read 51231beb1 (the axg-2 corrections) or 4c287cc5d (repair B).",
+            "repairOptions": "Repair B is the root-cause form for the narrative leak and was taken. Mechanism (a) keeps its documented limit with the converter-side alternative filed as #2049. A consumer that compares a node's name literally to LuauVariableAssignment or LuauAssignmentOperation would miss the twins; the writer checked every literal site and found the rest to be define, table or sparkle contexts, which a reviewer should confirm.",
+            "residualRisk": "Unreviewed: 51231beb1 (the axg-2 corrections: lineBreakValues in the lowerer and validator, the cross-line reserved-name walk), 4c287cc5d (repair B: two grammar rules, explicitRuleNames narrativeRuleName, variableDefinitionNames and statementBefore naming the twins, 29 grammar snapshots renamed) and 21296ce9b (a merge of main touching only workflow and migration tooling). Round 3's first axg launch ended with its editor shutdown verified by hand and the maintainer's authorization recorded on its journal (exited row amended, backup kept), since the launcher has no command for that state. Mechanism (a)'s known limit stands.",
+            "coverage": "On 21296ce9b: luauTokenClasses 145 (four new narrative pins), luauVariableDefinitionValue and reassignmentRules restored to main's end-equality assertions plus twin equality, grammarSnapshot and vscodeGrammarSnapshot 173 each, scopeEquality 224, luauCorpusGate 1071, programIncrementalDiagnostics 5, compileSnapshot, expressionSnapshot, declarationLocationScopes, TrailingCommaReassignment, TrailingCommaValueList, UnfinishedAssignment, the declaration and reference annotator suites, the two incremental-annotation suites, semanticTokenShadowing, LintLocalUnused, luauSyntaxAgreement, TernaryExpression, MalformedExpressionAtEveryPosition, and the language-server scope, completion, outline, reference and formatting suites; typecheck clean on sparkdown and the language server; grammar eslint, baseline and 83 rule tests, node-name and lowerer checks, Oniguruma 1033 patterns with 12 refused as before. Red/green against 51231beb1 reverting the grammar, explicitRuleNames, variableDefinitionNames and statementBefore: 13 failed / 146 passed, then 159/159, all four restored by hash. CI on 21296ce9b: 26 passed, 4 skipped, none failed, including the Luau corpus gate.",
+            "nextRoundValue": "Round 4, two reviewers as rounds 2 and 3 used: axg (author-experience with grammar-conventions) on the unreviewed diff d284cd2c7..21296ce9b, and undirected on the whole PR. It must establish that no narrative tree or diagnostic changed beyond the 29 listed renames and that the #1580 tests pass unchanged, that every consumer of the two assignment nodes reads the twins (the literal-comparison sites included), that the Luau-body value scope still covers every round 3 mechanism (b) case, and that the axg-2 corrections hold. If round 4 finds instances of mechanism (b) in narrative statements, the twins are incomplete and the next decision is a repair; if it finds instances of (a), they are measured against the #2049 limit.",
+            "rationale": "The repair the previous decision called for is in and verified, CI is green, and the writer launched nothing without authorization. Acceptance of the unreviewed tail is refused: it is a grammar change across 29 fixtures plus lowerer and validator changes, read by no reviewer. One bounded round on exactly that tail is the prescribed step after a repair, and it is the step that gets this slice to the merge gate, which #1907's dispatch also waits on.",
+            "next": "Publish this extension; the writer launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the quoted invocation, two reviewers (axg on d284cd2c7..21296ce9b, undirected on the full PR), adjudicates and fixes with red/green, then sends the next checkpoint report; the coordinator decides again and merges through the gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 4,
+            "limitReason": "one bounded round reviews the repair B grammar and consumer changes and the axg-2 corrections; a further narrative instance of mechanism (b) is answered by a repair, not another round.",
+            "findings": [
+              {
+                "comment": 6225382429,
+                "finding": "an unrelated pipe turned an ordinary name into an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225382429,
+                "finding": "continue was rejected as a declaration-list value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225382429,
+                "finding": "a foreign closer escaping the outer function lost Luau's diagnostic",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226905089,
+                "disposition": "none"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "an existing test hid a function-boundary regression",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "two spaces let reserved local bindings become define keys",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "a quoted pipe turned an ordinary call into an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "a trailing comment defeated next-line assignment values",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "the reassignment test still expected the old continue behaviour, leaving CI red",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228226010,
+                "finding": "a pipe inside a Luau long string opened an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228226010,
+                "finding": "two trailing comments defeated the next-line assignment value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "a reserved-word define key took its function value's local name",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "modifier words used as define keys were silently dropped",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "valid block comments after = let the next-line if expression consume the function's end",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "reserved words after a binding comma silently compiled",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229173107,
+                "finding": "a type annotation bypassed the reserved-name-after-comma correction",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229173107,
+                "finding": "the new arm discriminator rejected valid long strings above level three",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "an = inside a trailing comment changed the following statement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "a multiline comment's closing line turned an initializer into an if block",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "pipes inside higher-level long strings still opened alternators",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "reserved names after a local comma still compiled silently across a newline",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "the new assignment scope discarded a define property's actual value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "a blank line bypassed the reserved-local-name correction",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "a pipe inside a valid level-four-or-higher long string with a lower-level closer still opens an alternator (the known limit filed as #2049)",
+                "disposition": "deferred"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: authorize another bounded round\n\nDecision `7b1dad9e` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1906. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (axg, undirected) exited, and every report has its adjudication (6225382429 in 6226722520, 6226905089 in 6226924746, 6227523977 in 6228087438, 6228226010 in 6228345598, 6228684372 in 6229040688, 6229606869 in 6229761796, 6230483903 in 6230562726).\n- Independently reviewed through `d284cd2c702af36ac0e3365cc67846adfaa793e1`.\n- Head `21296ce9ba3eaed9e389ccf1f58429a06bafaa92`. Unreviewed: `d284cd2c7..21296ce9b`, 3 commits (`51231beb1` fix(compiler): keep a value the `=`'s line break holds, and find a local's names past blank lines (#1906); `4c287cc5d` fix(grammar): read a narrative statement's `=` with rules of its own, so the value scope exists only in Luau bodies (#1906); `21296ce9b` Merge remote-tracking branch 'origin/main' into fix/1906-luau-token-classes (base merge, shown as its remerge diff)), diff SHA-256 `ed11494675c8361fdfc793a2bfa947e936be5793d6596e42142d12b0de2a3daf`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, driver-checks passed, test-suite passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 22 accepted, 1 deferred, 1 none; unresolved: none.\n- Shared mechanisms: Four mechanisms across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead: an unrelated pipe, a quoted pipe, a pipe in a long string, levels above three, and the level-four-or-higher long string with a lower-level closer (the known limit kept under #2049). (b) The = whose value is on the next line: a trailing comment, two trailing comments, block comments spanning lines or of high level, an = inside a trailing comment, a comment's closing line holding the if; the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies (LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator), and repair B (decision 6350ae80, commit 4c287cc5d) then confined that scope to Luau bodies by giving the narrative declaration and reassignment rules twins of the two assignment rules without it, so narrative behaviour is main's again. (c) The reserved-word check for local names in readLuauAst, now a token walk across lines that ends at an =, a statement or a keyword. (d) Define keys, settled in round 2; round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator.\n- Defects introduced by corrections: Corrections introduced defects in rounds 2 and 3 (modifier define keys dropped, the comma check missing annotations, the value scope hiding a define property's value), each found by the next reviewer and fixed. The round 3 repair exposed the narrative leak through CI (four #1580 tests), which repair B removes at its source; the writer's red/green shows the four narrative pins, the four #1580 tests and five rule tests fail with the twins reverted and 159/159 pass with them, and the same narrative pins pass on main's sources, so the narrative reading is main's. No reviewer has read 51231beb1 (the axg-2 corrections) or 4c287cc5d (repair B).\n- Broader or simpler repair: Repair B is the root-cause form for the narrative leak and was taken. Mechanism (a) keeps its documented limit with the converter-side alternative filed as #2049. A consumer that compares a node's name literally to LuauVariableAssignment or LuauAssignmentOperation would miss the twins; the writer checked every literal site and found the rest to be define, table or sparkle contexts, which a reviewer should confirm.\n- Residual risk: Unreviewed: 51231beb1 (the axg-2 corrections: lineBreakValues in the lowerer and validator, the cross-line reserved-name walk), 4c287cc5d (repair B: two grammar rules, explicitRuleNames narrativeRuleName, variableDefinitionNames and statementBefore naming the twins, 29 grammar snapshots renamed) and 21296ce9b (a merge of main touching only workflow and migration tooling). Round 3's first axg launch ended with its editor shutdown verified by hand and the maintainer's authorization recorded on its journal (exited row amended, backup kept), since the launcher has no command for that state. Mechanism (a)'s known limit stands.\n- Verification coverage: On 21296ce9b: luauTokenClasses 145 (four new narrative pins), luauVariableDefinitionValue and reassignmentRules restored to main's end-equality assertions plus twin equality, grammarSnapshot and vscodeGrammarSnapshot 173 each, scopeEquality 224, luauCorpusGate 1071, programIncrementalDiagnostics 5, compileSnapshot, expressionSnapshot, declarationLocationScopes, TrailingCommaReassignment, TrailingCommaValueList, UnfinishedAssignment, the declaration and reference annotator suites, the two incremental-annotation suites, semanticTokenShadowing, LintLocalUnused, luauSyntaxAgreement, TernaryExpression, MalformedExpressionAtEveryPosition, and the language-server scope, completion, outline, reference and formatting suites; typecheck clean on sparkdown and the language server; grammar eslint, baseline and 83 rule tests, node-name and lowerer checks, Oniguruma 1033 patterns with 12 refused as before. Red/green against 51231beb1 reverting the grammar, explicitRuleNames, variableDefinitionNames and statementBefore: 13 failed / 146 passed, then 159/159, all four restored by hash. CI on 21296ce9b: 26 passed, 4 skipped, none failed, including the Luau corpus gate.\n- What another round would establish: Round 4, two reviewers as rounds 2 and 3 used: axg (author-experience with grammar-conventions) on the unreviewed diff d284cd2c7..21296ce9b, and undirected on the whole PR. It must establish that no narrative tree or diagnostic changed beyond the 29 listed renames and that the #1580 tests pass unchanged, that every consumer of the two assignment nodes reads the twins (the literal-comparison sites included), that the Luau-body value scope still covers every round 3 mechanism (b) case, and that the axg-2 corrections hold. If round 4 finds instances of mechanism (b) in narrative statements, the twins are incomplete and the next decision is a repair; if it finds instances of (a), they are measured against the #2049 limit.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The repair the previous decision called for is in and verified, CI is green, and the writer launched nothing without authorization. Acceptance of the unreviewed tail is refused: it is a grammar change across 29 fixtures plus lowerer and validator changes, read by no reviewer. One bounded round on exactly that tail is the prescribed step after a repair, and it is the step that gets this slice to the merge gate, which #1907's dispatch also waits on. Next: Publish this extension; the writer launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the quoted invocation, two reviewers (axg on d284cd2c7..21296ce9b, undirected on the full PR), adjudicates and fixes with red/green, then sends the next checkpoint report; the coordinator decides again and merges through the gate.\n- Round 4 may launch with `reviewRoundLimit` 4 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: one bounded round reviews the repair B grammar and consumer changes and the axg-2 corrections; a further narrative instance of mechanism (b) is answered by a repair, not another round. The next checkpoint follows round 4's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"7b1dad9e\",\n \"kind\": \"extend\",\n \"feature\": 1904,\n \"ticket\": 1906,\n \"pr\": 1995,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T13:35:34.847Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"d284cd2c702af36ac0e3365cc67846adfaa793e1\",\n \"head\": \"21296ce9ba3eaed9e389ccf1f58429a06bafaa92\",\n \"range\": {\n  \"from\": \"d284cd2c702af36ac0e3365cc67846adfaa793e1\",\n  \"to\": \"21296ce9ba3eaed9e389ccf1f58429a06bafaa92\",\n  \"base\": \"555e5300ae7b7b8483394ad36c4d6967fa740d55\",\n  \"commits\": [\n   \"51231beb1a3bbada90801ced5abe8dcf8c190db2\",\n   \"4c287cc5da2018c8044e0b48cbc4e62cd4450c36\",\n   \"21296ce9ba3eaed9e389ccf1f58429a06bafaa92\"\n  ],\n  \"diffSha256\": \"ed11494675c8361fdfc793a2bfa947e936be5793d6596e42142d12b0de2a3daf\"\n },\n \"reports\": [\n  {\n   \"comment\": 6225382429,\n   \"round\": 1,\n   \"reviewerId\": \"gram\",\n   \"adjudication\": 6226722520\n  },\n  {\n   \"comment\": 6226905089,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6226924746\n  },\n  {\n   \"comment\": 6227523977,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228087438\n  },\n  {\n   \"comment\": 6228226010,\n   \"round\": 2,\n   \"reviewerId\": \"axg\",\n   \"adjudication\": 6228345598\n  },\n  {\n   \"comment\": 6228684372,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229040688\n  },\n  {\n   \"comment\": 6229606869,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229761796\n  },\n  {\n   \"comment\": 6230483903,\n   \"round\": 3,\n   \"reviewerId\": \"axg\",\n   \"adjudication\": 6230562726\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 4,\n \"limitReason\": \"one bounded round reviews the repair B grammar and consumer changes and the axg-2 corrections; a further narrative instance of mechanism (b) is answered by a repair, not another round.\",\n \"authority\": \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\",\n \"assessment\": {\n  \"mechanisms\": \"Four mechanisms across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead: an unrelated pipe, a quoted pipe, a pipe in a long string, levels above three, and the level-four-or-higher long string with a lower-level closer (the known limit kept under #2049). (b) The = whose value is on the next line: a trailing comment, two trailing comments, block comments spanning lines or of high level, an = inside a trailing comment, a comment's closing line holding the if; the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies (LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator), and repair B (decision 6350ae80, commit 4c287cc5d) then confined that scope to Luau bodies by giving the narrative declaration and reassignment rules twins of the two assignment rules without it, so narrative behaviour is main's again. (c) The reserved-word check for local names in readLuauAst, now a token walk across lines that ends at an =, a statement or a keyword. (d) Define keys, settled in round 2; round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator.\",\n  \"regressions\": \"Corrections introduced defects in rounds 2 and 3 (modifier define keys dropped, the comma check missing annotations, the value scope hiding a define property's value), each found by the next reviewer and fixed. The round 3 repair exposed the narrative leak through CI (four #1580 tests), which repair B removes at its source; the writer's red/green shows the four narrative pins, the four #1580 tests and five rule tests fail with the twins reverted and 159/159 pass with them, and the same narrative pins pass on main's sources, so the narrative reading is main's. No reviewer has read 51231beb1 (the axg-2 corrections) or 4c287cc5d (repair B).\",\n  \"repairOptions\": \"Repair B is the root-cause form for the narrative leak and was taken. Mechanism (a) keeps its documented limit with the converter-side alternative filed as #2049. A consumer that compares a node's name literally to LuauVariableAssignment or LuauAssignmentOperation would miss the twins; the writer checked every literal site and found the rest to be define, table or sparkle contexts, which a reviewer should confirm.\",\n  \"residualRisk\": \"Unreviewed: 51231beb1 (the axg-2 corrections: lineBreakValues in the lowerer and validator, the cross-line reserved-name walk), 4c287cc5d (repair B: two grammar rules, explicitRuleNames narrativeRuleName, variableDefinitionNames and statementBefore naming the twins, 29 grammar snapshots renamed) and 21296ce9b (a merge of main touching only workflow and migration tooling). Round 3's first axg launch ended with its editor shutdown verified by hand and the maintainer's authorization recorded on its journal (exited row amended, backup kept), since the launcher has no command for that state. Mechanism (a)'s known limit stands.\",\n  \"coverage\": \"On 21296ce9b: luauTokenClasses 145 (four new narrative pins), luauVariableDefinitionValue and reassignmentRules restored to main's end-equality assertions plus twin equality, grammarSnapshot and vscodeGrammarSnapshot 173 each, scopeEquality 224, luauCorpusGate 1071, programIncrementalDiagnostics 5, compileSnapshot, expressionSnapshot, declarationLocationScopes, TrailingCommaReassignment, TrailingCommaValueList, UnfinishedAssignment, the declaration and reference annotator suites, the two incremental-annotation suites, semanticTokenShadowing, LintLocalUnused, luauSyntaxAgreement, TernaryExpression, MalformedExpressionAtEveryPosition, and the language-server scope, completion, outline, reference and formatting suites; typecheck clean on sparkdown and the language server; grammar eslint, baseline and 83 rule tests, node-name and lowerer checks, Oniguruma 1033 patterns with 12 refused as before. Red/green against 51231beb1 reverting the grammar, explicitRuleNames, variableDefinitionNames and statementBefore: 13 failed / 146 passed, then 159/159, all four restored by hash. CI on 21296ce9b: 26 passed, 4 skipped, none failed, including the Luau corpus gate.\",\n  \"nextRoundValue\": \"Round 4, two reviewers as rounds 2 and 3 used: axg (author-experience with grammar-conventions) on the unreviewed diff d284cd2c7..21296ce9b, and undirected on the whole PR. It must establish that no narrative tree or diagnostic changed beyond the 29 listed renames and that the #1580 tests pass unchanged, that every consumer of the two assignment nodes reads the twins (the literal-comparison sites included), that the Luau-body value scope still covers every round 3 mechanism (b) case, and that the axg-2 corrections hold. If round 4 finds instances of mechanism (b) in narrative statements, the twins are incomplete and the next decision is a repair; if it finds instances of (a), they are measured against the #2049 limit.\",\n  \"rationale\": \"The repair the previous decision called for is in and verified, CI is green, and the writer launched nothing without authorization. Acceptance of the unreviewed tail is refused: it is a grammar change across 29 fixtures plus lowerer and validator changes, read by no reviewer. One bounded round on exactly that tail is the prescribed step after a repair, and it is the step that gets this slice to the merge gate, which #1907's dispatch also waits on.\",\n  \"next\": \"Publish this extension; the writer launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the quoted invocation, two reviewers (axg on d284cd2c7..21296ce9b, undirected on the full PR), adjudicates and fixes with red/green, then sends the next checkpoint report; the coordinator decides again and merges through the gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 4,\n  \"limitReason\": \"one bounded round reviews the repair B grammar and consumer changes and the axg-2 corrections; a further narrative instance of mechanism (b) is answered by a repair, not another round.\",\n  \"findings\": [\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"an unrelated pipe turned an ordinary name into an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"continue was rejected as a declaration-list value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"a foreign closer escaping the outer function lost Luau's diagnostic\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226905089,\n    \"disposition\": \"none\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"an existing test hid a function-boundary regression\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"two spaces let reserved local bindings become define keys\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"a quoted pipe turned an ordinary call into an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"a trailing comment defeated next-line assignment values\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"the reassignment test still expected the old continue behaviour, leaving CI red\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228226010,\n    \"finding\": \"a pipe inside a Luau long string opened an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228226010,\n    \"finding\": \"two trailing comments defeated the next-line assignment value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"a reserved-word define key took its function value's local name\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"modifier words used as define keys were silently dropped\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"valid block comments after = let the next-line if expression consume the function's end\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"reserved words after a binding comma silently compiled\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229173107,\n    \"finding\": \"a type annotation bypassed the reserved-name-after-comma correction\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229173107,\n    \"finding\": \"the new arm discriminator rejected valid long strings above level three\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"an = inside a trailing comment changed the following statement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"a multiline comment's closing line turned an initializer into an if block\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"pipes inside higher-level long strings still opened alternators\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"reserved names after a local comma still compiled silently across a newline\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"the new assignment scope discarded a define property's actual value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"a blank line bypassed the reserved-local-name correction\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"a pipe inside a valid level-four-or-higher long string with a lower-level closer still opens an alternator (the known limit filed as #2049)\",\n    \"disposition\": \"deferred\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "02b5bfc9f1fc0713e31214245a0d09f1991c0689b9bd47f02de78209f9300b8f",
+          "blockSha256": "f4a549d2b21733b0057acd4189ebb5fbf436a32b2596e5f4fb0db1f101112844",
+          "published": {
+            "comment": 6234513190,
+            "time": "2026-10-17T13:35:37.885Z",
+            "headAtPublish": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92"
           }
         }
       ]
@@ -4824,6 +5195,16 @@
       "time": "2026-10-17T06:43:34.326Z"
     },
     {
+      "pr": 1995,
+      "url": "https://github.com/ImpowerGames/impower/pull/1995#issuecomment-6234513190",
+      "kind": "review-checkpoint extend",
+      "ticket": 1906,
+      "id": "7b1dad9e",
+      "round": 3,
+      "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
+      "time": "2026-10-17T13:35:37.885Z"
+    },
+    {
       "pr": 1993,
       "url": "https://github.com/ImpowerGames/impower/pull/1993#issuecomment-6229458152",
       "kind": "review-checkpoint extend",
@@ -4862,7 +5243,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T13:31:42.904Z",
+      "observedAt": "2026-10-17T13:35:39.495Z",
       "held": true,
       "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
       "remoteHead": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92",
@@ -5070,7 +5451,7 @@
         },
         {
           "job": "pr-1995/round-3/launch-axg-1",
-          "lastEvent": "shutdown-verified-by-hand",
+          "lastEvent": "blocked",
           "attempted": {
             "round": 3,
             "step": "review-axg",
@@ -5171,7 +5552,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T13:31:42.904Z",
+      "observedAt": "2026-10-17T13:35:39.495Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5888,31 +6269,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:21:08.449Z",
-      "event": "checkpoint-intent",
-      "ticket": 1905,
-      "id": "8ceff1f0",
-      "kind": "accept-unreviewed",
-      "round": 3,
-      "head": "77fcc6ed63a764a85a71d5569838241ccf5c1438"
-    },
-    {
-      "time": "2026-10-16T19:21:45.026Z",
-      "event": "checkpoint-abandoned",
-      "ticket": 1905,
-      "id": "8ceff1f0"
-    },
-    {
-      "time": "2026-10-16T19:21:45.575Z",
-      "event": "invocation",
-      "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
-      "replaced": {
-        "text": "C:/Program Files/Git/orchestrate-feature #1904",
-        "merging": "coordinator"
-      },
-      "merging": "coordinator"
-    },
     {
       "time": "2026-10-16T19:24:11.885Z",
       "event": "checkpoint-intent",
@@ -6631,6 +6987,28 @@
       "time": "2026-10-17T13:31:41.777Z",
       "event": "check-in",
       "outcome": "maintainer chose to hold the cutover until both PRs merge: #1906 extended to round 4 (decision , comment ) and its writer resumed; #1924 repair directed (decision e43240d9, comment 6234468080: remove the top-level attribute lookahead per the maintainer decision, recorded on #921) and its writer resumed; ORCH #1961 told to hold about five hours"
+    },
+    {
+      "time": "2026-10-17T13:35:34.847Z",
+      "event": "checkpoint-intent",
+      "ticket": 1906,
+      "id": "7b1dad9e",
+      "kind": "extend",
+      "round": 3,
+      "head": "21296ce9ba3eaed9e389ccf1f58429a06bafaa92"
+    },
+    {
+      "time": "2026-10-17T13:35:37.885Z",
+      "event": "checkpoint-published",
+      "ticket": 1906,
+      "id": "7b1dad9e",
+      "comment": 6234513190
+    },
+    {
+      "time": "2026-10-17T13:35:38.352Z",
+      "event": "request",
+      "ticket": 1906,
+      "id": "da3e57cf"
     }
   ]
 }
