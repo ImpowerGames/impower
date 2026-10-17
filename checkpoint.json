@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 189,
-  "previous": "f452e8a583c824cf388b7fed5bd685eddf775a01",
+  "seq": 190,
+  "previous": "69c940807ab3cd4f99e10d980213945ab4bb4b62",
   "snapshotParents": [],
-  "time": "2026-10-17T09:54:19.778Z",
+  "time": "2026-10-17T10:24:35.365Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 172,
+    "recordRevision": 173,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4889,21 +4889,17 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:54:19.005Z",
+      "observedAt": "2026-10-17T10:24:34.612Z",
       "held": true,
-      "head": "109a8b7d86747977dce34b4ce895f04d81417b1e",
-      "remoteHead": "109a8b7d86747977dce34b4ce895f04d81417b1e",
+      "head": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
+      "remoteHead": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
       "unpushed": false,
       "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 30668
-      },
       "pr": 2057,
       "reviewJobs": [
         {
           "job": "pr-2057/round-1/launch-data-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-data",
@@ -4916,7 +4912,63 @@
             "head": "109a8b7d86747977dce34b4ce895f04d81417b1e",
             "completedRoundReviewers": null,
             "time": "2026-10-17T09:40:51.785Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "data",
+          "attempt": 1,
+          "reviewedHead": "109a8b7d86747977dce34b4ce895f04d81417b1e",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "data": 1
+          },
+          "plannedRoundReviewers": [
+            "data",
+            "undirected"
+          ],
+          "pendingReviewers": [
+            "undirected"
+          ],
+          "finalCorrections": false,
+          "commentIds": [
+            6232559384
+          ]
+        },
+        {
+          "job": "pr-2057/round-1/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 1,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "data",
+              "undirected"
+            ],
+            "head": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
+            "completedRoundReviewers": {
+              "data": 1
+            },
+            "time": "2026-10-17T10:12:28.611Z"
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "9c0fcd6970f9f2c8eb81f7b5317502d4a4960402",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "data": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "data",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6232764561
+          ]
         }
       ]
     }
@@ -4971,16 +5023,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:20:09.095Z",
-      "event": "acknowledged",
-      "ticket": 1964,
-      "confirmed": {
-        "model": "claude-opus-5-5",
-        "effort": "high",
-        "permissionMode": "bypassPermissions"
-      }
-    },
     {
       "time": "2026-10-17T02:20:30.625Z",
       "event": "verified",
@@ -5708,6 +5750,11 @@
       "time": "2026-10-17T09:54:17.719Z",
       "event": "check-in",
       "outcome": "no change: #1967 PR #2057 at 109a8b7d8 in round 1 with the data reviewer running (Windows driver check still in progress); the other five slices are done"
+    },
+    {
+      "time": "2026-10-17T10:24:33.309Z",
+      "event": "check-in",
+      "outcome": "no change: #1967 PR #2057 at 9c0fcd697 with round 1's data findings fixed and the undirected reviewer running; plan's dead-launch sweep hit ENOENT twice on the running reviewer's probe clone and cleanup, recorded on #1866, succeeded on retry"
     }
   ]
 }
