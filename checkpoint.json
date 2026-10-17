@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 214,
-  "previous": "12d0b26a23ca7f689fe2a0d2f4bfce049da80293",
+  "seq": 215,
+  "previous": "7573ce63361deea4938a170fe009f80bc689dbb9",
   "snapshotParents": [],
-  "time": "2026-10-17T16:56:18.019Z",
+  "time": "2026-10-17T16:56:25.089Z",
   "kind": "auto",
-  "transition": "claim of #1907",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 225,
@@ -7607,7 +7607,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T16:56:18.018Z",
+      "observedAt": "2026-10-17T16:56:25.089Z",
       "held": true,
       "exists": false
     }
@@ -7615,7 +7615,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T16:55:43.203Z",
+    "at": "2026-10-17T16:56:25.088Z",
     "tickets": [
       {
         "number": 984,
@@ -7841,9 +7841,9 @@
       },
       {
         "number": 1907,
-        "action": "dispatch",
+        "action": "reconcile-pending",
         "pr": null,
-        "reason": "every blocker's deliverable is on origin/main"
+        "reason": "launch 4c537485-e0db-474a-9884-f2d42c3243c1 on claude-cli has no confirmed outcome; run reconcile before any retry"
       },
       {
         "number": 1908,
