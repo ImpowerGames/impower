@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 66,
-  "previous": "7a5df33c5372d7693f2039d7682a237325317499",
+  "seq": 67,
+  "previous": "67c90cc2f0bcd1670b57b6c610e932044ae0cdcf",
   "snapshotParents": [],
-  "time": "2026-10-17T02:07:30.466Z",
+  "time": "2026-10-17T02:07:41.570Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1963",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 59,
+    "recordRevision": 60,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1231,7 +1231,18 @@
       },
       "pending": null,
       "history": [],
-      "results": []
+      "results": [],
+      "requests": [
+        {
+          "id": "3ec61e13",
+          "owner": "c7b0d9e3-f7ae-4c8a-ae6a-e1ef52a07fba",
+          "time": "2026-10-17T02:07:38.204Z",
+          "text": "Round 3 checkpoint report for PR #2009: rounds 1 (callers + undirected), 2 (persistence + undirected) and 3 (undirected, no findings) complete, all gpt-6.1-sol high; 8 accepted findings, all fixed and reviewed; reviewed head 23ebfd91b equals the current head; all CI checks pass. One correction introduced a defect (R1 PR-reference display text persisted, caught in R2). Deviation from the ticket: clean-worktrees keeps {owner}/{repo} from origin because its lookup concerns public pull request review jobs. Writer awaits the checkpoint decision; if finish, it marks #2009 ready and sends the final report.",
+          "source": "cross-session message from writer session impower-a1 (CLI session bb9d33ea) received 2026-10-17 ~02:45Z",
+          "relayed": null,
+          "answer": null
+        }
+      ]
     },
     "1966": {
       "owner": {
@@ -1749,7 +1760,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1963-retarget-internal-tracker",
       "branch": "feat/1963-retarget-internal-tracker",
-      "observedAt": "2026-10-17T02:07:28.973Z",
+      "observedAt": "2026-10-17T02:07:40.019Z",
       "held": true,
       "head": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
       "remoteHead": "23ebfd91bc97c7e4d8e585d88553c1a9e268546d",
@@ -1948,7 +1959,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:07:28.973Z",
+      "observedAt": "2026-10-17T02:07:40.019Z",
       "held": true,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "remoteHead": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
@@ -2578,6 +2589,12 @@
       "ticket": 1966,
       "id": "b7a659e5",
       "deliveryId": "bb49b6a6"
+    },
+    {
+      "time": "2026-10-17T02:07:38.206Z",
+      "event": "request",
+      "ticket": 1963,
+      "id": "3ec61e13"
     }
   ]
 }
