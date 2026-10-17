@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 149,
-  "previous": "6f6e5182e7547a747b21e75f2ddda9e139516639",
+  "seq": 150,
+  "previous": "df56afea45dbe8df957a819f6e15c240e86c3587",
   "snapshotParents": [],
-  "time": "2026-10-17T03:19:07.826Z",
+  "time": "2026-10-17T03:21:05.296Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
     "recordRevision": 121,
@@ -2607,7 +2607,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T03:17:02.771Z",
+    "at": "2026-10-17T03:21:05.294Z",
     "tickets": [
       {
         "number": 851,
@@ -2641,7 +2641,10 @@
       }
     ],
     "remaining": [
-      "Every slice is merged and the Feature's acceptance criteria were verified on main; close the Feature with integration.mjs close-feature if it is still open, and give the final report."
+      "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.",
+      "A ready PR merges only through integration.mjs's merge gate, on a head that is the last independently reviewed one or carries a published acceptance, with every reviewer exited, every report adjudicated, required CI passed and current main merged in; dependent tickets become eligible once a blocker's merge commit is on origin/main.",
+      "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the Feature's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
+      "Once every slice is merged, the Feature's own acceptance criteria are verified on main with integration.mjs verify-feature; the Feature is complete only when that verification passes, never from merged PRs alone."
     ]
   },
   "log": [
