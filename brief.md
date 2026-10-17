@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1940
 
-Checkpoint 130 (this commit), 2026-10-17T01:23:31.013Z, after the intent before a side effect. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
+Checkpoint 131 (this commit), 2026-10-17T01:23:42.695Z, after resume of #1974. Coordinator local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -19,7 +19,7 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1974
 
-- claude-cli claude-opus-5-5 at medium, process 52448 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at medium, process 41108 on DESKTOP-726EO47
 - review job pr-1984/round-1/launch-blast-radius-1 on DESKTOP-726EO47: round 1 reviewed 00e52531f, completed {"incrementality":1,"blast-radius":1} of planned ["incrementality","blast-radius","undirected"]; last launched reviewer blast-radius attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event finished
 - review job pr-1984/round-1/launch-incrementality-1 on DESKTOP-726EO47: round 1 reviewed e83fefb53, completed {"incrementality":1} of planned ["incrementality","blast-radius","undirected"]; last launched reviewer incrementality attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event finished
 - review job pr-1984/round-1/launch-undirected-1 on DESKTOP-726EO47: round 1 reviewed df557a02b, completed {"incrementality":1,"blast-radius":1,"undirected":1} of planned ["incrementality","blast-radius","undirected"]; last launched reviewer undirected attempt 1 of round 1 (planned ["incrementality","blast-radius","undirected"]), last event finished

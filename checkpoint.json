@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 130,
-  "previous": "fd385034280b49d46f0beee04f8b332835d4fe56",
+  "seq": 131,
+  "previous": "b646665ad5640057bd35351837dafd945cd5cf8c",
   "snapshotParents": [],
-  "time": "2026-10-17T01:23:31.013Z",
+  "time": "2026-10-17T01:23:42.695Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #1974",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 106,
+    "recordRevision": 107,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -700,10 +700,10 @@
         "launchId": "3950b896-bf27-4a2c-b9ff-a936c1dec179",
         "handle": {
           "kind": "process",
-          "pid": 52448,
-          "start": "639277950173469009",
+          "pid": 41108,
+          "start": "639277970194161650",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-7a097718-7636-4e93-9a2d-b75836432bde"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac"
         },
         "verified": true,
         "brief": {
@@ -732,13 +732,13 @@
             "id": "7a097718-7636-4e93-9a2d-b75836432bde",
             "time": "2026-10-17T00:50:17.767Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-7a097718-7636-4e93-9a2d-b75836432bde"
+          },
+          {
+            "id": "ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
+            "time": "2026-10-17T01:23:39.820Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac"
           }
-        ],
-        "resuming": {
-          "id": "ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
-          "time": "2026-10-17T01:23:26.743Z"
-        }
+        ]
       },
       "pending": null,
       "history": [],
@@ -2102,7 +2102,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:23:28.987Z",
+      "observedAt": "2026-10-17T01:23:41.229Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2259,7 +2259,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T01:23:28.987Z",
+      "observedAt": "2026-10-17T01:23:41.229Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2581,13 +2581,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:23:49.598Z",
-      "event": "dispatch-intent",
-      "ticket": 1637,
-      "route": "claude-cli",
-      "launchId": "6a277fa9-157c-4586-a29f-df6814e10c3e"
-    },
     {
       "time": "2026-10-16T16:24:10.497Z",
       "event": "launched",
@@ -3255,6 +3248,19 @@
       "ticket": 1974,
       "id": "ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
       "sessionId": "027bc9ab-053c-4105-bb27-36ecdae50509"
+    },
+    {
+      "time": "2026-10-17T01:23:39.820Z",
+      "event": "resumed",
+      "ticket": 1974,
+      "id": "ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac",
+      "handle": {
+        "kind": "process",
+        "pid": 41108,
+        "start": "639277970194161650",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1974-ffddea1f-8bc4-42e9-b6a4-c86a2a28e2ac"
+      }
     }
   ]
 }
