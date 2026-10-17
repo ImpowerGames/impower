@@ -148,6 +148,23 @@ test('fixture exit polling retries only inspection uncertainty and requires conf
   await assert.rejects(waitForAbsence([original],35,()=>original),/absence was not confirmed/);
   await assert.rejects(waitForAbsence([original],35,()=>{throw unknown;}),error=>error.cause===unknown);
 });
+test('fixture absence waits for a recorded process that is still exiting and fails one that stays live',{timeout:30000},async()=>{
+  const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
+  const live=ms=>{
+    const child=spawn(process.execPath,['-e',`setTimeout(()=>{},${ms})`],{stdio:'ignore',windowsHide:true});
+    fs.appendFileSync(inventory,JSON.stringify({pid:child.pid})+'\n');
+    return {child,close:new Promise(resolve=>child.once('close',resolve))};
+  };
+  const exiting=live(1500);
+  assert.ok(processIdentity(exiting.child.pid),'The recorded fixture is still live when absence is checked');
+  await absence(inventory);
+  await exiting.close;
+  fs.rmSync(inventory);
+  const stuck=live(30000);
+  try {
+    await assert.rejects(absence(inventory,300),new RegExp(`Fixture PID ${stuck.child.pid} remained live`));
+  } finally {stuck.child.kill();await stuck.close;}
+});
 function expectedProof(directory=scratch()) {
   const requestedDirectory=directory;
   directory=fs.realpathSync.native(directory);
