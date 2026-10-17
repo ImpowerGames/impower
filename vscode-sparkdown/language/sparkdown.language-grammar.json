@@ -16310,8 +16310,11 @@
           ]
         },
         "2": {
-          "tag": "typeOperator",
-          "name": "keyword.operator.type.luau"
+          "patterns": [
+            {
+              "include": "#LuauTypeIntersectionLineOperator"
+            }
+          ]
         },
         "3": {
           "emit": true,
@@ -16337,6 +16340,11 @@
         }
       ],
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=^(?:[^\\S\\n\\r])*[^|&\\s]|$|[,;)\\]}])"
+    },
+    "LuauTypeIntersectionLineOperator": {
+      "tag": "typeOperator",
+      "name": "keyword.operator.type.luau",
+      "match": "(.+)"
     },
     "LuauIndexerLineContinuation": {
       "begin": "^((?:[^\\S\\n\\r])*)(?=(?:(?:[^\\S\\n\\r])*\\[(?!=*\\[)))",

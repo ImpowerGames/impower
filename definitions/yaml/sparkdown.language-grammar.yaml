@@ -11639,8 +11639,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       2:
-        tag: typeOperator
-        name: keyword.operator.type.luau
+        patterns:
+          - { include: "#LuauTypeIntersectionLineOperator" }
       3:
         emit: true
         patterns:
@@ -11656,6 +11656,13 @@ repository:
     # does not end where `LUAU_TYPE_LINE_BREAK` would at an `&` line's start,
     # or it would end where it begins.
     end: (?={{BEAT}})|(?=^{{WS}}*[^|&\s]|$|[,;)\]}])
+
+  # The `&` that begins an intersection member line. Its node tells the
+  # lowerer the line is an intersection: Luau reports one that continues no
+  # type itself, since it reads that `&` as the start of an expression.
+  LuauTypeIntersectionLineOperator:
+    tag: typeOperator
+    name: keyword.operator.type.luau
 
   LuauIndexerLineContinuation:
     begin: ^({{WS}}*)(?={{LUAU_INDEXER_LINE_CONTINUATION}})

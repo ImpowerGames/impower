@@ -21,6 +21,7 @@ import {
   leadingReturnTypeQualifier,
   reportExtraTypeQualifiers,
   reportUntakenContinuation,
+  continuesIntersection,
   hasTypeOperatorLineOwner,
   reportUnownedTypeOperatorLine,
 } from "./utils/lineContinuation";
@@ -466,8 +467,15 @@ function lowerBlockStatements(
     if (child.name === "LuauTypeOperatorLineContinuation") {
       // A union member line after a comment line, or an intersection member
       // line: types do not reach the runtime, and the declaration before it
-      // took it. One that continues no type is Luau's error.
-      if (!taken.has(i) && !hasTypeOperatorLineOwner(child)) {
+      // took it. One that continues no type is Luau's error. Luau reads an
+      // `&` that begins a statement as an expression and reports it in its
+      // own words (a function body has no `&` marker, so `& print(1)` is
+      // that error), and the lowerer adds nothing to it.
+      if (
+        !taken.has(i) &&
+        !hasTypeOperatorLineOwner(child) &&
+        !continuesIntersection(child)
+      ) {
         reportUnownedTypeOperatorLine(child, ctx);
       }
       continue;

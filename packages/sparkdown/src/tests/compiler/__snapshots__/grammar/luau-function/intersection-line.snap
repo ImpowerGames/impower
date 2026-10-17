@@ -87,7 +87,8 @@ sparkdown [0..350]
  │   │   │   │       ├─ LuauTypeOperatorLineContinuation_begin [28..32]
  │   │   │   │       │   ├─ LuauTypeOperatorLineContinuation_begin_c1 [28..30]
  │   │   │   │       │   │   └─ ExtraWhitespace [28..30]: "  "
- │   │   │   │       │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [30..31]: "&"
+ │   │   │   │       │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [30..31]
+ │   │   │   │       │   │   └─ LuauTypeIntersectionLineOperator [30..31]: "&"
  │   │   │   │       │   └─ LuauTypeOperatorLineContinuation_begin_c3 [31..32]
  │   │   │   │       │       └─ LuauTypeOperatorLineContinuation_begin_c3 [31..32]
  │   │   │   │       │           └─ OptionalWhitespace [31..32]: " "
@@ -209,7 +210,8 @@ sparkdown [0..350]
  │   │       │   │   ├─ LuauTypeOperatorLineContinuation_begin [62..66]
  │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c1 [62..64]
  │   │       │   │   │   │   └─ ExtraWhitespace [62..64]: "  "
- │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [64..65]: "&"
+ │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [64..65]
+ │   │       │   │   │   │   └─ LuauTypeIntersectionLineOperator [64..65]: "&"
  │   │       │   │   │   └─ LuauTypeOperatorLineContinuation_begin_c3 [65..66]
  │   │       │   │   │       └─ LuauTypeOperatorLineContinuation_begin_c3 [65..66]
  │   │       │   │   │           └─ OptionalWhitespace [65..66]: " "
@@ -356,7 +358,8 @@ sparkdown [0..350]
  │   │       │   │   ├─ LuauTypeOperatorLineContinuation_begin [105..111]
  │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c1 [105..109]
  │   │       │   │   │   │   └─ ExtraWhitespace [105..109]: "    "
- │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [109..110]: "&"
+ │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [109..110]
+ │   │       │   │   │   │   └─ LuauTypeIntersectionLineOperator [109..110]: "&"
  │   │       │   │   │   └─ LuauTypeOperatorLineContinuation_begin_c3 [110..111]
  │   │       │   │   │       └─ LuauTypeOperatorLineContinuation_begin_c3 [110..111]
  │   │       │   │   │           └─ OptionalWhitespace [110..111]: " "
@@ -425,7 +428,8 @@ sparkdown [0..350]
  │   │       │   │   ├─ LuauTypeOperatorLineContinuation_begin [135..141]
  │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c1 [135..139]
  │   │       │   │   │   │   └─ ExtraWhitespace [135..139]: "    "
- │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [139..140]: "&"
+ │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [139..140]
+ │   │       │   │   │   │   └─ LuauTypeIntersectionLineOperator [139..140]: "&"
  │   │       │   │   │   └─ LuauTypeOperatorLineContinuation_begin_c3 [140..141]
  │   │       │   │   │       └─ LuauTypeOperatorLineContinuation_begin_c3 [140..141]
  │   │       │   │   │           └─ OptionalWhitespace [140..141]: " "
@@ -535,7 +539,8 @@ sparkdown [0..350]
  │   │       │   │   ├─ LuauTypeOperatorLineContinuation_begin [169..175]
  │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c1 [169..173]
  │   │       │   │   │   │   └─ ExtraWhitespace [169..173]: "    "
- │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [173..174]: "&"
+ │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [173..174]
+ │   │       │   │   │   │   └─ LuauTypeIntersectionLineOperator [173..174]: "&"
  │   │       │   │   │   └─ LuauTypeOperatorLineContinuation_begin_c3 [174..175]
  │   │       │   │   │       └─ LuauTypeOperatorLineContinuation_begin_c3 [174..175]
  │   │       │   │   │           └─ OptionalWhitespace [174..175]: " "
@@ -620,7 +625,8 @@ sparkdown [0..350]
  │   │       │   │   ├─ LuauTypeOperatorLineContinuation_begin [193..197]
  │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c1 [193..195]
  │   │       │   │   │   │   └─ ExtraWhitespace [193..195]: "  "
- │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [195..196]: "&"
+ │   │       │   │   │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [195..196]
+ │   │       │   │   │   │   └─ LuauTypeIntersectionLineOperator [195..196]: "&"
  │   │       │   │   │   └─ LuauTypeOperatorLineContinuation_begin_c3 [196..197]
  │   │       │   │   │       └─ LuauTypeOperatorLineContinuation_begin_c3 [196..197]
  │   │       │   │   │           └─ OptionalWhitespace [196..197]: " "
@@ -798,7 +804,8 @@ sparkdown [0..350]
  │   │       │       │       │       │       ├─ LuauTypeOperatorLineContinuation_begin [260..264]
  │   │       │       │       │       │       │   ├─ LuauTypeOperatorLineContinuation_begin_c1 [260..262]
  │   │       │       │       │       │       │   │   └─ ExtraWhitespace [260..262]: "  "
- │   │       │       │       │       │       │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [262..263]: "&"
+ │   │       │       │       │       │       │   ├─ LuauTypeOperatorLineContinuation_begin_c2 [262..263]
+ │   │       │       │       │       │       │   │   └─ LuauTypeIntersectionLineOperator [262..263]: "&"
  │   │       │       │       │       │       │   └─ LuauTypeOperatorLineContinuation_begin_c3 [263..264]
  │   │       │       │       │       │       │       └─ LuauTypeOperatorLineContinuation_begin_c3 [263..264]
  │   │       │       │       │       │       │           └─ OptionalWhitespace [263..264]: " "

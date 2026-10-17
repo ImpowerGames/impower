@@ -176,10 +176,15 @@ export function hasTypeOperatorLineOwner(line: SyntaxNode): boolean {
   );
 }
 
-// Report a union or intersection member line that continues no type
-// (`print(1)` then `-- note` then `| string`, or `print(1)` then
-// `& string`), which Luau rejects. A function body has no `&` statement
-// marker, so a line written with one (`& print(1)`) is this error too.
+// Whether the member line `line` begins with an intersection's `&`
+// (`& { y: string }`), rather than a union's `|`.
+export function continuesIntersection(line: SyntaxNode): boolean {
+  return hasDescendant(line, "LuauTypeIntersectionLineOperator");
+}
+
+// Report a union member line that continues no type (`print(1)` then
+// `-- note` then `| string`), which Luau rejects. An intersection member
+// line that continues no type is left to Luau, which reports the `&` itself.
 export function reportUnownedTypeOperatorLine(line: SyntaxNode, ctx: LowerContext): void {
   const raw = ctx.read(line.from, line.to);
   const text = raw.trim();

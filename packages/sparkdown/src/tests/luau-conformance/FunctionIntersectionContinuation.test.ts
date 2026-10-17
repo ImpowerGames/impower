@@ -71,9 +71,24 @@ test.each([
     'local function g(): { x: number }\n  & { y: string }\n  return { x = 1, y = "ok" }\nend\nreturn 1',
   ],
   ["a comment line", "type F = number\n-- note\n& string\nreturn 1"],
-  ["a union member", "type F = number\n| string\n& boolean\nreturn 1"],
+  [
+    "a parenthesized union",
+    "type F = (number\n| string)\n& boolean\nreturn 1",
+  ],
 ])("an intersection line after %s reads as Luau", (_name, body) => {
   expect(checkLuau(body).syntaxDiagnostics).toEqual([]);
+});
+
+// Luau does not mix a union and an intersection without parentheses, and
+// an intersection line after a union line is that error, as on one line.
+test("an intersection line after a union line is Luau's mixing error", () => {
+  expect(
+    checkLuau("type F = number\n| string\n& boolean\nreturn 1").syntaxDiagnostics.map(
+      (d) => d.message,
+    ),
+  ).toEqual([
+    "Mixing union and intersection types is not allowed; consider wrapping in parentheses.",
+  ]);
 });
 
 test.each([
@@ -123,24 +138,29 @@ test("an intersection line runs with CRLF line endings", () => {
 });
 
 // The marker is gone from function bodies: a written one is Luau's syntax
-// error, and its statement neither runs nor moves out of its block.
+// error, reported as Luau reports it.
+const AMPERSAND_ERROR = "Expected identifier when parsing expression, got '&'";
 test.each([
-  ["a call", "& print(1)\nreturn 1", "& print(1)", [0, 0]],
-  ["an assignment", "local a = 1\n& a = 2\nreturn a", "& a = 2", [1, 0]],
-  [
-    "a call in a nested block",
-    "if false then\n  & print(1)\nend\nreturn 1",
-    "& print(1)",
-    [1, 2],
-  ],
-])("a marked %s in a function is reported", (_name, body, line, [row, column]) => {
+  ["a call", "& print(1)\nreturn 1", [0, 0]],
+  ["an assignment", "local a = 1\n& a = 2\nreturn a", [1, 0]],
+  ["a call in a nested block", "if false then\n  & print(1)\nend\nreturn 1", [1, 2]],
+  ["a marker with no space", "&print(1)\nreturn 1", [0, 0]],
+])("a marked %s in a function is reported", (_name, body, [row, column]) => {
   expect(
     checkLuau(body).syntaxDiagnostics.map((d) => [d.line, d.column, d.message]),
-  ).toEqual([[row, column, "Expected identifier when parsing expression, got '&'"]]);
+  ).toEqual([[row, column, AMPERSAND_ERROR]]);
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
-  expect(ctx.errorMessages).toEqual([
-    `\`${line}\` continues a type, but the line before it does not end in one.`,
-  ]);
+  expect(ctx.errorMessages).toEqual([AMPERSAND_ERROR]);
+});
+
+// A marked statement in a block that does not run is neither run nor moved
+// out of the block: the story still plays, and the count stays 0.
+test("a marked statement in a function neither runs nor leaves its block", () => {
+  const ctx = makeRuntimeStoryFromSource(
+    "store count = 0\nfunction bump()\n  if false then\n    & count += 1\n  end\nend\n& bump()\nThe count is {count}.\n",
+  );
+  expect(ctx.errorMessages).toEqual([AMPERSAND_ERROR]);
+  expect(ctx.story.ContinueMaximally()).toBe("The count is 0.\n");
 });
 
 test("a call and assignment without the marker run in a function", () => {
