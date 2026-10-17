@@ -2,7 +2,7 @@
 
 All commands run from the worktree root unless stated otherwise.
 
-## 4. Adjudicate, on the PR
+## 4. Adjudicate, on the review thread
 
 Reviewer output is a hypothesis, not a verdict; reviewer sessions confidently report defects that do not exist. A reviewer that failed with a rate-limit error did not run: relaunch it after the reset the error names, as the same round and reviewer, before launching the next. Adjudicate each usable report when its reviewer exits, before the round's next planned reviewer launches; the round is complete only when every planned reviewer has reported. If the coordinator exits, recover from the recorded launch IDs and start times before replacing any attempt; a missing comment is not evidence that a process exited.
 
@@ -10,7 +10,7 @@ For every finding, confirm it yourself in the code before acting. A claimed `fil
 
 Give every unverified concern and coverage gap an explicit disposition too: establish a defect, resolve it with evidence, or retain it as an outstanding verification gap with its risk and next action. Do not change code merely to satisfy speculation. A material correctness or safety gap keeps the PR draft; a nonblocking limitation must be disclosed with the reason it does not prevent readiness. Reviewer agreement is not proof.
 
-Then dispose of every finding where it lives, on the PR. Adjudicate every comment a reviewer posted, the latest correction winning: a reviewer that posts twice, or corrects itself in a later comment, is answered on its final position, and the earlier comment is named as superseded rather than left looking open. Post one adjudication comment per review via `--body-file`, naming the review comment ID, round, reviewed head and every finding's disposition:
+Then dispose of every finding where it lives, on the PR's [review thread](../../references/publishing.md#the-review-thread): the PR while the cutover switch is off, the internal ticket (`<T>` in the commands below) once it is on. Adjudicate every comment a reviewer posted, the latest correction winning: a reviewer that posts twice, or corrects itself in a later comment, is answered on its final position, and the earlier comment is named as superseded rather than left looking open. Post one adjudication comment per review on the thread via `--body-file` (`gh issue comment <T> -R <tickets> --body-file <file>`), read back by id, naming the review comment ID, round, reviewed head and every finding's disposition:
 
 - Accepted: fixed, with the commit SHA and verification.
 - Rejected: the concrete reason and evidence, including a claim not confirmed at its cited location.
@@ -21,11 +21,11 @@ Reviewers report at two tiers. A defect is answered only by acceptance or reject
 
 Adjudicate late or out-of-order reports against current HEAD. For each finding, state whether it remains live, is already fixed (name the commit and verification), or is no longer applicable (explain the current code). Name the commits between that report's reviewed head and current HEAD that the reviewer did not see. Preserve the report and its original round; arrival order does not change coverage or reset the stopping rule. A live finding that needs a code change follows [later-round rules](later-rounds.md) before editing.
 
-The adjudicating writer and every reviewer read comments through the paginated API. List all IDs and headings with `gh api repos/ImpowerGames/impower/issues/P/comments --paginate --jq '.[] | [.id, (.body | split("\n")[0])] | @tsv'`, then fetch each relevant full body with `gh api repos/ImpowerGames/impower/issues/comments/<id> --jq .body`. Persist long bodies to private files and read them in bounded sections so tool output limits cannot hide later findings. Read back every published review and adjudication body, not only its heading. Do not use `gh pr view P --comments` for adjudication or prompt preparation.
+The adjudicating writer and every reviewer read comments through the paginated API. List all IDs and headings with `gh api repos/<tickets>/issues/<T>/comments --paginate --jq '.[] | [.id, (.body | split("\n")[0])] | @tsv'`, then fetch each relevant full body with `gh api repos/<tickets>/issues/comments/<id> --jq .body`. Persist long bodies to private files and read them in bounded sections so tool output limits cannot hide later findings. Read back every published review and adjudication body, not only its heading. Do not use `gh pr view P --comments` for adjudication or prompt preparation; once the switch is on the public PR holds no review comments, and the public-repository guard refuses that read.
 
 When a finding's fix depends on a defect older than the branch, fix the older defect on the branch too and say so under Notes for reviewers; ticket it separately only when the fix can stand without it.
 
-Do not silently drop findings; an unanswered review comment on the PR reads as an open defect.
+Do not silently drop findings; an unanswered review comment on the thread reads as an open defect.
 
 Once a reviewer has exited and its report is read and adjudicated, its probe clones, installs and temp directories hold nothing the review still needs, and each costs gigabytes on a disk every concurrent round shares. Run `node scripts/reviewer-probe-cleanup.mjs <absolute-journal>` with that reviewer's launch journal. Once every review launch in the journal has an `exited` row, it removes the Git repositories, `node_modules` installs and links that appeared in the reviewer directory after the launcher's snapshot, and keeps every regular file the reviewer wrote outside them (its report, its first pass, in any subdirectory), the journal and its rows, the launcher plan and anything the directory held before the launch; it appends nothing to the journal and prints one JSON result per launch. The launcher already runs the same removal after each confirmed exit, so the command often removes nothing. Before removing anything, it refuses a journal in which any launch has no `exited` row or recorded no snapshot. A reservation entry naming the reviewer directory skips the removal and says so; run it again after that run ends. For a reviewer the launcher did not run, delete only the directories its report names as its own scratch.
 
@@ -42,13 +42,13 @@ When the check imports a name the base revision does not export, `redgreen`'s re
 Marking the PR ready means this diff is finished and ready to be reviewed by a human. Make that claim only when every one of these is true:
 
 - Every reviewer you spawned has exited, and every planned reviewer has supplied a usable report for the head recorded for it.
-- Every report is on the PR, including the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
+- Every report is on the review thread, including the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
 - Every finding is adjudicated in your adjudication comment, accepted, rejected, already covered, or deferred to a filed Task under the conditions above, with nothing left unanswered.
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
 - No required lens is missing or outstanding from an aborted or retried attempt (see [independence](../SKILL.md)).
 - Behavior-changing fix commits have themselves been independently reviewed under [later-round rules](later-rounds.md). A correction made between a round's reviewers counts as reviewed when a later reviewer of that round whose lens covers the changed code reviewed a head containing it; the undirected reviewer covers the whole change. Only verified non-behavioral corrections qualify for its disclosed exception.
-- CI has started on the final pushed head and no check on that head has failed (`gh pr checks`), and no blocking finding or material verification gap remains. Readiness does not wait for pending checks: whoever merges (the maintainer, or an orchestrated Feature's coordinator through its merge gate) merges only after CI finishes. Read `gh pr checks` once before marking ready, and record each check as passed, failed or still pending in the PR body's Testing and verification section and in the handoff. A failed check on the final head, including one that fails after the PR is ready, is the writer's correction to make.
-- No external draft blocker remains. Under Notes for reviewers, name any prerequisite outside review (such as another PR holding required files), what must happen first, and the remaining work in the order a follow-up session should perform it. Keep the PR draft until that prerequisite and the remaining gates are satisfied.
+- CI has started on the final pushed head and no check on that head has failed (`gh pr checks`), and no blocking finding or material verification gap remains. Readiness does not wait for pending checks: whoever merges (the maintainer, or an orchestrated Feature's coordinator through its merge gate) merges only after CI finishes. Read `gh pr checks` once before marking ready, and record each check as passed, failed or still pending in the PR body's Testing and verification section (the latest PR report's once the switch is on) and in the handoff. A failed check on the final head, including one that fails after the PR is ready, is the writer's correction to make.
+- No external draft blocker remains. Under Notes for reviewers (the PR report's once the switch is on), name any prerequisite outside review (such as another PR holding required files), what must happen first, and the remaining work in the order a follow-up session should perform it. Keep the PR draft until that prerequisite and the remaining gates are satisfied.
 
 Only then:
 
@@ -56,12 +56,12 @@ Only then:
 gh pr ready
 ```
 
-Read it back, because the flag is silent when it does nothing:
+It runs on the public PR in both positions and posts no comment there. Read it back, because the flag is silent when it does nothing:
 
 ```bash
 gh pr view --json number,isDraft,reviewDecision
 ```
 
-If you run out of budget, get blocked, or hand the session back with any of the above unfinished, leave the PR a draft and say plainly in the PR and to the user what is still outstanding.
+If you run out of budget, get blocked, or hand the session back with any of the above unfinished, leave the PR a draft and say plainly on the review thread and to the user what is still outstanding.
 
 ---

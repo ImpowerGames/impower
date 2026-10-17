@@ -11,6 +11,7 @@ import { verifyClaimConfiguration } from './continuation-host.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { reviewJobRoot,assertInsideJobRoot } from './review-job-root.mjs';
 import { nativeResultType,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
+import { readRepos,reviewThread } from '../.agents/repos.mjs';
 import { readJson,writeExclusive,git,readEvents,appendEvent,withJob,retryBusy,recoverJobLock,alive,sameIdentity,currentIdentity,assertFrozen,reserveFreeze,assertJobFreeze,worktreePaths,failureDetails } from './review-job-store.mjs';
 
 const here=fileURLToPath(import.meta.url);
@@ -30,7 +31,7 @@ export function jobStatus(dir,events=readEvents(dir)) {
   }
   return {jobId:events[0].jobId,sequence:events.at(-1).sequence,state:last(events,'workflow-cancelled')?'workflow-cancelled':blocked(events)?'blocked':last(events,'claimed')?'claimed':last(events,'continuation-accepted')?'continuation-accepted':last(events,'worker-finished')?.ok===false||last(events,'worker-launch-failed')?'review-failed':suspended(events)?'monitor-suspended':submissionOutstanding(events)?'delivery-uncertain':last(events,'continuation-pending')?'continuation-pending':last(events,'worker-started')?'review-running':last(events,'worker-launch-intent')?'registration-pending':'accepted',events};
 }
-export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,jobRoot}={}) {
+export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,jobRoot,repos=readRepos()}={}) {
   const plan=structuredClone(input);
   if(!path.isAbsolute(plan.worktree)||!path.isAbsolute(plan.jobDir))throw new Error('Absolute worktree and private jobDir required');
   plan.worktree=fs.realpathSync.native(plan.worktree);plan.jobDir=path.resolve(plan.jobDir);
@@ -40,6 +41,8 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
   if(!plan.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
   if(!plan.writerEffort||!plan.permissions||!Array.isArray(plan.reviews)||plan.reviews.length<1||plan.reviews.length>4)throw new Error('Exact routing, permissions and bounded coverage required');
   checkWriterEffort(plan.writer,plan.writerEffort);
+  // Its reports are verified on this thread; ticket follows the cutover switch.
+  reviewThread(plan,repos);
   if(plan.reportPosting!==undefined)throw new Error('A coordinator-posted report uses the awaited launcher; the supervised route verifies reports its reviewers post');
   const limit=plan.reviewRoundLimit??3;
   validateReviewRecovery(plan);
@@ -90,7 +93,7 @@ export async function createReviewJob(input,host,{verifyExecutable=verifyReviewe
   writeExclusive(path.join(plan.jobDir,'events.jsonl'),{version:1,sequence:1,eventId:randomUUID(),jobId:plan.jobId,time:new Date().toISOString(),event:'accepted',capability});
   try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));return jobStatus(plan.jobDir);}
   const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,reviewers:plan.reviewers,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,execution:review.execution,lens:review.lens,next:[plan.reviews[index+1]?.id??null]}]));
-  writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,completedRoundReviews:plan.completedRoundReviews,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,slotWaitSeconds:plan.slotWaitSeconds,usageLimitJournal:plan.usageLimitJournal,sameVendorAuthorization:plan.sameVendorAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
+  writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,ticket:plan.ticket,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,completedRoundReviews:plan.completedRoundReviews,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,slotWaitSeconds:plan.slotWaitSeconds,usageLimitJournal:plan.usageLimitJournal,sameVendorAuthorization:plan.sameVendorAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
 export async function launchReviewWorker(dir,{spawnWorker=spawnDetached}={}) {
@@ -193,11 +196,11 @@ async function advanceTerminalNotification(dir,host,{failpoint=()=>{}}={}) {
   rows=await advanceDelivery(dir,host,{plan,envelope,rows,outstanding:terminalSubmissionOutstanding,accepted:current=>Boolean(last(current,'terminal-notification-accepted')),maySubmit:current=>['blocked','review-failed'].includes(jobStatus(dir,current).state),intent:'terminal-submission-intent',response:'terminal-submission-response',refused:'terminal-dispatch-refused',uncertain:'terminal-delivery-uncertain',acceptedEvent:'terminal-notification-accepted',failpoint});
   return Boolean(last(rows,'terminal-notification-accepted'));
 }
-export async function runReviewWorker(dir,{slotRoot,jobRoot}={}) {
+export async function runReviewWorker(dir,{slotRoot,jobRoot,repos}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   await transaction(dir,rows=>{if(!last(rows,'worker-launch-intent')||last(rows,'worker-started')||last(rows,'workflow-cancelled'))throw new Error('Invalid or cancelled worker claim');assertJobFreeze(plan,dir);appendEvent(dir,'worker-started',{identity:processIdentity(process.pid)});});
   try {
-    await runHandoff(path.join(dir,'handoff.json'),{slotRoot,jobRoot,automaticJob:{jobId:plan.jobId,jobDir:dir}});
+    await runHandoff(path.join(dir,'handoff.json'),{slotRoot,jobRoot,repos,automaticJob:{jobId:plan.jobId,jobDir:dir}});
     await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:true}));
   } catch(error) {await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:false,...failureDetails(error)}));throw error;}
 }

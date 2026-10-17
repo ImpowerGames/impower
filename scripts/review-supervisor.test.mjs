@@ -7,8 +7,9 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
-import { runHandoff,verifyNativeReviewResult,validateNativeReviewArgs,verifyReviewComment } from './agent-handoff.mjs';
-import { createReviewJob as actualCreate,advanceReviewJob,cancelReviewJob,claimReviewJob as actualClaim,jobStatus,launchReviewWorker,launchSupervisor,runReviewWorker,validateReviewPlan as actualValidate,runReviewMonitor,resumeReviewJob,recoverMonitor,releaseStoppedJob,eventCursor,submitReviewJob } from './review-supervisor.mjs';
+import { runHandoff as actualRunHandoff,verifyNativeReviewResult,validateNativeReviewArgs,verifyReviewComment } from './agent-handoff.mjs';
+import { readRepos,reviewThread } from '../.agents/repos.mjs';
+import { createReviewJob as actualCreate,advanceReviewJob,cancelReviewJob,claimReviewJob as actualClaim,jobStatus,launchReviewWorker,launchSupervisor,runReviewWorker as actualRunWorker,validateReviewPlan as actualValidate,runReviewMonitor,resumeReviewJob,recoverMonitor,releaseStoppedJob,eventCursor,submitReviewJob } from './review-supervisor.mjs';
 import { EventEmitter } from 'node:events';
 import { reviewerEnvironment } from './reviewer-security.mjs';
 import { appendEvent,withJob,readJson,readEvents,worktreePaths,assertJobFreeze,retryBusy,recoverJobLock,git as isolatedGit } from './review-job-store.mjs';
@@ -16,7 +17,10 @@ import { removeScratch } from './remove-scratch.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { codexContinuationHost,continuationPrompt,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 const claimReviewJob=(dir,id,options)=>actualClaim(dir,id,{verifyConfiguration:()=>({turnId:'fixture-turn'}),...options});
-const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args}),get jobRoot(){return scratch;}};
+const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args}),get jobRoot(){return scratch;},get repos(){return OFF;}};
+// Launches run with the switch off, from a copy of the repos file, unless a case names the on copy.
+const runHandoff=(file,options={})=>actualRunHandoff(file,{repos:OFF,...options});
+const runReviewWorker=(dir,options={})=>actualRunWorker(dir,{repos:OFF,...options});
 const createReviewJob=(input,host)=>actualCreate(input,host,fixtureValidation);
 const validateReviewPlan=input=>actualValidate(input,fixtureValidation);
 const seededEnvironment=async run=>{
@@ -27,6 +31,9 @@ const seededEnvironment=async run=>{
 
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'impower-supervisor-'));
 console.log(`Scratch repository: ${scratch}`);
+const committed=readRepos();
+const pinRepos=cutover=>{const file=path.join(scratch,`repos-${cutover?'on':'off'}.json`);fs.writeFileSync(file,JSON.stringify({...committed,cutover}));return readRepos(file);};
+const OFF=pinRepos(false),ON=pinRepos(true);
 const repo=path.join(scratch,'repo');fs.mkdirSync(repo);
 const git=(...args)=>execFileSync('git',args,{cwd:repo,encoding:'utf8',windowsHide:true});
 git('init','--quiet');git('-c','user.name=test','-c','user.email=test@example.invalid','commit','--allow-empty','-qm','fixture');
@@ -324,6 +331,22 @@ try {
       assert.equal(closed,true,'post-spawn admission cleanup failure must retain and await the actual child handle');
       assert.equal(fs.existsSync(worktreePaths(repo).lock),false,'worktree release follows confirmed close');
     }finally{childProcess.spawn=originalSpawn;syncBuiltinESMExports();if(captured&&!closed){const ended=new Promise(resolve=>captured.once('close',resolve));captured.kill();await ended;}}
+    // With the switch on, the supervised plan names the internal ticket; it reaches the
+    // launcher plan, and the worker reads each report by id from the internal repository.
+    const ticketed=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);
+    const onValidation={...fixtureValidation,repos:ON};
+    assert.throws(()=>actualValidate(ticketed.input,onValidation),/Supply ticket/,'the switch on needs the internal ticket');
+    assert.throws(()=>validateReviewPlan({...ticketed.input,ticket:12}),/ticket applies once/,'a ticket is refused before the cutover');
+    const ticketJob=path.join(scratch,'job-ticket');
+    await actualCreate({...ticketed.input,jobDir:ticketJob,ticket:12},ticketed.host,onValidation);
+    assert.equal(readJson(path.join(ticketJob,'handoff.json')).ticket,12,'the launcher plan carries the ticket beside pr');
+    withJob(ticketJob,()=>appendEvent(ticketJob,'worker-launch-intent'));
+    const reads=[];
+    childProcess.execFileSync=(exe,args,options)=>{if(exe!=='gh')return original(exe,args,options);reads.push(args[1]);return JSON.stringify({issue_url:`https://api.github.com/repos/${ON.internal}/issues/12`,body:`Fixture report for ${head}`,created_at:new Date().toISOString()});};
+    syncBuiltinESMExports();
+    try{await seededEnvironment(()=>runReviewWorker(ticketJob,{jobRoot:scratch,slotRoot:path.join(scratch,'slots'),repos:ON}));}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
+    assert.equal(readEvents(ticketJob).at(-1).ok,true,'a report on the internal ticket completes the supervised review');
+    assert.deepEqual(reads,[`repos/${ON.internal}/issues/comments/101`]);
     const interrupted=await fixture();
     fs.writeFileSync(child,fs.readFileSync(child,'utf8').replace("stop_reason:'end_turn'","stop_reason:'interrupt'"));
     withJob(interrupted.jobDir,()=>appendEvent(interrupted.jobDir,'worker-launch-intent'));
@@ -498,9 +521,10 @@ try {
   }
   {
     const notBefore='2026-01-02T00:00:00.500Z',comment={issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:head,created_at:'2026-01-02T00:00:01Z'};
-    await verifyReviewComment(101,547,head,repo,{readComment:()=>comment,notBefore,attempts:1});
-    await assert.rejects(verifyReviewComment(101,547,head,repo,{readComment:()=>({...comment,created_at:'2026-01-01T23:59:59Z'}),notBefore,attempts:1}),/does not verify/);
-    let attempts=0;await verifyReviewComment(101,547,head,repo,{readComment:()=>{if(++attempts===1)throw new Error('transient API error');return comment;},notBefore,attempts:2,wait:async()=>{}});assert.equal(attempts,2);
+    const thread=reviewThread({pr:547},OFF);
+    await verifyReviewComment(101,thread,head,repo,{readComment:()=>comment,notBefore,attempts:1});
+    await assert.rejects(verifyReviewComment(101,thread,head,repo,{readComment:()=>({...comment,created_at:'2026-01-01T23:59:59Z'}),notBefore,attempts:1}),/does not verify/);
+    let attempts=0;await verifyReviewComment(101,thread,head,repo,{readComment:()=>{if(++attempts===1)throw new Error('transient API error');return comment;},notBefore,attempts:2,wait:async()=>{}});assert.equal(attempts,2);
     const f=await fixture();f.complete();const stored=readJson(path.join(f.jobDir,'plan.json'));stored.reviews.push({...stored.reviews[0],id:'second'});fs.writeFileSync(path.join(f.jobDir,'plan.json'),JSON.stringify(stored));
     const journal=path.join(f.jobDir,'handoff.jsonl'),rows=fs.readFileSync(journal,'utf8').trim().split('\n').map(JSON.parse);rows.splice(-1,0,...rows.slice(0,-1).map(row=>({...row,step:'second'})));fs.writeFileSync(journal,rows.map(JSON.stringify).join('\n')+'\n');
     await assert.rejects(advanceReviewJob(f.jobDir,f.host,{identify}),/distinct report IDs/);assert.equal(f.sends,0);

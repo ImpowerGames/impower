@@ -58,4 +58,4 @@ A predecessor's decision is trusted but unverified, and counts for round account
 
 A coordinator resuming with none of its predecessor's records names each predecessor for the ticket with `trust-predecessor --record --coordinator --expect-revision --ticket N --session <predecessor> --source "<where the Feature names it>"`, from the Feature's status comment; its own session and any session that wrote for the ticket are refused. The predecessor's decisions then account for the rounds they authorized, but none is verified. To finish the ticket, the successor reads the PR and decides and publishes its own checkpoint, including any acceptance, on the current head.
 
-The PR body's Notes for reviewers distinguishes the code independently reviewed through the last reviewed commit, any accepted unreviewed range with its decision, and the work still unresolved.
+The PR body's Notes for reviewers (the latest PR report's, once the cutover switch is on) distinguishes the code independently reviewed through the last reviewed commit, any accepted unreviewed range with its decision, and the work still unresolved.

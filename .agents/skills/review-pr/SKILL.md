@@ -27,9 +27,9 @@ For a PR with no linked issue, set the prompt builder's `issue` field to `null`;
 
 Fix the round's reviewers and their serial order before the first launch, specialist lenses first and the undirected reviewer last. Run one reviewer at a time: freeze head, base and files while it runs and record its SHAs and the diff artifact for that head, then adjudicate and correct its report under section 4 before launching the next, so each later reviewer sees the corrected head rather than rediscovering the same defects. Every review artifact lives in the round's job directory, `<main checkout>.review-jobs/pr-<P>/round-<R>` beside the main checkout, and each reviewer/attempt gets its own empty subdirectory there; [launch procedure](references/launch.md) gives the command that resolves it. Read [handoff execution](HANDOFF.md) before launching any local CLI reviewer; it reserves machine-wide slots and runs serial reviewers. Native/remote tasks do not satisfy this enforced workflow. Before selecting executable arguments, read [runner mappings](../references/runner-review.md).
 
-Post round state with identities, SHAs, scope, lenses, launch method and artifact paths. Record process IDs, OS start identities and output paths. Wait for each process to exit, then verify its report landed before advancing. Missing comments alone never justify relaunch. Preserve uncertain launches and recover through the journal and reservation status.
+Post round state on the [review thread](../references/publishing.md#the-review-thread) with identities, SHAs, scope, lenses, launch method and artifact paths. Record process IDs, OS start identities and output paths. Wait for each process to exit, then verify its report landed before advancing. Missing comments alone never justify relaunch. Preserve uncertain launches and recover through the journal and reservation status.
 
-Every report must appear on the PR verbatim, including reports posted by the coordinator on a reviewer's behalf. Read paginated comments. Inspect unauthorized tree changes, preserve other writers' work, and invalidate affected evidence.
+Every report must appear there verbatim, including those posted on a reviewer's behalf. Read paginated comments. Inspect unauthorized tree changes, preserve other writers' work, and invalidate affected evidence.
 
 ## 4. Adjudicate and reverify
 
