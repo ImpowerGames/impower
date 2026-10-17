@@ -11652,10 +11652,13 @@ repository:
       - { include: "#LuauTypeLiteral" }
     # It ends where its type does: at the line's end, at the next line of
     # code that is not itself a `|` or `&` line (a type took the line break),
-    # or at a comma or closing bracket (`| string)` in a parameter list). It
+    # at a comma or closing bracket (`| string)` in a parameter list), or, as
+    # a declaration does, at whitespace before a statement later on the line
+    # (`& number local a = 9`, `& { y: string } return v`), which Luau reads
+    # as the next statement; the `= value` the line ends with stays in it. It
     # does not end where `LUAU_TYPE_LINE_BREAK` would at an `&` line's start,
     # or it would end where it begins.
-    end: (?={{BEAT}})|(?=^{{WS}}*[^|&\s]|$|[,;)\]}])
+    end: (?={{BEAT}})|(?=^{{WS}}*[^|&\s]|$|[,;)\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})
 
   # The `&` that begins an intersection member line. Its node tells the
   # lowerer the line is an intersection: Luau reports one that continues no

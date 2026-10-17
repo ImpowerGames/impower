@@ -77,6 +77,14 @@ test.each([
     "a parenthesized union",
     "type F = (number\n| string)\n& boolean\nreturn 1",
   ],
+  [
+    "a type alias, with a statement after it on its line",
+    "type T = number\n& number local a = 9\nreturn a",
+  ],
+  [
+    "a return type, with a statement after it on its line",
+    "local function g(): number\n  & number return 1\nend\nreturn g()",
+  ],
 ])("an intersection line after %s reads as Luau", (_name, body) => {
   expect(checkLuau(body).syntaxDiagnostics).toEqual([]);
 });
@@ -123,6 +131,16 @@ test.each([
     "a return type",
     'local function g(): { x: number }\n  & { y: string }\n  return { x = 7, y = "ok" }\nend\nreturn g().x',
     "7",
+  ],
+  [
+    "a type alias, with a statement after it on its line",
+    "type T = number\n& number local a = 9\nreturn a",
+    "9",
+  ],
+  [
+    "a return type, with a statement after it on its line",
+    "local function g(): number\n  & number return 8\nend\nreturn g()",
+    "8",
   ],
 ])("an intersection line after %s runs", (_name, body, value) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));

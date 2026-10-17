@@ -14,6 +14,16 @@ local g = function()
   type U = number
   & string
 end
+function h()
+  type V = number
+  & number local a = 9
+  local w: number
+    & number = a
+  return w
+end
+local function k(): number
+  & number return 1
+end
 store count = 0
 local s: number
 & s = 2
