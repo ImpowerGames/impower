@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 204,
-  "previous": "2133233c8471299a73241f997fb154fddeca477a",
+  "seq": 205,
+  "previous": "b361bfe2fd8f7094a56bff57d2ef8bcd4825d765",
   "snapshotParents": [],
-  "time": "2026-10-17T16:47:36.385Z",
+  "time": "2026-10-17T16:47:45.917Z",
   "kind": "auto",
-  "transition": "answer of #1924",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 217,
+    "recordRevision": 218,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3290,7 +3290,12 @@
             "time": "2026-10-17T16:23:54.971Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-b3736836-3679-46af-a8f5-213bf93ef256"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "cc662644-f30b-4aae-9459-9eccf6b9bdf4",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-cc662644-f30b-4aae-9459-9eccf6b9bdf4",
+          "time": "2026-10-17T16:47:43.855Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -7378,7 +7383,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T16:47:35.607Z",
+      "observedAt": "2026-10-17T16:47:45.141Z",
       "held": true,
       "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -8219,15 +8224,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T05:13:44.197Z",
-      "event": "checkpoint-intent",
-      "ticket": 1374,
-      "id": "0f12aa4d",
-      "kind": "extend",
-      "round": 3,
-      "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485"
-    },
-    {
       "time": "2026-10-17T05:13:47.249Z",
       "event": "checkpoint-published",
       "ticket": 1374,
@@ -8953,6 +8949,13 @@
       "id": "742b5057",
       "deliveryId": "a1cfed2a",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T16:47:43.856Z",
+      "event": "resume-intent",
+      "ticket": 1924,
+      "id": "cc662644-f30b-4aae-9459-9eccf6b9bdf4",
+      "sessionId": "18a46342-5e1d-4f43-b931-ad056aac78a7"
     }
   ]
 }
