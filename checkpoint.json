@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 116,
-  "previous": "c7e074326e859610c39c084e218a0884e9fe0070",
+  "seq": 117,
+  "previous": "436c254619aba076a67ca63fb9cf6d8af861eeaf",
   "snapshotParents": [],
-  "time": "2026-10-16T23:46:41.399Z",
+  "time": "2026-10-17T00:21:16.687Z",
   "kind": "auto",
-  "transition": "result of #1881",
+  "transition": "a new plan",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 90,
+    "recordRevision": 92,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -410,6 +410,279 @@
             "attempts": 1,
             "time": "2026-10-16T22:20:02.484Z",
             "to": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "4d9f1a01",
+          "kind": "finish",
+          "feature": 1940,
+          "ticket": 1881,
+          "pr": 1983,
+          "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+          "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
+          "time": "2026-10-16T23:49:16.129Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
+          "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
+          "range": {
+            "from": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
+            "to": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
+            "base": "e2f91499ffa0eea13870e0ea468e3a42fe11f484",
+            "commits": [],
+            "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "reports": [
+            {
+              "comment": 6223851126,
+              "round": 1,
+              "reviewerId": "ordering",
+              "adjudication": 6224449266
+            },
+            {
+              "comment": 6224656264,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6225181494
+            },
+            {
+              "comment": 6225585759,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6225739846
+            },
+            {
+              "comment": 6226256892,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6226315138
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "pending"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "All four accepted findings of rounds 1 and 2 share one mechanism: the workspace answering an edit's selection itself (compileAnswersEditSelection / publishSelection) instead of routing it through the compiler, plus the worker's default routing point (config.startFrom). The corrections address the class, not instances: every selection now carries an arrival number and only a selection that moves the compile point can supersede an earlier answer (publishSelection with movesCompilePoint), every publishSelection caller was enumerated and passes that flag, and the set-aside path shares the ordering fix. Round 2's one finding was comment wording about the timestamp clamp; round 3 found nothing.",
+            "regressions": "One: round 1's ordering correction (1ce9d144f) let a selection the author did not make supersede the author's pending answer. Round 1's second reviewer found it and f0639071e fixed it with a test on the real player workspace; rounds 2 and 3 found no defect introduced by any correction. One regression from a correction, caught by the same round's second reviewer and verified by two later independent rounds, says the mechanism is now stable.",
+            "repairOptions": "The simpler alternative, keeping every selection on the compiler's queue, costs the 20 to 50 ms of queueing behind compiler/select that the ticket's debounce criterion (under 60 ms at the median) forbids, and the measurement on the corrected heads (debounce 52 to 58 ms, key-to-paint 124 to 141 ms) shows the current repair meets it. Nothing broader is indicated: the change stays at the workspace's notification boundary and the worker's routing point.",
+            "residualRisk": "Selection-ordering combinations with a worker restart during configuration, checked by code reading only (the restart path still answers without publishing). The edit-time debounce assumes the editor's and player's clocks agree; disagreement only shortens the remaining wait, bounded to 0 to 50 ms, and the clamp's comment now says so. A structural edit's compile clock rose (90 to 179 ms) while its key-to-paint is unchanged within noise. CI on 2cd5a71ce has the Windows driver-checks job red on an intermittent process-fixture case in scripts/test-suite-child.test.mjs that this PR does not touch and that origin/main e2f91499f fails the same way (Task #1999); a rerun is in flight, and the merge gate requires it green.",
+            "coverage": "Red/green tests for every accepted finding (workspaceChangeCompile.test.ts 19, workspaceCompilePoint.test.ts, new workerCompilePoint.test.ts), each failing on the head before its fix. At f0639071e (code identical to 2cd5a71ce): sparkdown 64 and player 52 passing including incrementalEquivalence and incrementalCumulativeEquivalence; at 2cd5a71ce typecheck clean and workspaceChangeCompile 19 passed; the round 3 reviewer ran the changed tests at head (19 and 5 passed) and red against base, and the round 2 reviewer's own integration probe (real player worker and controller, update replies held) passed. Live measurement at the private project's line 3514 on 1ce9d144f and f0639071e: debounce 117 to 120 ms down to 52 to 58 ms, key-to-paint 219 to 239 ms down to 124 to 141 ms, suggestion path unchanged; figures on the PR body and #1881. The Test Suite workflow's required test-suite job, every package job, tsc and typecheck passed on 2cd5a71ce.",
+            "nextRoundValue": "Little. Round 3 reviewed the whole PR at 2cd5a71ce with no findings, the only change since round 2 is one comment, and the mechanism the findings shared has had two clean independent rounds since its last correction. Another round would re-examine the same mechanism.",
+            "rationale": "The review gates pass: three completed rounds with every planned reviewer exited and every report adjudicated on the PR, the head is the last independently reviewed commit, no finding is open, the findings converged on one mechanism whose corrections were themselves reviewed clean twice, and the ticket's acceptance criteria are met by measurement. The remaining red check is an intermittent Windows fixture also red on main (#1999), which the merge gate settles on its own: the merge waits for a green rerun, not for another review.",
+            "next": "Ordinary readiness stands; PR #1983 is ready at 2cd5a71ce. Run the merge gate once the driver-checks rerun is green and merge through integration.mjs merge; #1974's PR #1984 continues independently.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6223851126,
+                "finding": "an older compiler selection reply overwrites a newer locally answered selection",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223851126,
+                "finding": "a pending debounce suppresses a selection although no later compile will publish",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223851126,
+                "finding": "compiler.config.startFrom is not moved when the worker never hears the edit's selection",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6223851126,
+                "finding": "coverage gaps: set-aside, non-author, multi-file and restart combinations under delayed replies; failed update recovery",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6224656264,
+                "finding": "a programmatic selection discards the author's pending selection answer",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224656264,
+                "finding": "live performance not repeated by the reviewer; no browser transcript of the reordering",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6225585759,
+                "finding": "the timestamp clamp's comment overstates its guarantee (optional)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226256892,
+                "disposition": "none"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: finish through ordinary readiness\n\nDecision `4d9f1a01` by coordinator `local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29` of Feature #1940 for #1881.\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6223851126 in 6224449266, 6224656264 in 6225181494, 6225585759 in 6225739846, 6226256892 in 6226315138).\n- Independently reviewed through `2cd5a71cea73b09693c4527c7edc98c2bd2aeda2`.\n- Head `2cd5a71cea73b09693c4527c7edc98c2bd2aeda2`. Nothing after the reviewed head is unreviewed.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, test-suite passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, driver-checks (windows-latest) pending, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) passed, vitest-api-integration (windows-latest, 3.2.6) passed.\n- Findings across all rounds: 5 accepted, 2 covered, 1 none; unresolved: none.\n- Shared mechanisms: All four accepted findings of rounds 1 and 2 share one mechanism: the workspace answering an edit's selection itself (compileAnswersEditSelection / publishSelection) instead of routing it through the compiler, plus the worker's default routing point (config.startFrom). The corrections address the class, not instances: every selection now carries an arrival number and only a selection that moves the compile point can supersede an earlier answer (publishSelection with movesCompilePoint), every publishSelection caller was enumerated and passes that flag, and the set-aside path shares the ordering fix. Round 2's one finding was comment wording about the timestamp clamp; round 3 found nothing.\n- Defects introduced by corrections: One: round 1's ordering correction (1ce9d144f) let a selection the author did not make supersede the author's pending answer. Round 1's second reviewer found it and f0639071e fixed it with a test on the real player workspace; rounds 2 and 3 found no defect introduced by any correction. One regression from a correction, caught by the same round's second reviewer and verified by two later independent rounds, says the mechanism is now stable.\n- Broader or simpler repair: The simpler alternative, keeping every selection on the compiler's queue, costs the 20 to 50 ms of queueing behind compiler/select that the ticket's debounce criterion (under 60 ms at the median) forbids, and the measurement on the corrected heads (debounce 52 to 58 ms, key-to-paint 124 to 141 ms) shows the current repair meets it. Nothing broader is indicated: the change stays at the workspace's notification boundary and the worker's routing point.\n- Residual risk: Selection-ordering combinations with a worker restart during configuration, checked by code reading only (the restart path still answers without publishing). The edit-time debounce assumes the editor's and player's clocks agree; disagreement only shortens the remaining wait, bounded to 0 to 50 ms, and the clamp's comment now says so. A structural edit's compile clock rose (90 to 179 ms) while its key-to-paint is unchanged within noise. CI on 2cd5a71ce has the Windows driver-checks job red on an intermittent process-fixture case in scripts/test-suite-child.test.mjs that this PR does not touch and that origin/main e2f91499f fails the same way (Task #1999); a rerun is in flight, and the merge gate requires it green.\n- Verification coverage: Red/green tests for every accepted finding (workspaceChangeCompile.test.ts 19, workspaceCompilePoint.test.ts, new workerCompilePoint.test.ts), each failing on the head before its fix. At f0639071e (code identical to 2cd5a71ce): sparkdown 64 and player 52 passing including incrementalEquivalence and incrementalCumulativeEquivalence; at 2cd5a71ce typecheck clean and workspaceChangeCompile 19 passed; the round 3 reviewer ran the changed tests at head (19 and 5 passed) and red against base, and the round 2 reviewer's own integration probe (real player worker and controller, update replies held) passed. Live measurement at the private project's line 3514 on 1ce9d144f and f0639071e: debounce 117 to 120 ms down to 52 to 58 ms, key-to-paint 219 to 239 ms down to 124 to 141 ms, suggestion path unchanged; figures on the PR body and #1881. The Test Suite workflow's required test-suite job, every package job, tsc and typecheck passed on 2cd5a71ce.\n- What another round would establish: Little. Round 3 reviewed the whole PR at 2cd5a71ce with no findings, the only change since round 2 is one comment, and the mechanism the findings shared has had two clean independent rounds since its last correction. Another round would re-examine the same mechanism.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The review gates pass: three completed rounds with every planned reviewer exited and every report adjudicated on the PR, the head is the last independently reviewed commit, no finding is open, the findings converged on one mechanism whose corrections were themselves reviewed clean twice, and the ticket's acceptance criteria are met by measurement. The remaining red check is an intermittent Windows fixture also red on main (#1999), which the merge gate settles on its own: the merge waits for a green rerun, not for another review. Next: Ordinary readiness stands; PR #1983 is ready at 2cd5a71ce. Run the merge gate once the driver-checks rerun is green and merge through integration.mjs merge; #1974's PR #1984 continues independently.\n- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"4d9f1a01\",\n \"kind\": \"finish\",\n \"feature\": 1940,\n \"ticket\": 1881,\n \"pr\": 1983,\n \"coordinator\": \"local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29\",\n \"runId\": \"4ca51d53-fff8-4d2f-8922-014f34b64902\",\n \"time\": \"2026-10-16T23:49:16.129Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"2cd5a71cea73b09693c4527c7edc98c2bd2aeda2\",\n \"head\": \"2cd5a71cea73b09693c4527c7edc98c2bd2aeda2\",\n \"range\": {\n  \"from\": \"2cd5a71cea73b09693c4527c7edc98c2bd2aeda2\",\n  \"to\": \"2cd5a71cea73b09693c4527c7edc98c2bd2aeda2\",\n  \"base\": \"e2f91499ffa0eea13870e0ea468e3a42fe11f484\",\n  \"commits\": [],\n  \"diffSha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n },\n \"reports\": [\n  {\n   \"comment\": 6223851126,\n   \"round\": 1,\n   \"reviewerId\": \"ordering\",\n   \"adjudication\": 6224449266\n  },\n  {\n   \"comment\": 6224656264,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6225181494\n  },\n  {\n   \"comment\": 6225585759,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6225739846\n  },\n  {\n   \"comment\": 6226256892,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6226315138\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"pending\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"All four accepted findings of rounds 1 and 2 share one mechanism: the workspace answering an edit's selection itself (compileAnswersEditSelection / publishSelection) instead of routing it through the compiler, plus the worker's default routing point (config.startFrom). The corrections address the class, not instances: every selection now carries an arrival number and only a selection that moves the compile point can supersede an earlier answer (publishSelection with movesCompilePoint), every publishSelection caller was enumerated and passes that flag, and the set-aside path shares the ordering fix. Round 2's one finding was comment wording about the timestamp clamp; round 3 found nothing.\",\n  \"regressions\": \"One: round 1's ordering correction (1ce9d144f) let a selection the author did not make supersede the author's pending answer. Round 1's second reviewer found it and f0639071e fixed it with a test on the real player workspace; rounds 2 and 3 found no defect introduced by any correction. One regression from a correction, caught by the same round's second reviewer and verified by two later independent rounds, says the mechanism is now stable.\",\n  \"repairOptions\": \"The simpler alternative, keeping every selection on the compiler's queue, costs the 20 to 50 ms of queueing behind compiler/select that the ticket's debounce criterion (under 60 ms at the median) forbids, and the measurement on the corrected heads (debounce 52 to 58 ms, key-to-paint 124 to 141 ms) shows the current repair meets it. Nothing broader is indicated: the change stays at the workspace's notification boundary and the worker's routing point.\",\n  \"residualRisk\": \"Selection-ordering combinations with a worker restart during configuration, checked by code reading only (the restart path still answers without publishing). The edit-time debounce assumes the editor's and player's clocks agree; disagreement only shortens the remaining wait, bounded to 0 to 50 ms, and the clamp's comment now says so. A structural edit's compile clock rose (90 to 179 ms) while its key-to-paint is unchanged within noise. CI on 2cd5a71ce has the Windows driver-checks job red on an intermittent process-fixture case in scripts/test-suite-child.test.mjs that this PR does not touch and that origin/main e2f91499f fails the same way (Task #1999); a rerun is in flight, and the merge gate requires it green.\",\n  \"coverage\": \"Red/green tests for every accepted finding (workspaceChangeCompile.test.ts 19, workspaceCompilePoint.test.ts, new workerCompilePoint.test.ts), each failing on the head before its fix. At f0639071e (code identical to 2cd5a71ce): sparkdown 64 and player 52 passing including incrementalEquivalence and incrementalCumulativeEquivalence; at 2cd5a71ce typecheck clean and workspaceChangeCompile 19 passed; the round 3 reviewer ran the changed tests at head (19 and 5 passed) and red against base, and the round 2 reviewer's own integration probe (real player worker and controller, update replies held) passed. Live measurement at the private project's line 3514 on 1ce9d144f and f0639071e: debounce 117 to 120 ms down to 52 to 58 ms, key-to-paint 219 to 239 ms down to 124 to 141 ms, suggestion path unchanged; figures on the PR body and #1881. The Test Suite workflow's required test-suite job, every package job, tsc and typecheck passed on 2cd5a71ce.\",\n  \"nextRoundValue\": \"Little. Round 3 reviewed the whole PR at 2cd5a71ce with no findings, the only change since round 2 is one comment, and the mechanism the findings shared has had two clean independent rounds since its last correction. Another round would re-examine the same mechanism.\",\n  \"rationale\": \"The review gates pass: three completed rounds with every planned reviewer exited and every report adjudicated on the PR, the head is the last independently reviewed commit, no finding is open, the findings converged on one mechanism whose corrections were themselves reviewed clean twice, and the ticket's acceptance criteria are met by measurement. The remaining red check is an intermittent Windows fixture also red on main (#1999), which the merge gate settles on its own: the merge waits for a green rerun, not for another review.\",\n  \"next\": \"Ordinary readiness stands; PR #1983 is ready at 2cd5a71ce. Run the merge gate once the driver-checks rerun is green and merge through integration.mjs merge; #1974's PR #1984 continues independently.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6223851126,\n    \"finding\": \"an older compiler selection reply overwrites a newer locally answered selection\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223851126,\n    \"finding\": \"a pending debounce suppresses a selection although no later compile will publish\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223851126,\n    \"finding\": \"compiler.config.startFrom is not moved when the worker never hears the edit's selection\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6223851126,\n    \"finding\": \"coverage gaps: set-aside, non-author, multi-file and restart combinations under delayed replies; failed update recovery\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6224656264,\n    \"finding\": \"a programmatic selection discards the author's pending selection answer\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224656264,\n    \"finding\": \"live performance not repeated by the reviewer; no browser transcript of the reordering\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6225585759,\n    \"finding\": \"the timestamp clamp's comment overstates its guarantee (optional)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226256892,\n    \"disposition\": \"none\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "c5ac68dcbb685886c34ac021f2272bdb4d4c01546f122269b32ecf95bdfa7ffe",
+          "blockSha256": "27ab30452382cf747c5bcb47fec1325f589a6c2c590f69787aad4f5ad6fd5465",
+          "published": {
+            "comment": 6226858825,
+            "time": "2026-10-16T23:49:20.963Z",
+            "headAtPublish": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2"
           }
         }
       ]
@@ -1041,7 +1314,18 @@
       "onMain": true
     }
   ],
-  "decisions": [],
+  "decisions": [
+    {
+      "pr": 1983,
+      "url": "https://github.com/ImpowerGames/impower/pull/1983#issuecomment-6226858825",
+      "kind": "review-checkpoint finish",
+      "ticket": 1881,
+      "id": "4d9f1a01",
+      "round": 3,
+      "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
+      "time": "2026-10-16T23:49:20.963Z"
+    }
+  ],
   "diskRecoveries": [
     {
       "time": "2026-10-16T17:00:26.978Z",
@@ -1195,7 +1479,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-16T23:46:38.862Z",
+      "observedAt": "2026-10-17T00:21:15.461Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1352,12 +1636,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-16T23:46:38.862Z",
+      "observedAt": "2026-10-17T00:21:15.461Z",
       "held": true,
       "head": "f10dd9fcbf92a924ee940114d722caab03c4f576",
       "remoteHead": "f10dd9fcbf92a924ee940114d722caab03c4f576",
       "unpushed": false,
-      "dirty": false,
+      "dirty": true,
       "pr": 1984,
       "reviewJobs": [
         {
@@ -1557,6 +1841,41 @@
           "commentIds": [
             6226665410
           ]
+        },
+        {
+          "job": "pr-1984/round-3/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "f10dd9fcbf92a924ee940114d722caab03c4f576",
+            "completedRoundReviewers": {
+              "incrementality": 1,
+              "undirected": 1
+            },
+            "time": "2026-10-16T23:58:15.614Z"
+          },
+          "round": 3,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "f10dd9fcbf92a924ee940114d722caab03c4f576",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6227205764
+          ]
         }
       ]
     }
@@ -1564,7 +1883,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-16T23:45:23.343Z",
+    "at": "2026-10-17T00:21:15.459Z",
     "tickets": [
       {
         "number": 851,
@@ -1586,9 +1905,9 @@
       },
       {
         "number": 1881,
-        "action": "observe",
+        "action": "merge-gate",
         "pr": 1983,
-        "reason": "process 54048, 3504, 45096 still names launch directory C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1940\\resume-1881-7cc2d28a-42d9-4398-be58-a9f24cbfbd7e"
+        "reason": "PR #1983 is ready at 2cd5a71cea73b09693c4527c7edc98c2bd2aeda2; process 56704 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
       },
       {
         "number": 1974,
@@ -2203,6 +2522,22 @@
       "ticket": 1881,
       "pr": 1983,
       "reviewedHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2"
+    },
+    {
+      "time": "2026-10-16T23:49:16.129Z",
+      "event": "checkpoint-intent",
+      "ticket": 1881,
+      "id": "4d9f1a01",
+      "kind": "finish",
+      "round": 3,
+      "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2"
+    },
+    {
+      "time": "2026-10-16T23:49:20.963Z",
+      "event": "checkpoint-published",
+      "ticket": 1881,
+      "id": "4d9f1a01",
+      "comment": 6226858825
     }
   ]
 }
