@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 124,
-  "previous": "cd91a2d9e5dda32ce6bb537e7baccf7568749751",
+  "seq": 125,
+  "previous": "22ca793acfb90d7a7741d3b022b195e4d452e4d0",
   "snapshotParents": [],
-  "time": "2026-10-17T05:22:09.352Z",
+  "time": "2026-10-17T05:22:17.909Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 111,
+    "recordRevision": 112,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1955,6 +1955,15 @@
             "time": "2026-10-17T04:10:21.502Z",
             "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
           }
+        },
+        {
+          "id": "56d48051",
+          "owner": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+          "time": "2026-10-17T05:22:15.423Z",
+          "text": "Round 5 checkpoint report for PR #2015 under decision 0b03d427: one undirected reviewer on 51a6a7c0c (report 6229629736, adjudication 6229732709), 5 blocking findings accepted (entity-encoded link passing for a stand-in; a refused text keeping GitHub's transfer changes inside fences while verify passed; the migration-line repair touching a first line that could be the author's; gate answers not bound to their input and failed renders cached as refusals; a test passing with its fix reverted). Correction c1de71a65 (unreviewed, plus a merge of main and a tooling-count bump; head 37679545e) redesigns the gate: the rewrite maps exactly the tokens GitHub's per-token render links, from the original, whenever both renders agree on the numbers in order; code and fences stay verbatim; only a text GitHub's two renders disagree on is left as transferred and verify reports it; stand-ins never reuse digits in the text; migration-line repair touches only the last non-blank line; gate answers are digest-bound and failed renders are not cached. 49 tests, rehearsal 8 passed, the gate over all 1,860 live texts refused none, CI green on the head. Round limit 5 used up; writer asks: another bounded round over 51a6a7c0c..37679545e or acceptance.",
+          "source": "cross-session message from writer session impower-02 (CLI session 58c4e7e1, resumed) received 2026-10-17 ~07:05Z",
+          "relayed": null,
+          "answer": null
         }
       ],
       "checkpoints": [
@@ -3268,7 +3277,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T05:22:07.683Z",
+      "observedAt": "2026-10-17T05:22:16.701Z",
       "held": true,
       "head": "03d96fb0fee3936d14b976718c351b103f3fa92a",
       "remoteHead": null,
@@ -3280,7 +3289,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T05:22:07.683Z",
+      "observedAt": "2026-10-17T05:22:16.701Z",
       "held": true,
       "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
       "remoteHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
@@ -3551,11 +3560,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T20:53:45.870Z",
-      "event": "check-in",
-      "outcome": "no change: #1962 writer running, PR #1975 round 2 reviewed at da29d919f (CI all green on that head); writer is applying the round 2 corrections to the hook"
-    },
     {
       "time": "2026-10-16T21:23:57.304Z",
       "event": "check-in",
@@ -4305,6 +4309,12 @@
       "time": "2026-10-17T05:04:21.096Z",
       "event": "verified",
       "ticket": 1965
+    },
+    {
+      "time": "2026-10-17T05:22:15.423Z",
+      "event": "request",
+      "ticket": 1966,
+      "id": "56d48051"
     }
   ]
 }
