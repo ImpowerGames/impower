@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 194,
-  "previous": "6e65ea889987274aa133130a19d06df27d0404b9",
+  "seq": 195,
+  "previous": "1495b6a44d34ebc5c14899dec6f0a78a896f4230",
   "snapshotParents": [],
-  "time": "2026-10-17T11:31:31.536Z",
+  "time": "2026-10-17T11:33:18.683Z",
   "kind": "auto",
-  "transition": "request of #1967",
+  "transition": "answer of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 176,
+    "recordRevision": 179,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4031,7 +4031,294 @@
           "text": "Round 3 checkpoint report for PR #2057: three rounds, each data then undirected, all gpt-6.1-sol xhigh; 18 accepted findings in rounds 1 and 2 (time-of-check to time-of-use before an irreversible DELETE, archive recovery dropping history, loose identity checks, runbook steps that could not run as written, test honesty), round 3 clean on both reviewers with one coverage gap closed by a test-only commit; reviewed head 52e5a21c5 equals the current head; every CI check passed. Phase A on impower-internal is done (main default with runbook, feature-37 deleted, labels, milestones, templates, autolink; migration starts at 39). Residual: nothing destructive exercised live; 41 review summaries undeletable through the API; scrub about 15.5 h at default pacing or about 3.5 h at --writes-per-hour 3000. Decisions for the maintainer: (i) the acceptance grep excludes *.test.mjs fixtures, (ii) which public labels the cutover deletes, (iii) whether to remove GitHub's default labels on internal, (iv) the 6 public orchestrate-state branches from earlier runs, (v) the 41 review summaries. Writer awaits the checkpoint decision; on finish it marks #2057 ready and reports; Phase B waits for the go.",
           "source": "cross-session message from writer session impower-14 (CLI session 4b0d553c) received 2026-10-17 ~16:20Z",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision for PR #2057 after round 3: FINISH (decision c6029778, published as PR comment 6233393896; read it in full). The review gates pass on head 52e5a21c5 and the decision grants nothing beyond ordinary review-pr readiness. Now: mark PR #2057 ready through review-pr's own readiness step, confirm the head is still 52e5a21c5 and every check green, send me your final report as the brief's fields (model, effort, permissionMode, pr, reviewedHead 52e5a21c5, rounds per reviewer route, findings None, verification, ci, next: awaiting the window), and end your turn. Do not merge: as agreed, the maintainer merges this PR because it does not close #1967, and I will resume you when it is on main. Phase B still waits for my resume carrying the maintainer's explicit go. Your five decisions (acceptance grep excluding test fixtures, which public labels to delete, GitHub's default labels on internal, the six public orchestrate-state branches, the 41 review summaries) go to the maintainer with my report; until answered, the runbook's defaults stand as proposals and nothing is executed.",
+            "deliveryId": "6d112b68",
+            "attempts": 1,
+            "time": "2026-10-17T11:33:16.857Z",
+            "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "c6029778",
+          "kind": "finish",
+          "feature": 1961,
+          "ticket": 1967,
+          "pr": 2057,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-17T11:33:13.342Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
+          "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
+          "range": {
+            "from": "52e5a21c59a790b6849d550318ccad029de8ecc3",
+            "to": "52e5a21c59a790b6849d550318ccad029de8ecc3",
+            "base": "37df96b0a24e147ce72260ce4a07403f341961e9",
+            "commits": [],
+            "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "reports": [
+            {
+              "comment": 6232559384,
+              "round": 1,
+              "reviewerId": "data",
+              "adjudication": 6232673591
+            },
+            {
+              "comment": 6232764561,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6232827041
+            },
+            {
+              "comment": 6232918945,
+              "round": 2,
+              "reviewerId": "data",
+              "adjudication": 6232979298
+            },
+            {
+              "comment": 6233069271,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6233095724
+            },
+            {
+              "comment": 6233177427,
+              "round": 3,
+              "reviewerId": "data",
+              "adjudication": 6233204251
+            },
+            {
+              "comment": 6233268234,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6233290434
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Eighteen accepted findings in rounds 1 and 2, in five mechanisms. (a) Time-of-check to time-of-use between the archive comparison and an irreversible DELETE: each report found a new place a wait could fall between the read and the delete (pacing, the client's retry, GET retries, a NaN budget); the final design has the scrub own every retry, gives the client single attempts (apiOnce), reserves the read and the delete together in the pacer, re-reads the comment and compares it with the pushed archive before each attempt, and re-checks readiness after the comparison, leaving about a second of residual window that GitHub's lack of a conditional DELETE makes unavoidable and the quiet-window protocol covers. (b) Archive recovery dropping history an earlier copy held: every readable copy (the pushed default branch, the clone's HEAD, the working file) is now merged, a short or unreadable committed copy stops that pull request, and the resume shortcut requires every committed copy to equal the working file. (c) Identity checks that were too loose: a namesake remote, replace refs, a single sampled -text path and FETCH_HEAD against ls-remote are now checked strictly (GitHub URL forms only, every remote URL, --no-replace-objects, realpath comparison). (d) Runbook steps that could not run as written, rehearsed in a scratch clone with the switch on. (e) Test honesty, with nine guard mutations each failing at least one test. Round 3's two reviewers found nothing; the data reviewer named one coverage gap that a test-only commit closed, and the undirected reviewer confirmed the final head. The reviewed head is the current head with no unreviewed range.",
+            "regressions": "Corrections introduced residuals twice, each caught by the next reviewer: round 1 undirected's first finding was a residual of round 1 data's first fix, and round 2 data's first two findings were residuals of that fix; all were in mechanism (a) and closed by the final ownership of retries and reservations in the scrub. Round 3 found none on either lens. The earlier Windows driver failure was the writer's own 8.3-path comparison, fixed in c84b56346 and green since.",
+            "repairOptions": "A conditional delete would remove mechanism (a) entirely, but GitHub offers none; the residual one-second window is disclosed and covered by the quiet protocol. No broader repair is open. Five decisions go to the maintainer, not conditions of this checkpoint: the #1967 acceptance grep excludes *.test.mjs fixtures that pin the switch-off inbox number; which public labels the cutover deletes (the runbook proposes documentation, invalid, investigation, question, wontfix and the four workflow labels, keeping the app, lsp, platform and system ones); whether to remove GitHub's default labels on the internal repository; the six public orchestrate-state branches from earlier runs, recorded and not deleted; and the 41 review summaries the API cannot delete, archived and reported for the maintainer to hide or leave.",
+            "residualRisk": "1. Nothing destructive has been exercised against GitHub: real deletion permissions, secondary limits across about 7,000 DELETEs and post-delete consistency ran only on fakes and scratch Git, by design until the maintainer's go. 2. The 41 submitted review summaries cannot be deleted through the API; they are archived and inventoried. 3. At default pacing the scrub takes about 15.5 hours, or about 3.5 hours at --writes-per-hour 3000 if deletions do not count toward the content-creation limit. 4. The residual time-of-check window of about a second per deletion, covered by the quiet protocol. 5. Bug #2058: the launcher leaves Codex login copies and caches under the job directory, left in place for that Bug. None of these blocks the tooling PR.",
+            "coverage": "At 52e5a21c5: node --test scripts/scrub-pull-requests.test.mjs passes 33 cases and scripts/migrate-tracker.test.mjs 51; each round's new tests fail against the head they correct, with named mutation evidence per finding; the real-repository archive dry run covered 714 pull requests, 6,946 comments, 42 review comments and 41 review summaries with 0 failures; runbook step 5 was rehearsed in a scratch clone with the switch on; Phase A on impower-internal is done (main as default with the runbook, templates and .gitattributes; feature-37 deleted; 24 labels and 7 milestones copied; the I- autolink on the public repository; migration starting at internal issue 39) and the template-sync test now verifies the internal copies; reviewer scratch was removed after each round. CI on 52e5a21c5: every check passed, including both platforms' driver and skills tiers, Test Suite, Typecheck and Linked Issue.",
+            "nextRoundValue": "Little: round 3's two reports were clean on the current head, and the remaining uncertainty is GitHub's live behaviour, which only the cutover window can measure.",
+            "rationale": "The review gates pass: three complete rounds with two reviewers each, every report adjudicated, all eighteen findings accepted and fixed with mutation evidence, round 3 clean on both lenses, the current head independently reviewed with no unreviewed range, and every CI check passed. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish. The PR carries 'No linked issue.' with 'Part of #1967' by the coordinator's own decision, because #1967 stays open until Phase B runs; the orchestration merge gate therefore cannot admit it and the maintainer merges it after readiness. Phase B begins only when the coordinator resumes the writer with the maintainer's explicit go.",
+            "next": "The writer marks PR #2057 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 52e5a21c5, findings None), and ends. The coordinator hands the merge to the maintainer, tells the writer when it is on main, and keeps the writer idle until the maintainer's go opens the cutover window.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6232559384,
+                "finding": "an edit made during pacing was deleted unarchived (no re-read before the DELETE)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232559384,
+                "finding": "origin validation accepted a namesake remote",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232559384,
+                "finding": "replace refs could impersonate pushed content",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232559384,
+                "finding": "no recovery of an archive from an earlier committed copy",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232559384,
+                "finding": "archive history an earlier copy held could be dropped",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232559384,
+                "finding": "runbook step could not run as written (first of three)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232559384,
+                "finding": "runbook step could not run as written (second of three)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232559384,
+                "finding": "runbook step could not run as written (third of three)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232764561,
+                "finding": "the client's retry backoff bypassed the final pre-deletion check",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232764561,
+                "finding": "recovery could replace an archive without its deleted history",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232764561,
+                "finding": "runbook step could not run as written (fourth)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232764561,
+                "finding": "runbook step could not run as written (fifth)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232918945,
+                "finding": "retries of the final GET put a pacing wait back between the comparison and the DELETE",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232918945,
+                "finding": "a budget too small for the reservation silently failed (NaN)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232918945,
+                "finding": "the resume shortcut skipped the committed-history merge",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6232918945,
+                "finding": "test honesty: guards without a failing mutation",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6233069271,
+                "finding": "a short committed archive was rewritten as complete",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6233069271,
+                "finding": "the no-archive shortcut hid standalone review summaries",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6233177427,
+                "disposition": "none"
+              },
+              {
+                "comment": 6233268234,
+                "disposition": "none"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: finish through ordinary readiness\n\nDecision `c6029778` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1967.\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (data, undirected) exited, and every report has its adjudication (6232559384 in 6232673591, 6232764561 in 6232827041, 6232918945 in 6232979298, 6233069271 in 6233095724, 6233177427 in 6233204251, 6233268234 in 6233290434).\n- Independently reviewed through `52e5a21c59a790b6849d550318ccad029de8ecc3`.\n- Head `52e5a21c59a790b6849d550318ccad029de8ecc3`. Nothing after the reviewed head is unreviewed.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, Luau corpus gate passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, test-suite passed, driver-checks (windows-latest) passed, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) passed, vitest-api-integration (windows-latest, 3.2.6) passed, hook-tests passed.\n- Findings across all rounds: 18 accepted, 2 none; unresolved: none.\n- Shared mechanisms: Eighteen accepted findings in rounds 1 and 2, in five mechanisms. (a) Time-of-check to time-of-use between the archive comparison and an irreversible DELETE: each report found a new place a wait could fall between the read and the delete (pacing, the client's retry, GET retries, a NaN budget); the final design has the scrub own every retry, gives the client single attempts (apiOnce), reserves the read and the delete together in the pacer, re-reads the comment and compares it with the pushed archive before each attempt, and re-checks readiness after the comparison, leaving about a second of residual window that GitHub's lack of a conditional DELETE makes unavoidable and the quiet-window protocol covers. (b) Archive recovery dropping history an earlier copy held: every readable copy (the pushed default branch, the clone's HEAD, the working file) is now merged, a short or unreadable committed copy stops that pull request, and the resume shortcut requires every committed copy to equal the working file. (c) Identity checks that were too loose: a namesake remote, replace refs, a single sampled -text path and FETCH_HEAD against ls-remote are now checked strictly (GitHub URL forms only, every remote URL, --no-replace-objects, realpath comparison). (d) Runbook steps that could not run as written, rehearsed in a scratch clone with the switch on. (e) Test honesty, with nine guard mutations each failing at least one test. Round 3's two reviewers found nothing; the data reviewer named one coverage gap that a test-only commit closed, and the undirected reviewer confirmed the final head. The reviewed head is the current head with no unreviewed range.\n- Defects introduced by corrections: Corrections introduced residuals twice, each caught by the next reviewer: round 1 undirected's first finding was a residual of round 1 data's first fix, and round 2 data's first two findings were residuals of that fix; all were in mechanism (a) and closed by the final ownership of retries and reservations in the scrub. Round 3 found none on either lens. The earlier Windows driver failure was the writer's own 8.3-path comparison, fixed in c84b56346 and green since.\n- Broader or simpler repair: A conditional delete would remove mechanism (a) entirely, but GitHub offers none; the residual one-second window is disclosed and covered by the quiet protocol. No broader repair is open. Five decisions go to the maintainer, not conditions of this checkpoint: the #1967 acceptance grep excludes *.test.mjs fixtures that pin the switch-off inbox number; which public labels the cutover deletes (the runbook proposes documentation, invalid, investigation, question, wontfix and the four workflow labels, keeping the app, lsp, platform and system ones); whether to remove GitHub's default labels on the internal repository; the six public orchestrate-state branches from earlier runs, recorded and not deleted; and the 41 review summaries the API cannot delete, archived and reported for the maintainer to hide or leave.\n- Residual risk: 1. Nothing destructive has been exercised against GitHub: real deletion permissions, secondary limits across about 7,000 DELETEs and post-delete consistency ran only on fakes and scratch Git, by design until the maintainer's go. 2. The 41 submitted review summaries cannot be deleted through the API; they are archived and inventoried. 3. At default pacing the scrub takes about 15.5 hours, or about 3.5 hours at --writes-per-hour 3000 if deletions do not count toward the content-creation limit. 4. The residual time-of-check window of about a second per deletion, covered by the quiet protocol. 5. Bug #2058: the launcher leaves Codex login copies and caches under the job directory, left in place for that Bug. None of these blocks the tooling PR.\n- Verification coverage: At 52e5a21c5: node --test scripts/scrub-pull-requests.test.mjs passes 33 cases and scripts/migrate-tracker.test.mjs 51; each round's new tests fail against the head they correct, with named mutation evidence per finding; the real-repository archive dry run covered 714 pull requests, 6,946 comments, 42 review comments and 41 review summaries with 0 failures; runbook step 5 was rehearsed in a scratch clone with the switch on; Phase A on impower-internal is done (main as default with the runbook, templates and .gitattributes; feature-37 deleted; 24 labels and 7 milestones copied; the I- autolink on the public repository; migration starting at internal issue 39) and the template-sync test now verifies the internal copies; reviewer scratch was removed after each round. CI on 52e5a21c5: every check passed, including both platforms' driver and skills tiers, Test Suite, Typecheck and Linked Issue.\n- What another round would establish: Little: round 3's two reports were clean on the current head, and the remaining uncertainty is GitHub's live behaviour, which only the cutover window can measure.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The review gates pass: three complete rounds with two reviewers each, every report adjudicated, all eighteen findings accepted and fixed with mutation evidence, round 3 clean on both lenses, the current head independently reviewed with no unreviewed range, and every CI check passed. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish. The PR carries 'No linked issue.' with 'Part of #1967' by the coordinator's own decision, because #1967 stays open until Phase B runs; the orchestration merge gate therefore cannot admit it and the maintainer merges it after readiness. Phase B begins only when the coordinator resumes the writer with the maintainer's explicit go. Next: The writer marks PR #2057 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 52e5a21c5, findings None), and ends. The coordinator hands the merge to the maintainer, tells the writer when it is on main, and keeps the writer idle until the maintainer's go opens the cutover window.\n- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"c6029778\",\n \"kind\": \"finish\",\n \"feature\": 1961,\n \"ticket\": 1967,\n \"pr\": 2057,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-17T11:33:13.342Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"52e5a21c59a790b6849d550318ccad029de8ecc3\",\n \"head\": \"52e5a21c59a790b6849d550318ccad029de8ecc3\",\n \"range\": {\n  \"from\": \"52e5a21c59a790b6849d550318ccad029de8ecc3\",\n  \"to\": \"52e5a21c59a790b6849d550318ccad029de8ecc3\",\n  \"base\": \"37df96b0a24e147ce72260ce4a07403f341961e9\",\n  \"commits\": [],\n  \"diffSha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n },\n \"reports\": [\n  {\n   \"comment\": 6232559384,\n   \"round\": 1,\n   \"reviewerId\": \"data\",\n   \"adjudication\": 6232673591\n  },\n  {\n   \"comment\": 6232764561,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6232827041\n  },\n  {\n   \"comment\": 6232918945,\n   \"round\": 2,\n   \"reviewerId\": \"data\",\n   \"adjudication\": 6232979298\n  },\n  {\n   \"comment\": 6233069271,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6233095724\n  },\n  {\n   \"comment\": 6233177427,\n   \"round\": 3,\n   \"reviewerId\": \"data\",\n   \"adjudication\": 6233204251\n  },\n  {\n   \"comment\": 6233268234,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6233290434\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Eighteen accepted findings in rounds 1 and 2, in five mechanisms. (a) Time-of-check to time-of-use between the archive comparison and an irreversible DELETE: each report found a new place a wait could fall between the read and the delete (pacing, the client's retry, GET retries, a NaN budget); the final design has the scrub own every retry, gives the client single attempts (apiOnce), reserves the read and the delete together in the pacer, re-reads the comment and compares it with the pushed archive before each attempt, and re-checks readiness after the comparison, leaving about a second of residual window that GitHub's lack of a conditional DELETE makes unavoidable and the quiet-window protocol covers. (b) Archive recovery dropping history an earlier copy held: every readable copy (the pushed default branch, the clone's HEAD, the working file) is now merged, a short or unreadable committed copy stops that pull request, and the resume shortcut requires every committed copy to equal the working file. (c) Identity checks that were too loose: a namesake remote, replace refs, a single sampled -text path and FETCH_HEAD against ls-remote are now checked strictly (GitHub URL forms only, every remote URL, -\\u002dno-replace-objects, realpath comparison). (d) Runbook steps that could not run as written, rehearsed in a scratch clone with the switch on. (e) Test honesty, with nine guard mutations each failing at least one test. Round 3's two reviewers found nothing; the data reviewer named one coverage gap that a test-only commit closed, and the undirected reviewer confirmed the final head. The reviewed head is the current head with no unreviewed range.\",\n  \"regressions\": \"Corrections introduced residuals twice, each caught by the next reviewer: round 1 undirected's first finding was a residual of round 1 data's first fix, and round 2 data's first two findings were residuals of that fix; all were in mechanism (a) and closed by the final ownership of retries and reservations in the scrub. Round 3 found none on either lens. The earlier Windows driver failure was the writer's own 8.3-path comparison, fixed in c84b56346 and green since.\",\n  \"repairOptions\": \"A conditional delete would remove mechanism (a) entirely, but GitHub offers none; the residual one-second window is disclosed and covered by the quiet protocol. No broader repair is open. Five decisions go to the maintainer, not conditions of this checkpoint: the #1967 acceptance grep excludes *.test.mjs fixtures that pin the switch-off inbox number; which public labels the cutover deletes (the runbook proposes documentation, invalid, investigation, question, wontfix and the four workflow labels, keeping the app, lsp, platform and system ones); whether to remove GitHub's default labels on the internal repository; the six public orchestrate-state branches from earlier runs, recorded and not deleted; and the 41 review summaries the API cannot delete, archived and reported for the maintainer to hide or leave.\",\n  \"residualRisk\": \"1. Nothing destructive has been exercised against GitHub: real deletion permissions, secondary limits across about 7,000 DELETEs and post-delete consistency ran only on fakes and scratch Git, by design until the maintainer's go. 2. The 41 submitted review summaries cannot be deleted through the API; they are archived and inventoried. 3. At default pacing the scrub takes about 15.5 hours, or about 3.5 hours at -\\u002dwrites-per-hour 3000 if deletions do not count toward the content-creation limit. 4. The residual time-of-check window of about a second per deletion, covered by the quiet protocol. 5. Bug #2058: the launcher leaves Codex login copies and caches under the job directory, left in place for that Bug. None of these blocks the tooling PR.\",\n  \"coverage\": \"At 52e5a21c5: node -\\u002dtest scripts/scrub-pull-requests.test.mjs passes 33 cases and scripts/migrate-tracker.test.mjs 51; each round's new tests fail against the head they correct, with named mutation evidence per finding; the real-repository archive dry run covered 714 pull requests, 6,946 comments, 42 review comments and 41 review summaries with 0 failures; runbook step 5 was rehearsed in a scratch clone with the switch on; Phase A on impower-internal is done (main as default with the runbook, templates and .gitattributes; feature-37 deleted; 24 labels and 7 milestones copied; the I- autolink on the public repository; migration starting at internal issue 39) and the template-sync test now verifies the internal copies; reviewer scratch was removed after each round. CI on 52e5a21c5: every check passed, including both platforms' driver and skills tiers, Test Suite, Typecheck and Linked Issue.\",\n  \"nextRoundValue\": \"Little: round 3's two reports were clean on the current head, and the remaining uncertainty is GitHub's live behaviour, which only the cutover window can measure.\",\n  \"rationale\": \"The review gates pass: three complete rounds with two reviewers each, every report adjudicated, all eighteen findings accepted and fixed with mutation evidence, round 3 clean on both lenses, the current head independently reviewed with no unreviewed range, and every CI check passed. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish. The PR carries 'No linked issue.' with 'Part of #1967' by the coordinator's own decision, because #1967 stays open until Phase B runs; the orchestration merge gate therefore cannot admit it and the maintainer merges it after readiness. Phase B begins only when the coordinator resumes the writer with the maintainer's explicit go.\",\n  \"next\": \"The writer marks PR #2057 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 52e5a21c5, findings None), and ends. The coordinator hands the merge to the maintainer, tells the writer when it is on main, and keeps the writer idle until the maintainer's go opens the cutover window.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"an edit made during pacing was deleted unarchived (no re-read before the DELETE)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"origin validation accepted a namesake remote\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"replace refs could impersonate pushed content\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"no recovery of an archive from an earlier committed copy\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"archive history an earlier copy held could be dropped\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"runbook step could not run as written (first of three)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"runbook step could not run as written (second of three)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232559384,\n    \"finding\": \"runbook step could not run as written (third of three)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232764561,\n    \"finding\": \"the client's retry backoff bypassed the final pre-deletion check\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232764561,\n    \"finding\": \"recovery could replace an archive without its deleted history\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232764561,\n    \"finding\": \"runbook step could not run as written (fourth)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232764561,\n    \"finding\": \"runbook step could not run as written (fifth)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232918945,\n    \"finding\": \"retries of the final GET put a pacing wait back between the comparison and the DELETE\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232918945,\n    \"finding\": \"a budget too small for the reservation silently failed (NaN)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232918945,\n    \"finding\": \"the resume shortcut skipped the committed-history merge\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6232918945,\n    \"finding\": \"test honesty: guards without a failing mutation\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6233069271,\n    \"finding\": \"a short committed archive was rewritten as complete\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6233069271,\n    \"finding\": \"the no-archive shortcut hid standalone review summaries\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6233177427,\n    \"disposition\": \"none\"\n   },\n   {\n    \"comment\": 6233268234,\n    \"disposition\": \"none\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "fa929ac17323d63fdbbf0b763f0b11d3bb40adebcfca3853b59399185e3a7a6c",
+          "blockSha256": "6549d7eeb4936bc5e3a2dee81a6737d4f04500167d028b32b898dc0d0a762476",
+          "published": {
+            "comment": 6233393896,
+            "time": "2026-10-17T11:33:16.372Z",
+            "headAtPublish": "52e5a21c59a790b6849d550318ccad029de8ecc3"
+          }
         }
       ]
     }
@@ -4888,6 +5175,16 @@
       "round": 6,
       "head": "0ce68b477e72852e265ea00656ce216e181137e7",
       "time": "2026-10-17T06:16:14.496Z"
+    },
+    {
+      "pr": 2057,
+      "url": "https://github.com/ImpowerGames/impower/pull/2057#issuecomment-6233393896",
+      "kind": "review-checkpoint finish",
+      "ticket": 1967,
+      "id": "c6029778",
+      "round": 3,
+      "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
+      "time": "2026-10-17T11:33:16.372Z"
     }
   ],
   "diskRecoveries": [],
@@ -4898,7 +5195,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T11:31:30.838Z",
+      "observedAt": "2026-10-17T11:33:17.971Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5184,30 +5481,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:47:26.727Z",
-      "event": "checkpoint-intent",
-      "ticket": 1966,
-      "id": "e0f6d715",
-      "kind": "extend",
-      "round": 3,
-      "head": "6f5769ab57f7323e487891630ef814a2131befb8"
-    },
-    {
-      "time": "2026-10-17T02:47:30.423Z",
-      "event": "checkpoint-published",
-      "ticket": 1966,
-      "id": "e0f6d715",
-      "comment": 6228675401
-    },
-    {
-      "time": "2026-10-17T02:47:54.087Z",
-      "event": "answer-intent",
-      "ticket": 1966,
-      "id": "fd3d8e56",
-      "deliveryId": "2ad911fb",
-      "attempt": 1
-    },
     {
       "time": "2026-10-17T02:48:07.418Z",
       "event": "resume-intent",
@@ -5916,6 +6189,30 @@
       "event": "request",
       "ticket": 1967,
       "id": "97cadf24"
+    },
+    {
+      "time": "2026-10-17T11:33:13.342Z",
+      "event": "checkpoint-intent",
+      "ticket": 1967,
+      "id": "c6029778",
+      "kind": "finish",
+      "round": 3,
+      "head": "52e5a21c59a790b6849d550318ccad029de8ecc3"
+    },
+    {
+      "time": "2026-10-17T11:33:16.372Z",
+      "event": "checkpoint-published",
+      "ticket": 1967,
+      "id": "c6029778",
+      "comment": 6233393896
+    },
+    {
+      "time": "2026-10-17T11:33:16.858Z",
+      "event": "answer-intent",
+      "ticket": 1967,
+      "id": "97cadf24",
+      "deliveryId": "6d112b68",
+      "attempt": 1
     }
   ]
 }
