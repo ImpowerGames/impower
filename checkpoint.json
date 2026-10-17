@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 235,
-  "previous": "42a9cb633810e75fd39d176455b0086afa827538",
+  "seq": 236,
+  "previous": "9aad3c980c440642cc5a8da978574db3ede65eb0",
   "snapshotParents": [],
-  "time": "2026-10-17T17:33:53.566Z",
+  "time": "2026-10-17T18:20:05.723Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "request of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 242,
+    "recordRevision": 243,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3096,6 +3096,15 @@
             "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
             "evidence": "SendMessage to impower-f8 succeeded on 2026-10-17 (message f09f11bf) while the writer was running"
           }
+        },
+        {
+          "id": "a903654d",
+          "owner": "4c537485-e0db-474a-9884-f2d42c3243c1",
+          "time": "2026-10-17T18:20:03.478Z",
+          "text": "Non-blocking: do story for and while headers follow rule 3 like the if and elseif headers do? The PR (#2062, draft, head 19846494) leaves loops on the Luau conditions that take line breaks because #1344 (closed by S1) pinned a next-line loop condition at the top level; bounding them is a small change plus the #1344 fixture update. Round 1 launched on the current scope.",
+          "source": "cross-session message from impower-f8 (writer, launch 4c537485) on 2026-10-17 while running",
+          "relayed": null,
+          "answer": null
         }
       ]
     },
@@ -7924,12 +7933,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T17:33:52.872Z",
+      "observedAt": "2026-10-17T18:20:04.844Z",
       "held": true,
-      "head": "991b99457f415601f06af89ff2afaedf8721832e",
-      "remoteHead": null,
+      "head": "8c8af18af43b9a088d806cf664eafae50a5645e9",
+      "remoteHead": "198464946753110ffd3e134df9ffc2b0092dab6f",
       "unpushed": true,
-      "dirty": true
+      "dirty": false
     }
   },
   "snapshots": {},
@@ -8300,11 +8309,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T06:44:24.746Z",
-      "event": "check-in",
-      "outcome": "#1906 round 3 checkpoint (request c88c7386) not due: CI red on 51231beb1 (#1580 tests, the shared assignment scope leaking into narrative) and launch-axg-1 still counted unended (executionDrained false); recorded decision 6350ae80 (kind maintainer, comment 6230817527) asking whether a hand-verified shutdown may count or the launcher needs a record-shutdown command; writer resumed to take repair B (Luau-only assignment scope via narrative twins) with narrative behaviour unchanged; #1924 still waits on the attribute-line answer; #1374 in round 5"
-    },
     {
       "time": "2026-10-17T07:27:11.671Z",
       "event": "request",
@@ -9036,6 +9040,12 @@
       "time": "2026-10-17T17:33:51.577Z",
       "event": "check-in",
       "outcome": "#1977 final report stored; PR #2061 merged through the gate; writer released if ended; #1907 running (option X ruled for story-scope & lines)"
+    },
+    {
+      "time": "2026-10-17T18:20:03.479Z",
+      "event": "request",
+      "ticket": 1907,
+      "id": "a903654d"
     }
   ]
 }
