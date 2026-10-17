@@ -58,12 +58,23 @@ const MODES = ["snapshot", "transfer", "restore", "rewrite", "map", "verify", "r
 
 // ---------------------------------------------------------------------------
 // References in Markdown
+//
+// GitHub links no reference inside code (fenced blocks, code spans, <code>
+// and <pre>), an inline link's destination and title, a link reference
+// definition, or a URL written out. protectedRanges() finds those regions
+// in the order CommonMark does: fenced blocks first, by the blockquote and
+// list item they open in; then, within each block (a paragraph, list item,
+// heading or table cell), code spans, code elements and inline links from
+// left to right; then definitions, which only start a block, and URLs.
+// Indented code blocks are not recognised and read as prose.
 
-// A fence opener once a line's blockquote markers are removed, allowing a
-// list-item marker before it, and a closer, which is the marker alone: a
-// line that starts a list item inside a fence is code, not its end.
-const FENCE = /^[ \t]*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?(`{3,}|~{3,})(.*)$/;
+const LIST_MARKER = /^(?:[-*+]|(\d{1,9})[.)])(?:[ \t]+|$)/;
+const FENCE_OPEN = /^((?:[-*+]|\d{1,9}[.)])[ \t]+)?(`{3,}|~{3,})(.*)$/;
 const FENCE_CLOSE = /^[ \t]*(`{3,}|~{3,})[ \t]*$/;
+const HEADING_LINE = /^#{1,6}(?:[ \t]|$)/;
+const TABLE_DELIMITER = /^\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+const DEFINITION = /^\[(?:[^\]\x5c]|\x5c.)+\]:[ \t]*\S+(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^)]*\)))?[ \t]*$/;
+const URL = /(?:https?|ftp):\/\/[^\s<>]+/g;
 
 /** A line's blockquote depth (its leading `>` markers) and the text after them. */
 function quoted(line) {
@@ -77,155 +88,38 @@ function quoted(line) {
     i = j + 1;
     if (line[i] === " " || line[i] === "\t") i++;
   }
-  return { depth, rest: line.slice(i) };
+  return { depth, rest: line.slice(i), at: i };
 }
 
-/**
- * Splits Markdown into prose and code pieces, in order. Fenced blocks
- * (backtick or tilde, an unclosed fence running to the end of its
- * container), code spans (a backtick run closed by a run of the same length
- * within the paragraph) and <code> or <pre> elements are code; GitHub links
- * no reference inside them. A fence belongs to the blockquote depth it
- * opened at: only a marker at that depth closes it, and a line of lesser
- * depth ends the quote and the fence with it. Indented code blocks are not
- * recognised and read as prose.
- */
-export function splitCode(text) {
-  const pieces = [];
-  const push = (code, s) => {
-    if (!s) return;
-    const last = pieces.at(-1);
-    if (last && last.code === code) last.text += s;
-    else pieces.push({ code, text: s });
-  };
-  let prose = "";
-  let fence = null;
-  for (const line of text.split(/(?<=\n)/)) {
-    const { depth, rest } = quoted(line.replace(/\r?\n$/, ""));
-    const m = rest.match(FENCE);
-    if (fence && depth < fence.depth) fence = null;
-    if (fence) {
-      push(true, line);
-      const close = rest.match(FENCE_CLOSE);
-      if (depth === fence.depth && close && close[1][0] === fence.char && close[1].length >= fence.length) fence = null;
-      continue;
-    }
-    if (m && !(m[1][0] === "`" && m[2].includes("`"))) {
-      splitInline(prose, push);
-      prose = "";
-      fence = { char: m[1][0], length: m[1].length, depth };
-      push(true, line);
-      continue;
-    }
-    prose += line;
+/** Offsets of the unescaped `|` in a table row; GitHub splits a row into cells before it reads code spans. */
+function cellBreaks(text, start, end) {
+  const out = [];
+  for (let i = start; i < end; i++) {
+    if (text[i] === "\x5c") i++;
+    else if (text[i] === "|") out.push(i);
   }
-  splitInline(prose, push);
-  return pieces;
-}
-
-function splitInline(text, push) {
-  let start = 0;
-  let i = 0;
-  while (i < text.length) {
-    const c = text[i];
-    // A backslash escapes the next character, so an escaped backtick opens nothing.
-    if (c === "\x5c") {
-      i += 2;
-      continue;
-    }
-    if (c === "`") {
-      let n = 1;
-      while (text[i + n] === "`") n++;
-      const close = spanCloser(text, i + n, n);
-      if (close < 0) {
-        i += n;
-        continue;
-      }
-      push(false, text.slice(start, i));
-      push(true, text.slice(i, close + n));
-      i = start = close + n;
-      continue;
-    }
-    if (c === "<") {
-      const m = /^<(code|pre)\b[^>]*>/i.exec(text.slice(i, i + 200));
-      const end = m ? text.toLowerCase().indexOf(`</${m[1].toLowerCase()}>`, i + m[0].length) : -1;
-      if (end >= 0) {
-        const stop = end + m[1].length + 3;
-        push(false, text.slice(start, i));
-        push(true, text.slice(i, stop));
-        i = start = stop;
-        continue;
-      }
-    }
-    i++;
-  }
-  push(false, text.slice(start));
-}
-
-// A line that starts a new block, so no code span reaches into it from the
-// line before: a blank line, a list item, a heading or a table row, after
-// any blockquote markers.
-const BLOCK_START = /^[ \t]*(?:>[ \t]?)*(?:[ \t]*\r?$|(?:[-*+]|\d{1,9}[.)])[ \t]|#{1,6}(?:[ \t]|\r?$)|\|)/;
-const HEADING = /^[ \t]{0,3}(?:>[ \t]?)*#{1,6}(?:[ \t]|$)/;
-
-/**
- * The offset of the run of exactly n backticks closing a span that opens
- * before `from`, or -1. A span stays within its block: it ends at a line
- * that starts a new block, and with the line of a heading.
- */
-function spanCloser(text, from, n) {
-  const re = /`+|\n/g;
-  re.lastIndex = from;
-  let lineStart = text.lastIndexOf("\n", from - 1) + 1;
-  for (let m; (m = re.exec(text)); ) {
-    if (m[0] === "\n") {
-      if (HEADING.test(text.slice(lineStart, m.index))) return -1;
-      lineStart = m.index + 1;
-      const end = text.indexOf("\n", lineStart);
-      if (BLOCK_START.test(text.slice(lineStart, end < 0 ? text.length : end))) return -1;
-      continue;
-    }
-    if (m[0].length === n) return m.index;
-  }
-  return -1;
-}
-
-// A bare reference: `#N` not preceded by a word character and not followed
-// by one, as GitHub links it, so `#216/#218`, `#1386–#1389` and `pre-#1061`
-// are references (GitHub's renderer linked each of them in the corpus
-// check). `owner/repo#N`, `word#N`, a URL fragment, an HTML entity
-// (`&#12;`), `##12` and an escaped `\#12` are not bare references.
-const BARE_REF = /(^|[^\w&#\x5c])#(\d+)(?!\w)/g;
-
-// Link destinations are not references: a Markdown inline link's `](...)`
-// (see inlineLinkEnd), a link reference definition's `[label]: destination`,
-// and a URL written out (`https://host/?q=#12`). Bare references are not
-// mapped inside them.
-const LINK_DEFINITION_OR_URL = /^[ \t]{0,3}\[[^\]]+\]:[ \t]*\S+|(?:https?|ftp):\/\/[^\s<>]+/gm;
-
-function mapProse(text, fn) {
-  return splitCode(text ?? "").map((p) => (p.code ? p.text : fn(p.text))).join("");
+  return out;
 }
 
 /**
  * The end of an inline link's `(destination "title")` that starts at
- * `open` (the offset of its `(`), or -1 when none is there. The destination
- * is `<...>` or a run without spaces whose parentheses balance, a backslash
- * escaping the next character, as CommonMark has it.
+ * `open` (the offset of its `(`), within `limit`, or -1 when none is there.
+ * The destination is `<...>` or a run without spaces whose parentheses
+ * balance, a backslash escaping the next character, as CommonMark has it.
  */
-function inlineLinkEnd(text, open) {
+function inlineLinkEnd(text, open, limit = text.length) {
   let i = open + 1;
   const space = () => {
-    while (/\s/.test(text[i] ?? "")) i++;
+    while (i < limit && /\s/.test(text[i])) i++;
   };
   space();
   if (text[i] === "<") {
-    while (i < text.length && text[i] !== ">" && text[i] !== "\n") i += text[i] === "\x5c" ? 2 : 1;
+    while (i < limit && text[i] !== ">" && text[i] !== "\n") i += text[i] === "\x5c" ? 2 : 1;
     if (text[i] !== ">") return -1;
     i++;
   } else {
     let depth = 0;
-    for (; i < text.length && !/\s/.test(text[i]); i++) {
+    for (; i < limit && !/\s/.test(text[i]); i++) {
       if (text[i] === "\x5c") i++;
       else if (text[i] === "(") depth++;
       else if (text[i] === ")") {
@@ -238,55 +132,226 @@ function inlineLinkEnd(text, open) {
   space();
   const quote = { '"': '"', "'": "'", "(": ")" }[text[i]];
   if (quote) {
-    for (i++; i < text.length && text[i] !== quote; i++) if (text[i] === "\x5c") i++;
+    for (i++; i < limit && text[i] !== quote; i++) if (text[i] === "\x5c") i++;
     if (text[i] !== quote) return -1;
     i++;
     space();
   }
-  return text[i] === ")" ? i + 1 : -1;
+  return i < limit && text[i] === ")" ? i + 1 : -1;
 }
 
-/** Applies fn to the parts of prose outside link destinations. */
-function outsideLinks(prose, fn) {
+/** Code spans, code elements and inline link destinations in one block's inline text, left to right. */
+function inlineRanges(text, start, end, ranges) {
+  const brackets = [];
+  for (let i = start; i < end; ) {
+    const c = text[i];
+    if (c === "\x5c") {
+      i += 2;
+      continue;
+    }
+    if (c === "`") {
+      let n = 1;
+      while (text[i + n] === "`") n++;
+      let close = -1;
+      for (let j = i + n; j < end; ) {
+        if (text[j] !== "`") {
+          j++;
+          continue;
+        }
+        let k = 1;
+        while (text[j + k] === "`") k++;
+        if (k === n) {
+          close = j;
+          break;
+        }
+        j += k;
+      }
+      if (close < 0) {
+        i += n;
+        continue;
+      }
+      ranges.push([i, close + n]);
+      i = close + n;
+      continue;
+    }
+    if (c === "<") {
+      const m = /^<(code|pre)\b[^>]*>/i.exec(text.slice(i, Math.min(end, i + 200)));
+      const close = m ? text.toLowerCase().indexOf(`</${m[1].toLowerCase()}>`, i + m[0].length) : -1;
+      if (close >= 0 && close < end) {
+        const stop = close + m[1].length + 3;
+        ranges.push([i, stop]);
+        i = stop;
+        continue;
+      }
+    }
+    if (c === "[") brackets.push(i);
+    if (c === "]" && brackets.length) {
+      brackets.pop();
+      if (text[i + 1] === "(") {
+        const stop = inlineLinkEnd(text, i + 1, end);
+        if (stop > 0) {
+          ranges.push([i + 1, stop]);
+          brackets.length = 0;
+          i = stop;
+          continue;
+        }
+      }
+    }
+    i++;
+  }
+}
+
+/**
+ * The [start, end) ranges of the text in which GitHub links no reference.
+ * A fence belongs to the blockquote depth and list item it opened in: only
+ * its marker alone at that depth closes it, and a line of lesser depth, or
+ * a non-blank line less indented than its list item's content, ends it with
+ * its container. A block ends at a blank line or at a line that starts
+ * another block: a heading, a bullet list item, an ordered item numbered 1
+ * (or any number within a list), a deeper quote, or a table row. A
+ * definition counts only at the start of a block.
+ */
+export function protectedRanges(text) {
   const ranges = [];
-  for (let at = prose.indexOf("]("); at >= 0; at = prose.indexOf("](", at + 1)) {
-    const end = inlineLinkEnd(prose, at + 1);
-    if (end > 0) ranges.push([at, end]);
+  const lines = [];
+  for (let at = 0; at <= text.length; ) {
+    const nl = text.indexOf("\n", at);
+    const end = nl < 0 ? text.length : nl;
+    lines.push({ start: at, end: end > at && text[end - 1] === "\r" ? end - 1 : end, next: nl < 0 ? text.length : nl + 1 });
+    if (nl < 0) break;
+    at = nl + 1;
   }
-  for (const m of prose.matchAll(LINK_DEFINITION_OR_URL)) ranges.push([m.index, m.index + m[0].length]);
-  ranges.sort((a, b) => a[0] - b[0]);
-  let out = "";
-  let last = 0;
+  let fence = null;
+  let block = null;
+  let table = false;
+  let listIndent = 0;
+  let previousBlank = true;
+  const endBlock = () => {
+    if (block) inlineRanges(text, block.start, block.end, ranges);
+    block = null;
+  };
+  const cells = (start, end) => {
+    let from = start;
+    for (const b of [...cellBreaks(text, start, end), end]) {
+      inlineRanges(text, from, b, ranges);
+      from = b + 1;
+    }
+  };
+  for (const line of lines) {
+    const raw = text.slice(line.start, line.end);
+    const { depth, rest, at } = quoted(raw);
+    const indent = rest.length - rest.trimStart().length;
+    const body = rest.slice(indent);
+    const blank = body.trim() === "";
+    const bodyStart = line.start + at + indent;
+    if (fence) {
+      const ended = depth < fence.depth || (!blank && depth === fence.depth && indent < fence.indent);
+      if (!ended) {
+        const close = rest.match(FENCE_CLOSE);
+        if (depth === fence.depth && close && close[1][0] === fence.char && close[1].length >= fence.length) {
+          ranges.push([fence.start, line.next]);
+          fence = null;
+        }
+        continue;
+      }
+      ranges.push([fence.start, line.start]);
+      fence = null;
+    }
+    if (blank) {
+      endBlock();
+      table = false;
+      previousBlank = true;
+      continue;
+    }
+    const list = body.match(LIST_MARKER);
+    if (list) listIndent = indent + list[0].length;
+    else if (previousBlank && indent < listIndent) listIndent = 0;
+    const open = body.match(FENCE_OPEN);
+    if (open && !(open[2][0] === "`" && open[3].includes("`"))) {
+      endBlock();
+      table = false;
+      const markerIndent = open[1] ? indent + open[1].length : 0;
+      fence = { char: open[2][0], length: open[2].length, depth, indent: markerIndent || (listIndent && indent >= listIndent ? listIndent : 0), start: line.start };
+      previousBlank = false;
+      continue;
+    }
+    const heading = HEADING_LINE.test(body);
+    // A table's rows run until a blank line or another block; each cell is a block of its own.
+    if (table && !heading && !list && depth === table.depth) {
+      cells(bodyStart, line.end);
+      previousBlank = false;
+      continue;
+    }
+    table = false;
+    // A delimiter row under a line with a pipe makes that line a table's header.
+    if (block && !block.heading && depth === block.depth && TABLE_DELIMITER.test(body.trimEnd()) && body.includes("-") && text.slice(block.lastStart, block.end).includes("|")) {
+      const header = { start: block.lastStart, end: block.end };
+      if (block.lastStart > block.start) {
+        block.end = block.lastEnd;
+        endBlock();
+      }
+      block = null;
+      cells(header.start, header.end);
+      table = { depth };
+      previousBlank = false;
+      continue;
+    }
+    const startsBlock = !block || heading || block.heading || depth > block.depth || (list && (!list[1] || list[1] === "1" || block.list));
+    if (startsBlock) {
+      endBlock();
+      // A definition opens a block of its own; its destination and title link nothing.
+      if (!list && !heading && DEFINITION.test(body.trimEnd())) {
+        ranges.push([bodyStart, line.end]);
+        previousBlank = false;
+        continue;
+      }
+      block = { start: bodyStart, end: line.end, lastStart: bodyStart, lastEnd: line.start, depth, list: Boolean(list), heading };
+    } else {
+      block.lastEnd = block.end;
+      block.lastStart = bodyStart;
+      block.end = line.end;
+    }
+    previousBlank = false;
+  }
+  if (fence) ranges.push([fence.start, text.length]);
+  endBlock();
+  for (const m of text.matchAll(URL)) ranges.push([m.index, m.index + m[0].length]);
+  return ranges.sort((a, b) => a[0] - b[0]);
+}
+
+/** True when the offset lies in one of the sorted ranges. */
+function covered(ranges, offset) {
   for (const [start, end] of ranges) {
-    if (end <= last) continue;
-    const from = Math.max(start, last);
-    out += fn(prose.slice(last, from)) + prose.slice(from, end);
-    last = end;
+    if (start > offset) return false;
+    if (offset < end) return true;
   }
-  return out + fn(prose.slice(last));
+  return false;
 }
 
-/** Rewrites every bare reference outside code and link destinations; resolve(n) returns the replacement text or null to leave it. */
+// A bare reference: `#N` not preceded by a word character and not followed
+// by one, as GitHub links it, so `#216/#218`, `#1386–#1389` and `pre-#1061`
+// are references (GitHub's renderer linked each of them in the corpus
+// check). `owner/repo#N`, `word#N`, a URL fragment, an HTML entity
+// (`&#12;`), `##12` and an escaped `\#12` are not bare references.
+const BARE_REF = /(^|[^\w&#\x5c])#(\d+)(?!\w)/g;
+
+/** Rewrites every bare reference outside protected ranges; resolve(n) returns the replacement text or null to leave it. */
 export function rewriteBareRefs(text, resolve) {
-  return mapProse(text, (prose) =>
-    outsideLinks(prose, (part) =>
-      part.replace(BARE_REF, (all, lead, n) => {
-        const to = resolve(Number(n));
-        return to === null || to === undefined ? all : lead + to;
-      }),
-    ),
-  );
+  const source = text ?? "";
+  const ranges = protectedRanges(source);
+  return source.replace(BARE_REF, (all, lead, n, offset) => {
+    if (covered(ranges, offset + lead.length)) return all;
+    const to = resolve(Number(n));
+    return to === null || to === undefined ? all : lead + to;
+  });
 }
 
-/** The numbers of the bare references outside code and link destinations, in order. */
+/** The numbers of the bare references outside protected ranges, in order. */
 export function bareRefs(text) {
+  const source = text ?? "";
+  const ranges = protectedRanges(source);
   const out = [];
-  mapProse(text, (prose) =>
-    outsideLinks(prose, (part) => {
-      for (const m of part.matchAll(BARE_REF)) out.push(Number(m[2]));
-      return part;
-    }),
-  );
+  for (const m of source.matchAll(BARE_REF)) if (!covered(ranges, m.index + m[1].length)) out.push(Number(m[2]));
   return out;
 }
 
@@ -300,20 +365,27 @@ function closingMatch(m) {
   return { repo: m[6], number: Number(m[7]) };
 }
 
+/** A closing match counts when its keyword is outside code; an issue URL after it is the closing reference itself. */
+const closingCounts = (ranges, m) => !covered(ranges, m.index + m[1].length);
+
 /** Rewrites closing references outside code; resolve({ repo, number }) returns the new reference or null. */
 export function rewriteClosingRefs(text, resolve) {
-  return mapProse(text, (prose) =>
-    prose.replace(CLOSING, (...m) => {
-      const to = resolve(closingMatch(m));
-      return to === null || to === undefined ? m[0] : m[1] + m[2] + to;
-    }),
-  );
+  const source = text ?? "";
+  const ranges = protectedRanges(source);
+  return source.replace(CLOSING, (...m) => {
+    const match = Object.assign([...m.slice(0, 8)], { index: m[8] });
+    if (!closingCounts(ranges, match)) return m[0];
+    const to = resolve(closingMatch(m));
+    return to === null || to === undefined ? m[0] : m[1] + m[2] + to;
+  });
 }
 
 /** The closing references outside code, as { repo, number }; repo is null for a bare #N. */
 export function closingRefs(text) {
+  const source = text ?? "";
+  const ranges = protectedRanges(source);
   const out = [];
-  for (const p of splitCode(text ?? "")) if (!p.code) for (const m of p.text.matchAll(CLOSING)) out.push(closingMatch(m));
+  for (const m of source.matchAll(CLOSING)) if (closingCounts(ranges, m)) out.push(closingMatch(m));
   return out;
 }
 
@@ -1226,14 +1298,15 @@ export async function runRewrite({ tracker, repos, snapshot, journal, dryRun = f
 /** Qualified references to the code repository that name a migrated issue, outside code and the migration line. */
 export function staleRefs(text, repos, map) {
   const out = [];
-  const prose = splitCode(text ?? "")
-    .filter((p) => !p.code)
-    .map((p) => p.text)
-    .join("\n")
-    .split(/\r?\n/)
-    .filter((line) => !/^Migrated from \S+#\d+(; originally closed \d{4}-\d{2}-\d{2})?$/.test(line.trim()));
-  for (const line of prose) {
-    for (const m of line.matchAll(/(?:^|[^\w/.-])([\w.-]+\/[\w.-]+)#(\d+)(?!\w)/g)) if (sameRepo(m[1], repos.code) && map.has(Number(m[2]))) out.push(Number(m[2]));
+  const source = text ?? "";
+  const ranges = protectedRanges(source);
+  for (const m of source.matchAll(/(^|[^\w/.-])([\w.-]+\/[\w.-]+)#(\d+)(?!\w)/g)) {
+    const at = m.index + m[1].length;
+    const lineStart = source.lastIndexOf("\n", at) + 1;
+    const lineEnd = source.indexOf("\n", at);
+    const line = source.slice(lineStart, lineEnd < 0 ? source.length : lineEnd).trim();
+    if (covered(ranges, at) || /^Migrated from \S+#\d+(; originally closed \d{4}-\d{2}-\d{2})?$/.test(line)) continue;
+    if (sameRepo(m[2], repos.code) && map.has(Number(m[3]))) out.push(Number(m[3]));
   }
   return out;
 }

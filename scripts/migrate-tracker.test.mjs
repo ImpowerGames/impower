@@ -93,7 +93,33 @@ test("an unmatched backtick and a span broken by a blank line do not hide what f
   assert.equal(rw("- a `b`) }`.\n- raises `missing #12` here #12"), "- a `b`) }`.\n- raises `missing #12` here #3");
   assert.equal(rw("## Title `x\nsee #12 `y`"), "## Title `x\nsee #3 `y`", "a span ends with its heading's line");
   assert.equal(rw("`a\nb #12` c"), "`a\nb #12` c", "a span still continues across a paragraph's lines");
-  assert.equal(rw("| `a | #12 |\n| b` | #12 |"), "| `a | #3 |\n| b` | #3 |", "a span does not cross table rows");
+  assert.equal(rw("| h | i |\n| --- | --- |\n| `a | #12 |\n| b` | #12 |"), "| h | i |\n| --- | --- |\n| `a | #3 |\n| b` | #3 |", "a span does not cross a table's cells or rows");
+  assert.equal(rw("| `a | #12 |\n| b` | #12 |"), "| `a | #12 |\n| b` | #3 |", "without a delimiter row the lines are a paragraph");
+});
+
+// Each expectation below was confirmed by rendering the input through GitHub's Markdown API.
+test("blocks end where GitHub ends them, and only there", () => {
+  assert.equal(rw("`a\n| #12` c"), "`a\n| #12` c", "a leading pipe alone does not start a table");
+  assert.equal(rw("`a\n2. #12` c"), "`a\n2. #12` c", "an ordered item numbered 2 cannot interrupt a paragraph");
+  assert.equal(rw("`a\n1. #12` c"), "`a\n1. #3` c", "one numbered 1 can");
+  assert.equal(rw("1. a `x\n2. #12` c"), "1. a `x\n2. #3` c", "within a list, any item ends the last");
+  assert.equal(rw("`a\n- #12` c"), "`a\n- #3` c", "a bullet item interrupts a paragraph");
+});
+
+test("a link's title belongs to the link, not to a code span", () => {
+  assert.equal(rw('[a](#12 "a ` span") then #12 `x`'), '[a](#12 "a ` span") then #3 `x`');
+});
+
+test("a fence in a list item ends with the item", () => {
+  assert.equal(rw("- ```\n  #12\n\nSee #12."), "- ```\n  #12\n\nSee #3.");
+  assert.equal(rw("- item\n\n  ```\n  #12\n\nSee #12."), "- item\n\n  ```\n  #12\n\nSee #3.", "a fence opened on its own line inside the item");
+  assert.equal(rw("  ```\n#12\n  ```\n#12"), "  ```\n#12\n  ```\n#3", "an indented top-level fence keeps its unindented lines");
+});
+
+test("a link reference definition counts only where a block starts", () => {
+  assert.equal(rw("`x`[ref]: #12"), "`x`[ref]: #3");
+  assert.equal(rw("para\n[ref]: #12"), "para\n[ref]: #3", "a definition cannot interrupt a paragraph");
+  assert.equal(rw("[ref]: #12\n[other]: #12 'title'\n\n#12"), "[ref]: #12\n[other]: #12 'title'\n\n#3");
 });
 
 test("qualified, word-joined, URL, entity and escaped forms are not bare references", () => {
