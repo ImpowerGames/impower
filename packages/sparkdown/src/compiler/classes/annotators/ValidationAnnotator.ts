@@ -14,6 +14,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
+import { isStoryCondition } from "../../utils/storyIslands";
 import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
@@ -1177,7 +1178,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         // operator to the end of the token it found.
         const operator = /^\s*(->|[:|&])/.exec(this.read(nodeRef.from, nodeRef.to));
         const from = nodeRef.from + (operator?.[0].length ?? 0);
-        const got = this.luauTokenAfter(nodeRef.to);
+        // A story statement ends at its line (#1907): its Luau meets its end
+        // of input there, whatever the next line holds.
+        const islandEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
+        const inIsland = islandEnd === undefined ? undefined : this.luauTokenAt(nodeRef.to, islandEnd);
+        const got = inIsland === null
+          ? { text: null, to: this.lineBreakEnd(islandEnd!) }
+          : inIsland
+            ? { text: inIsland.text, to: inIsland.from + inIsland.text.length }
+            : this.luauTokenAfter(nodeRef.to);
         if (!got) return annotations;
         this.error(
           annotations,
@@ -1472,6 +1481,21 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
         const authoredEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
+        // A story header's condition ends at its line (#1907). Where its own
+        // expression is unfinished there (`if a and`), Luau's reading stops
+        // at that error and names nothing about `then`: the error at the
+        // line's end is the expression's, and one at a token on the line is
+        // the missing operand's own report. A whole expression followed by a
+        // token (`if flag print(1)`) is missing the `then` before that token.
+        if (authoredEnd !== undefined && isStoryCondition(nodeRef.node)) {
+          const expressionError = readLuauExpressionAfter(nodeRef.from, this.statementDocumentText(), authoredEnd).errors[0];
+          if (expressionError && !expressionError.message.startsWith("Expected the end of the expression")) {
+            if (expressionError.message.endsWith("got <eof>")) {
+              this.error(annotations, expressionError.message, authoredEnd, this.lineBreakEnd(authoredEnd));
+            }
+            return annotations;
+          }
+        }
         const got = nextSignificantToken(
           nodeRef.node,
           this.conditionExpressionEnd(nodeRef.node),
@@ -1480,11 +1504,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           authoredEnd,
         );
         const eof = authoredEnd ?? this.tree?.length ?? nodeRef.to;
+        // A story header's `<eof>` is its line break, as for a story
+        // statement.
+        const eofEnd = authoredEnd !== undefined && isStoryCondition(nodeRef.node) ? this.lineBreakEnd(eof) : eof;
         this.error(
           annotations,
           `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
           got?.from ?? eof,
-          got == null ? eof : got.from + got.text.length,
+          got == null ? eofEnd : got.from + got.text.length,
         );
       }
     }

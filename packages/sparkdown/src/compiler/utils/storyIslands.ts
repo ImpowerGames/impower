@@ -29,6 +29,11 @@ function ruleOf(node: SyntaxNode): SyntaxNode | null {
   return parent?.name.endsWith("_content") ? parent.parent : parent;
 }
 
+/** Whether a node is a story block's header condition, which ends at its line. */
+export function isStoryCondition(node: SyntaxNode): boolean {
+  return STORY_CONDITIONS[node.name]?.has(ruleOf(node)?.name ?? "") ?? false;
+}
+
 /**
  * The end of the last line a node spans, before its line break: a node that
  * a bracket carried past a line break it took in ends on the line before.
@@ -54,7 +59,7 @@ export function storyIslandEnd(node: SyntaxNode, text: string): number | undefin
     if (n.name === "LuauFunctionBody") return undefined;
     if (n.name === "LuauSparkdownExplicitStatement") return n.to;
     if (STORY_STATEMENTS.has(n.name)) return lastLineEnd(text, n.to);
-    if (STORY_CONDITIONS[n.name]?.has(ruleOf(n)?.name ?? "")) return lastLineEnd(text, n.to);
+    if (isStoryCondition(n)) return lastLineEnd(text, n.to);
     if (n.name === "LuauSparkdownExplicitUntilCondition" && isStoryUntilCondition(n)) return lastLineEnd(text, n.to);
   }
   return undefined;

@@ -71,7 +71,8 @@ describe("a repeat loop whose body ends with a local declaration", () => {
     expect(tree).not.toContain("ERROR_INCOMPLETE");
     expect(tree).toMatch(/^ [├└]─ LuauSparkdownRepeatLoop \[12\.\.46\]$/m);
     expect(tree).toMatch(/─ LuauSparkdownRepeatLoop_end_c2 \[41\.\.46\]\n.*─ LuauUntilKeyword \[41\.\.46\]: "until"$/m);
-    expect(tree).toMatch(/^ [├└]─ LuauUntilCondition \[46\.\.51\]$/m);
+    // A story `until` condition ends at its line, read with the bounded rule (#1907).
+    expect(tree).toMatch(/^ [├└]─ LuauSparkdownExplicitUntilCondition \[46\.\.51\]$/m);
   });
 });
 

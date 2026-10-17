@@ -38,13 +38,23 @@ describe("written island syntax diagnostics own authored tokens", () => {
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
 
-  for (const scope of ["file", "scene", "branch"]) {
+  // An open bracket carries a marked statement on to the next header or its
+  // block's `end` (#1907), so each island here ends before one, with the
+  // story line after it. The branch's `end` closes it before the next branch;
+  // the suffix's first `end` then closes that one.
+  const NEXT_HEADER: Record<"file" | "scene" | "branch", string> = {
+    file: "scene next\nThe village waits.\nend\n",
+    scene: "branch next\nThe village waits.\nend\n",
+    branch: "end\nbranch next\nThe village waits.\n",
+  };
+
+  for (const scope of ["file", "scene", "branch"] as const) {
     test.each(["(2", "math.abs(2", "{2", "t[2"])(`nonempty semicolon expression owns ${scope} EOF: %s`, async value => {
       const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
       const suffix = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";
       const body = `local n = 1; local x = ${value}`;
       const native = parseOfficialTree(`  ${body}`).errors[0]!;
-      const source = `${prefix}& ${body}\nThe village waits.\n${suffix}function f()\n return 5\nend\n`;
+      const source = `${prefix}& ${body}\n${NEXT_HEADER[scope]}${suffix}function f()\n return 5\nend\n`;
       const errors = syntaxErrors(source);
       expect(errors.map(message)).toEqual([native.message]);
       const line = prefix.split("\n").length - 1;
@@ -71,7 +81,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
   test("third marked statement still owns its missing closer", () => {
     const body = "local n = 1; local m = 2; local x = math.abs(2";
     const native = parseOfficialTree(`  ${body}`).errors[0]!;
-    expect(syntaxErrors(`& ${body}\nThe village waits.\n`).map(message)).toEqual([native.message]);
+    expect(syntaxErrors(`& ${body}\n${NEXT_HEADER.file}`).map(message)).toEqual([native.message]);
   });
 
   test("return after a marked semicolon remains a misplaced function return", () => {
@@ -102,7 +112,8 @@ describe("written island syntax diagnostics own authored tokens", () => {
     "local n = 1; local x =",
     "local n = 1; local x = math.abs(",
   ])("missing token after a semicolon owns the authored EOF: %s", async body => {
-    const source = `& ${body}\nThe village waits.\n`;
+    // An open bracket carries the statement on to the next header (#1907).
+    const source = `& ${body}\n${body.endsWith("(") ? NEXT_HEADER.file : "The village waits.\n"}`;
     const native = parseOfficialTree(`  ${body}`).errors[0]!;
     expect(native.message).toContain("got <eof>");
     const published = syntaxErrors(source);

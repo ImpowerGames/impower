@@ -1,5 +1,6 @@
 // #1592 — a `store` declaration whose value the parser could not read
-// (`store y =` with nothing after the `=`) is reported once, at the `=`, and
+// (`store y =` with nothing after the `=`) is reported once, at the end of
+// its line, where its Luau meets its end of input (#1907), and
 // the story still runs: the store is declared nil and the lines after it
 // play as story lines, as they do after an unfinished `& x =` or `local x =`.
 
@@ -42,9 +43,9 @@ describe("an unfinished `store` value", () => {
   ] as const) {
     const tail = TAIL.replace(/\n/g, eol);
 
-    test(`followed by story lines reports one error at the \`=\` and runs (${name})`, () => {
+    test(`followed by story lines reports one error at the end of its line and runs (${name})`, () => {
       const src = `store y =${eol}${tail}`;
-      expect(errorStarts(src)).toEqual(["0:8"]);
+      expect(errorStarts(src)).toEqual(["0:9"]);
       const { story, errorMessages } = makeRuntimeStoryFromSource(src);
       expect(errorMessages).toHaveLength(1);
       expect(runSavingEachStep(story)).toBe(TAIL);
@@ -58,9 +59,9 @@ describe("an unfinished `store` value", () => {
       expect(runSavingEachStep(story)).toBe("y is true.\ny is 2.\n");
     });
 
-    test(`at the end of the file reports one error at the \`=\` and compiles (${name})`, () => {
+    test(`at the end of the file reports one error at the end of its line and compiles (${name})`, () => {
       const src = `${tail}store y =${eol}`;
-      expect(errorStarts(src)).toEqual(["2:8"]);
+      expect(errorStarts(src)).toEqual(["2:9"]);
       const { story, errorMessages } = makeRuntimeStoryFromSource(src);
       expect(errorMessages).toHaveLength(1);
       expect(runSavingEachStep(story)).toBe(TAIL);

@@ -213,8 +213,9 @@ end
   // Sparkdown assignments are line-bounded (newlines are implicit statement
   // enders — the same decision that stops `=` from swallowing a later `end`).
   // So a value on the NEXT line is genuinely NOT bound to the `=`, and the
-  // diagnostic correctly reports the empty RHS — pointing at the orphaned
-  // value as the unexpected token. (Real Luau would accept `x =\n{…}`; authored
+  // diagnostic correctly reports the empty RHS at the end of the `=` line,
+  // where the story statement's Luau meets its end of input (#1907). (Real
+  // Luau would accept `x =\n{…}`; authored
   // Sparkdown always opens the `{`/`(` on the `=` line. This is intentional —
   // see reproEmptyRhs.test.ts and the grammar comment on LuauAssignmentOperator.)
   test("a value opening on the NEXT line is flagged (line-bounded by design)", () => {
@@ -224,12 +225,13 @@ end
     const diags = emptyRhsDiagnostics(src);
     expect(diags).toHaveLength(1);
     expect(diags[0]!.message).toBe(
-      "Expected identifier when parsing expression, got '{'",
+      "Expected identifier when parsing expression, got <eof>",
     );
   });
 
-  // The squiggle should land on the operator token, not its trailing spaces.
-  test("diagnostic range covers just the `=`, not its trailing whitespace", () => {
+  // A story statement's `<eof>` is its line break (#1907), as the checker
+  // ranges a `local` declaration's: after the trailing spaces.
+  test("diagnostic range is the line break after the `=` and its trailing whitespace", () => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
       files: [
@@ -255,9 +257,8 @@ end
         ),
       ) as any;
     expect(diag).toBeTruthy();
-    // `store x =` — the `=` is at character index 8 (0-based), so a one-char
-    // range is [8, 9). The 3 trailing spaces must NOT widen it.
-    expect(diag.range.start.character).toBe(8);
-    expect(diag.range.end.character).toBe(9);
+    // `store x =   ` ends at character 12; the range runs to the next line.
+    expect(diag.range.start).toEqual({ line: 0, character: 12 });
+    expect(diag.range.end).toEqual({ line: 1, character: 0 });
   });
 });

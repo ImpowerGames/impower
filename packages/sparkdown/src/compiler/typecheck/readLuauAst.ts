@@ -876,9 +876,12 @@ class Tokenizer {
       // A bracket left open takes in the line break before the next header
       // (#1907), so the EOF stands at the end of the island's last line,
       // before that break, as it does after a statement that ends its line.
+      // A token that takes the break in (an unfinished block comment) still
+      // ends where it does, before the EOF.
       let eof = node.to;
       if (this.text[eof - 1] === "\n") eof--;
       if (this.text[eof - 1] === "\r") eof--;
+      if (this.tokens.length > first) eof = Math.max(eof, this.tokens[this.tokens.length - 1]!.to);
       this.tokens.push({ kind: "break", text: "", from: eof, to: eof, location: this.location(eof, eof), source: this.source, story: true, authoredEnd: true });
       return;
     }
@@ -3961,7 +3964,9 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
   const cover = (location: Location) => {
     for (let line = location.begin.line; line <= location.end.line; line++) found.add(line);
   };
-  for (const token of tokenizer.tokens) if (token.kind !== "break") cover(token.location);
+  // An island's EOF may stand on a line no token does, after a block comment
+  // that runs over lines (#1907); an error there is placed on that line.
+  for (const token of tokenizer.tokens) if (token.kind !== "break" || token.authoredEnd) cover(token.location);
   for (const comment of tokenizer.hotcomments) cover(comment.location);
   for (const location of tokenizer.returnSourceLines) cover(location);
   const lines = [...found].sort((a, b) => a - b);
@@ -3981,9 +3986,11 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
 function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined, sourceDependencies: ReadonlySet<string>): string {
   const parts: string[] = [`start ${start}`, `eof ${eof ?? "-"}`];
   for (const token of tokenizer.tokens) {
-    // A break ends a statement wherever it stands and whatever it says.
+    // A break ends a statement wherever it stands and whatever it says. An
+    // island's EOF is where an error at its end is placed, so its place is
+    // part of the reading.
     if (token.kind === "break") {
-      parts.push("break");
+      parts.push(token.authoredEnd ? `break ${token.location.begin}` : "break");
       continue;
     }
     parts.push(`${token.kind}${token.unread ? " unread" : ""} ${token.location.begin}-${token.location.end} ${token.text}`);

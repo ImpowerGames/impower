@@ -722,8 +722,9 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
       "end",
       "",
     ].join("\n");
+    // Its Luau meets its end of input at the end of its line (#1907).
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
-      [5, "Expected identifier when parsing expression, got 'Hello'"],
+      [5, "Expected identifier when parsing expression, got <eof>"],
     ]);
     expect(playedLines(source)).toEqual(["Hello there.\n"]);
   });

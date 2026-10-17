@@ -200,7 +200,8 @@ describe("a block comment after a story declaration's target is never story text
 describe("a story `if` whose condition ends its line with a method colon (#1199, story form)", () => {
   test("the story line under it is not read into the condition", () => {
     const source = "store flag = true\n\nif flag:\n  Went down the true side.\nend\n";
-    expect(errorsOf(source)).toEqual(["2:8-2:8 Expected 'then' when parsing if statement, got <eof>"]);
+    // Luau's first error for `if flag:` at its end of input.
+    expect(errorsOf(source)).toEqual(["2:8-3:0 Expected identifier when parsing method name, got <eof>"]);
     expect(nodesCrossing(source, "  Went")).toEqual([
       expect.objectContaining({ name: "LuauSparkdownIfBlock" }),
     ]);
@@ -227,6 +228,23 @@ describe("a story `if` header ends at its line", () => {
     expect(parserWarnings(source)).toEqual([]);
     const lineText = source.split("\n")[line]!;
     expect(errorsOf(source)).toEqual([`${line}:${lineText.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`]);
+  });
+
+  // Luau's reading of the condition stops at its unfinished expression, the
+  // one error native Luau reports there; it says nothing about `then`.
+  test.each([
+    ["a trailing operator", "store a = 1\nif a == 1 and\n  a == 1\nthen\n  Text.\nend\n", "if a == 1 and"],
+    ["an if expression's `then`", "store c = true\nif if c then\n  false\nelse true then\n  Text.\nend\n", "if if c then"],
+    ["an `elseif` comparison", "store a = 1\nif a == 2 then\n  Two.\nelseif a ==\n  1 then\n  One.\nend\n", "elseif a =="],
+  ])("a condition that ends its line with %s is missing its expression there", (_name, source, header) => {
+    const line = source.split("\n").indexOf(header);
+    expect(errorsOf(source)).toEqual([`${line}:${header.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`]);
+  });
+
+  test("a whole condition followed by a token on its line is missing its `then` before that token", () => {
+    expect(errorsOf("store flag = true\nif flag print(1)\n  Text.\nend\n")).toEqual([
+      "1:8-1:13 Expected 'then' when parsing if statement, got 'print'",
+    ]);
   });
 });
 
@@ -282,6 +300,23 @@ describe("a story loop header ends at its line", () => {
   ])("%s is missing its expression at the line's end", (_name, source, at) => {
     expect(parserWarnings(source)).toEqual([]);
     expect(errorsOf(source)).toContain(`${at} Expected identifier when parsing expression, got <eof>`);
+  });
+});
+
+describe("a block comment that runs over lines carries a story statement on", () => {
+  // Its Luau meets its end of input at the end of the line the comment
+  // closes on, and the error is placed on that line.
+  test.each([
+    ["a declaration", "local a = 1 + --[[ x\n ]]"],
+    ["an `&` declaration", "& local a = 1 + --[[ x\n ]]"],
+    ["a value list", "local a, b = 1, --[[ x\n ]] -- note"],
+    ["a reassignment", "store a = 0\na = 1 + --[[ x\n ]]"],
+  ])("%s is missing its value at the end of the comment's last line", (_name, statement) => {
+    const lines = statement.split("\n");
+    const line = lines.length - 1;
+    expect(errorsOf(`${statement}\nThe hero.\n`)).toEqual([
+      `${line}:${lines[line]!.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`,
+    ]);
   });
 });
 

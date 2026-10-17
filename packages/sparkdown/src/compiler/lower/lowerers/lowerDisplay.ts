@@ -1271,10 +1271,12 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
 ]);
 
 // What begins a branch of an `if` or an arm of an alternator block, before
-// the branch's first statement.
+// the branch's first statement. A story `if` or `elseif` reads its condition,
+// with its `then`, with the bounded rule (#1907).
 const BRANCH_OPENERS: ReadonlySet<string> = nodeNameSet([
   "LuauIfBlockCondition",
   "LuauElseifBlockCondition",
+  "LuauSparkdownExplicitIfCondition",
   "LuauAlternatorSeparator",
 ]);
 
