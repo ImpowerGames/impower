@@ -373,9 +373,39 @@ function blockedReview(rows, blocked) {
   return { pending: { index, step: launching.step, head: launching.head, ...report }, completed };
 }
 
-// A read-back's text in the encoding a shell redirect wrote it: UTF-8, with or
-// without a byte order mark, or UTF-16 with one (Windows PowerShell 5.1's
-// default for `>`).
+// Where a journal's coordinator-posted report lives: the review thread its
+// coordinator row records, or, for a journal from a launcher that predates
+// review threads and posted on the pull request, an issue of the code
+// repository, while that repository still holds the review conversation.
+function reportPlace(rows, repos) {
+  const thread = rows.find((row) => row.event === "coordinator")?.thread;
+  if (thread !== undefined) {
+    if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("Journal's coordinator row names a malformed review thread; inspect the journal by hand");
+    return { repo: thread.repo, thread };
+  }
+  if (ticketsRepo(repos) !== repos.code) throw new Error(`Journal's coordinator row names no review thread: it was written before the launcher recorded one, when reviews were posted on the pull request, and with the cutover switch on its report cannot be recorded against ${repos.internal}`);
+  return { repo: repos.code, thread: null };
+}
+
+// Writes the posted comment, as GitHub's REST API returns it, to the read-back
+// file record-report takes. gh's output is written byte for byte, since a
+// shell redirect can re-encode it: Windows PowerShell 5.1 decodes a native
+// command's output through the console code page, which turns the em dash of
+// a report heading into other characters.
+export function writeReportReadBack(journalFile, commentId, readBackFile, { repos = readRepos(), run = (args) => execFileSync("gh", args, { windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } = {}) {
+  if (!/^[1-9][0-9]*$/.test(String(commentId)) || !Number.isSafeInteger(Number(commentId))) throw new Error("Supply the posted comment's numeric ID");
+  const { repo } = reportPlace(readJournalRows(journalFile), repos);
+  const bytes = Buffer.from(run(["api", `repos/${repo}/issues/comments/${commentId}`]));
+  let comment;
+  try { comment = JSON.parse(bytes.toString("utf8")); }
+  catch (error) { throw new Error(`gh returned no comment object for comment ${commentId} in ${repo}: ${error.message}`); }
+  if (Number(comment?.id) !== Number(commentId) || typeof comment.body !== "string") throw new Error(`gh returned no comment ${commentId} from ${repo}`);
+  fs.writeFileSync(readBackFile, bytes);
+  return { readBack: readBackFile, repository: repo, issueUrl: comment.issue_url };
+}
+
+// A read-back's text: UTF-8, with or without a byte order mark, or UTF-16
+// with one, as an editor or Windows PowerShell 5.1 may write it.
 function readBackText(file) {
   const bytes = fs.readFileSync(file);
   if (bytes[0] === 0xff && bytes[1] === 0xfe) return bytes.subarray(2).toString("utf16le");
@@ -431,17 +461,12 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile, { 
   const recorded = written.findLast((row) => row.event === "report-posted" || row.event === "completed");
   if (recorded && (recorded.commentId !== record.commentId || recorded.readBackSha256 !== record.readBackSha256)) throw new Error(`Journal already records comment ${recorded.commentId} for this report; a different comment or read-back cannot complete it`);
   if (Number(posted.id) !== record.commentId) throw new Error(`The read-back is comment ${posted.id ?? "with no id"}, not comment ${commentId}`);
-  const thread = rows.find((row) => row.event === "coordinator")?.thread;
-  if (thread !== undefined) {
-    if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("Journal's coordinator row names a malformed review thread; inspect the journal by hand");
+  const { repo, thread } = reportPlace(rows, repos);
+  if (thread) {
     if (!onThread(posted, thread)) throw new Error(`Comment ${commentId} is on ${posted.issue_url ?? "no issue"}, not review thread ${thread.repo}#${thread.number}; post the report there`);
   } else {
-    // A launcher that predates review threads posted on the pull request and
-    // recorded no thread, so its journal takes a comment on an issue of the
-    // code repository while that repository holds the review conversation.
-    if (ticketsRepo(repos) !== repos.code) throw new Error(`Journal's coordinator row names no review thread: it was written before the launcher recorded one, when reviews were posted on the pull request, and with the cutover switch on its report cannot be recorded against ${repos.internal}`);
-    const prefix = `https://api.github.com/repos/${repos.code}/issues/`;
-    if (typeof posted.issue_url !== "string" || !posted.issue_url.toLowerCase().startsWith(prefix.toLowerCase()) || !/^[1-9][0-9]*$/.test(posted.issue_url.slice(prefix.length))) throw new Error(`Comment ${commentId} is on ${posted.issue_url ?? "no issue"}, not a pull request in ${repos.code}, where this journal's launcher posted reviews; post the report there`);
+    const prefix = `https://api.github.com/repos/${repo}/issues/`;
+    if (typeof posted.issue_url !== "string" || !posted.issue_url.toLowerCase().startsWith(prefix.toLowerCase()) || !/^[1-9][0-9]*$/.test(posted.issue_url.slice(prefix.length))) throw new Error(`Comment ${commentId} is on ${posted.issue_url ?? "no issue"}, not a pull request in ${repo}, where this journal's launcher posted reviews; post the report there`);
   }
   const now = new Date().toISOString();
   const missing = [
@@ -1090,8 +1115,13 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "record-report") {
     try {
-      if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs record-report <absolute-journal> <comment-id> <read-back-comment-json>");
+      if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs record-report <absolute-journal> <comment-id> <read-back.json>");
       recordCoordinatorReport(process.argv[3], process.argv[4], process.argv[5]);
+    } catch (error) { console.error(error.message); process.exitCode = 1; }
+  } else if (process.argv[2] === "read-back") {
+    try {
+      if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs read-back <absolute-journal> <comment-id> <read-back.json>");
+      console.log(JSON.stringify(writeReportReadBack(process.argv[3], process.argv[4], process.argv[5])));
     } catch (error) { console.error(error.message); process.exitCode = 1; }
   } else if (process.argv[2] === "recover-lock") {
     try {
@@ -1099,6 +1129,6 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
       console.log(JSON.stringify(recoverHandoffLock(process.argv[3])));
     } catch (error) { console.error(error.message); process.exitCode = 1; }
   } else runHandoff(process.argv[2]).then(({ journal, pendingReport, thread }) => {
-    if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim on review thread ${thread.repo}#${thread.number} after one line saying it is posted on the reviewer's behalf and why, read the comment back by id as JSON (gh api repos/${thread.repo}/issues/comments/<comment-id> > <read-back.json>, or the comment object your GitHub integration returns, with its id, issue_url and body), then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back.json>`);
+    if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim on review thread ${thread.repo}#${thread.number} after one line saying it is posted on the reviewer's behalf and why, read the comment back with node scripts/agent-handoff.mjs read-back ${journal} <comment-id> <read-back.json> (or, without a gh login, write the comment object your GitHub integration returns, with its id, issue_url and body, to that file), then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back.json>`);
   }).catch((error) => { console.error(error.message); process.exitCode = 1; });
 }
