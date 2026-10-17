@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 192,
-  "previous": "8db57644b50d6841b189351e280dbfa93aa675fa",
+  "seq": 193,
+  "previous": "d8f627361786faad96bc8d22e6afba3e28274884",
   "snapshotParents": [],
-  "time": "2026-10-17T15:24:20.578Z",
+  "time": "2026-10-17T15:24:46.603Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 203,
+    "recordRevision": 204,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -6372,7 +6372,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T15:24:19.837Z",
+      "observedAt": "2026-10-17T15:24:45.843Z",
       "held": true,
       "head": "9296f3ce910473f6501322f14520ac6c698a1a61",
       "remoteHead": "9296f3ce910473f6501322f14520ac6c698a1a61",
@@ -7172,13 +7172,6 @@
   },
   "log": [
     {
-      "time": "2026-10-17T04:08:42.295Z",
-      "event": "checkpoint-published",
-      "ticket": 1924,
-      "id": "3f6686ca",
-      "comment": 6229458152
-    },
-    {
       "time": "2026-10-17T04:09:19.146Z",
       "event": "answer-intent",
       "ticket": 1924,
@@ -7917,6 +7910,11 @@
       "event": "released",
       "ticket": 1906,
       "reason": "process 40776 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-17T15:24:44.522Z",
+      "event": "check-in",
+      "outcome": "#1906 accepted (9a9813dc, comment 6235514127), PR #1995 marked ready and merged as 006d924c (operation 8a377245), writer released; ORCH #1961 told; round 5 on PR #1993 completed both reviewers (no interruption from the maintainer's Codex account switch), writer adjudicating; #1907 and #1977 still wait-capacity until PR #1993 merges"
     }
   ]
 }
