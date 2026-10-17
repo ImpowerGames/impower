@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 87,
-  "previous": "ea6822d4adcccd1d5b541cb1c0224c0a9c185ddc",
+  "seq": 88,
+  "previous": "6295d8d91624e72555ade291ce124fcb3f962892",
   "snapshotParents": [],
-  "time": "2026-10-17T02:47:57.575Z",
+  "time": "2026-10-17T02:48:10.721Z",
   "kind": "auto",
-  "transition": "answer of #1966",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 79,
+    "recordRevision": 80,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1596,7 +1596,12 @@
             "time": "2026-10-17T02:01:52.664Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-f157f40d-e345-4b6c-a2c7-496abeb81f39"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "bad5c2f2-272e-4cf0-9943-d182f5fac6a1",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-bad5c2f2-272e-4cf0-9943-d182f5fac6a1",
+          "time": "2026-10-17T02:48:07.417Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -2493,7 +2498,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:47:56.054Z",
+      "observedAt": "2026-10-17T02:48:09.306Z",
       "held": true,
       "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
       "remoteHead": null,
@@ -2505,7 +2510,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:47:56.054Z",
+      "observedAt": "2026-10-17T02:48:09.306Z",
       "held": true,
       "head": "6f5769ab57f7323e487891630ef814a2131befb8",
       "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
@@ -3288,6 +3293,13 @@
       "id": "fd3d8e56",
       "deliveryId": "2ad911fb",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T02:48:07.418Z",
+      "event": "resume-intent",
+      "ticket": 1966,
+      "id": "bad5c2f2-272e-4cf0-9943-d182f5fac6a1",
+      "sessionId": "58c4e7e1-10ce-48f9-8cd2-052d8503847b"
     }
   ]
 }
