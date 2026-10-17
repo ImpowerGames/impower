@@ -550,30 +550,55 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
 export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
 
+// GitHub's closing keywords, as a slice's body names the tickets its PR closes.
+const CLOSING_REFERENCE = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:[\w.-]+\/[\w.-]+)?#(\d+)/gi;
+export const closingReferences = (body) => [...new Set([...String(body ?? "").matchAll(CLOSING_REFERENCE)].map((m) => Number(m[1])))];
+
 // The parent's sub-issue tree, read once to GitHub's own nesting limit, with
 // each node's place in the plan. A node with sub-issues is a container, planned
 // through them, unless it is a slice that delivers them: a Task or Feature
-// whose sub-issues are all Bugs stays a ticket of its own, and each of those
-// Bugs is delivered by its PR rather than dispatched. A container below the
-// nesting limit is one the walk could not see into, so it is marked truncated
-// rather than treated as a ticket. The snapshot and the final gate's scope read
-// share this walk, so both see the same slices.
+// whose sub-issues are all Bugs, none of which another listed ticket's body
+// claims with a closing keyword, stays a ticket of its own, and each of those
+// Bugs is delivered by its PR rather than dispatched. An umbrella whose Bugs
+// other slices' bodies claim is a container, and each claimed ticket is
+// delivered by the slice that claims it. A container below the nesting limit
+// is one the walk could not see into, so it is marked truncated rather than
+// treated as a ticket. Only tree data decides a node's place, so the snapshot
+// and the final gate's scope read, which share this walk, see the same slices.
 export function walkSubIssues(issue, client) {
   const nodes = [];
   const isBug = (c) => (c.type?.name ?? null) === "Bug";
-  const visit = (parent, depth, deliverer) => {
+  const visit = (parent, depth) => {
     for (const sub of client.subIssues(parent)) {
-      const n = sub.number, type = sub.type?.name ?? null;
-      const children = client.subIssues(n);
-      const delivers = children.length > 0 && type !== null && type !== "Bug" && children.every(isBug);
-      const container = children.length > 0 && !delivers;
-      const truncated = container && depth >= MAX_SUB_ISSUE_DEPTH;
-      nodes.push({ number: n, title: sub.title, state: sub.state, type, parent, container, ...(truncated && { truncated: true }), ...(deliverer !== null && isBug(sub) && !children.length && { deliveredBy: { ticket: deliverer, via: "sub-issue", pr: null } }) });
-      if (children.length && !truncated) visit(n, depth + 1, delivers ? n : null);
+      const children = client.subIssues(sub.number);
+      nodes.push({ number: sub.number, title: sub.title, state: sub.state, type: sub.type?.name ?? null, parent, depth, children: children.map((c) => ({ number: c.number, bug: isBug(c) })), closes: closingReferences(sub.body) });
+      if (children.length && depth < MAX_SUB_ISSUE_DEPTH) visit(sub.number, depth + 1);
     }
   };
-  visit(issue, 1, null);
-  return nodes;
+  visit(issue, 1);
+  const listed = new Map(nodes.map((n) => [n.number, n]));
+  // The tickets other listed tickets' bodies claim; a ticket's own parent
+  // claiming it is the sub-issue relation, not a claim from elsewhere.
+  const claimants = new Map();
+  for (const s of nodes) for (const n of s.closes) {
+    if (n === s.number || !listed.has(n) || listed.get(n).parent === s.number) continue;
+    if (!claimants.has(n)) claimants.set(n, []);
+    if (!claimants.get(n).includes(s.number)) claimants.get(n).push(s.number);
+  }
+  for (const node of nodes) {
+    const allBugs = node.children.length > 0 && node.type !== null && node.type !== "Bug" && node.children.every((c) => c.bug);
+    node.delivers = allBugs && node.children.every((c) => !claimants.has(c.number));
+    node.container = node.children.length > 0 && !node.delivers;
+    if (node.container && node.depth >= MAX_SUB_ISSUE_DEPTH) node.truncated = true;
+  }
+  return nodes.map(({ children, closes, depth, delivers, ...node }) => {
+    if (node.container) return node;
+    const claimed = claimants.get(node.number);
+    if (claimed?.length > 1) return { ...node, deliveryConflict: claimed };
+    if (claimed?.length === 1) return { ...node, deliveredBy: { ticket: claimed[0], via: "body", pr: null } };
+    if (listed.get(node.parent)?.delivers && node.type === "Bug") return { ...node, deliveredBy: { ticket: node.parent, via: "sub-issue", pr: null } };
+    return node;
+  });
 }
 
 // The slices a container's walk plans: every node that is not a container,
@@ -597,7 +622,7 @@ export function takeSnapshot({ repository, issue }, client) {
   const parent = client.issue(issue);
   const tickets = walkSubIssues(issue, client).map((node) => {
     const n = node.number;
-    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
+    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
     return {
       ...node, effort: client.effort(n),
       delivered: node.state === "closed" && delivered(n),
@@ -605,20 +630,39 @@ export function takeSnapshot({ repository, issue }, client) {
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
-  // A ticket with a PR of its own is its own slice. Otherwise a ticket whose PR
-  // is another listed ticket's (its branch names that ticket, and it closes
-  // this one) is delivered by that slice; a Bug a slice delivers as its
-  // sub-issue gets that slice's PR once it exists.
-  const listed = new Set(tickets.map((t) => t.number));
+  // Deliveries a PR commits to, read from the deliverer's side: each slice's
+  // open or merged PRs on its own branch, with the listed tickets their closing
+  // references name. A slice's own PRs are found in both repository modes,
+  // while a ticket's own list may lack a sibling's PR once tickets live apart.
+  // A closed, unmerged PR delivers nothing; two slices whose PRs both close a
+  // ticket leave the choice to the maintainer. A ticket with a PR of its own is
+  // its own slice. A PR relation replaces one read from the tree, and a Bug a
+  // slice delivers as its sub-issue gets that slice's PR once it exists.
+  const byNumber = new Map(tickets.map((t) => [t.number, t]));
+  const viable = (p) => p.state === "MERGED" || p.state === "OPEN";
   const byPreference = (a, b) => (PR_PREFERENCE[a.state] ?? 2) - (PR_PREFERENCE[b.state] ?? 2);
+  const ownPrs = (s) => s.prs.filter((p) => branchTicket(p.branch) === s.number && viable(p)).sort(byPreference);
+  const candidates = new Map();
+  for (const s of tickets) for (const p of ownPrs(s)) for (const n of p.closes) {
+    if (n === s.number || !byNumber.has(n) || byNumber.get(n).container) continue;
+    if (!candidates.has(n)) candidates.set(n, []);
+    candidates.get(n).push({ ticket: s.number, pr: p });
+  }
   for (const t of tickets) {
     if (t.container) continue;
-    const own = t.prs.some((p) => branchTicket(p.branch) === t.number);
-    if (own) { delete t.deliveredBy; continue; }
-    if (t.deliveredBy) { t.deliveredBy.pr = [...t.prs].sort(byPreference).find((p) => branchTicket(p.branch) === t.deliveredBy.ticket)?.number ?? null; continue; }
-    const via = [...t.prs].sort(byPreference).find((p) => { const s = branchTicket(p.branch); return s !== null && s !== t.number && listed.has(s); });
-    if (via) t.deliveredBy = { ticket: branchTicket(via.branch), via: "pr", pr: via.number };
+    if (t.prs.some((p) => branchTicket(p.branch) === t.number)) { delete t.deliveredBy; delete t.deliveryConflict; continue; }
+    const found = (candidates.get(t.number) ?? []).sort((a, b) => byPreference(a.pr, b.pr));
+    const deliverers = [...new Set(found.map((f) => f.ticket))].sort((a, b) => a - b);
+    if (deliverers.length > 1) { delete t.deliveredBy; t.deliveryConflict = deliverers; continue; }
+    if (deliverers.length === 1) { delete t.deliveryConflict; t.deliveredBy = { ticket: deliverers[0], via: "pr", pr: found[0].pr.number }; }
+    else if (t.deliveredBy) t.deliveredBy.pr = ownPrs(byNumber.get(t.deliveredBy.ticket))[0]?.number ?? null;
+    if (!t.deliveredBy) continue;
+    const pr = t.deliveredBy.pr === null ? null : byNumber.get(t.deliveredBy.ticket).prs.find((p) => p.number === t.deliveredBy.pr);
+    t.deliveredBy.merged = Boolean(pr && pr.state === "MERGED" && pr.mergeCommit && client.onMain(pr.mergeCommit));
+    if (t.state === "closed" && t.deliveredBy.merged) t.delivered = true;
   }
+  // A blocker that is itself a delivered ticket is delivered with its slice.
+  for (const t of tickets) for (const b of t.blockers) if (!b.delivered && b.state === "closed" && byNumber.get(b.number)?.delivered) b.delivered = true;
   return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
@@ -849,6 +893,19 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const parentOf = new Map(snapshot.tickets.map((t) => [t.number, t.parent]));
   const heldContainers = new Set();
   const heldAncestor = (t) => { for (let p = t.parent; p !== undefined && p !== snapshot.issue.number; p = parentOf.get(p)) if (heldContainers.has(p)) return p; return null; };
+  // A delivered ticket that holds a writer, a pending start or a worktree of
+  // its own holds the slice that delivers it, so no second writer starts on
+  // work that may already be under way.
+  const heldDeliverers = new Map();
+  for (const t of snapshot.tickets) {
+    if (!t.deliveredBy) continue;
+    const own = record.tickets[t.number] ?? {};
+    if (own.owner || own.pending || (t.worktrees.length && !writerKnownEnded(own))) {
+      if (!heldDeliverers.has(t.deliveredBy.ticket)) heldDeliverers.set(t.deliveredBy.ticket, []);
+      heldDeliverers.get(t.deliveredBy.ticket).push(t.number);
+    }
+  }
+  const heldDelivery = (n) => heldDeliverers.get(n) ?? null;
   // Each owner is observed once per plan; the sweep below reuses it.
   const statuses = new Map();
   const statusOf = (n, owner) => { if (!statuses.has(n)) statuses.set(n, ownerStatus(owner, observations, { host, identify })); return statuses.get(n); };
@@ -859,10 +916,14 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     // writer place: it is done once that PR's merge commit is on origin/main
     // and GitHub has closed it, and a writer the record holds for it is a
     // mistake to settle.
+    if (t.deliveryConflict) { add(t, "decision-needed", `open or merged PRs of ${t.deliveryConflict.map((n) => `#${n}`).join(" and ")} both close it, so which slice delivers it is the maintainer's decision; it is not dispatched meanwhile`, { deliveryConflict: t.deliveryConflict }); continue; }
     if (t.deliveredBy) {
-      const d = t.deliveredBy, by = `#${d.ticket}'s PR${d.pr ? ` #${d.pr}` : ""}`, how = d.via === "sub-issue" ? `a Bug under slice #${d.ticket}` : "that PR closes it";
-      if (own.owner || own.pending) { active++; add(t, "decision-needed", `the record holds a writer or pending start for it, but ${by} delivers it (${how}); settle that writer, since the ticket is never dispatched`, { deliveredBy: d }); continue; }
+      const d = t.deliveredBy, by = `#${d.ticket}'s PR${d.pr ? ` #${d.pr}` : ""}`;
+      const how = { "sub-issue": `a Bug under slice #${d.ticket}`, body: `#${d.ticket}'s body claims it with a closing keyword`, pr: "that PR closes it" }[d.via];
+      if (own.owner || own.pending) { active++; add(t, "decision-needed", `the record holds a writer or pending start for it, but ${by} delivers it (${how}); settle that writer, since the ticket is never dispatched, and #${d.ticket} waits until it is settled`, { deliveredBy: d }); continue; }
+      if (t.worktrees.length && !writerKnownEnded(own)) { active++; add(t, "adopt-worktree", `worktree ${t.worktrees.map((w) => w.path).join(", ")} holds work on it although ${by} delivers it (${how}); find that writer and record it with adopt, then release it once it ends, and #${d.ticket} waits until it is settled`, { worktrees: t.worktrees, reserves: true, deliveredBy: d }); continue; }
       if (t.state === "closed") { add(t, t.delivered ? "done" : "decision-needed", t.delivered ? `delivered by ${by}, merged on origin/main` : `closed without a merged deliverable on origin/main, although ${by} delivers it; confirm whether the ticket is complete`, { deliveredBy: d }); continue; }
+      if (d.merged) { add(t, "decision-needed", `${by} is merged on origin/main, but GitHub left it open, so that PR's body may lack its closing reference; close it by hand once the merge delivers it, or confirm what remains`, { deliveredBy: d }); continue; }
       add(t, "delivered-by", `${by} delivers it (${how}): it is never dispatched and holds no writer place, and it is done once that PR's merge commit is on origin/main and GitHub has closed it`, { deliveredBy: d });
       continue;
     }
@@ -983,6 +1044,8 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (waiting.length) { add(t, "wait-dependency", waitingFor(waiting), { waitingFor: waiting.map((b) => b.number) }); continue; }
     const held = heldAncestor(t);
     if (held !== null) { add(t, "wait-dependency", `its parent #${held} is still held by a writer; settle that writer before its sub-issues are dispatched`, { waitingFor: [held] }); continue; }
+    const holding = heldDelivery(t.number);
+    if (holding) { add(t, "wait-dependency", `${holding.map((n) => `#${n}`).join(", ")}, which its PR delivers, ${holding.length > 1 ? "hold" : "holds"} a writer or work of its own; settle that before #${t.number} is dispatched`, { waitingFor: holding }); continue; }
     eligible.push(t);
   }
   // A writer the record still holds for a ticket the parent issue no longer lists
@@ -1005,6 +1068,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (!writerEffortOf(t.effort)) { entry.continueBlocked = "the ticket has no writer effort"; continue; }
     if (waiting.length) { entry.continueBlocked = waitingFor(waiting); continue; }
     if (heldAncestor(t) !== null) { entry.continueBlocked = `its parent #${heldAncestor(t)} is still held by a writer`; continue; }
+    if (heldDelivery(t.number)) { entry.continueBlocked = `${heldDelivery(t.number).map((n) => `#${n}`).join(", ")}, which its PR delivers, still holds a writer or work of its own`; continue; }
     const choice = chooseRoute(t);
     const others = active - (reserves ? 1 : 0);
     if (!choice.chosen) entry.continueBlocked = choice.reasons.join("; ");
@@ -1799,7 +1863,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
       : `You cannot message ${coordinator}: ${how.unsupported}. Write your acknowledgement, naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed, as your first message instead; ${defaults.reportFallback}.`,
     ...(route.turns ? [route.turns] : []),
     `Run the resolve-issue skill for #${number} exactly as written.`,
-    ...(entry.delivers?.length ? [`Your PR also delivers ${entry.delivers.map((n) => `#${n}`).join(", ")}: ${entry.delivers.length === 1 ? "it is a Bug under #" + number + " or one your branch's PR closes" : "they are Bugs under #" + number + " or ones your branch's PR closes"}, never dispatched to another writer, so the PR body carries a closing reference for each of them beside the one for #${number}, and GitHub closes them with it when it merges.`] : []),
+    ...(entry.delivers?.length ? [`Your PR also delivers ${entry.delivers.map((n) => `#${n}`).join(", ")} (sub-issues of #${number}, or tickets its body or PR closes), never dispatched to another writer, so the PR body carries a closing reference for each of them beside the one for #${number}, and GitHub closes them with it when it merges.`] : []),
     adopted ? `Continue the existing work ${place} on branch ${work.branch}${adopted.pr ? ` and its PR #${adopted.pr}, which has started ${adopted.rounds} review rounds; the count continues from there and never resets` : ""}.` : `Create your worktree at ${work.worktree} on branch ${work.branch} from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.`,
     `Allocate your private artifact directory with resolve-issue's allocator under ${work.artifactParent ?? "a scratch parent of your own"}, and keep every artifact in it.`,
     `The design of record is the body of ${parent}, as its template structures it, together with the decisions below. Settled decisions:${decisions.length ? "" : " none beyond the ticket and that body."}`,
