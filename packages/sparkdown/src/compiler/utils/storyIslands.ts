@@ -58,11 +58,26 @@ export function storyIslandEnd(node: SyntaxNode, text: string): number | undefin
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
     if (n.name === "LuauFunctionBody") return undefined;
     if (n.name === "LuauSparkdownExplicitStatement") return n.to;
-    if (STORY_STATEMENTS.has(n.name)) return lastLineEnd(text, n.to);
+    if (STORY_STATEMENTS.has(n.name)) return storyStatementEnd(n, text);
     if (isStoryCondition(n)) return lastLineEnd(text, n.to);
     if (n.name === "LuauSparkdownExplicitUntilCondition" && isStoryUntilCondition(n)) return lastLineEnd(text, n.to);
   }
   return undefined;
+}
+
+/**
+ * Where a story statement's Luau meets its end of input: the end of its last
+ * line, or of the last line of a statement that begins later on that line
+ * (`local a = 0 a = math.max(1,` / `2)`, or a block such as `while x do`),
+ * which Luau reads on with it, since nothing ends Luau's reading between
+ * them.
+ */
+export function storyStatementEnd(node: SyntaxNode, text: string): number {
+  let end = lastLineEnd(text, node.to);
+  for (let next = node.nextSibling; next && next.from < end; next = next.nextSibling) {
+    end = Math.max(end, lastLineEnd(text, next.to));
+  }
+  return end;
 }
 
 /** Whether a node lies inside a marked statement or a function, which read Luau as their own rules do. */
@@ -81,6 +96,15 @@ function isStoryUntilCondition(node: SyntaxNode): boolean {
 /** Whether a story loop's header has no `do` block on it, so the loop ends with its header's line. */
 function isHeaderOnlyLoop(node: SyntaxNode): boolean {
   return STORY_LOOPS.has(node.name) && !node.getChild(`${node.name}_content`)?.getChild("LuauSparkdownDoBlock");
+}
+
+/**
+ * Whether a node is a story `for` or `while` whose header has no `do` block
+ * on its line: an island whose Luau meets its end of input where the `do`
+ * should be, so Luau's error there is the loop's diagnostic.
+ */
+export function isStoryHeaderOnlyLoop(node: SyntaxNode): boolean {
+  return isHeaderOnlyLoop(node) && !inMarkedStatementOrFunction(node);
 }
 
 /**

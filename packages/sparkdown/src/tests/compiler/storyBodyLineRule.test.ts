@@ -13,6 +13,7 @@ import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocum
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
+import { parseOfficialTree } from "./officialAstTestUtils";
 
 const URI = "inmemory:///main.sd";
 
@@ -292,14 +293,26 @@ describe("a story loop header ends at its line", () => {
   });
 
   test.each([
-    ["for", "store x = 0\nfor\n  i = 1, 3\ndo\n  x = i\nend\n", "  i = 1, 3", "1:0-1:3 Expected `do` after the `for` loop's condition. Write `for ... do`, the body, then `end`."],
-    ["for", "store x = 0\nfor i = 1, 3\ndo\n  x = i\nend\n", "do\n", "1:0-1:3 Expected `do` after the `for` loop's condition. Write `for ... do`, the body, then `end`."],
-    ["while", "store x = 0\nwhile\n  x\ndo\n  x = nil\nend\n", "  x\n", "1:0-1:5 Expected `do` after the `while` loop's condition. Write `while ... do`, the body, then `end`."],
+    ["for", "store x = 0\nfor\n  i = 1, 3\ndo\n  x = i\nend\n", "  i = 1, 3", "1:3-2:0 Expected identifier when parsing variable name, got <eof>"],
+    ["for", "store x = 0\nfor i = 1, 3\ndo\n  x = i\nend\n", "do\n", "1:12-2:0 Expected 'do' when parsing for loop, got <eof>"],
+    ["while", "store x = 0\nwhile\n  x\ndo\n  x = nil\nend\n", "  x\n", "1:5-2:0 Expected identifier when parsing expression, got <eof>"],
   ])("a `%s` whose condition or `do` is on a later line is missing it on its own line", (_keyword, source, later, error) => {
     expect(parserWarnings(source)).toEqual([]);
     expect(errorsOf(source)).toContain(error);
     expect(nodesCrossing(source, later)).toEqual([]);
   });
+
+  // Luau's reading of the header meets its end of input at the line's end,
+  // so its first error there is the loop's one diagnostic, as the official
+  // parser reports it for the header alone.
+  test.each(["for i = 1, 3", "for", "while true", "while", "for _, v in pairs({})"])(
+    "`%s` before a story line reports Luau's error at its line's end",
+    (header) => {
+      const native = parseOfficialTree(`${header}\n`).errors[0]!;
+      expect(errorsOf(`${header}\nThe hero waits.\n`)).toEqual([`0:${header.length}-1:0 ${native.message}`]);
+      expect(run(`${header}\nThe hero waits.\n`).output).toBe("The hero waits.\n");
+    },
+  );
 
   test("the formatter keeps one space between a story `for`'s names, `in` and the iterator", () => {
     const text = "store t = {}\nfor _, v in pairs(t) do\n  Item.\nend\n";
@@ -323,6 +336,26 @@ describe("a story loop header ends at its line", () => {
   ])("%s is missing its expression at the line's end", (_name, source, at) => {
     expect(parserWarnings(source)).toEqual([]);
     expect(errorsOf(source)).toContain(`${at} Expected identifier when parsing expression, got <eof>`);
+  });
+});
+
+// A statement later on a story statement's line goes on with its own bracket,
+// comment, long string or block; nothing ends Luau's reading between the two,
+// so the first one's end of input moves with it (#2062 round 1).
+describe("a statement later on the line keeps its own continuation", () => {
+  test.each([
+    ["a function", "local a = 1 function f()\n  return 2\nend\nValue {f()}.\n", "Value 2.\n"],
+    ["a reassignment's call", "local a = 0 a = math.max(1,\n  2)\nValue {a}.\n", "Value 2.\n"],
+    ["a declaration's call", "local a = 0 local b = math.max(1,\n  2)\nValue {b}.\n", "Value 2.\n"],
+    ["a function value", "local a = 0 local f = function()\n  return 2\nend\nValue {f()}.\n", "Value 2.\n"],
+    ["an `&` call", "local a = 0 & a = math.max(1,\n  2)\nValue {a}.\n", "Value 2.\n"],
+    ["a story `if`", "local a = 0 if true then\n  Yes.\nend\n", "Yes.\n"],
+    ["a long string", "local a = 0 a = [[two\nlines]]\nValue {a}.\n", "Value two\nlines.\n"],
+    ["a block comment", "local a = 0 a = --[[two\nlines]] 2\nValue {a}.\n", "Value 2.\n"],
+    ["a story `while`", "local a = 0 while a < 2 do\n  a = a + 1\nend\nValue {a}.\n", "Value 2.\n"],
+  ])("%s", (_name, source, output) => {
+    expect(errorsOf(source)).toEqual([]);
+    expect(run(source).output).toBe(output);
   });
 });
 

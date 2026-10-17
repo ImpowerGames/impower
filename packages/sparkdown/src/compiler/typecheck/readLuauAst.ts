@@ -1,5 +1,5 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
-import { isStoryStatementIsland, lastLineEnd } from "../utils/storyIslands";
+import { isStoryHeaderOnlyLoop, isStoryStatementIsland, lastLineEnd, storyStatementEnd } from "../utils/storyIslands";
 // Luau's syntax tree (`Ast.ts`), read from Sparkdown's syntax tree (#1285).
 //
 // Sparkdown's grammar is a TextMate grammar built for highlighting. It decides
@@ -488,6 +488,8 @@ interface Token {
   story?: true;
   /** The grammar-owned EOF of a marked narrative island. */
   authoredEnd?: true;
+  /** That EOF ends a story loop header with no `do` on its line (#1907), where Luau's error is the loop's diagnostic. */
+  loopHeaderEnd?: true;
   /** End offset of the grammar-owned marked narrative island containing this token. */
   authoredIsland?: number;
   /** A token the grammar left unread in a pure-Luau body or bracket (`LuauUnreadToken`). */
@@ -690,7 +692,7 @@ class Tokenizer {
   readonly returnTriviaSpans: { from: number; to: number }[] = [];
   readonly hotcomments: HotComment[] = [];
   /** Where each story declaration's or reassignment's Luau ends (#1907), for `insertStoryBreaks`. */
-  readonly storyIslandEnds: { from: number; end: number; source: number }[] = [];
+  readonly storyIslandEnds: { from: number; end: number; source: number; loop?: true }[] = [];
   /** The index of the top-level node being read. */
   source = -1;
   /**
@@ -888,13 +890,15 @@ class Tokenizer {
     // A story declaration or reassignment ends at its line as a marked
     // statement does (#1907), so it is an island with the same EOF. A token
     // later on its line is still one Luau's reading meets, so the EOF stands
-    // at the end of that line, where `insertStoryBreaks` puts it.
+    // at the end of that line, where `insertStoryBreaks` puts it, or of a
+    // statement that begins later on that line and goes on past it.
     if (isStoryStatementIsland(node)) {
       const first = this.tokens.length;
       this.readChildren(node);
-      const end = lastLineEnd(this.text, node.to);
-      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.authoredIsland ??= end;
-      this.storyIslandEnds.push({ from: node.from, end, source: this.source });
+      const own = lastLineEnd(this.text, node.to);
+      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.authoredIsland ??= own;
+      const loop = isStoryHeaderOnlyLoop(node);
+      this.storyIslandEnds.push({ from: node.from, end: loop ? own : storyStatementEnd(node, this.text), source: this.source, ...(loop ? { loop: true as const } : {}) });
       return;
     }
     if (name === "LuauSparkdownChooseBlock_begin") {
@@ -1654,6 +1658,9 @@ class Parser {
     // errors are Luau's own even in a `store` declaration's value, since
     // Sparkdown's syntax does not read an attribute's meaning.
     malformed ??= this.attributeListDepth > 0 ? "attribute" : undefined;
+    // A story loop header with no `do` on its line meets its end of input
+    // where the `do` should be (#1907): Luau's error there is the loop's.
+    malformed ??= boundedStoryEnd && this.current().loopHeaderEnd ? "statement" : undefined;
     const sparkdownOwned = this.sparkdownDepth > 0 && malformed !== "attribute";
     const atSparkdown = !boundedStoryEnd && (SPARKDOWN_TOKENS.has(this.current().kind) || (this.current().story && this.current().kind === "keyword")) && !(this.current().story && (malformed === "type" || malformed === "annotation" || malformed === "attribute"));
     if (malformed && !follows && !consequence && !sparkdownOwned && !atSparkdown && !this.atAbandonedCloser()) {
@@ -4180,11 +4187,17 @@ function insertStoryBreaks(tokenizer: Tokenizer, tree: Tree, end?: number): void
   let next = 0;
   const endIsland = (island: (typeof islands)[number]) => {
     if (lastStoryBreak >= island.from) return;
-    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true });
+    merged.push({ kind: "break", text: "", from: island.end, to: island.end, location: tokenizer.location(island.end, island.end), source: merged[merged.length - 1]?.source ?? island.source, story: true, authoredEnd: true, ...(island.loop ? { loopHeaderEnd: true as const } : {}) });
     lastStoryBreak = island.end;
   };
   for (const token of tokens) {
-    while (next < islands.length && token.from >= islands[next]!.end) endIsland(islands[next++]!);
+    while (next < islands.length && token.from >= islands[next]!.end) {
+      const island = islands[next++]!;
+      // A marked statement later on the island's line ends its Luau there
+      // already, with its own EOF.
+      if (token.authoredEnd && token.from === island.end) continue;
+      endIsland(island);
+    }
     merged.push(token);
     if (token.kind === "break" && token.story) lastStoryBreak = token.from;
   }
