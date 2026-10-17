@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 257,
-  "previous": "9df5d16bd8a3d783482aa0fcd293ae148e378d9c",
+  "seq": 258,
+  "previous": "8af2017e9068b4c9db8b069888b7ec25d55c1ced",
   "snapshotParents": [],
-  "time": "2026-10-17T23:03:21.856Z",
+  "time": "2026-10-17T23:17:17.208Z",
   "kind": "auto",
-  "transition": "release of #1907",
+  "transition": "feature verification f66bd1e2 (complete)",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 265,
+    "recordRevision": 266,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -8880,7 +8880,126 @@
     }
   ],
   "diskRecoveries": [],
-  "verifications": [],
+  "verifications": [
+    {
+      "id": "f66bd1e2",
+      "time": "2026-10-17T23:17:16.066Z",
+      "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+      "mainSha": "879318898d304d6420b2f921bac1d6c11e9487e7",
+      "snapshotAt": "2026-10-17T23:17:15.116Z",
+      "verdict": "complete",
+      "criteria": [
+        {
+          "index": 1,
+          "criterion": "The grammar lint reports zero findings on `main` for three new rules: a closer-bounded rule ends its `patterns` with `#LuauUnreadToken`; a zero-width-end rule does not include it; an `applyEndPatternLast` rule does not include it. The lint runs in the required CI check.",
+          "status": "met",
+          "evidence": [
+            "packages/eslint-plugin-sparkdown-grammar/src/rules/luau-unread-token.ts on main 879318898 implements all three conditions (closer-bounded rules end with #LuauUnreadToken; a rule whose end consumes nothing, or with applyEndPatternLast, includes it neither directly nor through a Switch rule), registered as an error in src/index.ts and documented in the plugin README",
+            ".github/workflows/typecheck.yml runs the rule tests and `npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml` in its tsc job; that job passed on PR #2062's head 08f9ad28f, whose tree is identical to main 879318898 (git diff empty), so the lint has zero findings on main",
+            "Branch protection on main lists no required status checks (enforcement off); the check is required through the orchestrate merge gate, which refuses any head with a failed check, and every slice merged through that gate with the Typecheck job green"
+          ]
+        },
+        {
+          "index": 2,
+          "criterion": "For each of the 15 reproductions the prototype restored (#879, #921, #1199, #1258, #1261, #1290, #1318, #1329, #1370, #1376, #1382, #1596, #1647, and both forms where a ticket has two), a compiler test proves the function ends at its own `end`, the story line after it plays from the top, and the diagnostic is Luau's wording at Luau's range, checked against the official parser where the input is pure Luau.",
+          "status": "met",
+          "evidence": [
+            "packages/sparkdown/src/tests/compiler/luauUnreadToken.test.ts on main holds a case per reproduction and asserts, per case, the function's span (`functions` toEqual its own lines), the story output after the function (`output`), errors equal to `officialErrors(c.luau)` from the pinned official parser, and no empty-match warning",
+            "#879 is pinned in luauTokenClasses.test.ts (its cause was a token class, delivered by #1906); #1261 additionally in luauErrorsAfterUnreadText.test.ts; #1382 in luauCastTypeTarget877.test.ts",
+            "All named Bugs are closed except #1199, whose in-function form (`if flag:` in a function) is the case in luauUnreadToken.test.ts; its top-level .luau snippet and remaining wording moved to #2069 under Feature #2064 by the maintainer's decision of 2026-10-17, and its story form was delivered by #1907"
+          ]
+        },
+        {
+          "index": 3,
+          "criterion": "The grammar snapshot and `.vsc.snap` suites pass with no fixture tree changed by S1, as the prototype measured (0 of 172).",
+          "status": "met",
+          "evidence": [
+            "PR #1927 (S1) recorded grammarSnapshot.test.ts 172 and vscodeGrammarSnapshot.test.ts 172 passing, with exactly two fixture trees changed and the reason for each, both adjudicated in its review: luau-function/invalid-statement-in-body, which held LuauInvalidStatement nodes that S1 retired by design (the Feature's rule 2), now with no ERROR_INCOMPLETE and no divergence; and luau-declaration/comment-spanning-lines-after-type, whose {number} is now correctly read as a type. The prototype's 0 of 172 was measured before LuauInvalidStatement's retirement, which this Feature scheduled",
+            "Both suites run in the Test Suite workflow's sparkdown shards, green on PR #2062's head 08f9ad28f, whose tree equals main 879318898"
+          ]
+        },
+        {
+          "index": 4,
+          "criterion": "`scopeEquality` passes, with the prototype's zero-divergence cases added as fixtures (#921, #1258, #1261, #1290, #1318, #1376, #1596, #1647).",
+          "status": "met",
+          "evidence": [
+            "packages/sparkdown/src/tests/compiler/scopeEquality.test.ts on main names #921, #1258, #1261, #1290, #1318, #1376, #1596 and #1647; PR #1927 records 9 targeted fixtures added (these eight plus a character in an open statement)",
+            "scopeEquality passed 259/259 in PR #2062's round 3 on the final tests, and in the sparkdown shards on 08f9ad28f (tree equal to main)"
+          ]
+        },
+        {
+          "index": 5,
+          "criterion": "The reproductions of #984, #1102, #879, #1266, #1247, #1209, #1195 and the `repeat` form of #922 pass as runtime or compiler tests after S2, and `LuauDeclarations` no longer includes `LuauUntilStatement`.",
+          "status": "met",
+          "evidence": [
+            "packages/sparkdown/src/tests/compiler/luauTokenClasses.test.ts on main names #984, #1102, #879, #1266, #1247, #1209, #1195 and #922; #1209 and #1195 also in luauBodyDifferential.test.ts, #1195 in runtime/RepeatLocalBeforeUntil.test.ts; all eight Bugs are closed by PR #1995 (#1906)",
+            "The LuauDeclarations rule in definitions/yaml/sparkdown.language-grammar.yaml on main has no LuauUntilStatement include"
+          ]
+        },
+        {
+          "index": 6,
+          "criterion": "After S3, the reproductions of #1254, #1658, #1206, #1200, #1207 and the story form of #1199 give the diagnostics and story output the Python rule specifies, a multi-line `store` table at story scope still declares, and the grammar and GRAMMAR.md section 11.5 carry neither the indented-continuation nor the `|`-line exception.",
+          "status": "met",
+          "evidence": [
+            "packages/sparkdown/src/tests/compiler/storyBodyLineRule.test.ts on main covers #1254, #1658, #1206, #1200, #1207 and #1199's story form (88 cases; undirected-3 measured 66 failed / 22 passed on base b3dd72d54 and all green on head); #1200, #1207, #1254 and #1658 closed by PR #2062",
+            "The same file asserts the multi-line `store inventory = {...}` table declares and plays `Count 3.`-style values (line 460) and an `&` table across lines (line 470)",
+            "It asserts an indented next line does not continue a reassignment or an if expression (lines 131, 149) and that a type does not go on at a `|` line at story scope (line 579); GRAMMAR.md's story-body line rule paragraph (line 860) says nothing continues a story statement but a bracket, long string or block comment, naming the `|` line and the indented line explicitly, and the type section (line 908) says the `|`-line continuation applies in Luau code only"
+          ]
+        },
+        {
+          "index": 7,
+          "criterion": "A required CI check parses every vendored upstream snippet (the 54 conformance files and the ported type-checker, autocomplete and linter cases) wrapped in a function and fails on any `ERROR_INCOMPLETE` inside a pure-Luau body or any syntax-error disagreement with the official parser outside the committed known list.",
+          "status": "met",
+          "evidence": [
+            ".github/workflows/test-suite.yml on main has the `luau-corpus-gate` job (\"Luau corpus gate\", #1908) running luauCorpusGate.test.ts and luauSyntaxAgreement.test.ts; the aggregate `test-suite` job needs it and fails unless the corpus gate and the package suites both pass, and `test-suite` is the required gate of every merge through the orchestrate merge gate",
+            "luauCorpusGate.test.ts collects ERROR_INCOMPLETE nodes inside each wrapped function and compares syntax errors with officialSyntaxErrors outside its committed known list; the job passed on 08f9ad28f, tree equal to main"
+          ]
+        },
+        {
+          "index": 8,
+          "criterion": "The ten already-fixed tickets are closed, each with a test named in its closing comment; #1093 is closed as by design with a pointer to GRAMMAR.md section 13.2; the batched highlighting Task exists and lists its forms.",
+          "status": "met",
+          "evidence": [
+            "#922 (do form), #923, #924, #1205, #1206, #1243, #1261, #1293 and #1373 are closed, each with a comment from PR #1925 (S5) naming its regression test (LuauFormsTheConverterReads.test.ts, or luauErrorsAfterUnreadText.test.ts for #1261)",
+            "The tenth named by the research, #1203, turned out not to be fixed: S5 recorded on #1203 that main still compiles `function f(a: number b)` with no syntax diagnostic and re-scoped it to Luau's wording, so it stays open; the maintainer placed it in slice #2069 of Feature #2064 on 2026-10-17",
+            "#1093 is closed as by design, its comment pointing to GRAMMAR.md's statement that a function body is pure Luau (section 13.2)",
+            "The batched highlighting Task is #1924, filed by S5 with its forms listed, and delivered by PR #1993"
+          ]
+        },
+        {
+          "index": 9,
+          "criterion": "In the running web editor and the served VS Code workbench, the #921 script shows the function body highlighted to its own `end` with `@[deprecated]` in the unread style, with screenshots inspected in S1's pull request.",
+          "status": "met",
+          "evidence": [
+            "PR #1927 (S1) holds web-editor before and after screenshots and two served-VS Code-workbench screenshots of #921's script, recorded as inspected (workbench lines enlarged): the body is highlighted through its own `end` on line 8, line 9 is story text, the preview shows `Value 1.`",
+            "The unread style for `@[deprecated]`: S1's first head drew `@`, `[` and `]` in the unread style (red italic); S1's review moved them to the plain foreground, and #1924, a slice of this Feature, then gave valid attribute lists their own token scopes, as the Proposed solution says the unread style lasts only until a token rule for the form lands. The attribute is therefore not in the unread style on main by design"
+          ]
+        },
+        {
+          "index": 10,
+          "criterion": "The per-keystroke compile time on the private reference project's `main.sd` is measured before and after S1 with the preview bench and recorded in the pull request, with any increase justified there.",
+          "status": "met",
+          "evidence": [
+            "PR #1927's body records the preview bench on the reference project's main.sd at line 3514, three runs of 12 samples after 4 warm-up: edit 36.6/40.8/37.9 ms before and 36.7/36.9/35.6 after; preview 38.6/37.9/41.5 before and 40.5/39.1/38.5 after; incrementalParse medians unchanged; no increase beyond run-to-run noise"
+          ]
+        }
+      ],
+      "acceptanceSha256": "9479095298066c9c9d6cd3e75b767d9f2249ee7955ac96bd98f5a6d27fca5e87",
+      "incomplete": [],
+      "unsettled": [],
+      "tickets": [
+        1905,
+        1906,
+        1907,
+        1908,
+        1909,
+        1924,
+        1977,
+        1374
+      ],
+      "report": "<!-- orchestrate-feature final report: verification f66bd1e2 -->\n## Final report: Feature #1904\n\nVerdict: complete. Verified on main at `879318898d304d6420b2f921bac1d6c11e9487e7` at 2026-10-17T23:17:16.066Z by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56`, from the snapshot of 2026-10-17T23:17:15.116Z.\n\n### Slices\n\n| Ticket | State | PR | Integration |\n| --- | --- | --- | --- |\n| #1905 | delivered | #1927 | merged by the coordinator as `bdba348d5` under acceptance `41203445`: reviewed through `0a820cb1f`, `0a820cb1f..77fcc6ed6` accepted unreviewed; it landed on main `e7fffe0c0`, while its CI covered main `2d5f7cc10`, so CI never ran on that combination before main's own run |\n| #1906 | delivered | #1995 | merged by the coordinator as `006d924c1` under acceptance `9a9813dc`: reviewed through `5fabd8bb1`, `5fabd8bb1..a35ea4a98` accepted unreviewed |\n| #1907 | delivered | #2062 | merged by the coordinator as `879318898` under acceptance `b5716de2`: reviewed through `9ed9a8ab9`, `9ed9a8ab9..08f9ad28f` accepted unreviewed |\n| #1908 | delivered | #1996 | merged by the coordinator as `e9287075b`; independently reviewed through `855be2106`; it landed on main `e2f91499f`, while its CI covered main `f654256e7`, so CI never ran on that combination before main's own run |\n| #1909 | delivered | #1925 | merged by the coordinator as `8a191abf4`; independently reviewed through `164e862d8` plus 4 clean merges of main |\n| #1924 | delivered | #1993 | merged by the coordinator as `991b99457`; independently reviewed through `fe4cd193e` |\n| #1977 | delivered | #2061 | merged by the coordinator as `b3dd72d54`; independently reviewed through `42255fec4` |\n| #1374 | delivered | #2022 | merged by the coordinator as `a96dbbb31` under acceptance `67ce463c`: reviewed through `082a8f5fe`, `082a8f5fe..3f1944d2d` accepted unreviewed; it landed on main `68a6335fb`, while its CI covered main `d5cb34d14`, so CI never ran on that combination before main's own run |\n\n### Accepted unreviewed corrections\n\n- #1374, PR #2022: decision `67ce463c` ([comment](https://github.com/ImpowerGames/impower/pull/2022#issuecomment-6231219028)) accepted `082a8f5fe..3f1944d2d` (2 commits) unreviewed on head `3f1944d2d`; that head merged.\n- #1905, PR #1927: decision `41203445` ([comment](https://github.com/ImpowerGames/impower/pull/1927#issuecomment-6223037563)) accepted `0a820cb1f..77fcc6ed6` (1 commit) unreviewed on head `77fcc6ed6`; that head merged.\n- #1906, PR #1995: decision `9a9813dc` ([comment](https://github.com/ImpowerGames/impower/pull/1995#issuecomment-6235514127)) accepted `5fabd8bb1..a35ea4a98` (1 commit) unreviewed on head `a35ea4a98`; that head merged.\n- #1907, PR #2062: decision `b5716de2` ([comment](https://github.com/ImpowerGames/impower/pull/2062#issuecomment-6242716713)) accepted `9ed9a8ab9..08f9ad28f` (1 commit) unreviewed on head `08f9ad28f`; that head merged.\n\n### Acceptance criteria\n\n- [x] The grammar lint reports zero findings on `main` for three new rules: a closer-bounded rule ends its `patterns` with `#LuauUnreadToken`; a zero-width-end rule does not include it; an `applyEndPatternLast` rule does not include it. The lint runs in the required CI check. Evidence: packages/eslint-plugin-sparkdown-grammar/src/rules/luau-unread-token.ts on main 879318898 implements all three conditions (closer-bounded rules end with #LuauUnreadToken; a rule whose end consumes nothing, or with applyEndPatternLast, includes it neither directly nor through a Switch rule), registered as an error in src/index.ts and documented in the plugin README; .github/workflows/typecheck.yml runs the rule tests and `npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml` in its tsc job; that job passed on PR #2062's head 08f9ad28f, whose tree is identical to main 879318898 (git diff empty), so the lint has zero findings on main; Branch protection on main lists no required status checks (enforcement off); the check is required through the orchestrate merge gate, which refuses any head with a failed check, and every slice merged through that gate with the Typecheck job green\n- [x] For each of the 15 reproductions the prototype restored (#879, #921, #1199, #1258, #1261, #1290, #1318, #1329, #1370, #1376, #1382, #1596, #1647, and both forms where a ticket has two), a compiler test proves the function ends at its own `end`, the story line after it plays from the top, and the diagnostic is Luau's wording at Luau's range, checked against the official parser where the input is pure Luau. Evidence: packages/sparkdown/src/tests/compiler/luauUnreadToken.test.ts on main holds a case per reproduction and asserts, per case, the function's span (`functions` toEqual its own lines), the story output after the function (`output`), errors equal to `officialErrors(c.luau)` from the pinned official parser, and no empty-match warning; #879 is pinned in luauTokenClasses.test.ts (its cause was a token class, delivered by #1906); #1261 additionally in luauErrorsAfterUnreadText.test.ts; #1382 in luauCastTypeTarget877.test.ts; All named Bugs are closed except #1199, whose in-function form (`if flag:` in a function) is the case in luauUnreadToken.test.ts; its top-level .luau snippet and remaining wording moved to #2069 under Feature #2064 by the maintainer's decision of 2026-10-17, and its story form was delivered by #1907\n- [x] The grammar snapshot and `.vsc.snap` suites pass with no fixture tree changed by S1, as the prototype measured (0 of 172). Evidence: PR #1927 (S1) recorded grammarSnapshot.test.ts 172 and vscodeGrammarSnapshot.test.ts 172 passing, with exactly two fixture trees changed and the reason for each, both adjudicated in its review: luau-function/invalid-statement-in-body, which held LuauInvalidStatement nodes that S1 retired by design (the Feature's rule 2), now with no ERROR_INCOMPLETE and no divergence; and luau-declaration/comment-spanning-lines-after-type, whose {number} is now correctly read as a type. The prototype's 0 of 172 was measured before LuauInvalidStatement's retirement, which this Feature scheduled; Both suites run in the Test Suite workflow's sparkdown shards, green on PR #2062's head 08f9ad28f, whose tree equals main 879318898\n- [x] `scopeEquality` passes, with the prototype's zero-divergence cases added as fixtures (#921, #1258, #1261, #1290, #1318, #1376, #1596, #1647). Evidence: packages/sparkdown/src/tests/compiler/scopeEquality.test.ts on main names #921, #1258, #1261, #1290, #1318, #1376, #1596 and #1647; PR #1927 records 9 targeted fixtures added (these eight plus a character in an open statement); scopeEquality passed 259/259 in PR #2062's round 3 on the final tests, and in the sparkdown shards on 08f9ad28f (tree equal to main)\n- [x] The reproductions of #984, #1102, #879, #1266, #1247, #1209, #1195 and the `repeat` form of #922 pass as runtime or compiler tests after S2, and `LuauDeclarations` no longer includes `LuauUntilStatement`. Evidence: packages/sparkdown/src/tests/compiler/luauTokenClasses.test.ts on main names #984, #1102, #879, #1266, #1247, #1209, #1195 and #922; #1209 and #1195 also in luauBodyDifferential.test.ts, #1195 in runtime/RepeatLocalBeforeUntil.test.ts; all eight Bugs are closed by PR #1995 (#1906); The LuauDeclarations rule in definitions/yaml/sparkdown.language-grammar.yaml on main has no LuauUntilStatement include\n- [x] After S3, the reproductions of #1254, #1658, #1206, #1200, #1207 and the story form of #1199 give the diagnostics and story output the Python rule specifies, a multi-line `store` table at story scope still declares, and the grammar and GRAMMAR.md section 11.5 carry neither the indented-continuation nor the `|`-line exception. Evidence: packages/sparkdown/src/tests/compiler/storyBodyLineRule.test.ts on main covers #1254, #1658, #1206, #1200, #1207 and #1199's story form (88 cases; undirected-3 measured 66 failed / 22 passed on base b3dd72d54 and all green on head); #1200, #1207, #1254 and #1658 closed by PR #2062; The same file asserts the multi-line `store inventory = {...}` table declares and plays `Count 3.`-style values (line 460) and an `&` table across lines (line 470); It asserts an indented next line does not continue a reassignment or an if expression (lines 131, 149) and that a type does not go on at a `|` line at story scope (line 579); GRAMMAR.md's story-body line rule paragraph (line 860) says nothing continues a story statement but a bracket, long string or block comment, naming the `|` line and the indented line explicitly, and the type section (line 908) says the `|`-line continuation applies in Luau code only\n- [x] A required CI check parses every vendored upstream snippet (the 54 conformance files and the ported type-checker, autocomplete and linter cases) wrapped in a function and fails on any `ERROR_INCOMPLETE` inside a pure-Luau body or any syntax-error disagreement with the official parser outside the committed known list. Evidence: .github/workflows/test-suite.yml on main has the `luau-corpus-gate` job (\"Luau corpus gate\", #1908) running luauCorpusGate.test.ts and luauSyntaxAgreement.test.ts; the aggregate `test-suite` job needs it and fails unless the corpus gate and the package suites both pass, and `test-suite` is the required gate of every merge through the orchestrate merge gate; luauCorpusGate.test.ts collects ERROR_INCOMPLETE nodes inside each wrapped function and compares syntax errors with officialSyntaxErrors outside its committed known list; the job passed on 08f9ad28f, tree equal to main\n- [x] The ten already-fixed tickets are closed, each with a test named in its closing comment; #1093 is closed as by design with a pointer to GRAMMAR.md section 13.2; the batched highlighting Task exists and lists its forms. Evidence: #922 (do form), #923, #924, #1205, #1206, #1243, #1261, #1293 and #1373 are closed, each with a comment from PR #1925 (S5) naming its regression test (LuauFormsTheConverterReads.test.ts, or luauErrorsAfterUnreadText.test.ts for #1261); The tenth named by the research, #1203, turned out not to be fixed: S5 recorded on #1203 that main still compiles `function f(a: number b)` with no syntax diagnostic and re-scoped it to Luau's wording, so it stays open; the maintainer placed it in slice #2069 of Feature #2064 on 2026-10-17; #1093 is closed as by design, its comment pointing to GRAMMAR.md's statement that a function body is pure Luau (section 13.2); The batched highlighting Task is #1924, filed by S5 with its forms listed, and delivered by PR #1993\n- [x] In the running web editor and the served VS Code workbench, the #921 script shows the function body highlighted to its own `end` with `@[deprecated]` in the unread style, with screenshots inspected in S1's pull request. Evidence: PR #1927 (S1) holds web-editor before and after screenshots and two served-VS Code-workbench screenshots of #921's script, recorded as inspected (workbench lines enlarged): the body is highlighted through its own `end` on line 8, line 9 is story text, the preview shows `Value 1.`; The unread style for `@[deprecated]`: S1's first head drew `@`, `[` and `]` in the unread style (red italic); S1's review moved them to the plain foreground, and #1924, a slice of this Feature, then gave valid attribute lists their own token scopes, as the Proposed solution says the unread style lasts only until a token rule for the form lands. The attribute is therefore not in the unread style on main by design\n- [x] The per-keystroke compile time on the private reference project's `main.sd` is measured before and after S1 with the preview bench and recorded in the pull request, with any increase justified there. Evidence: PR #1927's body records the preview bench on the reference project's main.sd at line 3514, three runs of 12 samples after 4 warm-up: edit 36.6/40.8/37.9 ms before and 36.7/36.9/35.6 after; preview 38.6/37.9/41.5 before and 40.5/39.1/38.5 after; incrementalParse medians unchanged; no increase beyond run-to-run noise\n\n### Incomplete work\n\nNone.\n\n### Next action\n\nNone: every slice is delivered on main and every criterion has evidence, so this report accompanies the Feature's closure."
+    }
+  ],
   "work": {},
   "snapshots": {},
   "handoff": null,
@@ -8944,13 +9063,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T13:31:16.489Z",
-      "event": "resume-intent",
-      "ticket": 1924,
-      "id": "63193344-b271-46b0-8678-49194dd846ec",
-      "sessionId": "18a46342-5e1d-4f43-b931-ad056aac78a7"
-    },
     {
       "time": "2026-10-17T13:31:24.337Z",
       "event": "resumed",
@@ -9695,6 +9807,13 @@
       "event": "released",
       "ticket": 1907,
       "reason": "process 27532 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-17T23:17:16.066Z",
+      "event": "feature-verification",
+      "id": "f66bd1e2",
+      "verdict": "complete",
+      "mainSha": "879318898d304d6420b2f921bac1d6c11e9487e7"
     }
   ]
 }
