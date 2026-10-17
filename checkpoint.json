@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 230,
-  "previous": "aa7d627dffd40fd898e29d4b00c884392720a9de",
+  "seq": 231,
+  "previous": "e42c34186a58456879a4f6ab9a0b83cbf4571026",
   "snapshotParents": [],
-  "time": "2026-10-17T23:26:21.553Z",
+  "time": "2026-10-17T23:42:12.713Z",
   "kind": "auto",
-  "transition": "resume of #1967",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 212,
@@ -5235,7 +5235,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T23:26:20.561Z",
+      "observedAt": "2026-10-17T23:42:11.942Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5474,7 +5474,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T13:13:53.896Z",
+    "at": "2026-10-17T23:42:11.939Z",
     "tickets": [
       {
         "number": 1962,
@@ -5508,9 +5508,9 @@
       },
       {
         "number": 1967,
-        "action": "release",
+        "action": "collect-report",
         "pr": null,
-        "reason": "process 25252 is gone and no process names its launch directory; read its transcript, then record release with that evidence before a new writer continues"
+        "reason": "process 42552 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-8e976a23-751b-4eab-a711-f56e15e25b1b\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
       }
     ],
     "remaining": [
