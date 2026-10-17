@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 247,
-  "previous": "9a23c289b95a1740c1c6dfc9cd5f05c4282d1c58",
+  "seq": 248,
+  "previous": "7d2a12d509fae6b3b84af405d92569809227238c",
   "snapshotParents": [],
-  "time": "2026-10-17T22:26:17.180Z",
+  "time": "2026-10-17T22:26:25.475Z",
   "kind": "auto",
   "transition": "the intent before a side effect",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 255,
+    "recordRevision": 256,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3081,7 +3081,12 @@
             "time": "2026-10-17T21:41:37.947Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-f7210ed9-2e00-4fdc-9dd8-d45a54710f6b"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "2b00a5ed-6d33-4769-b939-1fc9937afca6",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-2b00a5ed-6d33-4769-b939-1fc9937afca6",
+          "time": "2026-10-17T22:26:23.396Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -8300,7 +8305,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T22:26:16.457Z",
+      "observedAt": "2026-10-17T22:26:24.728Z",
       "held": true,
       "head": "89d50126a1011027dadbdb4cbad7010a6a92e491",
       "remoteHead": "89d50126a1011027dadbdb4cbad7010a6a92e491",
@@ -8676,11 +8681,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T07:58:35.854Z",
-      "event": "check-in",
-      "outcome": "correction of the previous check-in row: #1907 was NOT claimed or launched; the plan held it at wait-capacity (15 places counted against the limit of 3 because the Bugs that PRs #1995 and #1993 close are counted as held) and the chain's launch step received no claim; #1374's desktop writer remains unreleased (idle counts as waiting); three friction reports filed on #510 (6231398067, 6231398359, 6231398624); both pending merges wait on the maintainer's answers (6350ae80, 6bc44573)"
-    },
     {
       "time": "2026-10-17T13:19:40.750Z",
       "event": "released",
@@ -9427,6 +9427,13 @@
       "ticket": 1907,
       "id": "bafb0916",
       "comment": 6242218108
+    },
+    {
+      "time": "2026-10-17T22:26:23.396Z",
+      "event": "resume-intent",
+      "ticket": 1907,
+      "id": "2b00a5ed-6d33-4769-b939-1fc9937afca6",
+      "sessionId": "7f2136c3-9032-46bb-8be3-193e66b4e7a0"
     }
   ]
 }
