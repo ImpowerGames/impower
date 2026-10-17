@@ -1,0 +1,29 @@
+[
+  {
+    "file": "evidence/native-action-contract.md",
+    "sha256": "bd661445f8ec485f51d5dd5efc1c79f467ab17573025a61853137d2287a5f548",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/source-audit.md",
+    "sha256": "9a06bf99d428ad1c6ef570e709d0a768ba14a13f783641d8cdf46a46084957bc",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "6717b07f86ed632f3d43b5103b9c90557f6aa207162d08794c768d1b09518883",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "historical-probes/definitionNativeActionProbe.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/definitionNativeActionProbe.test.ts",
+    "sha256": "fb9d70e4453ebc0b6e5352c3d2e664ab3d3964589c910588777beb6fcec85c4f",
+    "kind": "unexecuted archive; original local copy retained"
+  },
+  {
+    "file": "historical-probes/definitionNativeDispatchAcceptance.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/definitionNativeDispatchAcceptance.test.ts",
+    "sha256": "53d9ed9e6263352f3d45ec8db853d1b8c8f7ac5f3a36e18f0a918fc60c3c8a4e",
+    "kind": "unexecuted archive; original local copy retained"
+  }
+]

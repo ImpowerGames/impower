@@ -1,0 +1,260 @@
+/** Private #1379 action-point audit; not an activated corpus port. */
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  loadNativeFixture,
+  type NativeFixture,
+} from "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/analysis-backend/native-conformance/nativeFixture.ts";
+
+const upstream = "C:/Users/Lovelle/AppData/Local/Temp/luau-typecheck-1368/tests/";
+const frozen = "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/";
+const owned = "C:/Users/Lovelle/.codex/worktrees/1379-definition-observations/impower/";
+const evidence = "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1379/";
+const pin = "7d5f73364fdbbaa984fa545071630eba73cfea98";
+const sha = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const paths = [
+  ...["session.h", "session.cpp", "bridge.cpp", "fixture-runtime.cpp", "build.mjs", "generated/backend.wasm", "generated/backend.js"]
+    .map(path => frozen + "packages/sparkdown/native/luau-conformance/" + path),
+  frozen + "packages/sparkdown/src/tests/analysis-backend/native-conformance/nativeFixture.ts",
+  ...["compiler/typecheck/DefinitionFile.ts", "compiler/typecheck/Frontend.ts", "tests/luau-conformance/definitionLoadObservations.ts", "tests/luau-conformance/definitionLoadObservations.test.ts"]
+    .map(path => owned + "packages/sparkdown/src/" + path),
+  upstream + "TypeInfer.definitions.test.cpp",
+  upstream + "TypeInfer.metatableOOP.test.cpp",
+];
+const hashes = async () => Object.fromEntries(await Promise.all(paths.map(async path => [path, sha(await readFile(path))])));
+const observations: Record<string, unknown> = {};
+let before: Record<string, string>;
+let fixture: NativeFixture;
+let definitions: string;
+let metatable: string;
+let audited: { area: string; name: string; index: number; source: string; sourceSha256: string }[];
+
+/** C++ raw-literal bytes after phase-one line-ending normalization, checked against the retained exact-pin audit. */
+function source(name: string, index = 0, area = "definitions"): string {
+  const file = area === "definitions" ? definitions : metatable;
+  const marker = `TEST_CASE_FIXTURE(Fixture, "${name}")`;
+  const start = file.indexOf(marker);
+  expect(start, `Missing exact original ${name}`).toBeGreaterThanOrEqual(0);
+  const next = file.indexOf("TEST_CASE_FIXTURE(", start + marker.length);
+  const body = file.slice(start, next < 0 ? undefined : next);
+  const literals = [...body.matchAll(/R"\((.*?)\)"/gs)];
+  expect(literals[index], `Missing original raw literal ${name}:${index}`).toBeDefined();
+  const value = literals[index]![1]!;
+  const prior = audited.find(row => row.area === area && row.name === name && row.index === index);
+  expect(prior, `Missing retained exact-pin source evidence ${name}:${index}`).toBeDefined();
+  expect(value).toBe(prior!.source);
+  expect(sha(value)).toBe(prior!.sourceSha256);
+  observations[`source:${name}:${index}`] = { sha256: sha(value), bytes: Buffer.byteLength(value) };
+  return value;
+}
+
+function direct(name: string, index = 0) {
+  const actual = fixture.observe("definition", source(name, index));
+  observations[`load:${name}:${index}`] = actual;
+  expect(actual.status).toBe("ok");
+  return actual;
+}
+
+function missingBinding(name: string) {
+  const context = fixture.context();
+  const actual = fixture.observe("binding_facts", context.session, context.revision, name);
+  observations[`absent:${name}`] = actual;
+  expect(actual).toEqual({ status: "error", message: `Missing native global binding: ${name}` });
+}
+
+describe("private #1379 frozen native action-point probe", () => {
+  beforeAll(async () => {
+    before = await hashes();
+    expect(before[frozen + "packages/sparkdown/native/luau-conformance/generated/backend.wasm"])
+      .toBe("e5ec766df7893236afd7d971eea0e80e1764da1a7c2b0888308bf2b5a57d0c42");
+    expect(before[frozen + "packages/sparkdown/native/luau-conformance/generated/backend.js"])
+      .toBe("066dd999cae081d7552354a16b30833494d9b4e5c86f399cc17a1183b4720c74");
+    definitions = (await readFile(upstream + "TypeInfer.definitions.test.cpp", "utf8")).replaceAll("\r\n", "\n");
+    metatable = (await readFile(upstream + "TypeInfer.metatableOOP.test.cpp", "utf8")).replaceAll("\r\n", "\n");
+    const prior = JSON.parse(await readFile(evidence + "parser-audit.json", "utf8"));
+    expect(prior.pin).toBe(pin);
+    audited = prior.results;
+    fixture = await loadNativeFixture();
+  });
+  beforeEach(() => fixture.create("Fixture"));
+  afterAll(async () => {
+    fixture?.dispose();
+    const after = await hashes();
+    await writeFile(evidence + "native-action-probe-green-e5ec766d.json", JSON.stringify({
+      pin, before, after, preserved: JSON.stringify(before) === JSON.stringify(after), observations,
+      requiredUnsupported: [],
+    }, null, 2) + "\n");
+    expect(after).toEqual(before);
+  });
+
+  it("observes both failed loads and binding absence at their original points in one fixture", () => {
+    const name = "load_definition_file_errors_do_not_pollute_global_scope";
+    const first = direct(name, 0);
+    expect(first.success).toBe(false);
+    missingBinding("foo");
+    // These are distinct parser/check controls, not additional upstream assertions.
+    expect(first.parseErrors).toHaveLength(2);
+    expect(first.modulePresent).toBe(false);
+    const oldContext = fixture.context();
+    const second = direct(name, 1);
+    expect(second.success).toBe(false);
+    missingBinding("bar");
+    expect(second.parseErrors).toHaveLength(0);
+    expect(second.modulePresent).toBe(true);
+    expect(second["diagnostics"]).toEqual([expect.objectContaining({ kind: "TypeMismatch" })]);
+    expect(fixture.observe("binding_facts", oldContext.session, oldContext.revision, "bar"))
+      .toEqual({ status: "error", message: "Stale native result handle" });
+  });
+
+  it("preserves new-solver overload error order", () => {
+    const actual = direct("class_definitions_cannot_overload_non_function");
+    expect(actual.success).toBe(false);
+    expect(actual.parseErrors).toHaveLength(0);
+    expect(actual["modulePresent"]).toBe(true);
+    expect(actual["diagnostics"]).toEqual([
+      expect.objectContaining({ kind: "GenericError", message: "Cannot overload read type of non-function extern type member 'X'" }),
+      expect.objectContaining({ kind: "GenericError", message: "Cannot overload write type of non-function extern type member 'X'" }),
+    ]);
+  });
+
+  it("observes non-class superclass failure without substituting a source check", () => {
+    const actual = direct("class_definitions_cannot_extend_non_class");
+    expect(actual.success).toBe(false);
+    expect(actual.parseErrors).toHaveLength(0);
+    expect(actual["modulePresent"]).toBe(true);
+    expect(actual["diagnostics"]).toEqual([expect.objectContaining({
+      kind: "GenericError", message: "Cannot use non-class type 'NotAClass' as a superclass of class 'Foo'",
+    })]);
+  });
+
+  it("asserts only the original cyclic extern failed-load predicate", () => {
+    expect(direct("no_cyclic_defined_extern_types").success).toBe(false);
+  });
+
+  it("observes distinct binding, type and own-property documentation at their action points", () => {
+    expect(direct("definitions_documentation_symbols").success).toBe(true);
+    const context = fixture.context();
+    const x = fixture.bindingFacts(context, "x");
+    observations["docs:xBinding"] = x;
+    expect(x.documentation).toBe("@test/global/x");
+    expect(x.documentation).not.toBe("@test/globaltype/x");
+    const fooType = fixture.globalAlias(context, "Foo");
+    expect(fixture.identical(fooType, fixture.follow(fooType))).toBe(true);
+    const foo = fixture.facts(fooType);
+    observations["docs:FooType"] = foo;
+    expect(foo.documentation).toBe("@test/globaltype/Foo");
+    const bar = fixture.globalAlias(context, "Bar");
+    expect(fixture.identical(bar, fixture.follow(bar))).toBe(true);
+    const barFacts = fixture.facts(bar);
+    observations["docs:BarType"] = barFacts;
+    expect(barFacts.documentation).toBe("@test/globaltype/Bar");
+    expect(barFacts.kind).toBe("extern");
+    expect(fixture.propertyNames(bar).filter(name => name === "prop")).toHaveLength(1);
+    const prop = fixture.propertyFacts(bar, "prop");
+    observations["docs:BarProp"] = prop;
+    expect(prop.documentation).toBe("@test/globaltype/Bar.prop");
+    expect(() => fixture.propertyFacts(bar, "missing")).toThrow(/property/);
+    const yBinding = fixture.bindingFacts(context, "y");
+    observations["docs:yBinding"] = yBinding;
+    expect(yBinding.documentation).toBe("@test/global/y");
+    const y = fixture.global(context, "y");
+    expect(fixture.facts(y).rawTable).toBe(true);
+    expect(fixture.facts(y).kind).toBe("table");
+    expect(fixture.propertyNames(y).filter(name => name === "x")).toHaveLength(1);
+    const yProp = fixture.propertyFacts(y, "x");
+    observations["docs:yProp"] = yProp;
+    expect(yProp.documentation).toBe("@test/global/y.x");
+    const wrapper = fixture.boundControl(bar);
+    expect(fixture.identical(wrapper, fixture.follow(wrapper))).toBe(false);
+    expect(fixture.facts(wrapper).kind).toBe("extern");
+    fixture.create("Fixture");
+    missingBinding("x");
+  });
+
+  it("observes recursive method definition metadata and raw self identity without expanding its graph", () => {
+    expect(direct("definitions_symbols_are_generated_for_recursively_referenced_types").success).toBe(true);
+    const context = fixture.context();
+    const cls = fixture.globalAlias(context, "MyClass");
+    expect(fixture.identical(cls, fixture.follow(cls))).toBe(true);
+    const clsFacts = fixture.facts(cls);
+    observations["recursive:MyClass"] = clsFacts;
+    expect(clsFacts.documentation).toBe("@test/globaltype/MyClass");
+    expect(clsFacts.kind).toBe("extern");
+    expect(fixture.propertyNames(cls).filter(name => name === "myMethod")).toHaveLength(1);
+    const property = fixture.propertyFacts(cls, "myMethod");
+    observations["recursive:methodProperty"] = property;
+    expect(property.documentation).toBe("@test/globaltype/MyClass.myMethod");
+    expect(property.readable).toBe(true);
+    const method = fixture.child(cls, "read", "myMethod");
+    expect(fixture.identical(method, fixture.follow(method))).toBe(true);
+    const facts = fixture.facts(method);
+    observations["recursive:methodType"] = facts;
+    expect(facts.kind).toBe("function");
+    expect(facts.definition).toEqual({ module: "@test", begin: { line: 2, column: 12 }, end: { line: 2, column: 35 },
+      nameBegin: { line: 2, column: 21 }, nameEnd: { line: 2, column: 29 }, varargPresent: false });
+    expect(facts.definition!.begin).not.toEqual({ line: 2, column: 13 });
+    const self = fixture.functionPack(method, "arguments", true).head[0]!;
+    expect(fixture.identical(self, cls)).toBe(true);
+    expect(fixture.identical(self, fixture.builtin(context, "string"))).toBe(false);
+  });
+
+  it("leaves persistent builtin documentation absent and retains its identity", () => {
+    expect(direct("documentation_symbols_dont_attach_to_persistent_types").success).toBe(true);
+    const context = fixture.context();
+    const evil = fixture.globalAlias(context, "Evil");
+    expect(fixture.identical(evil, fixture.follow(evil))).toBe(true);
+    observations["persistent:Evil"] = fixture.facts(evil);
+    expect(fixture.facts(evil).documentation).toBeNull();
+    expect(fixture.facts(evil).documentation).not.toBe("@test/globaltype/Evil");
+    expect(fixture.identical(evil, fixture.builtin(context, "string"))).toBe(true);
+  });
+
+  it("preserves the malformed source escape and actual pinned parser diagnostic", () => {
+    const name = "class_definition_malformed_string";
+    const bytes = source(name);
+    expect(bytes.includes("\0")).toBe(false);
+    expect(bytes).toContain("a" + String.fromCharCode(92) + "0property");
+    const actual = direct(name);
+    expect(actual.success).toBe(false);
+    expect(actual.parseErrors).toEqual([{ message: "String literal contains malformed escape sequence or " + String.fromCharCode(92) + "0",
+      begin: { line: 2, column: 12 }, end: { line: 2, column: 13 } }]);
+  });
+
+  it("requires actual source labels and the actual extern definition module field", () => {
+    const actual = direct("definition_file_has_source_module_name_set");
+    expect(actual.success).toBe(true);
+    expect(actual["sourceModuleName"]).toBe("@test");
+    expect(actual["sourceHumanReadableName"]).toBe("@test");
+    const fooType = fixture.globalAlias(fixture.context(), "Foo");
+    expect(fixture.identical(fooType, fixture.follow(fooType))).toBe(true);
+    const foo = fixture.facts(fooType);
+    observations["moduleName:Foo"] = foo;
+    expect(foo.kind).toBe("extern");
+    // The same required upstream predicate failed on the prior frozen artifact.
+    expect(foo.definitionModuleName).toBe("@test");
+  });
+
+  it("counts actual retained nodes for exactly 18 calls and rejects discarded or over-bound graphs", () => {
+    const bytes = source("inferring_hundreds_of_self_calls_should_not_suffocate_memory", 0, "metatableOOP");
+    expect(bytes.match(/:lower\(\)/g)).toHaveLength(18);
+    fixture.source("MainModule", bytes);
+    const result = fixture.check("MainModule");
+    const actual = fixture.moduleFacts(result, "MainModule");
+    observations["18calls:module"] = actual;
+    // The original does not assert result.errors.
+    expect(actual.internalNodes).toBeLessThanOrEqual(80);
+    fixture.create("Fixture");
+    const control = Array.from({ length: 100 }, (_, index) => `local v${index} = { x = ${index} }`).join("\n");
+    fixture.source("MainModule", control);
+    const large = fixture.moduleFacts(fixture.check("MainModule"), "MainModule");
+    observations["countControl:module"] = large;
+    expect(large.internalNodes).toBeGreaterThan(80);
+    fixture.create("Fixture");
+    fixture.retainGraphs(false);
+    fixture.source("MainModule", bytes);
+    const discarded = fixture.check("MainModule");
+    expect(() => fixture.moduleFacts(discarded, "MainModule"))
+      .toThrow("Native module graph retention disabled; node counts unavailable");
+  });
+});
