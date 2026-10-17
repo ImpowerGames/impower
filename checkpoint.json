@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 195,
-  "previous": "1495b6a44d34ebc5c14899dec6f0a78a896f4230",
+  "seq": 196,
+  "previous": "6fc88e5d45f68208bc8fedd22e4676d73fe97a7f",
   "snapshotParents": [],
-  "time": "2026-10-17T11:33:18.683Z",
+  "time": "2026-10-17T11:33:27.587Z",
   "kind": "auto",
-  "transition": "answer of #1967",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 179,
+    "recordRevision": 180,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4002,6 +4002,11 @@
           },
           "evidence": "cross-session message from writer session impower-14 at 2026-10-17 ~13:30Z naming assignment 02ea0ef4, its claude command line --model claude-opus-5-5 --effort high --permission-mode bypassPermissions and CLAUDE_EFFORT=high; out.jsonl init line reports model claude-opus-5-5 and permissionMode bypassPermissions",
           "deliveryId": "7cdc43f9"
+        },
+        "resuming": {
+          "id": "0134ce4f-9965-4ffe-a2c7-fd55ac57afb1",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1967-0134ce4f-9965-4ffe-a2c7-fd55ac57afb1",
+          "time": "2026-10-17T11:33:25.850Z"
         }
       },
       "pending": null,
@@ -5195,7 +5200,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T11:33:17.971Z",
+      "observedAt": "2026-10-17T11:33:26.928Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5481,13 +5486,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:48:07.418Z",
-      "event": "resume-intent",
-      "ticket": 1966,
-      "id": "bad5c2f2-272e-4cf0-9943-d182f5fac6a1",
-      "sessionId": "58c4e7e1-10ce-48f9-8cd2-052d8503847b"
-    },
     {
       "time": "2026-10-17T02:48:18.186Z",
       "event": "resumed",
@@ -6213,6 +6211,13 @@
       "id": "97cadf24",
       "deliveryId": "6d112b68",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T11:33:25.850Z",
+      "event": "resume-intent",
+      "ticket": 1967,
+      "id": "0134ce4f-9965-4ffe-a2c7-fd55ac57afb1",
+      "sessionId": "4b0d553c-7961-4f25-bf16-8776d5f38c13"
     }
   ]
 }
