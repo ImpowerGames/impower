@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 177,
-  "previous": "6a63d2812dd7e4c7e6717e0b9d3cf249bdf927a1",
+  "seq": 178,
+  "previous": "09f6640b774bab8a23d46f66a7e866ecb48d529b",
   "snapshotParents": [],
-  "time": "2026-10-17T09:03:25.484Z",
+  "time": "2026-10-17T09:03:32.149Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "claim of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 163,
+    "recordRevision": 164,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3962,6 +3962,25 @@
           }
         }
       ]
+    },
+    "1967": {
+      "owner": null,
+      "pending": {
+        "operation": "dispatch",
+        "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8",
+        "route": "claude-cli",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+        "permissionMode": "bypassPermissions",
+        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
+        "branch": "feat/1967-archive-scrub-cutover",
+        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
+        "host": "DESKTOP-726EO47",
+        "time": "2026-10-17T09:03:30.863Z"
+      },
+      "history": [],
+      "results": []
     }
   },
   "operations": [
@@ -4820,7 +4839,17 @@
   ],
   "diskRecoveries": [],
   "verifications": [],
-  "work": {},
+  "work": {
+    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover": {
+      "ticket": 1967,
+      "host": "DESKTOP-726EO47",
+      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
+      "branch": "feat/1967-archive-scrub-cutover",
+      "observedAt": "2026-10-17T09:03:32.148Z",
+      "held": true,
+      "exists": false
+    }
+  },
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -4871,13 +4900,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:11:21.705Z",
-      "event": "resume-intent",
-      "ticket": 1963,
-      "id": "721e1158-6ca1-4d28-83b2-51c2407c6213",
-      "sessionId": "bb9d33ea-8fb1-44bb-afb3-83f290b1d056"
-    },
     {
       "time": "2026-10-17T02:11:32.866Z",
       "event": "resumed",
@@ -5615,6 +5637,13 @@
       "event": "released",
       "ticket": 1965,
       "reason": "process 45864 is gone and no process names its launch directory"
+    },
+    {
+      "time": "2026-10-17T09:03:30.864Z",
+      "event": "dispatch-intent",
+      "ticket": 1967,
+      "route": "claude-cli",
+      "launchId": "02ea0ef4-32e3-4542-a5ce-d10a98a2ecf8"
     }
   ]
 }
