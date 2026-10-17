@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 155,
-  "previous": "3ed11570367b1b4a7d9aa85c8e636e4c621961e3",
+  "seq": 156,
+  "previous": "47ae63e480fb0ddca80a7c11d5479aad0897acf5",
   "snapshotParents": [],
-  "time": "2026-10-17T07:24:02.017Z",
+  "time": "2026-10-17T07:53:42.053Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 142,
+    "recordRevision": 143,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4223,16 +4223,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T07:24:01.173Z",
+      "observedAt": "2026-10-17T07:53:41.341Z",
       "held": true,
-      "head": "69532fec3b41240f58d5a7c0687210f54931882e",
-      "remoteHead": "69532fec3b41240f58d5a7c0687210f54931882e",
+      "head": "0e6b6fa0cd97718f289cb25c3a800a9be8c993a5",
+      "remoteHead": "0e6b6fa0cd97718f289cb25c3a800a9be8c993a5",
       "unpushed": false,
-      "dirty": false,
-      "handoffLock": {
-        "host": "DESKTOP-726EO47",
-        "pid": 33364
-      },
+      "dirty": true,
       "pr": 2053,
       "reviewJobs": [
         {
@@ -4273,7 +4269,7 @@
         },
         {
           "job": "pr-2053/round-1/launch-undirected-1",
-          "lastEvent": "identified",
+          "lastEvent": "finished",
           "attempted": {
             "round": 1,
             "step": "review-undirected",
@@ -4288,7 +4284,57 @@
               "compat": 1
             },
             "time": "2026-10-17T07:13:34.346Z"
-          }
+          },
+          "round": 1,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "69532fec3b41240f58d5a7c0687210f54931882e",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "compat": 1,
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "compat",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6231196848
+          ]
+        },
+        {
+          "job": "pr-2053/round-2/launch-undirected-1",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 2,
+            "step": "review-undirected",
+            "reviewerId": "undirected",
+            "attempt": 1,
+            "plannedReviewers": [
+              "undirected"
+            ],
+            "head": "0e6b6fa0cd97718f289cb25c3a800a9be8c993a5",
+            "completedRoundReviewers": null,
+            "time": "2026-10-17T07:35:51.602Z"
+          },
+          "round": 2,
+          "reviewerId": "undirected",
+          "attempt": 1,
+          "reviewedHead": "0e6b6fa0cd97718f289cb25c3a800a9be8c993a5",
+          "completedRoundReviews": 1,
+          "completedRoundReviewers": {
+            "undirected": 1
+          },
+          "plannedRoundReviewers": [
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6231386767
+          ]
         }
       ]
     }
@@ -4343,11 +4389,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T23:03:41.015Z",
-      "event": "verified",
-      "ticket": 1963
-    },
     {
       "time": "2026-10-16T23:04:06.423Z",
       "event": "acknowledged",
@@ -5074,6 +5115,11 @@
       "time": "2026-10-17T07:23:59.813Z",
       "event": "check-in",
       "outcome": "no change: #1965 PR #2053 at 69532fec3 (CI green), round 1's first findings fixed and adjudicated with reviewer scratch removed, second reviewer (undirected) running; #1967 waits on #1965"
+    },
+    {
+      "time": "2026-10-17T07:53:40.019Z",
+      "event": "check-in",
+      "outcome": "no change: #1965 PR #2053 at 0e6b6fa0c (CI green), round 1 complete, round 2 reviewed and the writer applying its corrections; #1967 waits on #1965"
     }
   ]
 }
