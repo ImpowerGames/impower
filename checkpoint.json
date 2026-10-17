@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 128,
-  "previous": "237e926f54deb054104b4684987ccd27dd9c594e",
+  "seq": 129,
+  "previous": "3ffe06b6ab67c487de558b7f19c73794f218cb5c",
   "snapshotParents": [],
-  "time": "2026-10-17T01:20:17.342Z",
+  "time": "2026-10-17T01:23:13.191Z",
   "kind": "auto",
-  "transition": "request of #1974",
+  "transition": "answer of #1974",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 102,
+    "recordRevision": 105,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -762,7 +762,14 @@
           "text": "Checkpoint after round 4 of PR #1984 under extension ec7c56fe: one undirected reviewer (gpt-6.1-sol high) on 0547bc904, report 6227829979 no findings, adjudication 6227855109, round-state 6227591301; nothing pushed after 0547bc904 so the head is the reviewed head; CI 28 passed 4 skipped; reviewer confirmed completeMemos and committed share the committed-root guard on every path, memos complete only from the latest resolve, and the no-program re-resolution cost is disclosed (219/436/652 generated objects for 1/2/3 pending scenes). Asks for the finish decision; the PR stays draft until the coordinator acts.",
           "source": "cross-session message from the writer (peer impower-f4) at ~01:20Z, confirmed in resume-1974-7a097718 out.jsonl",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision: finish. Published on PR #1984 as comment 6227908006 (decision 1a34eb32); read it, it is the authority. Ordinary review-pr readiness now decides the PR: with round 4 complete, no findings outstanding, the head 0547bc904 equal to the last reviewed commit and every CI check green, mark PR #1984 ready at 0547bc904 (read back isDraft false), make sure the PR body's Notes for reviewers states the reviewed range and the disclosed no-program re-resolution cost, and send me the final report (model, effort, permissionMode, pr, reviewedHead, rounds, findings exactly None, verification, ci, next). Push nothing after 0547bc904; if anything must change, say so first, since a new head needs a new decision. Then end your turn; I record the report, release you, and merge through the gate.",
+            "deliveryId": "61b6e064",
+            "attempts": 1,
+            "time": "2026-10-17T01:23:09.536Z",
+            "to": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29"
+          }
         }
       ],
       "checkpoints": [
@@ -1035,6 +1042,289 @@
           "published": {
             "comment": 6227574741,
             "time": "2026-10-17T00:49:31.590Z",
+            "headAtPublish": "0547bc904445405d804fbc744c1ac1f2f483cddd"
+          }
+        },
+        {
+          "version": 1,
+          "id": "1a34eb32",
+          "kind": "finish",
+          "feature": 1940,
+          "ticket": 1974,
+          "pr": 1984,
+          "coordinator": "local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29",
+          "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
+          "time": "2026-10-17T01:23:03.806Z",
+          "round": 4,
+          "limitBefore": 4,
+          "reviewedHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+          "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+          "range": {
+            "from": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+            "to": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+            "base": "e9287075bfcb6a5f035b836f74bd19a051b1fc90",
+            "commits": [],
+            "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "reports": [
+            {
+              "comment": 6224228197,
+              "round": 1,
+              "reviewerId": "incrementality",
+              "adjudication": 6224983339
+            },
+            {
+              "comment": 6225158091,
+              "round": 1,
+              "reviewerId": "blast-radius",
+              "adjudication": 6225434348
+            },
+            {
+              "comment": 6225755506,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6226048395
+            },
+            {
+              "comment": 6226407873,
+              "round": 2,
+              "reviewerId": "incrementality",
+              "adjudication": 6226439343
+            },
+            {
+              "comment": 6226665410,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6226736064
+            },
+            {
+              "comment": 6227205764,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6227484652
+            },
+            {
+              "comment": 6227829979,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6227855109
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Every accepted defect finding across rounds 1 to 3 was one mechanism: which resolves may be trusted as having completed a carried block's memos, and which units must hand their block back to the compiler. The corrections converged on one rule (a unit record carries the resolve that made it; a resolve counts as kept only when its build commits at the chunk store's commit point beside completeMemos; the next resolve resolves again every unit recorded after the last committed one; every fresh unit hands its block to the compiler, which takes only blocks it carried). Round 4, decided as the bounded extension ec7c56fe, read that final rule independently: completeMemos() and committed() share the committed-root guard in that order on the preview, retry, unsupported-construct, initializer-failure and success paths, confirmed with a lifecycle probe; each resolve resets its resolution map so memos complete only from the latest resolve. No findings. The corrections address the class, not instances.",
+            "regressions": "One, in round 1: 00e52531f placed the commit point in compileStory, too broadly, so a build with no program counted its resolve as kept; round 3 found it and 0547bc904 narrowed the commit to the build-commit point. Round 4 then reviewed 0547bc904 with no findings, so the last behaviour change has now had an independent reader and no later correction exists. Nothing was pushed after 0547bc904.",
+            "repairOptions": "None better. Re-stamping memos without re-resolution was ruled out by the settled decision (a kept chunk does not vouch for the diagnostics a memo replays, #1742); keying trust to the build commit is the natural invariant and round 4 confirmed it holds on every path.",
+            "residualRisk": "While builds keep making no program (an author partway through an unsupported construct), each compile resolves again everything resolved since the last committed build: generated objects grew 219, 436, 652 as pending scenes grew 1, 2, 3, bounded by whole-program resolution per failed build until a build commits; disclosed in the PR Summary with deterministic counts and no wall-clock benchmark, and reuse returns once a build commits. A block placed in two places is inspected but not exercised; its failure mode is extra lowering, not wrong output. The ticket's store-below shape cannot reach an empty loweredOutsideRebuilt because the store collides with the local in a cold compile too; that is Bug #2013, separate scoping work, and the intended behaviour is pinned by the store-above test.",
+            "coverage": "Redgreen against origin/main: 6 failed / 54 passed to 54 passed on 00e52531f, each later correction red then green against HEAD, round 4's reviewer reproduced base e2f91499f at 8 failed / 48 passed to 56 passed and f10dd9fcb at 1 failed to 56 passed. On 0547bc904: programStatementMemo 56/56; programIncrementalCumulative, programPreviewMemo, programIncrementalPasses, programDeclarationRun, programDoBlockMemo, incrementalEquivalence and incrementalCumulativeEquivalence (87 tests) pass; typecheck clean; live editor check shows the expected text. Measurement on the PR and ticket comment 6223869256: store above, loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40; store below 2 to 1 and 6/80 to 5/81. CI on 0547bc904: 28 checks passed, 4 skipped by path filters, including all four sparkdown shards, the test-suite gate, tsc, typecheck, hook-tests and linked-issue.",
+            "nextRoundValue": "Nothing. The head is the reviewed head, round 4 reviewed the whole final rule with no findings, and no change has been made since.",
+            "rationale": "The review gates pass: four completed rounds with every planned reviewer exited and every report adjudicated on the PR, the current head 0547bc904 is the last independently reviewed commit with no commits after it, no finding is open, the one regression a correction introduced was fixed and that fix has now been independently reviewed under the published extension, and the ticket's criteria are met by the recorded measurement with every CI check green. Ordinary review-pr readiness decides the PR from here.",
+            "next": "The writer marks PR #1984 ready at 0547bc904 and sends its final report; the coordinator records it, releases the writer, runs the merge gate and merges through integration.mjs merge.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6224228197,
+                "finding": "refresh path introduces diagnostics a cold compile does not emit (pre-existing, fixed on the branch per the adjudication rule)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6224228197,
+                "finding": "refresh completion is lost across a retry or an accepted preview",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225158091,
+                "finding": "filter carried candidates once rather than rescanning the growing map per block (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225158091,
+                "finding": "no wall-clock threshold; editor preview traced in source with one live run",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6225755506,
+                "finding": "carried units already fresh for a context change miss the memo refresh",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226407873,
+                "finding": "lifecycle descriptions out of date (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226407873,
+                "finding": "original base red not reproduced by the reviewer (reservation timeout)",
+                "disposition": "covered"
+              },
+              {
+                "comment": 6226665410,
+                "finding": "the retry test's comment describes the previous lifecycle (should-fix)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227205764,
+                "finding": "a compile that produces no program still commits its resolver records (fixed in 0547bc904, reviewed in round 4)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227829979,
+                "disposition": "none"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 4: finish through ordinary readiness\n\nDecision `1a34eb32` by coordinator `local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29` of Feature #1940 for #1974.\n\n- Round state: round 4 is complete (limit 4 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6224228197 in 6224983339, 6225158091 in 6225434348, 6225755506 in 6226048395, 6226407873 in 6226439343, 6226665410 in 6226736064, 6227205764 in 6227484652, 6227829979 in 6227855109).\n- Independently reviewed through `0547bc904445405d804fbc744c1ac1f2f483cddd`.\n- Head `0547bc904445405d804fbc744c1ac1f2f483cddd`. Nothing after the reviewed head is unreviewed.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, test-suite passed, typecheck passed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 7 accepted, 2 covered, 1 none; unresolved: none.\n- Shared mechanisms: Every accepted defect finding across rounds 1 to 3 was one mechanism: which resolves may be trusted as having completed a carried block's memos, and which units must hand their block back to the compiler. The corrections converged on one rule (a unit record carries the resolve that made it; a resolve counts as kept only when its build commits at the chunk store's commit point beside completeMemos; the next resolve resolves again every unit recorded after the last committed one; every fresh unit hands its block to the compiler, which takes only blocks it carried). Round 4, decided as the bounded extension ec7c56fe, read that final rule independently: completeMemos() and committed() share the committed-root guard in that order on the preview, retry, unsupported-construct, initializer-failure and success paths, confirmed with a lifecycle probe; each resolve resets its resolution map so memos complete only from the latest resolve. No findings. The corrections address the class, not instances.\n- Defects introduced by corrections: One, in round 1: 00e52531f placed the commit point in compileStory, too broadly, so a build with no program counted its resolve as kept; round 3 found it and 0547bc904 narrowed the commit to the build-commit point. Round 4 then reviewed 0547bc904 with no findings, so the last behaviour change has now had an independent reader and no later correction exists. Nothing was pushed after 0547bc904.\n- Broader or simpler repair: None better. Re-stamping memos without re-resolution was ruled out by the settled decision (a kept chunk does not vouch for the diagnostics a memo replays, #1742); keying trust to the build commit is the natural invariant and round 4 confirmed it holds on every path.\n- Residual risk: While builds keep making no program (an author partway through an unsupported construct), each compile resolves again everything resolved since the last committed build: generated objects grew 219, 436, 652 as pending scenes grew 1, 2, 3, bounded by whole-program resolution per failed build until a build commits; disclosed in the PR Summary with deterministic counts and no wall-clock benchmark, and reuse returns once a build commits. A block placed in two places is inspected but not exercised; its failure mode is extra lowering, not wrong output. The ticket's store-below shape cannot reach an empty loweredOutsideRebuilt because the store collides with the local in a cold compile too; that is Bug #2013, separate scoping work, and the intended behaviour is pinned by the store-above test.\n- Verification coverage: Redgreen against origin/main: 6 failed / 54 passed to 54 passed on 00e52531f, each later correction red then green against HEAD, round 4's reviewer reproduced base e2f91499f at 8 failed / 48 passed to 56 passed and f10dd9fcb at 1 failed to 56 passed. On 0547bc904: programStatementMemo 56/56; programIncrementalCumulative, programPreviewMemo, programIncrementalPasses, programDeclarationRun, programDoBlockMemo, incrementalEquivalence and incrementalCumulativeEquivalence (87 tests) pass; typecheck clean; live editor check shows the expected text. Measurement on the PR and ticket comment 6223869256: store above, loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40; store below 2 to 1 and 6/80 to 5/81. CI on 0547bc904: 28 checks passed, 4 skipped by path filters, including all four sparkdown shards, the test-suite gate, tsc, typecheck, hook-tests and linked-issue.\n- What another round would establish: Nothing. The head is the reviewed head, round 4 reviewed the whole final rule with no findings, and no change has been made since.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The review gates pass: four completed rounds with every planned reviewer exited and every report adjudicated on the PR, the current head 0547bc904 is the last independently reviewed commit with no commits after it, no finding is open, the one regression a correction introduced was fixed and that fix has now been independently reviewed under the published extension, and the ticket's criteria are met by the recorded measurement with every CI check green. Ordinary review-pr readiness decides the PR from here. Next: The writer marks PR #1984 ready at 0547bc904 and sends its final report; the coordinator records it, releases the writer, runs the merge gate and merges through integration.mjs merge.\n- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"1a34eb32\",\n \"kind\": \"finish\",\n \"feature\": 1940,\n \"ticket\": 1974,\n \"pr\": 1984,\n \"coordinator\": \"local_185c1aeb-4ba5-4bab-8b8c-e42993c85a29\",\n \"runId\": \"4ca51d53-fff8-4d2f-8922-014f34b64902\",\n \"time\": \"2026-10-17T01:23:03.806Z\",\n \"round\": 4,\n \"limitBefore\": 4,\n \"reviewedHead\": \"0547bc904445405d804fbc744c1ac1f2f483cddd\",\n \"head\": \"0547bc904445405d804fbc744c1ac1f2f483cddd\",\n \"range\": {\n  \"from\": \"0547bc904445405d804fbc744c1ac1f2f483cddd\",\n  \"to\": \"0547bc904445405d804fbc744c1ac1f2f483cddd\",\n  \"base\": \"e9287075bfcb6a5f035b836f74bd19a051b1fc90\",\n  \"commits\": [],\n  \"diffSha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n },\n \"reports\": [\n  {\n   \"comment\": 6224228197,\n   \"round\": 1,\n   \"reviewerId\": \"incrementality\",\n   \"adjudication\": 6224983339\n  },\n  {\n   \"comment\": 6225158091,\n   \"round\": 1,\n   \"reviewerId\": \"blast-radius\",\n   \"adjudication\": 6225434348\n  },\n  {\n   \"comment\": 6225755506,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6226048395\n  },\n  {\n   \"comment\": 6226407873,\n   \"round\": 2,\n   \"reviewerId\": \"incrementality\",\n   \"adjudication\": 6226439343\n  },\n  {\n   \"comment\": 6226665410,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6226736064\n  },\n  {\n   \"comment\": 6227205764,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227484652\n  },\n  {\n   \"comment\": 6227829979,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227855109\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Every accepted defect finding across rounds 1 to 3 was one mechanism: which resolves may be trusted as having completed a carried block's memos, and which units must hand their block back to the compiler. The corrections converged on one rule (a unit record carries the resolve that made it; a resolve counts as kept only when its build commits at the chunk store's commit point beside completeMemos; the next resolve resolves again every unit recorded after the last committed one; every fresh unit hands its block to the compiler, which takes only blocks it carried). Round 4, decided as the bounded extension ec7c56fe, read that final rule independently: completeMemos() and committed() share the committed-root guard in that order on the preview, retry, unsupported-construct, initializer-failure and success paths, confirmed with a lifecycle probe; each resolve resets its resolution map so memos complete only from the latest resolve. No findings. The corrections address the class, not instances.\",\n  \"regressions\": \"One, in round 1: 00e52531f placed the commit point in compileStory, too broadly, so a build with no program counted its resolve as kept; round 3 found it and 0547bc904 narrowed the commit to the build-commit point. Round 4 then reviewed 0547bc904 with no findings, so the last behaviour change has now had an independent reader and no later correction exists. Nothing was pushed after 0547bc904.\",\n  \"repairOptions\": \"None better. Re-stamping memos without re-resolution was ruled out by the settled decision (a kept chunk does not vouch for the diagnostics a memo replays, #1742); keying trust to the build commit is the natural invariant and round 4 confirmed it holds on every path.\",\n  \"residualRisk\": \"While builds keep making no program (an author partway through an unsupported construct), each compile resolves again everything resolved since the last committed build: generated objects grew 219, 436, 652 as pending scenes grew 1, 2, 3, bounded by whole-program resolution per failed build until a build commits; disclosed in the PR Summary with deterministic counts and no wall-clock benchmark, and reuse returns once a build commits. A block placed in two places is inspected but not exercised; its failure mode is extra lowering, not wrong output. The ticket's store-below shape cannot reach an empty loweredOutsideRebuilt because the store collides with the local in a cold compile too; that is Bug #2013, separate scoping work, and the intended behaviour is pinned by the store-above test.\",\n  \"coverage\": \"Redgreen against origin/main: 6 failed / 54 passed to 54 passed on 00e52531f, each later correction red then green against HEAD, round 4's reviewer reproduced base e2f91499f at 8 failed / 48 passed to 56 passed and f10dd9fcb at 1 failed to 56 passed. On 0547bc904: programStatementMemo 56/56; programIncrementalCumulative, programPreviewMemo, programIncrementalPasses, programDeclarationRun, programDoBlockMemo, incrementalEquivalence and incrementalCumulativeEquivalence (87 tests) pass; typecheck clean; live editor check shows the expected text. Measurement on the PR and ticket comment 6223869256: store above, loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40; store below 2 to 1 and 6/80 to 5/81. CI on 0547bc904: 28 checks passed, 4 skipped by path filters, including all four sparkdown shards, the test-suite gate, tsc, typecheck, hook-tests and linked-issue.\",\n  \"nextRoundValue\": \"Nothing. The head is the reviewed head, round 4 reviewed the whole final rule with no findings, and no change has been made since.\",\n  \"rationale\": \"The review gates pass: four completed rounds with every planned reviewer exited and every report adjudicated on the PR, the current head 0547bc904 is the last independently reviewed commit with no commits after it, no finding is open, the one regression a correction introduced was fixed and that fix has now been independently reviewed under the published extension, and the ticket's criteria are met by the recorded measurement with every CI check green. Ordinary review-pr readiness decides the PR from here.\",\n  \"next\": \"The writer marks PR #1984 ready at 0547bc904 and sends its final report; the coordinator records it, releases the writer, runs the merge gate and merges through integration.mjs merge.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6224228197,\n    \"finding\": \"refresh path introduces diagnostics a cold compile does not emit (pre-existing, fixed on the branch per the adjudication rule)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6224228197,\n    \"finding\": \"refresh completion is lost across a retry or an accepted preview\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225158091,\n    \"finding\": \"filter carried candidates once rather than rescanning the growing map per block (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225158091,\n    \"finding\": \"no wall-clock threshold; editor preview traced in source with one live run\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6225755506,\n    \"finding\": \"carried units already fresh for a context change miss the memo refresh\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226407873,\n    \"finding\": \"lifecycle descriptions out of date (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226407873,\n    \"finding\": \"original base red not reproduced by the reviewer (reservation timeout)\",\n    \"disposition\": \"covered\"\n   },\n   {\n    \"comment\": 6226665410,\n    \"finding\": \"the retry test's comment describes the previous lifecycle (should-fix)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227205764,\n    \"finding\": \"a compile that produces no program still commits its resolver records (fixed in 0547bc904, reviewed in round 4)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227829979,\n    \"disposition\": \"none\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "86574f3fbcf1d694e7859441c5e5cdbacd0700f9d0f5431ad7dc761e41901b3e",
+          "blockSha256": "261cfb66376ca34f80f6ec153f7c222e00a3ddf55098e380b17a7844b744369c",
+          "published": {
+            "comment": 6227908006,
+            "time": "2026-10-17T01:23:08.481Z",
             "headAtPublish": "0547bc904445405d804fbc744c1ac1f2f483cddd"
           }
         }
@@ -1642,6 +1932,16 @@
       "round": 3,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "time": "2026-10-17T00:49:31.590Z"
+    },
+    {
+      "pr": 1984,
+      "url": "https://github.com/ImpowerGames/impower/pull/1984#issuecomment-6227908006",
+      "kind": "review-checkpoint finish",
+      "ticket": 1974,
+      "id": "1a34eb32",
+      "round": 4,
+      "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+      "time": "2026-10-17T01:23:08.481Z"
     }
   ],
   "diskRecoveries": [
@@ -1797,7 +2097,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:20:15.119Z",
+      "observedAt": "2026-10-17T01:23:11.692Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -1954,7 +2254,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T01:20:15.119Z",
+      "observedAt": "2026-10-17T01:23:11.692Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2276,25 +2576,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:19:00.902Z",
-      "event": "check-in-scheduled",
-      "job": "093a0670",
-      "none": null
-    },
-    {
-      "time": "2026-10-16T16:19:09.882Z",
-      "event": "group",
-      "id": "cg-14350a8e-773f-4354-beb9-a8637c9cb365",
-      "none": null
-    },
-    {
-      "time": "2026-10-16T16:21:57.481Z",
-      "event": "dispatch-intent",
-      "ticket": 851,
-      "route": "claude-cli",
-      "launchId": "432efd6d-c055-4f07-a9f3-7b88b1ab2f3a"
-    },
     {
       "time": "2026-10-16T16:23:02.776Z",
       "event": "launched",
@@ -2951,6 +3232,30 @@
       "event": "request",
       "ticket": 1974,
       "id": "af9a31ec"
+    },
+    {
+      "time": "2026-10-17T01:23:03.806Z",
+      "event": "checkpoint-intent",
+      "ticket": 1974,
+      "id": "1a34eb32",
+      "kind": "finish",
+      "round": 4,
+      "head": "0547bc904445405d804fbc744c1ac1f2f483cddd"
+    },
+    {
+      "time": "2026-10-17T01:23:08.481Z",
+      "event": "checkpoint-published",
+      "ticket": 1974,
+      "id": "1a34eb32",
+      "comment": 6227908006
+    },
+    {
+      "time": "2026-10-17T01:23:09.537Z",
+      "event": "answer-intent",
+      "ticket": 1974,
+      "id": "af9a31ec",
+      "deliveryId": "61b6e064",
+      "attempt": 1
     }
   ]
 }
