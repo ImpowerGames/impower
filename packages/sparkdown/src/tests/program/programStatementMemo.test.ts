@@ -104,21 +104,43 @@ function session(texts: Record<string, string>) {
     },
     /** Replaces the first `find` at or after `from` with `replace`. */
     edit(find: string, replace: string, from = 0): SparkProgram {
-      const offset = text.indexOf(find, from);
-      expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+      return this.editAll([[find, replace]], from);
+    },
+    /** Replaces the first `find` of each pair with its `replace`, in order,
+     *  as one update of the script, and compiles once. */
+    editAll(changes: readonly [find: string, replace: string][], from = 0): SparkProgram {
+      const contentChanges = [];
+      for (const [find, replace] of changes) {
+        const offset = text.indexOf(find, from);
+        expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+        contentChanges.push({
+          range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
+          text: replace,
+        });
+        text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      }
       version += 1;
-      c.compiler.updateDocument({
-        textDocument: { uri: MAIN_URI, version },
-        contentChanges: [
-          {
-            range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
-            text: replace,
-          },
-        ],
-      });
-      text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      c.compiler.updateDocument({ textDocument: { uri: MAIN_URI, version }, contentChanges });
       program = quietly(() => c.compile().program);
       return program;
+    },
+    /** Compiles a preview of replacing the first `find` with `replace`,
+     *  which leaves the script as it was. */
+    preview(find: string, replace: string): void {
+      const offset = text.indexOf(find);
+      expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+      quietly(() =>
+        c.compiler.previewCompile({
+          root: { uri: MAIN_URI },
+          textDocument: { uri: MAIN_URI, version },
+          contentChanges: [
+            {
+              range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
+              text: replace,
+            },
+          ],
+        } as never),
+      );
     },
   };
 }
@@ -555,8 +577,9 @@ describe("a compile that meets a memo it cannot compile from", () => {
     // statement reads `n` otherwise, and so does `Body {n}.`, which is
     // served from its memo, so the first attempt meets a memo whose name is
     // declared otherwise and the compile runs again with the clause lowered
-    // again. The second attempt does not resolve the statement after the
-    // block again, as the first did, nor finds what the first found there:
+    // again. The second attempt resolves the statement after the block
+    // again, as no compile kept the first attempt's resolve, and the marks
+    // the first attempt left for its chunk stand with what the second finds:
     // its chunk must not be kept.
     const text = [
       "scene MAIN",
@@ -590,6 +613,28 @@ describe("a compile that meets a memo it cannot compile from", () => {
     expect(after()?.chunk === before!.chunk, "the statement after the block kept its chunk").toBe(
       false,
     );
+    sameAsCold(s);
+  });
+
+  it("reports what a cold compile reports of a line that reads the global a stale assignment's memo made no auto-global of", () => {
+    // `& gold = gold + 1` is served from a memo recorded while the store
+    // declared `gold`, which made no auto-global. The update that removes the
+    // store and lowers its block again finds the memo stale: the first
+    // attempt resolves the scene that reads `gold` with no global of the
+    // name, and the second lowers the assignment, which makes the
+    // auto-global, so the reader must be resolved again.
+    const s = warmed(
+      `${clauseScript(["Line one.", ...FILLER, "& gold = gold + 1", ...FILLER, "Line last."], ["store gold = 0", ""])}\nscene ENDING\n  The end, with {gold} gold.\nend\n`,
+    );
+    s.edit("Warm line!", "Warm line?");
+    expect(s.stats.served).toBeGreaterThan(0);
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
+    s.editAll([
+      ["store gold = 0\n", ""],
+      ["Line last.", "Line last!"],
+    ]);
+    expect(attempts.mock.calls.length, "the compile ran again").toBeGreaterThan(1);
+    attempts.mockRestore();
     sameAsCold(s);
   });
 });
@@ -720,9 +765,10 @@ describe("a statement whose objects another pass reads", () => {
     const s = warmed(kindsScript());
     s.edit("scene OTHER\n", "scene later\n  Later.\nend\n\nscene OTHER\n");
     s.edit("Line one.", "Line one, edited.");
-    // The divert too: its resolution read the scenes whole, which a scene
-    // written changes.
-    expect(loweredOutside(s)).toEqual(["label later", "-> OTHER"]);
+    // Not the divert, whose resolution read the scenes whole: the compile
+    // that wrote the scene carried the block and resolved the divert again,
+    // which completed its memo with what it reads now (#1974).
+    expect(loweredOutside(s)).toEqual(["label later"]);
     sameAsCold(s);
   });
 
@@ -784,20 +830,104 @@ describe("a local declaration", () => {
     sameAsCold(s);
   });
 
-  it("is lowered again with the line that reads it after a global of its name is declared above it (#1974), and compiles as cold", () => {
+  it("is served when a global of its name is declared above it, and no other statement is lowered", () => {
     // A global of the local's name, declared above the scene: the local
     // shadows it with no diagnostic (#1742), so nothing about the local
-    // changes, and the line that reads the local still reads the local. Its
-    // memo and the reader's should therefore be served on the next edit;
-    // until #1974 is fixed they are lowered again, and no other statement is.
+    // changes. The line that reads the local still reads the local its
+    // served declaration declares.
     const s = warmed(localScript(["store other = 1", ""]));
     s.edit("store other = 1", "store here = 1");
     s.edit("Line last.", "Line last, edited.");
-    // The rename carries the scene (#1637), so the memos of the two
-    // statements that read `here` keep the resolution recorded before it was
-    // a global, and the edit after it lowers them again (#1974). The fix of
-    // #1974 makes this `[]` again.
-    expect(loweredOutside(s)).toEqual(["local here = 2", "Here {here}."]);
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
+  it("leaves the line that reads it served by the edit after a compile that carried its block while a store of its name was written below it (#1974)", () => {
+    // The rename lowers only the store, and carries the scene: the two
+    // statements that read `here` are resolved again where they stand, and
+    // the reader's memo is completed again with what that resolution read,
+    // so the edit after it serves the reader. The store below the scene's
+    // `end` collides with the local, as in a cold compile, and a resolution
+    // that prints a position completes no memo, so the local is lowered.
+    const s = warmed(`${localScript()}\nstore other = 1\n`);
+    s.edit("store other = 1", "store here = 1");
+    expect(loweredOutside(s)).toEqual([]);
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual(["local here = 2"]);
+    expect(diagnostics(s.program).join("\n")).toContain("Duplicate identifier `here`");
+    sameAsCold(s);
+  });
+
+  it("is served, with the line that reads it, by the edit after a rename the compile made a second attempt at (#1974)", () => {
+    // A second scene whose clause reads `here` from a memo: the rename makes
+    // it stale, so the compile makes a second attempt, which the first
+    // scene's carried block goes through unchanged.
+    const second = [
+      "scene SECOND",
+      "  Second opening.",
+      "  choose",
+      "    + [On]",
+      "      You go.",
+      "    + [Off]",
+      "      You stay.",
+      "  then",
+      "    Warm two.",
+      ...FILLER.map((line) => `    ${line}`),
+      "    Two {here}.",
+      ...FILLER.map((line) => `    ${line}`),
+      "    Last two.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const s = warmed(`${localScript(["store other = 1", ""])}\n${second}`);
+    s.edit("Warm two.", "Warm two!");
+    s.edit("Last two.", "Last two!");
+    expect(s.stats.served).toBeGreaterThan(0);
+    const attempts = vi.spyOn(s.compiler as any, "compileStoryOnce");
+    s.edit("store other = 1", "store here = 1");
+    expect(attempts.mock.calls.length, "the compile ran again").toBeGreaterThan(1);
+    attempts.mockRestore();
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
+  it("is served, with the line that reads it, by the edit after a rename a preview showed first (#1974)", () => {
+    // The preview resolves the carried block for the rename, and completes no
+    // memo; the compile that makes the rename resolves it again.
+    const s = warmed(localScript(["store other = 1", ""]));
+    s.preview("store other = 1", "store here = 1");
+    s.edit("store other = 1", "store here = 1");
+    s.edit("Line last.", "Line last, edited.");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
+  it("is served, with the line that reads it, by the edit after an update that renamed its scene as it declared a store of its name (#1974)", () => {
+    // The scene's rename carries its block and resolves it again for the
+    // flows around it, not for the name it reads.
+    const s = warmed(localScript(["store other = 1", ""]));
+    s.editAll([
+      ["store other = 1", "store here = 1"],
+      ["scene MAIN", "scene RENAMED"],
+    ]);
+    s.edit("Line last.", "Line last!");
+    expect(loweredOutside(s)).toEqual([]);
+    sameAsCold(s);
+  });
+
+  it("is served, with the line that reads it, by the edit after a rename whose compile made no program (#1974)", () => {
+    // The update that declares the store also writes a construct the
+    // program has no emit path for, so the compile that resolves the
+    // carried block again commits no build and completes no memo; the
+    // compile that removes the construct resolves the block again.
+    const s = warmed(localScript(["store other = 1", ""]));
+    s.edit("store other = 1", "store here = 1\nexternal message(x)");
+    expect(s.program.chunks ?? null).toBeNull();
+    s.edit("external message(x)\n", "");
+    s.edit("Line last.", "Line last!");
+    expect(loweredOutside(s)).toEqual([]);
     sameAsCold(s);
   });
 
