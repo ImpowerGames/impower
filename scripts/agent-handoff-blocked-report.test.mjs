@@ -76,9 +76,13 @@ console.log("PASS: a reviewer that exits 0 with a report and no comment IDs leav
 
 // The coordinator posts the report verbatim after one prefix line and reads
 // the comment back.
-const readBack = path.join(jobDir, "readback-ax.md");
+// The read-back is the comment as GitHub's REST API returns it, on the review
+// thread the journal's coordinator row names.
+const readBack = path.join(jobDir, "readback-ax.json");
+const threadUrl = `https://api.github.com/repos/${OFF.code}/issues/1948`;
+const comment = (body, id = 601, issue_url = threadUrl) => fs.writeFileSync(readBack, JSON.stringify({ id, issue_url, body }));
 const line = "Posted on behalf of reviewer `ax`: its own post failed on the GraphQL rate limit.";
-const post = (text = report) => fs.writeFileSync(readBack, `${line}\n\n${text}`);
+const post = (text = report, id = 601) => comment(`${line}\n\n${text}`, id);
 const refuses = (pattern, what, prepare = () => {}) => {
   rewrite(original);
   post();
@@ -91,7 +95,11 @@ const journalWith = (edit) => () => { const list = rows(); edit(list); rewriteRo
 
 // Every other refusal stays in place.
 refuses(/verbatim/, "an edited report is refused", () => post(report.replace("No findings", "Some findings")));
-refuses(/verbatim/, "a read-back without the behalf line is refused", () => fs.writeFileSync(readBack, `Posted by the coordinator.\n\n${report}`));
+refuses(/verbatim/, "a read-back without the behalf line is refused", () => comment(`Posted by the coordinator.\n\n${report}`));
+refuses(/REST API returns it/, "a read-back of the body alone is refused", () => fs.writeFileSync(readBack, `${line}\n\n${report}`));
+refuses(/is on https:\/\/api\.github\.com\/repos\/.*\/issues\/77, not review thread .*#1948/, "a comment on another issue is refused", () => comment(`${line}\n\n${report}`, 601, `https://api.github.com/repos/${OFF.internal}/issues/77`));
+refuses(/read-back is comment 602, not comment 601/, "a read-back of another comment is refused", () => post(report, 602));
+refuses(/names no review thread/, "a journal whose coordinator row names no thread is refused", journalWith((list) => { delete list.find((row) => row.event === "coordinator").thread; }));
 refuses(/does not end/, "a journal blocked for another reason is refused", journalWith((list) => { list.at(-1).reason = "Undeclared transition"; }));
 refuses(/exit/, "a launch that exited nonzero is refused", journalWith((list) => { list.at(-2).code = 1; }));
 refuses(/exit/, "a launch with no exited row is refused", journalWith((list) => { list.splice(list.findIndex((row) => row.event === "exited"), 1); }));
@@ -187,7 +195,8 @@ const awaiting = path.join(jobDir, "awaiting.jsonl");
 const awaitingReport = path.join(jobDir, "awaiting-report.md");
 fs.writeFileSync(awaitingReport, report);
 const sha = (text) => execFileSync(process.execPath, ["-e", "process.stdout.write(require('node:crypto').createHash('sha256').update(require('node:fs').readFileSync(process.argv[1],'utf8')).digest('hex'))", awaitingReport], { encoding: "utf8", windowsHide: true });
-fs.writeFileSync(awaiting, [{ event: "coordinator" }, { event: "report-awaiting-post", index: 0, step: "review", head, report: awaitingReport, reportSha256: sha() }].map((row) => JSON.stringify(row)).join("\n") + "\n");
+fs.writeFileSync(awaiting, [{ event: "coordinator", thread: { repo: OFF.code, number: 1948, issueUrl: threadUrl } }, { event: "report-awaiting-post", index: 0, step: "review", head, report: awaitingReport, reportSha256: sha() }].map((row) => JSON.stringify(row)).join("\n") + "\n");
+post(report, 603);
 recordCoordinatorReport(awaiting, 603, readBack);
 assert.deepEqual(readJournalRows(awaiting).map((row) => row.event), ["coordinator", "report-awaiting-post", "report-posted", "finished"]);
 console.log("PASS: a journal awaiting a coordinator-posted report is still completed without a completed row of its own");

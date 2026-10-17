@@ -377,15 +377,17 @@ function blockedReview(rows, blocked) {
 // post its own report: one without GitHub access (its journal ends
 // `report-awaiting-post`), or one whose post failed after a clean exit (its
 // journal ends `blocked` on NEEDS_POSTED_IDS, and takes the `completed` row
-// the launcher could not write). The read-back body must be one line saying
-// it is posted on the reviewer's behalf, a blank line, and the reviewer's
-// report verbatim, with at most the host's attribution footer after it. The
-// coordinator reads that comment back by id from the review thread the
-// journal's coordinator row names; a coordinator without a gh login (a cloud
-// session) reads it through its own integration, so the command takes the
-// read-back rather than reading GitHub. A journal whose last rows are this
-// command's own rows for this same comment (its `finished` row was never
-// written) takes the missing rows without a second post.
+// the launcher could not write). The read-back is the posted comment as
+// GitHub's REST API returns it, read by id from the review thread's
+// repository; a coordinator without a gh login (a cloud session) reads it
+// through its own integration, so the command takes the read-back rather than
+// reading GitHub. Its `id` must be the comment ID, its `issue_url` the review
+// thread the journal's coordinator row names, and its body one line saying it
+// is posted on the reviewer's behalf, a blank line, and the reviewer's report
+// verbatim, with at most the host's attribution footer after it. A journal
+// whose last rows are this command's own rows for this same comment (its
+// `finished` row was never written) takes the missing rows without a second
+// post.
 export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   if (!/^[1-9][0-9]*$/.test(String(commentId)) || !Number.isSafeInteger(Number(commentId))) throw new Error("Supply the posted comment's numeric ID");
   const rows = fs.readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
@@ -402,7 +404,11 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   else pending = anchor;
   const report = fs.readFileSync(pending.report, "utf8");
   if (sha256(report) !== pending.reportSha256) throw new Error(`Reviewer report at ${pending.report} changed since the launcher recorded it`);
-  const body = normalizeBody(fs.readFileSync(readBackFile, "utf8"));
+  let posted;
+  try { posted = JSON.parse(fs.readFileSync(readBackFile, "utf8")); }
+  catch (error) { throw new Error(`The read-back ${readBackFile} must be the posted comment as GitHub's REST API returns it, with its id, issue_url and body (gh api repos/<repository>/issues/comments/<id>): ${error.message}`); }
+  if (typeof posted?.body !== "string") throw new Error(`The read-back ${readBackFile} has no comment body; supply the comment as GitHub's REST API returns it, with its id, issue_url and body`);
+  const body = normalizeBody(posted.body);
   const content = normalizeBody(body.replace(attributionFooter, ""));
   const split = content.indexOf("\n\n");
   const prefix = split > 0 ? content.slice(0, split) : "";
@@ -412,6 +418,10 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   // first row to survive an interruption fixes them for the retry.
   const recorded = written.findLast((row) => row.event === "report-posted" || row.event === "completed");
   if (recorded && (recorded.commentId !== record.commentId || recorded.readBackSha256 !== record.readBackSha256)) throw new Error(`Journal already records comment ${recorded.commentId} for this report; a different comment or read-back cannot complete it`);
+  const thread = rows.find((row) => row.event === "coordinator")?.thread;
+  if (typeof thread?.repo !== "string" || !Number.isSafeInteger(thread.number) || typeof thread.issueUrl !== "string") throw new Error("Journal's coordinator row names no review thread, so the posted comment's place cannot be checked; it was written before the launcher recorded one");
+  if (Number(posted.id) !== record.commentId) throw new Error(`The read-back is comment ${posted.id ?? "with no id"}, not comment ${commentId}`);
+  if (!onThread(posted, thread)) throw new Error(`Comment ${commentId} is on ${posted.issue_url ?? "no issue"}, not review thread ${thread.repo}#${thread.number}; post the report there`);
   const now = new Date().toISOString();
   const missing = [
     ...(completed && !written.some((row) => row.event === "completed") ? [{ ...completed, recordedAt: now, commentId: record.commentId, readBackSha256: record.readBackSha256 }] : []),
@@ -1059,7 +1069,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "record-report") {
     try {
-      if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs record-report <absolute-journal> <comment-id> <read-back-body-file>");
+      if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs record-report <absolute-journal> <comment-id> <read-back-comment-json>");
       recordCoordinatorReport(process.argv[3], process.argv[4], process.argv[5]);
     } catch (error) { console.error(error.message); process.exitCode = 1; }
   } else if (process.argv[2] === "recover-lock") {
@@ -1068,6 +1078,6 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
       console.log(JSON.stringify(recoverHandoffLock(process.argv[3])));
     } catch (error) { console.error(error.message); process.exitCode = 1; }
   } else runHandoff(process.argv[2]).then(({ journal, pendingReport, thread }) => {
-    if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim on review thread ${thread.repo}#${thread.number} after one line saying it is posted on the reviewer's behalf and why, read the comment back into a file, then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back-body-file>`);
+    if (pendingReport) console.log(`Reviewer report awaiting the coordinator's post: ${pendingReport.report}. Post it verbatim on review thread ${thread.repo}#${thread.number} after one line saying it is posted on the reviewer's behalf and why, read the comment back by id as JSON (gh api repos/${thread.repo}/issues/comments/<comment-id> > <read-back.json>, or the comment object your GitHub integration returns, with its id, issue_url and body), then run: node scripts/agent-handoff.mjs record-report ${journal} <comment-id> <read-back.json>`);
   }).catch((error) => { console.error(error.message); process.exitCode = 1; });
 }
