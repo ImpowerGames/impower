@@ -1956,7 +1956,7 @@ async function rehearsalCleanup({ tracker, repos, journal, dryRun = false, log =
 // ---------------------------------------------------------------------------
 // Command line
 
-function writeJson(file, value) {
+export function writeJson(file, value) {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
   if (!isDeepStrictEqual(JSON.parse(fs.readFileSync(file, "utf8")), JSON.parse(JSON.stringify(value)))) throw new Error(`${file} did not read back as written`);
 }
@@ -1998,7 +1998,7 @@ export function parseArgs(argv) {
 }
 
 /** Refuses an attempt directory inside a Git work tree, where a snapshot or journal could be committed. */
-function checkPrivateDir(dir) {
+export function checkPrivateDir(dir) {
   let probe = dir;
   while (!fs.existsSync(probe)) probe = path.dirname(probe);
   const r = spawnSync("git", ["-C", probe, "rev-parse", "--is-inside-work-tree"], { encoding: "utf8", windowsHide: true });
