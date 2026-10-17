@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 178,
-  "previous": "b4d0b0c32a19cb9e22ecadbb57baace6d76600d3",
+  "seq": 179,
+  "previous": "3ede7380769c1132aab9850559871c5bde5ceae2",
   "snapshotParents": [],
-  "time": "2026-10-17T14:40:51.515Z",
+  "time": "2026-10-17T14:40:59.634Z",
   "kind": "auto",
-  "transition": "answered of #1924",
+  "transition": "checked-in",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 190,
+    "recordRevision": 191,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5732,7 +5732,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T14:40:50.434Z",
+      "observedAt": "2026-10-17T14:40:58.471Z",
       "held": true,
       "head": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
       "remoteHead": "a35ea4a9879877c0917c0aa4be4f6fcc9af74ea3",
@@ -6117,7 +6117,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T14:40:50.434Z",
+      "observedAt": "2026-10-17T14:40:58.471Z",
       "held": true,
       "head": "ce250f5ef1cdacb217eee91873ad0c468d69b803",
       "remoteHead": "ce250f5ef1cdacb217eee91873ad0c468d69b803",
@@ -6834,11 +6834,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T19:39:19.388Z",
-      "event": "verified",
-      "ticket": 1908
-    },
     {
       "time": "2026-10-16T19:39:29.476Z",
       "event": "verified",
@@ -7567,6 +7562,11 @@
       "ticket": 1924,
       "id": "43f8830a",
       "deliveryId": "5d2de83f"
+    },
+    {
+      "time": "2026-10-17T14:40:57.354Z",
+      "event": "check-in",
+      "outcome": "#1924: the e43240d9 repair landed on ce250f5ef with CI green; decided extend to round 5 (decision 78d86f03, comment 6235207395) and resumed the writer; #1369 closed as obsolete after #1374 and removed from the PR; #1906 round 4 running; cutover held until #1904 closes"
     }
   ]
 }
