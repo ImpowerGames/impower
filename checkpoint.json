@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 184,
-  "previous": "7b6f65878bcbfcf39f55f20be2ec9b83b085aaeb",
+  "seq": 185,
+  "previous": "73d7e6b15d6e5d5640913a70ad78088250b183e4",
   "snapshotParents": [],
-  "time": "2026-10-17T09:22:48.195Z",
+  "time": "2026-10-17T09:23:19.990Z",
   "kind": "auto",
-  "transition": "answer of #1967",
+  "transition": "answered of #1967",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 169,
+    "recordRevision": 170,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4016,11 +4016,11 @@
           "source": "cross-session message from writer session impower-14 (CLI session 4b0d553c) received 2026-10-17 ~14:05Z; the writer keeps working",
           "relayed": null,
           "answer": {
-            "state": "intent",
+            "state": "delivered",
             "text": "Option (b): the tooling PR's body carries 'No linked issue.' with 'Part of #1967' in the summary, and #1967 stays open until the window has run. Consequence you should plan for: the orchestration merge gate requires the PR to close the ticket, so it will refuse this PR by design, and the maintainer merges it instead, as they will merge the in-window PRs. So take it through review exactly as usual (rounds, adjudications, your checkpoint report to me after round 3's verified fixes, my checkpoint decision), and when the gates pass mark it ready under review-pr's readiness and send me your report; I then hand the merge to the maintainer and tell you when it is on main. Do not reopen or close #1967 yourself; it closes after Phase B through the runbook, on the migrated ticket. Everything else in your brief stands. Delivery note: sent to your running session by message, so no resume follows.",
             "deliveryId": "39ccc7f0",
             "attempts": 1,
-            "time": "2026-10-17T09:22:46.089Z",
+            "time": "2026-10-17T09:23:17.787Z",
             "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
           }
         }
@@ -4889,7 +4889,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:22:47.370Z",
+      "observedAt": "2026-10-17T09:23:19.157Z",
       "held": true,
       "head": "37df96b0a24e147ce72260ce4a07403f341961e9",
       "remoteHead": null,
@@ -4947,12 +4947,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:17:34.357Z",
-      "event": "released",
-      "ticket": 1963,
-      "reason": "process 54624 is gone and no process names its launch directory"
-    },
     {
       "time": "2026-10-17T02:18:01.037Z",
       "event": "dispatch-intent",
@@ -5693,6 +5687,13 @@
       "id": "244dc915",
       "deliveryId": "39ccc7f0",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T09:23:17.788Z",
+      "event": "answered",
+      "ticket": 1967,
+      "id": "244dc915",
+      "deliveryId": "39ccc7f0"
     }
   ]
 }
