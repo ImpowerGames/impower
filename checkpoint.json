@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 79,
-  "previous": "b07cfe044d02448d967d95e1a212294d419fd30d",
+  "seq": 80,
+  "previous": "8c622150a5fc23929ade7748a32ffa8c47f3bd75",
   "snapshotParents": [],
-  "time": "2026-10-17T02:18:22.021Z",
+  "time": "2026-10-17T02:19:28.242Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "launch of #1964",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 71,
+    "recordRevision": 72,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1506,10 +1506,7 @@
       ]
     },
     "1964": {
-      "owner": null,
-      "pending": {
-        "operation": "dispatch",
-        "launchId": "bd573167-9ca5-4e98-9612-56b1f8e71ea3",
+      "owner": {
         "route": "claude-cli",
         "model": "claude-opus-5-5",
         "effort": "high",
@@ -1518,9 +1515,27 @@
         "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
         "branch": "feat/1964-pr-activity-to-ticket",
         "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
-        "host": "DESKTOP-726EO47",
-        "time": "2026-10-17T02:18:01.035Z"
+        "launchId": "bd573167-9ca5-4e98-9612-56b1f8e71ea3",
+        "handle": {
+          "kind": "process",
+          "pid": 14592,
+          "start": "639278003650279718",
+          "host": "DESKTOP-726EO47",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1964-bd573167-9ca5-4e98-9612-56b1f8e71ea3"
+        },
+        "verified": false,
+        "brief": {
+          "state": "delivered",
+          "via": "prompt",
+          "text": "Assignment bd573167-9ca5-4e98-9612-56b1f8e71ea3. You are the writer for ImpowerGames/impower ticket #1964 (Move pull request activity from the public pull request to the internal ticket), a slice of Feature #1961, coordinated by coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c an acknowledgement naming assignment bd573167-9ca5-4e98-9612-56b1f8e71ea3 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1964 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket on branch feat/1964-pr-activity-to-ticket from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961, and keep every artifact in it.\nSettled decisions:\n- Cutover switch (maintainer, 2026-10-16, comment 6221962821 on #1961; read it, then #1962's guard and #1963's retargeting as merged on main, which give you .agents/repos.json with cutover and feedbackInbox and the ticketsRepo() resolver in .agents/repos.mjs). Everything this slice moves follows the switch: while it is off (as committed, until #1967), resolve-issue and review-pr keep posting the round state, reports, adjudications, ready and undo notes and the full PR body on the public pull request exactly as today, and agent-handoff, review-supervisor and build-review-prompt keep accepting a report that is a public pull request comment; with it on, every one of those goes to the internal ticket as the ticket specifies (comment host repos/<internal>/issues/<N>/comments, the plan carrying the internal ticket number beside pr, record-report reading the comment by id from the internal repository), the public body shrinks to one paragraph plus Closes ImpowerGames/impower-internal#N with the optional Closes #<public>, the title carries (I-N), and the PR report comment goes on the ticket. Read the position through the resolver, never a scattered conditional, and pin both positions in tests from copies beside their own repos file as #1963 did; never read the committed switch in a test, never flip repos.json in your worktree.\n- The public pull request template cannot be switched by GitHub, and agents read it to write bodies, so .github/PULL_REQUEST_TEMPLATE.md keeps today's sections until the cutover; stage the shrunk template under .agents/templates/public/PULL_REQUEST_TEMPLATE.md beside the issue templates #1963 staged there, and have the skill text describe both positions once (the shared publishing reference's 'The tickets repository' section is the place). The umbrella rule (a pull request that closes several tickets gets an umbrella Task on the internal repository with the tickets as sub-issues and all conversation on the umbrella) is written for the on position; before the cutover the current Closes-per-ticket practice stands.\n- ImpowerGames/impower-internal exists (private, issues on, empty, created by the maintainer on 2026-10-16; decision comment 6226441508 on #1961). For the acceptance criteria that need a live run (a throwaway internal ticket reviewed through review-pr with one reviewer, and the umbrella case), you may create throwaway typed tickets on the internal repository and throwaway draft pull requests on the public repository, run the pipeline from a scratch checkout whose repos.json is flipped on (never your worktree), confirm the public pull request's comment count reads back as zero, then close the throwaway pull requests and delete the throwaway internal tickets, and report their numbers. Keep it to the minimum the criteria need: one reviewer, no merges, no labels or milestones on the internal repository, nothing else created there. Reviewer slots are shared with other writers, so pass --wait and expect contention.\n- The #1962 guard, with the switch on, refuses every GraphQL selection of issues, comments, reviews or discussions for any repository: every ticket read and write in the pipeline goes through gh issue -R or REST, never gh api graphql. The reviewer reaches the internal repository through the delegated GH_TOKEN as the ticket says; reviewer-security keeps stripping GH_*.\n- Other writers run on this machine (#1966 of this Feature, and the #1904 and #1940 runs); reviewer slots and the vitest reservation are shared. Merge origin/main into your branch before each review round, run node --test for the script tests directly, and pass --wait to node scripts/test-suite.mjs when you need vitest. If SendMessage to the coordinator's local_ id fails with no agent reachable, run ListAgents and send to the session titled exactly 'ORCH #1961: private internal tracker'. Any subagent you launch (a filer) reports to the coordinator, not to you: note 'filer launched, report pending' and continue. Keep all private artifacts under the artifact parent this brief names.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+          "deliveryId": "b38562d1",
+          "attempts": 1,
+          "time": "2026-10-17T02:19:25.679Z",
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+        },
+        "since": "2026-10-17T02:19:25.681Z"
       },
+      "pending": null,
       "history": [],
       "results": []
     },
@@ -2193,7 +2208,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:18:21.006Z",
+      "observedAt": "2026-10-17T02:19:27.318Z",
       "held": true,
       "exists": false
     },
@@ -2202,7 +2217,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:18:21.006Z",
+      "observedAt": "2026-10-17T02:19:27.318Z",
       "held": true,
       "head": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
       "remoteHead": "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
@@ -2922,6 +2937,19 @@
       "ticket": 1964,
       "route": "claude-cli",
       "launchId": "bd573167-9ca5-4e98-9612-56b1f8e71ea3"
+    },
+    {
+      "time": "2026-10-17T02:19:25.681Z",
+      "event": "launched",
+      "ticket": 1964,
+      "launchId": "bd573167-9ca5-4e98-9612-56b1f8e71ea3",
+      "handle": {
+        "kind": "process",
+        "pid": 14592,
+        "start": "639278003650279718",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1964-bd573167-9ca5-4e98-9612-56b1f8e71ea3"
+      }
     }
   ]
 }
