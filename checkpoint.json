@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 96,
-  "previous": "adb75e42fb47ece486803b5812f6adf0a46b2674",
+  "seq": 97,
+  "previous": "cd4e6a896f43c1c4795d51d24c2992b3e1123b4e",
   "snapshotParents": [],
-  "time": "2026-10-17T04:07:18.126Z",
+  "time": "2026-10-17T04:07:26.895Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "request of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 85,
+    "recordRevision": 86,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1638,6 +1638,15 @@
             "time": "2026-10-17T02:48:29.585Z",
             "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
           }
+        },
+        {
+          "id": "f73dfd51",
+          "owner": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+          "time": "2026-10-17T04:07:24.303Z",
+          "text": "Round 4 checkpoint report for PR #2015 under decision e0f6d715: one undirected reviewer on 6f5769ab5 (report 6228781538, adjudication 6228968774), 7 blocking findings accepted: one in the render oracle (a stand-in per token broke a reference link whose label held the number) and six more Markdown forms the reader misreads. Correction 51a6a7c0c (unreviewed) adds a rewrite gate: a text is rewritten only when the tool's reading agrees with two GitHub renders of the original (stand-in per token for which tokens link, stand-in per number for which numbers link in order); otherwise the text is left as the transfer wrote it with only the migration line restored and is listed as leftAsTransferred; verify's render check uses a stand-in per number; link text is protected. 47 tests, gate refuses all seven round 4 inputs through the real renderer and none of the 480 live sample texts, rehearsal 7 passed, CI green after two flake reruns. Round limit 4 is used up; writer asks: another bounded round (one undirected reviewer over 6f5769ab5..51a6a7c0c) or accept 51a6a7c0c unreviewed.",
+          "source": "cross-session message from writer session impower-7e (CLI session 58c4e7e1, resumed) received 2026-10-17 ~05:20Z",
+          "relayed": null,
+          "answer": null
         }
       ],
       "checkpoints": [
@@ -2498,7 +2507,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T04:07:16.987Z",
+      "observedAt": "2026-10-17T04:07:25.755Z",
       "held": true,
       "head": "5f4c4d3014460b1a99017e310e46089841f3e179",
       "remoteHead": "5f4c4d3014460b1a99017e310e46089841f3e179",
@@ -2609,7 +2618,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T04:07:16.987Z",
+      "observedAt": "2026-10-17T04:07:25.755Z",
       "held": true,
       "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
       "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
@@ -3468,6 +3477,12 @@
       "time": "2026-10-17T03:54:14.653Z",
       "event": "check-in",
       "outcome": "no change: #1964 PR #2040 at a2598bca0 in round 1 with the undirected reviewer running; #1966 PR #2015 at 51a6a7c0c has the Windows driver check red (test-suite.test.mjs, writer diagnosing before its round 4 checkpoint report); both writers running"
+    },
+    {
+      "time": "2026-10-17T04:07:24.304Z",
+      "event": "request",
+      "ticket": 1966,
+      "id": "f73dfd51"
     }
   ]
 }
