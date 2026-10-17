@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 202,
-  "previous": "4823ce209a8306781c62f457bab6f4ae854646a5",
+  "seq": 203,
+  "previous": "367e4fa6e9d5475e29d51715f9303e2d9b3e9d42",
   "snapshotParents": [],
-  "time": "2026-10-17T12:23:32.971Z",
+  "time": "2026-10-17T12:53:33.391Z",
   "kind": "auto",
   "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 185,
+    "recordRevision": 186,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -5219,7 +5219,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T12:23:32.298Z",
+      "observedAt": "2026-10-17T12:53:32.705Z",
       "held": true,
       "head": "52e5a21c59a790b6849d550318ccad029de8ecc3",
       "remoteHead": "52e5a21c59a790b6849d550318ccad029de8ecc3",
@@ -5505,12 +5505,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T04:07:24.304Z",
-      "event": "request",
-      "ticket": 1966,
-      "id": "f73dfd51"
-    },
     {
       "time": "2026-10-17T04:09:49.433Z",
       "event": "checkpoint-intent",
@@ -6239,6 +6233,11 @@
       "time": "2026-10-17T12:23:31.181Z",
       "event": "check-in",
       "outcome": "no change: PR #2057 (#1967 Phase A) still open and ready at 52e5a21c5, awaiting the maintainer's merge; writer idle; no writer running"
+    },
+    {
+      "time": "2026-10-17T12:53:31.574Z",
+      "event": "check-in",
+      "outcome": "no change: PR #2057 (#1967 Phase A) still open and ready at 52e5a21c5, awaiting the maintainer's merge and go; writer idle; no writer running"
     }
   ]
 }
