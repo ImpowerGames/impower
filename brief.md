@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1904
 
-Checkpoint 244 (this commit), 2026-10-17T21:41:31.857Z, after the intent before a side effect. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
+Checkpoint 245 (this commit), 2026-10-17T21:41:40.502Z, after resume of #1907. Coordinator local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -11,4 +11,4 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 
 ## #1907
 
-- claude-cli claude-opus-5-5 at high, process 21592 on DESKTOP-726EO47
+- claude-cli claude-opus-5-5 at high, process 16708 on DESKTOP-726EO47
