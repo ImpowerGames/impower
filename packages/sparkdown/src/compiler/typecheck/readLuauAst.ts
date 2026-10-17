@@ -3949,7 +3949,7 @@ function readUnit(
   const unit: LuauAstUnit = { kind, root, errors: parser.errors, hotcomments: tokenizer.hotcomments, statements, unreadStatements: parser.unreadStatements };
   if (lines) {
     unit.lines = lines;
-    unit.key = unitKey(tokenizer, start, eof, parser.sourceDependencies);
+    unit.key = unitKey(tokenizer, start, eof, parser.sourceDependencies, parser.errors);
   }
   return unit;
 }
@@ -3983,14 +3983,19 @@ function unitLinesOf(kind: LuauAstUnit["kind"], tokenizer: Tokenizer, start: Pos
  * construct's parts), each `--!` comment, and bounded source reads outside
  * those tokens that affect the parsed unit.
  */
-function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined, sourceDependencies: ReadonlySet<string>): string {
+function unitKey(tokenizer: Tokenizer, start: Position, eof: Position | undefined, sourceDependencies: ReadonlySet<string>, errors: readonly LuauSyntaxError[]): string {
   const parts: string[] = [`start ${start}`, `eof ${eof ?? "-"}`];
+  // An island's EOF is where an error at its end is placed (#1907), so the
+  // place of such an error is part of the reading. Its place alone is not:
+  // an edit to a comment after the island's last token moves it and changes
+  // nothing the check reports.
+  const islandEnds = new Set<string>();
+  for (const token of tokenizer.tokens) if (token.kind === "break" && token.authoredEnd) islandEnds.add(`${token.location.begin}`);
+  for (const error of errors) if (islandEnds.has(`${error.location.begin}`)) parts.push(`error at island end ${error.location.begin}`);
   for (const token of tokenizer.tokens) {
-    // A break ends a statement wherever it stands and whatever it says. An
-    // island's EOF is where an error at its end is placed, so its place is
-    // part of the reading.
+    // A break ends a statement wherever it stands and whatever it says.
     if (token.kind === "break") {
-      parts.push(token.authoredEnd ? `break ${token.location.begin}` : "break");
+      parts.push("break");
       continue;
     }
     parts.push(`${token.kind}${token.unread ? " unread" : ""} ${token.location.begin}-${token.location.end} ${token.text}`);

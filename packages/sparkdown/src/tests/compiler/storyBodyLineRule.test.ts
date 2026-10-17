@@ -22,6 +22,11 @@ const errorsOf = (text: string): string[] => {
   c.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   } as never);
+  return compiledErrors(c);
+};
+
+/** Every error a compiler's compile of the document reports, with its range. */
+const compiledErrors = (c: SparkdownCompiler): string[] => {
   const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
   return (program.diagnostics?.[URI] ?? [])
     .filter((d: any) => d.severity === DiagnosticSeverity.Error)
@@ -317,6 +322,22 @@ describe("a block comment that runs over lines carries a story statement on", ()
     expect(errorsOf(`${statement}\nThe hero.\n`)).toEqual([
       `${line}:${lines[line]!.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`,
     ]);
+  });
+
+  test("an edit that moves the end of input moves the error, as a cold compile places it", () => {
+    const before = "& local a = 1 + --[[ x\n ]]\nThe hero.\n";
+    const after = "& local a = 1 + --[[ x\n y ]]\nThe hero.\n";
+    const c = new SparkdownCompiler();
+    c.configure({
+      files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: before, version: 1, languageId: "sparkdown" }],
+    } as never);
+    expect(compiledErrors(c)).toEqual(errorsOf(before));
+    c.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [{ range: { start: { line: 1, character: 1 }, end: { line: 1, character: 1 } }, text: "y " }],
+    } as never);
+    expect(compiledErrors(c)).toEqual(errorsOf(after));
+    expect(errorsOf(after)).toEqual(["1:5-2:0 Expected identifier when parsing expression, got <eof>"]);
   });
 });
 
