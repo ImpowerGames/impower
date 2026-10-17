@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 256,
-  "previous": "ac5d96270162900fcd3b1069fe767282cddfbe34",
+  "seq": 257,
+  "previous": "9df5d16bd8a3d783482aa0fcd293ae148e378d9c",
   "snapshotParents": [],
-  "time": "2026-10-17T23:03:13.940Z",
+  "time": "2026-10-17T23:03:21.856Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "release of #1907",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 264,
+    "recordRevision": 265,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3036,60 +3036,66 @@
       ]
     },
     "1907": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "high",
-        "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
-        "branch": "fix/1907-story-body-line-rule",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
-        "launchId": "4c537485-e0db-474a-9884-f2d42c3243c1",
-        "handle": {
-          "kind": "process",
-          "pid": 27532,
-          "start": "639278727908956668",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-2b00a5ed-6d33-4769-b939-1fc9937afca6"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment 4c537485-e0db-474a-9884-f2d42c3243c1. You are the writer for ImpowerGames/impower ticket #1907 (End a story-body Luau statement at its line unless brackets, a long string or a block comment carry it on), a slice of Feature #1904, coordinated by coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 an acknowledgement naming assignment 4c537485-e0db-474a-9884-f2d42c3243c1 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1907 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule on branch fix/1907-story-body-line-rule from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904, and keep every artifact in it.\nSettled decisions:\n- The PR body carries Closes #1907 and a Closes line for each Bug the Feature assigns to this slice: #1200 #1207 #1254 #1658; each gets a regression test, and the story form of #1199 and the column-0 case of #1206 get tests without Closes lines. Where a listed Bug is not fixed by this slice, the PR says so and leaves it open.\n- Branch from current origin/main, which contains #1905 (bdba348d), #1374 (a96dbbb3), #1906 (006d924c) and #1924 (merged today). The design of record is Feature #1904 rule 3: in a scene, a branch or the file's top level a Luau statement ends at its physical line unless an open (, [ or {, a long string or a block comment carries it on, bounded by the next scene or branch header where an unclosed opener gets Luau's missing-closer error; nothing else continues a statement (no trailing operator, comma, =, then, else, | or indentation). This deletes the indented continuation of an unfinished if expression and the continuation of a type onto a | line at story scope. Function bodies keep Luau's own rules.\n- The maintainer's standing decision that a narrative declaration ends at its line (a trailing comma is an error; the next line is story) is the same rule seen from the other side; rule 3's three continuations are its only exceptions. The #1580 programIncrementalDiagnostics tests pin today's narrative behaviour; where rule 3 changes a pinned case (for example a value after a multi-line block comment's close), update the precondition and say so in the PR body, keeping the incremental-equals-cold check.\n- #1906 added narrative twins of the Luau assignment rules, LuauSparkdownVariableAssignment and LuauSparkdownAssignmentOperation, so that the Luau-body value scope opened at an = (LuauAssignmentLineBreak) never reaches narrative statements; build the story-body line rule on those twins and never on the Luau rules' scope. GRAMMAR.md section 11.5 is rewritten for the line rule and must no longer carry the indented-continuation or the |-line exception; the lowerers and validators that read those two exceptions change with the grammar; a multi-line store table at story scope must still declare, with a test.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "77895904",
-          "attempts": 1,
-          "time": "2026-10-17T16:56:46.838Z",
-          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
-        },
-        "since": "2026-10-17T16:56:46.839Z",
-        "sessionId": "7f2136c3-9032-46bb-8be3-193e66b4e7a0",
-        "acknowledged": {
-          "time": "2026-10-17T16:57:33.373Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "high",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
+            "branch": "fix/1907-story-body-line-rule",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904",
+            "launchId": "4c537485-e0db-474a-9884-f2d42c3243c1",
+            "handle": {
+              "kind": "process",
+              "pid": 27532,
+              "start": "639278727908956668",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-2b00a5ed-6d33-4769-b939-1fc9937afca6"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment 4c537485-e0db-474a-9884-f2d42c3243c1. You are the writer for ImpowerGames/impower ticket #1907 (End a story-body Luau statement at its line unless brackets, a long string or a block comment carry it on), a slice of Feature #1904, coordinated by coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 an acknowledgement naming assignment 4c537485-e0db-474a-9884-f2d42c3243c1 and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1907 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule on branch fix/1907-story-body-line-rule from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1904, and keep every artifact in it.\nSettled decisions:\n- The PR body carries Closes #1907 and a Closes line for each Bug the Feature assigns to this slice: #1200 #1207 #1254 #1658; each gets a regression test, and the story form of #1199 and the column-0 case of #1206 get tests without Closes lines. Where a listed Bug is not fixed by this slice, the PR says so and leaves it open.\n- Branch from current origin/main, which contains #1905 (bdba348d), #1374 (a96dbbb3), #1906 (006d924c) and #1924 (merged today). The design of record is Feature #1904 rule 3: in a scene, a branch or the file's top level a Luau statement ends at its physical line unless an open (, [ or {, a long string or a block comment carries it on, bounded by the next scene or branch header where an unclosed opener gets Luau's missing-closer error; nothing else continues a statement (no trailing operator, comma, =, then, else, | or indentation). This deletes the indented continuation of an unfinished if expression and the continuation of a type onto a | line at story scope. Function bodies keep Luau's own rules.\n- The maintainer's standing decision that a narrative declaration ends at its line (a trailing comma is an error; the next line is story) is the same rule seen from the other side; rule 3's three continuations are its only exceptions. The #1580 programIncrementalDiagnostics tests pin today's narrative behaviour; where rule 3 changes a pinned case (for example a value after a multi-line block comment's close), update the precondition and say so in the PR body, keeping the incremental-equals-cold check.\n- #1906 added narrative twins of the Luau assignment rules, LuauSparkdownVariableAssignment and LuauSparkdownAssignmentOperation, so that the Luau-body value scope opened at an = (LuauAssignmentLineBreak) never reaches narrative statements; build the story-body line rule on those twins and never on the Luau rules' scope. GRAMMAR.md section 11.5 is rewritten for the line rule and must no longer carry the indented-continuation or the |-line exception; the lowerers and validators that read those two exceptions change with the grammar; a multi-line store table at story scope must still declare, with a test.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_eb962611-54ca-45a3-be39-6b95694bdf56 as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "77895904",
+              "attempts": 1,
+              "time": "2026-10-17T16:56:46.838Z",
+              "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+            },
+            "since": "2026-10-17T16:56:46.839Z",
+            "sessionId": "7f2136c3-9032-46bb-8be3-193e66b4e7a0",
+            "acknowledged": {
+              "time": "2026-10-17T16:57:33.373Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "high",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from impower-f8 on 2026-10-17 naming assignment 4c537485 with --model claude-opus-5-5, --effort high (CLAUDE_EFFORT=high), --permission-mode bypassPermissions",
+              "deliveryId": "77895904"
+            },
+            "resumes": [
+              {
+                "id": "f7210ed9-2e00-4fdc-9dd8-d45a54710f6b",
+                "time": "2026-10-17T21:41:37.947Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-f7210ed9-2e00-4fdc-9dd8-d45a54710f6b"
+              },
+              {
+                "id": "2b00a5ed-6d33-4769-b939-1fc9937afca6",
+                "time": "2026-10-17T22:26:31.287Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-2b00a5ed-6d33-4769-b939-1fc9937afca6"
+              }
+            ]
           },
-          "evidence": "cross-session message from impower-f8 on 2026-10-17 naming assignment 4c537485 with --model claude-opus-5-5, --effort high (CLAUDE_EFFORT=high), --permission-mode bypassPermissions",
-          "deliveryId": "77895904"
-        },
-        "resumes": [
-          {
-            "id": "f7210ed9-2e00-4fdc-9dd8-d45a54710f6b",
-            "time": "2026-10-17T21:41:37.947Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-f7210ed9-2e00-4fdc-9dd8-d45a54710f6b"
-          },
-          {
-            "id": "2b00a5ed-6d33-4769-b939-1fc9937afca6",
-            "time": "2026-10-17T22:26:31.287Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1907-2b00a5ed-6d33-4769-b939-1fc9937afca6"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 27532 is gone and no process names its launch directory; PR #2062 merged through the gate at head 08f9ad28f under decision b5716de2; the writer's final report is stored and its process 27532 has ended (plan census)",
+          "time": "2026-10-17T23:03:20.033Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-17T22:59:58.859Z",
@@ -8875,381 +8881,7 @@
   ],
   "diskRecoveries": [],
   "verifications": [],
-  "work": {
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule": {
-      "ticket": 1907,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
-      "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T23:03:13.245Z",
-      "held": true,
-      "head": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
-      "remoteHead": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 2062,
-      "reviewJobs": [
-        {
-          "job": "pr-2062/round-1/launch-ax-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-ax",
-            "reviewerId": "ax",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gram",
-              "ax",
-              "undirected"
-            ],
-            "head": "0afbe04a765835f0dd566865b0d5540180010d0c",
-            "completedRoundReviewers": {
-              "gram": 1
-            },
-            "time": "2026-10-17T20:17:59.762Z"
-          },
-          "round": 1,
-          "reviewerId": "ax",
-          "attempt": 1,
-          "reviewedHead": "0afbe04a765835f0dd566865b0d5540180010d0c",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "gram": 1,
-            "ax": 1
-          },
-          "plannedRoundReviewers": [
-            "gram",
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6240500146
-          ]
-        },
-        {
-          "job": "pr-2062/round-1/launch-gram-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-gram",
-            "reviewerId": "gram",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gram",
-              "ax",
-              "undirected"
-            ],
-            "head": "ac158d8c915dc4cc1a8686ad304dac8ac716e9f7",
-            "completedRoundReviewers": null,
-            "time": "2026-10-17T20:02:23.429Z"
-          },
-          "round": 1,
-          "reviewerId": "gram",
-          "attempt": 1,
-          "reviewedHead": "ac158d8c915dc4cc1a8686ad304dac8ac716e9f7",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "gram": 1
-          },
-          "plannedRoundReviewers": [
-            "gram",
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "ax",
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6240236862
-          ]
-        },
-        {
-          "job": "pr-2062/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "gram",
-              "ax",
-              "undirected"
-            ],
-            "head": "5928d016c96b4923e6a236b6f1a8ea667c498aab",
-            "completedRoundReviewers": {
-              "gram": 1,
-              "ax": 1
-            },
-            "time": "2026-10-17T20:38:26.834Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "5928d016c96b4923e6a236b6f1a8ea667c498aab",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "gram": 1,
-            "ax": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "gram",
-            "ax",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6240793370
-          ]
-        },
-        {
-          "job": "pr-2062/round-2/launch-ax-2-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-ax-2",
-            "reviewerId": "ax-2",
-            "attempt": 1,
-            "plannedReviewers": [
-              "fix-2",
-              "ax-2",
-              "undirected-2"
-            ],
-            "head": "6e32722d7a63d4a026277dcb711ab9480333832a",
-            "completedRoundReviewers": {
-              "fix-2": 1
-            },
-            "time": "2026-10-17T21:15:21.548Z"
-          },
-          "round": 2,
-          "reviewerId": "ax-2",
-          "attempt": 1,
-          "reviewedHead": "6e32722d7a63d4a026277dcb711ab9480333832a",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "fix-2": 1,
-            "ax-2": 1
-          },
-          "plannedRoundReviewers": [
-            "fix-2",
-            "ax-2",
-            "undirected-2"
-          ],
-          "pendingReviewers": [
-            "undirected-2"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6241281658
-          ]
-        },
-        {
-          "job": "pr-2062/round-2/launch-fix-2-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-fix-2",
-            "reviewerId": "fix-2",
-            "attempt": 1,
-            "plannedReviewers": [
-              "fix-2",
-              "ax-2",
-              "undirected-2"
-            ],
-            "head": "11b41fa25648197709f891129223d32c52b1fc82",
-            "completedRoundReviewers": {
-              "gram": 1,
-              "ax": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T21:00:34.188Z"
-          },
-          "round": 2,
-          "reviewerId": "fix-2",
-          "attempt": 1,
-          "reviewedHead": "11b41fa25648197709f891129223d32c52b1fc82",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "fix-2": 1
-          },
-          "plannedRoundReviewers": [
-            "fix-2",
-            "ax-2",
-            "undirected-2"
-          ],
-          "pendingReviewers": [
-            "ax-2",
-            "undirected-2"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6241106077
-          ]
-        },
-        {
-          "job": "pr-2062/round-2/launch-undirected-2-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected-2",
-            "reviewerId": "undirected-2",
-            "attempt": 1,
-            "plannedReviewers": [
-              "fix-2",
-              "ax-2",
-              "undirected-2"
-            ],
-            "head": "6e32722d7a63d4a026277dcb711ab9480333832a",
-            "completedRoundReviewers": {
-              "fix-2": 1,
-              "ax-2": 1
-            },
-            "time": "2026-10-17T21:22:32.751Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected-2",
-          "attempt": 1,
-          "reviewedHead": "6e32722d7a63d4a026277dcb711ab9480333832a",
-          "completedRoundReviews": 3,
-          "completedRoundReviewers": {
-            "fix-2": 1,
-            "ax-2": 1,
-            "undirected-2": 1
-          },
-          "plannedRoundReviewers": [
-            "fix-2",
-            "ax-2",
-            "undirected-2"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6241460202
-          ]
-        },
-        {
-          "job": "pr-2062/round-3/launch-ax-3-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-ax-3",
-            "reviewerId": "ax-3",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax-3",
-              "undirected-3"
-            ],
-            "head": "7d041448c772fc426a33d20688e3e4b18708667d",
-            "completedRoundReviewers": {
-              "fix-2": 1,
-              "ax-2": 1,
-              "undirected-2": 1
-            },
-            "time": "2026-10-17T21:43:03.061Z"
-          },
-          "round": 3,
-          "reviewerId": "ax-3",
-          "attempt": 1,
-          "reviewedHead": "7d041448c772fc426a33d20688e3e4b18708667d",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "ax-3": 1
-          },
-          "plannedRoundReviewers": [
-            "ax-3",
-            "undirected-3"
-          ],
-          "pendingReviewers": [
-            "undirected-3"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6241779734
-          ]
-        },
-        {
-          "job": "pr-2062/round-3/launch-undirected-3-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-undirected-3",
-            "reviewerId": "undirected-3",
-            "attempt": 1,
-            "plannedReviewers": [
-              "ax-3",
-              "undirected-3"
-            ],
-            "head": "e62e20d001936aa7e526422c598e5c88c177a274",
-            "completedRoundReviewers": {
-              "ax-3": 1
-            },
-            "time": "2026-10-17T21:56:18.384Z"
-          },
-          "round": 3,
-          "reviewerId": "undirected-3",
-          "attempt": 1,
-          "reviewedHead": "e62e20d001936aa7e526422c598e5c88c177a274",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "ax-3": 1,
-            "undirected-3": 1
-          },
-          "plannedRoundReviewers": [
-            "ax-3",
-            "undirected-3"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6241896656
-          ]
-        },
-        {
-          "job": "pr-2062/round-4/launch-undirected-4-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 4,
-            "step": "review-undirected-4",
-            "reviewerId": "undirected-4",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected-4"
-            ],
-            "head": "9ed9a8ab96377498def488057ad20a4963c8f043",
-            "completedRoundReviewers": {
-              "ax-3": 1,
-              "undirected-3": 1
-            },
-            "time": "2026-10-17T22:34:12.671Z"
-          },
-          "round": 4,
-          "reviewerId": "undirected-4",
-          "attempt": 1,
-          "reviewedHead": "9ed9a8ab96377498def488057ad20a4963c8f043",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected-4": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected-4"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6242475326
-          ]
-        }
-      ]
-    }
-  },
+  "work": {},
   "snapshots": {},
   "handoff": null,
   "observed": {
@@ -9312,14 +8944,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T13:31:07.278Z",
-      "event": "answer-intent",
-      "ticket": 1924,
-      "id": "fc721944",
-      "deliveryId": "989bf81a",
-      "attempt": 1
-    },
     {
       "time": "2026-10-17T13:31:16.489Z",
       "event": "resume-intent",
@@ -10065,6 +9689,12 @@
       "event": "operation-outcome",
       "id": "bad50151",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-17T23:03:20.034Z",
+      "event": "released",
+      "ticket": 1907,
+      "reason": "process 27532 is gone and no process names its launch directory"
     }
   ]
 }
