@@ -23,6 +23,7 @@ import {
   parseArgs,
   rewriteBareRefs,
   rewriteClosingRefs,
+  runRehearsal,
   runRestore,
   runRewrite,
   runTransfer,
@@ -80,6 +81,14 @@ test("qualified, word-joined, URL, entity and escaped forms are not bare referen
   const text = "Org/code#12 other/repo#12 word#12 https://x.test/page#12 &#12; \x5c#12 #12abc #12";
   assert.equal(rw(text), "Org/code#12 other/repo#12 word#12 https://x.test/page#12 &#12; \x5c#12 #12abc #3");
   assert.deepEqual(bareRefs(text), [12]);
+});
+
+test("link destinations and written-out URLs keep their fragments", () => {
+  assert.equal(rw("https://example.com/?q=#12 and #12"), "https://example.com/?q=#12 and #3");
+  assert.equal(rw("[section](#12) and [#12](https://x.test/#12) (#12)"), "[section](#12) and [#3](https://x.test/#12) (#3)", "link text and a parenthesised reference still map");
+  assert.equal(rw('[docs](#12 "title") then #40'), '[docs](#12 "title") then #41');
+  assert.equal(rw("[ref]: #12\n\nsee #12"), "[ref]: #12\n\nsee #3", "a link reference definition");
+  assert.deepEqual(bareRefs("<https://x.test/#12> (#40)"), [40]);
 });
 
 test("the migration line names the old repository, so the rewrite leaves it", () => {
@@ -203,9 +212,11 @@ function fakeTracker({ drops = [] } = {}) {
       maybeFail("updateIssue", `${name}#${n}`);
       const { issue } = find(name, n);
       const rest = issue.rest;
-      if (fields.state === "open") Object.assign(rest, { state: "open", state_reason: "reopened", closed_at: null });
-      if (fields.state === "closed") Object.assign(rest, { state: "closed", state_reason: fields.state_reason ?? "completed", closed_at: "2026-10-17T00:00:00Z" });
+      // GitHub applies state_reason only when the state changes.
+      if (fields.state === "open" && rest.state !== "open") Object.assign(rest, { state: "open", state_reason: "reopened", closed_at: null });
+      if (fields.state === "closed" && rest.state !== "closed") Object.assign(rest, { state: "closed", state_reason: fields.state_reason ?? "completed", closed_at: "2026-10-17T00:00:00Z" });
       if ("body" in fields) rest.body = fields.body;
+      if ("title" in fields) rest.title = fields.title;
       if ("type" in fields) rest.type = fields.type ? { name: fields.type } : null;
       if ("labels" in fields) rest.labels = fields.labels.map((name_) => ({ name: name_ }));
       if ("assignees" in fields) rest.assignees = fields.assignees.map((login) => ({ login }));
@@ -317,7 +328,7 @@ function fakeTracker({ drops = [] } = {}) {
     },
     async setProjectItemField(p, itemId, fieldId, value) {
       const item = items.get(p).find((i) => i.id === itemId);
-      item.status = value === "todo" ? "Todo" : "Done";
+      item.status = value === null ? null : value === "todo" ? "Todo" : "Done";
     },
     async labels(name) {
       return at(name).labels;
@@ -352,8 +363,57 @@ function fakeTracker({ drops = [] } = {}) {
     async updatePull(name, n, body) {
       tracker.pulls.find((p) => p.number === n).body = body;
     },
+    // GitHub's own computation, independent of the tool's parser: each
+    // closing keyword's reference resolved to the issue it names now (a
+    // moved issue at its new address), pull requests and unknown numbers
+    // dropped. `computed` overrides it per pull request.
+    computed: new Map(),
     async closingRefs(name, n) {
-      return closingRefs(tracker.pulls.find((p) => p.number === n).body).map((r) => ({ repo: r.repo ?? name, number: r.number }));
+      if (tracker.computed.has(n)) return tracker.computed.get(n);
+      const out = [];
+      for (const m of tracker.pulls.find((p) => p.number === n).body.matchAll(/\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+(?:([\w.-]+\/[\w.-]+))?#(\d+)/gi)) {
+        try {
+          const { r, issue } = find(m[1] ?? name, Number(m[2]));
+          if (!issue.rest.pull_request) out.push({ repo: r.name, number: issue.number });
+        } catch {
+          // An unknown number closes nothing.
+        }
+      }
+      return out;
+    },
+    async createIssue(name, fields) {
+      maybeFail("createIssue", fields.title);
+      const r = at(name);
+      const n = r.next;
+      const milestone = fields.milestone ? { title: r.milestones.find((m) => m.number === fields.milestone).title } : null;
+      tracker.add(name, n, { title: fields.title, body: fields.body ?? "", type: fields.type ? { name: fields.type } : null, labels: (fields.labels ?? []).map((l) => ({ name: l })), assignees: (fields.assignees ?? []).map((login) => ({ login })), milestone });
+      // A lost response: the issue exists, the caller hears nothing.
+      if (tracker.loseCreate?.(fields.title)) {
+        tracker.loseCreate = null;
+        throw new Error("injected lost response after the issue was created");
+      }
+      return view(r, r.issues.get(n));
+    },
+    async issuesSince(name) {
+      return tracker.listIssues(name);
+    },
+    async createComment(name, n, body) {
+      at(name).comments.push({ id: ids++, number: n, body, seq: at(name).comments.length });
+    },
+    async deleteIssue(name, n) {
+      maybeFail("deleteIssue", `${name}#${n}`);
+      const { r } = find(name, n);
+      r.issues.delete(n);
+      r.comments = r.comments.filter((c) => c.number !== n);
+    },
+    async orgIssueFields() {
+      return [{ id: 1, name: "Effort", data_type: "single_select", options: [{ name: "Low" }, { name: "High" }] }];
+    },
+    async latestPull() {
+      return { number: 3, state: "closed" };
+    },
+    async currentUser() {
+      return { login: "member" };
     },
   };
   return tracker;
@@ -479,6 +539,34 @@ for (const [label, failure] of [
   });
 }
 
+test("a resumed transfer reopens and recloses an issue closed with the wrong reason", async () => {
+  const tracker = await seeded();
+  const dir = scratch();
+  const snapshot = await takeSnapshot(tracker, repos);
+  // Issue 4 (closed as not planned) moved, then the run died; something closed it as completed since.
+  tracker.fail.on = (op, arg) => op === "transferIssue" && arg === "Org/code#4";
+  await assert.rejects(transferred(tracker, dir, { snapshot }), /injected failure/);
+  tracker.raw("Org/internal", 2).rest.state = "closed";
+  tracker.raw("Org/internal", 2).rest.state_reason = "completed";
+  await transferred(tracker, dir, { snapshot });
+  assert.equal(tracker.raw("Org/internal", 2).rest.state_reason, "not_planned");
+  assert.ok(tracker.calls.some(([op, arg]) => op === "updateIssue" && arg === "Org/internal#2"));
+});
+
+test("a transfer that cannot set the original reason stops without marking the issue finished", async () => {
+  const tracker = await seeded();
+  const dir = scratch();
+  const snapshot = await takeSnapshot(tracker, repos);
+  const updateIssue = tracker.updateIssue;
+  tracker.updateIssue = async (name, n, fields) => {
+    const result = await updateIssue(name, n, fields);
+    if (name === "Org/internal" && fields.state === "closed") tracker.raw(name, n).rest.state_reason = "completed";
+    return name === "Org/internal" && fields.state === "closed" ? { ...result, state_reason: "completed" } : result;
+  };
+  await assert.rejects(transferred(tracker, dir, { snapshot }), /not marking Org\/code#4 finished/);
+  assert.ok(!new Journal(path.join(dir, "journal.jsonl")).of("transfer").some((r) => r.old === 4 && r.step === "finished"));
+});
+
 test("a dry-run transfer plans from the snapshot and calls nothing", async () => {
   const tracker = await seeded();
   const snapshot = await takeSnapshot(tracker, repos);
@@ -526,6 +614,36 @@ test("verify finds what transfer dropped, restore re-applies it, and verify then
   const again = await runRestore({ tracker, repos, snapshot, journal });
   assert.equal(again.issues, 0);
   assert.equal(tracker.calls.length, writes);
+});
+
+test("verify compares title, author and creation time, and restore puts a title back", async () => {
+  const tracker = await seeded();
+  tracker.raw("Org/code", 7).rest.created_at = "2026-01-02T03:04:05Z";
+  const dir = scratch();
+  const { snapshot, journal } = await transferred(tracker, dir);
+  await runRewrite({ tracker, repos, snapshot, journal });
+  const seven = tracker.raw("Org/internal", 5).rest;
+  Object.assign(seven, { title: "renamed", user: { login: "someone" }, created_at: "2026-10-17T00:00:00Z" });
+  assert.deepEqual((await runVerify({ tracker, repos, snapshot, journal })).map((d) => d.field), ["title", "author", "createdAt"]);
+  const restored = await runRestore({ tracker, repos, snapshot, journal });
+  assert.equal(seven.title, "issue 7");
+  assert.deepEqual(restored.unrestorable.map((u) => u.field), ["author", "createdAt"]);
+});
+
+test("restore clears a value the original lacked and names what it cannot restore", async () => {
+  const tracker = await seeded();
+  // Issue 1 is in Project 1 with no Status; issue 7 has no type... once the snapshot says so.
+  const dir = scratch();
+  const snapshot = await takeSnapshot(tracker, repos);
+  snapshot.issues.find((i) => i.number === 7).type = null;
+  snapshot.issues.find((i) => i.number === 5).projects[0].archived = true;
+  const { journal } = await transferred(tracker, dir, { snapshot });
+  tracker.items.get(1)[0].status = "Todo";
+  const restored = await runRestore({ tracker, repos, snapshot, journal });
+  assert.equal(tracker.raw("Org/internal", 5).rest.type, null, "the type is cleared");
+  assert.equal(tracker.items.get(1)[0].status, null, "the Status is cleared");
+  assert.deepEqual(restored.unrestorable.map((u) => [u.old, u.field]), [[5, "projects"]], "an archived item it cannot archive is named");
+  assert.match(restored.unrestorable[0].reason, /cannot archive/);
 });
 
 test("restore and rewrite refuse until every snapshot issue is transferred", async () => {
@@ -588,6 +706,20 @@ test("rewrite sets bodies and comments from the snapshot's originals, once, thro
   assert.deepEqual(await runVerify({ tracker, repos, snapshot, journal }), []);
 });
 
+test("comments by one author in one second pair by their text, not their order", async () => {
+  const tracker = await seeded();
+  tracker.commentStore("Org/code").push({ id: 601, number: 5, body: "First, naming #4." }, { id: 602, number: 5, body: "Second, naming #1." });
+  const dir = scratch();
+  const { snapshot, journal } = await transferred(tracker, dir);
+  // The transfer wrote the two in the other order, with the same time and author.
+  const moved = tracker.commentStore("Org/internal").filter((c) => c.number === 3);
+  [moved[0].body, moved[1].body] = [moved[1].body, moved[0].body];
+  await runRewrite({ tracker, repos, snapshot, journal });
+  const bodies = tracker.commentStore("Org/internal").filter((c) => c.number === 3).map((c) => c.body);
+  assert.deepEqual(bodies, ["Second, naming #1.", "First, naming #2."]);
+  assert.deepEqual(await runVerify({ tracker, repos, snapshot, journal }), []);
+});
+
 test("a comment thread that no longer matches the snapshot is reported and left alone", async () => {
   const tracker = await seeded();
   tracker.commentStore("Org/code").push({ id: 501, number: 5, body: "See #4." });
@@ -604,13 +736,51 @@ test("rewrite edits the closing lines of open public pull requests, and verify c
   const tracker = await seeded();
   const dir = scratch();
   const { snapshot, journal } = await transferred(tracker, dir);
-  tracker.pulls.push({ number: 30, body: "Summary.\n\nCloses #5\nCloses #2" }, { number: 31, body: "No linked issue." });
+  const into = (branch) => ({ ref: branch, repo: { default_branch: "main" } });
+  tracker.pulls.push({ number: 30, body: "Summary.\n\nCloses #5\nCloses #2", base: into("main") }, { number: 31, body: "No linked issue.", base: into("main") }, { number: 32, body: "Closes Org/internal#9", base: into("feature") });
   const before = await runVerify({ tracker, repos, snapshot, journal });
-  assert.ok(before.some((d) => d.pull === 30 && d.field === "closing reference"));
+  assert.deepEqual(before.filter((d) => d.pull === 30).map((d) => d.field), ["closing line", "closing reference unexpected"], "the stale line, and GitHub's own resolution of it that the line does not name");
   await runRewrite({ tracker, repos, snapshot, journal });
   assert.equal(tracker.pulls[0].body, "Summary.\n\nCloses Org/internal#3\nCloses #2", "the kept public issue keeps its bare reference");
   assert.equal(tracker.pulls[1].body, "No linked issue.");
-  assert.deepEqual(await runVerify({ tracker, repos, snapshot, journal }), []);
+  assert.deepEqual(await runVerify({ tracker, repos, snapshot, journal }), [], "a pull request into another branch has no computed references to check");
+
+  // GitHub's computed set is checked against the body both ways.
+  tracker.computed.set(30, [{ repo: "Org/code", number: 2 }]);
+  assert.deepEqual((await runVerify({ tracker, repos, snapshot, journal })).map((d) => [d.field, d.expected]), [["closing reference missing", "org/internal#3"]]);
+  tracker.computed.set(30, [{ repo: "Org/internal", number: 999 }, { repo: "Org/code", number: 2 }]);
+  assert.deepEqual((await runVerify({ tracker, repos, snapshot, journal })).map((d) => d.field), ["closing reference missing", "closing reference unexpected"]);
+});
+
+// ---------------------------------------------------------------------------
+// Rehearsal
+
+const rehearsalIssues = async (tracker, name) => (await tracker.listIssues(name)).filter((i) => i.title.startsWith("[migrate-tracker rehearsal"));
+
+test("a rehearsal survives a lost creation response, passes verify and leaves no test issue", async () => {
+  const tracker = await seeded({ drops: ["parent", "blockedBy"] });
+  const dir = path.join(scratch(), "rehearsal-a");
+  fs.mkdirSync(dir);
+  tracker.loseCreate = (title) => title.endsWith("] child");
+  await assert.rejects(runRehearsal({ tracker, repos, dir, journal: new Journal(path.join(dir, "journal.jsonl")) }), /lost response/);
+  assert.equal((await rehearsalIssues(tracker, "Org/code")).length, 2, "the child exists though its creation was not recorded");
+  const result = await runRehearsal({ tracker, repos, dir, journal: new Journal(path.join(dir, "journal.jsonl")) });
+  assert.equal(tracker.calls.filter(([op, arg]) => op === "createIssue" && arg.endsWith("] child")).length, 1, "the child was found by its title, not made twice");
+  assert.equal(result.survival.fields.parent["#9"], 'dropped or changed: expected "Org/internal#1", found null');
+  assert.equal(result.verify, "passed");
+  assert.deepEqual([...(await rehearsalIssues(tracker, "Org/code")), ...(await rehearsalIssues(tracker, "Org/internal"))], []);
+});
+
+test("rehearsal clean-up deletes an issue whose creation was never recorded", async () => {
+  const tracker = await seeded();
+  const dir = path.join(scratch(), "rehearsal-b");
+  fs.mkdirSync(dir);
+  const journal = new Journal(path.join(dir, "journal.jsonl"));
+  journal.append({ mode: "rehearsal", step: "creating", role: "parent", title: "[migrate-tracker rehearsal rehearsal-b] parent" });
+  tracker.add("Org/code", 20, { title: "[migrate-tracker rehearsal rehearsal-b] parent" });
+  const { cleanup } = await runRehearsal({ tracker, repos, dir, journal, cleanupOnly: true });
+  assert.deepEqual(cleanup, { parent: "gone from Org/code#20" });
+  assert.deepEqual(await rehearsalIssues(tracker, "Org/code"), []);
 });
 
 // ---------------------------------------------------------------------------

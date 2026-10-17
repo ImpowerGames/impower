@@ -155,24 +155,47 @@ function spanCloser(text, from, n) {
 // (`&#12;`) and an escaped `\#12` are not bare references.
 const BARE_REF = /(^|[\s([{<>"'*_~,;:!?|=+])#(\d+)(?!\w)/g;
 
+// Link destinations are not references: a Markdown inline link's `](...)`,
+// a link reference definition's `[label]: destination`, and a URL written
+// out (`https://host/?q=#12`). Bare references are not mapped inside them.
+const LINK_DESTINATION = /\]\([^)\s]*(?:\s+(?:"[^"]*"|'[^']*'))?\)|^[ \t]{0,3}\[[^\]]+\]:[ \t]*\S+|(?:https?|ftp):\/\/[^\s<>]+/gm;
+
 function mapProse(text, fn) {
   return splitCode(text ?? "").map((p) => (p.code ? p.text : fn(p.text))).join("");
 }
 
-/** Rewrites every bare reference outside code; resolve(n) returns the replacement text or null to leave it. */
+/** Applies fn to the parts of prose outside link destinations. */
+function outsideLinks(prose, fn) {
+  let out = "";
+  let last = 0;
+  for (const m of prose.matchAll(LINK_DESTINATION)) {
+    out += fn(prose.slice(last, m.index)) + m[0];
+    last = m.index + m[0].length;
+  }
+  return out + fn(prose.slice(last));
+}
+
+/** Rewrites every bare reference outside code and link destinations; resolve(n) returns the replacement text or null to leave it. */
 export function rewriteBareRefs(text, resolve) {
   return mapProse(text, (prose) =>
-    prose.replace(BARE_REF, (all, lead, n) => {
-      const to = resolve(Number(n));
-      return to === null || to === undefined ? all : lead + to;
-    }),
+    outsideLinks(prose, (part) =>
+      part.replace(BARE_REF, (all, lead, n) => {
+        const to = resolve(Number(n));
+        return to === null || to === undefined ? all : lead + to;
+      }),
+    ),
   );
 }
 
-/** The numbers of the bare references outside code, in order. */
+/** The numbers of the bare references outside code and link destinations, in order. */
 export function bareRefs(text) {
   const out = [];
-  for (const p of splitCode(text ?? "")) if (!p.code) for (const m of p.text.matchAll(BARE_REF)) out.push(Number(m[2]));
+  mapProse(text, (prose) =>
+    outsideLinks(prose, (part) => {
+      for (const m of part.matchAll(BARE_REF)) out.push(Number(m[2]));
+      return part;
+    }),
+  );
   return out;
 }
 
@@ -226,9 +249,16 @@ export function splitRef(ref) {
   return { repo: ref.slice(0, i), number: Number(ref.slice(i + 1)) };
 }
 
+// Issue-field types whose value is one string or number, which restore can
+// send back as it was read. Any other type stops the snapshot.
+const FIELD_TYPES = new Set(["single_select", "date", "text", "number"]);
+
 function fieldValues(values) {
   return (values ?? [])
-    .map((v) => ({ name: v.issue_field_name, fieldId: v.issue_field_id, value: v.single_select_option?.name ?? v.value ?? null }))
+    .map((v) => {
+      if (v.data_type && !FIELD_TYPES.has(v.data_type)) throw new Error(`issue field ${v.issue_field_name} has type ${v.data_type}, which the snapshot cannot record and restore`);
+      return { name: v.issue_field_name, fieldId: v.issue_field_id, value: v.single_select_option?.name ?? v.value ?? null };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -592,6 +622,7 @@ export function restTracker(gh, repos) {
     getRepo: (repo) => gone(() => gh.api("GET", `repos/${repo}`)),
     currentUser: () => gh.api("GET", "user"),
     listIssues: (repo) => gh.list(`repos/${repo}/issues?state=all&per_page=100`),
+    issuesSince: (repo, since) => gh.list(`repos/${repo}/issues?state=all&per_page=100&since=${encodeURIComponent(since)}`),
     // A transferred issue's old address redirects to its new one, which gh follows.
     getIssue: (repo, n) => gh.api("GET", `repos/${repo}/issues/${n}`),
     findIssue: (repo, n) => gone(() => gh.api("GET", `repos/${repo}/issues/${n}`)),
@@ -704,8 +735,16 @@ export async function runTransfer({ tracker, repos, snapshot, journal, dryRun = 
       }
     }
     if (issue.state === "closed") {
-      const current = await tracker.getIssue(repos.internal, target);
-      if (current.state !== "closed" || normalReason(current) !== normalReason(issue)) await tracker.updateIssue(repos.internal, target, { state: "closed", state_reason: issue.stateReason ?? "completed" });
+      let current = await tracker.getIssue(repos.internal, target);
+      if (current.state !== "closed" || normalReason(current) !== normalReason(issue)) {
+        // GitHub applies a state reason only when the state changes, so a
+        // closed issue with the wrong reason is reopened and closed again.
+        if (current.state === "closed") await tracker.updateIssue(repos.internal, target, { state: "open" });
+        current = await tracker.updateIssue(repos.internal, target, { state: "closed", state_reason: issue.stateReason ?? "completed" });
+      }
+      if (current?.state !== "closed" || normalReason(current) !== normalReason(issue)) {
+        throw new Error(`${repos.internal}#${target} is ${current?.state} (${current?.state_reason}) after closing it as ${normalReason(issue)}; not marking ${repos.code}#${old} finished`);
+      }
     }
     journal.append({ mode: "transfer", old, step: "finished", new: target });
     log(`${repos.code}#${old} -> ${repos.internal}#${target}`);
@@ -737,6 +776,9 @@ const fieldKey = (f) => `${f.name}=${f.value ?? ""}`;
 /** The comparable form of a record: every field the snapshot promises, refs in internal space. */
 export function comparable(record, translate = (r) => r) {
   return {
+    title: record.title,
+    author: record.author,
+    createdAt: record.createdAt,
     state: record.state,
     stateReason: normalReason(record),
     type: record.type,
@@ -853,35 +895,50 @@ export async function runRestore({ tracker, repos, snapshot, journal, dryRun = f
     const differences = diffRecords(comparable(issue, translate), comparable(now.record));
     const actions = [];
     const edit = {};
+    // Every difference either gets an action or is listed as unrestorable,
+    // so a restore that leaves something behind says what and why.
+    const cannot = (field, expected, actual, reason) => unrestorable.push({ old: issue.number, new: target, field, expected, actual, reason });
     for (const d of differences) {
-      if (d.field === "type" && issue.type) edit.type = issue.type;
+      if (d.field === "title") edit.title = issue.title;
+      if (d.field === "type") edit.type = issue.type;
       if (d.field === "labels") edit.labels = issue.labels;
       if (d.field === "milestone") edit.milestone = issue.milestone;
       if (d.field === "assignees") edit.assignees = issue.assignees;
-      if (d.field === "parent" && d.expected) actions.push({ kind: "parent", parent: d.expected, replace: Boolean(d.actual) });
+      if (d.field === "parent") {
+        if (d.expected) actions.push({ kind: "parent", parent: d.expected, replace: Boolean(d.actual) });
+        else cannot("parent", null, d.actual, "a parent the snapshot did not have is left in place");
+      }
       if (d.field === "blockedBy") {
         for (const ref of d.expected.filter((r) => !d.actual.includes(r))) {
           const blocker = issue.blockedBy.find((b) => translate(b.ref) === ref);
           actions.push({ kind: "blockedBy", ref, id: internalId(ref) ?? blocker?.id ?? null });
         }
+        const extra = d.actual.filter((r) => !d.expected.includes(r));
+        if (extra.length) cannot("blockedBy", d.expected, d.actual, `blockers the snapshot did not have are left in place: ${extra.join(", ")}`);
       }
       if (d.field === "projects") {
         for (const m of issue.projects) {
           const have = now.record.projects.find((p) => p.project === m.project);
           if (!have) actions.push({ kind: "projectItem", project: m.project, status: m.status });
-          else if (have.status !== m.status && m.status) actions.push({ kind: "projectStatus", project: m.project, itemId: have.itemId, status: m.status });
+          else if (have.status !== m.status) actions.push({ kind: "projectStatus", project: m.project, itemId: have.itemId, status: m.status });
+          // REST has no call that archives a Project item.
+          if (m.archived && !have?.archived) cannot("projects", projectKey(m), have ? projectKey(have) : null, "REST cannot archive a Project item; archive it on the board");
         }
+        const extra = now.record.projects.filter((p) => !issue.projects.some((m) => m.project === p.project));
+        if (extra.length) cannot("projects", d.expected, d.actual, `Project items the snapshot did not have are left in place: ${extra.map((p) => p.project).join(", ")}`);
       }
       if (d.field === "fields") {
         const values = issue.fields.filter((f) => !now.record.fields.some((g) => g.name === f.name && g.value === f.value)).map((f) => ({ field_id: f.fieldId, value: f.value }));
         if (values.length) actions.push({ kind: "fields", values });
+        const extra = now.record.fields.filter((g) => !issue.fields.some((f) => f.name === g.name));
+        if (extra.length) cannot("fields", d.expected, d.actual, `issue fields the snapshot did not have are left in place: ${extra.map((g) => g.name).join(", ")}`);
       }
       // A migrated child comes back through its own parent link; only a child that stayed behind cannot.
       if (d.field === "children") {
         const stayed = d.expected.filter((ref) => !d.actual.includes(ref) && !migratedRefs.has(ref));
-        if (stayed.length) unrestorable.push({ old: issue.number, new: target, field: "children", expected: stayed, actual: d.actual });
+        if (stayed.length) cannot("children", stayed, d.actual, "a child still on the code repository");
       }
-      if (["state", "stateReason", "comments"].includes(d.field)) unrestorable.push({ old: issue.number, new: target, ...d });
+      if (["author", "createdAt", "state", "stateReason", "comments"].includes(d.field)) cannot(d.field, d.expected, d.actual, "not settable through the API");
     }
     if (Object.keys(edit).length) actions.unshift({ kind: "edit", fields: edit });
     if (actions.length) plan.push({ old: issue.number, new: target, id: now.issue.id, actions });
@@ -915,7 +972,10 @@ export async function runRestore({ tracker, repos, snapshot, journal, dryRun = f
         if (action.status && meta?.statusFieldId) await tracker.setProjectItemField(action.project, item.id, meta.statusFieldId, meta.options[action.status]);
       } else if (action.kind === "projectStatus") {
         const meta = metaOf(action.project);
-        await tracker.setProjectItemField(action.project, action.itemId, meta.statusFieldId, meta.options[action.status]);
+        // A null value clears the field, for an item that had no Status.
+        const option = action.status === null ? null : meta?.options[action.status];
+        if (!meta?.statusFieldId || option === undefined) throw new Error(`Project ${action.project} has no Status option ${action.status}`);
+        await tracker.setProjectItemField(action.project, action.itemId, meta.statusFieldId, option);
       } else if (action.kind === "fields") {
         await tracker.setIssueFields(repos.internal, entry.new, action.values);
       }
@@ -980,8 +1040,31 @@ function pairThread(expected, actual) {
   if (!actual || actual.length !== expected.length) return { pairs: [], mismatch: `${expected.length} comments in the snapshot, ${actual?.length ?? 0} now` };
   const pairs = expected.map((e, k) => ({ expected: e, actual: actual[k] }));
   const bad = pairs.find((p) => p.expected.createdAt !== p.actual.created_at || p.expected.author !== (p.actual.user?.login ?? null));
-  return bad ? { pairs: [], mismatch: `snapshot comment ${bad.expected.id} of ${bad.expected.createdAt} pairs with ${bad.actual.id} of ${bad.actual.created_at}` } : { pairs, mismatch: null };
+  if (bad) return { pairs: [], mismatch: `snapshot comment ${bad.expected.id} of ${bad.expected.createdAt} pairs with ${bad.actual.id} of ${bad.actual.created_at}` };
+  // Comments by one author in one second have no order of their own, so
+  // within such a group each is paired with the one whose text matches once
+  // references are masked; a group that cannot be matched one to one is a
+  // mismatch rather than a guess.
+  for (let start = 0; start < pairs.length; ) {
+    let end = start + 1;
+    while (end < pairs.length && pairs[end].expected.createdAt === pairs[start].expected.createdAt && pairs[end].expected.author === pairs[start].expected.author) end++;
+    if (end - start > 1) {
+      const group = pairs.slice(start, end);
+      const free = group.map((p) => p.actual);
+      for (const p of group) {
+        const k = free.findIndex((a) => a && maskRefs(a.body) === maskRefs(p.expected.body));
+        if (k < 0) return { pairs: [], mismatch: `comments of ${p.expected.createdAt} by ${p.expected.author} cannot be told apart` };
+        p.actual = free[k];
+        free[k] = null;
+      }
+    }
+    start = end;
+  }
+  return { pairs, mismatch: null };
 }
+
+/** Text with every issue reference, bare or qualified, masked, and line ends normalised. */
+const maskRefs = (text) => (text ?? "").replace(/\r\n/g, "\n").replace(/(?:[\w.-]+\/[\w.-]+)?#\d+/g, "#");
 
 /** Every migrated body and comment that differs from its target, with the edit that sets it. */
 async function textDifferences(tracker, repos, snapshot, map) {
@@ -1092,6 +1175,27 @@ export async function runMap({ tracker, repos, snapshot, journal, dir, dryRun = 
 // Verify
 
 /**
+ * The closing references a pull request's body names that GitHub should
+ * compute, and the ones it did, as lower-case `owner/name#N`, both limited
+ * to the code and internal repositories. A body's reference counts when it
+ * names the internal repository, or a kept public issue on the code one; a
+ * code-repository number that is a pull request or was never issued closes
+ * nothing, and one that moved is a stale closing line, reported apart.
+ */
+export function closingComparison(body, computedRefs, snapshot, repos) {
+  const ours = (repo) => sameRepo(repo, repos.code) || sameRepo(repo, repos.internal);
+  const key = (repo, n) => `${repo.toLowerCase()}#${n}`;
+  const kept = new Set(snapshot.kept);
+  const expected = [];
+  for (const ref of closingRefs(body)) {
+    const repo = ref.repo ?? repos.code;
+    if (sameRepo(repo, repos.internal) || (sameRepo(repo, repos.code) && kept.has(ref.number))) expected.push(key(repo, ref.number));
+  }
+  const computed = computedRefs.filter((r) => ours(r.repo)).map((r) => key(r.repo, r.number));
+  return { expected: [...new Set(expected)].sort(), computed: [...new Set(computed)].sort() };
+}
+
+/**
  * Compares the internal repository with the snapshot field by field;
  * compares every migrated body and comment with its rewritten original (so
  * a body without its migration line, a bare reference to an old number, or
@@ -1119,14 +1223,15 @@ export async function runVerify({ tracker, repos, snapshot, journal }) {
   if (snapshot.kind === "migration") {
     const publicIssues = (await tracker.listIssues(repos.code)).filter((i) => !i.pull_request).map((i) => i.number).sort((a, b) => a - b);
     if (!isDeepStrictEqual(publicIssues, [...snapshot.kept].sort((a, b) => a - b))) differences.push({ field: "public issues", expected: snapshot.kept, actual: publicIssues });
-    const kept = new Set(snapshot.kept);
     for (const pull of await tracker.openPulls(repos.code)) {
-      for (const ref of await tracker.closingRefs(repos.code, pull.number)) {
-        if (!sameRepo(ref.repo, repos.internal) && !(sameRepo(ref.repo, repos.code) && kept.has(ref.number))) differences.push({ pull: pull.number, field: "closing reference", expected: repos.internal, actual: `${ref.repo}#${ref.number}` });
-      }
       for (const ref of closingRefs(pull.body)) {
         if ((ref.repo === null || sameRepo(ref.repo, repos.code)) && map.has(ref.number)) differences.push({ pull: pull.number, field: "closing line", expected: `${repos.internal}#${map.get(ref.number)}`, actual: `${ref.repo ?? ""}#${ref.number}` });
       }
+      // GitHub computes closing references only for a pull request into the default branch.
+      if (pull.base?.ref && pull.base?.repo?.default_branch && pull.base.ref !== pull.base.repo.default_branch) continue;
+      const { expected, computed } = closingComparison(pull.body, await tracker.closingRefs(repos.code, pull.number), snapshot, repos);
+      for (const ref of expected.filter((r) => !computed.includes(r))) differences.push({ pull: pull.number, field: "closing reference missing", expected: ref, actual: computed });
+      for (const ref of computed.filter((r) => !expected.includes(r))) differences.push({ pull: pull.number, field: "closing reference unexpected", expected, actual: ref });
     }
   }
   return differences;
@@ -1139,12 +1244,26 @@ const REHEARSAL_ROLES = ["parent", "child", "dependent"];
 
 function rehearsalState(journal) {
   const created = {};
+  const creating = {};
   let deleted = false;
   for (const r of journal.of("rehearsal")) {
+    if (r.step === "creating") creating[r.role] = { title: r.title, at: r.at };
     if (r.step === "created") created[r.role] = r.number;
     if (r.step === "deleted") deleted = true;
   }
-  return { created, deleted, step: (name) => journal.of("rehearsal").some((r) => r.step === name) };
+  return { created, creating, deleted, step: (name) => journal.of("rehearsal").some((r) => r.step === name) };
+}
+
+/**
+ * Finds a rehearsal issue whose creation was journaled as intended but not
+ * as done (the response was lost, or the run died before recording it), by
+ * its run-specific title among the code repository's issues updated since.
+ */
+async function findCreated(tracker, repos, intent) {
+  const since = new Date(Date.parse(intent.at) - 60e3).toISOString();
+  const matches = (await tracker.issuesSince(repos.code, since)).filter((i) => !i.pull_request && i.title === intent.title);
+  if (matches.length > 1) throw new Error(`${matches.length} issues are titled "${intent.title}" (${matches.map((i) => `#${i.number}`).join(", ")}); delete the extras by hand`);
+  return matches[0] ?? null;
 }
 
 /** What the rehearsal's test issues use: a label, a milestone, Project 8's Status and the Effort field. */
@@ -1205,7 +1324,10 @@ export async function runRehearsal({ tracker, repos, dir, journal, dryRun = fals
   const created = { ...r.created };
   const create = async (role, fields) => {
     if (created[role]) return tracker.getIssue(repos.code, created[role]);
-    const issue = await tracker.createIssue(repos.code, { title: title(role), ...fields });
+    // The intent goes first, so a creation whose response is lost is found by its title, not made twice.
+    const found = r.creating[role] ? await findCreated(tracker, repos, r.creating[role]) : null;
+    if (!found) journal.append({ mode: "rehearsal", step: "creating", role, title: title(role) });
+    const issue = found ?? (await tracker.createIssue(repos.code, { title: title(role), ...fields }));
     created[role] = issue.number;
     journal.append({ mode: "rehearsal", step: "created", role, number: issue.number, id: issue.id });
     return issue;
@@ -1295,7 +1417,13 @@ export function textSurvival(snapshot, current, repos) {
 }
 
 async function rehearsalCleanup({ tracker, repos, journal, dryRun = false, log = () => {} }) {
-  const { created } = rehearsalState(journal);
+  const { created: recorded, creating } = rehearsalState(journal);
+  const created = { ...recorded };
+  for (const [role, intent] of Object.entries(creating)) {
+    if (created[role]) continue;
+    const found = await findCreated(tracker, repos, intent);
+    if (found) created[role] = found.number;
+  }
   const map = transferMap(journal);
   const report = {};
   for (const [role, old] of Object.entries(created)) {
