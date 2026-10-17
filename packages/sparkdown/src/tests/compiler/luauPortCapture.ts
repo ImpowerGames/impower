@@ -5,11 +5,12 @@
 // written: a literal, a `test.each` row, a `for ... of` over an array, a local
 // wrapper such as `openMain`, an array joined into a document. Reading the
 // files' syntax would miss every form it was not taught, so each file is
-// transpiled and run with `vitest` and its harness module replaced: `describe`
-// and `test` run their bodies at once, `expect` accepts anything, and every
-// harness helper records the text it is given and returns a value that any
-// further use accepts. A body that still throws stops there; what it handed
-// over first is kept.
+// transpiled and run with `vitest` replaced and every other import loaded for
+// real: `describe` and `test` run their bodies at once, `expect` passes every
+// assertion, and every harness helper records the text it is given and hands
+// back what the real helper returns, so a body runs on as it does in its own
+// suite. A body in scope that still throws may have stopped before a later
+// snippet, so it fails the gate.
 //
 // What is in scope:
 // - linter ports (`../luau-conformance/Lint*.test.ts`): the top-level
@@ -28,7 +29,7 @@
 // the capture cannot reach fails the gate instead of shrinking the corpus.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
@@ -58,6 +59,8 @@ export interface PortCapture {
   snippets: CapturedSnippet[];
   /** In-scope sites that never ran, as `file:line`. */
   unreached: string[];
+  /** In-scope bodies that threw, and files that did not run, with the error. */
+  aborted: string[];
 }
 
 interface Context {
@@ -80,40 +83,57 @@ function anything(): unknown {
   return proxy;
 }
 
-/** Runs a test body, keeping what it records even when it throws. */
-function settle(body: () => unknown, pending: Promise<unknown>[]): void {
+interface RunState {
+  file: string;
+  pending: Promise<unknown>[];
+  /** Bodies in scope that threw, which may have stopped before a later snippet. */
+  aborted: string[];
+  /** Whether the body running now is in scope. */
+  inScope: () => boolean;
+}
+
+/**
+ * Runs a body. One in scope that throws, now or when its promise settles, is
+ * recorded as aborted: it may have stopped before handing over a later
+ * snippet, as a loop over rows does when a row's result is read.
+ */
+function settle(body: () => unknown, state: RunState, title: string): void {
+  const abort = (error: unknown) => {
+    if (!state.inScope()) return;
+    state.aborted.push(`${state.file}: ${title}: ${error instanceof Error ? error.message : String(error)}`);
+  };
   try {
     const result = body();
     if (result && typeof (result as Promise<unknown>).then === "function") {
-      pending.push((result as Promise<unknown>).catch(() => undefined));
+      state.pending.push((result as Promise<unknown>).catch(abort));
     }
-  } catch {
-    // The stubs cannot satisfy every assertion; the snippet is already recorded.
+  } catch (error) {
+    abort(error);
   }
 }
 
 type Body = (...args: unknown[]) => unknown;
 
 /** `test`, `it` or `describe`: runs the body at once, and the same for `.skip`, `.only`, `.each(rows)` and the like. */
-function runner(pending: Promise<unknown>[]): unknown {
-  const run = (_name: unknown, body?: Body) => {
-    if (typeof body === "function") settle(() => body(), pending);
+function runner(state: RunState): unknown {
+  const run = (name: unknown, body?: Body) => {
+    if (typeof body === "function") settle(() => body(), state, String(name));
   };
   return new Proxy(run, {
     get: (_, key) => {
       if (key === "each") {
-        return (rows: unknown[]) => (_name: unknown, body: Body) => {
-          for (const row of rows) settle(() => body(...(Array.isArray(row) ? row : [row])), pending);
+        return (rows: unknown[]) => (name: unknown, body: Body) => {
+          rows.forEach((row, i) => settle(() => body(...(Array.isArray(row) ? row : [row])), state, `${String(name)} [row ${i + 1}]`));
         };
       }
       if (key === "todo") return () => undefined;
-      return runner(pending);
+      return runner(state);
     },
   });
 }
 
-function parse(file: string): ts.SourceFile {
-  return ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+function parse(file: string, text = readFileSync(file, "utf8")): ts.SourceFile {
+  return ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
 }
 
 /** The names a file imports from `module`, each local name with the name the module exports. */
@@ -217,16 +237,42 @@ function upstreamCaseKey(call: ts.CallExpression): string | undefined {
   return key && (ts.isStringLiteral(key) || ts.isNoSubstitutionTemplateLiteral(key)) ? key.text : undefined;
 }
 
+/** The file a relative import names, as Vite would find it. */
+function resolveImport(from: string, specifier: string): string {
+  if (!specifier.startsWith(".")) return specifier;
+  const base = join(dirname(from), specifier);
+  for (const candidate of [base, `${base}.ts`, `${base}.tsx`, join(base, "index.ts")]) {
+    if (/\.tsx?$/.test(candidate) && existsSync(candidate)) return candidate;
+  }
+  return base;
+}
+
+/** Every module a port imports at run time, loaded for real, except `vitest`. */
+async function loadImports(path: string, source: ts.SourceFile): Promise<Map<string, unknown>> {
+  const modules = new Map<string, unknown>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || statement.importClause?.isTypeOnly) continue;
+    const specifier = (statement.moduleSpecifier as ts.StringLiteral).text;
+    if (specifier === "vitest" || modules.has(specifier)) continue;
+    modules.set(specifier, await import(/* @vite-ignore */ resolveImport(path, specifier)));
+  }
+  return modules;
+}
+
 async function runPort(
   path: string,
+  text: string,
   harness: string,
   recording: (exported: string) => boolean,
   scopes: (source: ts.SourceFile, callees: Set<string>, sites: string[], edits: Edit[]) => void,
   record: (helper: string, args: unknown[], context: Context | undefined) => void,
+  inScope: (context: Context | undefined) => boolean,
   contexts: AsyncLocalStorage<Context>,
-  unreached: string[],
+  capture: PortCapture,
 ): Promise<void> {
-  const source = parse(path);
+  const source = parse(path, text);
+  const modules = await loadImports(path, source);
+  const realHarness = (modules.get(harness) ?? {}) as Record<string, unknown>;
   const recorders = [...importsFrom(source, harness)].filter(([, exported]) => recording(exported)).map(([local]) => local);
   const callees = siteCallees(source, new Set(recorders));
   const sites: string[] = [];
@@ -245,36 +291,50 @@ async function runPort(
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
 
-  const pending: Promise<unknown>[] = [];
-  const harnessModule = new Proxy({} as Record<string, unknown>, {
-    get: (_, key) => {
+  const aborted: string[] = [];
+  const state: RunState = {
+    file: path.split(/[\\/]/).pop()!,
+    pending: [],
+    aborted,
+    inScope: () => inScope(contexts.getStore()),
+  };
+  // The harness, with its recording helpers handing back what the real ones
+  // return, so a body runs on as it does in its own suite, and the case
+  // registration (`upstreamCase`) running the body in its case's context.
+  const harnessModule = new Proxy(realHarness, {
+    get: (real, key) => {
       if (typeof key !== "string") return undefined;
       if (key === "upstreamCase") {
-        const upstreamCase = (scope: string, _title: string, body: Body) =>
-          contexts.run({ scope }, () => settle(() => body(), pending));
+        const upstreamCase = (scope: string, title: string, body: Body) =>
+          contexts.run({ scope }, () => settle(() => body(), state, `${scope}: ${title}`));
         return Object.assign(upstreamCase, {
           bug: (_bug: unknown, scope: string, title: string, body: Body) => upstreamCase(scope, title, body),
         });
       }
+      // Sparkdown's own cases, which the real harness would register as tests here.
+      if (key === "sparkdownBug") {
+        return (_bugs: unknown, title: string, body: Body) => contexts.run({ scope: "" }, () => settle(() => body(), state, title));
+      }
       if (recording(key)) {
         return (...args: unknown[]) => {
           record(key, args, contexts.getStore());
-          return anything();
+          return (real[key] as Body)(...args);
         };
       }
-      return anything();
+      return real[key];
     },
   });
-  // `expect(() => labelsAt(source)).not.toThrow()` hands over a function.
+  // Assertions pass; `expect(() => labelsAt(source)).not.toThrow()` hands over a function.
   const expect = new Proxy(
     (value: unknown) => {
-      if (typeof value === "function") settle(() => (value as Body)(), pending);
+      if (typeof value === "function") settle(() => (value as Body)(), state, "a function handed to expect");
       return anything();
     },
     { get: () => anything() },
   );
-  const vitest = { describe: runner(pending), test: runner(pending), it: runner(pending), expect, vi: anything() };
-  const requireStub = (specifier: string) => (specifier === "vitest" ? vitest : specifier === harness ? harnessModule : anything());
+  const vitest = { describe: runner(state), test: runner(state), it: runner(state), expect, vi: anything() };
+  const requireStub = (specifier: string) =>
+    specifier === "vitest" ? vitest : specifier === harness ? harnessModule : modules.get(specifier);
   const module = { exports: {} };
   const site = (id: number, fn: unknown) => {
     reached.add(id);
@@ -290,48 +350,72 @@ async function runPort(
       context,
       { url: pathToFileURL(path).href },
     );
-  } catch {
-    // A file that cannot run leaves its sites unreached, which the gate reports.
+  } catch (error) {
+    capture.aborted.push(`${state.file}: the file did not run: ${error instanceof Error ? error.message : String(error)}`);
   }
-  await Promise.all(pending);
+  // A promise can start more work as it settles.
+  for (let settled = 0; settled < state.pending.length; ) {
+    const batch = state.pending.slice(settled);
+    settled = state.pending.length;
+    await Promise.all(batch);
+  }
+  capture.aborted.push(...aborted);
   sites.forEach((where, id) => {
-    if (!reached.has(id)) unreached.push(where);
+    if (!reached.has(id)) capture.unreached.push(where);
   });
+}
+
+/**
+ * Runs one linter port, given as its file name in the port directory and its
+ * text, and adds what it hands its harness to `capture`.
+ */
+export async function captureLintPort(
+  file: string,
+  text: string,
+  capture: PortCapture = { snippets: [], unreached: [], aborted: [] },
+  contexts = new AsyncLocalStorage<Context>(),
+): Promise<PortCapture> {
+  await runPort(
+    join(LINT_ROOT, file),
+    text,
+    LINT_HARNESS,
+    (exported) => exported.endsWith("InFunction") || LINT_DOCUMENT_HELPERS.has(exported),
+    (source, callees, sites, edits) => {
+      for (const [statement, cases] of luauCaseGroups(source)) {
+        markSites(source, statement, callees, sites, edits);
+        if (!ts.isExpressionStatement(statement)) continue;
+        edits.push({ from: statement.getStart(), to: statement.getStart(), text: `__context(${JSON.stringify(cases.join(", "))}, () => {\n` });
+        edits.push({ from: statement.end, to: statement.end, text: "\n});" });
+      }
+    },
+    (helper, args, context) => {
+      if (!context || typeof args[0] !== "string") return;
+      const kind = helper.endsWith("InFunction") ? "body" : "document";
+      capture.snippets.push({ source: "lint", file, scope: context.scope, kind, text: args[0] });
+    },
+    (context) => context !== undefined,
+    contexts,
+    capture,
+  );
+  return capture;
 }
 
 /** Runs every linter and autocomplete port and returns the snippets they hand to their harness. */
 export async function capturePortSnippets(): Promise<PortCapture> {
-  const snippets: CapturedSnippet[] = [];
-  const unreached: string[] = [];
+  const capture: PortCapture = { snippets: [], unreached: [], aborted: [] };
   const contexts = new AsyncLocalStorage<Context>();
 
   const lintFiles = readdirSync(LINT_ROOT).filter((f) => /^Lint.*\.test\.ts$/.test(f)).sort();
   for (const file of lintFiles) {
-    await runPort(
-      join(LINT_ROOT, file),
-      LINT_HARNESS,
-      (exported) => exported.endsWith("InFunction") || LINT_DOCUMENT_HELPERS.has(exported),
-      (source, callees, sites, edits) => {
-        for (const [statement, cases] of luauCaseGroups(source)) {
-          markSites(source, statement, callees, sites, edits);
-          if (!ts.isExpressionStatement(statement)) continue;
-          edits.push({ from: statement.getStart(), to: statement.getStart(), text: `__context(${JSON.stringify(cases.join(", "))}, () => {\n` });
-          edits.push({ from: statement.end, to: statement.end, text: "\n});" });
-        }
-      },
-      (helper, args, context) => {
-        if (!context || typeof args[0] !== "string") return;
-        snippets.push({ source: "lint", file, scope: context.scope, kind: helper.endsWith("InFunction") ? "body" : "document", text: args[0] });
-      },
-      contexts,
-      unreached,
-    );
+    await captureLintPort(file, readFileSync(join(LINT_ROOT, file), "utf8"), capture, contexts);
   }
 
   const autocompleteFiles = readdirSync(AUTOCOMPLETE_ROOT).filter((f) => /^autocomplete.*\.test\.ts$/.test(f)).sort();
   for (const file of autocompleteFiles) {
+    const path = join(AUTOCOMPLETE_ROOT, file);
     await runPort(
-      join(AUTOCOMPLETE_ROOT, file),
+      path,
+      readFileSync(path, "utf8"),
       AUTOCOMPLETE_HARNESS,
       (exported) => AUTOCOMPLETE_HELPERS.has(exported),
       (source, callees, sites, edits) => {
@@ -349,11 +433,12 @@ export async function capturePortSnippets(): Promise<PortCapture> {
       },
       (_helper, args, context) => {
         if (!context || AUTOCOMPLETE_CASES[context.scope]?.status !== "ported" || typeof args[0] !== "string") return;
-        snippets.push({ source: "autocomplete", file, scope: context.scope, kind: "document", text: args[0] });
+        capture.snippets.push({ source: "autocomplete", file, scope: context.scope, kind: "document", text: args[0] });
       },
+      (context) => context !== undefined && AUTOCOMPLETE_CASES[context.scope]?.status === "ported",
       contexts,
-      unreached,
+      capture,
     );
   }
-  return { snippets, unreached };
+  return capture;
 }

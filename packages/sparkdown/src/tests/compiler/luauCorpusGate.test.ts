@@ -37,7 +37,7 @@ import {
   type CorpusInput,
   type CorpusSource,
 } from "./luauCorpus";
-import { capturePortSnippets } from "./luauPortCapture";
+import { captureLintPort, capturePortSnippets } from "./luauPortCapture";
 import { readings } from "./luauSyntaxReadings";
 
 // The type-checker port files hand their cases to `portUpstreamFile` as they
@@ -167,6 +167,10 @@ describe("Luau corpus gate", () => {
       capture.unreached,
       "a port's harness call never ran, so its snippet is not in the corpus; make luauPortCapture.ts reach it",
     ).toEqual([]);
+    expect(
+      capture.aborted,
+      "a port's test body threw while its snippets were read, so a later snippet may be missing; make luauPortCapture.ts run it through",
+    ).toEqual([]);
   });
 
   // The second `describe` of upstream DeprecatedApiUntyped has no `// Luau:`
@@ -175,6 +179,28 @@ describe("Luau corpus gate", () => {
     expect(
       INPUTS.filter((input) => input.name.startsWith("lint/LintExistingWarnings.test.ts/") && input.luau.includes("print(table.nogetn())")).length,
     ).toBe(1);
+  });
+
+  // A loop over rows that reads each row's result stops at a row it cannot
+  // read; its later rows were never handed over, though the call site ran
+  // (round 2 of #1996). The capture reports the stopped body.
+  test("reports a port body that stops before its later snippets", async () => {
+    const port = [
+      `import { expect, test } from "vitest";`,
+      `import { lintInFunction } from "./diagnosticTestHarness";`,
+      `// Luau: RowsFixture`,
+      `test("rows", () => {`,
+      `  for (const body of ["return 1", "return 2"]) {`,
+      `    const [first] = lintInFunction(body);`,
+      `    expect(first!.line).toBe(0);`,
+      `  }`,
+      `});`,
+    ].join("\n");
+    const result = await captureLintPort("LintRowsFixture.test.ts", port);
+    expect(result.snippets.map((snippet) => snippet.text)).toEqual(["return 1"]);
+    expect(result.unreached).toEqual([]);
+    expect(result.aborted).toHaveLength(1);
+    expect(result.aborted[0]).toMatch(/^LintRowsFixture\.test\.ts: rows: /);
   });
 
   // Luau closes the function at the `end` of an unsupported `class` and then
