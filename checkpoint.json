@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 124,
-  "previous": "b01fdab58845158e7bd7b7ec4b41ddc227cabc52",
+  "seq": 125,
+  "previous": "58a1d7efb82f91a545bab879d26a114a1d9ae8fd",
   "snapshotParents": [],
-  "time": "2026-10-17T06:19:48.203Z",
+  "time": "2026-10-17T06:21:04.872Z",
   "kind": "auto",
-  "transition": "request of #1374",
+  "transition": "answer of #1374",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 129,
+    "recordRevision": 132,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -381,6 +381,297 @@
             "time": "2026-10-17T05:13:47.249Z",
             "headAtPublish": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485"
           }
+        },
+        {
+          "version": 1,
+          "id": "f7d1fa9b",
+          "kind": "extend",
+          "feature": 1904,
+          "ticket": 1374,
+          "pr": 2022,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T06:20:58.510Z",
+          "round": 4,
+          "limitBefore": 4,
+          "reviewedHead": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
+          "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
+          "range": {
+            "from": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
+            "to": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
+            "base": "68a6335fb22f647ce111dfe1860fb1c68d5d8094",
+            "commits": [
+              "082a8f5fea45ce79086d7f7131dae7f733abbfd6"
+            ],
+            "diffSha256": "cf6e57ed01c746e17a923f4e5a95bbd4c104e802cc7d2e2e652de5bd20f4a5da"
+          },
+          "reports": [
+            {
+              "comment": 6227678778,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6228027575
+            },
+            {
+              "comment": 6228181464,
+              "round": 1,
+              "reviewerId": "grammar",
+              "adjudication": 6228302103
+            },
+            {
+              "comment": 6228554152,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6228827434
+            },
+            {
+              "comment": 6229047169,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6229165366
+            },
+            {
+              "comment": 6229315616,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6229479904
+            },
+            {
+              "comment": 6230176446,
+              "round": 4,
+              "reviewerId": "undirected",
+              "adjudication": 6230410341
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 5,
+          "limitReason": "one bounded round reviews the end-rule repair and the two reading changes in 082a8f5fe; a clean round finishes the PR through ordinary readiness, and a further end-rule finding is answered by a repair, not another round.",
+          "authority": "/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.",
+          "assessment": {
+            "mechanisms": "The round 3 assessment named two mechanisms; round 4 found one more instance of each and one new reading gap. (1) Where an & type-continuation line ends: round 4 finding 2 (consecutive column-zero members looped on empty matches and the engines diverged by four characters) is the fourth finding in this rule across four rounds. The round 4 correction changes the rule shape rather than its cases: the member rule consumes its own & and ends at every next line that does not continue with |, so each member line is its own node at any indentation, which is the end rule stated as a property (the type ends where Luau type ends, line-wise) instead of a list of stop words. (2) Lowering and diagnostic ownership of member lines: round 4 finding 1 (a statement after a return-type member line was silently dropped because the body was read without its return type; fixed by reading such a body as the rest of a type, readLuauBlock afterType with a synthetic type declaration dropped from the statements) and finding 3 (an unowned & line recovery errors differed from Luau; fixed by reading the member line up to its value with Luau own lexer, as unread tokens are read), accepted in part: & () lacking Incomplete statement is the converter deliberate pre-existing divergence for an expression that is already an error, pinned by a test.",
+            "regressions": "No round 4 finding was a regression of a round 3 correction: finding 2 was a case the old line-start end had always had, finding 1 a reading gap present since the PR first head, finding 3 a pre-existing divergence of recovery wording. The writer first tried a grammar fix for finding 1 (ending a type before a glued name) and dropped it before commit when the corpus gate found an ERROR_INCOMPLETE on a fuzzer case, which is the gate doing its job. Each round 4 repair, undone, fails exactly its tests.",
+            "repairOptions": "The repair the round 3 decision reserved for a further end-rule finding has been taken inside 082a8f5fe: the member rule now owns its & and ends line-wise, with no enumerated stop list. No broader repair is available for the reading gap (finding 1) than reading the body with its return type, and the recovery wording (finding 3) now comes from Luau lexer. What remains is independent review of that repair and the two reading changes, which 082a8f5fe has not had. The glued-name highlighting gap stays with #2044.",
+            "residualRisk": "082a8f5fe is unreviewed and changes three things: the member rule shape (its own & consumed, line-wise end), the lowering of a body whose first lines continue its return type, and the converter reading of unowned & lines with Luau lexer. The failure mode of the class is silent (a dropped statement), so an unreviewed change here is the wrong place to stop. PR #1993 (#1924) touches the same rules (a redundant & continuation mark in Luau bodies) and will conflict with this PR; whichever merges second resolves the YAML conflict in the sources and regenerates both outputs.",
+            "coverage": "On 082a8f5fe: redgreen against origin/main (43 failed and 12 passed on base, 55/55 green, files restored byte for byte); each round 4 repair undone fails exactly its tests (old line-start end 3 cases, raw reading off 2, afterType off 2); FunctionIntersectionContinuation 55, grammarSnapshot, vscodeGrammarSnapshot, scopeEquality, luauTreeAst, luauSyntaxAgreement, luauOfficialAst, luauCorpusGate 1071, MultilineTypeUnion, TypeBinaryOperatorMissingType, invalidStatementInFunctionBody, returnFinalStatement1298, Run, programDiagnosticsParity, LeadingDotContinuation, TypeFunctionDeclaration passing; compareEnginesFull 0 divergences on the fixture; grammar ESLint, node-name and lowerer-convention checks and the filtered typecheck clean. Round 4 confirmed on 0f3ab9946 that both round 3 fixes fail on revert, that the type-end-conditioned stop held for 22 contextual member spellings, and that the glued highlighting correctly stays with #2044. CI on 082a8f5fe: every check passed, four skipped, linked-issue re-running after a PR body edit that kept Closes #1374.",
+            "nextRoundValue": "Round 5, one undirected reviewer with the grammar-conventions lens on 0f3ab9946..082a8f5fe with the whole PR for context: whether the line-wise member rule holds for every member spelling the fixture covers, indented and column-zero, with and without a following | line, and leaves no empty-match path in either engine; whether afterType reading drops nothing and double-reports nothing; whether the Luau-lexer reading of unowned & lines matches the official parser on the fixture cases and the rejected & () divergence is pinned as stated. If round 5 finds nothing, the whole PR is reviewed and finishes through ordinary readiness; if it finds another end-rule case, the property is not yet right and the next decision is a repair, not a round.",
+            "rationale": "Acceptance of unreviewed corrections is refused on the same grounds as at round 3: the change is in a class whose failure is silent and it has not been read by anyone but its writer. The repair that a further end-rule finding called for is already in the head, so directing one would repeat it. One bounded round on the repair is the step the checkpoint rule prescribes after a repair, and #1907 waits on this PR holding.",
+            "next": "Publish this extension; the session launches round 5 with reviewRoundLimit 5 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 0f3ab9946..082a8f5fe, then sends the next checkpoint after round 5 verified fixes; the coordinator then decides again and merges through the gate.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 5,
+            "limitReason": "one bounded round reviews the end-rule repair and the two reading changes in 082a8f5fe; a clean round finishes the PR through ordinary readiness, and a further end-rule finding is answered by a repair, not another round.",
+            "findings": [
+              {
+                "comment": 6227678778,
+                "finding": "B1: four packages/sparkdown CI jobs failed 43 tests in 10 files that write & inside a function body",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227678778,
+                "finding": "Q1: the lowerer's continuation message pointed at the wrong line (accepted in a different form)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228181464,
+                "finding": "the new unread continuation token bypassed the shared diagnostic ownership table",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228181464,
+                "finding": "the grammar tutorial still instructed readers to include the deleted rule (quality)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228554152,
+                "finding": "the type-operator line continuation ended only at its line's end, swallowing a same-line statement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229047169,
+                "finding": "the continuation still missed valid same-line statement boundaries after a comment or a glued statement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229047169,
+                "finding": "test honesty: the two added runtime cases passed with the correction reverted",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229315616,
+                "finding": "an adjacent assignment after a member's type was swallowed as type text and silently omitted at runtime",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229315616,
+                "finding": "the unconditional declaration stop rejected a valid intersection member named store",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230176446,
+                "finding": "a statement on an intersection return-type member line was silently dropped (body read without its return type)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230176446,
+                "finding": "consecutive column-zero intersection members caused an empty-match loop and different editor scopes",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230176446,
+                "finding": "unowned & lines did not report Luau recovery diagnostics (accepted for & {}; the & () Incomplete statement part rejected as the converter deliberate pre-existing divergence, pinned by a test)",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 4: authorize another bounded round\n\nDecision `f7d1fa9b` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1374. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\"\n\n- Round state: round 4 is complete (limit 4 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6227678778 in 6228027575, 6228181464 in 6228302103, 6228554152 in 6228827434, 6229047169 in 6229165366, 6229315616 in 6229479904, 6230176446 in 6230410341).\n- Independently reviewed through `0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485`.\n- Head `082a8f5fea45ce79086d7f7131dae7f733abbfd6`. Unreviewed: `0f3ab9946..082a8f5fe`, 1 commit (`082a8f5fe` fix(compiler): read & member lines as Luau does, and a return type's members in its context (#1374)), diff SHA-256 `cf6e57ed01c746e17a923f4e5a95bbd4c104e802cc7d2e2e652de5bd20f4a5da`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, driver-checks passed, test-suite passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 12 accepted; unresolved: none.\n- Shared mechanisms: The round 3 assessment named two mechanisms; round 4 found one more instance of each and one new reading gap. (1) Where an & type-continuation line ends: round 4 finding 2 (consecutive column-zero members looped on empty matches and the engines diverged by four characters) is the fourth finding in this rule across four rounds. The round 4 correction changes the rule shape rather than its cases: the member rule consumes its own & and ends at every next line that does not continue with |, so each member line is its own node at any indentation, which is the end rule stated as a property (the type ends where Luau type ends, line-wise) instead of a list of stop words. (2) Lowering and diagnostic ownership of member lines: round 4 finding 1 (a statement after a return-type member line was silently dropped because the body was read without its return type; fixed by reading such a body as the rest of a type, readLuauBlock afterType with a synthetic type declaration dropped from the statements) and finding 3 (an unowned & line recovery errors differed from Luau; fixed by reading the member line up to its value with Luau own lexer, as unread tokens are read), accepted in part: & () lacking Incomplete statement is the converter deliberate pre-existing divergence for an expression that is already an error, pinned by a test.\n- Defects introduced by corrections: No round 4 finding was a regression of a round 3 correction: finding 2 was a case the old line-start end had always had, finding 1 a reading gap present since the PR first head, finding 3 a pre-existing divergence of recovery wording. The writer first tried a grammar fix for finding 1 (ending a type before a glued name) and dropped it before commit when the corpus gate found an ERROR_INCOMPLETE on a fuzzer case, which is the gate doing its job. Each round 4 repair, undone, fails exactly its tests.\n- Broader or simpler repair: The repair the round 3 decision reserved for a further end-rule finding has been taken inside 082a8f5fe: the member rule now owns its & and ends line-wise, with no enumerated stop list. No broader repair is available for the reading gap (finding 1) than reading the body with its return type, and the recovery wording (finding 3) now comes from Luau lexer. What remains is independent review of that repair and the two reading changes, which 082a8f5fe has not had. The glued-name highlighting gap stays with #2044.\n- Residual risk: 082a8f5fe is unreviewed and changes three things: the member rule shape (its own & consumed, line-wise end), the lowering of a body whose first lines continue its return type, and the converter reading of unowned & lines with Luau lexer. The failure mode of the class is silent (a dropped statement), so an unreviewed change here is the wrong place to stop. PR #1993 (#1924) touches the same rules (a redundant & continuation mark in Luau bodies) and will conflict with this PR; whichever merges second resolves the YAML conflict in the sources and regenerates both outputs.\n- Verification coverage: On 082a8f5fe: redgreen against origin/main (43 failed and 12 passed on base, 55/55 green, files restored byte for byte); each round 4 repair undone fails exactly its tests (old line-start end 3 cases, raw reading off 2, afterType off 2); FunctionIntersectionContinuation 55, grammarSnapshot, vscodeGrammarSnapshot, scopeEquality, luauTreeAst, luauSyntaxAgreement, luauOfficialAst, luauCorpusGate 1071, MultilineTypeUnion, TypeBinaryOperatorMissingType, invalidStatementInFunctionBody, returnFinalStatement1298, Run, programDiagnosticsParity, LeadingDotContinuation, TypeFunctionDeclaration passing; compareEnginesFull 0 divergences on the fixture; grammar ESLint, node-name and lowerer-convention checks and the filtered typecheck clean. Round 4 confirmed on 0f3ab9946 that both round 3 fixes fail on revert, that the type-end-conditioned stop held for 22 contextual member spellings, and that the glued highlighting correctly stays with #2044. CI on 082a8f5fe: every check passed, four skipped, linked-issue re-running after a PR body edit that kept Closes #1374.\n- What another round would establish: Round 5, one undirected reviewer with the grammar-conventions lens on 0f3ab9946..082a8f5fe with the whole PR for context: whether the line-wise member rule holds for every member spelling the fixture covers, indented and column-zero, with and without a following | line, and leaves no empty-match path in either engine; whether afterType reading drops nothing and double-reports nothing; whether the Luau-lexer reading of unowned & lines matches the official parser on the fixture cases and the rejected & () divergence is pinned as stated. If round 5 finds nothing, the whole PR is reviewed and finishes through ordinary readiness; if it finds another end-rule case, the property is not yet right and the next decision is a repair, not a round.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: Acceptance of unreviewed corrections is refused on the same grounds as at round 3: the change is in a class whose failure is silent and it has not been read by anyone but its writer. The repair that a further end-rule finding called for is already in the head, so directing one would repeat it. One bounded round on the repair is the step the checkpoint rule prescribes after a repair, and #1907 waits on this PR holding. Next: Publish this extension; the session launches round 5 with reviewRoundLimit 5 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 0f3ab9946..082a8f5fe, then sends the next checkpoint after round 5 verified fixes; the coordinator then decides again and merges through the gate.\n- Round 5 may launch with `reviewRoundLimit` 5 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: one bounded round reviews the end-rule repair and the two reading changes in 082a8f5fe; a clean round finishes the PR through ordinary readiness, and a further end-rule finding is answered by a repair, not another round. The next checkpoint follows round 5's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"f7d1fa9b\",\n \"kind\": \"extend\",\n \"feature\": 1904,\n \"ticket\": 1374,\n \"pr\": 2022,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T06:20:58.510Z\",\n \"round\": 4,\n \"limitBefore\": 4,\n \"reviewedHead\": \"0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485\",\n \"head\": \"082a8f5fea45ce79086d7f7131dae7f733abbfd6\",\n \"range\": {\n  \"from\": \"0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485\",\n  \"to\": \"082a8f5fea45ce79086d7f7131dae7f733abbfd6\",\n  \"base\": \"68a6335fb22f647ce111dfe1860fb1c68d5d8094\",\n  \"commits\": [\n   \"082a8f5fea45ce79086d7f7131dae7f733abbfd6\"\n  ],\n  \"diffSha256\": \"cf6e57ed01c746e17a923f4e5a95bbd4c104e802cc7d2e2e652de5bd20f4a5da\"\n },\n \"reports\": [\n  {\n   \"comment\": 6227678778,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6228027575\n  },\n  {\n   \"comment\": 6228181464,\n   \"round\": 1,\n   \"reviewerId\": \"grammar\",\n   \"adjudication\": 6228302103\n  },\n  {\n   \"comment\": 6228554152,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228827434\n  },\n  {\n   \"comment\": 6229047169,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229165366\n  },\n  {\n   \"comment\": 6229315616,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229479904\n  },\n  {\n   \"comment\": 6230176446,\n   \"round\": 4,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6230410341\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 5,\n \"limitReason\": \"one bounded round reviews the end-rule repair and the two reading changes in 082a8f5fe; a clean round finishes the PR through ordinary readiness, and a further end-rule finding is answered by a repair, not another round.\",\n \"authority\": \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\",\n \"assessment\": {\n  \"mechanisms\": \"The round 3 assessment named two mechanisms; round 4 found one more instance of each and one new reading gap. (1) Where an & type-continuation line ends: round 4 finding 2 (consecutive column-zero members looped on empty matches and the engines diverged by four characters) is the fourth finding in this rule across four rounds. The round 4 correction changes the rule shape rather than its cases: the member rule consumes its own & and ends at every next line that does not continue with |, so each member line is its own node at any indentation, which is the end rule stated as a property (the type ends where Luau type ends, line-wise) instead of a list of stop words. (2) Lowering and diagnostic ownership of member lines: round 4 finding 1 (a statement after a return-type member line was silently dropped because the body was read without its return type; fixed by reading such a body as the rest of a type, readLuauBlock afterType with a synthetic type declaration dropped from the statements) and finding 3 (an unowned & line recovery errors differed from Luau; fixed by reading the member line up to its value with Luau own lexer, as unread tokens are read), accepted in part: & () lacking Incomplete statement is the converter deliberate pre-existing divergence for an expression that is already an error, pinned by a test.\",\n  \"regressions\": \"No round 4 finding was a regression of a round 3 correction: finding 2 was a case the old line-start end had always had, finding 1 a reading gap present since the PR first head, finding 3 a pre-existing divergence of recovery wording. The writer first tried a grammar fix for finding 1 (ending a type before a glued name) and dropped it before commit when the corpus gate found an ERROR_INCOMPLETE on a fuzzer case, which is the gate doing its job. Each round 4 repair, undone, fails exactly its tests.\",\n  \"repairOptions\": \"The repair the round 3 decision reserved for a further end-rule finding has been taken inside 082a8f5fe: the member rule now owns its & and ends line-wise, with no enumerated stop list. No broader repair is available for the reading gap (finding 1) than reading the body with its return type, and the recovery wording (finding 3) now comes from Luau lexer. What remains is independent review of that repair and the two reading changes, which 082a8f5fe has not had. The glued-name highlighting gap stays with #2044.\",\n  \"residualRisk\": \"082a8f5fe is unreviewed and changes three things: the member rule shape (its own & consumed, line-wise end), the lowering of a body whose first lines continue its return type, and the converter reading of unowned & lines with Luau lexer. The failure mode of the class is silent (a dropped statement), so an unreviewed change here is the wrong place to stop. PR #1993 (#1924) touches the same rules (a redundant & continuation mark in Luau bodies) and will conflict with this PR; whichever merges second resolves the YAML conflict in the sources and regenerates both outputs.\",\n  \"coverage\": \"On 082a8f5fe: redgreen against origin/main (43 failed and 12 passed on base, 55/55 green, files restored byte for byte); each round 4 repair undone fails exactly its tests (old line-start end 3 cases, raw reading off 2, afterType off 2); FunctionIntersectionContinuation 55, grammarSnapshot, vscodeGrammarSnapshot, scopeEquality, luauTreeAst, luauSyntaxAgreement, luauOfficialAst, luauCorpusGate 1071, MultilineTypeUnion, TypeBinaryOperatorMissingType, invalidStatementInFunctionBody, returnFinalStatement1298, Run, programDiagnosticsParity, LeadingDotContinuation, TypeFunctionDeclaration passing; compareEnginesFull 0 divergences on the fixture; grammar ESLint, node-name and lowerer-convention checks and the filtered typecheck clean. Round 4 confirmed on 0f3ab9946 that both round 3 fixes fail on revert, that the type-end-conditioned stop held for 22 contextual member spellings, and that the glued highlighting correctly stays with #2044. CI on 082a8f5fe: every check passed, four skipped, linked-issue re-running after a PR body edit that kept Closes #1374.\",\n  \"nextRoundValue\": \"Round 5, one undirected reviewer with the grammar-conventions lens on 0f3ab9946..082a8f5fe with the whole PR for context: whether the line-wise member rule holds for every member spelling the fixture covers, indented and column-zero, with and without a following | line, and leaves no empty-match path in either engine; whether afterType reading drops nothing and double-reports nothing; whether the Luau-lexer reading of unowned & lines matches the official parser on the fixture cases and the rejected & () divergence is pinned as stated. If round 5 finds nothing, the whole PR is reviewed and finishes through ordinary readiness; if it finds another end-rule case, the property is not yet right and the next decision is a repair, not a round.\",\n  \"rationale\": \"Acceptance of unreviewed corrections is refused on the same grounds as at round 3: the change is in a class whose failure is silent and it has not been read by anyone but its writer. The repair that a further end-rule finding called for is already in the head, so directing one would repeat it. One bounded round on the repair is the step the checkpoint rule prescribes after a repair, and #1907 waits on this PR holding.\",\n  \"next\": \"Publish this extension; the session launches round 5 with reviewRoundLimit 5 and extendedReviewAuthorization set to the quoted invocation, one undirected reviewer with the grammar-conventions lens on 0f3ab9946..082a8f5fe, then sends the next checkpoint after round 5 verified fixes; the coordinator then decides again and merges through the gate.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 5,\n  \"limitReason\": \"one bounded round reviews the end-rule repair and the two reading changes in 082a8f5fe; a clean round finishes the PR through ordinary readiness, and a further end-rule finding is answered by a repair, not another round.\",\n  \"findings\": [\n   {\n    \"comment\": 6227678778,\n    \"finding\": \"B1: four packages/sparkdown CI jobs failed 43 tests in 10 files that write & inside a function body\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227678778,\n    \"finding\": \"Q1: the lowerer's continuation message pointed at the wrong line (accepted in a different form)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228181464,\n    \"finding\": \"the new unread continuation token bypassed the shared diagnostic ownership table\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228181464,\n    \"finding\": \"the grammar tutorial still instructed readers to include the deleted rule (quality)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228554152,\n    \"finding\": \"the type-operator line continuation ended only at its line's end, swallowing a same-line statement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229047169,\n    \"finding\": \"the continuation still missed valid same-line statement boundaries after a comment or a glued statement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229047169,\n    \"finding\": \"test honesty: the two added runtime cases passed with the correction reverted\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229315616,\n    \"finding\": \"an adjacent assignment after a member's type was swallowed as type text and silently omitted at runtime\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229315616,\n    \"finding\": \"the unconditional declaration stop rejected a valid intersection member named store\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230176446,\n    \"finding\": \"a statement on an intersection return-type member line was silently dropped (body read without its return type)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230176446,\n    \"finding\": \"consecutive column-zero intersection members caused an empty-match loop and different editor scopes\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230176446,\n    \"finding\": \"unowned & lines did not report Luau recovery diagnostics (accepted for & {}; the & () Incomplete statement part rejected as the converter deliberate pre-existing divergence, pinned by a test)\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "3760299d8d5901f2a537be9e521e03db014e79f015b3d786ce7e91146daca048",
+          "blockSha256": "495f5f3485fd006f5ec9bb9037d47b7a9fe044b518c41643efe939058009589e",
+          "published": {
+            "comment": 6230625423,
+            "time": "2026-10-17T06:21:01.472Z",
+            "headAtPublish": "082a8f5fea45ce79086d7f7131dae7f733abbfd6"
+          }
         }
       ],
       "requests": [
@@ -408,7 +699,14 @@
           "text": "Checkpoint after review round 4 on PR #2022 (limit 4 under decision 0f12aa4d): three findings accepted and fixed in 082a8f5fe (unreviewed): a statement after a return type's member line silently dropped (body read with afterType), consecutive column-0 & lines looping with a 4-character engine divergence (the end rule restated: the rule consumes its own & and ends at every next non-| line), and an unowned & line's recovery errors read with Luau's lexer; last reviewed 0f3ab9946; CI green except linked-issue re-running after a body edit; writer waits for the decision on 082a8f5fe.",
           "source": "cross-session message from the desktop session local_06fee41a-73da-418e-ad9e-8528ebd314ce on 2026-10-17 after its turn ended",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision f7d1fa9b, published on PR #2022 as comment 6230625423: authorize one more bounded round. Launch round 5 with reviewRoundLimit 5 and extendedReviewAuthorization set verbatim to the invocation the decision quotes. One undirected reviewer with the grammar-conventions lens on the correction diff 0f3ab9946..082a8f5fe with the whole PR for context. It must establish: that the line-wise member rule (the rule consumes its own & and ends at every next line that does not continue with |) holds for every member spelling in the fixture, indented and at column zero, with and without a following | line, and leaves no empty-match path in either engine; that reading a body whose first lines continue its return type (afterType) drops nothing and double-reports nothing; and that reading unowned & lines with Luau's lexer matches the official parser on the fixture cases, with the rejected & () divergence pinned as you stated. If round 5 finds nothing, the PR is fully reviewed and finishes through ordinary readiness; if it finds another end-rule case, say so plainly, because the next decision is then a repair. Adjudicate, fix with red/green, and send me the next checkpoint report by SendMessage to this session id. Never mark the PR ready and never merge. Note for the merge: PR #1993 (#1924) touches the same rules; whichever merges second resolves the YAML conflict in the sources and regenerates both outputs.",
+            "deliveryId": "83ff2485",
+            "attempts": 1,
+            "time": "2026-10-17T06:21:02.042Z",
+            "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56"
+          }
         }
       ]
     },
@@ -3102,6 +3400,16 @@
       "time": "2026-10-17T05:13:47.249Z"
     },
     {
+      "pr": 2022,
+      "url": "https://github.com/ImpowerGames/impower/pull/2022#issuecomment-6230625423",
+      "kind": "review-checkpoint extend",
+      "ticket": 1374,
+      "id": "f7d1fa9b",
+      "round": 4,
+      "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
+      "time": "2026-10-17T06:21:01.472Z"
+    },
+    {
       "pr": 1927,
       "url": "https://github.com/ImpowerGames/impower/pull/1927#issuecomment-6223037563",
       "kind": "review-checkpoint accept-unreviewed",
@@ -3140,7 +3448,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T06:19:46.673Z",
+      "observedAt": "2026-10-17T06:21:03.407Z",
       "held": true,
       "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
       "remoteHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
@@ -3380,7 +3688,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T06:19:46.673Z",
+      "observedAt": "2026-10-17T06:21:03.407Z",
       "held": true,
       "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
       "remoteHead": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
@@ -3689,7 +3997,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T06:19:46.673Z",
+      "observedAt": "2026-10-17T06:21:03.407Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -4407,21 +4715,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T05:33:50.888Z",
-      "event": "check-in",
-      "outcome": "merged PR #1925 (#1909) at 70264631 as merge commit 8a191abf after ORCH #1893 and ORCH #1895 agreed to hold main; hold released; #1909, #1093, #1205, #1206, #1243, #1293, #923, #924, #1373 closed; #1905 running on draft PR #1927 whose Closes lines make seven Bugs plan adopt-pr under its writer"
-    },
-    {
-      "time": "2026-10-16T05:36:06.766Z",
-      "event": "check-in",
-      "outcome": "no change: #1905 running (draft PR #1927 at an early head with 6 failing checks, writer queued on the test reservation and typechecking); no request pending"
-    },
-    {
-      "time": "2026-10-16T05:48:37.649Z",
-      "event": "check-in",
-      "outcome": "no change: #1905 running (lint rule tests pass, regenerating the grammar snapshot and running its test batch; draft PR #1927 still at its early head); no request pending"
-    },
-    {
       "time": "2026-10-16T06:18:37.826Z",
       "event": "check-in",
       "outcome": "no change: #1905 pushed head a322a5d0 to draft PR #1927 (CI 19 passed, 8 pending) and is writing the PR body; no review started yet; no request pending"
@@ -5089,6 +5382,30 @@
       "event": "request",
       "ticket": 1374,
       "id": "cbe1d967"
+    },
+    {
+      "time": "2026-10-17T06:20:58.510Z",
+      "event": "checkpoint-intent",
+      "ticket": 1374,
+      "id": "f7d1fa9b",
+      "kind": "extend",
+      "round": 4,
+      "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6"
+    },
+    {
+      "time": "2026-10-17T06:21:01.472Z",
+      "event": "checkpoint-published",
+      "ticket": 1374,
+      "id": "f7d1fa9b",
+      "comment": 6230625423
+    },
+    {
+      "time": "2026-10-17T06:21:02.043Z",
+      "event": "answer-intent",
+      "ticket": 1374,
+      "id": "cbe1d967",
+      "deliveryId": "83ff2485",
+      "attempt": 1
     }
   ]
 }
