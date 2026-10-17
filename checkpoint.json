@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 148,
-  "previous": "2956dbabec12c68d17dcde944d30d70c3c345be7",
+  "seq": 149,
+  "previous": "6f6e5182e7547a747b21e75f2ddda9e139516639",
   "snapshotParents": [],
-  "time": "2026-10-17T03:17:02.773Z",
+  "time": "2026-10-17T03:19:07.826Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 120,
+    "recordRevision": 121,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -2646,11 +2646,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T17:01:35.651Z",
-      "event": "disk-recovery",
-      "removed": "system temp redgreen-5SmRt2, redgreen-QvInIh, redgreen-Rl8cEq"
-    },
-    {
       "time": "2026-10-16T17:10:40.989Z",
       "event": "disk-recovery",
       "removed": "C:/Users/Brode/Documents/GitHub/impower.worktrees/codex/fix/1304-repeat-until-unit"
@@ -3309,6 +3304,11 @@
       "event": "operation-outcome",
       "id": "435c0528",
       "state": "confirmed"
+    },
+    {
+      "time": "2026-10-17T03:19:05.455Z",
+      "event": "check-in",
+      "outcome": "no change: Feature #1940 verified complete and closed (verification 7547a31c, closure 435c0528); all five slices done; outside the record the #2025 writer (detached CLI, maintainer-authorised flake fix) is still running with draft PR #2038 open, to be merged by the coordinator when ready"
     }
   ]
 }
