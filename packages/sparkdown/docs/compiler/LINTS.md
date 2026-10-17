@@ -15,6 +15,7 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `PlaceholderRead` | A read of the placeholder `_`, local or global, including a compound write (`_ += 1`). A plain write is not reported. | Inside functions |
 | `SameLineStatement` | A second statement on the same line without a semicolon after the previous statement, once per line. A local followed by a `do` block is exempt. | Luau statement blocks |
 | `MultiLineStatement` | A continuation expression that begins no farther right than its statement, once per statement. Table contents and `repeat` conditions are exempt. | Luau statement blocks |
+| `FormatString` | Invalid literal `string.format`, `os.date`, `string.pack`/`packsize`/`unpack` formats, match patterns and `string.gsub` replacements. | Global `string`/`os` library calls and methods on literal strings |
 
 The arms of Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions are not compared with each other; their conditions and the Luau inside them are checked like any other. The `if` and `for` control flow of Sparkle `layout` blocks is a separate construct in the grammar and is not checked.
 
@@ -35,6 +36,7 @@ The rules walk the Luau AST that `src/compiler/typecheck/readLuauAst.ts` reads f
 - `LocalUnused`, `UnreachableCode` and `PlaceholderRead` read every Luau function a script holds, a definition (`function f()`) or a value (`local f = function() end`, an argument, a `define`'s property), and a `define`'s method (`greet() ... end`, whose `function` Sparkdown leaves implicit), wherever it is written, each once. A function with a block missing its `end`, whether being typed or cut short, is not checked: the reading takes a later `end` as that block's, so the function does not hold what the author wrote.
 - `LocalUnused` does not check locals outside functions. Top-level code is narrative with embedded logic, and a top-level local can be read from places the rule cannot scope (interpolated text, later narrative). `PlaceholderRead` does not check reads outside functions, for the same reason.
 - `LocalUnused` does not report a `const`, which declares a global constant in Sparkdown, not a local; a `store` declares a global too.
+- `FormatString` preserves formats that Sparkdown's runtime accepts: `%h` in dates, NUL date text, arbitrary literal pattern escapes (`%q`, `%,`, `[%;]`) and accepted class ranges (`[%a-b]`), and `%1` as the whole match in captureless replacements. Pattern candidates are checked against the runtime translator before reporting Luau's message. Unknown string receivers and dynamic or parenthesized format arguments are not checked. `string.find` is checked only with no plain-text flag or a literal `false` flag, as in Luau.
 - The grammar reads some names as Sparkdown's structural words (`style`, `layout`, `match`) even where the author meant a name (`setStyle(style)`, `if match then`), and the reading has no name there. `LocalUnused` counts such a word, after a local's declaration in its function, as a use of the local it names, so a use is never missed (#984).
 - Unlike Luau's parser, the reading does not end a block at a `return`, `break` or `continue`: Sparkdown reads the statements after one as its block's, and `UnreachableCode` reports the first of them.
 - `DuplicateCondition` and `ForRange` read every Luau `if` statement and expression, `and`/`or` chain and numeric `for` in a script, in functions or not, Sparkdown's narrative blocks included (`if`, `while`, `for`): a narrative block's condition and the Luau inside it are read, but the conditions of a narrative `if` block's arms are not compared with each other.
@@ -80,7 +82,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 | --- | --- |
 | `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
 | `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
-| `FormatString`, `TableLiteral`, `TableOperations`, `DeprecatedApi` for `getfenv`/`setfenv` | `LintCandidatesStdlib.test.ts` |
+| `TableLiteral`, `TableOperations`, `DeprecatedApi` for `getfenv`/`setfenv` | `LintCandidatesStdlib.test.ts` |
 
 ## Rules sparkdown omits
 

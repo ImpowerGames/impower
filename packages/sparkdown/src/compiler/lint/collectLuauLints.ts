@@ -77,6 +77,7 @@ import {
   type AstNode,
 } from "../typecheck/Ast";
 import { doesCallError } from "../typecheck/DataFlowGraph";
+import { formatStringFindings } from "./formatString";
 import type { Location, Position } from "../typecheck/Location";
 import { readDocumentUnits } from "../typecheck/LuauDocumentChecker";
 import { NEUTRAL, RESERVED, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../typecheck/LuauUnitNodes";
@@ -95,6 +96,7 @@ export const LUAU_LINT_CODES = [
   "PlaceholderRead",
   "SameLineStatement",
   "MultiLineStatement",
+  "FormatString",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -184,7 +186,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
 // expression, a function value, a method in a `define`, whose `function`
 // Sparkdown leaves implicit, and an `if` or numeric `for` statement (in a
 // Sparkle handler's `{ ... }` or a layout).
-const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauChainedFunctionCall", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
 const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 
 /** Relevant nodes in Lezer's public packed representation. Avoid constructing
@@ -353,7 +355,9 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
         readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([node], text), statements: true }) });
       } else {
-        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
+        // A grouped receiver, its method accessor and its argument list are
+        // siblings. Read the whole expression, never the postfix alone.
+        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || isExplicitRuleName(node.name, "LuauChainedFunctionCall") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
         readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false }) });
@@ -887,6 +891,17 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
   }
   const { narrativeIfs } = facts;
   const out: LuauLint[] = [];
+  const seenFormatCalls = new Set<AstExprCall>();
+  for (const { root, offsets } of facts.roots) {
+    visitAst(root, { visit(node) {
+      if (node instanceof AstExprCall && !seenFormatCalls.has(node)) {
+        seenFormatCalls.add(node);
+        for (const finding of formatStringFindings(node))
+          out.push({ code: "FormatString", ...offsets.range(finding.literal.location), message: finding.message });
+      }
+      return true;
+    } });
+  }
   // Separate AST readings can share a document line (two interpolations).
   const sameLines = new Set<number>();
   const lintFunctions = (functions: AstExprFunction[], offsets: Offsets) => {
