@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 93,
-  "previous": "564f07400478f5b766eb9a9232680aa31cb730b1",
+  "seq": 94,
+  "previous": "59edceecb5b9f322e8b1846b422dcf5dbc92095d",
   "snapshotParents": [],
-  "time": "2026-10-17T03:24:03.384Z",
+  "time": "2026-10-17T03:24:23.575Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 83,
+    "recordRevision": 84,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -2498,7 +2498,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T03:24:02.223Z",
+      "observedAt": "2026-10-17T03:24:22.393Z",
       "held": true,
       "head": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
       "remoteHead": "b670e07396cd5a6d4a8ccbfc5787e43a09a5977d",
@@ -2534,7 +2534,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T03:24:02.223Z",
+      "observedAt": "2026-10-17T03:24:22.393Z",
       "held": true,
       "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
       "remoteHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
@@ -3383,6 +3383,11 @@
       "time": "2026-10-17T02:54:14.895Z",
       "event": "check-in",
       "outcome": "no change: #1964 writer editing review-pr references and tests, no PR yet; #1966 launched round 4 on 6f5769ab5 under decision e0f6d715 (CI green) and is waiting on the reviewer; both writers running"
+    },
+    {
+      "time": "2026-10-17T03:24:20.974Z",
+      "event": "check-in",
+      "outcome": "no change: #1964 opened draft PR #2040 at b670e0739 and is launching review round 1 (callers reviewer); #1966 round 4 reviewed and corrected, head 51a6a7c0c with CI running, writer waiting for CI before its checkpoint report; both writers running"
     }
   ]
 }
