@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 246,
-  "previous": "58a9e9b40e1efbda2bdcee7cf7906ff65fbb6411",
+  "seq": 247,
+  "previous": "9a23c289b95a1740c1c6dfc9cd5f05c4282d1c58",
   "snapshotParents": [],
-  "time": "2026-10-17T21:42:10.232Z",
+  "time": "2026-10-17T22:26:17.180Z",
   "kind": "auto",
-  "transition": "answered of #1907",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 253,
+    "recordRevision": 255,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -3153,6 +3153,314 @@
             "time": "2026-10-17T21:42:07.982Z",
             "to": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
             "evidence": "feature-run.mjs resume started pid 16708 at 2026-10-17T21:42:07Z with the printed answer (delivery of request 068a5959) as the prompt; writer process 21592 had exited after ending its turn"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "bafb0916",
+          "kind": "extend",
+          "feature": 1904,
+          "ticket": 1907,
+          "pr": 2062,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T22:25:25.477Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "e62e20d001936aa7e526422c598e5c88c177a274",
+          "head": "89d50126a1011027dadbdb4cbad7010a6a92e491",
+          "range": {
+            "from": "e62e20d001936aa7e526422c598e5c88c177a274",
+            "to": "89d50126a1011027dadbdb4cbad7010a6a92e491",
+            "base": "b3dd72d54c9a821731f8b7795b05e692547ad0f6",
+            "commits": [
+              "89d50126a1011027dadbdb4cbad7010a6a92e491"
+            ],
+            "diffSha256": "b858a788af61302e33eda691846c19dd00ce9a452c6ec7365ec86ca6da62e1be"
+          },
+          "reports": [
+            {
+              "comment": 6240236862,
+              "round": 1,
+              "reviewerId": "gram",
+              "adjudication": 6240330773
+            },
+            {
+              "comment": 6240500146,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6240644681
+            },
+            {
+              "comment": 6240793370,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6240956628
+            },
+            {
+              "comment": 6241106077,
+              "round": 2,
+              "reviewerId": "fix-2",
+              "adjudication": 6241212860
+            },
+            {
+              "comment": 6241281658,
+              "round": 2,
+              "reviewerId": "ax-2",
+              "adjudication": 6241293690
+            },
+            {
+              "comment": 6241460202,
+              "round": 2,
+              "reviewerId": "undirected-2",
+              "adjudication": 6241554826
+            },
+            {
+              "comment": 6241779734,
+              "round": 3,
+              "reviewerId": "ax-3",
+              "adjudication": 6241825661
+            },
+            {
+              "comment": 6241896656,
+              "round": 3,
+              "reviewerId": "undirected-3",
+              "adjudication": 6241939699
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 4,
+          "limitReason": "one bounded round reviews the unreviewed completion correction 89d50126a and the compiler-side owner sets for the same shared loop condition; a further round only if it finds a new mechanism.",
+          "authority": "/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.",
+          "assessment": {
+            "mechanisms": "Three mechanisms across three rounds. (a) Where an island's end-of-input break is placed in insertStoryBreaks: round 1 undirected's two defects (a later same-line statement's continuation cut; a header-only story loop given #1001's hint instead of Luau's error), then fix-2's two defects in the round-1 correction 11b41fa25 (a declaration and a header-only loop ending together lost the loop's diagnostic; extending an island's end delayed nested statements' ends), closed in 6e32722d7 by continuesPastLine and the shared loop mark; ax-2 then found nothing. (b) Which loop owns the shared LuauSparkdownExplicitLoopCondition in getCompletions.ts: undirected-2 finding 2 (a story for lost its in completion, fixed 7d041448c), ax-3's finding (the guard matched any enclosing story for, so a nested while was offered in; fixed e62e20d00), undirected-3's finding (the owner lookup skipped the marked & loop; fixed 89d50126a by stopping at any of the three owners, a marked loop counting as a for when its begin holds LuauForKeyword). (c) Two one-off header findings in round 1: gram's NAMED_BEAT took `scene or true` for a header (fixed 0afbe04a7) and ax's tooltip hid <eof> because Markdown read it as a tag (fixed 5928d016c as a plaintext kind). Rejected: undirected-2 finding 1 (an unfinished short string swallows the story lines after it), pre-existing on main and filed as #1998 under #2065 of Feature #2064; the adjudication and the PR body name both.",
+            "regressions": "Corrections introduced defects twice. 11b41fa25's end extension caused both fix-2 defects, replaced in 6e32722d7 by the simpler rule (no line-end EOF when a later statement on the line runs past it), red/green verified (5 new cases red on 11b41fa25, 88/88 green). e62e20d00's owner lookup caused undirected-3's defect by not stopping at the marked loop, fixed in 89d50126a (3 failed / 25 passed against e62e20d00, then 28/28). CI on 11b41fa25 also failed SceneLevelLoops, which pinned #1001's hint; fixed in 6e32722d7 with the Luau wording, a deliberate behaviour change the PR body lists.",
+            "repairOptions": "Mechanism (b) is closed in the language server by enumerating the three grammar owners of the shared condition (LuauSparkdownForLoop at yaml 8335, LuauSparkdownWhileLoop at 8418, LuauSparkdownExplicitLoop at 8705 on 89d50126a), which the coordinator confirmed are the condition's only includes. The coordinator's inspection of 89d50126a found the same owner question open on the compiler side: packages/sparkdown/src/compiler/utils/storyIslands.ts lists only LuauSparkdownForLoop and LuauSparkdownWhileLoop in STORY_CONDITIONS and STORY_LOOPS, so isStoryCondition and the header-only island rule do not see a marked loop's condition; whether a marked header-only loop at story scope (`& while true`, `& for k, v`) reports Luau's error at its line end with the loop mark, as the unmarked forms now do, or already has an equivalent path through LuauSparkdownExplicitStatement, is unverified. The writer's simpler grandparent form of the lookup is not required.",
+            "residualRisk": "Unreviewed: 89d50126a, a completion-only change (one keyword guard in getCompletions.ts plus three tests), red/green verified, CI green on it (29 passed, 4 skipped). Open: the compiler-side owner sets in storyIslands.ts for mechanism (b), unexamined by any reviewer because no round looked at marked loops in the compiler after the round-2 repair added the loop mark. Disclosed in the PR body: `if a == 1 and )` reports two errors where Luau reports one; a separator-less story table names the missing } at the next line's end, as on main; the open-string swallow is #1998.",
+            "coverage": "On 89d50126a: CI 29 passed, 4 skipped (driver-checks, notifier, skills-checks, vitest-api-integration), none failed or pending, with all four sparkdown shards, language-server, document-views, vscode-sparkdown, tsc and the Luau corpus gate. undirected-3's red-on-base on the final tests: storyBodyLineRule 66 failed / 22 passed of 88 on b3dd72d54, all 88 green on head; scope equality 259/259. Each correction red/green against its previous head. Web editor and VS Code screenshots inspected; the tooltip fix verified in the web editor. Rounds 1 to 3 ran grammar-conventions, author-experience (twice, one full), fix and undirected lenses, every reviewer exit 0.",
+            "nextRoundValue": "Round 4, one undirected reviewer on the final head: confirms 89d50126a adds no defect, and answers the coordinator's question on storyIslands.ts, namely whether the marked loop's condition needs the same owner treatment the language server now gives it (a marked header-only loop at story scope reporting Luau's missing do or in at its line end, the loop mark set, and a marked loop with a do block unchanged), with the writer's check and any fix made before the round launches so the reviewer reads the final head. A further round would add nothing unless round 4 finds a fourth mechanism.",
+            "rationale": "Three heads in a row carried a defect in the same owner question, each correction introducing the next; the last one has no independent review, and the coordinator's own inspection found the same question unanswered on the compiler side. That is a bounded, named risk one round answers, not the small verified tail acceptance is for. The round costs one reviewer and does not reopen the island mechanism, which ax-2 and undirected-3 found closed.",
+            "next": "Publish this extension; the writer first checks storyIslands.ts against the three grammar owners and fixes it if a marked header-only loop misses the island handling, then launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the decision, one undirected reviewer on the final head, and reports at the round-4 checkpoint.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 4,
+            "limitReason": "one bounded round reviews the unreviewed completion correction 89d50126a and the compiler-side owner sets for the same shared loop condition; a further round only if it finds a new mechanism.",
+            "findings": [
+              {
+                "comment": 6240236862,
+                "finding": "NAMED_BEAT took `scene or true` for a header",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6240500146,
+                "finding": "the tooltip hid <eof> because Markdown read it as a tag",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6240793370,
+                "finding": "an earlier statement's island break split a later statement's continuation",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6240793370,
+                "finding": "a header-only story loop reported the old keyword hint instead of Luau's error at the line's end",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6241106077,
+                "finding": "a declaration and a header-only loop that end together lost the loop's diagnostic",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6241106077,
+                "finding": "extending an island's end over a later block delayed nested statements' ends",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6241106077,
+                "finding": "the PR body's guidance on a story if was stale",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6241281658,
+                "disposition": "none"
+              },
+              {
+                "comment": 6241460202,
+                "finding": "an unfinished short string swallows the story lines after it",
+                "disposition": "rejected"
+              },
+              {
+                "comment": 6241460202,
+                "finding": "a story for lost the in completion",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6241779734,
+                "finding": "nested while headers gained the for-only in completion",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6241896656,
+                "finding": "the owner lookup skipped the marked & loop, so a marked while inside a story for still got in",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: authorize another bounded round\n\nDecision `bafb0916` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1907. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (ax-3, undirected-3) exited, and every report has its adjudication (6240236862 in 6240330773, 6240500146 in 6240644681, 6240793370 in 6240956628, 6241106077 in 6241212860, 6241281658 in 6241293690, 6241460202 in 6241554826, 6241779734 in 6241825661, 6241896656 in 6241939699).\n- Independently reviewed through `e62e20d001936aa7e526422c598e5c88c177a274`.\n- Head `89d50126a1011027dadbdb4cbad7010a6a92e491`. Unreviewed: `e62e20d00..89d50126a`, 1 commit (`89d50126a` fix(language-server): stop at a marked loop that owns the condition, and offer in for a marked for (#1907)), diff SHA-256 `b858a788af61302e33eda691846c19dd00ce9a452c6ec7365ec86ca6da62e1be`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) passed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, driver-checks passed, test-suite passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 10 accepted, 1 rejected, 1 none; unresolved: none.\n- Shared mechanisms: Three mechanisms across three rounds. (a) Where an island's end-of-input break is placed in insertStoryBreaks: round 1 undirected's two defects (a later same-line statement's continuation cut; a header-only story loop given #1001's hint instead of Luau's error), then fix-2's two defects in the round-1 correction 11b41fa25 (a declaration and a header-only loop ending together lost the loop's diagnostic; extending an island's end delayed nested statements' ends), closed in 6e32722d7 by continuesPastLine and the shared loop mark; ax-2 then found nothing. (b) Which loop owns the shared LuauSparkdownExplicitLoopCondition in getCompletions.ts: undirected-2 finding 2 (a story for lost its in completion, fixed 7d041448c), ax-3's finding (the guard matched any enclosing story for, so a nested while was offered in; fixed e62e20d00), undirected-3's finding (the owner lookup skipped the marked & loop; fixed 89d50126a by stopping at any of the three owners, a marked loop counting as a for when its begin holds LuauForKeyword). (c) Two one-off header findings in round 1: gram's NAMED_BEAT took `scene or true` for a header (fixed 0afbe04a7) and ax's tooltip hid <eof> because Markdown read it as a tag (fixed 5928d016c as a plaintext kind). Rejected: undirected-2 finding 1 (an unfinished short string swallows the story lines after it), pre-existing on main and filed as #1998 under #2065 of Feature #2064; the adjudication and the PR body name both.\n- Defects introduced by corrections: Corrections introduced defects twice. 11b41fa25's end extension caused both fix-2 defects, replaced in 6e32722d7 by the simpler rule (no line-end EOF when a later statement on the line runs past it), red/green verified (5 new cases red on 11b41fa25, 88/88 green). e62e20d00's owner lookup caused undirected-3's defect by not stopping at the marked loop, fixed in 89d50126a (3 failed / 25 passed against e62e20d00, then 28/28). CI on 11b41fa25 also failed SceneLevelLoops, which pinned #1001's hint; fixed in 6e32722d7 with the Luau wording, a deliberate behaviour change the PR body lists.\n- Broader or simpler repair: Mechanism (b) is closed in the language server by enumerating the three grammar owners of the shared condition (LuauSparkdownForLoop at yaml 8335, LuauSparkdownWhileLoop at 8418, LuauSparkdownExplicitLoop at 8705 on 89d50126a), which the coordinator confirmed are the condition's only includes. The coordinator's inspection of 89d50126a found the same owner question open on the compiler side: packages/sparkdown/src/compiler/utils/storyIslands.ts lists only LuauSparkdownForLoop and LuauSparkdownWhileLoop in STORY_CONDITIONS and STORY_LOOPS, so isStoryCondition and the header-only island rule do not see a marked loop's condition; whether a marked header-only loop at story scope (`& while true`, `& for k, v`) reports Luau's error at its line end with the loop mark, as the unmarked forms now do, or already has an equivalent path through LuauSparkdownExplicitStatement, is unverified. The writer's simpler grandparent form of the lookup is not required.\n- Residual risk: Unreviewed: 89d50126a, a completion-only change (one keyword guard in getCompletions.ts plus three tests), red/green verified, CI green on it (29 passed, 4 skipped). Open: the compiler-side owner sets in storyIslands.ts for mechanism (b), unexamined by any reviewer because no round looked at marked loops in the compiler after the round-2 repair added the loop mark. Disclosed in the PR body: `if a == 1 and )` reports two errors where Luau reports one; a separator-less story table names the missing } at the next line's end, as on main; the open-string swallow is #1998.\n- Verification coverage: On 89d50126a: CI 29 passed, 4 skipped (driver-checks, notifier, skills-checks, vitest-api-integration), none failed or pending, with all four sparkdown shards, language-server, document-views, vscode-sparkdown, tsc and the Luau corpus gate. undirected-3's red-on-base on the final tests: storyBodyLineRule 66 failed / 22 passed of 88 on b3dd72d54, all 88 green on head; scope equality 259/259. Each correction red/green against its previous head. Web editor and VS Code screenshots inspected; the tooltip fix verified in the web editor. Rounds 1 to 3 ran grammar-conventions, author-experience (twice, one full), fix and undirected lenses, every reviewer exit 0.\n- What another round would establish: Round 4, one undirected reviewer on the final head: confirms 89d50126a adds no defect, and answers the coordinator's question on storyIslands.ts, namely whether the marked loop's condition needs the same owner treatment the language server now gives it (a marked header-only loop at story scope reporting Luau's missing do or in at its line end, the loop mark set, and a marked loop with a do block unchanged), with the writer's check and any fix made before the round launches so the reviewer reads the final head. A further round would add nothing unless round 4 finds a fourth mechanism.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: Three heads in a row carried a defect in the same owner question, each correction introducing the next; the last one has no independent review, and the coordinator's own inspection found the same question unanswered on the compiler side. That is a bounded, named risk one round answers, not the small verified tail acceptance is for. The round costs one reviewer and does not reopen the island mechanism, which ax-2 and undirected-3 found closed. Next: Publish this extension; the writer first checks storyIslands.ts against the three grammar owners and fixes it if a marked header-only loop misses the island handling, then launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the decision, one undirected reviewer on the final head, and reports at the round-4 checkpoint.\n- Round 4 may launch with `reviewRoundLimit` 4 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: one bounded round reviews the unreviewed completion correction 89d50126a and the compiler-side owner sets for the same shared loop condition; a further round only if it finds a new mechanism. The next checkpoint follows round 4's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"bafb0916\",\n \"kind\": \"extend\",\n \"feature\": 1904,\n \"ticket\": 1907,\n \"pr\": 2062,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T22:25:25.477Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"e62e20d001936aa7e526422c598e5c88c177a274\",\n \"head\": \"89d50126a1011027dadbdb4cbad7010a6a92e491\",\n \"range\": {\n  \"from\": \"e62e20d001936aa7e526422c598e5c88c177a274\",\n  \"to\": \"89d50126a1011027dadbdb4cbad7010a6a92e491\",\n  \"base\": \"b3dd72d54c9a821731f8b7795b05e692547ad0f6\",\n  \"commits\": [\n   \"89d50126a1011027dadbdb4cbad7010a6a92e491\"\n  ],\n  \"diffSha256\": \"b858a788af61302e33eda691846c19dd00ce9a452c6ec7365ec86ca6da62e1be\"\n },\n \"reports\": [\n  {\n   \"comment\": 6240236862,\n   \"round\": 1,\n   \"reviewerId\": \"gram\",\n   \"adjudication\": 6240330773\n  },\n  {\n   \"comment\": 6240500146,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6240644681\n  },\n  {\n   \"comment\": 6240793370,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6240956628\n  },\n  {\n   \"comment\": 6241106077,\n   \"round\": 2,\n   \"reviewerId\": \"fix-2\",\n   \"adjudication\": 6241212860\n  },\n  {\n   \"comment\": 6241281658,\n   \"round\": 2,\n   \"reviewerId\": \"ax-2\",\n   \"adjudication\": 6241293690\n  },\n  {\n   \"comment\": 6241460202,\n   \"round\": 2,\n   \"reviewerId\": \"undirected-2\",\n   \"adjudication\": 6241554826\n  },\n  {\n   \"comment\": 6241779734,\n   \"round\": 3,\n   \"reviewerId\": \"ax-3\",\n   \"adjudication\": 6241825661\n  },\n  {\n   \"comment\": 6241896656,\n   \"round\": 3,\n   \"reviewerId\": \"undirected-3\",\n   \"adjudication\": 6241939699\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 4,\n \"limitReason\": \"one bounded round reviews the unreviewed completion correction 89d50126a and the compiler-side owner sets for the same shared loop condition; a further round only if it finds a new mechanism.\",\n \"authority\": \"/orchestrate-feature #1904 — and on 2026-10-17: You can take over orchestration of 1374 and authorize review rounds and merge the PR yourself.\",\n \"assessment\": {\n  \"mechanisms\": \"Three mechanisms across three rounds. (a) Where an island's end-of-input break is placed in insertStoryBreaks: round 1 undirected's two defects (a later same-line statement's continuation cut; a header-only story loop given #1001's hint instead of Luau's error), then fix-2's two defects in the round-1 correction 11b41fa25 (a declaration and a header-only loop ending together lost the loop's diagnostic; extending an island's end delayed nested statements' ends), closed in 6e32722d7 by continuesPastLine and the shared loop mark; ax-2 then found nothing. (b) Which loop owns the shared LuauSparkdownExplicitLoopCondition in getCompletions.ts: undirected-2 finding 2 (a story for lost its in completion, fixed 7d041448c), ax-3's finding (the guard matched any enclosing story for, so a nested while was offered in; fixed e62e20d00), undirected-3's finding (the owner lookup skipped the marked & loop; fixed 89d50126a by stopping at any of the three owners, a marked loop counting as a for when its begin holds LuauForKeyword). (c) Two one-off header findings in round 1: gram's NAMED_BEAT took `scene or true` for a header (fixed 0afbe04a7) and ax's tooltip hid <eof> because Markdown read it as a tag (fixed 5928d016c as a plaintext kind). Rejected: undirected-2 finding 1 (an unfinished short string swallows the story lines after it), pre-existing on main and filed as #1998 under #2065 of Feature #2064; the adjudication and the PR body name both.\",\n  \"regressions\": \"Corrections introduced defects twice. 11b41fa25's end extension caused both fix-2 defects, replaced in 6e32722d7 by the simpler rule (no line-end EOF when a later statement on the line runs past it), red/green verified (5 new cases red on 11b41fa25, 88/88 green). e62e20d00's owner lookup caused undirected-3's defect by not stopping at the marked loop, fixed in 89d50126a (3 failed / 25 passed against e62e20d00, then 28/28). CI on 11b41fa25 also failed SceneLevelLoops, which pinned #1001's hint; fixed in 6e32722d7 with the Luau wording, a deliberate behaviour change the PR body lists.\",\n  \"repairOptions\": \"Mechanism (b) is closed in the language server by enumerating the three grammar owners of the shared condition (LuauSparkdownForLoop at yaml 8335, LuauSparkdownWhileLoop at 8418, LuauSparkdownExplicitLoop at 8705 on 89d50126a), which the coordinator confirmed are the condition's only includes. The coordinator's inspection of 89d50126a found the same owner question open on the compiler side: packages/sparkdown/src/compiler/utils/storyIslands.ts lists only LuauSparkdownForLoop and LuauSparkdownWhileLoop in STORY_CONDITIONS and STORY_LOOPS, so isStoryCondition and the header-only island rule do not see a marked loop's condition; whether a marked header-only loop at story scope (`& while true`, `& for k, v`) reports Luau's error at its line end with the loop mark, as the unmarked forms now do, or already has an equivalent path through LuauSparkdownExplicitStatement, is unverified. The writer's simpler grandparent form of the lookup is not required.\",\n  \"residualRisk\": \"Unreviewed: 89d50126a, a completion-only change (one keyword guard in getCompletions.ts plus three tests), red/green verified, CI green on it (29 passed, 4 skipped). Open: the compiler-side owner sets in storyIslands.ts for mechanism (b), unexamined by any reviewer because no round looked at marked loops in the compiler after the round-2 repair added the loop mark. Disclosed in the PR body: `if a == 1 and )` reports two errors where Luau reports one; a separator-less story table names the missing } at the next line's end, as on main; the open-string swallow is #1998.\",\n  \"coverage\": \"On 89d50126a: CI 29 passed, 4 skipped (driver-checks, notifier, skills-checks, vitest-api-integration), none failed or pending, with all four sparkdown shards, language-server, document-views, vscode-sparkdown, tsc and the Luau corpus gate. undirected-3's red-on-base on the final tests: storyBodyLineRule 66 failed / 22 passed of 88 on b3dd72d54, all 88 green on head; scope equality 259/259. Each correction red/green against its previous head. Web editor and VS Code screenshots inspected; the tooltip fix verified in the web editor. Rounds 1 to 3 ran grammar-conventions, author-experience (twice, one full), fix and undirected lenses, every reviewer exit 0.\",\n  \"nextRoundValue\": \"Round 4, one undirected reviewer on the final head: confirms 89d50126a adds no defect, and answers the coordinator's question on storyIslands.ts, namely whether the marked loop's condition needs the same owner treatment the language server now gives it (a marked header-only loop at story scope reporting Luau's missing do or in at its line end, the loop mark set, and a marked loop with a do block unchanged), with the writer's check and any fix made before the round launches so the reviewer reads the final head. A further round would add nothing unless round 4 finds a fourth mechanism.\",\n  \"rationale\": \"Three heads in a row carried a defect in the same owner question, each correction introducing the next; the last one has no independent review, and the coordinator's own inspection found the same question unanswered on the compiler side. That is a bounded, named risk one round answers, not the small verified tail acceptance is for. The round costs one reviewer and does not reopen the island mechanism, which ax-2 and undirected-3 found closed.\",\n  \"next\": \"Publish this extension; the writer first checks storyIslands.ts against the three grammar owners and fixes it if a marked header-only loop misses the island handling, then launches round 4 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the decision, one undirected reviewer on the final head, and reports at the round-4 checkpoint.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 4,\n  \"limitReason\": \"one bounded round reviews the unreviewed completion correction 89d50126a and the compiler-side owner sets for the same shared loop condition; a further round only if it finds a new mechanism.\",\n  \"findings\": [\n   {\n    \"comment\": 6240236862,\n    \"finding\": \"NAMED_BEAT took `scene or true` for a header\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6240500146,\n    \"finding\": \"the tooltip hid <eof> because Markdown read it as a tag\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6240793370,\n    \"finding\": \"an earlier statement's island break split a later statement's continuation\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6240793370,\n    \"finding\": \"a header-only story loop reported the old keyword hint instead of Luau's error at the line's end\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6241106077,\n    \"finding\": \"a declaration and a header-only loop that end together lost the loop's diagnostic\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6241106077,\n    \"finding\": \"extending an island's end over a later block delayed nested statements' ends\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6241106077,\n    \"finding\": \"the PR body's guidance on a story if was stale\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6241281658,\n    \"disposition\": \"none\"\n   },\n   {\n    \"comment\": 6241460202,\n    \"finding\": \"an unfinished short string swallows the story lines after it\",\n    \"disposition\": \"rejected\"\n   },\n   {\n    \"comment\": 6241460202,\n    \"finding\": \"a story for lost the in completion\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6241779734,\n    \"finding\": \"nested while headers gained the for-only in completion\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6241896656,\n    \"finding\": \"the owner lookup skipped the marked & loop, so a marked while inside a story for still got in\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "90347fe0cd3fb036192f0a7e57707e1663ee51e1f601f32597a85d899cfa88be",
+          "blockSha256": "1f4eaf22976df634ebaf7f1f9a319e17ee69c0745af018682b14cd0af2360d70",
+          "published": {
+            "comment": 6242218108,
+            "time": "2026-10-17T22:26:14.565Z",
+            "headAtPublish": "89d50126a1011027dadbdb4cbad7010a6a92e491"
           }
         }
       ]
@@ -7914,6 +8222,16 @@
       "time": "2026-10-17T15:09:29.502Z"
     },
     {
+      "pr": 2062,
+      "url": "https://github.com/ImpowerGames/impower/pull/2062#issuecomment-6242218108",
+      "kind": "review-checkpoint extend",
+      "ticket": 1907,
+      "id": "bafb0916",
+      "round": 3,
+      "head": "89d50126a1011027dadbdb4cbad7010a6a92e491",
+      "time": "2026-10-17T22:26:14.565Z"
+    },
+    {
       "pr": 1993,
       "url": "https://github.com/ImpowerGames/impower/pull/1993#issuecomment-6229458152",
       "kind": "review-checkpoint extend",
@@ -7982,10 +8300,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T21:42:09.349Z",
+      "observedAt": "2026-10-17T22:26:16.457Z",
       "held": true,
-      "head": "7d041448c772fc426a33d20688e3e4b18708667d",
-      "remoteHead": "7d041448c772fc426a33d20688e3e4b18708667d",
+      "head": "89d50126a1011027dadbdb4cbad7010a6a92e491",
+      "remoteHead": "89d50126a1011027dadbdb4cbad7010a6a92e491",
       "unpushed": false,
       "dirty": false
     }
@@ -8358,16 +8676,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T07:48:35.427Z",
-      "event": "check-in",
-      "outcome": "#1374 PR #2022 merged as a96dbbb3 and main green on it; release of its desktop writer refused (session idle counts as waiting, not exited); #1906 repair-B report recorded as request 8951782f; #1907 not claimed: the plan reports 15 writers holding tickets against a limit of 3 because the Bugs that open PRs #1995 and #1993 close are counted as held tickets, so #1907 and #1977 wait-capacity until those PRs merge"
-    },
-    {
-      "time": "2026-10-17T07:58:01.168Z",
-      "event": "check-in",
-      "outcome": "#1374 accepted (67ce463c) and PR #2022 merged as a96dbbb3 (operation 74903a1e); writer released; #1906 repair-B report recorded as a request, formal decision still blocked by launch-axg-1 (maintainer question 6350ae80); #1907 claimed and launched on claude-cli (High); #1977 waits for capacity; #1924 waits on the maintainer's answer (6bc44573)"
-    },
     {
       "time": "2026-10-17T07:58:35.854Z",
       "event": "check-in",
@@ -9103,6 +9411,22 @@
       "ticket": 1907,
       "id": "068a5959",
       "deliveryId": "0a202748"
+    },
+    {
+      "time": "2026-10-17T22:25:25.477Z",
+      "event": "checkpoint-intent",
+      "ticket": 1907,
+      "id": "bafb0916",
+      "kind": "extend",
+      "round": 3,
+      "head": "89d50126a1011027dadbdb4cbad7010a6a92e491"
+    },
+    {
+      "time": "2026-10-17T22:26:14.565Z",
+      "event": "checkpoint-published",
+      "ticket": 1907,
+      "id": "bafb0916",
+      "comment": 6242218108
     }
   ]
 }
