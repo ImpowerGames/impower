@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 210,
-  "previous": "1f1da1bb20f500899b6b478ebd5779e8d40a3840",
+  "seq": 211,
+  "previous": "b4eb5327ff1ae3d215bfb611ed60c74a41ed771b",
   "snapshotParents": [],
-  "time": "2026-10-17T16:53:44.172Z",
+  "time": "2026-10-17T16:55:27.498Z",
   "kind": "auto",
-  "transition": "the merge of PR #1993 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 223,
@@ -7582,7 +7582,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T16:53:43.425Z",
+      "observedAt": "2026-10-17T16:55:26.712Z",
       "held": true,
       "head": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
       "remoteHead": "fe4cd193e4cb46f80b42f3ab9422591b4e783691",
@@ -8057,7 +8057,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T16:45:43.470Z",
+    "at": "2026-10-17T16:55:26.711Z",
     "tickets": [
       {
         "number": 984,
@@ -8211,9 +8211,9 @@
       },
       {
         "number": 1329,
-        "action": "adopt-pr",
-        "pr": 1993,
-        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1341,
@@ -8223,21 +8223,21 @@
       },
       {
         "number": 1343,
-        "action": "adopt-pr",
-        "pr": 1993,
-        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1344,
-        "action": "adopt-pr",
-        "pr": 1993,
-        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1369,
-        "action": "decision-needed",
+        "action": "done",
         "pr": null,
-        "reason": "closed without a merged deliverable on origin/main; confirm whether the ticket is complete"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1374,
@@ -8283,9 +8283,9 @@
       },
       {
         "number": 1907,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "5 writers already hold tickets against a limit of 3"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1908,
@@ -8301,15 +8301,15 @@
       },
       {
         "number": 1924,
-        "action": "collect-report",
-        "pr": 1993,
-        "reason": "process 49244 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-b3736836-3679-46af-a8f5-213bf93ef256\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 9612 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1977,
-        "action": "wait-capacity",
+        "action": "dispatch",
         "pr": null,
-        "reason": "5 writers already hold tickets against a limit of 3"
+        "reason": "every blocker's deliverable is on origin/main"
       },
       {
         "number": 1985,
@@ -8343,9 +8343,9 @@
       },
       {
         "number": 1990,
-        "action": "adopt-pr",
-        "pr": 1993,
-        "reason": "draft PR #1993 at fe4cd193e4cb46f80b42f3ab9422591b4e783691 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "action": "done",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1991,
