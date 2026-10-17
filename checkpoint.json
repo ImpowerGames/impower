@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1940,
-  "seq": 133,
-  "previous": "4c2232beec5b974313ef8285c732b12960d11bbf",
+  "seq": 134,
+  "previous": "79e2f8d8a10e23ae851eb56ad6c5b8c9297f731a",
   "snapshotParents": [],
-  "time": "2026-10-17T01:26:14.347Z",
+  "time": "2026-10-17T01:26:28.113Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1974",
   "run": {
     "runId": "4ca51d53-fff8-4d2f-8922-014f34b64902",
-    "recordRevision": 108,
+    "recordRevision": 109,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:\\Users\\Brode\\Documents\\GitHub\\impower"
@@ -742,7 +742,25 @@
       },
       "pending": null,
       "history": [],
-      "results": [],
+      "results": [
+        {
+          "time": "2026-10-17T01:26:23.721Z",
+          "report": {
+            "assignment": "3950b896-bf27-4a2c-b9ff-a936c1dec179",
+            "source": "cross-session message from the writer (peer impower-32) at ~01:35Z after the finish decision 1a34eb32, confirmed against resume-1974-ffddea1f out.jsonl",
+            "model": "claude-opus-5-5",
+            "effort": "medium",
+            "permissionMode": "bypassPermissions",
+            "pr": 1984,
+            "reviewedHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
+            "rounds": "4 on gpt-6.1-sol high via codex native (reviewer defaults). R1: incrementality (6224228197 / 6224983339), blast-radius (6225158091 / 6225434348), undirected (6225755506 / 6226048395); R2: incrementality (6226407873 / 6226439343), undirected (6226665410 / 6226736064); R3: undirected (6227205764 / 6227484652); R4 under extension ec7c56fe: undirected (6227829979 / 6227855109), no findings. Finish decision 1a34eb32 (comment 6227908006).",
+            "findings": "None",
+            "verification": "Red/green against origin/main and against each correction's parent; programStatementMemo 56/56. programIncrementalCumulative, programPreviewMemo, programIncrementalPasses, programDeclarationRun, programDoBlockMemo, incrementalEquivalence and incrementalCumulativeEquivalence: 87 passed. Typecheck clean. Live editor check on 0547bc904 shows the expected text. Measurement (ticket comment 6223869256 and the PR body): store above, loweredOutsideRebuilt 2 to 0 and memo lowered/served 8/78 to 3/40; store below 2 to 1 and 6/80 to 5/81, the remainder is Bug #2013. The PR body's Notes for reviewers state the reviewed range (origin/main e2f91499f to 0547bc904, the whole PR) and the disclosed no-program re-resolution cost (219, 436, 652 generated objects for 1, 2, 3 pending scenes; reuse returns once a build commits).",
+            "ci": "Every check on 0547bc904 passed (28 passed, 4 skipped by path filters), including all four sparkdown shards, the test-suite gate, tsc, typecheck, hook-tests and linked-issue.",
+            "next": "none from the writer; PR #1984 marked ready at 0547bc904 (read back isDraft false), nothing pushed after it, only the PR body changed. The worktree fix/1974-carried-memo-resolution stays until cleanup."
+          }
+        }
+      ],
       "requests": [
         {
           "id": "6e80b10b",
@@ -2102,7 +2120,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\perf\\1881-compile-at-debounce",
       "branch": "perf/1881-compile-at-debounce",
-      "observedAt": "2026-10-17T01:26:12.858Z",
+      "observedAt": "2026-10-17T01:26:25.690Z",
       "held": true,
       "head": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
       "remoteHead": "2cd5a71cea73b09693c4527c7edc98c2bd2aeda2",
@@ -2259,7 +2277,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:\\Users\\Brode\\Documents\\GitHub\\impower.worktrees\\fix\\1974-carried-memo-resolution",
       "branch": "fix/1974-carried-memo-resolution",
-      "observedAt": "2026-10-17T01:26:12.858Z",
+      "observedAt": "2026-10-17T01:26:25.690Z",
       "held": true,
       "head": "0547bc904445405d804fbc744c1ac1f2f483cddd",
       "remoteHead": "0547bc904445405d804fbc744c1ac1f2f483cddd",
@@ -2581,16 +2599,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T16:25:04.187Z",
-      "event": "acknowledged",
-      "ticket": 851,
-      "confirmed": {
-        "model": "claude-opus-5-5",
-        "effort": "medium",
-        "permissionMode": "bypassPermissions"
-      }
-    },
     {
       "time": "2026-10-16T16:25:12.125Z",
       "event": "verified",
@@ -3255,6 +3263,13 @@
       "ticket": 1974,
       "id": "af9a31ec",
       "deliveryId": "61b6e064"
+    },
+    {
+      "time": "2026-10-17T01:26:23.722Z",
+      "event": "result",
+      "ticket": 1974,
+      "pr": 1984,
+      "reviewedHead": "0547bc904445405d804fbc744c1ac1f2f483cddd"
     }
   ]
 }
