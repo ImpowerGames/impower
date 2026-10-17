@@ -44,6 +44,7 @@
 // limits). A rate-limit or server error is retried with backoff.
 
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1194,17 +1195,32 @@ const sameText = (a, b) => (a ?? "").replace(/\r\n/g, "\n") === (b ?? "").replac
  * internal repository cannot say which references were bare. Working from
  * the original also makes the rewrite idempotent: a new number equal to
  * another old one is never mapped twice.
+ *
+ * With a gate, the references mapped are exactly the tokens GitHub linked
+ * (see githubReferences), and everything else, code included, stays as the
+ * original has it; a text the gate has no consistent answer for has no
+ * target (null). Without one, the tool's own reading picks them; that is
+ * used only to pair comment threads, which ignores the references.
  */
-export function targetTexts(snapshot, map, repos) {
+export function targetTexts(snapshot, map, repos, gate) {
   const resolve = bareResolver(snapshot, map, repos);
+  const mapped = (text, key) => {
+    if (![...(text ?? "").matchAll(BARE_REF)].length) return text ?? "";
+    if (!gate) return rewriteBareRefs(text, resolve);
+    const answer = gate.get(key);
+    return answer?.consistent ? mapTokens(text, answer.tokens, resolve) : null;
+  };
   return new Map(
-    snapshot.issues.map((i) => [
-      i.number,
-      {
-        body: withMigrationLine(rewriteBareRefs(i.body, resolve), migrationLine(repos, i)),
-        thread: (i.thread ?? []).map((c) => ({ ...c, body: rewriteBareRefs(c.body, resolve) })),
-      },
-    ]),
+    snapshot.issues.map((i) => {
+      const body = mapped(i.body, textKey(i.number));
+      return [
+        i.number,
+        {
+          body: body === null ? null : withMigrationLine(body, migrationLine(repos, i)),
+          thread: (i.thread ?? []).map((c) => ({ ...c, target: mapped(c.body, textKey(i.number, c.id)) })),
+        },
+      ];
+    }),
   );
 }
 
@@ -1246,16 +1262,19 @@ const maskRefs = (text) => (text ?? "").replace(/\r\n/g, "\n").replace(/(?:[\w.-
 
 /**
  * Every migrated body and comment that differs from its target, with the
- * edit that sets it, and the texts the gate refused. A text whose reading
- * the gate found to disagree with GitHub's is not rewritten: it keeps the
- * text the transfer gave it, in which GitHub itself qualified every
- * reference outside code spans, and a body only has its migration line
- * restored.
+ * edit that sets it, and the texts left as transferred. A text the gate has
+ * no consistent answer for (GitHub's two renders of it disagree, or a render
+ * failed) is not rewritten: it keeps the text the transfer gave it, a body
+ * only has its migration line restored, and it is listed so that verify
+ * reports it and the maintainer reads it by hand.
  */
 async function textDifferences(tracker, repos, snapshot, map, gate) {
-  const targets = targetTexts(snapshot, map, repos);
+  const targets = targetTexts(snapshot, map, repos, gate);
   const current = await gatherInternal(tracker, repos, snapshot, map, { links: false, threads: true });
-  const refused = (key) => gate.get(key)?.agree === false;
+  const why = (key) => {
+    const answer = gate.get(key);
+    return answer?.unanswered ? `GitHub could not be asked: ${answer.reason}` : "GitHub's two renders of the original disagree (a stand-in per token against one per number)";
+  };
   const out = [];
   const left = [];
   for (const issue of snapshot.issues) {
@@ -1264,22 +1283,22 @@ async function textDifferences(tracker, repos, snapshot, map, gate) {
     const target = targets.get(issue.number);
     const n = now.issue.number;
     let body = target.body;
-    if (refused(textKey(issue.number))) {
+    if (body === null) {
       body = withExactMigrationLine(now.issue.body, migrationLine(repos, issue));
-      left.push({ ...gate.get(textKey(issue.number)), old: issue.number, new: n, key: `body:${n}` });
+      left.push({ old: issue.number, new: n, key: `body:${n}`, original: textKey(issue.number), reason: why(textKey(issue.number)) });
     }
     if (!sameText(now.issue.body, body)) out.push({ old: issue.number, new: n, key: `body:${n}`, expected: body, actual: now.issue.body ?? "", write: () => tracker.updateIssue(repos.internal, n, { body }) });
     const { pairs, mismatch } = pairThread(target.thread, now.thread);
     if (mismatch) out.push({ old: issue.number, new: n, key: `comments:${n}`, mismatch });
     for (const p of pairs) {
-      if (refused(textKey(issue.number, p.expected.id))) {
-        left.push({ ...gate.get(textKey(issue.number, p.expected.id)), old: issue.number, new: n, key: `comment:${p.actual.id}` });
+      if (p.expected.target === null) {
+        left.push({ old: issue.number, new: n, key: `comment:${p.actual.id}`, original: textKey(issue.number, p.expected.id), reason: why(textKey(issue.number, p.expected.id)) });
         continue;
       }
-      if (!sameText(p.actual.body, p.expected.body)) out.push({ old: issue.number, new: n, key: `comment:${p.actual.id}`, expected: p.expected.body, actual: p.actual.body ?? "", write: () => tracker.updateComment(repos.internal, p.actual.id, p.expected.body) });
+      if (!sameText(p.actual.body, p.expected.target)) out.push({ old: issue.number, new: n, key: `comment:${p.actual.id}`, expected: p.expected.target, actual: p.actual.body ?? "", write: () => tracker.updateComment(repos.internal, p.actual.id, p.expected.target) });
     }
   }
-  out.leftAsTransferred = left.map(({ old, new: n, key, reader, github, reason }) => ({ old, new: n, key, reader, github, ...(reason ? { reason } : {}) }));
+  out.leftAsTransferred = left;
   return out;
 }
 
@@ -1319,6 +1338,8 @@ export async function runRewrite({ tracker, repos, snapshot, journal, dryRun = f
     mismatchedThreads: texts.filter((d) => d.mismatch).map(({ old, new: n, mismatch }) => ({ old, new: n, mismatch })),
     gateRenders: renders,
     leftAsTransferred: texts.leftAsTransferred,
+    // Texts the tool's own reading would have read differently from GitHub's; GitHub's reading was used.
+    readerDisagreed: [...gate.values()].filter((a) => a.readerAgrees === false).map((a) => a.key),
   };
   if (dryRun) return result;
   for (const d of edits) {
@@ -1422,12 +1443,14 @@ export function renderedLinks(html) {
  * its definition) stays equal and the Markdown means the same; GitHub then
  * links a stand-in wherever it reads a token of that number as a reference.
  * Without it, each token gets its own stand-in, which locates each
- * reference but can break such an equality. A pool number already written
- * in the text is not used.
+ * reference but can break such an equality. A pool number whose digits the
+ * text already holds anywhere (written out, as an entity such as `&#35;N`,
+ * in a URL) is not used, so no link the text already makes can pass for a
+ * stand-in.
  */
 export function withSentinels(text, pool, { perNumber = false } = {}) {
   const source = text ?? "";
-  const free = pool.filter((n) => !source.includes(`#${n}`) && !source.includes(`/${n}`));
+  const free = pool.filter((n) => !new RegExp(`(?<![0-9])${n}(?![0-9])`).test(source));
   const tokens = [];
   const byNumber = new Map();
   let used = 0;
@@ -1451,69 +1474,98 @@ async function standInPool(tracker, repos, snapshot) {
 }
 
 /**
- * Whether the tool's Markdown reading and GitHub's renderer agree on the
- * bare references of an original text. GitHub is asked twice, in the code
- * repository's context: with a stand-in per token, for which tokens it
- * links, and with a stand-in per number, for which numbers it links in
- * order with every label and definition intact. They agree when the tool
- * maps exactly the tokens GitHub links and their numbers are the ones, in
- * order, GitHub links in the second render.
+ * Which possible references of an original text GitHub reads as
+ * references, asked twice in the code repository's context: with a
+ * stand-in per token, for which tokens it links, and with a stand-in per
+ * number, for which numbers it links in order with every label and
+ * definition intact. The two are consistent when the per-token tokens'
+ * numbers, in order, are the per-number render's; then `tokens` is GitHub's
+ * own reading, which the rewrite maps. Whether the tool's Markdown reading
+ * agrees is recorded too, as a cross-check that decides nothing.
  */
-export async function referenceAgreement(tracker, repos, text, pool) {
+export async function githubReferences(tracker, repos, text, pool) {
   const source = text ?? "";
-  const tokens = [...source.matchAll(BARE_REF)].map((m) => ({ number: Number(m[2]), at: m.index + m[1].length }));
-  if (!tokens.length) return { agree: true, reader: [], github: [], renders: 0 };
-  const ranges = protectedRanges(source);
-  const reader = tokens.map((t, k) => (covered(ranges, t.at) ? -1 : k)).filter((k) => k >= 0);
+  const all = [...source.matchAll(BARE_REF)].map((m) => ({ number: Number(m[2]), at: m.index + m[1].length }));
+  if (!all.length) return { consistent: true, tokens: [], numbers: [], readerAgrees: true, renders: 0 };
   const code = repos.code.toLowerCase();
   const each = withSentinels(source, pool);
   const linkedEach = new Set(renderedLinks(await tracker.renderMarkdown(each.text, repos.code)));
-  const github = each.tokens.map((t, k) => (linkedEach.has(`${code}#${t.sentinel}`) ? k : -1)).filter((k) => k >= 0);
+  const tokens = each.tokens.map((t, k) => (linkedEach.has(`${code}#${t.sentinel}`) ? k : -1)).filter((k) => k >= 0);
   const same = withSentinels(source, pool, { perNumber: true });
   const numberOf = new Map(same.tokens.map((t) => [`${code}#${t.sentinel}`, t.number]));
-  const linkedNumbers = renderedLinks(await tracker.renderMarkdown(same.text, repos.code))
+  const numbers = renderedLinks(await tracker.renderMarkdown(same.text, repos.code))
     .filter((l) => numberOf.has(l))
     .map((l) => numberOf.get(l));
-  const readerNumbers = reader.map((k) => tokens[k].number);
-  const agree = isDeepStrictEqual(reader, github) && isDeepStrictEqual(readerNumbers, linkedNumbers);
-  return { agree, reader: readerNumbers, github: linkedNumbers, readerTokens: reader, githubTokens: github, renders: 2 };
+  const consistent = isDeepStrictEqual(tokens.map((k) => all[k].number), numbers);
+  const ranges = protectedRanges(source);
+  const readerTokens = all.map((t, k) => (covered(ranges, t.at) ? -1 : k)).filter((k) => k >= 0);
+  return { consistent, tokens, numbers, readerAgrees: isDeepStrictEqual(readerTokens, tokens), renders: 2 };
+}
+
+/** The text with the possible references at the given token positions mapped, and nothing else changed. */
+export function mapTokens(text, tokens, resolve) {
+  const at = new Set(tokens);
+  let k = -1;
+  return (text ?? "").replace(BARE_REF, (all, lead, n) => {
+    k++;
+    if (!at.has(k)) return all;
+    const to = resolve(Number(n));
+    return to === null || to === undefined ? all : lead + to;
+  });
 }
 
 /** The snapshot key of a text: its issue's old number and the body or the snapshot comment's id. */
 const textKey = (old, commentId = null) => (commentId === null ? `${old}:body` : `${old}:comment:${commentId}`);
 
+/** A digest of an original text, which binds a journaled gate answer to the text it answered. */
+const digestOf = (text) => createHash("sha256").update(text ?? "").digest("hex");
+
 /**
- * The reference agreement of every snapshot text with a possible reference,
- * by text key. Each result is journaled, so a rerun of the rewrite, and the
- * verify after it, read the answer instead of rendering again.
+ * GitHub's reading of every snapshot text with a possible reference, by
+ * text key. Each answer is journaled with a digest of the text it read, so
+ * a rerun of the rewrite, and the verify after it, reuse it only for the
+ * same text. A render that failed is not an answer: it is not journaled,
+ * the text is not rewritten in this run, and the next run asks again.
  */
 async function referenceGate(tracker, repos, snapshot, journal, log = () => {}) {
-  const gate = new Map();
-  for (const r of journal.of("reference-check")) gate.set(r.key, r);
+  const journaled = new Map();
+  for (const r of journal.of("reference-check")) if (typeof r.consistent === "boolean" && Array.isArray(r.tokens)) journaled.set(r.key, r);
   const { pool } = await standInPool(tracker, repos, snapshot);
   const texts = snapshot.issues.flatMap((i) => [{ key: textKey(i.number), text: i.body }, ...(i.thread ?? []).map((c) => ({ key: textKey(i.number, c.id), text: c.body }))]);
+  const gate = new Map();
   let renders = 0;
   for (const { key, text } of texts) {
-    if (gate.has(key) || ![...(text ?? "").matchAll(BARE_REF)].length) continue;
-    let result;
-    try {
-      result = await referenceAgreement(tracker, repos, text, pool);
-    } catch (error) {
-      result = { agree: false, reason: error.message, renders: 0 };
+    if (![...(text ?? "").matchAll(BARE_REF)].length) continue;
+    const digest = digestOf(text);
+    const known = journaled.get(key);
+    if (known && known.digest === digest) {
+      gate.set(key, known);
+      continue;
     }
-    renders += result.renders;
-    const { renders: _, ...record } = result;
-    gate.set(key, journal.append({ mode: "reference-check", key, ...record }));
-    if (!result.agree) log(`the reading of ${key} disagrees with GitHub's; it is left as transferred`);
+    try {
+      const { renders: used, ...answer } = await githubReferences(tracker, repos, text, pool);
+      renders += used;
+      gate.set(key, journal.append({ mode: "reference-check", key, digest, ...answer }));
+      if (!answer.consistent) log(`GitHub's two renders of ${key} disagree; it is left as transferred`);
+    } catch (error) {
+      gate.set(key, { key, unanswered: true, reason: error.message });
+      log(`could not ask GitHub about ${key}: ${error.message}; it is not rewritten in this run`);
+    }
   }
   return { gate, renders };
 }
 
-/** A body with its migration line restored where the transfer rewrote it, and nothing else changed. */
+/**
+ * A body with the migration line the transfer step appended restored,
+ * where GitHub's own rewrite of the moved text qualified its reference,
+ * and nothing else changed. That line is the body's last non-blank line;
+ * a line of the same shape the author wrote earlier is left alone.
+ */
 function withExactMigrationLine(body, line) {
   const lines = (body ?? "").split(/\r?\n/);
-  const k = lines.findIndex((l) => /^Migrated from \S+#\d+(; originally closed \d{4}-\d{2}-\d{2})?$/.test(l.trim()));
-  if (k < 0) return withMigrationLine(body, line);
+  let k = lines.length - 1;
+  while (k >= 0 && !lines[k].trim()) k--;
+  if (k < 0 || !/^Migrated from \S+#\d+(; originally closed \d{4}-\d{2}-\d{2})?$/.test(lines[k].trim())) return withMigrationLine(body, line);
   lines[k] = line;
   return lines.join("\n");
 }
@@ -1632,6 +1684,8 @@ export async function runVerify({ tracker, repos, snapshot, journal, report = {}
   const { gate } = await referenceGate(tracker, repos, snapshot, journal);
   const texts = await textDifferences(tracker, repos, snapshot, map, gate);
   report.leftAsTransferred = texts.leftAsTransferred;
+  // A text left as transferred keeps whatever GitHub's transfer did to it, code included, so nothing here can vouch for it.
+  for (const t of texts.leftAsTransferred) differences.push({ old: t.old, new: t.new, field: `left as transferred: ${t.key}`, expected: "a text the rewrite set from its original", actual: `${t.reason}; read it by hand` });
   for (const d of texts) {
     if (d.mismatch) differences.push({ old: d.old, new: d.new, field: "comment thread", expected: "the snapshot's comments in order", actual: d.mismatch });
     else differences.push({ old: d.old, new: d.new, field: `text of ${d.key}`, expected: { bareReferences: bareRefs(d.expected) }, actual: { bareReferences: bareRefs(d.actual), oldQualifiedReferences: staleRefs(d.actual, repos, map), migrationLine: d.key.startsWith("body:") ? hasLine(d.actual, migrationLine(repos, snapshot.issues.find((i) => i.number === d.old))) : undefined } });
@@ -1964,14 +2018,18 @@ export async function main(argv = process.argv.slice(2), { repos = readRepos(), 
   } else if (opts.mode === "restore") {
     const { plan, ...result } = await runRestore(args);
     print({ mode: "restore", ...result, requestsMade: pacer.total });
-  } else if (opts.mode === "rewrite") print({ mode: "rewrite", ...(await runRewrite(args)), requestsMade: pacer.total });
-  else if (opts.mode === "map") print({ mode: "map", ...(await runMap(args)), requestsMade: pacer.total });
+  } else if (opts.mode === "rewrite") {
+    const result = await runRewrite(args);
+    if (!opts.dryRun) writeJson(path.join(opts.dir, "left-as-transferred.json"), result.leftAsTransferred);
+    print({ mode: "rewrite", ...result, requestsMade: pacer.total });
+  } else if (opts.mode === "map") print({ mode: "map", ...(await runMap(args)), requestsMade: pacer.total });
   else if (opts.mode === "verify") {
     const verified = {};
     const differences = await runVerify({ ...args, report: verified });
     if (!opts.dryRun) {
       writeJson(path.join(opts.dir, "verify-report.json"), differences);
       writeJson(path.join(opts.dir, "render-check.json"), verified.renderCheck);
+      writeJson(path.join(opts.dir, "left-as-transferred.json"), verified.leftAsTransferred);
     }
     const { checked, ...renderCheck } = verified.renderCheck;
     print({ mode: "verify", passed: differences.length === 0, differences, renderCheck, leftAsTransferred: verified.leftAsTransferred, requestsMade: pacer.total });
