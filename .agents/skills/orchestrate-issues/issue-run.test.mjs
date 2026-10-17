@@ -403,13 +403,23 @@ try {
     fetchMain: () => "m1",
     issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "## Description\n\nx\n\n## Acceptance criteria\n\n- [ ] Widgets work.\n" }),
     worktrees: () => run.parseWorktrees(`worktree ${checkout}\nHEAD m1\nbranch refs/heads/main\n\nworktree ${path.join(tmp, "x")}\nHEAD e2\nbranch refs/heads/codex/fix/202-thing\n`),
-    subIssues: (n) => ({ 200: [{ number: 201, state: "open", title: "a" }, { number: 202, state: "open", title: "b" }, { number: 210, state: "open", title: "container" }], 210: [{ number: 211, state: "open", title: "c" }] })[n] ?? [],
+    // Types as GitHub's sub-issues API reports them: #212 is a Task whose
+    // sub-issues are all Bugs, so it stays a slice that delivers them; #210
+    // holds a Task, so it is a container; #215 and #217 are Bugs under the
+    // parent that sibling slices' PRs close.
+    subIssues: (n) => ({
+      200: [{ number: 201, state: "open", title: "a", type: { name: "Task" } }, { number: 202, state: "open", title: "b", type: { name: "Task" } }, { number: 210, state: "open", title: "container", type: { name: "Task" } }, { number: 212, state: "open", title: "slice with bugs", type: { name: "Task" } }, { number: 215, state: "open", title: "sibling-closed bug", type: { name: "Bug" } }, { number: 217, state: "closed", title: "merged sibling bug", type: { name: "Bug" } }],
+      210: [{ number: 211, state: "open", title: "c", type: { name: "Task" } }],
+      212: [{ number: 213, state: "open", title: "d", type: { name: "Bug" } }, { number: 214, state: "open", title: "e", type: { name: "Bug" } }],
+    })[n] ?? [],
     blockedBy: (n) => ({ 201: [{ number: 190, state: "closed" }], 202: [{ number: 191, state: "closed" }] })[n] ?? [],
     effort: () => "Medium",
     pulls: (n) => ({
       190: [{ number: 390, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/190-x", closingIssuesReferences: [{ number: 190 }] }],
       191: [{ number: 391, state: "MERGED", mergeCommit: { oid: "off-main" }, headRefName: "fix/191-x", closingIssuesReferences: [{ number: 191 }] }],
-      201: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [] }, { number: 499, state: "OPEN", isDraft: false, headRefName: "fix/2010-y", headRefOid: "h9", closingIssuesReferences: [{ number: 2010 }] }],
+      201: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }] }, { number: 499, state: "OPEN", isDraft: false, headRefName: "fix/2010-y", headRefOid: "h9", closingIssuesReferences: [{ number: 2010 }] }],
+      215: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }] }],
+      217: [{ number: 392, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/202-thing", closingIssuesReferences: [{ number: 217 }] }],
     })[n] ?? [],
     comments: () => [{ body: "### Review round 1 state\n" }, { body: "intro\n### Review round 3 state\n" }, { body: "Round 4 is not a heading" }],
     checks: () => [{ name: "hook-tests", state: "SUCCESS" }],
@@ -422,6 +432,18 @@ try {
   assert.deepEqual(byNumber[202].blockers, [{ number: 191, state: "closed", delivered: false }]);
   assert.deepEqual(byNumber[202].worktrees.map((w) => w.branch), ["codex/fix/202-thing"]);
   assert.deepEqual([byNumber[210].container, byNumber[211].parent], [true, 210]);
+  // The delivered-by relation: a Task whose sub-issues are all Bugs is a slice
+  // that delivers them; a Bug whose only PR is a sibling slice's (its branch
+  // names the sibling, and it closes the Bug) is delivered by that slice; a
+  // ticket with a PR of its own is its own slice; a merged deliverer's Bug is
+  // delivered. The final gate's scope read lists the same slices.
+  assert.deepEqual([byNumber[212].container, byNumber[212].deliveredBy, byNumber[212].type], [false, undefined, "Task"], "a slice whose sub-issues are all Bugs is not a container");
+  assert.deepEqual([byNumber[213].deliveredBy, byNumber[214].deliveredBy], [{ ticket: 212, via: "sub-issue", pr: null }, { ticket: 212, via: "sub-issue", pr: null }], "its Bugs are delivered by its PR, which does not exist yet");
+  assert.deepEqual(byNumber[215].deliveredBy, { ticket: 201, via: "pr", pr: 401 }, "a Bug a sibling's PR closes is delivered by that sibling");
+  assert.deepEqual([byNumber[217].deliveredBy, byNumber[217].delivered], [{ ticket: 202, via: "pr", pr: 392 }, true], "a Bug a merged sibling PR closed is delivered");
+  assert.equal(byNumber[201].deliveredBy, undefined, "a ticket with a PR of its own is its own slice");
+  assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read and the snapshot agree on the slices");
+  assert.deepEqual(run.snapshotScope(snap).slices, ["#201 open", "#202 open", "#211 open", "#212 open", "#213 open", "#214 open", "#215 open", "#217 closed"]);
   // The parent is of any type: a Task with sub-issues is orchestrated as a
   // Feature is, and the brief names it by the type GitHub reports and points
   // the writer at its body as the design of record, never at a Feature.
@@ -429,12 +451,29 @@ try {
     assert.deepEqual([snap.issue.number, snap.issue.type, snap.issue.criteria.map((c) => c.text)], [200, "Task", ["Widgets work."]], "the snapshot carries the parent's type and criteria");
     const taskRecord = path.join(artifacts, "run-200.json");
     assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #200." }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
-    const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211])], freeBytes: 100 * GB, defaults, census: () => [] });
+    const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211, 212])], freeBytes: 100 * GB, defaults, census: () => [] });
     assert.deepEqual([taskPlan.parent, actions(taskPlan)[211]], [{ type: "Task", title: "Widgets" }, "dispatch"], "the plan carries the parent's type and admits the nested slice");
-    const taskPlanFile = write("plan-200.json", taskPlan);
-    run.updateRecord(taskRecord, { expectRevision: 1, coordinator: "local_a" }, (r) => run.claim(r, { plan: taskPlanFile, ticket: 211, worktree: path.join(tmp, "wt-211"), branch: "fix/211-thing", artifactParent: artifacts }));
-    const taskBrief = run.brief(run.readRecord(taskRecord), taskPlanFile, 211, [], defaults);
-    assert.match(taskBrief, /You are the writer for acme\/widgets ticket #211 \(c\), a sub-issue of Task #200, coordinated by/);
+    // Delivered tickets are never dispatched and hold no place: only #201's
+    // draft PR and #202's worktree occupy capacity, so #212 waits on the limit
+    // behind #211, and each slice's entry names what its PR delivers.
+    assert.deepEqual([213, 214, 215].map((n) => actions(taskPlan)[n]), ["delivered-by", "delivered-by", "delivered-by"]);
+    assert.deepEqual([actions(taskPlan)[217], actions(taskPlan)[212], taskPlan.concurrency.active], ["done", "wait-capacity", 2], "a merged deliverer's Bug is done; delivered Bugs take no writer place");
+    assert.match(taskPlan.tickets.find((t) => t.number === 215).reason, /#201's PR #401 delivers it \(that PR closes it\): it is never dispatched and holds no writer place/);
+    assert.match(taskPlan.tickets.find((t) => t.number === 213).reason, /#212's PR delivers it \(a Bug under slice #212\)/);
+    assert.deepEqual([212, 201, 202].map((n) => taskPlan.tickets.find((t) => t.number === n).delivers), [[213, 214], [215], [217]]);
+    assert.equal(taskPlan.tickets.find((t) => t.number === 211).delivers, undefined);
+    // A writer the record holds for a delivered ticket is a mistake to settle.
+    const held = run.planDispatch({ record: { ...run.readRecord(taskRecord), tickets: { 215: { owner: { route: "claude-desktop", handle: { kind: "session", id: "local_stray" }, since: new Date().toISOString() }, pending: null, history: [], results: [] } } }, snapshot: snap, preflights: [], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(held)[215], held.concurrency.active], ["decision-needed", 3], "a held writer on a delivered ticket is reported and counted until settled");
+    // The slice that delivers Bugs is dispatched like any other, and its brief
+    // asks for their closing references.
+    const slicePlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [212])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(slicePlan)[211], actions(slicePlan)[212]], ["blocked-route", "dispatch"]);
+    const taskPlanFile = write("plan-200.json", slicePlan);
+    run.updateRecord(taskRecord, { expectRevision: 1, coordinator: "local_a" }, (r) => run.claim(r, { plan: taskPlanFile, ticket: 212, worktree: path.join(tmp, "wt-212"), branch: "fix/212-thing", artifactParent: artifacts }));
+    const taskBrief = run.brief(run.readRecord(taskRecord), taskPlanFile, 212, [], defaults);
+    assert.match(taskBrief, /You are the writer for acme\/widgets ticket #212 \(slice with bugs\), a sub-issue of Task #200, coordinated by/);
+    assert.match(taskBrief, /Your PR also delivers #213, #214: they are Bugs under #212 or ones your branch's PR closes, never dispatched to another writer, so the PR body carries a closing reference for each of them beside the one for #212/);
     assert.match(taskBrief, /The design of record is the body of Task #200, as its template structures it, together with the decisions below\. Settled decisions: none beyond the ticket and that body\./);
     assert.doesNotMatch(taskBrief, /Feature/, "nothing in the brief calls the Task a Feature");
   }

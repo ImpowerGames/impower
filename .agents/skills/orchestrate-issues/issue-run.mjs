@@ -550,6 +550,37 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
 export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
 
+// The parent's sub-issue tree, read once to GitHub's own nesting limit, with
+// each node's place in the plan. A node with sub-issues is a container, planned
+// through them, unless it is a slice that delivers them: a Task or Feature
+// whose sub-issues are all Bugs stays a ticket of its own, and each of those
+// Bugs is delivered by its PR rather than dispatched. A container below the
+// nesting limit is one the walk could not see into, so it is marked truncated
+// rather than treated as a ticket. The snapshot and the final gate's scope read
+// share this walk, so both see the same slices.
+export function walkSubIssues(issue, client) {
+  const nodes = [];
+  const isBug = (c) => (c.type?.name ?? null) === "Bug";
+  const visit = (parent, depth, deliverer) => {
+    for (const sub of client.subIssues(parent)) {
+      const n = sub.number, type = sub.type?.name ?? null;
+      const children = client.subIssues(n);
+      const delivers = children.length > 0 && type !== null && type !== "Bug" && children.every(isBug);
+      const container = children.length > 0 && !delivers;
+      const truncated = container && depth >= MAX_SUB_ISSUE_DEPTH;
+      nodes.push({ number: n, title: sub.title, state: sub.state, type, parent, container, ...(truncated && { truncated: true }), ...(deliverer !== null && isBug(sub) && !children.length && { deliveredBy: { ticket: deliverer, via: "sub-issue", pr: null } }) });
+      if (children.length && !truncated) visit(n, depth + 1, delivers ? n : null);
+    }
+  };
+  visit(issue, 1, null);
+  return nodes;
+}
+
+// The slices a container's walk plans: every node that is not a container,
+// and a container the walk could not see into.
+const plannedNodes = (nodes) => nodes.filter((t) => !t.container || t.truncated);
+
+const PR_PREFERENCE = { MERGED: 0, OPEN: 1 };
 export function takeSnapshot({ repository, issue }, client) {
   const originMain = client.fetchMain();
   const worktrees = client.worktrees();
@@ -559,29 +590,35 @@ export function takeSnapshot({ repository, issue }, client) {
     return pullCache.get(n);
   };
   const delivered = (n) => pullsOf(n).some((p) => p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
-  const tickets = [];
-  // Every descendant is read, to GitHub's own nesting limit; a container below
-  // that limit would be one this snapshot could not see into, so it is marked
-  // truncated rather than treated as a ticket.
-  const visit = (parent, depth) => {
-    for (const sub of client.subIssues(parent)) {
-      const n = sub.number;
-      const children = client.subIssues(n);
-      const truncated = children.length > 0 && depth >= MAX_SUB_ISSUE_DEPTH;
-      const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
-      tickets.push({
-        number: n, title: sub.title, state: sub.state, parent, container: children.length > 0, ...(truncated && { truncated: true }), effort: client.effort(n),
-        delivered: sub.state === "closed" && delivered(n),
-        blockers: client.blockedBy(n).map((b) => ({ number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })),
-        prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
-      });
-      if (children.length && !truncated) visit(n, depth + 1);
-    }
-  };
-  // The parent's type is the one GitHub reports (Feature, Task or Bug, or
-  // none); the brief names the parent by it.
+  // The parent's body is read before its tree, so a criterion added while the
+  // tree is walked shows up in the final gate's later scope read, not here;
+  // its type is the one GitHub reports (Feature, Task or Bug, or none), and
+  // the brief names the parent by it.
   const parent = client.issue(issue);
-  visit(issue, 1);
+  const tickets = walkSubIssues(issue, client).map((node) => {
+    const n = node.number;
+    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
+    return {
+      ...node, effort: client.effort(n),
+      delivered: node.state === "closed" && delivered(n),
+      blockers: client.blockedBy(n).map((b) => ({ number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })),
+      prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
+    };
+  });
+  // A ticket with a PR of its own is its own slice. Otherwise a ticket whose PR
+  // is another listed ticket's (its branch names that ticket, and it closes
+  // this one) is delivered by that slice; a Bug a slice delivers as its
+  // sub-issue gets that slice's PR once it exists.
+  const listed = new Set(tickets.map((t) => t.number));
+  const byPreference = (a, b) => (PR_PREFERENCE[a.state] ?? 2) - (PR_PREFERENCE[b.state] ?? 2);
+  for (const t of tickets) {
+    if (t.container) continue;
+    const own = t.prs.some((p) => branchTicket(p.branch) === t.number);
+    if (own) { delete t.deliveredBy; continue; }
+    if (t.deliveredBy) { t.deliveredBy.pr = [...t.prs].sort(byPreference).find((p) => branchTicket(p.branch) === t.deliveredBy.ticket)?.number ?? null; continue; }
+    const via = [...t.prs].sort(byPreference).find((p) => { const s = branchTicket(p.branch); return s !== null && s !== t.number && listed.has(s); });
+    if (via) t.deliveredBy = { ticket: branchTicket(via.branch), via: "pr", pr: via.number };
+  }
   return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
@@ -591,19 +628,11 @@ export function takeSnapshot({ repository, issue }, client) {
 // were judged on, so a slice that left, joined or reopened, or a criterion
 // that changed, while the slower reads ran stops the call.
 export function readIssueScope({ issue }, client) {
-  const slices = [];
-  const visit = (parent, depth) => {
-    for (const sub of client.subIssues(parent)) {
-      const children = client.subIssues(sub.number);
-      if (children.length && depth < MAX_SUB_ISSUE_DEPTH) visit(sub.number, depth + 1);
-      else slices.push(`#${sub.number} ${sub.state}`);
-    }
-  };
-  visit(issue, 1);
+  const slices = plannedNodes(walkSubIssues(issue, client)).map((t) => `#${t.number} ${t.state}`);
   return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(issue).body) };
 }
 // The same scope as a snapshot holds it.
-export const snapshotScope = (snapshot) => ({ slices: snapshot.tickets.filter((t) => !t.container || t.truncated).map((t) => `#${t.number} ${t.state}`).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
+export const snapshotScope = (snapshot) => ({ slices: plannedNodes(snapshot.tickets).map((t) => `#${t.number} ${t.state}`).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
 
 // --- Admission plan -------------------------------------------------------
 
@@ -826,6 +855,17 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   for (const t of snapshot.tickets) {
     const own = record.tickets[t.number] ?? {};
     const open = t.prs.filter((p) => p.state === "OPEN");
+    // A ticket another slice's PR delivers is never dispatched and holds no
+    // writer place: it is done once that PR's merge commit is on origin/main
+    // and GitHub has closed it, and a writer the record holds for it is a
+    // mistake to settle.
+    if (t.deliveredBy) {
+      const d = t.deliveredBy, by = `#${d.ticket}'s PR${d.pr ? ` #${d.pr}` : ""}`, how = d.via === "sub-issue" ? `a Bug under slice #${d.ticket}` : "that PR closes it";
+      if (own.owner || own.pending) { active++; add(t, "decision-needed", `the record holds a writer or pending start for it, but ${by} delivers it (${how}); settle that writer, since the ticket is never dispatched`, { deliveredBy: d }); continue; }
+      if (t.state === "closed") { add(t, t.delivered ? "done" : "decision-needed", t.delivered ? `delivered by ${by}, merged on origin/main` : `closed without a merged deliverable on origin/main, although ${by} delivers it; confirm whether the ticket is complete`, { deliveredBy: d }); continue; }
+      add(t, "delivered-by", `${by} delivers it (${how}): it is never dispatched and holds no writer place, and it is done once that PR's merge commit is on origin/main and GitHub has closed it`, { deliveredBy: d });
+      continue;
+    }
     if (t.container) {
       if (own.owner || own.pending) {
         heldContainers.add(t.number);
@@ -1004,6 +1044,12 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   for (const t of snapshot.tickets) reviewed.push(...t.prs.filter((p) => p.state === "OPEN").map((p) => ({ ticket: t.number, pr: p.number })));
   sweep.deadLaunches = deadLaunches(reviewJobs, reviewed, census);
   tickets.sort((a, b) => a.number - b.number);
+  // A slice's entry names the tickets its PR delivers, so its brief asks the
+  // writer for their closing references.
+  for (const entry of tickets) {
+    const delivers = snapshot.tickets.filter((x) => x.deliveredBy?.ticket === entry.number).map((x) => x.number);
+    if (delivers.length) entry.delivers = delivers;
+  }
   // The parent issue is complete only once its acceptance criteria were verified
   // on main and every ticket is still delivered.
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
@@ -1753,6 +1799,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
       : `You cannot message ${coordinator}: ${how.unsupported}. Write your acknowledgement, naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed, as your first message instead; ${defaults.reportFallback}.`,
     ...(route.turns ? [route.turns] : []),
     `Run the resolve-issue skill for #${number} exactly as written.`,
+    ...(entry.delivers?.length ? [`Your PR also delivers ${entry.delivers.map((n) => `#${n}`).join(", ")}: ${entry.delivers.length === 1 ? "it is a Bug under #" + number + " or one your branch's PR closes" : "they are Bugs under #" + number + " or ones your branch's PR closes"}, never dispatched to another writer, so the PR body carries a closing reference for each of them beside the one for #${number}, and GitHub closes them with it when it merges.`] : []),
     adopted ? `Continue the existing work ${place} on branch ${work.branch}${adopted.pr ? ` and its PR #${adopted.pr}, which has started ${adopted.rounds} review rounds; the count continues from there and never resets` : ""}.` : `Create your worktree at ${work.worktree} on branch ${work.branch} from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.`,
     `Allocate your private artifact directory with resolve-issue's allocator under ${work.artifactParent ?? "a scratch parent of your own"}, and keep every artifact in it.`,
     `The design of record is the body of ${parent}, as its template structures it, together with the decisions below. Settled decisions:${decisions.length ? "" : " none beyond the ticket and that body."}`,

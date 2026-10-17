@@ -164,6 +164,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   if (snapshot.repository !== record.repository || snapshot.issue?.number !== record.issue) blockers.push("the snapshot is of another repository or parent issue");
   else if (!t) blockers.push(`#${number} is not a sub-issue of issue #${record.issue} in the snapshot of ${snapshot.observedAt}`);
   else if (t.container) blockers.push(`#${number} is a container; its sub-issues merge their own PRs`);
+  else if (t.deliveredBy) blockers.push(`#${number} is delivered by #${t.deliveredBy.ticket}'s PR; the merge is #${t.deliveredBy.ticket}'s`);
   else if (!t.prs.some((p) => p.number === pr)) blockers.push(`PR #${pr} is not one of #${number}'s PRs in the snapshot of ${snapshot.observedAt}`);
   else if (t.prs.filter((p) => p.state === "OPEN").length > 1) blockers.push(`#${number} has open PRs ${t.prs.filter((p) => p.state === "OPEN").map((p) => `#${p.number}`).join(", ")}; which one delivers it is the maintainer's decision`);
   if (branchTicket(pull.branch) !== number) blockers.push(`PR #${pr}'s branch ${pull.branch} is not #${number}'s`);
@@ -357,7 +358,7 @@ function slices(record, snapshot) {
   return snapshot.tickets.filter((t) => !t.container).map((t) => {
     const merged = t.prs.find((p) => p.state === "MERGED" && p.mergeCommit);
     const op = merged && (record.operations ?? []).find((o) => o.kind === "merge" && o.pr === merged.number && o.state === "confirmed");
-    return { number: t.number, title: t.title, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
+    return { number: t.number, title: t.title, deliveredBy: t.deliveredBy ?? null, delivered: t.state === "closed" && t.delivered, pr: merged?.number ?? t.prs.find((p) => p.state === "OPEN")?.number ?? null, mergeCommit: merged?.mergeCommit ?? null, gate: op?.gate ?? null, operation: op?.id ?? null, baseMoved: op ? op.baseMoved ?? null : false, mergedOnto: op?.mergedOnto ?? null, state: t.state, open: t.prs.filter((p) => p.state === "OPEN").map((p) => p.number) };
   });
 }
 
@@ -381,7 +382,8 @@ export function finalReport(record, snapshot, v) {
     // The report is on the parent issue, in the tickets repository, so its pull
     // requests name the code repository once tickets live apart; the
     // criteria and their evidence stay as the coordinator wrote them.
-    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, how + landed).replace(/\|/g, "/")} |`;
+    const by = s.deliveredBy ? `delivered by #${s.deliveredBy.ticket}'s PR: ` : "";
+    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, by + how + landed).replace(/\|/g, "/")} |`;
   });
   const accepted = acceptances(record, snapshot);
   const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)].map((line) => qualifyPrs(names, line));

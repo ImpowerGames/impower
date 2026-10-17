@@ -366,6 +366,12 @@ try {
   for (const text of ["Use orchestrate-issues for #40, but stop at ready PRs.", "Use orchestrate-issues for #40 --stop-at-ready."]) blocked(gate(41, { ...record(), invocation: { text, merging: "coordinator" } }), /does not let the coordinator merge/, `a request to stop at ready never merges, whatever decision sits beside it: ${text}`);
   blocked(gate(41, { ...record(), checkpoints: undefined }), /checkpoints are not enabled for this run/, "no merge without a durable intent");
   blocked(gate(41, { ...record(), invocation: { text: "Can you explain how orchestrate-issues merges PRs?" } }), /does not name orchestrate-issues and issue #40/, "a discussion of the skill grants nothing");
+  // A ticket another slice's PR delivers has no merge of its own.
+  {
+    const delivered = snapshotNow();
+    delivered.tickets = delivered.tickets.map((t) => (t.number === 41 ? { ...t, deliveredBy: { ticket: 42, via: "pr", pr: 142 } } : t));
+    blocked(ig.admission(record(), { ticket: 41, pr: 141, snapshot: delivered, facts: ig.gatherFacts({ record: record(), pr: 141, client, git: gitOf(src) }), git: gitOf(src) }), /#41 is delivered by #42's PR; the merge is #42's/, "a delivered ticket is merged through its slice");
+  }
   const selfWritten = structuredClone(record());
   selfWritten.tickets[41].history.push({ owner: { handle: { kind: "session", id: "local_coord" } }, released: "x" });
   blocked(gate(41, selfWritten), /local_coord wrote for #41, and a writer never merges its own work/, "a coordinator that wrote for the ticket");
