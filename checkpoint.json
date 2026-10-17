@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 148,
-  "previous": "9d70b8538149fa26f84f08a3b3d88e2558378ccc",
+  "seq": 149,
+  "previous": "34a63aabb25766eb6de13a93060c5e26fc7d8374",
   "snapshotParents": [],
-  "time": "2026-10-17T06:21:43.474Z",
+  "time": "2026-10-17T06:21:51.963Z",
   "kind": "auto",
-  "transition": "release of #1966",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 136,
@@ -4207,7 +4207,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T06:21:42.400Z",
+      "observedAt": "2026-10-17T06:21:51.088Z",
       "held": true,
       "head": "4f7728208b1ca39dd36cdfa03c1002bb0787c93f",
       "remoteHead": "4f7728208b1ca39dd36cdfa03c1002bb0787c93f",
@@ -4220,7 +4220,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T06:21:09.271Z",
+    "at": "2026-10-17T06:21:51.086Z",
     "tickets": [
       {
         "number": 1962,
@@ -4248,9 +4248,9 @@
       },
       {
         "number": 1966,
-        "action": "release",
+        "action": "done",
         "pr": null,
-        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 58432 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
+        "reason": "closed with its merged deliverable on origin/main"
       },
       {
         "number": 1967,
