@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { reserveFreeze, worktreePaths, assertFrozen } from "../../../scripts/review-job-store.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { readRepos } from "../../repos.mjs";
 import * as run from "./feature-run.mjs";
 import * as cp from "./checkpoint.mjs";
@@ -1191,6 +1192,35 @@ try {
     const published = { tickets: { 901: { checkpoints: [{ state: "published", pr: 77, id: "d1", kind: "finish", round: 3, head: "h", published: { comment: 123, time: "t" } }] } } };
     assert.equal(cp.decisionLinks({ repository: CODE, ticketsRepository: INTERNAL, ...published })[0].url, `https://github.com/${INTERNAL}/issues/901#issuecomment-123`);
     assert.equal(cp.decisionLinks({ repository: CODE, ...published })[0].url, `https://github.com/${CODE}/pull/77#issuecomment-123`, "with one repository the link is the PR's, as before");
+    // Two interleavings fetchState must survive, each forced by running a
+    // step right after one of its own Git calls.
+    const childProcess = createRequire(import.meta.url)("node:child_process"), originalExec = childProcess.execFileSync;
+    const interleave = (when, then) => {
+      let fired = false;
+      childProcess.execFileSync = function (command, args, options) { const result = originalExec.call(this, command, args, options); if (!fired && command === "git" && when(args)) { fired = true; then(); } return result; };
+      syncBuiltinESMExports();
+      return () => { childProcess.execFileSync = originalExec; syncBuiltinESMExports(); return fired; };
+    };
+    // First, a takeover pushed after the branch was listed and before it was
+    // fetched is the checkpoint read, so no coordinator acts on ownership it
+    // has lost; this holds for a run of one repository too.
+    const listed = cp.fetchState(checkout, "internal", CODE, 900, INTERNAL);
+    const successor = cp.writeCommit(checkout, { "checkpoint.json": `${JSON.stringify({ ...listed.checkpoint, seq: listed.checkpoint.seq + 1, previous: listed.commit, snapshotParents: [], coordinator: { ...listed.checkpoint.coordinator, session: "local_successor" } }, null, 2)}\n`, "brief.md": "successor\n" }, [listed.commit], "a takeover pushed between the listing and the fetch\n");
+    const afterListing = interleave((args) => args[0] === "ls-remote" && args[1] === "internal", () => originalExec("git", ["push", "-q", "internal", `${successor}:refs/heads/orchestrate-state/feature-900`], { cwd: checkout, windowsHide: true }));
+    let raced;
+    try { raced = cp.fetchState(checkout, "internal", CODE, 900, INTERNAL); } finally { assert.equal(afterListing(), true, "the takeover was pushed between the listing and the fetch"); }
+    assert.deepEqual([raced.commit, raced.checkpoint.coordinator.session], [successor, "local_successor"], "the fetched takeover is read, not the listed checkpoint");
+    // Second, the code repository's Feature #900, a run of one repository in
+    // this same checkout, reads its own state even when the internal run's is
+    // fetched between its fetch and its read.
+    const public900 = path.join(split, "run-900-public.json");
+    run.initRecord({ record: public900, checkout, repository: CODE, feature: 900, coordinator: "local_public900", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-feature for #900." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.equal(cp.enable(public900, { coordinator: "local_public900", expectRevision: 1, github: stores[CODE] }).checkpoint.saved, true);
+    const publicCommit = git(checkout, "ls-remote", "origin", "refs/heads/orchestrate-state/feature-900").split("\t")[0];
+    const afterFetch = interleave((args) => args[0] === "fetch" && args.includes("origin") && args.some((a) => String(a).includes("refs/orchestrate-feature/")), () => cp.fetchState(checkout, "internal", CODE, 900, INTERNAL));
+    let own;
+    try { own = cp.fetchState(checkout, "origin", CODE, 900); } finally { assert.equal(afterFetch(), true, "the internal state was fetched between the public fetch and its read"); }
+    assert.deepEqual([own.commit, own.checkpoint.ticketsRepository, own.checkpoint.coordinator.session], [publicCommit, undefined, "local_public900"], "each tracker's Feature #900 reads its own checkpoint");
   }
 
   console.log("PASS: discovery from the Feature number, takeover with fresh authority, stale and competing updates, interrupted summary repair, uncertain launch and merge outcomes, foreign-host evidence, planned handoff snapshot beside a review freeze, abrupt loss of unpublished work, credential refusal and automatic checkpoints");

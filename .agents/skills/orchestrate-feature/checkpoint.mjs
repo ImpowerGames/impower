@@ -51,8 +51,12 @@ export function remoteHeads(checkout, remote, pattern) {
 }
 
 // The state branch is fetched into a private ref, so the local branch list and
-// FETCH_HEAD are untouched.
-const localStateRef = (branch) => `refs/orchestrate-feature/${branch}`;
+// FETCH_HEAD are untouched. Once tickets live apart the ref is scoped by the
+// tickets repository: a code repository Feature and an internal Feature of
+// the same number fetch into refs of their own, and neither can replace the
+// other's between its fetch and its read. A run of one repository keeps the
+// name it always had.
+const localStateRef = (branch, repository, tickets = repository) => (sameRepository(tickets, repository) ? `refs/orchestrate-feature/${branch}` : `refs/orchestrate-feature/${tickets}/${branch}`);
 
 function readCheckpointAt(checkout, commit) {
   const checkpoint = JSON.parse(git(checkout, ["show", `${commit}:checkpoint.json`]));
@@ -64,18 +68,17 @@ function readCheckpointAt(checkout, commit) {
 // chain is checked one step back: the commit's parents are exactly the
 // checkpoint it names as previous (one sequence number earlier), when there
 // is one, followed by the snapshot commits it names as its other parents.
-// The checkpoint read is the commit the remote reported, never the private
-// ref read back afterwards: another repository's run of the same Feature
-// number fetches into that same ref name, and could replace it in between.
-// The checkpoint must also name the run's tickets repository (the code
-// repository for a run of one repository), so a checkpoint of the other
-// tracker is refused before anything renders or publishes it.
+// The checkpoint read is the one fetched, so a takeover pushed after the
+// branch was listed is seen. The checkpoint must also name the run's tickets
+// repository (the code repository for a run of one repository), so a
+// checkpoint of the other tracker is refused before anything renders or
+// publishes it.
 export function fetchState(checkout, remote, repository, feature, tickets = repository) {
-  const branch = stateBranch(feature);
+  const branch = stateBranch(feature), ref = localStateRef(branch, repository, tickets);
   const head = remoteHeads(checkout, remote, `refs/heads/${branch}`).get(branch);
   if (!head) return null;
-  git(checkout, ["fetch", "-q", "--no-write-fetch-head", remote, `+refs/heads/${branch}:${localStateRef(branch)}`]);
-  const commit = head;
+  git(checkout, ["fetch", "-q", "--no-write-fetch-head", remote, `+refs/heads/${branch}:${ref}`]);
+  const commit = git(checkout, ["rev-parse", ref]);
   const checkpoint = readCheckpointAt(checkout, commit);
   if (checkpoint.repository !== repository || checkpoint.feature !== feature) throw new Error(`${branch} holds a checkpoint of ${checkpoint.repository}#${checkpoint.feature}, not ${repository}#${feature}`);
   if (!sameRepository(repositoriesOf(checkpoint).tickets, tickets)) throw new Error(`${branch} holds a checkpoint of a run whose tickets live in ${repositoriesOf(checkpoint).tickets}, not ${tickets}; it is another tracker's Feature #${feature}`);
@@ -679,7 +682,7 @@ export function publish(file, { coordinator, kind = "auto", transition = "an exp
       }
       return { saved: false, state: side.attempt.state, seq, commit, reason: side.attempt.reason };
     }
-    git(record.checkout, ["fetch", "-q", "--no-write-fetch-head", remote, `+refs/heads/${stateBranch(record.feature)}:${localStateRef(stateBranch(record.feature))}`]);
+    git(record.checkout, ["fetch", "-q", "--no-write-fetch-head", remote, `+refs/heads/${stateBranch(record.feature)}:${localStateRef(stateBranch(record.feature), record.repository, tickets)}`]);
     if (git(record.checkout, ["show", `${commit}:checkpoint.json`]) !== content.trim()) throw new Error(`Checkpoint ${commit} did not read back as written`);
     side.saved = { seq, commit, recordRevision: record.revision, runId: record.runId, time: checkpoint.time };
     side.attempt = null;
