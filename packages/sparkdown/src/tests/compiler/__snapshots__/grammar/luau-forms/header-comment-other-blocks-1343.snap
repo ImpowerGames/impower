@@ -46,9 +46,10 @@ sparkdown [0..414]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [29..31]
  │   │   │   │   │   └─ OptionalWhitespace [29..31]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 31
- │   │   │   │   └─ LuauPropertyDefinition_begin_c3 31
- │   │   │   │       └─ LuauPropertyDefinition_begin_c3 31
- │   │   │   │           └─ OptionalWhitespace 31
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 31
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 31
+ │   │   │   │   │       └─ OptionalWhitespace 31
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 31
  │   │   │   ├─ LuauPropertyDefinition_content [31..41]
  │   │   │   │   └─ LuauVariableAssignment [31..41]
  │   │   │   │       ├─ LuauVariableAssignment_begin [31..36]

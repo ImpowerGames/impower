@@ -521,6 +521,57 @@ const KEYWORDS = new Set([
   "while",
 ]);
 
+// The keywords that close a block, which the grammar reads only as closers.
+const BLOCK_CLOSERS = new Set(["end", "else", "elseif", "until"]);
+
+// The reserved words a type can hold, among a `local`'s annotated names.
+const TYPE_KEYWORDS = new Set(["nil", "true", "false"]);
+
+// The rules of an if expression that read its `else` and `elseif`.
+const IF_EXPRESSION_RULES = ["LuauTernaryExpression", "LuauElseOperator"];
+
+/** Whether a keyword is read by an if expression, as the first rule around it (not a part of one, whose name has `_`) shows. */
+function isIfExpressionKeyword(node: SyntaxNode | undefined): boolean {
+  let rule = node?.parent;
+  while (rule && rule.name.includes("_")) rule = rule.parent;
+  return !!rule && IF_EXPRESSION_RULES.some((name) => isExplicitRuleName(rule!.name, name));
+}
+
+// The closers each block of a pure-Luau body takes, or yields to as a part
+// of its own construct (an `elseif` to its `if`'s `else`). The grammar
+// closes a block before any other closer, with nothing in its `_end`, and
+// leaves it to the block around (`LUAU_BRANCH_OR_UNTIL_AHEAD` and the like).
+// A bracket takes none.
+const OWN_CLOSERS: Readonly<Record<string, ReadonlySet<string>>> = (() => {
+  const end = new Set(["end"]);
+  const branches = new Set(["end", "else", "elseif"]);
+  const none = new Set<string>();
+  return {
+    LuauIfBlock: branches,
+    LuauElseifBlock: branches,
+    LuauElseBlock: end,
+    LuauRepeatLoop: new Set(["until"]),
+    LuauForLoop: end,
+    LuauWhileLoop: end,
+    LuauDoBlock: end,
+    LuauFunctionBody: end,
+    LuauFunctionDefinition: end,
+    LuauFunctionTypeDeclaration: end,
+    LuauMethodDefinition: end,
+    LuauDefine: end,
+    LuauConditionalAlternatorBlock: end,
+    LuauSequentialAlternatorBlock: end,
+    LuauFunctionCallParameters: none,
+    LuauFunctionParameters: none,
+    LuauParenthetical: none,
+    LuauPropertyIndexer: none,
+    LuauTable: none,
+    LuauTableIndexDeclaration: none,
+    LuauTypeofFunctionParameters: none,
+    LuauSparkleHandlerClosure: none,
+  };
+})();
+
 // Luau's symbols, longest first, so that a symbol's text is read whole.
 const SYMBOLS = [
   "...",
@@ -647,6 +698,13 @@ class Tokenizer {
    * as Luau, as a `run` file's text is: Luau throughout.
    */
   luauThroughout = false;
+  /**
+   * Where the tree has just closed a block before a closer that is not its
+   * own (`OWN_CLOSERS`), or before one it could not read (an error node):
+   * the index the next token takes, and the closers the block owns. Such a
+   * closer closes a block around it, as Luau closes it.
+   */
+  private closedBefore?: { at: number; owned: ReadonlySet<string> };
 
   constructor(
     readonly text: string,
@@ -660,7 +718,49 @@ class Tokenizer {
   push(kind: TokenKind, from: number, to: number, node?: SyntaxNode): void {
     const token: Token = { kind, text: this.text.slice(from, to), from, to, location: this.location(from, to), source: this.source };
     if (node) token.node = node;
+    // A closer right after a block the tree closed before it (`until` after
+    // an `if` with no `end`, #1209) is where Luau reports the block left
+    // open, so the errors there are Luau's to report, as at a token the
+    // grammar left unread.
+    const closed = this.closedBefore;
+    if (closed?.at === this.tokens.length && kind === "keyword" && BLOCK_CLOSERS.has(token.text) && !closed.owned.has(token.text)) {
+      token.unread = true;
+    }
+    // So is a reserved word where a `local` needs its name (`local end`,
+    // #1906): the grammar ends the declaration with no name, and the word
+    // begins whatever it begins, as in Luau.
+    // So is one after a comma of its names (`local a, nil`). `local
+    // function` is a function declaration.
+    const afterLocal = this.tokens[this.tokens.length - 1]?.kind === "keyword" && this.tokens[this.tokens.length - 1]!.text === "local";
+    if (kind === "keyword" && !(afterLocal && token.text === "function") && this.atLocalName(token)) token.unread = true;
     this.tokens.push(token);
+  }
+
+  /**
+   * Whether a token stands where a `local` needs a name: right after the
+   * `local`, or after a comma in the `local`'s names, before any `=`
+   * (`local a: number, nil`), on any line. A type's own words (`nil`,
+   * `true`, `false`) can stand among the names; any other keyword ends the
+   * search, and so do two names in a row, which are two statements
+   * (`local x` then `f(a, nil)`). A word on a later line than the comma
+   * counts only if it is one of those, since the validator reports a
+   * statement that begins a later line (`local a,` before `end`).
+   */
+  private atLocalName(token: Token): boolean {
+    const isLocal = (t: Token | undefined) => t?.kind === "keyword" && t.text === "local";
+    const last = this.tokens[this.tokens.length - 1];
+    if (isLocal(last)) return true;
+    if (last?.kind !== "symbol" || last.text !== ",") return false;
+    if (token.location.begin.line !== last.location.end.line && !TYPE_KEYWORDS.has(token.text)) return false;
+    for (let i = this.tokens.length - 2; i >= 0; i--) {
+      const t = this.tokens[i]!;
+      if (isLocal(t)) return true;
+      if (t.kind === "symbol" && t.text === "=") return false;
+      if (t.kind === "keyword" && !TYPE_KEYWORDS.has(t.text)) return false;
+      if (t.kind !== "name" && t.kind !== "symbol" && t.kind !== "keyword" && t.kind !== "string") return false;
+      if (t.kind === "name" && this.tokens[i + 1]?.kind === "name") return false;
+    }
+    return false;
   }
 
   /** Writes a token the unit needs that the text does not hold, at an offset, as part of the node being read. */
@@ -680,10 +780,25 @@ class Tokenizer {
       this.comment(node);
       return;
     }
+    // An if expression's `else` or `elseif` is the expression's own, not a
+    // closer: after its unfinished condition the grammar reports the missing
+    // `then` itself.
+    if ((name === "LuauElseifKeyword" || name === "LuauElseKeyword") && isIfExpressionKeyword(node)) this.closedBefore = undefined;
     const [from, to] = trimmedRange(this.text, node.from, node.to);
     if (this.luauThroughout && node.type.isError) {
       this.lex(from, to);
       return;
+    }
+    if (from === to) {
+      // Several blocks can close before the same closer (a call's
+      // parentheses and the function body around them before the function's
+      // `end`): it is foreign when any of them does not own it.
+      const owned = node.type.isError ? new Set<string>() : name.endsWith("_end") ? OWN_CLOSERS[name.slice(0, -"_end".length)] : undefined;
+      if (owned) {
+        const before = this.closedBefore?.at === this.tokens.length ? this.closedBefore.owned : undefined;
+        this.closedBefore = { at: this.tokens.length, owned: before ? new Set([...owned].filter((c) => before.has(c))) : owned };
+      }
+      if (node.type.isError) return;
     }
     // An intersection member line (`& { y: string }`) is read as Luau's
     // lexer reads it, its `&` included: the grammar cannot see whether a type

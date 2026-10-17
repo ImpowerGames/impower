@@ -48,12 +48,11 @@ describe("syntax diagnostics", () => {
   });
 
   test("a construct the parser cannot finish is reported, once per place", () => {
-    // Luau reads `end` glued to the parenthesized value; the grammar's
-    // declaration value cannot end before it (#922, which #1906's closer
-    // rules may resolve).
-    const found = checkLuau("\n\n    do local y = (1)end\n").syntaxDiagnostics;
+    // Luau reads a `;` right after a `repeat`'s `until` condition; the
+    // grammar's loop cannot end before it (#1988).
+    const found = checkLuau("\n\n    repeat local x = 1 until x;\n").syntaxDiagnostics;
     expect(found.map((d) => [d.line, d.column, d.message])).toEqual([
-      [2, 20, `Sparkdown could not finish reading the Luau before "end"`],
+      [2, 30, `Sparkdown could not finish reading the Luau before ";"`],
     ]);
   });
 

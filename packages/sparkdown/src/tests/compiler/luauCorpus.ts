@@ -84,36 +84,9 @@ export interface KnownCorpusFailure {
  * `KNOWN_DISAGREEMENTS`.
  */
 export const KNOWN_CORPUS_FAILURES: KnownCorpusFailure[] = [
-  ...failing(879, "incomplete", "a call to `require` is read as a terminator keyword", [
-    "typecheck/TypeInfer.annotations.test.cpp/use_type_required_from_another_file check 1",
-    "typecheck/TypeInfer.annotations.test.cpp/cannot_use_nonexported_type check 1",
-    "typecheck/TypeInfer.annotations.test.cpp/builtin_types_are_not_exported check 1",
-    "typecheck/TypeInfer.provisional.test.cpp/generic_type_leak_to_module_interface check 2",
-    "typecheck/TypeInfer.provisional.test.cpp/generic_type_leak_to_module_interface_variadic check 2",
-    "typecheck/TypeInfer.provisional.test.cpp/table_unification_infinite_recursion check 2",
-    "typecheck/TypeInfer.tables.test.cpp/dont_invalidate_the_properties_iterator_of_free_table_when_rolled_back check 2",
-    "typecheck/TypeInfer.tables.test.cpp/instantiated_metatable_frozen_table_clone_mutation check 2",
-    "typecheck/TypeInfer.test.cpp/warn_on_lowercase_parent_property",
-    "typecheck/TypeInfer.test.cpp/fuzzer_has_indexer_can_create_cyclic_union",
-    "typecheck/TypeInfer.test.cpp/config_reader_example check 2",
-    "typecheck/TypeInfer.test.cpp/is_safe_integer_example check 3",
-    "typecheck/TypeInfer.test.cpp/type_remover_heap_use_after_free check 3",
-    "typecheck/TypeInfer.test.cpp/fuzzer_missing_type_pack_follow check 1",
-    "typecheck/TypeInfer.test.cpp/fuzzer_missing_type_pack_follow check 2",
-    "typecheck/TypeInfer.test.cpp/fuzzer_avoid_emplacing_blocked_types_you_dont_own check 1",
-    "typecheck/TypeInfer.test.cpp/fuzzer_avoid_emplacing_blocked_types_you_dont_own check 2",
-  ]),
-  ...failing(922, "incomplete", "`then` right after a closing `]` or `)`", ["typecheck/TypeInfer.test.cpp/regexp_hang"]),
   ...failing(1988, "incomplete", "a `;` right after a `repeat`'s `until` condition", ["conformance/constructs.luau"]),
-  ...failing(1985, "incomplete", "an unclosed `(`", ["typecheck/TypeInfer.test.cpp/visit_error_nodes_in_lvalue"]),
-  ...failing(1989, "incomplete", "a keyword as a method name after `:`", ["autocomplete/autocompleteMembers.test.ts/keyword_methods"]),
   ...failing(1989, "extent", "a keyword as a method name after `:` opens a block that takes the function's `end`", [
     "autocomplete/autocompleteMembers.test.ts/keyword_methods",
-  ]),
-  ...failing(1997, "incomplete", "a `while` or `for` without `do`, or a `repeat` without `until`, before an `end`", [
-    "autocomplete/autocompleteKeywords.test.ts/stop_at_first_stat_when_recommending_keywords",
-    "autocomplete/autocompleteMembers.test.ts/autocomplete_method_in_unfinished_repeat_body_eof",
-    "autocomplete/autocompleteMembers.test.ts/autocomplete_method_in_unfinished_repeat_body_not_eof",
   ]),
   ...failing(1998, "extent", "a string or interpolation left open on its line runs to the end of the input", [
     "typecheck/TypeInfer.test.cpp/fuzzer_missing_follow_in_function_call",

@@ -1,3 +1,4 @@
+import { lineBreakValues } from "./assignmentLineBreak";
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
@@ -193,8 +194,10 @@ export function validateAssignmentValue(
   // The value node (string/number/table/access-path/…) is a SIBLING of the
   // operator inside the operation. If every sibling after the operator is
   // whitespace or a comment, there's no value.
+  // The line break after an `=` holds an if expression that begins a later
+  // line, and otherwise only comments and line breaks.
   for (let sib = operator.nextSibling; sib; sib = sib.nextSibling) {
-    if (!isInsignificant(sib.name)) return;
+    if (sib.name === "LuauAssignmentLineBreak" ? lineBreakValues(sib).length > 0 : !isInsignificant(sib.name)) return;
   }
   const range = operatorTokenRange(operator, ctx);
   // The highlighting node may end at the line-ending operator while Luau

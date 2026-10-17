@@ -9,18 +9,18 @@ sparkdown [0..42]
      │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
      │           └─ OptionalWhitespace [5..6]: " "
      ├─ LuauSparkdownVariableDefinition_content [6..42]
-     │   └─ LuauVariableAssignment [6..42]
-     │       ├─ LuauVariableAssignment_begin [6..23]
-     │       │   ├─ LuauVariableAssignment_begin_c1 [6..22]
+     │   └─ LuauSparkdownVariableAssignment [6..42]
+     │       ├─ LuauSparkdownVariableAssignment_begin [6..23]
+     │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [6..22]
      │       │   │   └─ LuauVariableName [6..22]: "currentTimeOfDay"
-     │       │   └─ LuauVariableAssignment_begin_c2 [22..23]
+     │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [22..23]
      │       │       └─ OptionalWhitespace [22..23]: " "
-     │       ├─ LuauVariableAssignment_content [23..42]
-     │       │   └─ LuauAssignmentOperation [23..42]
-     │       │       ├─ LuauAssignmentOperation_begin 23
-     │       │       │   └─ LuauAssignmentOperation_begin_c1 23
+     │       ├─ LuauSparkdownVariableAssignment_content [23..42]
+     │       │   └─ LuauSparkdownAssignmentOperation [23..42]
+     │       │       ├─ LuauSparkdownAssignmentOperation_begin 23
+     │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 23
      │       │       │       └─ OptionalWhitespace 23
-     │       │       ├─ LuauAssignmentOperation_content [23..42]
+     │       │       ├─ LuauSparkdownAssignmentOperation_content [23..42]
      │       │       │   ├─ LuauAssignmentOperator [23..25]
      │       │       │   │   ├─ LuauAssignmentOperator_begin [23..25]
      │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 23
@@ -47,6 +47,6 @@ sparkdown [0..42]
      │       │       │       │               └─ LuauPropertyName [37..42]: "NIGHT"
      │       │       │       └─ LuauAccessPath_end 42
      │       │       │           └─ LuauAccessPath_end_c1 42
-     │       │       └─ LuauAssignmentOperation_end 42
-     │       └─ LuauVariableAssignment_end 42
+     │       │       └─ LuauSparkdownAssignmentOperation_end 42
+     │       └─ LuauSparkdownVariableAssignment_end 42
      └─ LuauSparkdownVariableDefinition_end 42

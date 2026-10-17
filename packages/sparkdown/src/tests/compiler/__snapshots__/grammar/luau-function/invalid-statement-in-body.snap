@@ -540,7 +540,7 @@ sparkdown [0..402]
  │   │       │   │   │           └─ LuauAccessPath_end_c1 264
  │   │       │   │   └─ LuauReassignment_end 264
  │   │       │   ├─ Newline [264..265]: "\n"
- │   │       │   ├─ LuauVariableDefinition [265..276]
+ │   │       │   ├─ LuauVariableDefinition [265..288]
  │   │       │   │   ├─ LuauVariableDefinition_begin [265..273]
  │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [265..267]
  │   │       │   │   │   │   └─ OptionalWhitespace [265..267]: "  "
@@ -549,67 +549,75 @@ sparkdown [0..402]
  │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [272..273]
  │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [272..273]
  │   │       │   │   │           └─ OptionalWhitespace [272..273]: " "
- │   │       │   │   ├─ LuauVariableDefinition_content [273..276]
- │   │       │   │   │   └─ LuauVariableAssignment [273..276]
- │   │       │   │   │       ├─ LuauVariableAssignment_begin [273..275]
- │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [273..274]
- │   │       │   │   │       │   │   └─ LuauVariableName [273..274]: "x"
- │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [274..275]
- │   │       │   │   │       │       └─ OptionalWhitespace [274..275]: " "
- │   │       │   │   │       ├─ LuauVariableAssignment_content [275..276]
- │   │       │   │   │       │   └─ LuauAssignmentOperation [275..276]
- │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 275
- │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 275
- │   │       │   │   │       │       │       └─ OptionalWhitespace 275
- │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [275..276]
- │   │       │   │   │       │       │   └─ LuauAssignmentOperator [275..276]
- │   │       │   │   │       │       │       ├─ LuauAssignmentOperator_begin [275..276]
- │   │       │   │   │       │       │       │   ├─ LuauAssignmentOperator_begin_c1 275
- │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace 275
- │   │       │   │   │       │       │       │   ├─ LuauAssignmentOperator_begin_c2 [275..276]: "="
- │   │       │   │   │       │       │       │   └─ LuauAssignmentOperator_begin_c3 276
- │   │       │   │   │       │       │       │       └─ LuauAssignmentOperator_begin_c3 276
- │   │       │   │   │       │       │       │           └─ OptionalWhitespace 276
- │   │       │   │   │       │       │       └─ LuauAssignmentOperator_end 276
- │   │       │   │   │       │       └─ LuauAssignmentOperation_end 276
- │   │       │   │   │       └─ LuauVariableAssignment_end 276
- │   │       │   │   └─ LuauVariableDefinition_end 276
- │   │       │   ├─ Newline [276..277]: "\n"
- │   │       │   ├─ ExtraWhitespace [277..281]: "    "
- │   │       │   ├─ LuauAccessPath [281..283]
- │   │       │   │   ├─ LuauAccessPath_begin 281
- │   │       │   │   ├─ LuauAccessPath_content [281..282]
- │   │       │   │   │   └─ LuauAccessPart [281..282]
- │   │       │   │   │       └─ LuauVariable [281..282]
- │   │       │   │   │           └─ LuauVariable_c1 [281..282]
- │   │       │   │   │               └─ LuauVariableName [281..282]: "a"
- │   │       │   │   └─ LuauAccessPath_end [282..283]
- │   │       │   │       └─ LuauAccessPath_end_c1 [282..283]
- │   │       │   │           └─ LuauAccessPath_end_c1 [282..283]
- │   │       │   │               └─ OptionalWhitespace [282..283]: " "
- │   │       │   ├─ LuauLogicalOperation [283..288]
- │   │       │   │   ├─ LuauLogicalOperation_begin 283
- │   │       │   │   │   └─ LuauLogicalOperation_begin_c1 283
- │   │       │   │   ├─ LuauLogicalOperation_content [283..288]
- │   │       │   │   │   ├─ LuauLogicalOperator [283..287]
- │   │       │   │   │   │   ├─ LuauLogicalOperator_begin [283..287]
- │   │       │   │   │   │   │   ├─ LuauLogicalOperator_begin_c1 283
- │   │       │   │   │   │   │   │   └─ OptionalWhitespace 283
- │   │       │   │   │   │   │   ├─ LuauLogicalOperator_begin_c2 [283..286]: "and"
- │   │       │   │   │   │   │   └─ LuauLogicalOperator_begin_c3 [286..287]
- │   │       │   │   │   │   │       └─ LuauLogicalOperator_begin_c3 [286..287]
- │   │       │   │   │   │   │           └─ OptionalWhitespace [286..287]: " "
- │   │       │   │   │   │   └─ LuauLogicalOperator_end 287
- │   │       │   │   │   └─ LuauAccessPath [287..288]
- │   │       │   │   │       ├─ LuauAccessPath_begin 287
- │   │       │   │   │       ├─ LuauAccessPath_content [287..288]
- │   │       │   │   │       │   └─ LuauAccessPart [287..288]
- │   │       │   │   │       │       └─ LuauVariable [287..288]
- │   │       │   │   │       │           └─ LuauVariable_c1 [287..288]
- │   │       │   │   │       │               └─ LuauVariableName [287..288]: "b"
- │   │       │   │   │       └─ LuauAccessPath_end 288
- │   │       │   │   │           └─ LuauAccessPath_end_c1 288
- │   │       │   │   └─ LuauLogicalOperation_end 288
+ │   │       │   │   ├─ LuauVariableDefinition_content [273..288]
+ │   │       │   │   │   ├─ LuauVariableAssignment [273..281]
+ │   │       │   │   │   │   ├─ LuauVariableAssignment_begin [273..275]
+ │   │       │   │   │   │   │   ├─ LuauVariableAssignment_begin_c1 [273..274]
+ │   │       │   │   │   │   │   │   └─ LuauVariableName [273..274]: "x"
+ │   │       │   │   │   │   │   └─ LuauVariableAssignment_begin_c2 [274..275]
+ │   │       │   │   │   │   │       └─ OptionalWhitespace [274..275]: " "
+ │   │       │   │   │   │   ├─ LuauVariableAssignment_content [275..281]
+ │   │       │   │   │   │   │   └─ LuauAssignmentOperation [275..281]
+ │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_begin 275
+ │   │       │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 275
+ │   │       │   │   │   │   │       │       └─ OptionalWhitespace 275
+ │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_content [275..281]
+ │   │       │   │   │   │   │       │   ├─ LuauAssignmentOperator [275..276]
+ │   │       │   │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [275..276]
+ │   │       │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 275
+ │   │       │   │   │   │   │       │   │   │   │   └─ OptionalWhitespace 275
+ │   │       │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [275..276]: "="
+ │   │       │   │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 276
+ │   │       │   │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 276
+ │   │       │   │   │   │   │       │   │   │           └─ OptionalWhitespace 276
+ │   │       │   │   │   │   │       │   │   └─ LuauAssignmentOperator_end 276
+ │   │       │   │   │   │   │       │   └─ LuauAssignmentLineBreak [276..281]
+ │   │       │   │   │   │   │       │       ├─ LuauAssignmentLineBreak_begin 276
+ │   │       │   │   │   │   │       │       ├─ LuauAssignmentLineBreak_content [276..281]
+ │   │       │   │   │   │   │       │       │   └─ LuauCommaLineBreakGap [276..281]
+ │   │       │   │   │   │   │       │       │       ├─ LuauCommaLineBreakGap_begin 276
+ │   │       │   │   │   │   │       │       │       ├─ LuauCommaLineBreakGap_content [276..281]
+ │   │       │   │   │   │   │       │       │       │   ├─ Newline [276..277]: "\n"
+ │   │       │   │   │   │   │       │       │       │   └─ ExtraWhitespace [277..281]: "    "
+ │   │       │   │   │   │   │       │       │       └─ LuauCommaLineBreakGap_end 281
+ │   │       │   │   │   │   │       │       └─ LuauAssignmentLineBreak_end 281
+ │   │       │   │   │   │   │       └─ LuauAssignmentOperation_end 281
+ │   │       │   │   │   │   └─ LuauVariableAssignment_end 281
+ │   │       │   │   │   ├─ LuauAccessPath [281..283]
+ │   │       │   │   │   │   ├─ LuauAccessPath_begin 281
+ │   │       │   │   │   │   ├─ LuauAccessPath_content [281..282]
+ │   │       │   │   │   │   │   └─ LuauAccessPart [281..282]
+ │   │       │   │   │   │   │       └─ LuauVariable [281..282]
+ │   │       │   │   │   │   │           └─ LuauVariable_c1 [281..282]
+ │   │       │   │   │   │   │               └─ LuauVariableName [281..282]: "a"
+ │   │       │   │   │   │   └─ LuauAccessPath_end [282..283]
+ │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [282..283]
+ │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [282..283]
+ │   │       │   │   │   │               └─ OptionalWhitespace [282..283]: " "
+ │   │       │   │   │   └─ LuauLogicalOperation [283..288]
+ │   │       │   │   │       ├─ LuauLogicalOperation_begin 283
+ │   │       │   │   │       │   └─ LuauLogicalOperation_begin_c1 283
+ │   │       │   │   │       ├─ LuauLogicalOperation_content [283..288]
+ │   │       │   │   │       │   ├─ LuauLogicalOperator [283..287]
+ │   │       │   │   │       │   │   ├─ LuauLogicalOperator_begin [283..287]
+ │   │       │   │   │       │   │   │   ├─ LuauLogicalOperator_begin_c1 283
+ │   │       │   │   │       │   │   │   │   └─ OptionalWhitespace 283
+ │   │       │   │   │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [283..286]: "and"
+ │   │       │   │   │       │   │   │   └─ LuauLogicalOperator_begin_c3 [286..287]
+ │   │       │   │   │       │   │   │       └─ LuauLogicalOperator_begin_c3 [286..287]
+ │   │       │   │   │       │   │   │           └─ OptionalWhitespace [286..287]: " "
+ │   │       │   │   │       │   │   └─ LuauLogicalOperator_end 287
+ │   │       │   │   │       │   └─ LuauAccessPath [287..288]
+ │   │       │   │   │       │       ├─ LuauAccessPath_begin 287
+ │   │       │   │   │       │       ├─ LuauAccessPath_content [287..288]
+ │   │       │   │   │       │       │   └─ LuauAccessPart [287..288]
+ │   │       │   │   │       │       │       └─ LuauVariable [287..288]
+ │   │       │   │   │       │       │           └─ LuauVariable_c1 [287..288]
+ │   │       │   │   │       │       │               └─ LuauVariableName [287..288]: "b"
+ │   │       │   │   │       │       └─ LuauAccessPath_end 288
+ │   │       │   │   │       │           └─ LuauAccessPath_end_c1 288
+ │   │       │   │   │       └─ LuauLogicalOperation_end 288
+ │   │       │   │   └─ LuauVariableDefinition_end 288
  │   │       │   ├─ Newline [288..289]: "\n"
  │   │       │   ├─ ExtraWhitespace [289..291]: "  "
  │   │       │   ├─ LuauAccessPath [291..321]

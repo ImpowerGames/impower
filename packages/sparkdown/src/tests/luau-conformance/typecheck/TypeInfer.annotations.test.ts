@@ -622,7 +622,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     checks: [
       {
         module: "Modules/Main",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local Test = require(script.Parent.Thing)
@@ -654,7 +653,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     checks: [
       {
         module: "Modules/Main",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local Test = require(script.Parent.Thing)
@@ -686,7 +684,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     checks: [
       {
         module: "Modules/Main",
-        unparsed: { defect: 879 }, // a call to require
         source: `
         --!strict
         local Test = require(script.Parent.Thing)

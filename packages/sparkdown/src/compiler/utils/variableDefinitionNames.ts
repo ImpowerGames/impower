@@ -38,7 +38,9 @@ export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | nul
       .getChild(`${assignment.name}_content`)
       ?.getChild("LuauAssignmentOperation") ?? assignment
       .getChild(`${assignment.name}_content`)
-      ?.getChild("LuauSparkdownExplicitAssignmentOperation") ?? null
+      ?.getChild("LuauSparkdownExplicitAssignmentOperation") ?? assignment
+      .getChild(`${assignment.name}_content`)
+      ?.getChild("LuauSparkdownAssignmentOperation") ?? null
   );
 }
 
@@ -48,7 +50,7 @@ export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | nul
 // not count.
 export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
   if (!isExplicitRuleName(node.name, "LuauVariableAssignment")) return null;
-  const content = (node.getChild("LuauVariableAssignment_content") ?? node.getChild("LuauSparkdownExplicitVariableAssignment_content"));
+  const content = node.getChild(`${node.name}_content`);
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (!child.name.includes("Comment") && !child.name.endsWith("Whitespace")) {
       return null;
@@ -61,7 +63,7 @@ export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
 // before its type annotation and `=`, never a name inside them.
 export function assignmentListName(node: SyntaxNode): SyntaxNode | null {
   if (!isExplicitRuleName(node.name, "LuauVariableAssignment")) return null;
-  const begin = (node.getChild("LuauVariableAssignment_begin") ?? node.getChild("LuauSparkdownExplicitVariableAssignment_begin"));
+  const begin = node.getChild(`${node.name}_begin`);
   return begin ? (getDescendent("LuauVariableName", begin) ?? null) : null;
 }
 

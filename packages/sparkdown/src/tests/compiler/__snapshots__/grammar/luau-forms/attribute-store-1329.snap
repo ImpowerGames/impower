@@ -9,18 +9,18 @@ sparkdown [0..55]
  │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauSparkdownVariableDefinition_content [6..41]
- │   │   └─ LuauVariableAssignment [6..41]
- │   │       ├─ LuauVariableAssignment_begin [6..8]
- │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..7]
+ │   │   └─ LuauSparkdownVariableAssignment [6..41]
+ │   │       ├─ LuauSparkdownVariableAssignment_begin [6..8]
+ │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [6..7]
  │   │       │   │   └─ LuauVariableName [6..7]: "f"
- │   │       │   └─ LuauVariableAssignment_begin_c2 [7..8]
+ │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [7..8]
  │   │       │       └─ OptionalWhitespace [7..8]: " "
- │   │       ├─ LuauVariableAssignment_content [8..41]
- │   │       │   └─ LuauAssignmentOperation [8..41]
- │   │       │       ├─ LuauAssignmentOperation_begin 8
- │   │       │       │   └─ LuauAssignmentOperation_begin_c1 8
+ │   │       ├─ LuauSparkdownVariableAssignment_content [8..41]
+ │   │       │   └─ LuauSparkdownAssignmentOperation [8..41]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 8
+ │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 8
  │   │       │       │       └─ OptionalWhitespace 8
- │   │       │       ├─ LuauAssignmentOperation_content [8..41]
+ │   │       │       ├─ LuauSparkdownAssignmentOperation_content [8..41]
  │   │       │       │   ├─ LuauAssignmentOperator [8..10]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [8..10]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 8
@@ -84,8 +84,8 @@ sparkdown [0..55]
  │   │       │       │       │           └─ LuauFunctionDefinition_end_c2 [38..41]
  │   │       │       │       │               └─ LuauEndKeyword [38..41]: "end"
  │   │       │       │       └─ LuauAttributedFunctionValue_end 41
- │   │       │       └─ LuauAssignmentOperation_end 41
- │   │       └─ LuauVariableAssignment_end 41
+ │   │       │       └─ LuauSparkdownAssignmentOperation_end 41
+ │   │       └─ LuauSparkdownVariableAssignment_end 41
  │   └─ LuauSparkdownVariableDefinition_end 41
  ├─ Newline [41..42]: "\n"
  ├─ ImplicitAction [42..54]
