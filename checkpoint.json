@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 188,
-  "previous": "045e55ec1132a2fb3cb0086bdfac8188df15fcc9",
+  "seq": 189,
+  "previous": "f452e8a583c824cf388b7fed5bd685eddf775a01",
   "snapshotParents": [],
-  "time": "2026-10-17T09:54:01.033Z",
+  "time": "2026-10-17T09:54:19.778Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 171,
+    "recordRevision": 172,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4889,7 +4889,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:54:00.252Z",
+      "observedAt": "2026-10-17T09:54:19.005Z",
       "held": true,
       "head": "109a8b7d86747977dce34b4ce895f04d81417b1e",
       "remoteHead": "109a8b7d86747977dce34b4ce895f04d81417b1e",
@@ -4971,19 +4971,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T02:19:25.681Z",
-      "event": "launched",
-      "ticket": 1964,
-      "launchId": "bd573167-9ca5-4e98-9612-56b1f8e71ea3",
-      "handle": {
-        "kind": "process",
-        "pid": 14592,
-        "start": "639278003650279718",
-        "host": "DESKTOP-726EO47",
-        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\launch-1964-bd573167-9ca5-4e98-9612-56b1f8e71ea3"
-      }
-    },
     {
       "time": "2026-10-17T02:20:09.095Z",
       "event": "acknowledged",
@@ -5716,6 +5703,11 @@
       "time": "2026-10-17T09:24:37.534Z",
       "event": "check-in",
       "outcome": "no change: #1967 writer in Phase A, scrub tool and tests done, archive dry run running against the real repositories, runbook in progress with a resume hazard being fixed first; no PR yet; the internal repository is still at its throwaway default branch pending the writer's preparation"
+    },
+    {
+      "time": "2026-10-17T09:54:17.719Z",
+      "event": "check-in",
+      "outcome": "no change: #1967 PR #2057 at 109a8b7d8 in round 1 with the data reviewer running (Windows driver check still in progress); the other five slices are done"
     }
   ]
 }
