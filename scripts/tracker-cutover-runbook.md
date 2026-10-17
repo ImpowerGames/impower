@@ -38,8 +38,8 @@ At the default pacing (4,500 requests an hour; writes at 60 a minute and 450 an 
 | Restore | the links and Project values the transfer dropped | up to 1.5 hours |
 | Rewrite | about 5,600 gate renders, then the rewritten texts | about 0.8 hours of renders plus 3.8 hours of writes |
 | Verify | about 3,700 renders | about 0.8 hours |
-| Archive | about 4 reads per pull request, about 710 pull requests | about 0.7 hours |
-| Scrub | about 6,500 deletions | about 14.5 hours at 450 an hour, or about 2 hours if deletions are not limited as writes (see step 4) |
+| Archive | 2,021 reads for 714 pull requests in the 2026-10-17 dry run | about 0.5 hours |
+| Scrub | the same reads and about 7,000 deletions (6,946 comments and 42 review comments on 2026-10-17) | about 15.5 hours at 450 deletions an hour, or about 2 hours if deletions are not limited as writes (see step 4) |
 
 The migration alone takes at least 11 to 13 hours unless `--writes-per-hour` is raised. Restore and rewrite each wait 120 seconds after the last transfer before they start. GitHub's secondary limit on the Markdown endpoint can pause a paced run; the tools wait and retry, and print a `rate limited, retrying` line when they do.
 
@@ -156,7 +156,7 @@ Expected: `entries` equal to the snapshot's `migrate`, and `remote: "ImpowerGame
 
 ```sh
 node scripts/migrate-tracker.mjs --verify --dir "$ATTEMPT/migration"; echo "exit $?"
-jq '[.[] | select(.field | tostring | startswith("left as transferred") | not)]' "$ATTEMPT/migration/verify-report.json"
+node -e "console.log(JSON.stringify(require(process.argv[1]).filter((d) => !String(d.field).startsWith('left as transferred'))))" "$ATTEMPT/migration/verify-report.json"
 ```
 
 Expected: `"passed": true` and `exit 0`; or, when `left-as-transferred.json` is not empty, `exit 1` with only `left as transferred` differences, in which case the second command prints `[]`. The maintainer then reads each listed text on the internal repository by hand and records the result in `$ATTEMPT/left-as-transferred-read.md`. **Stop** on any other difference: verify also checks that the public issue list is exactly the 35 kept issues and that every open pull request's computed closing references point at the internal repository.
@@ -165,7 +165,7 @@ Read the new numbers this runbook needs from the map:
 
 ```sh
 MAP="$ATTEMPT/migration/issue-map.json"
-for old in 510 1961 1967; do echo "$old -> $(jq ".issues[] | select(.old == $old) | .new" "$MAP")"; done
+node -e "const m = require(process.argv[1]); for (const old of [510, 1961, 1967]) console.log(old, '->', m.issues.find((e) => e.old === old)?.new)" "$MAP"
 ```
 
 Write them down: `INBOX` is the new number of 510, `FEATURE` of 1961 and `TASK` of 1967.
@@ -181,7 +181,7 @@ cd "$CODE"
 node scripts/scrub-pull-requests.mjs --archive "$INTERNAL" --dir "$ATTEMPT/pull-requests" --dry-run 2> "$ATTEMPT/archive-dry-run.log"
 ```
 
-Expected: `archive/pull-requests/1.md: text: unset`, then JSON with `pullRequests` (every pull request, about 710), `written` equal to it, `failed: []`, `comments` about 6,500 and `reviewComments` about 40.
+Expected: `archive/pull-requests/1.md: text: unset`, then JSON with `pullRequests` (every pull request: 714 on 2026-10-17, plus those opened since), `written` equal to it, `failed: []`, `comments` about 7,000 (6,946 on 2026-10-17), `reviewComments` about 42 and `reviewsWithSummary` about 41.
 
 ```sh
 node scripts/scrub-pull-requests.mjs --archive "$INTERNAL" --dir "$ATTEMPT/pull-requests" 2> "$ATTEMPT/archive.log"; echo "exit $?"
@@ -200,7 +200,7 @@ node scripts/scrub-pull-requests.mjs --scrub "$INTERNAL" --dir "$ATTEMPT/pull-re
 
 Expected: the status line is `## main...origin/main`; the dry run exits 0 with `refused: []`, `deleted.comments` and `deleted.reviewComments` equal to the archive's counts, `reviewsWithSummary` (see below) and `estimateHours`. **Stop** on any refusal: a refused pull request names why, and the fix is `--archive --only <numbers>`, commit, push and the dry run again.
 
-Pacing the deletions: GitHub limits content-creating requests to 80 a minute and 500 an hour and does not say whether a deletion is one. The default treats a deletion as a write (450 an hour, about 14.5 hours). To try the faster pace, start with `--writes-per-hour 3000`: if the log shows more than one `rate limited, retrying` line in ten minutes, press Ctrl+C and rerun without it.
+Pacing the deletions: GitHub limits content-creating requests to 80 a minute and 500 an hour and does not say whether a deletion is one. The default treats a deletion as a write (450 an hour, about 15.5 hours). To try the faster pace, start with `--writes-per-hour 3000`: if the log shows more than one `rate limited, retrying` line in ten minutes, press Ctrl+C and rerun without it.
 
 ```sh
 node scripts/scrub-pull-requests.mjs --scrub "$INTERNAL" --dir "$ATTEMPT/pull-requests" 2> "$ATTEMPT/scrub.log"; echo "exit $?"

@@ -462,6 +462,10 @@ export async function runScrub({ tracker, repos, clone, journal, dryRun = false,
   const result = { pullRequests: pulls.length, archive: { branch, commit }, scrubbed: 0, alreadyEmpty: 0, deleted: { comments: 0, reviewComments: 0 }, reviewsWithSummary: [], refused: [], failed: [] };
   for (const { number: n } of pulls) {
     const text = clone.show(commit, archivePath(n));
+    if (text === null) {
+      result.refused.push({ pr: n, refusals: scrubRefusals(null) });
+      continue;
+    }
     const live = await readConversation(tracker, repos, n);
     const refusals = scrubRefusals(text, live, repos);
     // The live lists must match the live counts, or a comment the lists
@@ -557,7 +561,7 @@ export async function main(argv = process.argv.slice(2), { repos = readRepos(), 
   if (opts.mode === "archive") {
     const result = await runArchive(args);
     if (!opts.dryRun) writeJson(path.join(opts.dir, "archive-report.json"), result);
-    print({ mode: "archive", ...result, reviewsWithSummary: result.reviewsWithSummary.length, requestsMade: pacer.total, next: result.failed.length ? "rerun --archive; it reads the failed pull requests again" : `commit and push ${ARCHIVE_DIR} in ${opts.clone}, then run --scrub` });
+    print({ mode: "archive", ...result, reviewsWithSummary: result.reviewsWithSummary.length, requestsMade: pacer.total, next: result.failed.length ? "rerun --archive; it reads the failed pull requests again" : opts.dryRun ? "run --archive without --dry-run" : `commit and push ${ARCHIVE_DIR} in ${opts.clone}, then run --scrub` });
     return result.failed.length ? 1 : 0;
   }
   const result = await runScrub(args);
