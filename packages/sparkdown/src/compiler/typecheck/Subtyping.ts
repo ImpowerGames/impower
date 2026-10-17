@@ -507,11 +507,12 @@ export class Subtyping {
     readonly arena: TypeArena,
     readonly normalizer: Normalizer,
     readonly typeFunctionRuntime: TypeFunctionRuntime,
+    readonly recursionLimit = SUBTYPING_RECURSION_LIMIT,
   ) {}
 
   private recurse(f: () => SubtypingResult): SubtypingResult {
     const counters = this.normalizer.sharedState.counters;
-    if (counters.recursionCount >= SUBTYPING_RECURSION_LIMIT) return new SubtypingResult(false, true);
+    if (this.recursionLimit > 0 && counters.recursionCount >= this.recursionLimit) return new SubtypingResult(false, true);
     counters.recursionCount++;
     try {
       return f();

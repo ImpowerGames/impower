@@ -427,6 +427,7 @@ export class Normalizer {
     readonly builtinTypes: BuiltinTypes,
     readonly sharedState: UnifierSharedState,
     readonly cacheInhabitance = false,
+    readonly cacheLimit = NORMALIZE_CACHE_LIMIT,
   ) {}
 
   private withFuel<T>(f: () => T): T {
@@ -453,7 +454,7 @@ export class Normalizer {
       this.cachedUnions.size +
       this.cachedIsInhabited.size +
       this.cachedIsInhabitedIntersection.size;
-    if (cacheUsage > NORMALIZE_CACHE_LIMIT) {
+    if (this.cacheLimit > 0 && cacheUsage > this.cacheLimit) {
       this.clearCaches();
       return false;
     }

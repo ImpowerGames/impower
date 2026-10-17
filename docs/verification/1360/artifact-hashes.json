@@ -1,0 +1,22 @@
+[
+  {
+    "file": "evidence/native-migration-preparation.md",
+    "sha256": "0f032e15c614b9ad4a3807630326251d7bf2802b587b041c1832b40e7ee1e4a8",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/native-operation-checkpoint.md",
+    "sha256": "183f5d28eb3953b4e3cff33716c1e0a66700617660d5a656930d7e4bc8871959",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/native-operation-matrix.json",
+    "sha256": "5d4d5776cf84286d9860d7bb93eb03407b4b14ff4fd5942bcf0a3745ba7dd50e",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "8c03b6de2d67873672fbbac036cec7617c6b2140bd04a6cd21f376ee928b6250",
+    "kind": "unaltered historical artifact"
+  }
+]
