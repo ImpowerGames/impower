@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 129,
-  "previous": "fddbcd27bd51e303210453956b896ac376fe46d7",
+  "seq": 130,
+  "previous": "2dc68b6b89e96aa1fafac06c3fe3b51cafbf6a21",
   "snapshotParents": [],
-  "time": "2026-10-17T06:39:43.381Z",
+  "time": "2026-10-17T06:43:37.905Z",
   "kind": "auto",
-  "transition": "request of #1906",
+  "transition": "relay of #1906",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 135,
+    "recordRevision": 138,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1518,8 +1518,366 @@
           "time": "2026-10-17T06:39:40.728Z",
           "text": "Checkpoint after review round 3 (complete via axg attempt 2) on PR #1995: the item-6 value scope repair (e1304a6f2) landed and axg-2 found 3 findings, fixed in 51231beb1 (unreviewed); last reviewed d284cd2c7. Decision needed: the value scope opened at = is shared with narrative declaration and reassignment rules, so it carries a narrative declaration past its line (a value after a multi-line comment's close; an if line after a bare y =), failing 4 #1580 incremental-diagnostics tests and conflicting with the maintainer's decision that a narrative declaration ends at its line. Options: A accept and update the #1580 tests (needs the maintainer), B Luau-only scope via narrative twins of LuauVariableAssignment/LuauAssignmentOperation (writer recommends), C a line-local narrative guard.",
           "source": "cross-session message from impower-fb (writer, launch bb7eb9b8, resumed) on 2026-10-17 after its turn ended",
-          "relayed": null,
+          "relayed": {
+            "time": "2026-10-17T06:43:35.009Z",
+            "to": "the maintainer"
+          },
           "answer": null
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "6350ae80",
+          "kind": "maintainer",
+          "feature": 1904,
+          "ticket": 1906,
+          "pr": 1995,
+          "coordinator": "local_eb962611-54ca-45a3-be39-6b95694bdf56",
+          "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
+          "time": "2026-10-17T06:43:30.465Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
+          "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
+          "range": {
+            "from": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
+            "to": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
+            "base": "68a6335fb22f647ce111dfe1860fb1c68d5d8094",
+            "commits": [
+              "51231beb1a3bbada90801ced5abe8dcf8c190db2"
+            ],
+            "diffSha256": "f97f5d89ab34fccc1394d44a6a054ecd8623a0a65dc7e616085032d6bccc244a"
+          },
+          "reports": [
+            {
+              "comment": 6225382429,
+              "round": 1,
+              "reviewerId": "gram",
+              "adjudication": 6226722520
+            },
+            {
+              "comment": 6226905089,
+              "round": 1,
+              "reviewerId": "ax",
+              "adjudication": 6226924746
+            },
+            {
+              "comment": 6227523977,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6228087438
+            },
+            {
+              "comment": 6228226010,
+              "round": 2,
+              "reviewerId": "axg",
+              "adjudication": 6228345598
+            },
+            {
+              "comment": 6228684372,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6229040688
+            },
+            {
+              "comment": 6229606869,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6229761796
+            },
+            {
+              "comment": 6230483903,
+              "round": 3,
+              "reviewerId": "axg",
+              "adjudication": 6230562726
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "build",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "impower-dev",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/jsonrpc",
+              "result": "passed"
+            },
+            {
+              "name": "packages/opfs-workspace",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-editor-protocol",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-engine (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-morph",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (1/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/spark-web-player (2/2)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (1/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (2/4)",
+              "result": "failed"
+            },
+            {
+              "name": "packages/sparkdown (3/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown (4/4)",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-document-views",
+              "result": "passed"
+            },
+            {
+              "name": "packages/sparkdown-language-server",
+              "result": "passed"
+            },
+            {
+              "name": "vscode-sparkdown",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "failed"
+            },
+            {
+              "name": "driver-checks",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": false,
+          "blockers": [
+            "C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs\\pr-1995\\round-3\\launch-axg-1\\journal.jsonl: reviewer launch 0 of round 3 started a delegated execution service whose shutdown is not confirmed (executionDrained false), so its commands may still run",
+            "CI failed on 51231beb1a3bbada90801ced5abe8dcf8c190db2: packages/sparkdown (2/4) FAILURE, test-suite FAILURE"
+          ],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Four mechanisms account for the accepted findings across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead that decides whether a structural word followed by | opens an alternator: an unrelated pipe (round 1), a quoted pipe (round 1 undirected), a pipe in a long string (round 2), levels above three (round 3 axg-1), and the same level-four-or-higher long string with a lower-level closer (round 3 axg-2, the known limit kept under #2049). (b) The = whose value is on the next line, with comments around the line break: a trailing comment (round 1 undirected), two trailing comments (round 2 axg), block comments spanning lines or of high level (round 2 undirected), an = inside a trailing comment and a comment's closing line holding the if (round 3 undirected); the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies: LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator, reading comments, line breaks and a line-start if expression, ending on a later line before any other token. (c) The reserved-word check for local names in readLuauAst: after local, after a comma, past annotations, across a line, and across a blank line (round 3 axg-2 finding 2); now a token walk that crosses lines and ends at an =, a statement or a keyword. (d) Define keys: a reserved-word key, a two-space leak, modifier keys and function values, read from the property begin; settled in round 2, and round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator. One-offs: foreign closers at function level, continue as a value, member names after a dot, a sequential head with a trailing comment, and a hidden function-boundary regression in an existing test.",
+            "regressions": "Corrections introduced defects in rounds 2 and 3: the define-key begin dropped modifier keys, the comma check missed annotations, and the round 3 value scope hid a define property's value from the lowerer. Round 3 axg-2 (the retry that completed the round) found two such instances in the repair and one known limit. The repair also exposes a scope problem no round saw: LuauAssignmentOperation and LuauVariableAssignment are shared by the Luau and the narrative declaration and reassignment rules, so the value scope opened at the = also exists in narrative statements, where a value after a multi-line comment's close is now read (q = l instead of a missing value at the =) and a narrative y = with no value takes an if that begins the next line as its if expression. Four #1580 programIncrementalDiagnostics tests fail on 51231beb1 for the first of these.",
+            "repairOptions": "Three options the writer named. (A) Accept both narrative changes and update the #1580 preconditions: refused, because the maintainer decided that a narrative declaration ends at its line and that only an open bracket, a long string or a block comment carries a story-body statement on (Feature #1904 rule 3, which #1907 implements); a bare y = followed by an if line must not continue, so A is wrong on its own terms, and the comment case belongs to #1907. (B) Make the scope Luau-only: narrative twins of LuauVariableAssignment and LuauAssignmentOperation without the line-break scope, used by the narrative declaration and reassignment rules, so the value scope exists only in Luau bodies; every consumer that names those nodes (annotators, lowerers, validators, language server) takes the twins, and narrative fixture trees that change are listed with their reason. (C) A line-local narrative-only guard for the comment extent: refused, since it reintroduces the discriminator the repair removed and still leaves the if case wrong. B keeps both the Feature's design for Luau bodies and the maintainer's decision for narrative, at the cost of a sizeable correction after round 3; it is the repair.",
+            "residualRisk": "51231beb1 (the axg-2 corrections) is unreviewed, and repair B widens the PR across every consumer of the two assignment nodes, so the narrative side gains churn that no round has read. Mechanism (a) keeps its documented limit (#2049). Two closed block comments before a multi-line if expression now work in Luau bodies; the narrative equivalent is #1907's and must stay as on main.",
+            "coverage": "On 51231beb1: luauTokenClasses 137, grammar and VS Code snapshots, scopeEquality, luauSyntaxAgreement, luauTreeAst, luauOfficialAst, luauCorpusGate, the trailing-comma, block-end, ternary, malformed-expression, declaration-value and reassignment suites, language-server formatter and scope suites, typecheck, grammar lint, baseline and rule tests, node-name and lowerer checks and the Oniguruma compile check pass locally; CI fails only packages/sparkdown (2/4) and the test-suite aggregate, on the four #1580 tests that pin narrative behaviour. Round 3's axg-2 and undirected reviewers each ran the correction cases in the running editor.",
+            "nextRoundValue": "After the repair is verified, one bounded round on the axg-2 corrections and the narrative twins: that no narrative tree or diagnostic changed except where listed, that the #1580 tests pass unchanged, that the Luau-body value scope still covers every round 3 mechanism (b) case, and that every consumer of the twins reads them. That round is decided at the next checkpoint once the repair is verified; the round count stays at 3.",
+            "rationale": "A checkpoint may not change agreed behaviour, and the narrative changes the shared scope causes are exactly that: the maintainer decided a narrative declaration ends at its line, and Feature #1904 assigns the one legitimate continuation (brackets, long strings, block comments) to #1907. The writer's option B removes the leak at its source, keeps the item-6 design for Luau bodies and needs no maintainer reversal, so it is directed as a root-cause repair rather than another round of guards. The axg-2 corrections ride along into the same verified head.",
+            "next": "Publish the repair; the writer implements B, lists every narrative fixture tree that changes with its reason, keeps the #1580 tests unchanged and green, verifies red/green, pushes, and sends the next checkpoint report; the coordinator then decides on the changed risk (a bounded round 4 on the repair and the axg-2 corrections) and merges through the gate after it.",
+            "scope": "Widen the PR to the narrative side of the assignment rules: add narrative twins of LuauVariableAssignment and LuauAssignmentOperation without the LuauAssignmentLineBreak scope and use them in the narrative declaration and reassignment rules, so the value scope opened at the = exists only in Luau bodies; update every annotator, lowerer, validator and language-server consumer that names the two nodes to read the twins as well; list each narrative fixture tree that changes with its reason in the PR body; regenerate both grammar outputs. Narrative behaviour stays as on main: a value after a multi-line comment's close is still a missing value at the =, and a bare y = followed by an if line still ends at its line; the block-comment continuation for narrative statements stays with #1907.",
+            "verificationChange": "The four #1580 programIncrementalDiagnostics tests pass unchanged. New or extended tests pin, at narrative scope, that local q = followed by a multi-line comment and a value on its closing line reports the missing value at the = as on main, and that a narrative y = followed by an if line ends at its line with the if line read as a new statement or story; at Luau-body scope, that every round 3 mechanism (b) case still passes under the value scope. Red/green of each against the head before the repair; both snapshot suites, scopeEquality, the language-server scope suites and the corpus gate pass; CI green on the final head.",
+            "question": "Round 3's first launch of reviewer axg (launch-axg-1) exited 0 and posted its report, but its journal ends blocked on an unverified editor shutdown (executionDrained false): its down.log shows every PID terminated and the writer confirmed by hand that none remain, yet the launcher has no command that records a hand-verified shutdown (reported on #510, comment 6229453916), so the checkpoint evidence refuses every decision on this PR until it is settled. May the coordinator treat that launch as ended on the recorded hand verification, or should the launcher gain a record-shutdown command (or an equivalent) first? Meanwhile the writer proceeds with repair B (Luau-only assignment scope), which keeps the narrative-declaration decision, and the formal repair decision is recorded once CI is green and this launch is settled.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6225382429,
+                "finding": "an unrelated pipe turned an ordinary name into an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225382429,
+                "finding": "continue was rejected as a declaration-list value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6225382429,
+                "finding": "a foreign closer escaping the outer function lost Luau's diagnostic",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6226905089,
+                "disposition": "none"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "an existing test hid a function-boundary regression",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "two spaces let reserved local bindings become define keys",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "a quoted pipe turned an ordinary call into an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "a trailing comment defeated next-line assignment values",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227523977,
+                "finding": "the reassignment test still expected the old continue behaviour, leaving CI red",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228226010,
+                "finding": "a pipe inside a Luau long string opened an alternator",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228226010,
+                "finding": "two trailing comments defeated the next-line assignment value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "a reserved-word define key took its function value's local name",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "modifier words used as define keys were silently dropped",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "valid block comments after = let the next-line if expression consume the function's end",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228684372,
+                "finding": "reserved words after a binding comma silently compiled",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229173107,
+                "finding": "a type annotation bypassed the reserved-name-after-comma correction",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229173107,
+                "finding": "the new arm discriminator rejected valid long strings above level three",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "an = inside a trailing comment changed the following statement",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "a multiline comment's closing line turned an initializer into an if block",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "pipes inside higher-level long strings still opened alternators",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229606869,
+                "finding": "reserved names after a local comma still compiled silently across a newline",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "the new assignment scope discarded a define property's actual value",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "a blank line bypassed the reserved-local-name correction",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6230483903,
+                "finding": "a pipe inside a valid level-four-or-higher long string with a lower-level closer still opens an alternator (the known limit filed as #2049)",
+                "disposition": "deferred"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: ask the maintainer\n\nDecision `6350ae80` by coordinator `local_eb962611-54ca-45a3-be39-6b95694bdf56` of Feature #1904 for #1906.\n\n- Round state: no checkpoint is due, so this question reaches the maintainer before the review gates hold: C:\\Users\\Brode\\Documents\\GitHub\\impower.review-jobs\\pr-1995\\round-3\\launch-axg-1\\journal.jsonl: reviewer launch 0 of round 3 started a delegated execution service whose shutdown is not confirmed (executionDrained false), so its commands may still run; CI failed on 51231beb1a3bbada90801ced5abe8dcf8c190db2: packages/sparkdown (2/4) FAILURE, test-suite FAILURE. Reports and their adjudications: 6225382429 in 6226722520, 6226905089 in 6226924746, 6227523977 in 6228087438, 6228226010 in 6228345598, 6228684372 in 6229040688, 6229606869 in 6229761796, 6230483903 in 6230562726.\n- Independently reviewed through `d284cd2c702af36ac0e3365cc67846adfaa793e1` (the last reviewer to complete; the round's coverage is as stated above).\n- Head `51231beb1a3bbada90801ced5abe8dcf8c190db2`. Unreviewed: `d284cd2c7..51231beb1`, 1 commit (`51231beb1` fix(compiler): keep a value the `=`'s line break holds, and find a local's names past blank lines (#1906)), diff SHA-256 `f97f5d89ab34fccc1394d44a6a054ecd8623a0a65dc7e616085032d6bccc244a`.\n- CI on the head: changes / detect passed, build passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, driver-changes / detect passed, impower-dev passed, tsc passed, packages/jsonrpc passed, packages/opfs-workspace passed, packages/spark-editor-protocol passed, packages/spark-engine (1/2) passed, packages/spark-engine (2/2) passed, packages/spark-morph passed, packages/spark-web-player (1/2) passed, packages/spark-web-player (2/2) passed, packages/sparkdown (1/4) passed, packages/sparkdown (2/4) failed, packages/sparkdown (3/4) passed, packages/sparkdown (4/4) passed, packages/sparkdown-document-views passed, packages/sparkdown-language-server passed, vscode-sparkdown passed, skills-checks passed, notifier-tests passed, Luau corpus gate passed, typecheck passed, test-suite failed, driver-checks passed, vitest-api-integration passed, hook-tests passed.\n- Findings across all rounds: 22 accepted, 1 deferred, 1 none; unresolved: none.\n- Shared mechanisms: Four mechanisms account for the accepted findings across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead that decides whether a structural word followed by | opens an alternator: an unrelated pipe (round 1), a quoted pipe (round 1 undirected), a pipe in a long string (round 2), levels above three (round 3 axg-1), and the same level-four-or-higher long string with a lower-level closer (round 3 axg-2, the known limit kept under #2049). (b) The = whose value is on the next line, with comments around the line break: a trailing comment (round 1 undirected), two trailing comments (round 2 axg), block comments spanning lines or of high level (round 2 undirected), an = inside a trailing comment and a comment's closing line holding the if (round 3 undirected); the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies: LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator, reading comments, line breaks and a line-start if expression, ending on a later line before any other token. (c) The reserved-word check for local names in readLuauAst: after local, after a comma, past annotations, across a line, and across a blank line (round 3 axg-2 finding 2); now a token walk that crosses lines and ends at an =, a statement or a keyword. (d) Define keys: a reserved-word key, a two-space leak, modifier keys and function values, read from the property begin; settled in round 2, and round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator. One-offs: foreign closers at function level, continue as a value, member names after a dot, a sequential head with a trailing comment, and a hidden function-boundary regression in an existing test.\n- Defects introduced by corrections: Corrections introduced defects in rounds 2 and 3: the define-key begin dropped modifier keys, the comma check missed annotations, and the round 3 value scope hid a define property's value from the lowerer. Round 3 axg-2 (the retry that completed the round) found two such instances in the repair and one known limit. The repair also exposes a scope problem no round saw: LuauAssignmentOperation and LuauVariableAssignment are shared by the Luau and the narrative declaration and reassignment rules, so the value scope opened at the = also exists in narrative statements, where a value after a multi-line comment's close is now read (q = l instead of a missing value at the =) and a narrative y = with no value takes an if that begins the next line as its if expression. Four #1580 programIncrementalDiagnostics tests fail on 51231beb1 for the first of these.\n- Broader or simpler repair: Three options the writer named. (A) Accept both narrative changes and update the #1580 preconditions: refused, because the maintainer decided that a narrative declaration ends at its line and that only an open bracket, a long string or a block comment carries a story-body statement on (Feature #1904 rule 3, which #1907 implements); a bare y = followed by an if line must not continue, so A is wrong on its own terms, and the comment case belongs to #1907. (B) Make the scope Luau-only: narrative twins of LuauVariableAssignment and LuauAssignmentOperation without the line-break scope, used by the narrative declaration and reassignment rules, so the value scope exists only in Luau bodies; every consumer that names those nodes (annotators, lowerers, validators, language server) takes the twins, and narrative fixture trees that change are listed with their reason. (C) A line-local narrative-only guard for the comment extent: refused, since it reintroduces the discriminator the repair removed and still leaves the if case wrong. B keeps both the Feature's design for Luau bodies and the maintainer's decision for narrative, at the cost of a sizeable correction after round 3; it is the repair.\n- Residual risk: 51231beb1 (the axg-2 corrections) is unreviewed, and repair B widens the PR across every consumer of the two assignment nodes, so the narrative side gains churn that no round has read. Mechanism (a) keeps its documented limit (#2049). Two closed block comments before a multi-line if expression now work in Luau bodies; the narrative equivalent is #1907's and must stay as on main.\n- Verification coverage: On 51231beb1: luauTokenClasses 137, grammar and VS Code snapshots, scopeEquality, luauSyntaxAgreement, luauTreeAst, luauOfficialAst, luauCorpusGate, the trailing-comma, block-end, ternary, malformed-expression, declaration-value and reassignment suites, language-server formatter and scope suites, typecheck, grammar lint, baseline and rule tests, node-name and lowerer checks and the Oniguruma compile check pass locally; CI fails only packages/sparkdown (2/4) and the test-suite aggregate, on the four #1580 tests that pin narrative behaviour. Round 3's axg-2 and undirected reviewers each ran the correction cases in the running editor.\n- What another round would establish: After the repair is verified, one bounded round on the axg-2 corrections and the narrative twins: that no narrative tree or diagnostic changed except where listed, that the #1580 tests pass unchanged, that the Luau-body value scope still covers every round 3 mechanism (b) case, and that every consumer of the twins reads them. That round is decided at the next checkpoint once the repair is verified; the round count stays at 3.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: A checkpoint may not change agreed behaviour, and the narrative changes the shared scope causes are exactly that: the maintainer decided a narrative declaration ends at its line, and Feature #1904 assigns the one legitimate continuation (brackets, long strings, block comments) to #1907. The writer's option B removes the leak at its source, keeps the item-6 design for Luau bodies and needs no maintainer reversal, so it is directed as a root-cause repair rather than another round of guards. The axg-2 corrections ride along into the same verified head. Next: Publish the repair; the writer implements B, lists every narrative fixture tree that changes with its reason, keeps the #1580 tests unchanged and green, verifies red/green, pushes, and sends the next checkpoint report; the coordinator then decides on the changed risk (a bounded round 4 on the repair and the axg-2 corrections) and merges through the gate after it.\n- Question for the maintainer: Round 3's first launch of reviewer axg (launch-axg-1) exited 0 and posted its report, but its journal ends blocked on an unverified editor shutdown (executionDrained false): its down.log shows every PID terminated and the writer confirmed by hand that none remain, yet the launcher has no command that records a hand-verified shutdown (reported on #510, comment 6229453916), so the checkpoint evidence refuses every decision on this PR until it is settled. May the coordinator treat that launch as ended on the recorded hand verification, or should the launcher gain a record-shutdown command (or an equivalent) first? Meanwhile the writer proceeds with repair B (Luau-only assignment scope), which keeps the narrative-declaration decision, and the formal repair decision is recorded once CI is green and this launch is settled. This ticket waits for the answer; independent tickets continue.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"6350ae80\",\n \"kind\": \"maintainer\",\n \"feature\": 1904,\n \"ticket\": 1906,\n \"pr\": 1995,\n \"coordinator\": \"local_eb962611-54ca-45a3-be39-6b95694bdf56\",\n \"runId\": \"86c3d825-f1e5-4c6e-9677-927ec0bb77d7\",\n \"time\": \"2026-10-17T06:43:30.465Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"d284cd2c702af36ac0e3365cc67846adfaa793e1\",\n \"head\": \"51231beb1a3bbada90801ced5abe8dcf8c190db2\",\n \"range\": {\n  \"from\": \"d284cd2c702af36ac0e3365cc67846adfaa793e1\",\n  \"to\": \"51231beb1a3bbada90801ced5abe8dcf8c190db2\",\n  \"base\": \"68a6335fb22f647ce111dfe1860fb1c68d5d8094\",\n  \"commits\": [\n   \"51231beb1a3bbada90801ced5abe8dcf8c190db2\"\n  ],\n  \"diffSha256\": \"f97f5d89ab34fccc1394d44a6a054ecd8623a0a65dc7e616085032d6bccc244a\"\n },\n \"reports\": [\n  {\n   \"comment\": 6225382429,\n   \"round\": 1,\n   \"reviewerId\": \"gram\",\n   \"adjudication\": 6226722520\n  },\n  {\n   \"comment\": 6226905089,\n   \"round\": 1,\n   \"reviewerId\": \"ax\",\n   \"adjudication\": 6226924746\n  },\n  {\n   \"comment\": 6227523977,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228087438\n  },\n  {\n   \"comment\": 6228226010,\n   \"round\": 2,\n   \"reviewerId\": \"axg\",\n   \"adjudication\": 6228345598\n  },\n  {\n   \"comment\": 6228684372,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229040688\n  },\n  {\n   \"comment\": 6229606869,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229761796\n  },\n  {\n   \"comment\": 6230483903,\n   \"round\": 3,\n   \"reviewerId\": \"axg\",\n   \"adjudication\": 6230562726\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"build\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"impower-dev\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/jsonrpc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/opfs-workspace\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-editor-protocol\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-engine (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-morph\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (1/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/spark-web-player (2/2)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (1/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (2/4)\",\n   \"result\": \"failed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (3/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown (4/4)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-document-views\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"packages/sparkdown-language-server\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vscode-sparkdown\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"failed\"\n  },\n  {\n   \"name\": \"driver-checks\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": false,\n \"blockers\": [\n  \"C:\\\\Users\\\\Brode\\\\Documents\\\\GitHub\\\\impower.review-jobs\\\\pr-1995\\\\round-3\\\\launch-axg-1\\\\journal.jsonl: reviewer launch 0 of round 3 started a delegated execution service whose shutdown is not confirmed (executionDrained false), so its commands may still run\",\n  \"CI failed on 51231beb1a3bbada90801ced5abe8dcf8c190db2: packages/sparkdown (2/4) FAILURE, test-suite FAILURE\"\n ],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Four mechanisms account for the accepted findings across three rounds, each needing another instance fixed in a later round. (a) The alternator-arms lookahead that decides whether a structural word followed by | opens an alternator: an unrelated pipe (round 1), a quoted pipe (round 1 undirected), a pipe in a long string (round 2), levels above three (round 3 axg-1), and the same level-four-or-higher long string with a lower-level closer (round 3 axg-2, the known limit kept under #2049). (b) The = whose value is on the next line, with comments around the line break: a trailing comment (round 1 undirected), two trailing comments (round 2 axg), block comments spanning lines or of high level (round 2 undirected), an = inside a trailing comment and a comment's closing line holding the if (round 3 undirected); the round 3 correction replaced every line-local discriminator with the value scope #1906 item 6 specifies: LuauAssignmentLineBreak opened inside LuauAssignmentOperation right after the operator, reading comments, line breaks and a line-start if expression, ending on a later line before any other token. (c) The reserved-word check for local names in readLuauAst: after local, after a comma, past annotations, across a line, and across a blank line (round 3 axg-2 finding 2); now a token walk that crosses lines and ends at an =, a statement or a keyword. (d) Define keys: a reserved-word key, a two-space leak, modifier keys and function values, read from the property begin; settled in round 2, and round 3 axg-2 finding 1 was the value scope hiding a define property's next-line value from the lowerer, fixed by lineBreakValues in the lowerer and validator. One-offs: foreign closers at function level, continue as a value, member names after a dot, a sequential head with a trailing comment, and a hidden function-boundary regression in an existing test.\",\n  \"regressions\": \"Corrections introduced defects in rounds 2 and 3: the define-key begin dropped modifier keys, the comma check missed annotations, and the round 3 value scope hid a define property's value from the lowerer. Round 3 axg-2 (the retry that completed the round) found two such instances in the repair and one known limit. The repair also exposes a scope problem no round saw: LuauAssignmentOperation and LuauVariableAssignment are shared by the Luau and the narrative declaration and reassignment rules, so the value scope opened at the = also exists in narrative statements, where a value after a multi-line comment's close is now read (q = l instead of a missing value at the =) and a narrative y = with no value takes an if that begins the next line as its if expression. Four #1580 programIncrementalDiagnostics tests fail on 51231beb1 for the first of these.\",\n  \"repairOptions\": \"Three options the writer named. (A) Accept both narrative changes and update the #1580 preconditions: refused, because the maintainer decided that a narrative declaration ends at its line and that only an open bracket, a long string or a block comment carries a story-body statement on (Feature #1904 rule 3, which #1907 implements); a bare y = followed by an if line must not continue, so A is wrong on its own terms, and the comment case belongs to #1907. (B) Make the scope Luau-only: narrative twins of LuauVariableAssignment and LuauAssignmentOperation without the line-break scope, used by the narrative declaration and reassignment rules, so the value scope exists only in Luau bodies; every consumer that names those nodes (annotators, lowerers, validators, language server) takes the twins, and narrative fixture trees that change are listed with their reason. (C) A line-local narrative-only guard for the comment extent: refused, since it reintroduces the discriminator the repair removed and still leaves the if case wrong. B keeps both the Feature's design for Luau bodies and the maintainer's decision for narrative, at the cost of a sizeable correction after round 3; it is the repair.\",\n  \"residualRisk\": \"51231beb1 (the axg-2 corrections) is unreviewed, and repair B widens the PR across every consumer of the two assignment nodes, so the narrative side gains churn that no round has read. Mechanism (a) keeps its documented limit (#2049). Two closed block comments before a multi-line if expression now work in Luau bodies; the narrative equivalent is #1907's and must stay as on main.\",\n  \"coverage\": \"On 51231beb1: luauTokenClasses 137, grammar and VS Code snapshots, scopeEquality, luauSyntaxAgreement, luauTreeAst, luauOfficialAst, luauCorpusGate, the trailing-comma, block-end, ternary, malformed-expression, declaration-value and reassignment suites, language-server formatter and scope suites, typecheck, grammar lint, baseline and rule tests, node-name and lowerer checks and the Oniguruma compile check pass locally; CI fails only packages/sparkdown (2/4) and the test-suite aggregate, on the four #1580 tests that pin narrative behaviour. Round 3's axg-2 and undirected reviewers each ran the correction cases in the running editor.\",\n  \"nextRoundValue\": \"After the repair is verified, one bounded round on the axg-2 corrections and the narrative twins: that no narrative tree or diagnostic changed except where listed, that the #1580 tests pass unchanged, that the Luau-body value scope still covers every round 3 mechanism (b) case, and that every consumer of the twins reads them. That round is decided at the next checkpoint once the repair is verified; the round count stays at 3.\",\n  \"rationale\": \"A checkpoint may not change agreed behaviour, and the narrative changes the shared scope causes are exactly that: the maintainer decided a narrative declaration ends at its line, and Feature #1904 assigns the one legitimate continuation (brackets, long strings, block comments) to #1907. The writer's option B removes the leak at its source, keeps the item-6 design for Luau bodies and needs no maintainer reversal, so it is directed as a root-cause repair rather than another round of guards. The axg-2 corrections ride along into the same verified head.\",\n  \"next\": \"Publish the repair; the writer implements B, lists every narrative fixture tree that changes with its reason, keeps the #1580 tests unchanged and green, verifies red/green, pushes, and sends the next checkpoint report; the coordinator then decides on the changed risk (a bounded round 4 on the repair and the axg-2 corrections) and merges through the gate after it.\",\n  \"scope\": \"Widen the PR to the narrative side of the assignment rules: add narrative twins of LuauVariableAssignment and LuauAssignmentOperation without the LuauAssignmentLineBreak scope and use them in the narrative declaration and reassignment rules, so the value scope opened at the = exists only in Luau bodies; update every annotator, lowerer, validator and language-server consumer that names the two nodes to read the twins as well; list each narrative fixture tree that changes with its reason in the PR body; regenerate both grammar outputs. Narrative behaviour stays as on main: a value after a multi-line comment's close is still a missing value at the =, and a bare y = followed by an if line still ends at its line; the block-comment continuation for narrative statements stays with #1907.\",\n  \"verificationChange\": \"The four #1580 programIncrementalDiagnostics tests pass unchanged. New or extended tests pin, at narrative scope, that local q = followed by a multi-line comment and a value on its closing line reports the missing value at the = as on main, and that a narrative y = followed by an if line ends at its line with the if line read as a new statement or story; at Luau-body scope, that every round 3 mechanism (b) case still passes under the value scope. Red/green of each against the head before the repair; both snapshot suites, scopeEquality, the language-server scope suites and the corpus gate pass; CI green on the final head.\",\n  \"question\": \"Round 3's first launch of reviewer axg (launch-axg-1) exited 0 and posted its report, but its journal ends blocked on an unverified editor shutdown (executionDrained false): its down.log shows every PID terminated and the writer confirmed by hand that none remain, yet the launcher has no command that records a hand-verified shutdown (reported on #510, comment 6229453916), so the checkpoint evidence refuses every decision on this PR until it is settled. May the coordinator treat that launch as ended on the recorded hand verification, or should the launcher gain a record-shutdown command (or an equivalent) first? Meanwhile the writer proceeds with repair B (Luau-only assignment scope), which keeps the narrative-declaration decision, and the formal repair decision is recorded once CI is green and this launch is settled.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"an unrelated pipe turned an ordinary name into an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"continue was rejected as a declaration-list value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6225382429,\n    \"finding\": \"a foreign closer escaping the outer function lost Luau's diagnostic\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6226905089,\n    \"disposition\": \"none\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"an existing test hid a function-boundary regression\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"two spaces let reserved local bindings become define keys\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"a quoted pipe turned an ordinary call into an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"a trailing comment defeated next-line assignment values\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227523977,\n    \"finding\": \"the reassignment test still expected the old continue behaviour, leaving CI red\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228226010,\n    \"finding\": \"a pipe inside a Luau long string opened an alternator\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228226010,\n    \"finding\": \"two trailing comments defeated the next-line assignment value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"a reserved-word define key took its function value's local name\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"modifier words used as define keys were silently dropped\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"valid block comments after = let the next-line if expression consume the function's end\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228684372,\n    \"finding\": \"reserved words after a binding comma silently compiled\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229173107,\n    \"finding\": \"a type annotation bypassed the reserved-name-after-comma correction\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229173107,\n    \"finding\": \"the new arm discriminator rejected valid long strings above level three\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"an = inside a trailing comment changed the following statement\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"a multiline comment's closing line turned an initializer into an if block\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"pipes inside higher-level long strings still opened alternators\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229606869,\n    \"finding\": \"reserved names after a local comma still compiled silently across a newline\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"the new assignment scope discarded a define property's actual value\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"a blank line bypassed the reserved-local-name correction\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6230483903,\n    \"finding\": \"a pipe inside a valid level-four-or-higher long string with a lower-level closer still opens an alternator (the known limit filed as #2049)\",\n    \"disposition\": \"deferred\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "acde3ee4c434f6c1440fec4de1665891eba7860358163bd4620b45e209b22553",
+          "blockSha256": "bbeea293aa2b03cce7352a8252cd05c3da2bb84e1420c7b48111987d89569ba1",
+          "published": {
+            "comment": 6230817527,
+            "time": "2026-10-17T06:43:34.326Z",
+            "headAtPublish": "51231beb1a3bbada90801ced5abe8dcf8c190db2"
+          }
         }
       ]
     },
@@ -3430,6 +3788,16 @@
       "time": "2026-10-16T19:24:26.369Z"
     },
     {
+      "pr": 1995,
+      "url": "https://github.com/ImpowerGames/impower/pull/1995#issuecomment-6230817527",
+      "kind": "review-checkpoint maintainer",
+      "ticket": 1906,
+      "id": "6350ae80",
+      "round": 3,
+      "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
+      "time": "2026-10-17T06:43:34.326Z"
+    },
+    {
       "pr": 1993,
       "url": "https://github.com/ImpowerGames/impower/pull/1993#issuecomment-6229458152",
       "kind": "review-checkpoint extend",
@@ -3458,7 +3826,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T06:39:42.069Z",
+      "observedAt": "2026-10-17T06:43:36.492Z",
       "held": true,
       "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
       "remoteHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
@@ -3732,7 +4100,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T06:39:42.069Z",
+      "observedAt": "2026-10-17T06:43:36.492Z",
       "held": true,
       "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
       "remoteHead": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
@@ -4041,7 +4409,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T06:39:42.069Z",
+      "observedAt": "2026-10-17T06:43:36.492Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -4759,21 +5127,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T07:48:30.652Z",
-      "event": "check-in",
-      "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
-    },
-    {
-      "time": "2026-10-16T08:18:32.526Z",
-      "event": "check-in",
-      "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
-    },
-    {
-      "time": "2026-10-16T08:48:25.266Z",
-      "event": "check-in",
-      "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
-    },
-    {
       "time": "2026-10-16T09:18:30.786Z",
       "event": "check-in",
       "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
@@ -5453,6 +5806,29 @@
       "event": "request",
       "ticket": 1906,
       "id": "c88c7386"
+    },
+    {
+      "time": "2026-10-17T06:43:30.465Z",
+      "event": "checkpoint-intent",
+      "ticket": 1906,
+      "id": "6350ae80",
+      "kind": "maintainer",
+      "round": 3,
+      "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2"
+    },
+    {
+      "time": "2026-10-17T06:43:34.326Z",
+      "event": "checkpoint-published",
+      "ticket": 1906,
+      "id": "6350ae80",
+      "comment": 6230817527
+    },
+    {
+      "time": "2026-10-17T06:43:35.010Z",
+      "event": "relayed",
+      "ticket": 1906,
+      "id": "c88c7386",
+      "to": "the maintainer"
     }
   ]
 }
