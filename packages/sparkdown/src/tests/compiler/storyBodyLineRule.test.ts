@@ -246,6 +246,24 @@ describe("a story `if` header ends at its line", () => {
     expect(errorsOf(source)).toEqual([`${line}:${header.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`]);
   });
 
+  // Markdown would read `<eof>` as an HTML tag, and the editor's tooltip
+  // would end at "got" (#2062 round 1); a backticked `<` stays markdown.
+  test("a message naming `<eof>` is plain text, so the tooltip shows the token", () => {
+    const messageOf = (text: string, start: string) => {
+      const c = new SparkdownCompiler();
+      c.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+      } as never);
+      const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
+      return (program.diagnostics?.[URI] ?? []).map((d: any) => d.message).find((m: any) => (m.value ?? m).startsWith(start));
+    };
+    expect(messageOf("if true\nThe door opens.\nend\n", "Expected 'then'")).toEqual({
+      kind: "plaintext",
+      value: "Expected 'then' when parsing if statement, got <eof>",
+    });
+    expect(messageOf("& if true then\nText.\n", "This `if` block")).toEqual(expect.objectContaining({ kind: "markdown" }));
+  });
+
   test("a whole condition followed by a token on its line is missing its `then` before that token", () => {
     expect(errorsOf("store flag = true\nif flag print(1)\n  Text.\nend\n")).toEqual([
       "1:8-1:13 Expected 'then' when parsing if statement, got 'print'",

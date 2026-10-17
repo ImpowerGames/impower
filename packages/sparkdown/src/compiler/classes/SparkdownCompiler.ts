@@ -65,7 +65,7 @@ import { createProgramTable, reseedProgramTable, type ProgramTable } from "../..
 import { type SceneAssetCapture, type SceneAssets } from "../types/SceneAssets";
 import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, type MarkupContent, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
@@ -336,6 +336,16 @@ function indexOfWord(text: string, word: string): number {
     from = at + 1;
   }
   return -1;
+}
+
+/**
+ * A diagnostic's message as markup. Luau's wording names a token class in
+ * angle brackets (`got <eof>`, `<string>`), which a markdown renderer reads as
+ * an HTML tag and hides, so a message with one outside a code span is plain
+ * text, as the checker's messages are.
+ */
+function diagnosticMarkup(message: string): MarkupContent {
+  return { kind: message.replace(/`[^`]*`/g, "").includes("<") ? "plaintext" : "markdown", value: message };
 }
 
 /** Whether a position lies within a range, its ends included. */
@@ -5402,10 +5412,7 @@ export class SparkdownCompiler {
               program.diagnostics[uri].push({
                 range,
                 severity,
-                message: {
-                  value: diagnostic.message,
-                  kind: "markdown",
-                },
+                message: diagnosticMarkup(diagnostic.message),
                 relatedInformation: [
                   {
                     location: { uri, range },
@@ -6298,10 +6305,7 @@ export class SparkdownCompiler {
     const diagnostic: SparkDiagnostic = {
       range,
       severity,
-      message: {
-        value: message,
-        kind: "markdown",
-      },
+      message: diagnosticMarkup(message),
       relatedInformation,
       source,
     };
