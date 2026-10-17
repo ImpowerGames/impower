@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 232,
-  "previous": "714ea3dc60a65db7b2b028575318979956d27354",
+  "seq": 233,
+  "previous": "dada163160086815473a22db13ed21e49441b666",
   "snapshotParents": [],
-  "time": "2026-10-17T17:31:45.463Z",
+  "time": "2026-10-17T17:33:36.384Z",
   "kind": "auto",
-  "transition": "the merge of PR #2061 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 240,
@@ -7918,7 +7918,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T17:31:44.492Z",
+      "observedAt": "2026-10-17T17:33:35.450Z",
       "held": true,
       "head": "991b99457f415601f06af89ff2afaedf8721832e",
       "remoteHead": null,
@@ -7930,7 +7930,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/refactor/1977-tokenizer-attribute-lexemes",
       "branch": "refactor/1977-tokenizer-attribute-lexemes",
-      "observedAt": "2026-10-17T17:31:44.492Z",
+      "observedAt": "2026-10-17T17:33:35.450Z",
       "held": true,
       "head": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
       "remoteHead": "42255fec43ce8d588b85fdad19d118ccc5bf9b0b",
@@ -7976,7 +7976,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T17:26:59.699Z",
+    "at": "2026-10-17T17:33:35.448Z",
     "tickets": [
       {
         "number": 984,
@@ -8226,9 +8226,9 @@
       },
       {
         "number": 1977,
-        "action": "merge-gate",
-        "pr": 2061,
-        "reason": "PR #2061 is ready at 42255fec43ce8d588b85fdad19d118ccc5bf9b0b; process 19964 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 19964 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1985,
