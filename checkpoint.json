@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 164,
-  "previous": "71049512bfefa0a07a2fd1d2b14c51764aef4bff",
+  "seq": 165,
+  "previous": "7e24c30f57186b3aacce79c2fbd9c4968fbbb330",
   "snapshotParents": [],
-  "time": "2026-10-17T08:54:08.607Z",
+  "time": "2026-10-17T08:54:28.125Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "checked-in",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 151,
+    "recordRevision": 152,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -4448,7 +4448,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T08:54:07.863Z",
+      "observedAt": "2026-10-17T08:54:27.334Z",
       "held": true,
       "head": "a970591624352b9e4850829e9ad4e82b23fd8684",
       "remoteHead": "a970591624352b9e4850829e9ad4e82b23fd8684",
@@ -4678,11 +4678,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-17T01:54:15.661Z",
-      "event": "check-in",
-      "outcome": "no change: #1963 PR #2009 at 23ebfd91b waiting on Windows CI before its checkpoint report (a filer was launched; its report will be relayed); #1966 PR #2015 at aa378fd55 running a final rehearsal after its round 3 correction; both writers running"
-    },
     {
       "time": "2026-10-17T01:58:12.478Z",
       "event": "request",
@@ -5426,6 +5421,11 @@
       "ticket": 1965,
       "id": "6499fb6f",
       "deliveryId": "6dfd1f60"
+    },
+    {
+      "time": "2026-10-17T08:54:25.918Z",
+      "event": "check-in",
+      "outcome": "no change: #1965 PR #2053 round 4 running on a97059162 under decision 00ca121c (CI green except the Windows skills check pending); the first plan attempt failed with ENOENT scanning the running reviewer's probe-head directory under impower.review-jobs/pr-2053/round-4 and succeeded on retry (transient race in the dead-launch sweep); #1967 waits on #1965"
     }
   ]
 }
