@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 122,
-  "previous": "f86cf06acbeca5eacb13298317a50b78cf5542cf",
+  "seq": 123,
+  "previous": "acf7c0da2f0ef30cf16246f74de55012b3a66a33",
   "snapshotParents": [],
-  "time": "2026-10-17T05:30:53.316Z",
+  "time": "2026-10-17T06:19:38.704Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 128,
@@ -3131,10 +3131,10 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T05:30:51.631Z",
+      "observedAt": "2026-10-17T06:19:37.320Z",
       "held": true,
-      "head": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
-      "remoteHead": "0f3ab9946fe9d9cc9cfb3eead3acf0590e09c485",
+      "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
+      "remoteHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
       "unpushed": false,
       "dirty": false,
       "pr": 2022,
@@ -3371,12 +3371,12 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T05:30:51.631Z",
+      "observedAt": "2026-10-17T06:19:37.320Z",
       "held": true,
-      "head": "8f09e4684ee87b24078b361f03182c787a013df3",
-      "remoteHead": "8f09e4684ee87b24078b361f03182c787a013df3",
+      "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
+      "remoteHead": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
       "unpushed": false,
-      "dirty": true,
+      "dirty": false,
       "pr": 1995,
       "reviewJobs": [
         {
@@ -3598,6 +3598,43 @@
           }
         },
         {
+          "job": "pr-1995/round-3/launch-axg-2",
+          "lastEvent": "finished",
+          "attempted": {
+            "round": 3,
+            "step": "review-axg",
+            "reviewerId": "axg",
+            "attempt": 2,
+            "plannedReviewers": [
+              "axg",
+              "undirected"
+            ],
+            "head": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
+            "completedRoundReviewers": {
+              "undirected": 1
+            },
+            "time": "2026-10-17T05:52:45.577Z"
+          },
+          "round": 3,
+          "reviewerId": "axg",
+          "attempt": 2,
+          "reviewedHead": "d284cd2c702af36ac0e3365cc67846adfaa793e1",
+          "completedRoundReviews": 2,
+          "completedRoundReviewers": {
+            "undirected": 1,
+            "axg": 2
+          },
+          "plannedRoundReviewers": [
+            "axg",
+            "undirected"
+          ],
+          "pendingReviewers": [],
+          "finalCorrections": false,
+          "commentIds": [
+            6230483903
+          ]
+        },
+        {
           "job": "pr-1995/round-3/launch-undirected-1",
           "lastEvent": "finished",
           "attempted": {
@@ -3643,7 +3680,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T05:30:51.631Z",
+      "observedAt": "2026-10-17T06:19:37.320Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -4007,13 +4044,13 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T05:28:21.848Z",
+    "at": "2026-10-17T06:19:37.318Z",
     "tickets": [
       {
         "number": 984,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 8f09e4684ee87b24078b361f03182c787a013df3 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1002,
@@ -4031,7 +4068,7 @@
         "number": 1102,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 8f09e4684ee87b24078b361f03182c787a013df3 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1121,
@@ -4043,7 +4080,7 @@
         "number": 1195,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 8f09e4684ee87b24078b361f03182c787a013df3 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1197,
@@ -4097,7 +4134,7 @@
         "number": 1209,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 8f09e4684ee87b24078b361f03182c787a013df3 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1243,
@@ -4109,7 +4146,7 @@
         "number": 1247,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 8f09e4684ee87b24078b361f03182c787a013df3 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1248,
@@ -4139,7 +4176,7 @@
         "number": 1266,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 8f09e4684ee87b24078b361f03182c787a013df3 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1290,
@@ -4169,7 +4206,7 @@
         "number": 1341,
         "action": "adopt-pr",
         "pr": 1995,
-        "reason": "draft PR #1995 at 8f09e4684ee87b24078b361f03182c787a013df3 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
+        "reason": "draft PR #1995 at d284cd2c702af36ac0e3365cc67846adfaa793e1 has started 0 review rounds; find its writer and record it with adopt, or, once that writer is known to have ended, claim --operation continue so a new writer continues the PR from round 0"
       },
       {
         "number": 1343,
@@ -4251,9 +4288,9 @@
       },
       {
         "number": 1924,
-        "action": "collect-report",
+        "action": "answer-request",
         "pr": 1993,
-        "reason": "process 13884 is gone and no process names its launch directory; its turn ended with no final report recorded since its last start: read its transcript at C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1924-38703c24-788c-43a4-b884-4691102a50c9\\out.jsonl, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue"
+        "reason": "request fc721944 \"Checkpoint after review round 4 on PR #1993 (limit 4 under decision 3f6686ca): all 7 findings accepted and fixed; 5 are instances of the top-level attribute lookahead mechanism (string, comment and bracket boundaries), so per 3f6686ca the decision goes to the maintainer with #921's own-line attribute question; last reviewed 94a0cd06d, head c0c1f78ee holds an unreviewed broader repair (named-group backreference long brackets, exact on-line token reading) plus converter attribute-error classification; CI all green.\" was relayed to the maintainer at 2026-10-17T05:30:28.755Z; once they decide, record answer and send it; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered"
       },
       {
         "number": 1977,
@@ -4344,6 +4381,12 @@
         "action": "blocked-route",
         "pr": null,
         "reason": "no supported route runs claude-opus-5-5 at medium: claude-cli: no preflight result for claude-opus-5-5 at medium"
+      },
+      {
+        "number": 2049,
+        "action": "blocked-route",
+        "pr": null,
+        "reason": "no supported route runs claude-opus-5-5 at high: claude-cli: no preflight result for claude-opus-5-5 at high"
       }
     ],
     "remaining": [
