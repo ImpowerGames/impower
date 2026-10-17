@@ -21,6 +21,8 @@ function h()
   & number --[[note]] local b = 9
   type V3 = {}
   & {}local c = 9
+  type V4 = {}
+  & {}function g() end
   local w: number
     & number = a
   local x: number

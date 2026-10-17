@@ -94,6 +94,10 @@ test.each([
     "type T = {}\n& {}local a = 9\nreturn a",
   ],
   [
+    "a type alias, with a function statement right after it on its line",
+    "type T = {}\n& {}function g() end\nreturn 1",
+  ],
+  [
     "a return type, with a return right after it on its line",
     "local function g(): {}\n  & {}return {}\nend\nreturn 1",
   ],

@@ -11662,12 +11662,14 @@ repository:
     # also ends, as `LuauVariableDefinition` does, before a statement later on
     # the line, which Luau reads as the next statement: at whitespace before
     # it (`& number local a = 9`), at its keyword right after the type
-    # (`& {}local a = 9`, `& {}return v`), and before a block comment that
+    # (`& {}local a = 9`, `& {}return v`, `& {}function g() end`: a
+    # declaration's stop or any reserved word that cannot start a type, as
+    # `LuauTypeAssignment` ends), and before a block comment that
     # such a statement follows, after the type (`& number --[[c]] local a`)
     # or after the `= value` the line ends with, which stays in it. It does
     # not end where `LUAU_TYPE_LINE_BREAK` would at an `&` line's start, or
     # it would end where it begins.
-    end: (?={{BEAT}})|(?=^{{WS}}*[^|&\s]|$|[,;)\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
+    end: (?={{BEAT}})|(?=^{{WS}}*[^|&\s]|$|[,;)\]}])|(?={{WS}}+{{LUAU_SHARED_DECLARATION_END_GUARD}})|(?={{LUAU_DECLARATION_STOP}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # The `&` that begins an intersection member line. Its node tells the
   # lowerer the line is an intersection: Luau reports one that continues no
