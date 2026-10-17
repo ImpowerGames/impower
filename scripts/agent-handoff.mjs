@@ -405,7 +405,8 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile) {
   const report = fs.readFileSync(pending.report, "utf8");
   if (sha256(report) !== pending.reportSha256) throw new Error(`Reviewer report at ${pending.report} changed since the launcher recorded it`);
   let posted;
-  try { posted = JSON.parse(fs.readFileSync(readBackFile, "utf8")); }
+  // A shell redirect may begin the file with a byte order mark.
+  try { posted = JSON.parse(fs.readFileSync(readBackFile, "utf8").replace(/^﻿/, "")); }
   catch (error) { throw new Error(`The read-back ${readBackFile} must be the posted comment as GitHub's REST API returns it, with its id, issue_url and body (gh api repos/<repository>/issues/comments/<id>): ${error.message}`); }
   if (typeof posted?.body !== "string") throw new Error(`The read-back ${readBackFile} has no comment body; supply the comment as GitHub's REST API returns it, with its id, issue_url and body`);
   const body = normalizeBody(posted.body);

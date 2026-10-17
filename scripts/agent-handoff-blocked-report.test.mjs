@@ -124,6 +124,8 @@ console.log("PASS: a blocked journal is completed only with a clean exit on this
 rewrite(original);
 assert.deepEqual(rows().find((row) => row.event === "coordinator").thread, { repo: OFF.code, number: 1948, issueUrl: `https://api.github.com/repos/${OFF.code}/issues/1948` }, "the journal names the review thread the coordinator posts on");
 post();
+// As a shell redirect of `gh api` may write it, with a byte order mark.
+fs.writeFileSync(readBack, "﻿" + fs.readFileSync(readBack, "utf8"));
 execFileSync(process.execPath, [launcher, "record-report", journal, "601", readBack], { encoding: "utf8", windowsHide: true });
 let recorded = rows();
 assert.deepEqual(recorded.map((row) => row.event).slice(-5), ["exited", "blocked", "completed", "report-posted", "finished"]);
