@@ -1,0 +1,19 @@
+/** PRIVATE frozen-host import adapter only. Never stage or publish this file. */
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { afterAll, beforeAll, expect, vi } from "vitest";
+
+vi.mock("./typecheck/portedCases", async () =>
+  import("C:/Users/Lovelle/Documents/GitHub/impower.worktrees/codex/test/1388-native-conformance/packages/sparkdown/src/tests/luau-conformance/typecheck/portedCases.ts"));
+import "./nativeFixtureConfigurationAcceptance.test";
+
+const inputsPath = "C:/Users/Lovelle/.codex/private/orchestrate-589-20261003/ticket-1381/next-five-inputs.json";
+const inputs: { hashes: Record<string, string> } = JSON.parse(readFileSync(inputsPath, "utf8"));
+function verifyFrozenInputs(): void {
+  for (const [path, expected] of Object.entries(inputs.hashes)) {
+    const actual = createHash("sha256").update(readFileSync(path)).digest("hex");
+    expect(actual, "frozen fixture/configuration input: " + path).toBe(expected);
+  }
+}
+beforeAll(verifyFrozenInputs);
+afterAll(verifyFrozenInputs);
