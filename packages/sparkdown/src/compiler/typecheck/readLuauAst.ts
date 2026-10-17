@@ -2253,7 +2253,7 @@ class Parser {
       return stat;
     };
     if (attributes.length !== 0 && !this.is("function")) {
-      this.report(this.current().location, `Expected 'function' after export declaration with attribute, but got ${describe(this.current())} instead`);
+      this.report(this.current().location, `Expected 'function' after export declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     if (this.is("local")) {
       const keywordLocation = this.current().location;
@@ -2487,7 +2487,7 @@ class Parser {
       return new AstStatLocalFunction(new Location(start.begin, body.location.end), variable!, body, isConst);
     }
     if (attributes.length !== 0) {
-      return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`);
+      return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`, "attribute");
     }
     const names: Binding[] = [];
     this.parseBindingList(names, false, isConst);

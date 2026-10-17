@@ -854,7 +854,10 @@ variables:
   # a `.` or a `:`, so that line is a write, and LuauFunctionAttributes
   # owns any other line that begins with `@` glued to a name or a `[`. A
   # spaced write (`@ hud: text`) never begins an attribute.
-  LUAU_ATTRIBUTE_LINE_START: (?=@(?:\[|{{LUAU_ATTRIBUTE_NAME_NOT_WRITE}}))
+  LUAU_ATTRIBUTE_LINE_START: (?={{LUAU_ATTRIBUTE_NOT_WRITE}})
+  # An attribute's `@` and what follows it: a list's `[`, or a name that is
+  # not an unspaced write's target.
+  LUAU_ATTRIBUTE_NOT_WRITE: (?:@(?:\[|{{LUAU_ATTRIBUTE_NAME_NOT_WRITE}}))
   # lookaround: as LUAU_ATTRIBUTE_LINE_START, the attribute's name unless
   # an unspaced write's target goes on from it, which Write owns.
   LUAU_ATTRIBUTE_NAME_NOT_WRITE: (?:{{LUAU_IDENTIFIER}}(?!{{LUAU_WRITE_TARGET_TAIL}}))
@@ -863,20 +866,15 @@ variables:
   LUAU_WRITE_TARGET_TAIL: (?:(?:\.{{LUAU_IDENTIFIER}})*{{WS}}*:)
   # lookaround: LuauFunctionAttributes and LuauAttributedFunctionValue hold
   # a function and its attributes, and the enclosing block or value reads
-  # what comes after them. The `(?<!…)` keeps a line comment that ends with
-  # the word `end` from ending the rule (`LUAU_LINE_COMMENT_ON_LINE`); the
-  # line-start alternative steps aside for a line that goes on with a
-  # comment, an attribute or the function; and the last ends before any
-  # other token, which the enclosing rule reads and where Luau reports the
-  # missing function.
-  LUAU_ATTRIBUTED_FUNCTION_END: (?={{BEAT}})|(?<=\bend)(?<!{{LUAU_LINE_COMMENT_ON_LINE}})|^(?!{{WS}}*(?:$|--|@|{{LUAU_LOCAL_PREFIX}}?function\b))|(?=[^\s@])(?!--|{{LUAU_LOCAL_PREFIX}}?function\b)
-  # A line comment and the text after it on its line, for a lookbehind: a
-  # `--` that a long bracket's opening does not follow (`-- note`,
-  # `--[note]`), as Luau lexes one. A block comment (`--[[c]]`, `--[=[c]=]`)
-  # is not one, so a function after it on the line ends the rule at its
-  # `end`. A `--` inside a string or a block comment's text is still taken
-  # for one.
-  LUAU_LINE_COMMENT_ON_LINE: (?:--(?:[^\[\r\n]|\[[^=\[\r\n]|\[=+[^=\[\r\n])[^\r\n]*)
+  # what comes after them. The rule ends right after the function's `end`;
+  # no text inside it can end with a word `end` there, since a line comment
+  # in it (LuauAttributeLineComment) takes its line break and a string or
+  # block comment ends with its own delimiter. The line-start alternative
+  # steps aside for a line that goes on with a comment, the function or an
+  # attribute, but not for an unspaced write (`@hud: text`); the last ends
+  # before any other token, which the enclosing rule reads and where Luau
+  # reports the missing function.
+  LUAU_ATTRIBUTED_FUNCTION_END: (?={{BEAT}})|(?<=\bend)|^(?!{{WS}}*(?:$|--|{{LUAU_LOCAL_PREFIX}}?function\b|{{LUAU_ATTRIBUTE_NOT_WRITE}}))|(?=[^\s@])(?!--|{{LUAU_LOCAL_PREFIX}}?function\b)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
   LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
@@ -14304,6 +14302,7 @@ repository:
   LuauAttributedFunctionValue:
     begin: (?<=\S{{WS}}*)(?=@(?:{{LUAU_IDENTIFIER}}|\[))
     patterns:
+      - { include: "#LuauAttributeLineComment" }
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -14311,6 +14310,31 @@ repository:
       - { include: "#LuauAttribute" }
       - { include: "#LuauFunctionDefinition" }
     end: "{{LUAU_ATTRIBUTED_FUNCTION_END}}"
+
+  # A line comment between attributes and their function, read with the
+  # line break after it, so the position after it is the next line's and
+  # LUAU_ATTRIBUTED_FUNCTION_END never sees its text end with the word
+  # `end` (`@native -- the end`, `-- "--" end`).
+  #
+  # lookaround: LuauBlockComment owns a `--` that a long bracket's opening
+  # follows (`--[[c]]`), which LuauComment then reads.
+  LuauAttributeLineComment:
+    tag: lineComment
+    name: comment.line.double-dash.luau
+    match: ({{WS}}*)(--)(?!\[=*\[)([^\r\n]*)({{NL}})?
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauLineCommentContent" }
+      4:
+        patterns:
+          - { include: "#Newline" }
 
   # A function statement and its attributes at the top level of a script,
   # read as one statement as Luau reads it. A top-level line that begins
@@ -14329,6 +14353,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauAttributeLineComment" }
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }

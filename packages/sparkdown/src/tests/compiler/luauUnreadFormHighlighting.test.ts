@@ -664,10 +664,33 @@ test.each([
   ["@native function a() return 1 end @native function b() return 2 end\nValues {a()} {b()}.\n"],
   ["@native --[[c]] function a() return 1 end\n@native --[[c]] @checked function b() return 2 end\nValues {a()} {b()}.\n"],
   ["@native -- a note that ends with end\nfunction a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
+  // A `--` in a string or a block comment's text is no line comment.
+  ['@native function a() local s = "--" return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n'],
+  ["@native --[[ -- note ]] function a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
+  ['store a = @native function() local s = "--" return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n'],
 ])("attributed functions in a row are each their own statement (#1924): %j", (source) => {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("Values 1 2.\n");
+});
+
+// A write after an attributed function, or after an attribute line with no
+// function, is still a write.
+test.each([
+  ['@[deprecated{reason="--"}] function greet() return "Hello" end\n@hud: text\nThe story continues.\n', "hud"],
+  ["@native --[[ -- note ]] function greet() return \"Hello\" end\n@hud.panel: text\nThe story continues.\n", "hud.panel"],
+  ["@native -- note\n@hud: text\n", "hud"],
+])("a write after an attribute line stays a write (#1924): %j", (source, target) => {
+  expect(holders(source, [[`@${target}:`, "InlineWrite"]])).toEqual([[`@${target}:`, "InlineWrite"]]);
+  expect(compile(source).filter((message: string) => message.includes(`'@${target.split(".")[0]}'`))).toEqual([]);
+});
+
+// Attributes before a declaration that is not a function report Luau's
+// error for the missing function.
+test("attributes before a local declaration report the missing function (#1924)", () => {
+  expect(compile("@native\nlocal answer = 42\nThe story continues.\n")).toContain(
+    "Expected 'function' after local declaration with attribute, but got 'answer' instead",
+  );
 });
 
 // An attribute line with no function is still Luau, and Luau reports the
