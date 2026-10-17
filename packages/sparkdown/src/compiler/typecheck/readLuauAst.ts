@@ -583,6 +583,16 @@ function nameTest(pattern: RegExp): (node: SyntaxNode) => boolean {
   return (node) => (results[node.type.id] ??= pattern.test(node.type.name));
 }
 const isQuotedString = nameTest(QUOTED_STRING);
+// The nodes of an intersection member line that are read from the tree, not
+// by Luau's lexer (`Tokenizer.read`): a string, which the tree reads with
+// its interpolation, a `new`, Sparkdown's own expressions, and a value.
+const readsFromTree = (node: SyntaxNode): boolean =>
+  isQuotedString(node) ||
+  node.name === RAW_STRING ||
+  node.name === INTERPOLATED_STRING ||
+  node.name === "LuauNewExpression" ||
+  SPARKDOWN_EXPRESSIONS.has(node.name) ||
+  node.name === "LuauAssignmentOperation";
 const isNumber = nameTest(NUMBER);
 const isComment = nameTest(COMMENT);
 const isNeutral = nameTest(NEUTRAL);
@@ -672,26 +682,38 @@ class Tokenizer {
       this.lex(from, to);
       return;
     }
-    // An intersection member line (`& { y: string }`) is read up to its
-    // `= value` as Luau's lexer reads it, its `&` included: the grammar
-    // cannot see whether a type comes before the line, so Luau's reading
-    // decides, and where none does every error of that reading, its
-    // recovery's included, is Luau's to report (#1374). The value is read
-    // from the tree as any value is.
+    // An intersection member line (`& { y: string }`) is read as Luau's
+    // lexer reads it, its `&` included: the grammar cannot see whether a type
+    // comes before the line, so Luau's reading decides, and where none does
+    // every error of that reading, its recovery's included, is Luau's to
+    // report (#1374). What the tree reads with meaning of its own, a string
+    // (its interpolation), a `new` or one of Sparkdown's own expressions, and
+    // the `= value` the line ends with, is read from the tree as anywhere
+    // else, so a statement after the member on its line keeps it.
     if (name === "LuauTypeOperatorLineContinuation" && containsUnreadToken(node)) {
-      let value: SyntaxNode | null = null;
-      for (let part = node.firstChild; part && !value; part = part.nextSibling) {
-        for (let child = part.firstChild; child; child = child.nextSibling) {
-          if (child.name === "LuauAssignmentOperation") {
-            value = child;
-            break;
+      // Only what Luau's lexer reads is unread: what the tree reads reports
+      // its own errors as anywhere else.
+      const lexUnread = (start: number, end: number): void => {
+        const first = this.tokens.length;
+        this.lex(start, end);
+        for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;
+      };
+      let at = from;
+      const visit = (parent: SyntaxNode): void => {
+        for (let child = parent.firstChild; child; child = child.nextSibling) {
+          if (child.to <= at) continue;
+          if (child.from >= to) return;
+          if (readsFromTree(child)) {
+            lexUnread(at, Math.max(at, child.from));
+            this.read(child);
+            at = Math.max(at, child.to);
+          } else {
+            visit(child);
           }
         }
-      }
-      const first = this.tokens.length;
-      this.lex(from, value ? Math.min(value.from, to) : to);
-      for (let i = first; i < this.tokens.length; i++) this.tokens[i]!.unread = true;
-      if (value) this.read(value);
+      };
+      visit(node);
+      lexUnread(at, to);
       return;
     }
     // A token the grammar left unread is read as Luau's lexer reads it, as is

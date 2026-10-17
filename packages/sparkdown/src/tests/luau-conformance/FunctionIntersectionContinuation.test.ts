@@ -234,6 +234,44 @@ test("an `&` line reports what the same line without its `&` reports", () => {
   ]);
 });
 
+// A member line is read as Luau's lexer reads it, but its strings and
+// Sparkdown's own expressions keep their meaning: a statement after the
+// member on its line keeps its interpolation, and a member's `typeof` reads
+// a regular expression or a `new`.
+test.each([
+  ["a backtick string", "`Value {a}`"],
+  ["a double-quoted string", '"Value {a}"'],
+])("a statement after a member line keeps the interpolation of %s", (_name, text) => {
+  const ctx = makeRuntimeStoryFromSource(
+    `store result = ""\nstore a = 3\nfunction capture(s)\n  result = s\nend\nfunction f()\n  type T = {}\n  & {}capture(${text})\nend\n& f()\n{result}\n`,
+  );
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe("Value 3\n");
+});
+
+// A malformed value after a member is reported once, as Luau reports it:
+// the tree reads the value, so its errors are not also the member line's.
+test.each(["& {}a = 1 +", '& {}a = "x" ..', "& {}a = `v {1}` .."])(
+  "a malformed value after a member line is reported as Luau reports it: %s",
+  (line) => {
+    const source = `function f()\n  type T = {}\n  ${line}\n  return 1\nend\n`;
+    expect(errorMessages(source)).toEqual(officialSyntaxErrors(source).map((e) => e.message));
+  },
+);
+
+// A member line's `typeof` reads its expression from the tree, as the same
+// type written on one line does (a regular expression there errors on main
+// in any type, one line or not; the member line only has to agree).
+test.each([
+  ["a regular expression", "", "typeof(/hello/)", undefined],
+  ["a new", "define Foo with\n  init()\n  end\nend\n", "typeof(new Foo())", []],
+])("a member line's typeof reads %s as one line does", (_name, before, member, expected) => {
+  const body = (type: string) => `${before}function f()\n  ${type}\n  return 1\nend\n`;
+  const oneLine = errorMessages(body(`type T = {} & ${member}`));
+  if (expected) expect(oneLine).toEqual(expected);
+  expect(errorMessages(body(`type T = {}\n  & ${member}`))).toEqual(oneLine);
+});
+
 // Controls: a statement later on a member line runs. The converter reads
 // the line as Luau does, so these ran before the member line's end moved to
 // that statement too; the "reads as Luau" cases above and the grammar
