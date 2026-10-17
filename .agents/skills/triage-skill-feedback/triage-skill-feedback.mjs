@@ -19,6 +19,9 @@ const INBOX = REPOS.feedbackInbox;
 // ledger keeps its `applied in PR #N` grammar; only rendered text changes.
 const prRef = number => `${REPOS.cutover ? CODE : ''}#${number}`;
 const displayStatus = status => status.replace(/^applied in PR #(\d+)$/, (_, number) => `applied in PR ${prRef(number)}`);
+// The ledger stores the earlier-feedback prefix in that grammar too, whichever
+// position wrote it, so rendering qualifies it rather than the stored text.
+const displayContext = text => text.replace(/^Earlier feedback \(applied in PR #(\d+); context only\):$/gm, (_, number) => `Earlier feedback (applied in PR ${prRef(number)}; context only):`);
 const PLAN_VERSION = 4;
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 20);
 const clean = value => value.replace(/\r\n/g, '\n').trim();
@@ -195,7 +198,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
         // A merged edit that did not stop the problem needs a new Task; an unmerged one still carries its proposal.
         if (row.status.startsWith('applied in PR #') && !row.previousStatus) {
           row.previousStatus = row.status;
-          const prefix = `Earlier feedback (${displayStatus(row.status)}; context only):\n`;
+          const prefix = `Earlier feedback (${row.status}; context only):\n`;
           if (appliedUnmerged(row.status, references)) row.previousUnmerged = true;
           else for (const field of ['friction', 'edit']) if (!row[field].startsWith(prefix)) row[field] = prefix + row[field];
           row.status = 'open';
@@ -286,7 +289,7 @@ const onlyObservations = row => Boolean(row.observations?.length && taskOf(row.s
 function description(rows) {
   return rows.map(row => `### ${row.skill} (${row.problemId}; ${reportCount(row)})\n\n` + (onlyObservations(row)
     ? row.observations.map(item => `Intake #${item.id}:\n\n${item.friction}\n\nProposed change: ${item.edit}`).join('\n\n')
-    : `${row.friction}\n\nProposed change: ${row.edit}`)).join('\n\n');
+    : `${displayContext(row.friction)}\n\nProposed change: ${displayContext(row.edit)}`)).join('\n\n');
 }
 
 function referenceContext(rows, context, target) {

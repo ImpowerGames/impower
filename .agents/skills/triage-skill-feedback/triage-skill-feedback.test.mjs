@@ -535,6 +535,17 @@ await test('tickets and the inbox follow the repos file in both positions while 
       const recurring = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [problem('F-5', 'applied in PR #503')]));
       const merged = module.preview(await module.readPlan(recurring.api))[0];
       assert.ok(merged.body.includes(`Earlier feedback (applied in PR ${pr}; context only):`) && merged.body.includes(`Previous reference for F-5: applied in PR ${pr}.`), `switch ${label}: the Task names PR ${pr}: ${merged.body}`);
+      // History written before the cutover: an applied problem whose stored text already
+      // carries the prefix, as an earlier recurrence re-applied to the same PR leaves it.
+      const prefixed = { ...problem('F-5', 'applied in PR #503'), friction: 'Earlier feedback (applied in PR #503; context only):\nFriction F-5', edit: 'Earlier feedback (applied in PR #503; context only):\nEdit F-5' };
+      const legacy = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [prefixed]));
+      const legacyPlan = await module.readPlan(legacy.api);
+      const legacyTask = module.preview(legacyPlan)[0].body;
+      assert.equal(legacyTask.split('Earlier feedback').length - 1, 2, `switch ${label}: one prefix each on friction and edit: ${legacyTask}`);
+      assert.ok(legacyTask.includes(`Earlier feedback (applied in PR ${pr}; context only):\nFriction F-5`) && !(label === 'on' && /PR #503/.test(legacyTask)), `switch ${label}: the stored prefix renders as PR ${pr}: ${legacyTask}`);
+      await module.applyPlan(legacyPlan, legacy.api);
+      const stored = ledgerOf(legacy.state)['F-5'].friction;
+      assert.ok(stored.startsWith('Earlier feedback (applied in PR #503; context only):\nFriction F-5') && stored.split('Earlier feedback').length === 2, `switch ${label}: the stored friction keeps one canonical prefix: ${stored}`);
       const appliedNow = fixture();
       const appliedPlan = await module.readPlan(appliedNow.api);
       appliedPlan.groups = [{ action: 'applied', number: 503, keys: ['F-1'] }];
