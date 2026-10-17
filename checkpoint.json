@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 126,
-  "previous": "fcde530c2aaa51db115dcebe4fb8565acb66a994",
+  "seq": 127,
+  "previous": "b93b775702c5a67ceb39eea450f0e3d00f800602",
   "snapshotParents": [],
-  "time": "2026-10-17T05:24:41.141Z",
+  "time": "2026-10-17T05:24:51.339Z",
   "kind": "auto",
-  "transition": "answer of #1966",
+  "transition": "the intent before a side effect",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 115,
+    "recordRevision": 116,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1902,7 +1902,12 @@
             "time": "2026-10-17T04:10:12.710Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-94cb1eb1-c697-4fc9-b600-106d102b93e9"
           }
-        ]
+        ],
+        "resuming": {
+          "id": "a919aa23-6e09-4dda-9ddd-dcef10ec4d72",
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-a919aa23-6e09-4dda-9ddd-dcef10ec4d72",
+          "time": "2026-10-17T05:24:48.732Z"
+        }
       },
       "pending": null,
       "history": [],
@@ -3617,7 +3622,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T05:24:39.840Z",
+      "observedAt": "2026-10-17T05:24:50.084Z",
       "held": true,
       "head": "03d96fb0fee3936d14b976718c351b103f3fa92a",
       "remoteHead": null,
@@ -3629,7 +3634,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T05:24:39.840Z",
+      "observedAt": "2026-10-17T05:24:50.084Z",
       "held": true,
       "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
       "remoteHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
@@ -3900,12 +3905,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T21:33:11.332Z",
-      "event": "checkpoint-abandoned",
-      "ticket": 1962,
-      "id": "ead1d705"
-    },
     {
       "time": "2026-10-16T21:33:15.117Z",
       "event": "invocation",
@@ -4659,6 +4658,13 @@
       "id": "56d48051",
       "deliveryId": "9260586d",
       "attempt": 1
+    },
+    {
+      "time": "2026-10-17T05:24:48.733Z",
+      "event": "resume-intent",
+      "ticket": 1966,
+      "id": "a919aa23-6e09-4dda-9ddd-dcef10ec4d72",
+      "sessionId": "58c4e7e1-10ce-48f9-8cd2-052d8503847b"
     }
   ]
 }
