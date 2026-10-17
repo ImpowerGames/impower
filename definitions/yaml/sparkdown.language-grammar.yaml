@@ -843,13 +843,30 @@ variables:
   # the next (which would make a line of many lists slow to match), and
   # text inside a string is never read as the function after the list.
   LUAU_ATTRIBUTE_LIST_TEXT: (?:{{LUAU_ATTRIBUTE_LIST_STRING}}|\[(?:{{LUAU_PLAIN_LONG_BRACKET_LEVELS_TO_3}}|{{LUAU_LONG_BRACKET_LONGER_LEVEL}})|[^\[\]"'\r\n])
-  LUAU_ATTRIBUTE_LIST_STRING: (?:{{QUOTED_STRING}}|'(?:\\.|[^'\\\r\n])*')
-  # lookaround: a long bracket of level four or more, for a lookahead, whose
-  # text takes a `]` that does not begin a close of such a level. Its
+  # A quoted string on its line. A backslash is only ever an escape with
+  # the character after it, so an escaped quote (`"\"] function"`) never
+  # closes the string, and a run of backslashes reads one way.
+  LUAU_ATTRIBUTE_LIST_STRING: (?:{{LUAU_DOUBLE_QUOTED_STRING_ON_LINE}}|{{LUAU_SINGLE_QUOTED_STRING_ON_LINE}})
+  LUAU_DOUBLE_QUOTED_STRING_ON_LINE: (?:"(?:\\.|[^"\\\r\n])*")
+  LUAU_SINGLE_QUOTED_STRING_ON_LINE: (?:'(?:\\.|[^'\\\r\n])*')
+  # A long bracket of level four or more, for a lookahead. Levels four to
+  # seven close only at a close of their own level (`[====[a]=====]b]====]`);
+  # a longer level closes at its first close of level eight or more. Its
   # spelling for a lookbehind (`LUAU_PLAIN_BLOCK_COMMENT_LONGER_LEVEL`)
-  # takes no `]`, since a lookbehind holds no lookaround in VS Code; the
-  # close's level is not checked against the opening's in either.
-  LUAU_LONG_BRACKET_LONGER_LEVEL: ====+\[(?:[^\]\r\n]|\](?!====+\]))*\]====+\]
+  # takes no `]`, since a lookbehind holds no lookaround in VS Code.
+  LUAU_LONG_BRACKET_LONGER_LEVEL: (?:{{LUAU_LONG_BRACKET_LEVEL_4}}|{{LUAU_LONG_BRACKET_LEVEL_5}}|{{LUAU_LONG_BRACKET_LEVEL_6}}|{{LUAU_LONG_BRACKET_LEVEL_7}}|{{LUAU_LONG_BRACKET_LEVEL_8_OR_MORE}})
+  # lookaround: each level's text takes a `]` that does not begin its own
+  # close, and the long bracket ends at that close, so LUAU_ATTRIBUTE_LIST_TEXT
+  # never reads a string's text as the list's `]` or what follows it.
+  LUAU_LONG_BRACKET_LEVEL_4: ={4}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={4}\]))*\]={4}\]
+  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, at level five.
+  LUAU_LONG_BRACKET_LEVEL_5: ={5}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={5}\]))*\]={5}\]
+  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, at level six.
+  LUAU_LONG_BRACKET_LEVEL_6: ={6}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={6}\]))*\]={6}\]
+  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, at level seven.
+  LUAU_LONG_BRACKET_LEVEL_7: ={7}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={7}\]))*\]={7}\]
+  # lookaround: as LUAU_LONG_BRACKET_LEVEL_4, for every level from eight.
+  LUAU_LONG_BRACKET_LEVEL_8_OR_MORE: ={8,}\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\](?!={8,}\]))*\]={8,}\]
   # An attribute list's text on its line, for a lookbehind: as
   # `LUAU_ATTRIBUTE_LIST_TEXT`, with long brackets as
   # `LUAU_PLAIN_BLOCK_COMMENT` reads them.

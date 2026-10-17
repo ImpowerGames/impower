@@ -586,10 +586,33 @@ test("an invalid attribute list before a top-level function reports Luau's error
 test.each([
   ['@[deprecated("] function")]\n', '@[deprecated("] function")]\n'],
   ["@[deprecated [=[x] function]=]]\n", "@[deprecated [=[x] function]=]]\n"],
+  // Story reads `\"` as an escaped quote.
+  ['@[deprecated("\\"] function")]\n', '@[deprecated(""] function")]\n'],
 ])("a story line whose attribute argument holds `function` stays story (#1924): %j", (source, output) => {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe(output);
+});
+
+// A long string closes only at a close of its own level, so a longer close
+// inside it is its text and the function after the list is still found.
+test.each([
+  ["@[deprecated{reason = [====[a]=====]b]====]}] function first() return 7 end\nThe answer is {first()}.\n"],
+  ["@[deprecated{reason = [=======[a]=====]b]=======]}] function first() return 7 end\nThe answer is {first()}.\n"],
+])("a long string holding a close of another level keeps its function (#1924): %j", (source) => {
+  const ctx = makeRuntimeStoryFromSource(source);
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe("The answer is 7.\n");
+});
+
+// Luau's errors for an attribute list, which the grammar reads whole, are
+// reported as Luau's, in a `store` declaration's value too.
+test.each([
+  ["@[native deprecated] function first() return 7 end\nThe answer is {first()}.\n", "Expected ']' (to close '[' at column 2), got 'deprecated'"],
+  ["store f = @[nativ] function() return 7 end\nThe answer is {f()}.\n", "Invalid attribute '@nativ'"],
+  ["store missing = @[native]\n() return 7 end\nProse.\n", "Expected 'function' declaration after attribute, but got <eof> instead"],
+])("an attribute list's error is reported (#1924): %j", (source, message) => {
+  expect(compile(source)).toContain(message);
 });
 
 // The lookahead that finds the function after a run of attributes reads
