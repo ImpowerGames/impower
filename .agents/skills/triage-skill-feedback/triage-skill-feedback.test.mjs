@@ -6,8 +6,26 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readRepos, ticketsRepo } from '../../repos.mjs';
-import { parseLegacyTable, parseIntake, keyOf, fold, makePlan, readPlan, preview, applyPlan, lookupReports, github } from './triage-skill-feedback.mjs';
+import { readRepos } from '../../repos.mjs';
+
+// The script reads .agents/repos.json when it loads, so each switch position is
+// a copy of it beside its own repos file. The tests use the off copy with the
+// public inbox number, whatever the committed file says.
+const committed = readRepos();
+const OFF = { ...committed, cutover: false, feedbackInbox: 510 };
+const modules = mkdtempSync(resolve(tmpdir(), 'triage-modules-'));
+process.on('exit', () => rmSync(modules, { recursive: true, force: true }));
+async function loadTriage(name, repos) {
+  const checkout = resolve(modules, name);
+  const dir = resolve(checkout, '.agents/skills/triage-skill-feedback');
+  mkdirSync(dir, { recursive: true });
+  for (const file of ['triage-skill-feedback.mjs', 'feedback-reports.mjs', 'feedback-archive.mjs']) copyFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), resolve(dir, file));
+  copyFileSync(fileURLToPath(new URL('../../repos.mjs', import.meta.url)), resolve(checkout, '.agents/repos.mjs'));
+  writeFileSync(resolve(checkout, '.agents/repos.json'), JSON.stringify(repos));
+  return import(pathToFileURL(resolve(dir, 'triage-skill-feedback.mjs')).href);
+}
+const triage = await loadTriage('off', OFF);
+const { parseLegacyTable, parseIntake, keyOf, fold, makePlan, readPlan, preview, applyPlan, lookupReports } = triage;
 
 const body = 'Intro\n\n## Intake\n\nPost one report per comment.\n\nFooter stays.\n';
 const reported = (id, session, problem = 'new', friction = 'Completion lost', skill = 'review-pr, section 3') => ({ id, body: `Problem: ${problem}\n\nSession: ${session}\n\nSkill and section: ${skill}\n\nWhat happened: ${friction}\n\nProposed edit: Preserve the result.`, html_url: `https://example.test/${id}` });
@@ -28,7 +46,7 @@ function fixture(comments = [reported(1, 'codex:alpha')], initialBody = body) {
       const issue = find(number);
       if (!issue) throw new Error(`Fixture has no issue #${number}`);
       const parent = state.parents.get(number);
-      return { id: databaseId(number), parent_issue_url: parent ? `https://api.github.com/repos/${parent.repo || ticketsRepo()}/issues/${parent.number}` : null, ...structuredClone(issue) };
+      return { id: databaseId(number), parent_issue_url: parent ? `https://api.github.com/repos/${parent.repo || OFF.code}/issues/${parent.number}` : null, ...structuredClone(issue) };
     },
     subIssues: async () => [...state.parents].filter(([, parent]) => parent.number === 510 && !parent.repo).map(([number]) => ({ number, id: databaseId(number) })),
     addSubIssue: async id => {
@@ -519,18 +537,11 @@ await test('preview marks a reopen only where apply will reopen', async () => {
 });
 
 await test('tickets and the inbox follow the repos file in both positions while pull requests stay in the code repository', async () => {
-  const committed = readRepos();
   const scratch = mkdtempSync(resolve(tmpdir(), 'triage-repos-'));
   try {
-    // A checkout copy whose repos file has the switch on and a migrated inbox.
-    const checkout = resolve(scratch, 'repo');
-    const dir = resolve(checkout, '.agents/skills/triage-skill-feedback');
-    mkdirSync(dir, { recursive: true });
-    for (const name of ['triage-skill-feedback.mjs', 'feedback-reports.mjs', 'feedback-archive.mjs']) copyFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), resolve(dir, name));
-    copyFileSync(fileURLToPath(new URL('../../repos.mjs', import.meta.url)), resolve(checkout, '.agents/repos.mjs'));
-    writeFileSync(resolve(checkout, '.agents/repos.json'), JSON.stringify({ ...committed, cutover: true, feedbackInbox: 777 }));
-    const on = await import(pathToFileURL(resolve(dir, 'triage-skill-feedback.mjs')).href);
-    for (const [label, module, tickets, inbox, pr] of [['off', { github, makePlan, preview, readPlan, applyPlan }, committed.code, committed.feedbackInbox, '#503'], ['on', on, committed.internal, 777, `${committed.code}#503`]]) {
+    // The switch on, with a migrated inbox.
+    const on = await loadTriage('on', { ...committed, cutover: true, feedbackInbox: 777 });
+    for (const [label, module, tickets, inbox, pr] of [['off', triage, OFF.code, OFF.feedbackInbox, '#503'], ['on', on, committed.internal, 777, `${committed.code}#503`]]) {
       // Ticket text names a pull request with its repository once tickets live apart from the code.
       const recurring = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [problem('F-5', 'applied in PR #503')]));
       const merged = module.preview(await module.readPlan(recurring.api))[0];
