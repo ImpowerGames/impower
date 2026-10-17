@@ -242,6 +242,13 @@ const sameRepository = (a, b) => String(a).toLowerCase() === String(b).toLowerCa
 // number; a reference without one names the pull request's own repository.
 export const closingIn = (refs, tickets, code) => (refs ?? []).filter((r) => sameRepository(r.repository?.name ? `${r.repository.owner?.login}/${r.repository.name}` : code, tickets));
 
+// A pull request as text posted on the tickets repository (the status
+// comment, the final report). Once tickets live apart a bare #N there names a
+// ticket, so the code repository qualifies the pull request; qualifyPrs does
+// so for every "PR #N" and "PRs #N, #M" in a text.
+export const prRef = (names, pr) => (names.split ? `${names.code}#${pr}` : `#${pr}`);
+export const qualifyPrs = (names, text) => (names.split ? String(text).replace(/\b(PRs?) (#\d+(?:(?:, |,? and )#\d+)*)/g, (_, word, list) => `${word} ${list.replace(/#(\d+)/g, `${names.code}#$1`)}`) : text);
+
 // Once tickets live apart, a ticket's number says nothing about the code
 // repository's pull requests, so its pull requests are found by the shared
 // account as author and a head branch <type>/<N>-, searched for each branch

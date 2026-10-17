@@ -788,6 +788,13 @@ try {
   // as such, never as reviewed or accepted by the gate.
   const withoutGate = { ...run.readRecord(dstRecord), operations: [] };
   assert.match(ig.finalReport(withoutGate, snapshotNow(dst), run.readRecord(dstRecord).verifications.at(-1)), /\| #41 \| delivered \| #141 \| merged as `[0-9a-f]{9}` outside this run's merge gate/);
+  // Once tickets live apart the report is on the internal Feature, where a
+  // bare #141 names a ticket: its pull requests name the code repository,
+  // its tickets stay bare, and its decision links go to the ticket's thread.
+  const splitReport = ig.finalReport({ ...run.readRecord(dstRecord), ticketsRepository: INTERNAL }, snapshotNow(dst), run.readRecord(dstRecord).verifications.at(-1));
+  assert.match(splitReport, new RegExp(`\\| #41 \\| delivered \\| ${REPO}#141 \\|`));
+  assert.match(splitReport, new RegExp(`#42, PR ${REPO}#142: decision \`${decided.id}\` \\(\\[comment\\]\\(https://github\\.com/${INTERNAL}/issues/42#issuecomment-${posted.id}\\)\\)`));
+  assert.ok(!/\| #14\d \||PR #14\d/.test(splitReport.split("### Acceptance criteria")[0]), "no pull request the report itself names is left as a bare number; the coordinator's evidence stays as written");
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);
   // Closing: the report is posted and read back, then the issue is closed. A
   // close whose answer is lost may still land, so it is uncertain and holds

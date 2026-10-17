@@ -21,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readFeatureScope, snapshotScope, githubClient, repositoriesOf, closingIn } from "./feature-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, takeSnapshot, readFeatureScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs } from "./feature-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -378,10 +378,13 @@ export function finalReport(record, snapshot, v) {
       : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
     const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, while its CI covered ${TARGET} \`${short(s.gate.ciMain ?? s.gate.originMain)}\`, so CI never ran on that combination before ${TARGET}'s own run` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
-    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? `#${s.pr}` : ""} | ${(how + landed).replace(/\|/g, "/")} |`;
+    // The report is on the Feature, in the tickets repository, so its pull
+    // requests name the code repository once tickets live apart; the
+    // criteria and their evidence stay as the coordinator wrote them.
+    return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, how + landed).replace(/\|/g, "/")} |`;
   });
   const accepted = acceptances(record, snapshot);
-  const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)];
+  const missing = [...v.incomplete.map((t) => `- #${t.number}: ${t.action}`), ...v.unsettled.map((o) => `- unsettled ${o}`)].map((line) => qualifyPrs(names, line));
   return [
     REPORT_MARK(v.id),
     `## Final report: Feature #${record.feature}`,
@@ -396,7 +399,7 @@ export function finalReport(record, snapshot, v) {
     "",
     "### Accepted unreviewed corrections",
     "",
-    ...(accepted.length ? accepted.map((a) => `- #${a.ticket}, PR #${a.pr}: decision \`${a.id}\` ([comment](${link(a)})) accepted \`${short(a.range?.from)}..${short(a.range?.to)}\` (${a.range?.commits?.length ?? 0} commit${a.range?.commits?.length === 1 ? "" : "s"}) unreviewed on head \`${short(a.head)}\`; ${a.merged === null ? "the PR is not merged" : a.merged === a.head ? "that head merged" : `the PR merged at \`${short(a.merged)}\`, another head`}.`) : ["None."]),
+    ...(accepted.length ? accepted.map((a) => `- #${a.ticket}, PR ${prRef(names, a.pr)}: decision \`${a.id}\` ([comment](${link(a)})) accepted \`${short(a.range?.from)}..${short(a.range?.to)}\` (${a.range?.commits?.length ?? 0} commit${a.range?.commits?.length === 1 ? "" : "s"}) unreviewed on head \`${short(a.head)}\`; ${a.merged === null ? "the PR is not merged" : a.merged === a.head ? "that head merged" : `the PR merged at \`${short(a.merged)}\`, another head`}.`) : ["None."]),
     "",
     "### Acceptance criteria",
     "",

@@ -28,7 +28,7 @@ import { writeExclusive, readJson, currentIdentity, alive } from "../../../scrip
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { readRepos } from "../../repos.mjs";
-import { RECORD_VERSION, PERMISSION_MODES, applyInvocation, applyCoordinatorMode, authorityFor, carriedRun, checkCoordinatorId, mergingFor, orchestrationTitle, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus, repositoriesOf, startRepositories } from "./feature-run.mjs";
+import { RECORD_VERSION, PERMISSION_MODES, applyInvocation, applyCoordinatorMode, authorityFor, carriedRun, checkCoordinatorId, mergingFor, orchestrationTitle, readRecord, updateRecord, recoverLock, pointerFile, resolveWriterModel, readWriterDefaults, defaultConcurrency, ownerStatus, prRef, qualifyPrs, repositoriesOf, startRepositories } from "./feature-run.mjs";
 
 export const CHECKPOINT_VERSION = 1;
 export const stateBranch = (feature) => `orchestrate-state/feature-${feature}`;
@@ -449,9 +449,12 @@ export function renderSummary(state, repository) {
   const tickets = new Map(Object.entries(c.tickets).map(([n, t]) => [Number(n), { owner: ownerText(t) }]));
   for (const n of [...Object.keys(c.snapshots ?? {}), ...Object.values(c.work ?? {}).map((w) => w.ticket)]) if (!tickets.has(Number(n))) tickets.set(Number(n), { owner: "none" });
   for (const t of c.observed?.tickets ?? []) tickets.set(t.number, { ...(tickets.get(t.number) ?? { owner: "none" }), action: t.action, reason: t.reason, pr: t.pr });
-  const rows = [...tickets.entries()].sort(([a], [b]) => a - b).map(([n, t]) => `| #${n} | ${cell(t.action ?? "")} | ${t.pr ? `#${t.pr}` : ""} | ${cell(t.owner)} | ${cell(workText(c, n))} | ${cell(t.reason ?? "")} |`);
+  // The comment is on the Feature, in the tickets repository, so its pull
+  // requests name the code repository once tickets live apart.
+  const names = repositoriesOf(c);
+  const rows = [...tickets.entries()].sort(([a], [b]) => a - b).map(([n, t]) => `| #${n} | ${cell(t.action ?? "")} | ${t.pr ? prRef(names, t.pr) : ""} | ${cell(t.owner)} | ${cell(workText(c, n))} | ${cell(t.reason ?? "")} |`);
   const prior = c.previousCoordinators.map((p) => `${p.session} on ${p.host} (${p.ended})`).join("; ");
-  return [
+  return qualifyPrs(names, [
     statusMarker(c.feature),
     `<!-- orchestrate-feature checkpoint seq=${c.seq} commit=${commit} -->`,
     "## Orchestration status",
@@ -470,7 +473,7 @@ export function renderSummary(state, repository) {
     ...(c.verifications?.length ? [verificationText(c.verifications.at(-1)), ""] : []),
     ...(c.observed?.remaining?.length ? ["Remaining:", ...c.observed.remaining.map((r) => `- ${r}`), ""] : []),
     `To continue in another session, on any machine: use orchestrate-feature for #${c.feature}; it resumes from \`${stateBranch(c.feature)}\` and reconciles every fact with GitHub first.`,
-  ].join("\n");
+  ].join("\n"));
 }
 
 const sameText = (a, b) => a.replace(/\r\n/g, "\n").trim() === b.replace(/\r\n/g, "\n").trim();

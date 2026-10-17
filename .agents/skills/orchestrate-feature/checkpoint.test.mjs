@@ -1137,6 +1137,16 @@ try {
     const discovered = cp.main(["discover", "--repo", CODE, "--feature", "900", "--checkout", checkout], { repos: ON, commentsFor });
     assert.deepEqual([discovered.found, discovered.commit, discovered.summary.stale], [true, handedState.commit, false]);
     assert.equal(cp.main(["discover", "--repo", CODE, "--feature", "900", "--checkout", checkout], { repos: OFF, commentsFor }).found, false, "with the switch off the code repository holds no state branch for the Feature");
+    // The status comment is on the internal Feature, where a bare #77 names
+    // a ticket: a pull request in its table and reasons names the code
+    // repository, while with one repository it stays as it was.
+    const observed = { at: "2026-10-17T00:00:00.000Z", tickets: [{ number: 901, action: "adopt-pr", pr: 77, reason: "draft PR #77 at h has started 0 review rounds; open PRs #77, #78 and #79" }], remaining: [] };
+    const splitSummary = cp.renderSummary({ checkpoint: { ...state900.checkpoint, observed }, commit: state900.commit }, INTERNAL);
+    assert.match(splitSummary, new RegExp(`\\| #901 \\| adopt-pr \\| ${CODE}#77 \\|`));
+    assert.ok(splitSummary.includes(`draft PR ${CODE}#77 at h has started 0 review rounds; open PRs ${CODE}#77, ${CODE}#78 and ${CODE}#79`), splitSummary);
+    const { ticketsRepository, ...oneRepository } = state900.checkpoint;
+    const oneSummary = cp.renderSummary({ checkpoint: { ...oneRepository, observed }, commit: state900.commit }, CODE);
+    assert.ok(oneSummary.includes("| #901 | adopt-pr | #77 |") && oneSummary.includes("draft PR #77 at h has started 0 review rounds; open PRs #77, #78 and #79"));
     // Review checkpoint decisions link to the ticket's review thread.
     const published = { tickets: { 901: { checkpoints: [{ state: "published", pr: 77, id: "d1", kind: "finish", round: 3, head: "h", published: { comment: 123, time: "t" } }] } } };
     assert.equal(cp.decisionLinks({ repository: CODE, ticketsRepository: INTERNAL, ...published })[0].url, `https://github.com/${INTERNAL}/issues/901#issuecomment-123`);
