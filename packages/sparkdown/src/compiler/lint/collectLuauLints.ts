@@ -71,6 +71,7 @@ import {
   AstStatWhile,
   AstTypeReference,
   BinaryOp,
+  binaryOpToString,
   UnaryOp,
   visitAst,
   type AstLocal,
@@ -93,6 +94,8 @@ export const LUAU_LINT_CODES = [
   "DuplicateCondition",
   "ForRange",
   "PlaceholderRead",
+  "MisleadingAndOr",
+  "ComparisonPrecedence",
   "SameLineStatement",
   "MultiLineStatement",
 ] as const;
@@ -794,6 +797,45 @@ function lintForRanges(root: AstNode, offsets: Offsets, out: LuauLint[]): void {
 
 // ---------------------------------------------------------------------------
 
+/** Comparisons and the `a and b or c` idiom, with explicit groups preserved as in Luau. */
+function lintExpressionPrecedence(root: AstNode, offsets: NameRoot["offsets"], out: LuauLint[]): void {
+  const isEquality = (op: BinaryOp) => op === BinaryOp.CompareEq || op === BinaryOp.CompareNe;
+  const isComparison = (op: BinaryOp) => op >= BinaryOp.CompareNe && op <= BinaryOp.CompareGe;
+  const isNot = (expr: AstExpr) => expr instanceof AstExprUnary && expr.op === UnaryOp.Not;
+  visitAst(root, {
+    visit(node) {
+      if (!(node instanceof AstExprBinary)) return true;
+      if (node.op === BinaryOp.Or && node.left instanceof AstExprBinary && node.left.op === BinaryOp.And) {
+        const alternative = node.left.right;
+        const falsy = alternative instanceof AstExprConstantNil ? "nil"
+          : alternative instanceof AstExprConstantBool && !alternative.value ? "false" : undefined;
+        if (falsy) out.push({
+          code: "MisleadingAndOr", ...offsets.range(node.location),
+          message: `The and-or expression always evaluates to the second alternative because the first alternative is ${falsy}; consider using if-then-else expression instead`,
+        });
+      }
+      if (!isComparison(node.op)) return true;
+      const op = binaryOpToString(node.op);
+      let message: string | undefined;
+      // Comparing two explicitly negated values is likely an intentional boolean comparison.
+      if (isNot(node.left) && !isNot(node.right)) {
+        message = isEquality(node.op)
+          ? `not X ${op} Y is equivalent to (not X) ${op} Y; consider using X ${node.op === BinaryOp.CompareEq ? "~=" : "=="} Y, or add parentheses to silence`
+          : `not X ${op} Y is equivalent to (not X) ${op} Y; add parentheses to silence`;
+      } else if (node.left instanceof AstExprBinary && isComparison(node.left.op)) {
+        const leftOp = binaryOpToString(node.left.op);
+        message = isEquality(node.left.op) || isEquality(node.op)
+          ? `X ${leftOp} Y ${op} Z is equivalent to (X ${leftOp} Y) ${op} Z; add parentheses to silence`
+          : `X ${leftOp} Y ${op} Z is equivalent to (X ${leftOp} Y) ${op} Z; did you mean X ${leftOp} Y and Y ${op} Z?`;
+      }
+      if (message) out.push({ code: "ComparisonPrecedence", ...offsets.range(node.location), message });
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+
 /** Luau's statement-layout rules, using the boundaries of the existing AST. */
 function lintStatementLayout(root: AstNode, offsets: Offsets, out: LuauLint[], errors: readonly { location: Location }[], sameLines: Set<number>): void {
   const stack: { start: Position; lastLine: number; flagged: boolean }[] = [];
@@ -916,5 +958,6 @@ export function collectLuauLints(tree: Tree, read: (from: number, to: number) =>
     lintDuplicateConditions(expr, documentOffsets, out);
     lintForRanges(expr, documentOffsets, out);
   }
+  for (const { root, offsets } of facts.roots) lintExpressionPrecedence(root, offsets, out);
   return { lints: out.sort((a, b) => a.from - b.from || a.to - b.to), names: facts.names, roots: facts.roots };
 }
