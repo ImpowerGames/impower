@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 147,
-  "previous": "497facdfe78a5f56d1e0dba7db16a08c874518e0",
+  "seq": 148,
+  "previous": "9d70b8538149fa26f84f08a3b3d88e2558378ccc",
   "snapshotParents": [],
-  "time": "2026-10-17T06:21:33.833Z",
+  "time": "2026-10-17T06:21:43.474Z",
   "kind": "auto",
-  "transition": "result of #1966",
+  "transition": "release of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 135,
+    "recordRevision": 136,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1865,75 +1865,81 @@
       ]
     },
     "1966": {
-      "owner": {
-        "route": "claude-cli",
-        "model": "claude-opus-5-5",
-        "effort": "high",
-        "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
-        "permissionMode": "bypassPermissions",
-        "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
-        "branch": "feat/1966-tracker-migration-tool",
-        "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
-        "launchId": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
-        "handle": {
-          "kind": "process",
-          "pid": 58432,
-          "start": "639278147895413871",
-          "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e"
-        },
-        "verified": true,
-        "brief": {
-          "state": "delivered",
-          "via": "prompt",
-          "text": "Assignment c7aabe5c-2e64-4947-a879-3c9cc12af4eb. You are the writer for ImpowerGames/impower ticket #1966 (Build the resumable issue migration tool with snapshot, transfer, restore, rewrite and verify modes), a slice of Feature #1961, coordinated by coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c an acknowledgement naming assignment c7aabe5c-2e64-4947-a879-3c9cc12af4eb and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1966 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool on branch feat/1966-tracker-migration-tool from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961, and keep every artifact in it.\nSettled decisions:\n- Cutover switch (maintainer, 2026-10-16, comment 6221962821 on #1961; read it and #1962's merged implementation first): .agents/repos.json carries cutover: false until #1967 flips it, with the loader in .agents/repos.mjs. The migration tool reads the code and internal repository names from that file and never hard-codes them. The tool itself is not switch-gated: it is run by #1967 inside the cutover window, so it may name the internal repository directly; but nothing you merge may change how the workflow behaves while the switch is off. Your own worktree runs the merged guard with the committed switch off; never flip repos.json in your worktree.\n- ImpowerGames/impower-internal does not exist yet; #1967's runbook creates it. Do not create it, and do not create any other repository. Build the tool and its unit tests first, run the --dry-run snapshot against the real public repository to meet the counts criterion, and leave the rehearsal (the acceptance criteria that need the real internal repository) for last. When you reach it, if the internal repository still does not exist, send the coordinator a request saying exactly what the rehearsal needs, with the rest of the ticket done and the PR open as a draft, and end your turn; the coordinator will answer by resuming you. Until then every call that would write to GitHub runs only in --dry-run.\n- The guard merged in #1962 refuses, with the switch on, every GraphQL selection of issues, comments, reviews or discussions for any repository, and every gh issue or issue API call on the public repository. The tool must therefore work through REST (gh api --paginate) for both repositories, as the ticket already says, and must not depend on gh api graphql for issue data. With the switch off, which is the position the tool is developed and dry-run under, the hook decides as before, so your dry runs against the public repository work today; design the tool so that the cutover run (switch flipped in the same window) still passes the guard, which allows reads and writes on the internal repository and allows the public repository's pull request, git and Actions endpoints.\n- The 35 outsider-filed issues stay public: identify them by author association NONE as the ticket says, and report their numbers in the dry-run output so the maintainer can confirm the set before the cutover. Transfers run in ascending old number. Journal every step in the private attempt directory so a rerun resumes.\n- Other writers run on this machine (#1963 of this Feature, and the #1904 and #1940 runs); reviewer slots and the vitest reservation are shared. Merge origin/main into your branch before each review round, run node --test for the script tests directly, and pass --wait to node scripts/test-suite.mjs when you need vitest. If SendMessage to the coordinator's local_ id fails with no agent reachable, run ListAgents and send to the session titled exactly 'ORCH #1961: private internal tracker'. Any subagent you launch (a filer) reports to the coordinator, not to you: note 'filer launched, report pending' and continue. Keep all private artifacts under the artifact parent this brief names.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
-          "deliveryId": "a2dbb47c",
-          "attempts": 1,
-          "time": "2026-10-16T23:02:57.792Z",
-          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
-        },
-        "since": "2026-10-16T23:02:57.794Z",
-        "sessionId": "58c4e7e1-10ce-48f9-8cd2-052d8503847b",
-        "acknowledged": {
-          "time": "2026-10-16T23:04:06.421Z",
-          "confirmed": {
+      "owner": null,
+      "pending": null,
+      "history": [
+        {
+          "owner": {
+            "route": "claude-cli",
             "model": "claude-opus-5-5",
             "effort": "high",
-            "permissionMode": "bypassPermissions"
+            "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+            "permissionMode": "bypassPermissions",
+            "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
+            "branch": "feat/1966-tracker-migration-tool",
+            "artifactParent": "C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961",
+            "launchId": "c7aabe5c-2e64-4947-a879-3c9cc12af4eb",
+            "handle": {
+              "kind": "process",
+              "pid": 58432,
+              "start": "639278147895413871",
+              "host": "DESKTOP-726EO47",
+              "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e"
+            },
+            "verified": true,
+            "brief": {
+              "state": "delivered",
+              "via": "prompt",
+              "text": "Assignment c7aabe5c-2e64-4947-a879-3c9cc12af4eb. You are the writer for ImpowerGames/impower ticket #1966 (Build the resumable issue migration tool with snapshot, transfer, restore, rewrite and verify modes), a slice of Feature #1961, coordinated by coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.\nRoute: claude-cli, model claude-opus-5-5 at effort high in permission mode bypassPermissions. Before any work and before building any reviewer plan, confirm your own model, effort and permission mode: the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.\nYour first act after reading this brief: send coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c an acknowledgement naming assignment c7aabe5c-2e64-4947-a879-3c9cc12af4eb and the model, effort and permission mode you confirmed (SendMessage with to set to that session id). A brief left unacknowledged for one check-in interval is treated as undelivered.\nYour process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.\nRun the resolve-issue skill for #1966 exactly as written.\nCreate your worktree at C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool on branch feat/1966-tracker-migration-tool from origin/main, as resolve-issue's worktree setup describes. Never work on main or in another ticket's worktree.\nAllocate your private artifact directory with resolve-issue's allocator under C:/Users/Brode/AppData/Local/Temp/claude/orchestrate-1961, and keep every artifact in it.\nSettled decisions:\n- Cutover switch (maintainer, 2026-10-16, comment 6221962821 on #1961; read it and #1962's merged implementation first): .agents/repos.json carries cutover: false until #1967 flips it, with the loader in .agents/repos.mjs. The migration tool reads the code and internal repository names from that file and never hard-codes them. The tool itself is not switch-gated: it is run by #1967 inside the cutover window, so it may name the internal repository directly; but nothing you merge may change how the workflow behaves while the switch is off. Your own worktree runs the merged guard with the committed switch off; never flip repos.json in your worktree.\n- ImpowerGames/impower-internal does not exist yet; #1967's runbook creates it. Do not create it, and do not create any other repository. Build the tool and its unit tests first, run the --dry-run snapshot against the real public repository to meet the counts criterion, and leave the rehearsal (the acceptance criteria that need the real internal repository) for last. When you reach it, if the internal repository still does not exist, send the coordinator a request saying exactly what the rehearsal needs, with the rest of the ticket done and the PR open as a draft, and end your turn; the coordinator will answer by resuming you. Until then every call that would write to GitHub runs only in --dry-run.\n- The guard merged in #1962 refuses, with the switch on, every GraphQL selection of issues, comments, reviews or discussions for any repository, and every gh issue or issue API call on the public repository. The tool must therefore work through REST (gh api --paginate) for both repositories, as the ticket already says, and must not depend on gh api graphql for issue data. With the switch off, which is the position the tool is developed and dry-run under, the hook decides as before, so your dry runs against the public repository work today; design the tool so that the cutover run (switch flipped in the same window) still passes the guard, which allows reads and writes on the internal repository and allows the public repository's pull request, git and Actions endpoints.\n- The 35 outsider-filed issues stay public: identify them by author association NONE as the ticket says, and report their numbers in the dry-run output so the maintainer can confirm the set before the cutover. Transfers run in ascending old number. Journal every step in the private attempt directory so a rerun resumes.\n- Other writers run on this machine (#1963 of this Feature, and the #1904 and #1940 runs); reviewer slots and the vitest reservation are shared. Merge origin/main into your branch before each review round, run node --test for the script tests directly, and pass --wait to node scripts/test-suite.mjs when you need vitest. If SendMessage to the coordinator's local_ id fails with no agent reachable, run ListAgents and send to the session titled exactly 'ORCH #1961: private internal tracker'. Any subagent you launch (a filer) reports to the coordinator, not to you: note 'filer launched, report pending' and continue. Keep all private artifacts under the artifact parent this brief names.\nReview: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.\nAfter every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.\nThe coordinator answers with a checkpoint decision it publishes on the PR. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.\nYour review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.\nNever merge, and never mark the PR ready before the review gates pass.\nFinal report, as fields: model, effort, permissionMode, pr, reviewedHead, rounds, findings, verification, ci, next (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; your next action), plus any changes after the reviewed commit.\nSend every report, blocker and question to coordinator session local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c as a cross-session message (SendMessage with to set to that session id), then end your turn: what you end a turn with does not reach it.\n",
+              "deliveryId": "a2dbb47c",
+              "attempts": 1,
+              "time": "2026-10-16T23:02:57.792Z",
+              "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+            },
+            "since": "2026-10-16T23:02:57.794Z",
+            "sessionId": "58c4e7e1-10ce-48f9-8cd2-052d8503847b",
+            "acknowledged": {
+              "time": "2026-10-16T23:04:06.421Z",
+              "confirmed": {
+                "model": "claude-opus-5-5",
+                "effort": "high",
+                "permissionMode": "bypassPermissions"
+              },
+              "evidence": "cross-session message from writer session impower-6f at 2026-10-16 ~23:06Z naming assignment c7aabe5c, its claude command line --model claude-opus-5-5 --effort high --permission-mode bypassPermissions and CLAUDE_EFFORT=high; out.jsonl init line reports model claude-opus-5-5, session 58c4e7e1, permissionMode bypassPermissions",
+              "deliveryId": "a2dbb47c"
+            },
+            "resumes": [
+              {
+                "id": "f157f40d-e345-4b6c-a2c7-496abeb81f39",
+                "time": "2026-10-17T02:01:52.664Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-f157f40d-e345-4b6c-a2c7-496abeb81f39"
+              },
+              {
+                "id": "bad5c2f2-272e-4cf0-9943-d182f5fac6a1",
+                "time": "2026-10-17T02:48:18.186Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-bad5c2f2-272e-4cf0-9943-d182f5fac6a1"
+              },
+              {
+                "id": "94cb1eb1-c697-4fc9-b600-106d102b93e9",
+                "time": "2026-10-17T04:10:12.710Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-94cb1eb1-c697-4fc9-b600-106d102b93e9"
+              },
+              {
+                "id": "a919aa23-6e09-4dda-9ddd-dcef10ec4d72",
+                "time": "2026-10-17T05:24:57.907Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-a919aa23-6e09-4dda-9ddd-dcef10ec4d72"
+              },
+              {
+                "id": "55d8cc38-c3f8-46c9-a549-9e6c8be3135e",
+                "time": "2026-10-17T06:19:49.966Z",
+                "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e"
+              }
+            ]
           },
-          "evidence": "cross-session message from writer session impower-6f at 2026-10-16 ~23:06Z naming assignment c7aabe5c, its claude command line --model claude-opus-5-5 --effort high --permission-mode bypassPermissions and CLAUDE_EFFORT=high; out.jsonl init line reports model claude-opus-5-5, session 58c4e7e1, permissionMode bypassPermissions",
-          "deliveryId": "a2dbb47c"
-        },
-        "resumes": [
-          {
-            "id": "f157f40d-e345-4b6c-a2c7-496abeb81f39",
-            "time": "2026-10-17T02:01:52.664Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-f157f40d-e345-4b6c-a2c7-496abeb81f39"
-          },
-          {
-            "id": "bad5c2f2-272e-4cf0-9943-d182f5fac6a1",
-            "time": "2026-10-17T02:48:18.186Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-bad5c2f2-272e-4cf0-9943-d182f5fac6a1"
-          },
-          {
-            "id": "94cb1eb1-c697-4fc9-b600-106d102b93e9",
-            "time": "2026-10-17T04:10:12.710Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-94cb1eb1-c697-4fc9-b600-106d102b93e9"
-          },
-          {
-            "id": "a919aa23-6e09-4dda-9ddd-dcef10ec4d72",
-            "time": "2026-10-17T05:24:57.907Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-a919aa23-6e09-4dda-9ddd-dcef10ec4d72"
-          },
-          {
-            "id": "55d8cc38-c3f8-46c9-a549-9e6c8be3135e",
-            "time": "2026-10-17T06:19:49.966Z",
-            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1966-55d8cc38-c3f8-46c9-a549-9e6c8be3135e"
-          }
-        ]
-      },
-      "pending": null,
-      "history": [],
+          "released": "process 58432 is gone and no process names its launch directory; #1966 closed with PR #2015 merged as 68a6335fb on origin/main under acceptance afa4eb6f; the writer's final report (fields complete, findings None, reviewedHead 37679545e, cutover numbers for #1967 included) is recorded; the plan observed its resumed process 58432 gone with no process naming its launch directory; its transcript ends with next: done",
+          "time": "2026-10-17T06:21:40.900Z"
+        }
+      ],
       "results": [
         {
           "time": "2026-10-17T06:21:31.088Z",
@@ -4201,7 +4207,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T06:21:32.582Z",
+      "observedAt": "2026-10-17T06:21:42.400Z",
       "held": true,
       "head": "4f7728208b1ca39dd36cdfa03c1002bb0787c93f",
       "remoteHead": "4f7728208b1ca39dd36cdfa03c1002bb0787c93f",
@@ -4209,265 +4215,6 @@
       "dirty": false,
       "pr": 2053,
       "reviewJobs": []
-    },
-    "DESKTOP-726EO47|C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool": {
-      "ticket": 1966,
-      "host": "DESKTOP-726EO47",
-      "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
-      "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T06:21:32.582Z",
-      "held": true,
-      "head": "0ce68b477e72852e265ea00656ce216e181137e7",
-      "remoteHead": "0ce68b477e72852e265ea00656ce216e181137e7",
-      "unpushed": false,
-      "dirty": false,
-      "pr": 2015,
-      "reviewJobs": [
-        {
-          "job": "pr-2015/round-1/launch-data-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-data",
-            "reviewerId": "data",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "8c7d5a1e1e8f7e363be4904fb9778bc99819bf4f",
-            "completedRoundReviewers": null,
-            "time": "2026-10-16T23:58:25.047Z"
-          },
-          "round": 1,
-          "reviewerId": "data",
-          "attempt": 1,
-          "reviewedHead": "8c7d5a1e1e8f7e363be4904fb9778bc99819bf4f",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "data": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [
-            "undirected"
-          ],
-          "finalCorrections": false,
-          "commentIds": [
-            6227196134
-          ]
-        },
-        {
-          "job": "pr-2015/round-1/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 1,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "data",
-              "undirected"
-            ],
-            "head": "7e449aa2ed83971d8716d870d7def1e2e15802fb",
-            "completedRoundReviewers": {
-              "data": 1
-            },
-            "time": "2026-10-17T00:27:15.991Z"
-          },
-          "round": 1,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "7e449aa2ed83971d8716d870d7def1e2e15802fb",
-          "completedRoundReviews": 2,
-          "completedRoundReviewers": {
-            "data": 1,
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "data",
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6227553709
-          ]
-        },
-        {
-          "job": "pr-2015/round-2/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 2,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "0b2192e9c10e938d62e66afe459945173524e111",
-            "completedRoundReviewers": {
-              "data": 1,
-              "undirected": 1
-            },
-            "time": "2026-10-17T00:53:21.228Z"
-          },
-          "round": 2,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "0b2192e9c10e938d62e66afe459945173524e111",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6227709560
-          ]
-        },
-        {
-          "job": "pr-2015/round-3/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 3,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "720b408e32c65ecdad582995f68e1a3d970772a7",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T01:25:40.360Z"
-          },
-          "round": 3,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "720b408e32c65ecdad582995f68e1a3d970772a7",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6228050094
-          ]
-        },
-        {
-          "job": "pr-2015/round-4/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 4,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "6f5769ab57f7323e487891630ef814a2131befb8",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T02:49:55.206Z"
-          },
-          "round": 4,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "6f5769ab57f7323e487891630ef814a2131befb8",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6228781538
-          ]
-        },
-        {
-          "job": "pr-2015/round-5/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 5,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T04:11:35.675Z"
-          },
-          "round": 5,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "51a6a7c0c7692b32544bfbeb7d1d43b284de352c",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6229629736
-          ]
-        },
-        {
-          "job": "pr-2015/round-6/launch-undirected-1",
-          "lastEvent": "finished",
-          "attempted": {
-            "round": 6,
-            "step": "review-undirected",
-            "reviewerId": "undirected",
-            "attempt": 1,
-            "plannedReviewers": [
-              "undirected"
-            ],
-            "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
-            "completedRoundReviewers": {
-              "undirected": 1
-            },
-            "time": "2026-10-17T05:27:29.480Z"
-          },
-          "round": 6,
-          "reviewerId": "undirected",
-          "attempt": 1,
-          "reviewedHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
-          "completedRoundReviews": 1,
-          "completedRoundReviewers": {
-            "undirected": 1
-          },
-          "plannedRoundReviewers": [
-            "undirected"
-          ],
-          "pendingReviewers": [],
-          "finalCorrections": false,
-          "commentIds": [
-            6230340451
-          ]
-        }
-      ]
     }
   },
   "snapshots": {},
@@ -4520,13 +4267,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T22:59:09.787Z",
-      "event": "result",
-      "ticket": 1962,
-      "pr": 1975,
-      "reviewedHead": "5415ccea549dc6631fed6412162345fa6af13210"
-    },
     {
       "time": "2026-10-16T22:59:47.007Z",
       "event": "dispatch-intent",
@@ -5272,6 +5012,12 @@
       "ticket": 1966,
       "pr": 2015,
       "reviewedHead": "37679545e0bd4ca659889ac440d02ac24c0eb469"
+    },
+    {
+      "time": "2026-10-17T06:21:40.901Z",
+      "event": "released",
+      "ticket": 1966,
+      "reason": "process 58432 is gone and no process names its launch directory"
     }
   ]
 }
