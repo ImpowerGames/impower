@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 132,
-  "previous": "d02d3079abc053547a52704bfb63746c8ed214be",
+  "seq": 133,
+  "previous": "bd165bf080250381f92c782ab032969f276ceefe",
   "snapshotParents": [],
-  "time": "2026-10-17T06:44:00.075Z",
+  "time": "2026-10-17T06:44:09.198Z",
   "kind": "auto",
-  "transition": "the intent before a side effect",
+  "transition": "resume of #1906",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
-    "recordRevision": 140,
+    "recordRevision": 141,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1456,10 +1456,10 @@
         "launchId": "bb7eb9b8-394b-4504-a291-e7aa45147ebc",
         "handle": {
           "kind": "process",
-          "pid": 60332,
-          "start": "639278107286327539",
+          "pid": 3156,
+          "start": "639278162461521477",
           "host": "DESKTOP-726EO47",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-4bcc49f5-bd97-449d-8480-09353997d26c"
+          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5"
         },
         "verified": true,
         "brief": {
@@ -1488,13 +1488,13 @@
             "id": "4bcc49f5-bd97-449d-8480-09353997d26c",
             "time": "2026-10-17T05:12:09.041Z",
             "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-4bcc49f5-bd97-449d-8480-09353997d26c"
+          },
+          {
+            "id": "512712b3-3724-4e13-856b-cdab45204bc5",
+            "time": "2026-10-17T06:44:06.537Z",
+            "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5"
           }
-        ],
-        "resuming": {
-          "id": "512712b3-3724-4e13-856b-cdab45204bc5",
-          "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5",
-          "time": "2026-10-17T06:43:57.197Z"
-        }
+        ]
       },
       "pending": null,
       "history": [],
@@ -3838,7 +3838,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1374-function-intersections-redo",
       "branch": "feat/1374-function-intersections-redo",
-      "observedAt": "2026-10-17T06:43:58.654Z",
+      "observedAt": "2026-10-17T06:44:07.894Z",
       "held": true,
       "head": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
       "remoteHead": "082a8f5fea45ce79086d7f7131dae7f733abbfd6",
@@ -4112,7 +4112,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1906-luau-token-classes",
       "branch": "fix/1906-luau-token-classes",
-      "observedAt": "2026-10-17T06:43:58.654Z",
+      "observedAt": "2026-10-17T06:44:07.894Z",
       "held": true,
       "head": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
       "remoteHead": "51231beb1a3bbada90801ced5abe8dcf8c190db2",
@@ -4421,7 +4421,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1924-unread-form-highlighting",
       "branch": "fix/1924-unread-form-highlighting",
-      "observedAt": "2026-10-17T06:43:58.654Z",
+      "observedAt": "2026-10-17T06:44:07.894Z",
       "held": true,
       "head": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
       "remoteHead": "c0c1f78ee1d0c5ae57232f6a68bd12e9100f6157",
@@ -5139,11 +5139,6 @@
   },
   "log": [
     {
-      "time": "2026-10-16T10:18:25.146Z",
-      "event": "check-in",
-      "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
-    },
-    {
       "time": "2026-10-16T10:48:21.347Z",
       "event": "check-in",
       "outcome": "no change: weekly usage limit still blocks the CLI route; #1905 kept for resume after 2026-10-19 01:00 America/New_York"
@@ -5846,6 +5841,19 @@
       "ticket": 1906,
       "id": "512712b3-3724-4e13-856b-cdab45204bc5",
       "sessionId": "e57d8cb2-3a24-4931-90ab-6d0acb246002"
+    },
+    {
+      "time": "2026-10-17T06:44:06.537Z",
+      "event": "resumed",
+      "ticket": 1906,
+      "id": "512712b3-3724-4e13-856b-cdab45204bc5",
+      "handle": {
+        "kind": "process",
+        "pid": 3156,
+        "start": "639278162461521477",
+        "host": "DESKTOP-726EO47",
+        "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1904\\resume-1906-512712b3-3724-4e13-856b-cdab45204bc5"
+      }
     }
   ]
 }
