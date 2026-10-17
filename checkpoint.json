@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 86,
-  "previous": "2639a1b5f1ed94edd1c92d06020ab94905e507d5",
+  "seq": 87,
+  "previous": "ea6822d4adcccd1d5b541cb1c0224c0a9c185ddc",
   "snapshotParents": [],
-  "time": "2026-10-17T02:45:29.739Z",
+  "time": "2026-10-17T02:47:57.575Z",
   "kind": "auto",
-  "transition": "request of #1966",
+  "transition": "answer of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 76,
+    "recordRevision": 79,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1625,7 +1625,14 @@
           "text": "Repair checkpoint for decision 4e5617ee on PR #2015: render-based verify built in 59f08e5ea (stand-in pull request numbers substituted for each possible bare reference, original rendered in the public context, links mapped through the map and compared in order with the final text rendered in the internal context; exact-text comparison kept; renders paced; verifyEstimate 3,720 renders), then a merge of origin/main and a tooling-count bump; head 6f5769ab5; 45 tests including a deliberately misread body that passes the text comparison and fails the render check, mutation-checked; rehearsals 5 and 6 with the render check on passed verify and cleaned up; CI all green on the head. Unreviewed range 720b408e3..6f5769ab5 (reader restructure aa378fd55 and the render check). Writer expects round 4 with one undirected reviewer over both; round count still 3; asks for the decision.",
           "source": "cross-session message from writer session impower-69 (CLI session 58c4e7e1, resumed) received 2026-10-17 ~03:50Z",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision for PR #2015 after the repair: EXTEND to round 4 (decision e0f6d715, published as PR comment 6228675401; read it in full, it is the authority). The repair is accepted as built. Launch round 4 on head 6f5769ab5 with reviewRoundLimit 4 and extendedReviewAuthorization set exactly to the invocation quoted in that comment: /orchestrate-feature #1961. One undirected reviewer at the repository's reviewer defaults; the round's correction diff is 720b408e3..6f5769ab5 (the reader restructure aa378fd55 and the render check 59f08e5ea) with the full PR as context. Ask it, in the round-state comment's scope line, to judge the render check as an oracle: that stand-in substitution cannot change the Markdown's meaning, that link extraction and mapping are right in both contexts, that it catches a misread body against the real renderer, and that it does not over-report. Adjudicate as usual, then send me the next checkpoint report after round 4's verified fixes and end your turn; the PR stays draft until then. Wait in the foreground for the reviewer as before.",
+            "deliveryId": "2ad911fb",
+            "attempts": 1,
+            "time": "2026-10-17T02:47:54.086Z",
+            "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+          }
         }
       ],
       "checkpoints": [
@@ -1865,6 +1872,254 @@
             "comment": 6228245433,
             "time": "2026-10-17T02:00:53.398Z",
             "headAtPublish": "aa378fd550c4d2fed842a687b6debc2c2e79027e"
+          }
+        },
+        {
+          "version": 1,
+          "id": "e0f6d715",
+          "kind": "extend",
+          "feature": 1961,
+          "ticket": 1966,
+          "pr": 2015,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-17T02:47:26.727Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "720b408e32c65ecdad582995f68e1a3d970772a7",
+          "head": "6f5769ab57f7323e487891630ef814a2131befb8",
+          "range": {
+            "from": "720b408e32c65ecdad582995f68e1a3d970772a7",
+            "to": "6f5769ab57f7323e487891630ef814a2131befb8",
+            "base": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
+            "commits": [
+              "aa378fd550c4d2fed842a687b6debc2c2e79027e",
+              "59f08e5ea759a4f5568bd6567135cf8a4db3dd53",
+              "5a6f6fb0e1b53400d8b946c2270645bfb2564b8d",
+              "6f5769ab57f7323e487891630ef814a2131befb8"
+            ],
+            "diffSha256": "e14bca3488380bead25d1268fade0a84ce400bf404fb66a14cebe661bddb2083"
+          },
+          "reports": [
+            {
+              "comment": 6227196134,
+              "round": 1,
+              "reviewerId": "data",
+              "adjudication": 6227312221
+            },
+            {
+              "comment": 6227553709,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6227601809
+            },
+            {
+              "comment": 6227709560,
+              "round": 2,
+              "reviewerId": "undirected",
+              "adjudication": 6227915204
+            },
+            {
+              "comment": 6228050094,
+              "round": 3,
+              "reviewerId": "undirected",
+              "adjudication": 6228198583
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "limit": 4,
+          "limitReason": "The unreviewed range is the reader restructure and the render check that makes the reader's mistakes visible; one bounded round with a single undirected reviewer covers both at once, and the repair decision was made so that they would not each need a round of their own.",
+          "authority": "/orchestrate-feature #1961",
+          "assessment": {
+            "mechanisms": "Unchanged since decision 4e5617ee: 9 of the 14 accepted findings came from the hand-written Markdown reader, which aa378fd55 restructured in CommonMark order, and the remaining mechanism was verify sharing that reader's blind spot. The repair at 59f08e5ea removes the blind spot without touching the reader: verify now renders each migrated text's original through GitHub's Markdown API in the code repository's context with every possible bare reference (by the lead rule alone, no Markdown reading) replaced by a distinct public pull request number as a stand-in, because a probe showed that a moved issue's old number renders no link in either repository after the transfer while a pull request never moves; it maps each stand-in GitHub linked through the map (a migrated ticket to its new internal number, a pull request or kept public issue to the code repository, a number never issued to no link), keeps every other link GitHub rendered, and requires that list to equal, in order, the links GitHub renders for the final text in the internal repository's context with the migration line stripped. The exact-text comparison stays, renders are paced as reads, the dry run estimates them (3,720 for the live repository, about 0.8 hours), and a text with more possible references than free stand-ins is reported as a difference rather than skipped. I read the diff: the oracle depends only on GitHub's renderer and the lead rule, so a misreading in the tool's reader that leaves a bare old number, maps a reference GitHub reads as code, or maps wrongly now shows as a difference; the fake renderer in the tests is modelled independently of the tool and deliberately disagrees on <code>, which is what the misread case exercises.",
+            "regressions": "The repair introduced no reported defect; it adds a check and changes nothing in snapshot, transfer, restore, rewrite or map, as the decision's scope required. The merge of origin/main (5a6f6fb0e) is a two-parent merge of main, and 6f5769ab5 only raises the tooling check count because #1963 and this PR each added one check. The one regression in the PR's history (round 2's block-boundary rule) is what the restructured reader replaced, and that reader remains unreviewed.",
+            "repairOptions": "The repair is done as directed. The stronger alternative (taking reference positions from GitHub at snapshot time so the rewrite needs no reader) is not needed now that a misreading fails verify instead of landing silently. No further repair before review.",
+            "residualRisk": "1. The restructured reader (aa378fd55, about 330 lines) and the render check (59f08e5ea, about 130 lines plus tests) are unreviewed by an independent reviewer; the last correction of the reader's kind regressed once. 2. What the render check cannot see, disclosed by the writer: text changed where GitHub links nothing (the exact-text comparison still covers it against the tool's own target); a lead-rule miss on a number that exists in neither repository (no link on either side); a reference inside link text, which GitHub does not link. 3. The check depends on the internal context resolving qualified public pull request references and on the old number rendering no link after transfer, both measured in rehearsals 5 and 6 and probe #2030, and on about 3,700 render requests fitting the cutover window. 4. Operational limits unchanged and disclosed: settle time tested on three-issue runs, 7.5 plus 3.8 hours of writes under default pacing, no REST re-archive of Project items, duplicates lose their canonical link, sub-issue order not restored, and rehearsals have now consumed internal numbers 1 to 23 so the migration starts at 24.",
+            "coverage": "At 6f5769ab5: node --test scripts/migrate-tracker.test.mjs passes 45 cases, the render check's among them (link and stand-in parsing, a correct migration passing with the render count matching the estimate, a body left with a bare old number, and a deliberately misread <code>#4</code> body that passes the text comparison and fails the render check with a different internal ticket), and removing verify's call to the render check makes the misread case fail (mutation checked). Rehearsals 5 (public #2031-#2033 to internal #18-#20) and 6 (#2034-#2036 to #21-#23), the latter on the committed code, passed verify with the render check on and deleted every test issue from both repositories; rehearsal 6's render-check.json compared 3 texts, 6 renders and 6 links, all equal, including a pull request reference linking back to the public repository from the internal context and code-span and fence references rightly absent. The corpus check still holds (marked agrees on all 2,441 texts). CI on 6f5769ab5: every check passed on both platforms; the intermediate head 59f08e5ea failed only the tooling count, fixed by the merge and 6f5769ab5.",
+            "nextRoundValue": "One bounded round with a single undirected reviewer over 720b408e3..6f5769ab5 establishes whether the restructured reader introduces misreadings of its own and whether the render check is a sound oracle: that its stand-in substitution cannot change the Markdown's meaning (only digits change, pool numbers already present in the text are excluded), that its link extraction and mapping are right in both contexts, that it would catch a misreading (the reviewer can feed verify a misread body against the real renderer), and that it does not over-report. This is the round the repair decision anticipated, reviewing the repair and the reader together so neither needs a round of its own.",
+            "rationale": "The repair directed by 4e5617ee is built, scoped as directed, verified by unit tests with a mutation check and by two real rehearsals, and green in CI. The merge gate still admits only the last reviewed head (720b408e3, which carries four accepted unfixed findings) or an accepted head, and accepting 460 unreviewed lines of a component with this history is not justified; the guidance for a repair is a bounded round on it. So the decision is a one-round extension, limit 4, with one undirected reviewer recommended over the whole unreviewed range, and the next checkpoint after round 4's verified fixes.",
+            "next": "The writer launches round 4 on head 6f5769ab5 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, with the correction diff 720b408e3..6f5769ab5 (the reader restructure and the render check) as the round's scope and the full PR as context; adjudicates as usual; and sends the next checkpoint report after round 4's fixes are verified. The PR stays draft until then.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "limit": 4,
+            "limitReason": "The unreviewed range is the reader restructure and the render check that makes the reader's mistakes visible; one bounded round with a single undirected reviewer covers both at once, and the repair decision was made so that they would not each need a round of their own.",
+            "findings": [
+              {
+                "comment": 6227196134,
+                "finding": "reference rewriting changes URL fragments and link destinations",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "resume marks a wrong closed reason as finished (state_reason ignored without a state change)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "verify omits title, author and creation time",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "verify accepts missing or wrong computed PR closing references",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "restore cannot reproduce absent values or archived Project state",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227196134,
+                "finding": "a lost rehearsal creation response leaves a test issue outside cleanup's reach",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227553709,
+                "finding": "fence boundaries ignore their blockquote container",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227553709,
+                "finding": "a partial journal tail swallows the next record",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227709560,
+                "finding": "a list marker closes a top-level fence",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6227709560,
+                "finding": "balanced parentheses expose part of a link destination",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "the block-boundary rule rewrites valid code spans (pipe line, ordered marker) and the table fixture was wrong",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "backticks inside a link title corrupt the destination and the following reference",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "an unclosed list fence hides references after its container ends",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6228050094,
+                "finding": "code-span boundaries fabricate link reference definitions mid-line",
+                "disposition": "accepted"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: authorize another bounded round\n\nDecision `e0f6d715` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1966. Authority: the orchestrate-feature invocation, quoted verbatim from the run record: \"/orchestrate-feature #1961\"\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected) exited, and every report has its adjudication (6227196134 in 6227312221, 6227553709 in 6227601809, 6227709560 in 6227915204, 6228050094 in 6228198583).\n- Independently reviewed through `720b408e32c65ecdad582995f68e1a3d970772a7`.\n- Head `6f5769ab57f7323e487891630ef814a2131befb8`. Unreviewed: `720b408e3..6f5769ab5`, 4 commits (`aa378fd55` fix(github): read Markdown blocks before their inline code and links (#1966); `59f08e5ea` feat(github): check rewritten references with GitHub's renderer in verify (#1966); `5a6f6fb0e` Merge remote-tracking branch 'origin/main' into feat/1966-tracker-migration-tool (base merge, shown as its remerge diff); `6f5769ab5` test(github): count the migration tool's check beside #1963's (#1966)), diff SHA-256 `e14bca3488380bead25d1268fade0a84ce400bf404fb66a14cebe661bddb2083`.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, Luau corpus gate passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, test-suite passed, driver-checks (windows-latest) passed, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) passed, vitest-api-integration (windows-latest, 3.2.6) passed, hook-tests passed.\n- Findings across all rounds: 14 accepted; unresolved: none.\n- Shared mechanisms: Unchanged since decision 4e5617ee: 9 of the 14 accepted findings came from the hand-written Markdown reader, which aa378fd55 restructured in CommonMark order, and the remaining mechanism was verify sharing that reader's blind spot. The repair at 59f08e5ea removes the blind spot without touching the reader: verify now renders each migrated text's original through GitHub's Markdown API in the code repository's context with every possible bare reference (by the lead rule alone, no Markdown reading) replaced by a distinct public pull request number as a stand-in, because a probe showed that a moved issue's old number renders no link in either repository after the transfer while a pull request never moves; it maps each stand-in GitHub linked through the map (a migrated ticket to its new internal number, a pull request or kept public issue to the code repository, a number never issued to no link), keeps every other link GitHub rendered, and requires that list to equal, in order, the links GitHub renders for the final text in the internal repository's context with the migration line stripped. The exact-text comparison stays, renders are paced as reads, the dry run estimates them (3,720 for the live repository, about 0.8 hours), and a text with more possible references than free stand-ins is reported as a difference rather than skipped. I read the diff: the oracle depends only on GitHub's renderer and the lead rule, so a misreading in the tool's reader that leaves a bare old number, maps a reference GitHub reads as code, or maps wrongly now shows as a difference; the fake renderer in the tests is modelled independently of the tool and deliberately disagrees on <code>, which is what the misread case exercises.\n- Defects introduced by corrections: The repair introduced no reported defect; it adds a check and changes nothing in snapshot, transfer, restore, rewrite or map, as the decision's scope required. The merge of origin/main (5a6f6fb0e) is a two-parent merge of main, and 6f5769ab5 only raises the tooling check count because #1963 and this PR each added one check. The one regression in the PR's history (round 2's block-boundary rule) is what the restructured reader replaced, and that reader remains unreviewed.\n- Broader or simpler repair: The repair is done as directed. The stronger alternative (taking reference positions from GitHub at snapshot time so the rewrite needs no reader) is not needed now that a misreading fails verify instead of landing silently. No further repair before review.\n- Residual risk: 1. The restructured reader (aa378fd55, about 330 lines) and the render check (59f08e5ea, about 130 lines plus tests) are unreviewed by an independent reviewer; the last correction of the reader's kind regressed once. 2. What the render check cannot see, disclosed by the writer: text changed where GitHub links nothing (the exact-text comparison still covers it against the tool's own target); a lead-rule miss on a number that exists in neither repository (no link on either side); a reference inside link text, which GitHub does not link. 3. The check depends on the internal context resolving qualified public pull request references and on the old number rendering no link after transfer, both measured in rehearsals 5 and 6 and probe #2030, and on about 3,700 render requests fitting the cutover window. 4. Operational limits unchanged and disclosed: settle time tested on three-issue runs, 7.5 plus 3.8 hours of writes under default pacing, no REST re-archive of Project items, duplicates lose their canonical link, sub-issue order not restored, and rehearsals have now consumed internal numbers 1 to 23 so the migration starts at 24.\n- Verification coverage: At 6f5769ab5: node --test scripts/migrate-tracker.test.mjs passes 45 cases, the render check's among them (link and stand-in parsing, a correct migration passing with the render count matching the estimate, a body left with a bare old number, and a deliberately misread <code>#4</code> body that passes the text comparison and fails the render check with a different internal ticket), and removing verify's call to the render check makes the misread case fail (mutation checked). Rehearsals 5 (public #2031-#2033 to internal #18-#20) and 6 (#2034-#2036 to #21-#23), the latter on the committed code, passed verify with the render check on and deleted every test issue from both repositories; rehearsal 6's render-check.json compared 3 texts, 6 renders and 6 links, all equal, including a pull request reference linking back to the public repository from the internal context and code-span and fence references rightly absent. The corpus check still holds (marked agrees on all 2,441 texts). CI on 6f5769ab5: every check passed on both platforms; the intermediate head 59f08e5ea failed only the tooling count, fixed by the merge and 6f5769ab5.\n- What another round would establish: One bounded round with a single undirected reviewer over 720b408e3..6f5769ab5 establishes whether the restructured reader introduces misreadings of its own and whether the render check is a sound oracle: that its stand-in substitution cannot change the Markdown's meaning (only digits change, pool numbers already present in the text are excluded), that its link extraction and mapping are right in both contexts, that it would catch a misreading (the reviewer can feed verify a misread body against the real renderer), and that it does not over-report. This is the round the repair decision anticipated, reviewing the repair and the reader together so neither needs a round of its own.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The repair directed by 4e5617ee is built, scoped as directed, verified by unit tests with a mutation check and by two real rehearsals, and green in CI. The merge gate still admits only the last reviewed head (720b408e3, which carries four accepted unfixed findings) or an accepted head, and accepting 460 unreviewed lines of a component with this history is not justified; the guidance for a repair is a bounded round on it. So the decision is a one-round extension, limit 4, with one undirected reviewer recommended over the whole unreviewed range, and the next checkpoint after round 4's verified fixes. Next: The writer launches round 4 on head 6f5769ab5 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, with the correction diff 720b408e3..6f5769ab5 (the reader restructure and the render check) as the round's scope and the full PR as context; adjudicates as usual; and sends the next checkpoint report after round 4's fixes are verified. The PR stays draft until then.\n- Round 4 may launch with `reviewRoundLimit` 4 and `extendedReviewAuthorization` set to the invocation quoted above, verbatim. Limit reason: The unreviewed range is the reader restructure and the render check that makes the reader's mistakes visible; one bounded round with a single undirected reviewer covers both at once, and the repair decision was made so that they would not each need a round of their own. The next checkpoint follows round 4's verified fixes, and the count never resets.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"e0f6d715\",\n \"kind\": \"extend\",\n \"feature\": 1961,\n \"ticket\": 1966,\n \"pr\": 2015,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-17T02:47:26.727Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"720b408e32c65ecdad582995f68e1a3d970772a7\",\n \"head\": \"6f5769ab57f7323e487891630ef814a2131befb8\",\n \"range\": {\n  \"from\": \"720b408e32c65ecdad582995f68e1a3d970772a7\",\n  \"to\": \"6f5769ab57f7323e487891630ef814a2131befb8\",\n  \"base\": \"c4e4cd51a37dcdf400a33a4faf1009ef84e48c33\",\n  \"commits\": [\n   \"aa378fd550c4d2fed842a687b6debc2c2e79027e\",\n   \"59f08e5ea759a4f5568bd6567135cf8a4db3dd53\",\n   \"5a6f6fb0e1b53400d8b946c2270645bfb2564b8d\",\n   \"6f5769ab57f7323e487891630ef814a2131befb8\"\n  ],\n  \"diffSha256\": \"e14bca3488380bead25d1268fade0a84ce400bf404fb66a14cebe661bddb2083\"\n },\n \"reports\": [\n  {\n   \"comment\": 6227196134,\n   \"round\": 1,\n   \"reviewerId\": \"data\",\n   \"adjudication\": 6227312221\n  },\n  {\n   \"comment\": 6227553709,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227601809\n  },\n  {\n   \"comment\": 6227709560,\n   \"round\": 2,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6227915204\n  },\n  {\n   \"comment\": 6228050094,\n   \"round\": 3,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6228198583\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"limit\": 4,\n \"limitReason\": \"The unreviewed range is the reader restructure and the render check that makes the reader's mistakes visible; one bounded round with a single undirected reviewer covers both at once, and the repair decision was made so that they would not each need a round of their own.\",\n \"authority\": \"/orchestrate-feature #1961\",\n \"assessment\": {\n  \"mechanisms\": \"Unchanged since decision 4e5617ee: 9 of the 14 accepted findings came from the hand-written Markdown reader, which aa378fd55 restructured in CommonMark order, and the remaining mechanism was verify sharing that reader's blind spot. The repair at 59f08e5ea removes the blind spot without touching the reader: verify now renders each migrated text's original through GitHub's Markdown API in the code repository's context with every possible bare reference (by the lead rule alone, no Markdown reading) replaced by a distinct public pull request number as a stand-in, because a probe showed that a moved issue's old number renders no link in either repository after the transfer while a pull request never moves; it maps each stand-in GitHub linked through the map (a migrated ticket to its new internal number, a pull request or kept public issue to the code repository, a number never issued to no link), keeps every other link GitHub rendered, and requires that list to equal, in order, the links GitHub renders for the final text in the internal repository's context with the migration line stripped. The exact-text comparison stays, renders are paced as reads, the dry run estimates them (3,720 for the live repository, about 0.8 hours), and a text with more possible references than free stand-ins is reported as a difference rather than skipped. I read the diff: the oracle depends only on GitHub's renderer and the lead rule, so a misreading in the tool's reader that leaves a bare old number, maps a reference GitHub reads as code, or maps wrongly now shows as a difference; the fake renderer in the tests is modelled independently of the tool and deliberately disagrees on <code>, which is what the misread case exercises.\",\n  \"regressions\": \"The repair introduced no reported defect; it adds a check and changes nothing in snapshot, transfer, restore, rewrite or map, as the decision's scope required. The merge of origin/main (5a6f6fb0e) is a two-parent merge of main, and 6f5769ab5 only raises the tooling check count because #1963 and this PR each added one check. The one regression in the PR's history (round 2's block-boundary rule) is what the restructured reader replaced, and that reader remains unreviewed.\",\n  \"repairOptions\": \"The repair is done as directed. The stronger alternative (taking reference positions from GitHub at snapshot time so the rewrite needs no reader) is not needed now that a misreading fails verify instead of landing silently. No further repair before review.\",\n  \"residualRisk\": \"1. The restructured reader (aa378fd55, about 330 lines) and the render check (59f08e5ea, about 130 lines plus tests) are unreviewed by an independent reviewer; the last correction of the reader's kind regressed once. 2. What the render check cannot see, disclosed by the writer: text changed where GitHub links nothing (the exact-text comparison still covers it against the tool's own target); a lead-rule miss on a number that exists in neither repository (no link on either side); a reference inside link text, which GitHub does not link. 3. The check depends on the internal context resolving qualified public pull request references and on the old number rendering no link after transfer, both measured in rehearsals 5 and 6 and probe #2030, and on about 3,700 render requests fitting the cutover window. 4. Operational limits unchanged and disclosed: settle time tested on three-issue runs, 7.5 plus 3.8 hours of writes under default pacing, no REST re-archive of Project items, duplicates lose their canonical link, sub-issue order not restored, and rehearsals have now consumed internal numbers 1 to 23 so the migration starts at 24.\",\n  \"coverage\": \"At 6f5769ab5: node -\\u002dtest scripts/migrate-tracker.test.mjs passes 45 cases, the render check's among them (link and stand-in parsing, a correct migration passing with the render count matching the estimate, a body left with a bare old number, and a deliberately misread <code>#4</code> body that passes the text comparison and fails the render check with a different internal ticket), and removing verify's call to the render check makes the misread case fail (mutation checked). Rehearsals 5 (public #2031-#2033 to internal #18-#20) and 6 (#2034-#2036 to #21-#23), the latter on the committed code, passed verify with the render check on and deleted every test issue from both repositories; rehearsal 6's render-check.json compared 3 texts, 6 renders and 6 links, all equal, including a pull request reference linking back to the public repository from the internal context and code-span and fence references rightly absent. The corpus check still holds (marked agrees on all 2,441 texts). CI on 6f5769ab5: every check passed on both platforms; the intermediate head 59f08e5ea failed only the tooling count, fixed by the merge and 6f5769ab5.\",\n  \"nextRoundValue\": \"One bounded round with a single undirected reviewer over 720b408e3..6f5769ab5 establishes whether the restructured reader introduces misreadings of its own and whether the render check is a sound oracle: that its stand-in substitution cannot change the Markdown's meaning (only digits change, pool numbers already present in the text are excluded), that its link extraction and mapping are right in both contexts, that it would catch a misreading (the reviewer can feed verify a misread body against the real renderer), and that it does not over-report. This is the round the repair decision anticipated, reviewing the repair and the reader together so neither needs a round of its own.\",\n  \"rationale\": \"The repair directed by 4e5617ee is built, scoped as directed, verified by unit tests with a mutation check and by two real rehearsals, and green in CI. The merge gate still admits only the last reviewed head (720b408e3, which carries four accepted unfixed findings) or an accepted head, and accepting 460 unreviewed lines of a component with this history is not justified; the guidance for a repair is a bounded round on it. So the decision is a one-round extension, limit 4, with one undirected reviewer recommended over the whole unreviewed range, and the next checkpoint after round 4's verified fixes.\",\n  \"next\": \"The writer launches round 4 on head 6f5769ab5 with reviewRoundLimit 4 and extendedReviewAuthorization set to the invocation quoted in the published decision, one undirected reviewer at the repository's reviewer defaults, with the correction diff 720b408e3..6f5769ab5 (the reader restructure and the render check) as the round's scope and the full PR as context; adjudicates as usual; and sends the next checkpoint report after round 4's fixes are verified. The PR stays draft until then.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"limit\": 4,\n  \"limitReason\": \"The unreviewed range is the reader restructure and the render check that makes the reader's mistakes visible; one bounded round with a single undirected reviewer covers both at once, and the repair decision was made so that they would not each need a round of their own.\",\n  \"findings\": [\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"reference rewriting changes URL fragments and link destinations\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"resume marks a wrong closed reason as finished (state_reason ignored without a state change)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"verify omits title, author and creation time\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"verify accepts missing or wrong computed PR closing references\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"restore cannot reproduce absent values or archived Project state\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227196134,\n    \"finding\": \"a lost rehearsal creation response leaves a test issue outside cleanup's reach\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227553709,\n    \"finding\": \"fence boundaries ignore their blockquote container\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227553709,\n    \"finding\": \"a partial journal tail swallows the next record\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227709560,\n    \"finding\": \"a list marker closes a top-level fence\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6227709560,\n    \"finding\": \"balanced parentheses expose part of a link destination\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"the block-boundary rule rewrites valid code spans (pipe line, ordered marker) and the table fixture was wrong\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"backticks inside a link title corrupt the destination and the following reference\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"an unclosed list fence hides references after its container ends\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6228050094,\n    \"finding\": \"code-span boundaries fabricate link reference definitions mid-line\",\n    \"disposition\": \"accepted\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "dcd0e4ebba0074a9311ec5da19ba99696f8c15cf2140afe8e244abb5040b59c1",
+          "blockSha256": "0c3ba06199acb2dafdb95b07259875d806444b3926d16756e60b17823b9a6c33",
+          "published": {
+            "comment": 6228675401,
+            "time": "2026-10-17T02:47:30.423Z",
+            "headAtPublish": "6f5769ab57f7323e487891630ef814a2131befb8"
           }
         }
       ]
@@ -2218,6 +2473,16 @@
       "round": 3,
       "head": "aa378fd550c4d2fed842a687b6debc2c2e79027e",
       "time": "2026-10-17T02:00:53.398Z"
+    },
+    {
+      "pr": 2015,
+      "url": "https://github.com/ImpowerGames/impower/pull/2015#issuecomment-6228675401",
+      "kind": "review-checkpoint extend",
+      "ticket": 1966,
+      "id": "e0f6d715",
+      "round": 3,
+      "head": "6f5769ab57f7323e487891630ef814a2131befb8",
+      "time": "2026-10-17T02:47:30.423Z"
     }
   ],
   "diskRecoveries": [],
@@ -2228,7 +2493,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T02:45:28.158Z",
+      "observedAt": "2026-10-17T02:47:56.054Z",
       "held": true,
       "head": "c4e4cd51a37dcdf400a33a4faf1009ef84e48c33",
       "remoteHead": null,
@@ -2240,7 +2505,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T02:45:28.158Z",
+      "observedAt": "2026-10-17T02:47:56.054Z",
       "held": true,
       "head": "6f5769ab57f7323e487891630ef814a2131befb8",
       "remoteHead": "6f5769ab57f7323e487891630ef814a2131befb8",
@@ -2999,6 +3264,30 @@
       "event": "request",
       "ticket": 1966,
       "id": "fd3d8e56"
+    },
+    {
+      "time": "2026-10-17T02:47:26.727Z",
+      "event": "checkpoint-intent",
+      "ticket": 1966,
+      "id": "e0f6d715",
+      "kind": "extend",
+      "round": 3,
+      "head": "6f5769ab57f7323e487891630ef814a2131befb8"
+    },
+    {
+      "time": "2026-10-17T02:47:30.423Z",
+      "event": "checkpoint-published",
+      "ticket": 1966,
+      "id": "e0f6d715",
+      "comment": 6228675401
+    },
+    {
+      "time": "2026-10-17T02:47:54.087Z",
+      "event": "answer-intent",
+      "ticket": 1966,
+      "id": "fd3d8e56",
+      "deliveryId": "2ad911fb",
+      "attempt": 1
     }
   ]
 }
