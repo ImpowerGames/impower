@@ -545,6 +545,16 @@ test("a committed copy short of its own counts stops the pull request instead of
   assert.equal(result.written, 0);
   assert.match(result.failed[0]?.problems[0] ?? "", /is incomplete \(it holds 1 of 2 comments\); recover the missing comments/);
   assert.deepEqual(archiveProblems(parseArchive(fs.readFileSync(file, "utf8"), repos)), ["holds 1 of 2 comments"], "the file still shows its deficit");
+  // Either history alone, short with no other copy to cover it, stops the pull request too.
+  const short = fs.readFileSync(file, "utf8");
+  fs.rmSync(file);
+  for (const [history, other] of [["pushed", "HEAD"], ["HEAD", "pushed"]]) {
+    clone.histories[history] = new Map([[`${ARCHIVE_DIR}/1.md`, short]]);
+    clone.histories[other] = new Map();
+    const alone = await runArchive({ tracker, repos, clone, journal, only: [1] });
+    assert.match(alone.failed[0]?.problems[0] ?? "", /is incomplete/, history);
+    assert.equal(fs.existsSync(file), false, history);
+  }
 });
 
 test("a pull request with no archive and a review summary is refused, not counted empty", async () => {
