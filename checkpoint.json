@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 107,
-  "previous": "bee8a9556a54c3c76599476fad978d3a98a261c1",
+  "seq": 108,
+  "previous": "14b8e24e233671fabd252ca712843ad4931141ef",
   "snapshotParents": [],
-  "time": "2026-10-17T04:56:10.762Z",
+  "time": "2026-10-17T04:57:22.372Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "answer of #1964",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 96,
+    "recordRevision": 99,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1564,7 +1564,212 @@
           "text": "Round 3 checkpoint report for PR #2040: rounds 1 (callers + undirected), 2 (undirected) and 3 (undirected, no findings) complete, all gpt-6.1-sol xhigh; 4 accepted findings, one mechanism (record-report's read-back of a coordinator-posted report), all fixed; two corrections introduced defects caught by the next reviewer; reviewed head 3d2e5693c equals the current head; CI green except the Windows driver check pending. Live acceptance done from a flipped scratch clone with throwaway internal tickets 24-27 and PRs #2037/#2039, all cleaned up. Deviation: record-report checks a read-back file produced by a new agent-handoff read-back command rather than reading GitHub itself (cloud route has no gh login). Writer asks to confirm marking #2040 ready or to send a checkpoint decision.",
           "source": "cross-session message from writer session impower-df (CLI session c9c18b15) received 2026-10-17 ~06:20Z",
           "relayed": null,
-          "answer": null
+          "answer": {
+            "state": "intent",
+            "text": "Checkpoint decision for PR #2040 after round 3: FINISH (decision 038210f9, published as PR comment 6229886555; read it in full). The review gates pass on head 3d2e5693c and the decision grants nothing beyond ordinary review-pr readiness. The record-report deviation (the by-id read done by the new read-back command from the journal's thread repository, record-report checking id and thread, so the cloud route keeps working) is accepted. Thank you for clearing the reviewer scratch; #1866 carrying the evidence-scan problem is fine. Now: mark PR #2040 ready through review-pr's own readiness step, confirm the head is still 3d2e5693c and every check green, send me your final report as the brief's fields (model, effort, permissionMode, pr, reviewedHead 3d2e5693c, rounds per reviewer route, findings None, verification, ci, next: done), and end your turn. Do not merge; the coordinator merges through the gate.",
+            "deliveryId": "96b93752",
+            "attempts": 1,
+            "time": "2026-10-17T04:57:19.908Z",
+            "to": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c"
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "version": 1,
+          "id": "038210f9",
+          "kind": "finish",
+          "feature": 1961,
+          "ticket": 1964,
+          "pr": 2040,
+          "coordinator": "local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c",
+          "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
+          "time": "2026-10-17T04:57:15.885Z",
+          "round": 3,
+          "limitBefore": 3,
+          "reviewedHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+          "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+          "range": {
+            "from": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+            "to": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+            "base": "e5b8aa876e5757949709ac031ce5376352c35135",
+            "commits": [],
+            "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "reports": [
+            {
+              "comment": 6229095635,
+              "round": 1,
+              "reviewerId": "callers",
+              "adjudication": 6229148644
+            },
+            {
+              "comment": 6229324730,
+              "round": 1,
+              "reviewerId": "undirected",
+              "adjudication": 6229391326
+            },
+            {
+              "comment": 6229609639,
+              "round": 2,
+              "reviewerId": "undirected-2",
+              "adjudication": 6229658479
+            },
+            {
+              "comment": 6229763842,
+              "round": 3,
+              "reviewerId": "undirected-3",
+              "adjudication": 6229777646
+            }
+          ],
+          "checks": [
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "linked-issue",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "notifier",
+              "result": "passed"
+            },
+            {
+              "name": "${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}",
+              "result": "passed"
+            },
+            {
+              "name": "driver-changes / detect",
+              "result": "passed"
+            },
+            {
+              "name": "tsc",
+              "result": "passed"
+            },
+            {
+              "name": "Luau corpus gate",
+              "result": "passed"
+            },
+            {
+              "name": "notifier-tests",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "typecheck",
+              "result": "passed"
+            },
+            {
+              "name": "skills-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (ubuntu-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "test-suite",
+              "result": "passed"
+            },
+            {
+              "name": "driver-checks (windows-latest)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (ubuntu-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 2.1.9)",
+              "result": "passed"
+            },
+            {
+              "name": "vitest-api-integration (windows-latest, 3.2.6)",
+              "result": "passed"
+            },
+            {
+              "name": "hook-tests",
+              "result": "passed"
+            }
+          ],
+          "due": true,
+          "blockers": [],
+          "audit": [],
+          "assessment": {
+            "mechanisms": "Four accepted findings in three rounds, all in one mechanism: how record-report accepts the read-back of a report a coordinator posts on a reviewer's behalf. Round 1 callers: the read-back was taken as a bare body with no check of where the comment lives, so with the switch on a comment on the public pull request completed a journal whose thread is the internal ticket; fixed by taking the REST comment object and checking its id and issue_url against the coordinator row's recorded thread. Round 1 undirected: that correction refused UTF-16 read-backs (what Windows PowerShell 5.1's redirect writes) and refused legacy journals written by the base launcher, which record no thread; fixed by decoding UTF-8 with or without a BOM and UTF-16, and by accepting a legacy journal's comment on a code-repository issue while the switch is off and refusing it once on. Round 2: the documented capture recipe (gh api redirected to a file) still corrupted non-ASCII text because PowerShell 5.1 decodes native output through the console code page; fixed by a read-back command in agent-handoff that runs gh and writes its bytes unchanged from the journal's thread repository, replacing the recipe with a mechanism. Round 3 reviewed that final mechanism on 3d2e5693c, probing UTF-8, BOM, UTF-16LE and UTF-16BE, wrong-id, public-PR and other-ticket refusals, legacy journals in both positions and a real gh read that kept an em dash, and found nothing. The reviewed head is the current head, with no unreviewed range.",
+            "regressions": "Corrections introduced defects twice, each caught by the next reviewer: the JSON read-back of 052563c03 caused the encoding failure and the legacy-journal regression, and b171b2a09 fixed the decoding but kept a capture recipe that still corrupted text. 3d2e5693c replaced the recipe with the read-back command, and round 3 found no further defect. Every production change has been read by a later round.",
+            "repairOptions": "The read-back command is the broader repair: it removes the need for any capture recipe. Having record-report fetch the comment itself would be simpler still, but the cloud reviewer route has no gh login, so a cloud coordinator writes its integration's comment object by hand; the writer implemented and reverted that once. That is also the one deviation from the ticket's wording, which asked record-report to read the comment by id from the internal repository: the by-id read is done by the read-back command from the journal's thread repository, and record-report checks the read-back's id and thread. The deviation keeps the cloud route working and is accepted.",
+            "residualRisk": "By design and disclosed: the cloud coordinator's hand-written read-back path is unit-tested only; the live on-position run covered reviewer-posted reports, the PR report, round state, adjudication and the umbrella case but not a coordinator-posted report; orchestrate-feature's own report reads in review-checkpoint.mjs and integration.mjs still read the code repository with the switch on, which is #1965's scope; the public pull request template stays as it is until #1967 moves the staged one, as decided. One Windows api-integration job failed once on an intermediate head in a file this PR does not touch and passed on the final head and every other head. Switch-off behaviour was the explicit lens of round 1's callers reviewer and every pre-existing assertion.",
+            "coverage": "On 3d2e5693c: node --test over the ten changed test files passes; the new cases cover a body-only read-back, a comment on another issue, a read-back of the wrong comment id, a coordinator row without a thread, UTF-8 with and without a BOM, UTF-16LE and UTF-16BE, a real powershell.exe redirect, the read-back command driven through a native stand-in that prints UTF-8 bytes, legacy journals in both positions, and the reviewThread resolver's refusals; each correction's tests fail against the head they correct in scratch runs. Live acceptance from a scratch clone with only repos.json flipped on: throwaway internal Task 24 with draft PR #2037 (title ending (I-24), one-paragraph body plus the internal closing line, PR report, round state, reviewer report with its token line and adjudication on the ticket, zero comments on the PR), and the umbrella case with Tasks 25 and 26 under umbrella 27 and PR #2039 (PR report on the umbrella, zero comments on the PR and the sub-issues); the PRs were closed with branches deleted and the internal tickets deleted. CI on 3d2e5693c: every check passed except the Windows driver check, which was pending at the writer's report; the evidence block records the state at decision time. Out-of-scope Bug #2048 (deep-path failure in reviewer-execution.test.mjs, reproduces on main) and feedback report F-5746300802 were filed.",
+            "nextRoundValue": "Little: round 3 already probed the final read-back mechanism end to end, including a real gh read, and found nothing; the current head is the reviewed head; the remaining gaps are either cutover checks or #1965's scope.",
+            "rationale": "The review gates pass: three complete rounds, every report adjudicated, all four findings accepted and fixed, round 3 clean on the current head, no unreviewed range, and no failed check on the head. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish: the writer marks PR #2040 ready through review-pr's readiness and sends its final report, and the coordinator merges only through the merge gate. The record-report deviation is accepted for the cloud-route reason. A separate tooling defect surfaced while deciding: the checkpoint evidence scan treated a reviewer's test-fixture journals left under its scratch directory as review journals; the writer removed that scratch and a Task is filed for the scan.",
+            "next": "The writer marks PR #2040 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 3d2e5693c, findings None), and ends. The coordinator runs integration.mjs gate and merges through integration.mjs merge; once the merge is on origin/main, #1965 becomes eligible and is dispatched with the switch, internal-repository and #1964 thread decisions in its brief.",
+            "agreedBehavior": "preserved",
+            "architecture": "unchanged",
+            "findings": [
+              {
+                "comment": 6229095635,
+                "finding": "coordinator-posted reports bypass the internal-thread refusal in record-report",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229324730,
+                "finding": "the documented Windows read-back cannot complete recovery (UTF-16 refused)",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229324730,
+                "finding": "existing legacy journals lose their recovery path while the switch is off",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229609639,
+                "finding": "the documented PowerShell recovery still corrupts Unicode reports through the console code page",
+                "disposition": "accepted"
+              },
+              {
+                "comment": 6229763842,
+                "disposition": "none"
+              }
+            ]
+          },
+          "state": "published",
+          "body": "### Coordinator checkpoint after review round 3: finish through ordinary readiness\n\nDecision `038210f9` by coordinator `local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c` of Feature #1961 for #1964.\n\n- Round state: round 3 is complete (limit 3 before this decision); its planned reviewers (undirected-3) exited, and every report has its adjudication (6229095635 in 6229148644, 6229324730 in 6229391326, 6229609639 in 6229658479, 6229763842 in 6229777646).\n- Independently reviewed through `3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb`.\n- Head `3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb`. Nothing after the reviewed head is unreviewed.\n- CI on the head: changes / detect passed, linked-issue passed, linked-issue passed, linked-issue passed, changes / detect passed, changes / detect passed, changes / detect passed, notifier passed, ${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }} passed, driver-changes / detect passed, tsc passed, Luau corpus gate passed, notifier-tests passed, skills-checks (ubuntu-latest) passed, typecheck passed, skills-checks (windows-latest) passed, driver-checks (ubuntu-latest) passed, test-suite passed, driver-checks (windows-latest) passed, vitest-api-integration (ubuntu-latest, 2.1.9) passed, vitest-api-integration (ubuntu-latest, 3.2.6) passed, vitest-api-integration (windows-latest, 2.1.9) passed, vitest-api-integration (windows-latest, 3.2.6) passed, hook-tests passed.\n- Findings across all rounds: 4 accepted, 1 none; unresolved: none.\n- Shared mechanisms: Four accepted findings in three rounds, all in one mechanism: how record-report accepts the read-back of a report a coordinator posts on a reviewer's behalf. Round 1 callers: the read-back was taken as a bare body with no check of where the comment lives, so with the switch on a comment on the public pull request completed a journal whose thread is the internal ticket; fixed by taking the REST comment object and checking its id and issue_url against the coordinator row's recorded thread. Round 1 undirected: that correction refused UTF-16 read-backs (what Windows PowerShell 5.1's redirect writes) and refused legacy journals written by the base launcher, which record no thread; fixed by decoding UTF-8 with or without a BOM and UTF-16, and by accepting a legacy journal's comment on a code-repository issue while the switch is off and refusing it once on. Round 2: the documented capture recipe (gh api redirected to a file) still corrupted non-ASCII text because PowerShell 5.1 decodes native output through the console code page; fixed by a read-back command in agent-handoff that runs gh and writes its bytes unchanged from the journal's thread repository, replacing the recipe with a mechanism. Round 3 reviewed that final mechanism on 3d2e5693c, probing UTF-8, BOM, UTF-16LE and UTF-16BE, wrong-id, public-PR and other-ticket refusals, legacy journals in both positions and a real gh read that kept an em dash, and found nothing. The reviewed head is the current head, with no unreviewed range.\n- Defects introduced by corrections: Corrections introduced defects twice, each caught by the next reviewer: the JSON read-back of 052563c03 caused the encoding failure and the legacy-journal regression, and b171b2a09 fixed the decoding but kept a capture recipe that still corrupted text. 3d2e5693c replaced the recipe with the read-back command, and round 3 found no further defect. Every production change has been read by a later round.\n- Broader or simpler repair: The read-back command is the broader repair: it removes the need for any capture recipe. Having record-report fetch the comment itself would be simpler still, but the cloud reviewer route has no gh login, so a cloud coordinator writes its integration's comment object by hand; the writer implemented and reverted that once. That is also the one deviation from the ticket's wording, which asked record-report to read the comment by id from the internal repository: the by-id read is done by the read-back command from the journal's thread repository, and record-report checks the read-back's id and thread. The deviation keeps the cloud route working and is accepted.\n- Residual risk: By design and disclosed: the cloud coordinator's hand-written read-back path is unit-tested only; the live on-position run covered reviewer-posted reports, the PR report, round state, adjudication and the umbrella case but not a coordinator-posted report; orchestrate-feature's own report reads in review-checkpoint.mjs and integration.mjs still read the code repository with the switch on, which is #1965's scope; the public pull request template stays as it is until #1967 moves the staged one, as decided. One Windows api-integration job failed once on an intermediate head in a file this PR does not touch and passed on the final head and every other head. Switch-off behaviour was the explicit lens of round 1's callers reviewer and every pre-existing assertion.\n- Verification coverage: On 3d2e5693c: node --test over the ten changed test files passes; the new cases cover a body-only read-back, a comment on another issue, a read-back of the wrong comment id, a coordinator row without a thread, UTF-8 with and without a BOM, UTF-16LE and UTF-16BE, a real powershell.exe redirect, the read-back command driven through a native stand-in that prints UTF-8 bytes, legacy journals in both positions, and the reviewThread resolver's refusals; each correction's tests fail against the head they correct in scratch runs. Live acceptance from a scratch clone with only repos.json flipped on: throwaway internal Task 24 with draft PR #2037 (title ending (I-24), one-paragraph body plus the internal closing line, PR report, round state, reviewer report with its token line and adjudication on the ticket, zero comments on the PR), and the umbrella case with Tasks 25 and 26 under umbrella 27 and PR #2039 (PR report on the umbrella, zero comments on the PR and the sub-issues); the PRs were closed with branches deleted and the internal tickets deleted. CI on 3d2e5693c: every check passed except the Windows driver check, which was pending at the writer's report; the evidence block records the state at decision time. Out-of-scope Bug #2048 (deep-path failure in reviewer-execution.test.mjs, reproduces on main) and feedback report F-5746300802 were filed.\n- What another round would establish: Little: round 3 already probed the final read-back mechanism end to end, including a real gh read, and found nothing; the current head is the reviewed head; the remaining gaps are either cutover checks or #1965's scope.\n- Agreed behavior preserved; architecture unchanged.\n- Decision: The review gates pass: three complete rounds, every report adjudicated, all four findings accepted and fixed, round 3 clean on the current head, no unreviewed range, and no failed check on the head. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish: the writer marks PR #2040 ready through review-pr's readiness and sends its final report, and the coordinator merges only through the merge gate. The record-report deviation is accepted for the cloud-route reason. A separate tooling defect surfaced while deciding: the checkpoint evidence scan treated a reviewer's test-fixture journals left under its scratch directory as review journals; the writer removed that scratch and a Task is filed for the scan. Next: The writer marks PR #2040 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 3d2e5693c, findings None), and ends. The coordinator runs integration.mjs gate and merges through integration.mjs merge; once the merge is on origin/main, #1965 becomes eligible and is dispatched with the switch, internal-repository and #1964 thread decisions in its brief.\n- Ordinary review-pr readiness decides the PR; this decision grants nothing beyond it.\n\n<!-- orchestrate-feature-checkpoint\n{\n \"version\": 1,\n \"id\": \"038210f9\",\n \"kind\": \"finish\",\n \"feature\": 1961,\n \"ticket\": 1964,\n \"pr\": 2040,\n \"coordinator\": \"local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c\",\n \"runId\": \"37345485-2e20-44e9-94c4-c206021fa2f4\",\n \"time\": \"2026-10-17T04:57:15.885Z\",\n \"round\": 3,\n \"limitBefore\": 3,\n \"reviewedHead\": \"3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb\",\n \"head\": \"3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb\",\n \"range\": {\n  \"from\": \"3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb\",\n  \"to\": \"3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb\",\n  \"base\": \"e5b8aa876e5757949709ac031ce5376352c35135\",\n  \"commits\": [],\n  \"diffSha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"\n },\n \"reports\": [\n  {\n   \"comment\": 6229095635,\n   \"round\": 1,\n   \"reviewerId\": \"callers\",\n   \"adjudication\": 6229148644\n  },\n  {\n   \"comment\": 6229324730,\n   \"round\": 1,\n   \"reviewerId\": \"undirected\",\n   \"adjudication\": 6229391326\n  },\n  {\n   \"comment\": 6229609639,\n   \"round\": 2,\n   \"reviewerId\": \"undirected-2\",\n   \"adjudication\": 6229658479\n  },\n  {\n   \"comment\": 6229763842,\n   \"round\": 3,\n   \"reviewerId\": \"undirected-3\",\n   \"adjudication\": 6229777646\n  }\n ],\n \"checks\": [\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"linked-issue\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"${{ matrix.package }}${{ (((matrix.shards > 1) && format(' ({0}/{1})', matrix.shard, matrix.shards)) || '') }}\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-changes / detect\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"tsc\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"Luau corpus gate\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"notifier-tests\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"typecheck\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"skills-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (ubuntu-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"test-suite\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"driver-checks (windows-latest)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (ubuntu-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 2.1.9)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"vitest-api-integration (windows-latest, 3.2.6)\",\n   \"result\": \"passed\"\n  },\n  {\n   \"name\": \"hook-tests\",\n   \"result\": \"passed\"\n  }\n ],\n \"due\": true,\n \"blockers\": [],\n \"audit\": [],\n \"assessment\": {\n  \"mechanisms\": \"Four accepted findings in three rounds, all in one mechanism: how record-report accepts the read-back of a report a coordinator posts on a reviewer's behalf. Round 1 callers: the read-back was taken as a bare body with no check of where the comment lives, so with the switch on a comment on the public pull request completed a journal whose thread is the internal ticket; fixed by taking the REST comment object and checking its id and issue_url against the coordinator row's recorded thread. Round 1 undirected: that correction refused UTF-16 read-backs (what Windows PowerShell 5.1's redirect writes) and refused legacy journals written by the base launcher, which record no thread; fixed by decoding UTF-8 with or without a BOM and UTF-16, and by accepting a legacy journal's comment on a code-repository issue while the switch is off and refusing it once on. Round 2: the documented capture recipe (gh api redirected to a file) still corrupted non-ASCII text because PowerShell 5.1 decodes native output through the console code page; fixed by a read-back command in agent-handoff that runs gh and writes its bytes unchanged from the journal's thread repository, replacing the recipe with a mechanism. Round 3 reviewed that final mechanism on 3d2e5693c, probing UTF-8, BOM, UTF-16LE and UTF-16BE, wrong-id, public-PR and other-ticket refusals, legacy journals in both positions and a real gh read that kept an em dash, and found nothing. The reviewed head is the current head, with no unreviewed range.\",\n  \"regressions\": \"Corrections introduced defects twice, each caught by the next reviewer: the JSON read-back of 052563c03 caused the encoding failure and the legacy-journal regression, and b171b2a09 fixed the decoding but kept a capture recipe that still corrupted text. 3d2e5693c replaced the recipe with the read-back command, and round 3 found no further defect. Every production change has been read by a later round.\",\n  \"repairOptions\": \"The read-back command is the broader repair: it removes the need for any capture recipe. Having record-report fetch the comment itself would be simpler still, but the cloud reviewer route has no gh login, so a cloud coordinator writes its integration's comment object by hand; the writer implemented and reverted that once. That is also the one deviation from the ticket's wording, which asked record-report to read the comment by id from the internal repository: the by-id read is done by the read-back command from the journal's thread repository, and record-report checks the read-back's id and thread. The deviation keeps the cloud route working and is accepted.\",\n  \"residualRisk\": \"By design and disclosed: the cloud coordinator's hand-written read-back path is unit-tested only; the live on-position run covered reviewer-posted reports, the PR report, round state, adjudication and the umbrella case but not a coordinator-posted report; orchestrate-feature's own report reads in review-checkpoint.mjs and integration.mjs still read the code repository with the switch on, which is #1965's scope; the public pull request template stays as it is until #1967 moves the staged one, as decided. One Windows api-integration job failed once on an intermediate head in a file this PR does not touch and passed on the final head and every other head. Switch-off behaviour was the explicit lens of round 1's callers reviewer and every pre-existing assertion.\",\n  \"coverage\": \"On 3d2e5693c: node -\\u002dtest over the ten changed test files passes; the new cases cover a body-only read-back, a comment on another issue, a read-back of the wrong comment id, a coordinator row without a thread, UTF-8 with and without a BOM, UTF-16LE and UTF-16BE, a real powershell.exe redirect, the read-back command driven through a native stand-in that prints UTF-8 bytes, legacy journals in both positions, and the reviewThread resolver's refusals; each correction's tests fail against the head they correct in scratch runs. Live acceptance from a scratch clone with only repos.json flipped on: throwaway internal Task 24 with draft PR #2037 (title ending (I-24), one-paragraph body plus the internal closing line, PR report, round state, reviewer report with its token line and adjudication on the ticket, zero comments on the PR), and the umbrella case with Tasks 25 and 26 under umbrella 27 and PR #2039 (PR report on the umbrella, zero comments on the PR and the sub-issues); the PRs were closed with branches deleted and the internal tickets deleted. CI on 3d2e5693c: every check passed except the Windows driver check, which was pending at the writer's report; the evidence block records the state at decision time. Out-of-scope Bug #2048 (deep-path failure in reviewer-execution.test.mjs, reproduces on main) and feedback report F-5746300802 were filed.\",\n  \"nextRoundValue\": \"Little: round 3 already probed the final read-back mechanism end to end, including a real gh read, and found nothing; the current head is the reviewed head; the remaining gaps are either cutover checks or #1965's scope.\",\n  \"rationale\": \"The review gates pass: three complete rounds, every report adjudicated, all four findings accepted and fixed, round 3 clean on the current head, no unreviewed range, and no failed check on the head. Nothing beyond ordinary review-pr readiness is needed, so the decision is finish: the writer marks PR #2040 ready through review-pr's readiness and sends its final report, and the coordinator merges only through the merge gate. The record-report deviation is accepted for the cloud-route reason. A separate tooling defect surfaced while deciding: the checkpoint evidence scan treated a reviewer's test-fixture journals left under its scratch directory as review journals; the writer removed that scratch and a Task is filed for the scan.\",\n  \"next\": \"The writer marks PR #2040 ready under review-pr's readiness, records its final report with the coordinator (reviewedHead 3d2e5693c, findings None), and ends. The coordinator runs integration.mjs gate and merges through integration.mjs merge; once the merge is on origin/main, #1965 becomes eligible and is dispatched with the switch, internal-repository and #1964 thread decisions in its brief.\",\n  \"agreedBehavior\": \"preserved\",\n  \"architecture\": \"unchanged\",\n  \"findings\": [\n   {\n    \"comment\": 6229095635,\n    \"finding\": \"coordinator-posted reports bypass the internal-thread refusal in record-report\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229324730,\n    \"finding\": \"the documented Windows read-back cannot complete recovery (UTF-16 refused)\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229324730,\n    \"finding\": \"existing legacy journals lose their recovery path while the switch is off\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229609639,\n    \"finding\": \"the documented PowerShell recovery still corrupts Unicode reports through the console code page\",\n    \"disposition\": \"accepted\"\n   },\n   {\n    \"comment\": 6229763842,\n    \"disposition\": \"none\"\n   }\n  ]\n }\n}\n-->",
+          "bodySha256": "ede468b26b4152baea1a80205a108b491796a091278a6bbe48dc408d813230a5",
+          "blockSha256": "6b48181ffcefea2f1d15b426dba8f6e163366e9c0ce30cf8de91a61841967d33",
+          "published": {
+            "comment": 6229886555,
+            "time": "2026-10-17T04:57:19.352Z",
+            "headAtPublish": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb"
+          }
         }
       ]
     },
@@ -2799,6 +3004,16 @@
       "time": "2026-10-17T02:10:45.929Z"
     },
     {
+      "pr": 2040,
+      "url": "https://github.com/ImpowerGames/impower/pull/2040#issuecomment-6229886555",
+      "kind": "review-checkpoint finish",
+      "ticket": 1964,
+      "id": "038210f9",
+      "round": 3,
+      "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
+      "time": "2026-10-17T04:57:19.352Z"
+    },
+    {
       "pr": 2015,
       "url": "https://github.com/ImpowerGames/impower/pull/2015#issuecomment-6228245433",
       "kind": "review-checkpoint repair",
@@ -2837,7 +3052,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1964-pr-activity-to-ticket",
       "branch": "feat/1964-pr-activity-to-ticket",
-      "observedAt": "2026-10-17T04:56:09.695Z",
+      "observedAt": "2026-10-17T04:57:21.274Z",
       "held": true,
       "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
       "remoteHead": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb",
@@ -2994,7 +3209,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T04:56:09.695Z",
+      "observedAt": "2026-10-17T04:57:21.274Z",
       "held": true,
       "head": "37679545e0bd4ca659889ac440d02ac24c0eb469",
       "remoteHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
@@ -3975,6 +4190,30 @@
         "host": "DESKTOP-726EO47",
         "launchDir": "C:\\Users\\Brode\\AppData\\Local\\Temp\\claude\\orchestrate-1961\\resume-1964-235ae39d-a8e6-46b5-9ad6-d42946cee047"
       }
+    },
+    {
+      "time": "2026-10-17T04:57:15.885Z",
+      "event": "checkpoint-intent",
+      "ticket": 1964,
+      "id": "038210f9",
+      "kind": "finish",
+      "round": 3,
+      "head": "3d2e5693cefb8ebfcf4a9396213a4e6feb9729cb"
+    },
+    {
+      "time": "2026-10-17T04:57:19.352Z",
+      "event": "checkpoint-published",
+      "ticket": 1964,
+      "id": "038210f9",
+      "comment": 6229886555
+    },
+    {
+      "time": "2026-10-17T04:57:19.909Z",
+      "event": "answer-intent",
+      "ticket": 1964,
+      "id": "26ae8dd3",
+      "deliveryId": "96b93752",
+      "attempt": 1
     }
   ]
 }
