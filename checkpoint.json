@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 187,
-  "previous": "6fb7f9bc88d62424011bb43f96d85ed9bc778d61",
+  "seq": 188,
+  "previous": "045e55ec1132a2fb3cb0086bdfac8188df15fcc9",
   "snapshotParents": [],
-  "time": "2026-10-17T09:24:39.625Z",
+  "time": "2026-10-17T09:54:01.033Z",
   "kind": "auto",
-  "transition": "checked-in",
+  "transition": "a new plan",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
     "recordRevision": 171,
@@ -4889,18 +4889,42 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover",
       "branch": "feat/1967-archive-scrub-cutover",
-      "observedAt": "2026-10-17T09:24:38.815Z",
+      "observedAt": "2026-10-17T09:54:00.252Z",
       "held": true,
-      "head": "37df96b0a24e147ce72260ce4a07403f341961e9",
-      "remoteHead": null,
-      "unpushed": true,
-      "dirty": true
+      "head": "109a8b7d86747977dce34b4ce895f04d81417b1e",
+      "remoteHead": "109a8b7d86747977dce34b4ce895f04d81417b1e",
+      "unpushed": false,
+      "dirty": false,
+      "handoffLock": {
+        "host": "DESKTOP-726EO47",
+        "pid": 30668
+      },
+      "pr": 2057,
+      "reviewJobs": [
+        {
+          "job": "pr-2057/round-1/launch-data-1",
+          "lastEvent": "identified",
+          "attempted": {
+            "round": 1,
+            "step": "review-data",
+            "reviewerId": "data",
+            "attempt": 1,
+            "plannedReviewers": [
+              "data",
+              "undirected"
+            ],
+            "head": "109a8b7d86747977dce34b4ce895f04d81417b1e",
+            "completedRoundReviewers": null,
+            "time": "2026-10-17T09:40:51.785Z"
+          }
+        }
+      ]
     }
   },
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T09:24:17.642Z",
+    "at": "2026-10-17T09:54:00.251Z",
     "tickets": [
       {
         "number": 1962,
@@ -4935,7 +4959,7 @@
       {
         "number": 1967,
         "action": "observe",
-        "pr": null,
+        "pr": 2057,
         "reason": "process 60408 started 639278246982933363 is running"
       }
     ],

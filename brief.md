@@ -1,6 +1,6 @@
 # Takeover brief for Feature #1961
 
-Checkpoint 187 (this commit), 2026-10-17T09:24:39.625Z, after checked-in. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
+Checkpoint 188 (this commit), 2026-10-17T09:54:01.033Z, after a new plan. Coordinator local_bf62b311-1fa1-4cfd-8ce2-974226c01d3c on DESKTOP-726EO47.
 
 Resume with checkpoint.mjs resume in a new session; it takes over only by pushing a takeover checkpoint on top of this one. Then snapshot GitHub and plan: GitHub is the authority for issues, PR heads, review rounds and CI, and nothing below replaces that reading.
 
@@ -12,4 +12,5 @@ Resume with checkpoint.mjs resume in a new session; it takes over only by pushin
 ## #1967
 
 - claude-cli claude-opus-5-5 at high, process 60408 on DESKTOP-726EO47
-- as of 2026-10-17T09:24:38.815Z, DESKTOP-726EO47 held unfinished files and unpushed commits in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover that may exist only there; recover those bytes there before restarting or overwriting this work
+- a handoff lock (host DESKTOP-726EO47) remains in C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover; on DESKTOP-726EO47, node scripts/agent-handoff.mjs recover-lock C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1967-archive-scrub-cutover removes it once its coordinator and child are confirmed gone
+- review job pr-2057/round-1/launch-data-1 on DESKTOP-726EO47: no completed review; last launched reviewer data attempt 1 of round 1 (planned ["data","undirected"]), last event identified
