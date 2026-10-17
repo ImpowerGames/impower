@@ -2,12 +2,12 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1904,
-  "seq": 255,
-  "previous": "f9931c38c9eebc2eead40e4c2dae930fabd6a1a5",
+  "seq": 256,
+  "previous": "ac5d96270162900fcd3b1069fe767282cddfbe34",
   "snapshotParents": [],
-  "time": "2026-10-17T23:02:50.919Z",
+  "time": "2026-10-17T23:03:13.940Z",
   "kind": "auto",
-  "transition": "the merge of PR #2062 (confirmed)",
+  "transition": "a new plan",
   "run": {
     "runId": "86c3d825-f1e5-4c6e-9677-927ec0bb77d7",
     "recordRevision": 264,
@@ -8881,7 +8881,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/fix/1907-story-body-line-rule",
       "branch": "fix/1907-story-body-line-rule",
-      "observedAt": "2026-10-17T23:02:50.240Z",
+      "observedAt": "2026-10-17T23:03:13.245Z",
       "held": true,
       "head": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
       "remoteHead": "08f9ad28f53ff87e753c9c410c7c5a39585d2df0",
@@ -9253,7 +9253,7 @@
   "snapshots": {},
   "handoff": null,
   "observed": {
-    "at": "2026-10-17T23:01:04.778Z",
+    "at": "2026-10-17T23:03:13.244Z",
     "tickets": [
       {
         "number": 1374,
@@ -9275,9 +9275,9 @@
       },
       {
         "number": 1907,
-        "action": "merge-gate",
-        "pr": 2062,
-        "reason": "PR #2062 is ready at 08f9ad28f53ff87e753c9c410c7c5a39585d2df0; process 27532 is gone and no process names its launch directory; run integration.mjs gate, and merge only when it admits that head"
+        "action": "release",
+        "pr": null,
+        "reason": "closed with its merged deliverable on origin/main; its writer ended (process 27532 is gone and no process names its launch directory): read its transcript, then record release with that evidence"
       },
       {
         "number": 1908,
