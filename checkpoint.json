@@ -2,15 +2,15 @@
   "version": 1,
   "repository": "ImpowerGames/impower",
   "feature": 1961,
-  "seq": 146,
-  "previous": "4c9c85542fd828b56aa26d8cd42041874e96e3d9",
+  "seq": 147,
+  "previous": "497facdfe78a5f56d1e0dba7db16a08c874518e0",
   "snapshotParents": [],
-  "time": "2026-10-17T06:21:10.417Z",
+  "time": "2026-10-17T06:21:33.833Z",
   "kind": "auto",
-  "transition": "a new plan",
+  "transition": "result of #1966",
   "run": {
     "runId": "37345485-2e20-44e9-94c4-c206021fa2f4",
-    "recordRevision": 134,
+    "recordRevision": 135,
     "source": {
       "host": "DESKTOP-726EO47",
       "checkout": "C:/Users/Brode/Documents/GitHub/impower"
@@ -1934,7 +1934,24 @@
       },
       "pending": null,
       "history": [],
-      "results": [],
+      "results": [
+        {
+          "time": "2026-10-17T06:21:31.088Z",
+          "report": {
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "permissionMode": "bypassPermissions",
+            "pr": 2015,
+            "reviewedHead": "37679545e0bd4ca659889ac440d02ac24c0eb469",
+            "rounds": "6 rounds, 7 reviewer runs, all gpt-6.1-sol at xhigh (Codex, repository reviewer defaults): round 1 data-preservation lens + undirected, rounds 2 to 6 one undirected each; reports 6227196134, 6227553709, 6227709560, 6228050094, 6228781538, 6229629736, 6230340451 with adjudications 6227312221, 6227601809, 6227915204, 6228198583, 6228968774, 6229732709, 6230418865; 29 blocking findings, all accepted and fixed",
+            "findings": "None",
+            "verification": "node --test scripts/migrate-tracker.test.mjs passes 51 cases; each round's new tests failed on the head they corrected; the Markdown reading was checked against GitHub's real renderer for every review input; the gate refused none of the 1,860 live texts with a possible reference; nine real rehearsals, the last on 0ce68b477, each ending with verify passed and all test issues deleted from both repositories; dry-run snapshot 1,266 to migrate and 35 kept, reconciled exactly to the parent's 1,231 at 2026-10-16 17:00Z. Change after the reviewed commit: 0ce68b477 (gate excludes already-linked pull requests via a render of the original, verify publishes its reports when renders fail, rehearsal writes left-as-transferred.json), accepted unreviewed by coordinator decision afa4eb6f (comment 6230585096); merged through the gate as 68a6335fb. Cutover numbers at default pacing (4,500 requests/hour, writes 60/minute and 450/hour) from the 2026-10-17 live data: transfer about 3,380 writes and 2,120 reads, at least 7.5 h; restore up to about 1.5 h; rewrite about 5,600 gate renders (about 1.2 h) then about 1,720 edits (about 3.8 h); verify about 3,700 renders (about 0.8 h); about 9,300 renders and 5,100 writes in all, so the window needs at least 11 to 13 hours unless --writes-per-hour is raised; restore and rewrite each wait 120 s after the last transfer. Internal issue numbers 1-36 are used (24-27 by another session); the migration starts at 37 or later; rehearsal 1 created label 'workflow: tickets' and milestone 'Folio redesign' on impower-internal. First command for #1967: node scripts/migrate-tracker.mjs --snapshot <private attempt dir outside any Git work tree>/migration --dry-run, then without --dry-run, then --transfer, --restore, --rewrite, --map, --verify each with --dry-run first; texts to read by hand are listed in rewrite's and verify's output and left-as-transferred.json, and verify fails until they are handled.",
+            "ci": "Every check passed on 0ce68b477, the merged head.",
+            "next": "done",
+            "source": "cross-session message from writer session impower-27 (CLI session 58c4e7e1, resumed) received 2026-10-17 ~09:05Z"
+          }
+        }
+      ],
       "requests": [
         {
           "id": "b7a659e5",
@@ -4184,7 +4201,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1965-orchestrate-two-repositories",
       "branch": "feat/1965-orchestrate-two-repositories",
-      "observedAt": "2026-10-17T06:21:09.273Z",
+      "observedAt": "2026-10-17T06:21:32.582Z",
       "held": true,
       "head": "4f7728208b1ca39dd36cdfa03c1002bb0787c93f",
       "remoteHead": "4f7728208b1ca39dd36cdfa03c1002bb0787c93f",
@@ -4198,7 +4215,7 @@
       "host": "DESKTOP-726EO47",
       "worktree": "C:/Users/Brode/Documents/GitHub/impower.worktrees/feat/1966-tracker-migration-tool",
       "branch": "feat/1966-tracker-migration-tool",
-      "observedAt": "2026-10-17T06:21:09.273Z",
+      "observedAt": "2026-10-17T06:21:32.582Z",
       "held": true,
       "head": "0ce68b477e72852e265ea00656ce216e181137e7",
       "remoteHead": "0ce68b477e72852e265ea00656ce216e181137e7",
@@ -4503,13 +4520,6 @@
     ]
   },
   "log": [
-    {
-      "time": "2026-10-16T22:57:27.221Z",
-      "event": "answered",
-      "ticket": 1962,
-      "id": "c6158772",
-      "deliveryId": "67f7be76"
-    },
     {
       "time": "2026-10-16T22:59:09.787Z",
       "event": "result",
@@ -5255,6 +5265,13 @@
       "ticket": 1966,
       "id": "40aebb3a",
       "deliveryId": "acf4ff5f"
+    },
+    {
+      "time": "2026-10-17T06:21:31.089Z",
+      "event": "result",
+      "ticket": 1966,
+      "pr": 2015,
+      "reviewedHead": "37679545e0bd4ca659889ac440d02ac24c0eb469"
     }
   ]
 }
